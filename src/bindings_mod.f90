@@ -100,6 +100,7 @@ module bindings_mod
     use jit_lock_mod, only: init_jit_lock
     use dired_mode_mod, only: init_dired_mode, dired_mode_map
     use view_mod, only: init_view
+    use follow_mod, only: init_follow
     use process_mod, only: init_process, begin_asynch_code, end_asynch_code
     use compile_mod, only: init_compile, compilation_mode_map
     use grep_mod, only: init_grep
@@ -757,6 +758,7 @@ contains
         call init_vc_svn()
         call init_vc_git()
         call init_view()
+        call init_follow()
         call init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map)
         ! Mail: mail-utils.el, sendmail.el, mailabbrev.el and simple.el's
         ! compose-mail, with their keys from bindings.el.

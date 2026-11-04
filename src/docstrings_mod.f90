@@ -269,12 +269,19 @@ module docstrings_mod
                         fill_nobreak_functions, fill_paragraph_function, fill_paragraph_handle_comment, &
                         fill_separate_heterogeneous_words_with_space
     use fns_mod, only: use_short_answers, yes_or_no_prompt
+    use follow_mod, only: follow_debug, follow_fixed_window, follow_hide_ghost_cursors, &
+                          follow_inside_post_command_hook_call, follow_internal_force_redisplay, follow_mode_hook, &
+                          follow_mode_line_text, follow_mode_map, follow_mode_prefix_key, follow_mode_submap
     use font_core_mod, only: font_lock_defaults, font_lock_global_modes, font_lock_mode_hook, &
                              global_font_lock_mode_hook
     use font_lock_mod, only: font_lock_comment_end_skip, font_lock_comment_start_skip, &
                              font_lock_dont_widen, font_lock_extra_managed_props, font_lock_maximum_decoration, &
                              FONT_LOCK_MAXIMUM_DECORATION_MAX, font_lock_support_mode, FONT_LOCK_SUPPORT_MODE_NONE, &
                              FONT_LOCK_SUPPORT_MODE_JIT_LOCK, font_lock_syntactic_face_function, font_lock_verbose
+    use frame_mod, only: window_divider_default_bottom_width, window_divider_default_places, &
+                         WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY, WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY, &
+                         WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT, window_divider_default_right_width, &
+                         window_divider_mode_hook
     use grep_mod, only: find_name_arg, find_program, grep_command, grep_command_position, &
                         grep_compilation_transform_finished_rules, grep_context_face, grep_edit_mode_hook, &
                         grep_edit_mode_map, grep_error, grep_error_face, grep_error_screen_columns, &
@@ -668,13 +675,13 @@ module docstrings_mod
                           split_height_threshold, split_width_threshold, split_window_preferred_direction, &
                           SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST, SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL, &
                           SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL, window_configuration_change_hook, &
-                          window_min_height, window_min_width, window_sides_reversed, WINDOW_SIDES_REVERSED_NO, &
-                          WINDOW_SIDES_REVERSED_YES, WINDOW_SIDES_REVERSED_BIDI, window_sides_slots, &
-                          window_sides_vertical
+                          window_min_height, window_min_width, window_scroll_functions, window_sides_reversed, &
+                          WINDOW_SIDES_REVERSED_NO, WINDOW_SIDES_REVERSED_YES, WINDOW_SIDES_REVERSED_BIDI, &
+                          window_sides_slots, window_sides_vertical
     use winner_mod, only: winner_boring_buffers, winner_boring_buffers_regexp, &
                           winner_dont_bind_my_keys, winner_mode_hook, winner_mode_map, winner_repeat_map, &
                           winner_ring_size
-    use xdisp_mod, only: fontification_functions, message_log_max, tab_width, &
+    use xdisp_mod, only: fontification_functions, message_log_max, pre_redisplay_function, tab_width, &
                          truncate_partial_width_windows
     implicit none(type, external)
     private
@@ -711,7 +718,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1702) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1722) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -899,7 +906,10 @@ module docstrings_mod
                                                                "find_change_log_entry_file", "find_file", "find_file_other_frame", &
                                                "find_file_other_window", "find_file_read_only", "find_file_read_only_other_frame", &
                                                "find_file_read_only_other_window", "find_grep", "first_error", "fixup_whitespace", &
-                                           "flush_lines", "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
+                                                   "flush_lines", "follow_delete_other_windows_and_split", "follow_end_of_buffer", &
+                                            "follow_first_window", "follow_last_window", "follow_mode", "follow_switch_to_buffer", &
+                                                             "follow_switch_to_buffer_all", "follow_switch_to_current_buffer_all", &
+                                                          "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
                                                       "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
                                          "font_lock_fontify_buffer", "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
                                                 "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
@@ -1074,19 +1084,20 @@ module docstrings_mod
                                                       "move_to_tab_stop", "move_to_window_line", "move_to_window_line_top_bottom", &
                                            "multi_occur", "multi_occur_in_matching_buffers", "narrow_to_page", "narrow_to_region", &
                                                      "narrow_to_subprogram", "negative_argument", "newline", "newline_and_indent", &
-                                         "next_buffer", "next_error", "next_error_no_select", "next_history_element", "next_line", &
-                                            "next_line_or_history_element", "normal_mode", "num_processors", "number_to_register", &
-                                                  "occur", "occur_cease_edit", "occur_edit_mode", "occur_in_region", "occur_mode", &
-                                                                    "occur_mode_display_occurrence", "occur_mode_goto_occurrence", &
-                                                 "occur_mode_goto_occurrence_other_window", "occur_mode_mouse_goto", "occur_next", &
-                                          "occur_prev", "occur_rename_buffer", "open_dribble_file", "open_line", "open_rectangle", &
-                                                             "optimize_char_table", "other_buffer", "other_frame", "other_window", &
-                                              "other_window_backward", "parse_partial_expression", "paste", "paste_mail_original", &
-                                                   "paste_mail_region", "paste_previous", "paste_rectangle", "point", "point_max", &
-                                                      "point_min", "point_to_register", "pop_to_mark_command", "posix_looking_at", &
-                                                            "posix_search_backward", "posix_search_forward", "posix_string_match", &
-                                            "prefer_coding_system", "prepend_auto_mode", "prepend_to_register", "previous_buffer", &
-                                                         "previous_error", "previous_error_no_select", "previous_history_element", &
+                                                        "next_buffer", "next_error", "next_error_no_select", "next_follow_window", &
+                                               "next_history_element", "next_line", "next_line_or_history_element", "normal_mode", &
+                                           "num_processors", "number_to_register", "occur", "occur_cease_edit", "occur_edit_mode", &
+                                                                 "occur_in_region", "occur_mode", "occur_mode_display_occurrence", &
+                                                          "occur_mode_goto_occurrence", "occur_mode_goto_occurrence_other_window", &
+                                                       "occur_mode_mouse_goto", "occur_next", "occur_prev", "occur_rename_buffer", &
+                                                        "open_dribble_file", "open_line", "open_rectangle", "optimize_char_table", &
+                                                           "other_buffer", "other_frame", "other_window", "other_window_backward", &
+                                                  "parse_partial_expression", "paste", "paste_mail_original", "paste_mail_region", &
+                                                           "paste_previous", "paste_rectangle", "point", "point_max", "point_min", &
+                                          "point_to_register", "pop_to_mark_command", "posix_looking_at", "posix_search_backward", &
+                                                             "posix_search_forward", "posix_string_match", "prefer_coding_system", &
+                                                  "prepend_auto_mode", "prepend_to_register", "previous_buffer", "previous_error", &
+                                                 "previous_error_no_select", "previous_follow_window", "previous_history_element", &
                                                             "previous_line", "previous_line_or_history_element", "process_buffer", &
                                                   "process_coding_system", "process_command", "process_exit_status", "process_id", &
                                                "process_list", "process_mark", "process_menu_delete_process", "process_menu_mode", &
@@ -1112,15 +1123,15 @@ module docstrings_mod
                                              "read_number", "read_only_mode", "read_passwd_mode", "read_passwd_toggle_visibility", &
                                                        "read_shell_command", "read_string", "read_y_or_n", "read_y_or_n_insert_n", &
                                                      "read_y_or_n_insert_other", "read_y_or_n_insert_y", "read_yes_or_no", "real", &
-                                          "rebuild_mail_abbrevs", "recenter", "recenter_top_bottom", "recentf", "recentf_cleanup", &
-                                                 "recentf_keep_default_test", "recentf_load_list", "recentf_mode", "recentf_open", &
-                                                                "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
+                                          "rebuild_mail_abbrevs", "recenter", "recenter_follow", "recenter_top_bottom", "recentf", &
+                                              "recentf_cleanup", "recentf_keep_default_test", "recentf_load_list", "recentf_mode", &
+                                                "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
                                            "rectangle_backward_char", "rectangle_dimensions", "rectangle_exchange_point_and_mark", &
                                                            "rectangle_forward_char", "rectangle_left_char", "rectangle_mark_mode", &
                                              "rectangle_next_line", "rectangle_number_lines", "rectangle_position_as_coordinates", &
                                            "rectangle_previous_line", "rectangle_right_char", "recursion_depth", "recursive_edit", &
-                                                       "redo_window_change", "redraw_display", "regexp_quote", "region_beginning", &
-                                                                    "region_bounds", "region_end", "register_read_with_preview", &
+                                                          "redo_window_change", "redraw_display", "redraw_follow", "regexp_quote", &
+                                                  "region_beginning", "region_bounds", "region_end", "register_read_with_preview", &
                                                "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
                                                 "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
                                                 "reset_language_environment", "revert_buffer", "revert_buffer_with_coding_system", &
@@ -1128,11 +1139,12 @@ module docstrings_mod
                                                                "save_buffers_exit_terminal", "save_place_forget_unreadable_files", &
                                                  "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
                                          "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
-                                              "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                                         "scss_mode", "search_backward", "search_forward", "select_frame_by_name", &
-                                               "select_window", "select_window_down", "select_window_left", "select_window_right", &
-                                                        "select_window_up", "selected_window", "self_insert_command", "send_mail", &
-                                                              "send_mail_and_exit", "sentence_end", "set_auto_mode", "set_buffer", &
+                                                            "scroll_follow_down", "scroll_follow_down_window", "scroll_follow_up", &
+                                                     "scroll_follow_up_window", "scroll_other_window", "scroll_other_window_down", &
+                                               "scroll_up", "scroll_up_command", "scss_mode", "search_backward", "search_forward", &
+                                              "select_frame_by_name", "select_window", "select_window_down", "select_window_left", &
+                                              "select_window_right", "select_window_up", "selected_window", "self_insert_command", &
+                                                 "send_mail", "send_mail_and_exit", "sentence_end", "set_auto_mode", "set_buffer", &
                                             "set_buffer_file_coding_system", "set_buffer_process_coding_system", "set_case_table", &
                                                        "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
                                                      "set_char_table_range", "set_charset_priority", "set_coding_system_priority", &
@@ -1180,17 +1192,18 @@ module docstrings_mod
                                             "time_equal_p", "time_subtract", "time_zone_rule", "toggle_input_method", "top_level", &
                                               "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
                                               "transpose_regions", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
-                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
-                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                                          "undo", "undo_boundary", "undo_only", "undo_redo", "undo_window_change", &
-                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
-                                                                    "universal_argument_minus", "universal_argument_more", &
-                                                 "universal_coding_system_argument", "unix_sync", "unquote_mail_printable_region", &
-                                               "up_group", "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", &
-                                         "upcase_word", "vc_clear_context", "vc_create_branch", "vc_create_repo", "vc_create_tag", &
-                                               "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", "vc_dir_display_file", &
-                                                    "vc_dir_find_file", "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", &
-                                                 "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
+                                                          "turn_off_follow_mode", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
+                                                      "turn_on_auto_revert_tail_mode", "turn_on_follow_mode", "turn_on_font_lock", &
+                                         "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
+                                            "undo_only", "undo_redo", "undo_window_change", "unexpand_abbrev", "unfill_paragraph", &
+                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
+                                                       "universal_argument_more", "universal_coding_system_argument", "unix_sync", &
+                                                         "unquote_mail_printable_region", "up_group", "upcase", "upcase_initials", &
+                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
+                                               "vc_create_branch", "vc_create_repo", "vc_create_tag", "vc_delete_file", "vc_diff", &
+                                                        "vc_dir", "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
+                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
+                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
                                                   "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
                                                          "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
                                                     "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
@@ -1218,11 +1231,11 @@ module docstrings_mod
                                                                     "where_is", "widen", "windmove_default_keybindings", &
                                                             "windmove_delete_default_keybindings", "windmove_delete_in_direction", &
                                                        "windmove_do_window_select", "windmove_find_other_window", "windmove_mode", &
-                                                         "window_configuration_to_register", "window_in_direction", "winner_mode", &
-                                                                    "write_abbrev_file", "write_file", "zrgrep"]
+                                                          "window_configuration_to_register", "window_divider_mode", "window_end", &
+                                                  "window_in_direction", "winner_mode", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1525) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1541) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1435,9 +1448,12 @@ module docstrings_mod
                                              "fill_nobreak_functions", "fill_paragraph_function", "fill_paragraph_handle_comment", &
                                                                     "fill_prefix", "fill_separate_heterogeneous_words_with_space", &
                                              "find_directory_functions", "find_file_hook", "find_file_run_dired", "find_name_arg", &
-                                                                "find_program", "first_change_hook", "font_lock_comment_end_skip", &
-                                                     "font_lock_comment_start_skip", "font_lock_defaults", "font_lock_dont_widen", &
-                                                                    "font_lock_extra_managed_props", "font_lock_global_modes", &
+                                                       "find_program", "first_change_hook", "follow_debug", "follow_fixed_window", &
+                                                              "follow_hide_ghost_cursors", "follow_inside_post_command_hook_call", &
+                                                   "follow_internal_force_redisplay", "follow_mode_hook", "follow_mode_line_text", &
+                                                                "follow_mode_map", "follow_mode_prefix_key", "follow_mode_submap", &
+                                               "font_lock_comment_end_skip", "font_lock_comment_start_skip", "font_lock_defaults", &
+                                                "font_lock_dont_widen", "font_lock_extra_managed_props", "font_lock_global_modes", &
                                                   "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
                                               "font_lock_syntactic_face_function", "font_lock_verbose", "fontification_functions", &
                                             "forward_expression_function", "fundamental_mode_abbrev_table", "global_abbrev_table", &
@@ -1599,10 +1615,10 @@ module docstrings_mod
                                              "pcomplete_recexact", "pcomplete_remote_file_ignore", "pcomplete_termination_string", &
                                                        "pcomplete_try_first_hook", "pcomplete_use_paring", "pending_undo_entries", &
                                                "pop_up_windows", "post_command_hook", "post_self_insert_hook", "pre_command_hook", &
-                                                                  "prefix_command_preserve_state_hook", "process_connection_type", &
-                                          "prog_indentation_context", "prog_mode_abbrev_table", "prog_mode_hook", "prog_mode_map", &
-                                                              "python_2_support", "python_base_mode_hook", "python_base_mode_map", &
-                                                                    "python_dotty_syntax_table", "python_fill_comment_function", &
+                                                                   "pre_redisplay_function", "prefix_command_preserve_state_hook", &
+                                                  "process_connection_type", "prog_indentation_context", "prog_mode_abbrev_table", &
+                                                   "prog_mode_hook", "prog_mode_map", "python_2_support", "python_base_mode_hook", &
+                                              "python_base_mode_map", "python_dotty_syntax_table", "python_fill_comment_function", &
                                                                   "python_fill_decorator_function", "python_fill_docstring_style", &
                                                                     "python_fill_paren_function", "python_fill_string_function", &
                                                          "python_font_lock_keywords_level_1", "python_font_lock_keywords_level_2", &
@@ -1743,12 +1759,14 @@ module docstrings_mod
                                                                    "view_scroll_auto_exit", "visible_bell", "widen_automatically", &
                                                                     "windmove_allow_all_windows", "windmove_create_window", &
                                                      "windmove_create_window_function", "windmove_mode_hook", "windmove_mode_map", &
-                                                  "windmove_wrap_around", "window_configuration_change_hook", "window_min_height", &
-                                                                "window_min_width", "window_sides_reversed", "window_sides_slots", &
-                                                 "window_sides_vertical", "winner_boring_buffers", "winner_boring_buffers_regexp", &
-                                           "winner_dont_bind_my_keys", "winner_mode_hook", "winner_mode_map", "winner_repeat_map", &
-                                             "winner_ring_size", "words_include_escapes", "write_file_functions", "xargs_program", &
-                                                                    "yes_or_no_prompt"]
+                                                                    "windmove_wrap_around", "window_configuration_change_hook", &
+                                                           "window_divider_default_bottom_width", "window_divider_default_places", &
+                                            "window_divider_default_right_width", "window_divider_mode_hook", "window_min_height", &
+                                                           "window_min_width", "window_scroll_functions", "window_sides_reversed", &
+                                                           "window_sides_slots", "window_sides_vertical", "winner_boring_buffers", &
+                                                   "winner_boring_buffers_regexp", "winner_dont_bind_my_keys", "winner_mode_hook", &
+                                              "winner_mode_map", "winner_repeat_map", "winner_ring_size", "words_include_escapes", &
+                                                                    "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
     character(len=48), parameter, public :: user_option_names(673) = [character(len=48) :: &
@@ -8140,6 +8158,107 @@ contains
                                  "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "The command: read the regexp, then `flush_lines' (interactively)."
+        case ("follow_delete_other_windows_and_split")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call follow_delete_other_windows_and_split(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Create two side by side windows and enter Follow mode."//LF// &
+                        ""//LF// &
+                        "Execute this command to display as much as possible of the text"//LF// &
+                        "in the selected window.  All other windows, in the current"//LF// &
+                        "frame, are deleted and the selected window is split in two"//LF// &
+                        "side-by-side windows.  Follow mode is activated, hence the"//LF// &
+                        "two windows always will display two successive pages."//LF// &
+                        "(If one window is moved, the other one will follow.)"//LF// &
+                        ""//LF// &
+                        "If ARG is positive, the leftmost window is selected.  If negative,"//LF// &
+                        "the rightmost is selected.  If ARG is no prefix, the leftmost window"//LF// &
+                        "is selected if the original window is the first one in the frame."
+        case ("follow_end_of_buffer")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call follow_end_of_buffer(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Move point to the end of the buffer, Follow mode style."//LF// &
+                        ""//LF// &
+                        "If the end is not visible, it will be displayed in the last possible"//LF// &
+                        "window in the Follow mode window chain."//LF// &
+                        ""//LF// &
+                        "The mark is left at the previous position.  With arg N, put point N/10"//LF// &
+                        "of the way from the true end."
+        case ("follow_first_window")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call follow_first_window(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the first window in the frame showing the same buffer."
+        case ("follow_last_window")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call follow_last_window(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the last window in the frame showing the same buffer."
+        case ("follow_mode")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call follow_mode(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Toggle Follow mode."//LF// &
+                        ""//LF// &
+                        "Follow mode is a minor mode that combines windows into one tall"//LF// &
+                        "virtual window.  This is accomplished by two main techniques:"//LF// &
+                        ""//LF// &
+                        "* The windows always displays adjacent sections of the buffer."//LF// &
+                        "  This means that whenever one window is moved, all the"//LF// &
+                        "  others will follow.  (Hence the name Follow mode.)"//LF// &
+                        ""//LF// &
+                        "* Should point (cursor) end up outside a window, another"//LF// &
+                        "  window displaying that point is selected, if possible.  This"//LF// &
+                        "  makes it possible to walk between windows using normal cursor"//LF// &
+                        "  movement commands."//LF// &
+                        ""//LF// &
+                        "Follow mode comes to its prime when used on a large screen and two or"//LF// &
+                        "more side-by-side windows are used.  The user can, with the help of"//LF// &
+                        "Follow mode, use these full-height windows as though they were one."//LF// &
+                        "Imagine yourself editing a large function, or section of text, and"//LF// &
+                        "being able to use 144 or 216 lines instead of the normal 72... (your"//LF// &
+                        "mileage may vary)."//LF// &
+                        ""//LF// &
+                        "To split one large window into two side-by-side windows, the commands"//LF// &
+                        "\[split_window_right] or \[follow_delete_other_windows_and_split] can"//LF// &
+                        "be used."//LF// &
+                        ""//LF// &
+                        "Only windows displayed in the same frame follow each other."//LF// &
+                        ""//LF// &
+                        "This command runs the normal hook `follow_mode_hook'."//LF// &
+                        ""//LF// &
+                        "Keys specific to Follow mode:"//LF// &
+                        "\{follow_mode_map}"
+        case ("follow_switch_to_buffer")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call follow_switch_to_buffer(buffer, status)"
+            entry%declarations = "character(len=*), intent(in) :: buffer"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "The command: the buffer is read (a name that may be new, the other"//LF// &
+                        "buffer by default)."
+        case ("follow_switch_to_buffer_all")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call follow_switch_to_buffer_all(status, buffer)"
+            entry%declarations = "type(status_type), intent(out) :: status"//LF// &
+                                 "character(len=*), intent(in), optional :: buffer"
+            entry%command = .true.
+            entry%doc = "The command: the buffer is read, the current buffer by default."
+        case ("follow_switch_to_current_buffer_all")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call follow_switch_to_current_buffer_all(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Show current buffer in all windows on this frame, and enter Follow"//LF// &
+                        "mode."
         case ("font_lock_add_keywords")
             entry%file = "font_lock_mod.f90"
             entry%fortran = "call font_lock_add_keywords(mode, keywords, status, how)"
@@ -13168,6 +13287,12 @@ contains
                         "forwards (or backwards, if negative).  Finds and highlights the"//LF// &
                         "source line like \[next_error], but does not select the source"//LF// &
                         "buffer."
+        case ("next_follow_window")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call next_follow_window(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the next window showing the same buffer."
         case ("next_history_element")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -13664,6 +13789,12 @@ contains
                         "backwards (or forwards, if negative).  Finds and highlights the"//LF// &
                         "source line like \[previous_error], but does not select the source"//LF// &
                         "buffer."
+        case ("previous_follow_window")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call previous_follow_window(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the previous window showing the same buffer."
         case ("previous_history_element")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -14612,6 +14743,18 @@ contains
                         ""//LF// &
                         "Just C-u as prefix means put point in the center of the window"//LF// &
                         "and redisplay normally--don't erase and redraw the frame."
+        case ("recenter_follow")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call recenter_follow(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Recenter the middle window around point."//LF// &
+                        "Rearrange all other windows around the middle window."//LF// &
+                        ""//LF// &
+                        "With a positive argument, place the current line ARG lines"//LF// &
+                        "from the top.  With a negative argument, place it -ARG lines"//LF// &
+                        "from the bottom."
         case ("recenter_top_bottom")
             entry%file = "window_scroll_mod.f90"
             entry%command = .true.
@@ -14796,6 +14939,16 @@ contains
             entry%file = "dispnew_mod.f90"
             entry%command = .true.
             entry%doc = "Clear and redisplay all visible frames."
+        case ("redraw_follow")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call redraw_follow(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Arrange windows displaying the same buffer in successor order."//LF// &
+                        "This function can be called even if the buffer is not in Follow mode."//LF// &
+                        ""//LF// &
+                        "Hopefully, there should be no reason to call this function when in"//LF// &
+                        "Follow mode since the windows should always be aligned."
         case ("regexp_quote")
             entry%file = "search_mod.f90"
             entry%fortran = "regexp_quote(string)"
@@ -15332,6 +15485,68 @@ contains
                         ""//LF// &
                         "The command \[set_goal_column] can be used to create a"//LF// &
                         "semipermanent goal column for this command."
+        case ("scroll_follow_down")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call scroll_follow_down(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Scroll text in a Follow mode window chain down."//LF// &
+                        ""//LF// &
+                        "If called with no ARG, the `next_screen_context_lines' top lines of"//LF// &
+                        "the top window in the chain will be visible in the bottom window."//LF// &
+                        ""//LF// &
+                        "If called with an argument, scroll ARG lines down."//LF// &
+                        "Negative ARG means scroll upward."//LF// &
+                        ""//LF// &
+                        "Works like `scroll_down' when not in Follow mode."
+        case ("scroll_follow_down_window")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call scroll_follow_down_window(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Scroll text in a Follow mode window down by that window's size."//LF// &
+                        "The other windows in the window chain will scroll synchronously."//LF// &
+                        ""//LF// &
+                        "If called with no ARG, the `next_screen_context_lines' top lines of"//LF// &
+                        "the window in the chain will be visible after the scroll."//LF// &
+                        ""//LF// &
+                        "If called with an argument, scroll ARG lines down."//LF// &
+                        "Negative ARG means scroll upward."//LF// &
+                        ""//LF// &
+                        "Works like `scroll_down' when not in Follow mode."
+        case ("scroll_follow_up")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call scroll_follow_up(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Scroll text in a Follow mode window chain up."//LF// &
+                        ""//LF// &
+                        "If called with no ARG, the `next_screen_context_lines' last lines of"//LF// &
+                        "the bottom window in the chain will be visible in the top window."//LF// &
+                        ""//LF// &
+                        "If called with an argument, scroll ARG lines up."//LF// &
+                        "Negative ARG means scroll downward."//LF// &
+                        ""//LF// &
+                        "Works like `scroll_up' when not in Follow mode."
+        case ("scroll_follow_up_window")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call scroll_follow_up_window(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Scroll text in a Follow mode window up by that window's size."//LF// &
+                        "The other windows in the window chain will scroll synchronously."//LF// &
+                        ""//LF// &
+                        "If called with no ARG, the `next_screen_context_lines' last lines of"//LF// &
+                        "the window will be visible after the scroll."//LF// &
+                        ""//LF// &
+                        "If called with an argument, scroll ARG lines up."//LF// &
+                        "Negative ARG means scroll downward."//LF// &
+                        ""//LF// &
+                        "Works like `scroll_up' when not in Follow mode."
         case ("scroll_other_window")
             entry%file = "window_scroll_mod.f90"
             entry%command = .true.
@@ -17339,6 +17554,11 @@ contains
             entry%fortran = "call turn_off_auto_fill(status)"
             entry%declarations = "type(status_type), intent(out) :: status"
             entry%doc = "Unconditionally turn off Auto Fill mode."
+        case ("turn_off_follow_mode")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call turn_off_follow_mode(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%doc = "Turn off Follow mode.  Please see the function `follow_mode'."
         case ("turn_on_auto_fill")
             entry%file = "simple_mod.f90"
             entry%fortran = "call turn_on_auto_fill(status)"
@@ -17360,6 +17580,11 @@ contains
                         ""//LF// &
                         "This function is designed to be added to hooks, for example:"//LF// &
                         "  call my_logfile_mode_hook%prepend(turn_on_auto_revert_tail_mode)"
+        case ("turn_on_follow_mode")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call turn_on_follow_mode(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%doc = "Turn on Follow mode.  Please see the function `follow_mode'."
         case ("turn_on_font_lock")
             entry%file = "font_core_mod.f90"
             entry%fortran = "call turn_on_font_lock(status)"
@@ -18556,6 +18781,34 @@ contains
                         "Argument is a character, the name of the register."//LF// &
                         ""//LF// &
                         "Interactively, prompt for REGISTER using `register_read_with_preview'."
+        case ("window_divider_mode")
+            entry%file = "frame_mod.f90"
+            entry%fortran = "call window_divider_mode(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Display dividers between windows (Window Divider mode)."//LF// &
+                        ""//LF// &
+                        "The option `window_divider_default_places' specifies on which"//LF// &
+                        "side of a window dividers are displayed.  The options"//LF// &
+                        "`window_divider_default_bottom_width' and"//LF// &
+                        "`window_divider_default_right_width' specify their respective"//LF// &
+                        "widths."
+        case ("window_end")
+            entry%file = "window_mod.f90"
+            entry%fortran = "window_end(window, status, update)"
+            entry%declarations = "type(handle_type), intent(in) :: window"//LF// &
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: update"//LF// &
+                                 "integer(int64) :: pos"
+            entry%doc = "Return position at which display currently ends in WINDOW."//LF// &
+                        "This is the position after the final character in WINDOW."//LF// &
+                        ""//LF// &
+                        "WINDOW must be a live window.  This is updated by redisplay,"//LF// &
+                        "when it runs to completion.  Simply changing the buffer text or"//LF// &
+                        "setting `window_start' does not update this value."//LF// &
+                        ""//LF// &
+                        "If UPDATE is true, compute the up-to-date position if it isn't"//LF// &
+                        "already recorded."
         case ("window_in_direction")
             entry%file = "window_mod.f90"
             entry%fortran = "window_in_direction(direction, window, sign, wrap, minibuf)"
@@ -25262,6 +25515,70 @@ contains
             entry%fortran = "first_change_hook"
             entry%doc = "Functions to call before changing a buffer which is unmodified."//LF// &
                         "The functions are run using the `run_hooks' function."
+        case ("follow_debug")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "follow_debug"
+            entry%original = ".false."
+            entry%value = repr(follow_debug)
+            entry%doc = "If true, emit Follow mode debugging messages."
+        case ("follow_fixed_window")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "follow_fixed_window"
+            entry%original = ".false."
+            entry%value = repr(follow_fixed_window)
+            entry%doc = "If true, the current window must not be scrolled."//LF// &
+                        "This is typically set by explicit scrolling commands."
+        case ("follow_hide_ghost_cursors")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "follow_hide_ghost_cursors"
+            entry%original = ".true."
+            entry%value = repr(follow_hide_ghost_cursors)
+            entry%doc = "When true, Follow mode attempts to hide the obtrusive cursors"//LF// &
+                        "in the non-selected windows of a window group."//LF// &
+                        "This variable takes effect when `follow_mode' is initialized."//LF// &
+                        "Due to limitations in Emacs, this only operates on the followers"//LF// &
+                        "of the selected window."
+        case ("follow_inside_post_command_hook_call")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "follow_inside_post_command_hook_call"
+            entry%original = ".false."
+            entry%value = repr(follow_inside_post_command_hook_call)
+            entry%doc = "True when inside Follow modes `post_command_hook'."
+        case ("follow_internal_force_redisplay")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "follow_internal_force_redisplay"
+            entry%original = ".false."
+            entry%value = repr(follow_internal_force_redisplay)
+            entry%doc = "True when Follow mode should redisplay the windows."
+        case ("follow_mode_hook")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "follow_mode_hook"
+            entry%doc = "Normal hook run by `follow_mode'."
+        case ("follow_mode_line_text")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "follow_mode_line_text"
+            entry%original = """ Follow"""
+            entry%value = repr(follow_mode_line_text)
+            entry%doc = "Text shown in the mode line when Follow mode is active."//LF// &
+                        "Defaults to "" Follow"".  Examples of other values"//LF// &
+                        "are "" Fw"", or simply """".  (The value is used when Follow mode is"//LF// &
+                        "defined, at startup.)"
+        case ("follow_mode_map")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "follow_mode_map"
+            entry%doc = "Minor mode keymap for Follow mode."
+        case ("follow_mode_prefix_key")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "follow_mode_prefix_key"
+            entry%original = """C-c ."""
+            entry%value = repr(follow_mode_prefix_key)
+            entry%doc = "Prefix key to use for follow commands in Follow mode.  (The value is"//LF// &
+                        "used when Follow mode's keymap is made, at startup.)"
+        case ("follow_mode_submap")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "follow_mode_submap"
+            entry%doc = "The keymap of the Follow mode commands, on `follow_mode_prefix_key'"//LF// &
+                        "in `follow_mode_map'."
         case ("font_lock_comment_end_skip")
             entry%file = "font_lock_mod.f90"
             entry%fortran = "font_lock_comment_end_skip"
@@ -30040,6 +30357,22 @@ contains
             entry%doc = "Normal hook run before each command is executed.  (An error in one"//LF// &
                         "of its functions ends the run; safe_execute_hooks's message and removal"//LF// &
                         "of the function are deferred.)"
+        case ("pre_redisplay_function")
+            entry%file = "xdisp_mod.f90"
+            entry%fortran = "pre_redisplay_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(pre_redisplay_procedure), pointer :: pre_redisplay_function"
+
+            if (.not. associated(pre_redisplay_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function run just before redisplay."//LF// &
+                        "It is called with one argument, which is the set of windows that are to"//LF// &
+                        "be redisplayed.  This set can be empty (meaning, only the selected window),"//LF// &
+                        "or all windows (ALL true)."
         case ("prefix_command_preserve_state_hook")
             entry%file = "simple_mod.f90"
             entry%fortran = "prefix_command_preserve_state_hook"
@@ -34662,6 +34995,61 @@ contains
                         "at least one window on that frame has been added, deleted or changed"//LF// &
                         "its buffer or its total or body size since the last redisplay.  Each"//LF// &
                         "call is performed with the frame temporarily selected."
+        case ("window_divider_default_bottom_width")
+            entry%file = "frame_mod.f90"
+            entry%fortran = "window_divider_default_bottom_width"
+            entry%original = "6"
+            entry%value = repr(window_divider_default_bottom_width)
+            entry%doc = "Default width of dividers on bottom of windows."//LF// &
+                        "The value must be a positive integer and takes effect when bottom"//LF// &
+                        "dividers are displayed by `window_divider_mode'."//LF// &
+                        ""//LF// &
+                        "To adjust bottom dividers for frames individually, use the frame"//LF// &
+                        "parameter `bottom_divider_width'."
+        case ("window_divider_default_places")
+            entry%file = "frame_mod.f90"
+            entry%fortran = "window_divider_default_places"
+            entry%original = "WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY"
+
+            select case (window_divider_default_places)
+            case (WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY)
+                entry%value = "WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY"
+            case (WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY)
+                entry%value = "WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY"
+            case (WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT)
+                entry%value = "WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT"
+            case default
+                entry%value = repr(window_divider_default_places)
+            end select
+
+            entry%doc = "Default positions of window dividers."//LF// &
+                        "Possible values are `WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY'"//LF// &
+                        "(dividers on the bottom of each window only),"//LF// &
+                        "`WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY' (dividers on the right of"//LF// &
+                        "each window only), and `WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT'"//LF// &
+                        "(dividers on the bottom and on the right of each window).  The"//LF// &
+                        "default is `WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY'."//LF// &
+                        ""//LF// &
+                        "The value takes effect if and only if dividers are enabled by"//LF// &
+                        "`window_divider_mode'."//LF// &
+                        ""//LF// &
+                        "To position dividers on frames individually, use the frame"//LF// &
+                        "parameters `bottom_divider_width' and `right_divider_width'."
+        case ("window_divider_default_right_width")
+            entry%file = "frame_mod.f90"
+            entry%fortran = "window_divider_default_right_width"
+            entry%original = "6"
+            entry%value = repr(window_divider_default_right_width)
+            entry%doc = "Default width of dividers on the right of windows."//LF// &
+                        "The value must be a positive integer and takes effect when right"//LF// &
+                        "dividers are displayed by `window_divider_mode'."//LF// &
+                        ""//LF// &
+                        "To adjust right dividers for frames individually, use the frame"//LF// &
+                        "parameter `right_divider_width'."
+        case ("window_divider_mode_hook")
+            entry%file = "frame_mod.f90"
+            entry%fortran = "window_divider_mode_hook"
+            entry%doc = "Hook run after entering or leaving `window_divider_mode'."
         case ("window_min_height")
             entry%file = "window_mod.f90"
             entry%fortran = "window_min_height"
@@ -34682,6 +35070,24 @@ contains
                         "The value has to accommodate two text columns as well as margins,"//LF// &
                         "fringes, a scroll bar and a right divider, if present.  A value less"//LF// &
                         "than `window_safe_min_width' is ignored."
+        case ("window_scroll_functions")
+            entry%file = "window_mod.f90"
+            entry%fortran = "window_scroll_functions"
+            entry%doc = "List of functions to call before redisplaying a window with scrolling."//LF// &
+                        "Each function is called with two arguments, the window and its new"//LF// &
+                        "display-start position."//LF// &
+                        "These functions are called whenever the `window_start' marker is modified,"//LF// &
+                        "either to point into another buffer (e.g. via `set_window_buffer') or another"//LF// &
+                        "place in the same buffer."//LF// &
+                        "When each function is called, the `window_start' marker of its window"//LF// &
+                        "argument has been already set to the new value, and the buffer which that"//LF// &
+                        "window will display is set to be the current buffer."//LF// &
+                        "Note that the value of `window_end' is not valid when these functions are"//LF// &
+                        "called."//LF// &
+                        ""//LF// &
+                        "Warning: Do not use this feature to alter the way the window"//LF// &
+                        "is scrolled.  It is not designed for that, and such use probably won't"//LF// &
+                        "work."
         case ("window_sides_reversed")
             entry%file = "window_mod.f90"
             entry%fortran = "window_sides_reversed"

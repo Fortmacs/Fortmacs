@@ -2565,6 +2565,37 @@ name	button_activate	activate_button
 # (fns_mod); no name entry, as iv-auto is a symbol argument, not a name.
 
 # R6-40 (owner, 2026-11-04): a package command without a verb takes the verb
+# from what it does (follow-scroll-up is scroll_follow_up); R6-17: verb first,
+# then the package word, in the new helpers too (step 45c, follow.el).  The
+# names without an obvious verb-first form wait for the owner (listed in PR
+# #237); the procedures named for the hooks they are installed in stay.
+name	follow_scroll_up_window	scroll_follow_up_window
+name	follow_scroll_down_window	scroll_follow_down_window
+name	follow_scroll_up_arg	scroll_follow_up_arg
+name	follow_scroll_down_arg	scroll_follow_down_arg
+name	follow_scroll_up	scroll_follow_up
+name	follow_scroll_down	scroll_follow_down
+name	follow_next_window	next_follow_window
+name	follow_previous_window	previous_follow_window
+name	follow_recenter	recenter_follow
+name	follow_redraw	redraw_follow
+name	follow_split_followers	split_follow_followers
+name	follow_calculate_window_end	calculate_follow_window_end
+name	follow_calculate_window_start	calculate_follow_window_start
+name	follow_update_window_start	update_follow_window_start
+name	follow_redisplay	redisplay_follow
+name	follow_estimate_first_window_start	estimate_follow_first_window_start
+name	follow_calculate_first_window_start_from_above	calculate_follow_first_window_start_from_above
+name	follow_calculate_first_window_start_from_below	calculate_follow_first_window_start_from_below
+name	follow_avoid_tail_recenter_on_scroll	avoid_follow_tail_recenter_on_scroll
+name	follow_avoid_tail_recenter	avoid_follow_tail_recenter
+name	follow_adjust_window	adjust_follow_window
+name	follow_maximize_region	maximize_follow_region
+name	follow_get_scrolled_point	get_follow_scrolled_point
+# R2-Q19, R6-40 (owner, 2026-11-04): no _function suffix on a procedure; the
+# two follow.el redisplay procedures are named for what they do.
+name	follow_advised_pre_redisplay_function	adjust_follow_windows_then_redisplay
+name	follow_pre_redisplay_function	adjust_follow_windows
 # from what it does (step 45a, winner.el and windmove.el); R6-17: verb first
 # in the new helpers too.  The names without an obvious verb-first form wait
 # for the owner (listed in PR #243).
