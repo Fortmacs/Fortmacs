@@ -1671,13 +1671,16 @@ contains
     !> vc-hooks.el:vc-after-revert.
     recursive subroutine vc_after_revert(status)
         type(status_type), intent(out) :: status
+        character(len=:), allocatable :: file
 
         status = status_type()
         if (.not. has_vc_dir_buffers()) return
         if (current == 0) return
         if (.not. allocated(buffers(current)%filename)) return
-        if (vc_backend(buffers(current)%filename) == 0) return
-        if (associated(vc_dir_resynch_file)) call vc_dir_resynch_file(buffers(current)%filename)
+        ! A copy: the backend can grow the buffer registry (see vc_refresh_state).
+        file = buffers(current)%filename
+        if (vc_backend(file) == 0) return
+        if (associated(vc_dir_resynch_file)) call vc_dir_resynch_file(file)
     end subroutine vc_after_revert
 
     !> Whether `vc_dir_buffers' is not empty.  Not a port.
@@ -1855,7 +1858,7 @@ contains
     !> error: ..." messages, as with-demoted-errors does).
     recursive subroutine vc_refresh_state(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: truename, saved_dir
+        character(len=:), allocatable :: truename, saved_dir, filename
         type(status_type) :: st
         integer :: b, link_type
         logical :: yes
@@ -1866,8 +1869,11 @@ contains
         if (current == 0) return
         if (allocated(buffers(current)%vc_mode)) deallocate (buffers(current)%vc_mode)
         if (.not. allocated(buffers(current)%filename)) return
-        call vc_file_clearprops(buffers(current)%filename)
-        b = vc_backend(buffers(current)%filename)
+        ! A copy: the backends make temporary buffers, which can grow
+        ! (reallocate) the buffer registry under a component argument.
+        filename = buffers(current)%filename
+        call vc_file_clearprops(filename)
+        b = vc_backend(filename)
 
         if (b /= 0) then
             saved_dir = buffer_directory()
@@ -1876,7 +1882,10 @@ contains
 
             ! Compute the state and put it in the mode line.
             if (current /= 0) then
-                if (allocated(buffers(current)%filename)) call vc_mode_line(buffers(current)%filename, b)
+                if (allocated(buffers(current)%filename)) then
+                    filename = buffers(current)%filename
+                    call vc_mode_line(filename, b)
+                end if
             end if
 
             call set_buffer_directory(saved_dir)
@@ -1886,10 +1895,10 @@ contains
             return
         end if
 
-        call file_truename(buffers(current)%filename, truename, st)
+        call file_truename(filename, truename, st)
         if (.not. st%ok()) return
         link_type = 0
-        if (truename /= buffers(current)%filename) link_type = vc_backend(truename)
+        if (truename /= filename) link_type = vc_backend(truename)
         if (link_type == 0) return
 
         if (vc_follow_symlinks%is_off()) then
