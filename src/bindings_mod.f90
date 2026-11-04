@@ -106,6 +106,8 @@ module bindings_mod
     use process_mod, only: init_process, begin_asynch_code, end_asynch_code
     use compile_mod, only: init_compile, compilation_mode_map
     use grep_mod, only: init_grep
+    use xref_mod, only: init_xref
+    use etags_mod, only: init_etags
     use diff_mode_mod, only: init_diff_mode
     use smerge_mode_mod, only: init_smerge_mode
     use add_log_mod, only: init_add_log
@@ -135,6 +137,8 @@ module bindings_mod
     use dabbrev_mod, only: init_dabbrev
     use ispell_mod, only: init_ispell
     use paren_mod, only: init_paren
+    use imenu_mod, only: init_imenu
+    use which_func_mod, only: init_which_func
     use electric_mod, only: init_electric
     use elec_pair_mod, only: init_elec_pair
     use newcomment_mod, only: init_newcomment
@@ -355,6 +359,7 @@ contains
         call init_newcomment()
         call init_novice()
         call init_text_mode()
+        call init_imenu()
         call init_conf_mode()
         call init_make_mode()
         call init_python()
@@ -692,6 +697,7 @@ contains
         call bind(goto_map, "g", "goto_line")
         call bind(goto_map, "M-g", "goto_line")
         call bind(goto_map, "TAB", "move_to_column")
+        call bind(goto_map, "i", "imenu")
         key(1) = value_type(int(iachar("g"), int64))
         call define_key(esc_map, key, make_keymap_ref(goto_map), status)
         ! bindings.el: search-map (the keys of ported commands).
@@ -753,6 +759,8 @@ contains
         ! (After vc_hooks: `grep_find_ignored_directories' defaults to
         ! `vc_directory_exclusions'.)
         call init_grep()
+        call init_xref(esc_map, ctl_x_4_map)
+        call init_etags()
         call init_vc()
         call init_log_view()
         call init_vc_dir()
@@ -846,6 +854,7 @@ contains
         ! Electric Indent mode are on (their :init-value, set after the
         ! files load at startup).
         call init_paren()
+        call init_which_func()
         call init_electric(global_map)
         call init_elec_pair()
         call minor_modes%show_paren_mode%enable(status)

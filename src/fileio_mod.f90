@@ -1670,6 +1670,7 @@ contains
                 buffers(current)%modtime_size = -1
                 buffers(current)%filename = absname
                 buffers(current)%text%save_modiff = buffers(current)%text%modiff
+                buffers(current)%save_length = buffers(current)%text%z - BEGINNING
             end if
 
             return
@@ -1771,6 +1772,7 @@ contains
             buffers(current)%modtime_size = st%size
             buffers(current)%filename = absname
             buffers(current)%text%save_modiff = buffers(current)%text%modiff
+            buffers(current)%save_length = buffers(current)%text%z - BEGINNING
         end if
 
         last_coding_system_used = used
@@ -1983,6 +1985,7 @@ contains
         if (visit) then
             buffers(current)%filename = absname
             buffers(current)%text%save_modiff = buffers(current)%text%modiff
+            buffers(current)%save_length = buffers(current)%text%z - BEGINNING
 
             if (sys_stat(absname, st) == 0) then
                 buffers(current)%modtime_known = .true.

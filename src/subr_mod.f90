@@ -59,7 +59,7 @@ module subr_mod
               find_tag_default_as_regexp, find_tag_default_as_identifier_regexp
     public :: make_progress_reporter, progress_reporter_update, progress_reporter_done
     public :: replace_string_in_region, replace_regexp_in_region
-    public :: add_to_invisibility_spec, remove_from_invisibility_spec
+    public :: add_to_invisibility_spec, remove_from_invisibility_spec, bounds_of_identifier_at_point
     public :: read_char_from_minibuffer, read_char_choice, shell_quote_argument
 
     !> A numerical progress reporter (`make_progress_reporter' with

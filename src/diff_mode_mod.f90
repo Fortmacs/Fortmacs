@@ -40,7 +40,7 @@
 !> write-contents hook), `diff_minor_mode', Ediff (C-c C-e, A),
 !> ignoring whitespace in and refreshing hunks
 !> (C-c C-w, C-c C-l), `diff_copy_region' (w), Whitespace mode's
-!> settings (`diff_setup_whitespace'), outline and imenu support, the
+!> settings (`diff_setup_whitespace'), outline support, the
 !> menu, mouse bindings, `undo_ignore_read_only', VC revisions of the old
 !> file, `diff_wiggle', `next_error_follow_minor_mode' (C-c C-f) and
 !> `vc_next_action' (v).  `diff_read_only_map' is
@@ -78,6 +78,7 @@ module diff_mode_mod
     use modes_mod, only: major_modes
     use add_log_mod, only: change_log_entry_type, add_log_current_subprogram_function, add_log_buffer_file_name_function
     use easy_mmode_mod, only: easy_mmode_next, easy_mmode_prev
+    use imenu_mod, only: imenu_patterns, imenu_pattern_type
     use string_type_mod, only: string_type, append_string
     use data_mod, only: string_to_number
     implicit none(type, external)
@@ -192,6 +193,11 @@ module diff_mode_mod
                                   DIFF_STYLE_NORMAL = 3
 
     character(len=*), parameter :: LF = achar(10), TAB = achar(9)
+
+    !> Imenu generic expression for Diff mode (it prefers the second name,
+    !> as the first is most likely to be a backup or version-control name).
+    !> Port of diff-mode.el diff-imenu-generic-expression.
+    type(imenu_pattern_type), allocatable, public :: diff_imenu_patterns(:)
 
     !> Port of diff-mode.el diff-hunk-header-re-unified.
     character(len=*), parameter, public :: diff_hunk_header_regexp_unified = &
@@ -1908,6 +1914,7 @@ contains
         if (.not. status%ok()) return
         call diff_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
+        call imenu_patterns%set_local(diff_imenu_patterns)
         call set_next_error_function(diff_next_error)
         if (diff_default_read_only) buffers(current)%read_only = .true.
         if (buffers(current)%read_only) call diff_mode_read_only%set_local(.true.)
@@ -2396,6 +2403,17 @@ contains
         type(status_type) :: st
 
         call define_faces()
+
+        if (.not. allocated(diff_imenu_patterns)) then
+            allocate (diff_imenu_patterns(2))
+            ! unidiffs
+            diff_imenu_patterns(1) = imenu_pattern_type(menu_title="", regexp="\+\+\+ \([^"//TAB//LF//"]+\)["// &
+                                                        TAB//LF//"]", subexpression=1)
+            ! context diffs
+            diff_imenu_patterns(2) = imenu_pattern_type(menu_title="", regexp="^--- \([^"//TAB//LF//"]+\)"// &
+                                                        TAB//".*"//LF//"\*", subexpression=1)
+        end if
+
         call major_modes%diff_mode%define("diff_mode", "Diff", diff_mode, diff_mode_hook)
         major_modes%diff_mode%special = .true.
         diff_mode_map = major_modes%diff_mode%map

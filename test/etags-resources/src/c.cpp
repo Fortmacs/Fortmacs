@@ -1,0 +1,4 @@
+class Number
+{
+   int intNumber;
+};
