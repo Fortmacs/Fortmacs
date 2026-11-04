@@ -30,7 +30,7 @@
 !> sets the divider widths of every frame and of new ones
 !> (`default_frame'); a terminal frame stores them as parameters but draws
 !> no dividers, as upstream on a text terminal.  What is left out is
-!> listed in PORTING.md's frame_mod row.
+!> listed in docs/status/frame_mod.md.
 submodule(frame_mod) frame_cmds_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR

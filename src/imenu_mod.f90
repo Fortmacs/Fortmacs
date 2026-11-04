@@ -33,7 +33,7 @@
 !> (`call imenu_patterns%set_local(patterns)'); the cached index
 !> of a buffer (upstream's imenu--index-alist) is reached through
 !> `has_imenu_index', `get_imenu_index' and `set_imenu_index'.  What is
-!> not ported yet is listed in the imenu_mod row of PORTING.md.
+!> not ported yet is listed in docs/status/imenu_mod.md.
 module imenu_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_IMENU_UNAVAILABLE

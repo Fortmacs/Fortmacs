@@ -25,7 +25,7 @@
 !> (`which_func_update_delay') updates the selected window's name with
 !> `which_function', which asks `which_func_functions', then
 !> `add_log_current_subprogram', then the buffer's Imenu index.  What is
-!> not ported yet is listed in the which_func_mod row of PORTING.md.
+!> not ported yet is listed in docs/status/which_func_mod.md.
 module which_func_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_IMENU_UNAVAILABLE

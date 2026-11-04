@@ -23,7 +23,7 @@
 !> (C-x v r, C-x v b s), pulling (C-x v +) and pushing (C-x v P), and the
 !> incoming revision the incoming and outgoing logs start from.
 !>
-!> Deferred: see the vc_mod row of PORTING.md.
+!> Deferred: see docs/status/vc_mod.md.
 submodule(vc_mod) vc_branches_mod
     use callint_mod, only: current_prefix_arg, PREFIX_NONE
     use minibuffer_mod, only: read_directory_name, REQUIRE_MATCH_YES

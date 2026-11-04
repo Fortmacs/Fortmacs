@@ -30,7 +30,7 @@
 !> `inhibit_point_motion_hooks' is false); the other primitives that use
 !> SET_PT upstream still set it with `temp_set_point_both' (the same while
 !> that variable is true, its default).  What is not ported yet is listed
-!> in PORTING.md's editfns_mod row.
+!> in docs/status/editfns_mod.md.
 module editfns_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite

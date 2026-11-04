@@ -25,7 +25,7 @@
 !> The branch logs (C-x v b l, C-x v b L) and the incoming and outgoing
 !> logs (C-x v I, C-x v O) are here too.
 !>
-!> Deferred: see the vc_mod row of PORTING.md.
+!> Deferred: see docs/status/vc_mod.md.
 submodule(vc_mod) vc_log_mod
     use log_view_mod, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset, log_view_goto_rev
     use callint_mod, only: PREFIX_NUMBER

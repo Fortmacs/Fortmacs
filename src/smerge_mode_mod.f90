@@ -28,7 +28,7 @@
 !> font-lock keywords, the C-c ^ prefix map, `smerge_repeat_map' and
 !> `start_smerge_session' (which VC's find-file hooks call).
 !>
-!> Deferred: see PORTING.md's smerge_mode_mod row.
+!> Deferred: see docs/status/smerge_mode_mod.md.
 module smerge_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT

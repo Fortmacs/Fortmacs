@@ -32,7 +32,7 @@
 !>     mail_user_agent => sendmail_user_agent
 !>     send_mail_function => send_mail_with_sendmail
 !>
-!> See PORTING.md's status table for what is deferred.
+!> See docs/status/sendmail_mod.md for what is deferred.
 module sendmail_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
