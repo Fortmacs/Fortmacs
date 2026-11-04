@@ -42,6 +42,7 @@
 module test_project_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
+    use string_type_mod, only: string_type
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, close_buffer, get_or_make_buffer, &
@@ -49,7 +50,7 @@ module test_project_mod
     use insdel_mod, only: insert
     use editfns_mod, only: buffer_string
     use search_mod, only: string_match
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                           create_directory_internal, write_region, expand_file_name, directory_file_name, &
                           file_name_nondirectory
     use files_mod, only: delete_directory, executable_find, file_relative_name, is_file_equal
@@ -61,7 +62,7 @@ module test_project_mod
     use vc_hooks_mod, only: vc_handled_backends
     use vc_mod, only: vc_responsible_backend
     use vc_hooks_mod, only: vc_backends
-    use project_mod, only: string_type, project_type, transient_project_type, vc_project_type, &
+    use project_mod, only: project_type, transient_project_type, vc_project_type, &
                            get_current_project, project_find_functions, try_vc_project, project_clear_cache, &
                            project_vc_extra_root_markers, project_vc_ignores, project_vc_backend_markers, &
                            project_vc_non_essential_cache_timeout, project_vc_backend_marker_type, &
@@ -149,7 +150,7 @@ contains
     function wd() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(emacs_wd)
+        dir = file_name_as_directory(fortmacs_wd)
     end function wd
 
     !> The temporary directory, made empty.

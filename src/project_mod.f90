@@ -46,8 +46,7 @@ module project_mod
                          FM_PERMISSION_DENIED
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, make_keymap_ref, command_type, vtag, V_STRING
-    use data_mod, only: number_to_string, string_setting_type, forward_setting, history_setting_type, find_history, &
-                        history_item_type
+    use data_mod, only: string_setting_type, forward_setting, history_setting_type, find_history
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, generate_new_buffer_name, &
                           close_buffer, is_buffer_live, get_buffer, buffer_list, buffer_serial_live
     use insdel_mod, only: insert
@@ -2599,6 +2598,7 @@ contains
         character(len=:), allocatable :: root
         logical :: recurse
         integer :: k
+        character(len=24) :: number
 
         status = status_type()
         call project_clear_cache()
@@ -2633,7 +2633,8 @@ contains
             if (count == 1) then
                 call message("1 project was found")
             else
-                call message(number_to_string(count)//" projects were found")
+                write (number, "(i0)") count
+                call message(trim(number)//" projects were found")
             end if
         end if
     end subroutine remember_projects_under
@@ -2694,6 +2695,7 @@ contains
         type(string_type), allocatable :: roots(:)
         logical :: recurse, forget
         integer :: k
+        character(len=24) :: number
 
         status = status_type()
         call project_clear_cache()
@@ -2725,7 +2727,8 @@ contains
             if (count == 1) then
                 call message("1 project was forgotten")
             else
-                call message(number_to_string(count)//" projects were forgotten")
+                write (number, "(i0)") count
+                call message(trim(number)//" projects were forgotten")
             end if
         end if
     end subroutine forget_projects_under
@@ -2762,7 +2765,7 @@ contains
         logical, intent(in), optional :: require_known
         class(project_type), allocatable :: p
         type(string_type), allocatable :: choices(:)
-        type(history_item_type), allocatable :: saved(:)
+        type(string_type), allocatable :: saved(:)
         character(len=:), allocatable :: current_root, full_prompt
         logical :: known_only
         integer :: k
@@ -2859,7 +2862,7 @@ contains
         class(project_type), allocatable :: p, proj
         type(string_type), allocatable :: choices(:)
         type(string_type), allocatable :: roots(:), names(:), name_roots(:)
-        type(history_item_type), allocatable :: saved(:)
+        type(string_type), allocatable :: saved(:)
         character(len=:), allocatable :: current_name, full_prompt, name
         logical :: known_only
         integer :: k
@@ -3180,7 +3183,7 @@ contains
         character(len=*), intent(in) :: history
         type(string_type), intent(in) :: mb_default(:)
         type(history_setting_type), pointer :: hist
-        type(history_item_type), allocatable :: saved(:)
+        type(string_type), allocatable :: saved(:)
 
         file = ""
 
@@ -3342,8 +3345,8 @@ contains
         type(string_type), intent(in) :: mb_default(:)
         character(len=*), intent(in), optional :: common_parent_directory
         type(history_setting_type), pointer :: hist
-        type(history_item_type), allocatable :: saved(:), kept(:)
-        type(history_item_type) :: item
+        type(string_type), allocatable :: saved(:), kept(:)
+        type(string_type) :: item
         type(string_type), allocatable :: defaults(:)
         character(len=:), allocatable :: abs_cpd, s, histname
         logical :: saved_non_essential
@@ -3521,6 +3524,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: root, saved, base_name, shell_buffer_name
         type(handle_type) :: shell_buffer, result
+        character(len=24) :: number
 
         call current_root(root, status)
         if (.not. status%ok()) return
@@ -3529,7 +3533,8 @@ contains
         base_name = project_prefixed_buffer_name("shell")
 
         if (current_prefix_arg%kind == PREFIX_NUMBER) then
-            shell_buffer_name = base_name//"<"//number_to_string(prefix_numeric_value(current_prefix_arg))//">"
+            write (number, "(i0)") prefix_numeric_value(current_prefix_arg)
+            shell_buffer_name = base_name//"<"//trim(number)//">"
         else if (current_prefix_arg%kind /= PREFIX_NONE) then
             shell_buffer_name = generate_new_buffer_name(base_name)
         else
@@ -3876,6 +3881,7 @@ contains
         type(handle_type), allocatable :: bufs(:)
         logical :: confirmed, quiet
         integer :: k
+        character(len=24) :: number
 
         if (present(project)) then
             allocate (pr, source=project)
@@ -3895,7 +3901,8 @@ contains
             call message("No buffers to kill")
             return
         else
-            call read_yes_or_no("Kill "//number_to_string(size(bufs))//" buffers in "//pr%name()//"? ", confirmed, status)
+            write (number, "(i0)") size(bufs)
+            call read_yes_or_no("Kill "//trim(number)//" buffers in "//pr%name()//"? ", confirmed, status)
             if (.not. status%ok()) return
         end if
 
