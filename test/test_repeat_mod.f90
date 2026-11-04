@@ -28,7 +28,7 @@ module test_repeat_mod
     use callint_mod, only: prefix_arg_type
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO
+    use value_mod, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, assignment(=)
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer, generate_new_buffer_name
     use editfns_mod, only: buffer_string
     use keymap_mod, only: make_sparse_keymap, key_parse, keymap_set, use_local_map, set_repeat_map
@@ -279,14 +279,14 @@ contains
             if (allocated(error)) exit body
             call check_keys(error, "C-M-b c d z", "(1 b)", "cdz")
             if (allocated(error)) exit body
-            cmd_b%repeat_check_key = REPEAT_CHECK_KEY_NO
+            cmd_b%repeat_check_key = .false.
             call check_keys(error, "C-M-b c d z", "(1 b)(1 c)(1 d)", "z")
             cmd_b%repeat_check_key = REPEAT_CHECK_KEY_DEFAULT
             if (allocated(error)) exit body
             repeat_check_key = .false.
             call check_keys(error, "C-M-b c d z", "(1 b)(1 c)(1 d)", "z")
             if (allocated(error)) exit body
-            cmd_b%repeat_check_key = REPEAT_CHECK_KEY_YES
+            cmd_b%repeat_check_key = .true.
             call check_keys(error, "C-M-b c d z", "(1 b)", "cdz")
             cmd_b%repeat_check_key = REPEAT_CHECK_KEY_DEFAULT
         end block body

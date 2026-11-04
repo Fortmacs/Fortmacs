@@ -55,6 +55,7 @@ module paren_mod
     use frame_mod, only: selected_window
     use dispnew_mod, only: ding
     use syntax_propertize_mod, only: syntax_propertize
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -64,15 +65,14 @@ module paren_mod
               is_show_paren_unescaped, show_paren_categorize_paren, show_paren_locate_near_paren, &
               is_show_paren_enabled, show_paren_default_test, show_paren_data_procedure, show_paren_test_procedure
 
-    !> Values of `show_paren_style'.
-    integer, parameter, public :: SHOW_PAREN_STYLE_PARENTHESIS = 0, SHOW_PAREN_STYLE_EXPRESSION = 1, SHOW_PAREN_STYLE_MIXED = 2
+    !> Values of `show_paren_style' (it takes its constants only).
+    integer, parameter, public :: SHOW_PAREN_STYLE_PARENTHESIS = 2, SHOW_PAREN_STYLE_EXPRESSION = 3, SHOW_PAREN_STYLE_MIXED = 4
 
     !> Values of `show_paren_not_in_comments_or_strings': never highlight
-    !> parens inside comments and strings (SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL), don't highlight
+    !> parens inside comments and strings (.true.), don't highlight
     !> mismatched parens there (SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH), always highlight parens
-    !> (SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO).
-    integer, parameter, public :: SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO = 0, SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL = 1, &
-                                  SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH = 2
+    !> (.false.).
+    integer, parameter, public :: SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH = 2
 
     !> Style used when showing a matching paren.
     !> Valid styles are `SHOW_PAREN_STYLE_PARENTHESIS' (meaning show the matching
@@ -80,7 +80,8 @@ module paren_mod
     !> enclosed by the paren) and `SHOW_PAREN_STYLE_MIXED' (meaning show the
     !> matching paren if it is visible, and the expression otherwise).
     !> Port of paren.el show-paren-style.
-    integer, public :: show_paren_style = SHOW_PAREN_STYLE_PARENTHESIS
+    type(choice_setting_type), public :: show_paren_style = &
+                                         choice_setting_type(name="show_paren_style", choice=SHOW_PAREN_STYLE_PARENTHESIS)
 
     !> Time in seconds to delay before showing a matching paren.
     !> If you change this while `show_paren_mode' is active, you must
@@ -122,13 +123,14 @@ module paren_mod
     !> `child-frame' are not ported).
     logical, public :: show_paren_context_when_offscreen = .false.
 
-    !> If `SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL', never highlight parens inside
+    !> If .true., never highlight parens inside
     !> comments and strings.  If `SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH',
     !> do not highlight mismatched parens inside comments and strings.  If
-    !> `SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO' (the default), always highlight
+    !> .false. (the default), always highlight
     !> parens wherever they are.  Port of paren.el
     !> show-paren-not-in-comments-or-strings.
-    integer, public :: show_paren_not_in_comments_or_strings = SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO
+    type(choice_setting_type), public :: show_paren_not_in_comments_or_strings = &
+                                         choice_setting_type(name="show_paren_not_in_comments_or_strings")
 
     !> What `show_paren_data_function' finds: the opener/closer "near"
     !> point from HERE_BEGINNING to HERE_END, its match from THERE_BEGINNING to
@@ -699,9 +701,9 @@ contains
         end if
 
         ! Found something to highlight.
-        highlight_expression = show_paren_style == SHOW_PAREN_STYLE_EXPRESSION
+        highlight_expression = show_paren_style%choice == SHOW_PAREN_STYLE_EXPRESSION
 
-        if (.not. highlight_expression .and. data%there_beginning /= 0 .and. show_paren_style == SHOW_PAREN_STYLE_MIXED) then
+        if (.not. highlight_expression .and. data%there_beginning /= 0 .and. show_paren_style%choice == SHOW_PAREN_STYLE_MIXED) then
             if (data%there_beginning < data%here_beginning) then
                 closest = data%there_end - 1
             else
@@ -712,7 +714,7 @@ contains
         end if
 
         if (data%mismatch) then
-            if (show_paren_not_in_comments_or_strings == SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH) then
+            if (show_paren_not_in_comments_or_strings%choice == SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH) then
                 if (in_string_or_comment(data%here_beginning)) return
             end if
 
@@ -724,7 +726,7 @@ contains
             face = "show_paren_match"
         end if
 
-        if (show_paren_not_in_comments_or_strings == SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL) then
+        if (show_paren_not_in_comments_or_strings%value) then
             if (in_string_or_comment(data%here_beginning)) return
         end if
 

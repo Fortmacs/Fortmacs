@@ -85,7 +85,7 @@ module python_mod
     use textprop_mod, only: put_text_property
     use xdisp_mod, only: message, tab_width
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, font_lock_keywords_type, &
-                             font_lock_keywords_level, FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_PREPEND
+                             font_lock_keywords_level, FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     use expression_motion_mod, only: forward_expression_function, forward_expression_default_function, &
                                      up_group, mark_subprogram, beginning_of_subprogram_function, &
@@ -796,7 +796,7 @@ contains
         !   "\\" "\'" "\a" "\b" "\f" "\n" "\r" "\t" "\v"
         !   "\ooo" character with octal value ooo
         !   "\xhh" character with hex value hh
-        h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_YES)
+        h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_REPLACE)
         call append(font_lock_keyword(matcher=bytes_escape_matcher, highlights=h1))
         ! escape sequences within string literals, the same as appear in bytes
         ! literals in addition to:

@@ -43,7 +43,8 @@ module test_fill_mod
     use paragraphs_mod, only: sentence_end_double_space
     use bindings_mod, only: init_bindings
     use fill_mod, only: fill_paragraph, fill_region, fill_region_as_paragraph, fill_separate_heterogeneous_words_with_space, &
-                        fill_nobreak_functions, is_fill_polish_nobreak, set_fill_prefix, fill_context_prefix
+                        fill_nobreak_functions, is_fill_polish_nobreak, set_fill_prefix, fill_context_prefix, &
+                        DEFAULT_JUSTIFICATION_FULL, DEFAULT_JUSTIFICATION_RIGHT, DEFAULT_JUSTIFICATION_CENTER
     implicit none(type, external)
     private
 
@@ -176,26 +177,26 @@ contains
 
         call temp_buffer("aaa bbb ccc ddd eee fff", h)
         fill_column = 10
-        call fill_paragraph(st, 3)
+        call fill_paragraph(st, DEFAULT_JUSTIFICATION_FULL)
         call check(error, buffer_string(), "aaa    bbb"//LF//"ccc    ddd"//LF//"eee fff")
         call leave(h)
         if (allocated(error)) return
         call temp_buffer("aaa bbb ccc", h)
         fill_column = 11
-        call fill_paragraph(st, 2)
+        call fill_paragraph(st, DEFAULT_JUSTIFICATION_RIGHT)
         call check(error, buffer_string(), "aaa bbb ccc")
         call leave(h)
         if (allocated(error)) return
         call temp_buffer("aaa bbb", h)
         fill_column = 15
-        call fill_paragraph(st, 2)
+        call fill_paragraph(st, DEFAULT_JUSTIFICATION_RIGHT)
         ! (indent-tabs-mode is t)
         call check(error, buffer_string(), achar(9)//"aaa bbb")
         call leave(h)
         if (allocated(error)) return
         call temp_buffer("aaa bbb", h)
         fill_column = 15
-        call fill_paragraph(st, 4)
+        call fill_paragraph(st, DEFAULT_JUSTIFICATION_CENTER)
         call check(error, buffer_string(), "    aaa bbb")
         call leave(h)
         if (allocated(error)) return

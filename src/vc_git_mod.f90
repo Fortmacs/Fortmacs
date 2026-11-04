@@ -44,7 +44,7 @@
 !> and the other `vc_git_' options of those features.
 module vc_git_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use data_mod, only: number_to_string
+    use data_mod, only: number_to_string, choice_setting_type
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, xfixnum, vtag, V_INTEGER
@@ -102,17 +102,15 @@ module vc_git_mod
     !> Port of vc-git.el vc-git-diff-switches.
     type(vc_switches_type), target, public :: vc_git_diff_switches = vc_switches_type(kind=VC_SWITCHES_NONE)
 
-    !> Values of `vc_git_resolve_conflicts': don't resolve, resolve,
+    !> Values of `vc_git_resolve_conflicts' besides .true. and .false.:
     !> resolve and maybe unstage all files, use `vc_resolve_conflicts'.
-    integer, parameter, public :: VC_GIT_RESOLVE_CONFLICTS_NO = 0, VC_GIT_RESOLVE_CONFLICTS_YES = 1, &
-                                  VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE = 2, VC_GIT_RESOLVE_CONFLICTS_DEFAULT = 3
+    integer, parameter, public :: VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE = 2, VC_GIT_RESOLVE_CONFLICTS_DEFAULT = 3
 
     !> Whether to mark conflicted file as resolved upon saving.
     !> That is performed after all conflict markers in it have been removed.
     !>
-    !> If this is VC_GIT_RESOLVE_CONFLICTS_YES and there are no more conflict
-    !> markers in the file, VC will mark the conflicts in the saved file as
-    !> resolved.
+    !> If this is .true. and there are no more conflict markers in the file,
+    !> VC will mark the conflicts in the saved file as resolved.
     !>
     !> If the value is VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE, and no merge,
     !> rebase or similar operation is in progress, then after the last
@@ -120,7 +118,9 @@ module vc_git_mod
     !>
     !> A value of VC_GIT_RESOLVE_CONFLICTS_DEFAULT means to use the value of
     !> `vc_resolve_conflicts'.  Port of vc-git.el vc-git-resolve-conflicts.
-    integer, public :: vc_git_resolve_conflicts = VC_GIT_RESOLVE_CONFLICTS_DEFAULT
+    type(choice_setting_type), public :: vc_git_resolve_conflicts = &
+                                         choice_setting_type(name="vc_git_resolve_conflicts", &
+                                                             choice=VC_GIT_RESOLVE_CONFLICTS_DEFAULT)
 
     !> The Git commands in progress in a worktree (what
     !> `get_vc_git_commands_in_progress' finds).
@@ -851,7 +851,7 @@ contains
         end if
 
         s = ""
-        if (vc_display_status /= VC_DISPLAY_STATUS_NO_BACKEND) s = "Git"
+        if (vc_display_status%choice /= VC_DISPLAY_STATUS_NO_BACKEND) s = "Git"
         s = s//indicator//disp_rev
         found = .true.
     end subroutine vc_git_mode_line_string
@@ -2710,7 +2710,7 @@ contains
             ! If we were to 'git reset' in the middle of a
             ! cherry-pick, for example, it would effectively abort
             ! the cherry-pick, losing the user's progress.
-            if (vc_git_resolve_conflicts == VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE) then
+            if (vc_git_resolve_conflicts%choice == VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE) then
                 cmds = get_vc_git_commands_in_progress()
 
                 if (.not. (cmds%merge .or. cmds%rebase .or. cmds%am .or. cmds%revert .or. cmds%cherry_pick)) then
@@ -2753,8 +2753,8 @@ contains
         if (found == 0) return
         call start_smerge_session(st)
 
-        if (.not. (vc_git_resolve_conflicts == VC_GIT_RESOLVE_CONFLICTS_NO .or. &
-                   (vc_git_resolve_conflicts == VC_GIT_RESOLVE_CONFLICTS_DEFAULT .and. .not. vc_resolve_conflicts))) then
+        if (.not. (vc_git_resolve_conflicts%is_off() .or. &
+                   (vc_git_resolve_conflicts%choice == VC_GIT_RESOLVE_CONFLICTS_DEFAULT .and. .not. vc_resolve_conflicts))) then
             call after_save_hook%prepend(resolve_vc_git_when_done, local=.true.)
         end if
 

@@ -293,20 +293,19 @@
     </figure>
 
     <figure>
-      <figcaption><span>Fortran · grep_mod.f90</span><span>14 lines</span></figcaption>
-<pre><code><span class="t" data-p="doc"><span class="c">!&gt; If not GREP_SAVE_BUFFERS_NO, save buffers before running the grep</span></span>
-<span class="t" data-p="doc"><span class="c">!&gt; commands.  If GREP_SAVE_BUFFERS_ASK, ask before saving.  If its</span></span>
-<span class="t" data-p="doc"><span class="c">!&gt; procedure is set, call it with each buffer current, as a test of</span></span>
-<span class="t" data-p="doc"><span class="c">!&gt; whether that buffer should be saved.  E.g., one can point it at a</span></span>
-<span class="t" data-p="doc"><span class="c">!&gt; test of your own: grep_save_buffers%procedure =&gt; my_grep_save_test.</span></span>
-<span class="t" data-p="consts">integer, <span class="k">parameter</span>, <span class="k">public</span> ::</span><span class="v"> </span><span class="t" data-p="cno"><span class="v">GREP_SAVE_BUFFERS_NO = 0</span></span><span class="t" data-p="consts"><span class="v">, </span><span class="k">&amp;</span></span>
-<span class="v">    </span><span class="t" data-p="cyes"><span class="v">GREP_SAVE_BUFFERS_YES = 1</span></span><span class="v">, </span><span class="t" data-p="cask"><span class="v">GREP_SAVE_BUFFERS_ASK = 2</span></span>
+      <figcaption><span>Fortran · grep_mod.f90</span><span>13 lines</span></figcaption>
+<pre><code><span class="t" data-p="doc"><span class="c">!&gt; If .true., save buffers before running the grep commands.  If</span></span>
+<span class="t" data-p="doc"><span class="c">!&gt; GREP_SAVE_BUFFERS_ASK, ask before saving.  If its procedure is set,</span></span>
+<span class="t" data-p="doc"><span class="c">!&gt; call it with each buffer current, as a test of whether that buffer</span></span>
+<span class="t" data-p="doc"><span class="c">!&gt; should be saved.  E.g., one can point it at a test of your own:</span></span>
+<span class="t" data-p="doc"><span class="c">!&gt; grep_save_buffers%procedure =&gt; my_grep_save_test.</span></span>
+<span class="t" data-p="consts">integer, <span class="k">parameter</span>, <span class="k">public</span> ::</span><span class="v"> </span><span class="t" data-p="cask"><span class="v">GREP_SAVE_BUFFERS_ASK = 2</span></span>
 <span class="t" data-p="decl">type(</span><span class="t" data-p="type">choice_setting_type</span><span class="t" data-p="decl">), <span class="k">public</span> ::</span> <span class="t" data-p="name"><span class="v">grep_save_buffers</span></span><span class="v"> </span><span class="t" data-p="decl"><span class="v">= </span><span class="k">&amp;</span></span>
     <span class="t" data-p="type">choice_setting_type(</span><span class="t" data-p="name">name=<span class="s">"grep_save_buffers"</span></span>, <span class="k">&amp;</span>
     <span class="t" data-p="default">choice=GREP_SAVE_BUFFERS_ASK</span><span class="t" data-p="type">)</span>
 
 <span class="t" data-p="inith"><span class="c">! init.f90</span></span>
-<span class="t" data-p="sett">grep_save_buffers = GREP_SAVE_BUFFERS_YES</span>
+<span class="t" data-p="sett">grep_save_buffers = .true.</span>
 <span class="t" data-p="setfn">grep_save_buffers</span><span class="t" data-p="cfn">%procedure</span> <span class="t" data-p="setfn">=&gt; my_grep_save_test</span></code></pre>
     </figure>
   </div>
@@ -443,25 +442,25 @@
     default: ["The default",
       "<code>'ask</code> is a quoted symbol. Fortran sets the default in the declaration's constructor: <code>choice=GREP_SAVE_BUFFERS_ASK</code>, a named constant."],
     doc: ["Documentation",
-      "Elisp's docstring follows the default value; Fortran's is a <code>!&gt;</code> comment above the declaration. The text is adapted: the values are named constants, \"non-nil\" becomes \"not GREP_SAVE_BUFFERS_NO\", and the example is a procedure of your own instead of a <code>lambda</code>, since Fortran has no anonymous procedures."],
+      "Elisp's docstring follows the default value; Fortran's is a <code>!&gt;</code> comment above the declaration. The text is adapted: the on and off values are <code>.true.</code> and <code>.false.</code> and the others named constants, and the example is a procedure of your own instead of a <code>lambda</code>, since Fortran has no anonymous procedures."],
     version: ["The version",
       "Elisp only. <code>:version</code> names the Emacs release that introduced the option or its current default, which Customize uses to list what is new."],
     type: ["The type",
-      "<code>:type</code> tells Customize which values are allowed: one of the four alternatives of <code>choice</code>. It is a second description of the variable, and <code>setq</code> ignores it. In Fortran the declared type is the rule: <code>choice_setting_type</code> holds an integer choice and a procedure pointer, and the compiler rejects a value of any other type."],
+      "<code>:type</code> tells Customize which values are allowed: one of the four alternatives of <code>choice</code>. It is a second description of the variable, and <code>setq</code> ignores it. In Fortran the declared type is the rule: <code>choice_setting_type</code> holds the state (on, off or a named constant) and, for this option, a procedure pointer, and the compiler rejects a value of any other type."],
     cask: ["Ask before saving",
       "A <code>const</code> alternative with its <code>:tag</code>, the label Customize shows. In Fortran it is the named constant <code>GREP_SAVE_BUFFERS_ASK</code>, whose name says what the tag says."],
     cno: ["Don't save",
-      "<code>nil</code>, Lisp's false, here means \"don't save\". Fortran names it <code>GREP_SAVE_BUFFERS_NO</code>."],
+      "<code>nil</code>, Lisp's false, here means \"don't save\". In Fortran it is <code>.false.</code>: <code>=</code> takes <code>.true.</code> and <code>.false.</code> for an option's on and off states."],
     cyes: ["Save all buffers",
-      "<code>other</code> stands for any value not listed above; <code>t</code> is the one Customize stores. Fortran's is <code>GREP_SAVE_BUFFERS_YES</code>."],
+      "<code>other</code> stands for any value not listed above; <code>t</code> is the one Customize stores. In Fortran it is <code>.true.</code>."],
     cfn: ["A function of your own",
       "In Elisp the same variable may hold a function instead of a symbol. In Fortran the function goes in the option's <code>procedure</code> component, a procedure pointer: <code>%</code> selects a component, as it does everywhere in Fortran."],
     consts: ["The named constants",
-      "Fortran only. The three choices, declared once as <code>parameter</code>s, constants the compiler knows. Each name starts with the option's full name, so it says which option it belongs to."],
+      "Fortran only. The choice besides on and off, declared once as a <code>parameter</code>, a constant the compiler knows (on and off are <code>.true.</code> and <code>.false.</code>). Its name starts with the option's full name, so it says which option it belongs to."],
     inith: ["In your init file",
       "What you would write to change the option: in <code>init.el</code> for Emacs, in <code>init.f90</code> for Fortmacs, which <code>fortmacs --recompile</code> builds into the program."],
     sett: ["Choosing a value",
-      "<code>setq</code> stores <code>t</code>: save every buffer. In Fortran, <code>=</code> assigns the named constant; it sets the choice and clears any procedure set before."],
+      "<code>setq</code> stores <code>t</code>: save every buffer. In Fortran, <code>=</code> assigns <code>.true.</code>; it sets the choice and clears any procedure set before."],
     setfn: ["Using a test of your own",
       "<code>#'my-grep-save-test</code> names a function you defined. In Fortran, <code>=&gt;</code> is pointer assignment: it points the option's procedure at <code>my_grep_save_test</code>, and the compiler checks that procedure's arguments against the interface the option expects."]
   };

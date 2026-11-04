@@ -101,6 +101,7 @@ module vc_mod
                                  vc_start_logentry, vc_log_operation_type, vc_dispatcher_browsing
     use process_mod, only: get_buffer_process
     use string_type_mod, only: string_type, append_string
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -203,15 +204,16 @@ module vc_mod
     !> See `run_hooks'.  Port of vc.el vc-before-checkin-hook.
     type(hook_type), target, public :: vc_before_checkin_hook = hook_type(name="vc_before_checkin_hook")
 
-    !> Values of `vc_revert_show_diff' (VC_REVERT_SHOW_DIFF_NO, VC_REVERT_SHOW_DIFF_YES, VC_REVERT_SHOW_DIFF_KILL).
-    integer, parameter, public :: VC_REVERT_SHOW_DIFF_NO = 0, VC_REVERT_SHOW_DIFF_YES = 1, VC_REVERT_SHOW_DIFF_KILL = 2
+    !> Values of `vc_revert_show_diff' besides .true. and .false.
+    integer, parameter, public :: VC_REVERT_SHOW_DIFF_KILL = 2
 
     !> If true, `vc_revert' shows a `vc_diff' buffer before querying.
-    !> VC_REVERT_SHOW_DIFF_YES shows it and buries it afterwards,
+    !> .true. shows it and buries it afterwards,
     !> VC_REVERT_SHOW_DIFF_KILL shows it and kills it afterwards, and
-    !> VC_REVERT_SHOW_DIFF_NO doesn't show it.  Port of vc.el
+    !> .false. doesn't show it.  Port of vc.el
     !> vc-revert-show-diff.
-    integer, public :: vc_revert_show_diff = VC_REVERT_SHOW_DIFF_YES
+    type(choice_setting_type), public :: vc_revert_show_diff = &
+                                         choice_setting_type(name="vc_revert_show_diff", value=.true.)
 
     !> If true, `vc_find_revision' doesn't write the created buffer to file.
     !> Port of vc.el vc-find-revision-no-save.
@@ -3117,7 +3119,7 @@ contains
             return
         end if
 
-        if (vc_revert_show_diff /= VC_REVERT_SHOW_DIFF_NO) then
+        if (.not. vc_revert_show_diff%is_off()) then
             call get_or_make_buffer(generate_new_buffer_name("*vc-diff*"), diff_buffer, status)
             if (.not. status%ok()) return
             call vc_diff_internal(vc_allow_async_revert, fs, changes, status, buffer=diff_buffer)
@@ -3143,8 +3145,8 @@ contains
         end if
 
         if (diff_buffer%index /= 0) then
-            if (is_buffer_live(diff_buffer)) call quit_windows_on(diff_buffer, vc_revert_show_diff == VC_REVERT_SHOW_DIFF_KILL, &
-                                                                  st)
+            if (is_buffer_live(diff_buffer)) call quit_windows_on(diff_buffer, &
+                                                                  vc_revert_show_diff%choice == VC_REVERT_SHOW_DIFF_KILL, st)
         end if
 
         if (.not. status%ok()) return
