@@ -57,7 +57,7 @@ module keymap_mod
                          make_keymap_ref, make_list, list, vtag, xfixnum, xsymbol, xstring, xhandle, list_length, list_elements, &
                          list_tail, list_elt, V_NULL
     use names_mod, only: intern
-    use data_mod, only: number_to_string, value_eq, symbol_value
+    use data_mod, only: value_eq, symbol_value
     use character_mod, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, &
                              CHAR_CTL, CHAR_META, MAX_CHAR, &
                              MAX_MULTIBYTE_LENGTH, char_string, &
@@ -1952,6 +1952,7 @@ contains
         integer(int64) :: c, c2
         logical :: tab_as_ci
         character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        character(len=24) :: code_text
         integer(int32) :: nbytes
         type(status_type) :: status
 
@@ -1959,7 +1960,8 @@ contains
         c2 = iand(c, not(M_ALL))
 
         if (c2 < 0 .or. c2 > MAX_CHAR) then
-            s = "["//number_to_string(c)//"]"
+            write (code_text, '("[", i0, "]")') c
+            s = trim(code_text)
             return
         end if
 

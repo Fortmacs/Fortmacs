@@ -32,8 +32,8 @@ submodule(keyboard_mod) macros_mod
     use commands_mod, only: commands
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     use value_mod, only: value_type, vtag, V_STRING, V_ARRAY
-    use callint_mod, only: prefix_arg_repr
-    use print_mod, only: fortran_repr
+    use callint_mod, only: prefix_arg_text
+    use print_mod, only: fortran_text
     use xdisp_mod, only: message
     implicit none(type, external)
 
@@ -113,7 +113,7 @@ contains
     case (PREFIX_NUMBER)
         n = repeat%value
     case default
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, got "//prefix_arg_repr(repeat))
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, got "//prefix_arg_text(repeat))
         return
     end select
 
@@ -162,7 +162,7 @@ contains
     end if
 
     command_macros(last_macro_command%macro)%events = events
-    last_macro_command%name = fortran_repr(make_list(events))
+    last_macro_command%name = fortran_text(make_list(events))
     last_macro_command%is_command = .true.
     last_macro_command%execute => execute_last_macro_command
     end procedure set_last_macro_command

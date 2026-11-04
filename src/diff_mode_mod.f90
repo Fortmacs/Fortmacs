@@ -40,7 +40,7 @@
 !> write-contents hook), `diff_minor_mode', Ediff (C-c C-e, A),
 !> ignoring whitespace in and refreshing hunks
 !> (C-c C-w, C-c C-l), `diff_copy_region' (w), Whitespace mode's
-!> settings (`diff_setup_whitespace'), outline and imenu support, the
+!> settings (`diff_setup_whitespace'), outline support, the
 !> menu, mouse bindings, `undo_ignore_read_only', VC revisions of the old
 !> file, `diff_wiggle', `next_error_follow_minor_mode' (C-c C-f) and
 !> `vc_next_action' (v).  `diff_read_only_map' is
@@ -55,7 +55,7 @@ module diff_mode_mod
     use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer
-    use data_mod, only: symbol_value, set, number_to_string
+    use data_mod, only: symbol_value, set
     use value_mod, only: make_keymap_ref, value_type, xfixnum
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
                            line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
@@ -78,6 +78,7 @@ module diff_mode_mod
     use modes_mod, only: major_modes
     use add_log_mod, only: change_log_entry_type, add_log_current_subprogram_function, add_log_buffer_file_name_function
     use easy_mmode_mod, only: easy_mmode_next, easy_mmode_prev
+    use imenu_mod, only: imenu_patterns, imenu_pattern_type
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
@@ -191,6 +192,11 @@ module diff_mode_mod
                                   DIFF_STYLE_NORMAL = 3
 
     character(len=*), parameter :: LF = achar(10), TAB = achar(9)
+
+    !> Imenu generic expression for Diff mode (it prefers the second name,
+    !> as the first is most likely to be a backup or version-control name).
+    !> Port of diff-mode.el diff-imenu-generic-expression.
+    type(imenu_pattern_type), allocatable, public :: diff_imenu_patterns(:)
 
     !> Port of diff-mode.el diff-hunk-header-re-unified.
     character(len=*), parameter, public :: diff_hunk_header_regexp_unified = &
@@ -1190,6 +1196,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: pos, start, start1, start2, newstart1, newstart2, shortage
         type(value_type) :: saved
+        character(len=64) :: header
 
         call beginning_of_line()
         pos = point()
@@ -1208,7 +1215,8 @@ contains
         newstart2 = start2 + diff_count_matches("^[+ "//TAB//"]", point(), pos)
         call bind_inhibit_read_only(saved)
         call goto_char(pos)
-        call insert("@@ -"//number_to_string(newstart1)//",1 +"//number_to_string(newstart2)//",1 @@"//LF, status)
+        write (header, '("@@ -", i0, ",1 +", i0, ",1 @@")') newstart1, newstart2
+        call insert(trim(header)//LF, status)
         if (status%ok()) call diff_fixup_modifs(start, pos, status)
         call restore_inhibit_read_only(saved)
     end subroutine diff_split_hunk
@@ -1224,6 +1232,7 @@ contains
         integer(int32) :: c
         type(value_type) :: saved_inhibit
         character(len=:), allocatable :: old1, old2, new1, new2, new, old
+        character(len=20) :: digits
 
         status = status_type()
         saved = point()
@@ -1268,8 +1277,10 @@ contains
                 if (at(diff_hunk_header_regexp_unified)) then
                     old1 = match_string(2)
                     old2 = match_string(4)
-                    new1 = number_to_string(space + minus)
-                    new2 = number_to_string(space + plus)
+                    write (digits, "(i0)") space + minus
+                    new1 = trim(digits)
+                    write (digits, "(i0)") space + plus
+                    new2 = trim(digits)
 
                     if (me(4) > 0) then
                         if (new2 /= old2 .or. len(new2) /= len(old2)) then
@@ -1297,7 +1308,8 @@ contains
                     if (space + bang + plus > 0) then
                         old1 = match_string(1)
                         old2 = match_string(2)
-                        new = number_to_string(space + bang + plus - 1 + string_to_number(old1))
+                        write (digits, "(i0)") space + bang + plus - 1 + string_to_number(old1)
+                        new = trim(digits)
 
                         if (new /= old2 .or. len(new) /= len(old2)) then
                             call replace_match(new, status, fixedcase=.true., literal=.true., subexp=2)
@@ -1335,8 +1347,10 @@ contains
             integer(int64), intent(in) :: n
             integer, intent(in) :: width
             character(len=:), allocatable :: s
+            character(len=20) :: digits
 
-            s = number_to_string(n)
+            write (digits, "(i0)") n
+            s = trim(digits)
             if (len(s) < width .and. n >= 0) s = repeat("0", width - len(s))//s
         end function zero_padded
     end subroutine diff_fixup_modifs
@@ -1904,6 +1918,7 @@ contains
         if (.not. status%ok()) return
         call diff_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
+        call imenu_patterns%set_local(diff_imenu_patterns)
         call set_next_error_function(diff_next_error)
         if (diff_default_read_only) buffers(current)%read_only = .true.
         if (buffers(current)%read_only) call diff_mode_read_only%set_local(.true.)
@@ -2392,6 +2407,17 @@ contains
         type(status_type) :: st
 
         call define_faces()
+
+        if (.not. allocated(diff_imenu_patterns)) then
+            allocate (diff_imenu_patterns(2))
+            ! unidiffs
+            diff_imenu_patterns(1) = imenu_pattern_type(menu_title="", regexp="\+\+\+ \([^"//TAB//LF//"]+\)["// &
+                                                        TAB//LF//"]", subexpression=1)
+            ! context diffs
+            diff_imenu_patterns(2) = imenu_pattern_type(menu_title="", regexp="^--- \([^"//TAB//LF//"]+\)"// &
+                                                        TAB//".*"//LF//"\*", subexpression=1)
+        end if
+
         call major_modes%diff_mode%define("diff_mode", "Diff", diff_mode, diff_mode_hook)
         major_modes%diff_mode%special = .true.
         diff_mode_map = major_modes%diff_mode%map

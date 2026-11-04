@@ -87,6 +87,16 @@
 #                or `preds' (R2-Q10): a passed logical procedure is a
 #                test, a setting holding one X_test_function, and an
 #                array is filtered with a logical mask.
+#   write-wrapper  a function or subroutine whose executable part is a
+#                `write' into a local buffer followed by `trim' of it
+#                (`write (buffer, "(i0)") n' then `text = trim(buffer)'),
+#                or one `write' into its result (R6-44): numbers become
+#                text with an internal write where they are used, never
+#                through a helper.
+#   number-text  a reference to a procedure named number_to_string,
+#                int_text, integer_text, itoa, int_str, int2str or
+#                to_string (R6-44, R6-45): fixed-format text is one
+#                internal `write' with edit descriptors.
 #
 # Logical user options named *_p upstream keep their names: they are
 # variables, which the predicate rule does not look at.
@@ -139,6 +149,7 @@ function start_proc(name, args, res, line, n, i, a) {
     pres[depth] = res
     pstmts[depth] = 0
     pstmt[depth] = ""
+    pfirst[depth] = ""
     pexec[depth] = 0
     pdone[depth] = 0
     for (i in dummy) if (index(i, depth SUBSEP) == 1) delete dummy[i]
@@ -231,10 +242,34 @@ function check_decl(line, l, names, n, i, nm) {
     }
 }
 
+# Whether the innermost procedure only writes a number into a buffer and
+# trims it: one `write' into its result, or a `write' into a local
+# variable and then `RESULT = trim(LOCAL)' (or `RESULT = LOCAL').
+function is_write_wrapper(first, last, buffer, lhs) {
+    first = tolower(pfirst[depth])
+    if (!match(first, /^write[ \t]*\([ \t]*[a-z_][a-z0-9_]*[ \t]*[,)]/)) return 0
+    buffer = substr(first, 1, RLENGTH)
+    sub(/^write[ \t]*\([ \t]*/, "", buffer)
+    sub(/[ \t]*[,)]$/, "", buffer)
+    if (pstmts[depth] == 1) return buffer == tolower(pres[depth])
+    if (pstmts[depth] != 2) return 0
+    last = tolower(pstmt[depth])
+    if (!match(last, /^[a-z_][a-z0-9_]*[ \t]*=[ \t]*/)) return 0
+    lhs = trim(substr(last, 1, RLENGTH))
+    sub(/[ \t]*=$/, "", lhs)
+    if (lhs != tolower(pres[depth]) && !((depth, lhs) in dummy)) return 0
+    last = substr(last, RLENGTH + 1)
+    return last == buffer || last == "trim(" buffer ")" || last ~ ("^trim[ \t]*\\([ \t]*" buffer "[ \t]*\\)$")
+}
+
 # Judges the body of the innermost procedure, once.
 function judge(stmt, lhs, rest, intr, args, ok, tok, t) {
     if (pdone[depth]) return
     pdone[depth] = 1
+    if (is_write_wrapper()) {
+        finding(pline[depth], "write-wrapper", pname[depth], " (write the number where it is used)")
+        return
+    }
     if (pstmts[depth] != 1) return
     stmt = tolower(pstmt[depth])
     if (!match(stmt, /^[a-z_][a-z0-9_]*[ \t]*=[ \t]*/)) return
@@ -339,6 +374,19 @@ FNR == 1 {
     if (l == "") next
 }
 
+# A number made text through a helper (the number-text rule).
+{
+    t = l
+
+    while (match(t, /(^|[^a-z0-9_])(number_to_string|int_text|integer_text|itoa|int_str|int2str|to_string)[ \t]*\(/)) {
+        name = substr(t, RSTART, RLENGTH)
+        sub(/^[^a-z]/, "", name)
+        sub(/[ \t]*\($/, "", name)
+        finding(startline, "number-text", name, "")
+        t = substr(t, RSTART + RLENGTH)
+    }
+}
+
 # Derived-type definitions (for the component rule) and declarations
 # anywhere (for the constant and vector rules).
 l ~ /^type([ \t]*,[^:]*)?[ \t]*::[ \t]*[a-z_][a-z0-9_]*[ \t]*$/ || l ~ /^type[ \t]+[a-z_][a-z0-9_]*[ \t]*$/ {
@@ -413,6 +461,7 @@ depth > 0 && !pdone[depth] {
     pexec[depth] = 1
     pstmts[depth]++
     pstmt[depth] = l
+    if (pstmts[depth] == 1) pfirst[depth] = l
 }
 
 END {

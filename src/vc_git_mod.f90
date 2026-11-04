@@ -47,7 +47,7 @@
 !> and the other `vc_git_' options of those features.
 module vc_git_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use data_mod, only: number_to_string, choice_setting_type
+    use data_mod, only: choice_setting_type
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, xfixnum, vtag, V_INTEGER
@@ -1186,18 +1186,21 @@ contains
         integer(int64) :: shortage, p
         logical :: ok
         integer :: n
+        character(len=16) :: text
 
         prev = ""
         found = .false.
 
         if (string_match("\`HEAD\(\^*\)\'", rev, st) > 0) then
             carets = match_string(1, rev)
-            prev = "HEAD~"//number_to_string(1 + len(carets))
+            write (text, '("HEAD~", i0)') 1 + len(carets)
+            prev = trim(text)
             found = .true.
         else if (string_match("\`HEAD~\([0-9]+\)\'", rev, st) > 0) then
             carets = match_string(1, rev)
             read (carets, *) n
-            prev = "HEAD~"//number_to_string(1 + n)
+            write (text, '("HEAD~", i0)') 1 + n
+            prev = trim(text)
             found = .true.
         else if (len(file) > 0) then
             file_name = file_relative_name(file)
@@ -1324,6 +1327,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regex
+        character(len=64) :: text
         integer(int64) :: pos
 
         found = .false.
@@ -1331,12 +1335,15 @@ contains
         if (pos == 0 .or. .not. status%ok()) return
 
         if (vc_git_log_edit_summary_max_len >= 0 .and. vc_git_log_edit_summary_target_len >= 0) then
-            regex = ".\{,"//number_to_string(vc_git_log_edit_summary_target_len)//"\}\(.\{,"// &
-                    number_to_string(vc_git_log_edit_summary_max_len - vc_git_log_edit_summary_target_len)//"\}\)\(.*\)"
+            write (text, '(".\{,", i0, "\}\(.\{,", i0, "\}\)\(.*\)")') vc_git_log_edit_summary_target_len, &
+                vc_git_log_edit_summary_max_len - vc_git_log_edit_summary_target_len
+            regex = trim(text)
         else if (vc_git_log_edit_summary_max_len >= 0) then
-            regex = ".\{,"//number_to_string(vc_git_log_edit_summary_max_len)//"\}\(?2:.*\)"
+            write (text, '(".\{,", i0, "\}\(?2:.*\)")') vc_git_log_edit_summary_max_len
+            regex = trim(text)
         else if (vc_git_log_edit_summary_target_len >= 0) then
-            regex = ".\{,"//number_to_string(vc_git_log_edit_summary_target_len)//"\}\(.*\)"
+            write (text, '(".\{,", i0, "\}\(.*\)")') vc_git_log_edit_summary_target_len
+            regex = trim(text)
         else
             return
         end if

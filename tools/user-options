@@ -337,6 +337,16 @@ ibuffer_truncate_lines
 ibuffer_use_header_line
 ibuffer_use_other_window
 ibuffer_view_ibuffer
+imenu_after_jump_hook
+imenu_auto_rescan
+imenu_auto_rescan_maxout
+imenu_flatten
+imenu_generic_skip_comments_and_strings
+imenu_level_separator
+imenu_max_index_time
+imenu_max_item_length
+imenu_space_replacement
+imenu_use_markers
 indent_tabs_mode
 info_additional_directories
 info_breadcrumbs_depth
@@ -687,6 +697,8 @@ view_mode_hook
 view_read_only
 view_scroll_auto_exit
 visible_bell
+which_func_maxout
+which_func_update_delay
 windmove_allow_all_windows
 windmove_create_window
 windmove_wrap_around

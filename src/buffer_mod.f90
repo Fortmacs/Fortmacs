@@ -174,6 +174,9 @@ module buffer_mod
         integer :: bidi_paragraph_direction = 0
         !> BVAR read_only.
         logical :: read_only = .false.
+        !> BVAR save_length (`buffer_saved_size'): the length of the buffer
+        !> when it was last read in or saved (0 initially).
+        integer(int64) :: save_length = 0
         !> Upstream sets undo_entries to t (disabled) for names starting with SPC.
         logical :: undo_enabled = .true.
         !> BVAR undo_entries (`buffer_undo_entries'): entries 1 to `undo_count',

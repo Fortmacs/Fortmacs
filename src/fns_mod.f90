@@ -37,7 +37,7 @@ module fns_mod
     use buffer_mod, only: buffers, current, resolve_buffer, nsberror, BEGINNING_BYTE
     use sysdep_mod, only: get_load_averages
     use names_mod, only: ensure_obarray
-    use data_mod, only: number_to_string, value_eq, check_symbol
+    use data_mod, only: value_eq, check_symbol
     use marker_mod, only: markers, resolve_marker
     use keymap_mod, only: keymap_equal
     implicit none(type, external)
@@ -672,14 +672,14 @@ contains
         logical, intent(in), optional :: to_given
         integer(int64) :: f, t
         logical :: has_to
-        character(len=:), allocatable :: from_text, to_text
+        character(len=20) :: from_text, to_text
 
         f = 0
         from_text = ".false."
 
         if (present(from)) then
             f = from
-            from_text = number_to_string(from)
+            write (from_text, "(i0)") from
             if (f < 0) f = f + n
         end if
 
@@ -690,14 +690,17 @@ contains
 
         if (has_to) then
             t = to
-            to_text = number_to_string(to)
+            write (to_text, "(i0)") to
             if (t < 0) t = t + n
         end if
 
         ok = 0 <= f .and. f <= t .and. t <= n
         ifrom = f
         ito = t
-        if (.not. ok) call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(string)//", "//from_text//", "//to_text)
+
+        if (.not. ok) then
+            call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(string)//", "//trim(from_text)//", "//trim(to_text))
+        end if
     end subroutine validate_subarray
 
     !> Number of characters in UTF-8 string `s'.  Port of lisp.h:SCHARS.
@@ -953,6 +956,7 @@ contains
         type(status_type), intent(out), optional :: status
         integer(int64) :: start, start_byte
         integer :: k
+        character(len=20) :: digits
 
         position = -1
         start = 0
@@ -962,7 +966,8 @@ contains
             start = start_pos
 
             if (start < 0 .or. start > count_characters(haystack)) then
-                if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, number_to_string(start))
+                write (digits, "(i0)") start
+                if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(digits))
                 return
             end if
 
@@ -1731,11 +1736,13 @@ contains
     integer(int64) function random_below(limit, status) result(r)
         integer(int64), intent(in) :: limit
         type(status_type), intent(out), optional :: status
+        character(len=20) :: digits
 
         r = 0
 
         if (limit <= 0) then
-            if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, number_to_string(limit))
+            write (digits, "(i0)") limit
+            if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(digits))
             return
         end if
 

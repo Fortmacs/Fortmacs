@@ -29,7 +29,7 @@ module test_insdel_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, set_error, FM_BUFFER_READ_ONLY, FM_GENERIC_ERROR
     use value_mod, only: value_type, list
-    use data_mod, only: number_to_string, value_eq
+    use data_mod, only: value_eq
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, &
                           set_buffer, current_buffer, is_buffer_live, buf_bytes, &
@@ -449,9 +449,11 @@ contains
     subroutine rec_before(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
+        character(len=48) :: text
 
         status = status_type()
-        trace = trace//" B"//number_to_string(beginning)//","//number_to_string(end)
+        write (text, '(" B", i0, ",", i0)') beginning, end
+        trace = trace//trim(text)
         if (.not. inhibit_modification_hooks%value) trace = trace//"!"
     end subroutine rec_before
 
@@ -459,9 +461,11 @@ contains
     subroutine rec_after(beginning, end, old_len, status)
         integer(int64), intent(in) :: beginning, end, old_len
         type(status_type), intent(out) :: status
+        character(len=64) :: text
 
         status = status_type()
-        trace = trace//" A"//number_to_string(beginning)//","//number_to_string(end)//","//number_to_string(old_len)
+        write (text, '(" A", i0, ",", i0, ",", i0)') beginning, end, old_len
+        trace = trace//trim(text)
         if (.not. inhibit_modification_hooks%value) trace = trace//"!"
     end subroutine rec_after
 
@@ -477,17 +481,21 @@ contains
     subroutine rec_global(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
+        character(len=48) :: text
 
         status = status_type()
-        trace = trace//" G"//number_to_string(beginning)//","//number_to_string(end)
+        write (text, '(" G", i0, ",", i0)') beginning, end
+        trace = trace//trim(text)
     end subroutine rec_global
 
     !> A before-change function that fails.
     subroutine fail_before(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
+        character(len=48) :: text
 
-        trace = trace//" X"//number_to_string(beginning)//","//number_to_string(end)
+        write (text, '(" X", i0, ",", i0)') beginning, end
+        trace = trace//trim(text)
         call set_error(status, FM_GENERIC_ERROR, "before failed")
     end subroutine fail_before
 
@@ -495,8 +503,10 @@ contains
     subroutine fail_after(beginning, end, old_len, status)
         integer(int64), intent(in) :: beginning, end, old_len
         type(status_type), intent(out) :: status
+        character(len=64) :: text
 
-        trace = trace//" Y"//number_to_string(beginning)//","//number_to_string(end)//","//number_to_string(old_len)
+        write (text, '(" Y", i0, ",", i0, ",", i0)') beginning, end, old_len
+        trace = trace//trim(text)
         call set_error(status, FM_GENERIC_ERROR, "after failed")
     end subroutine fail_after
 
@@ -514,8 +524,10 @@ contains
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         integer(int64) :: opoint
+        character(len=48) :: text
 
-        trace = trace//" I"//number_to_string(beginning)//","//number_to_string(end)
+        write (text, '(" I", i0, ",", i0)') beginning, end
+        trace = trace//trim(text)
         opoint = buffers(current)%pt
         call goto(1_int64)
         call insert("X", status)
@@ -526,9 +538,10 @@ contains
     subroutine rec_match_end(beginning, end, old_len, status)
         integer(int64), intent(in) :: beginning, end, old_len
         type(status_type), intent(out) :: status
+        character(len=88) :: text
 
-        trace = trace//" M"//number_to_string(match_end(0, status))//" "//number_to_string(beginning)//","// &
-                number_to_string(end)//","//number_to_string(old_len)
+        write (text, '(" M", i0, " ", i0, ",", i0, ",", i0)') match_end(0, status), beginning, end, old_len
+        trace = trace//trim(text)
     end subroutine rec_match_end
 
     !> Give the current buffer the recording functions (buffer-local).
