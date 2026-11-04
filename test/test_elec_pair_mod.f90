@@ -34,7 +34,8 @@
 module test_elec_pair_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use callint_mod, only: prefix_arg_type, PREFIX_NUMBER
-    use value_mod, only: value_type
+    use value_mod, only: value_type, choice_type
+    use data_mod, only: choice_state
     use testdrive, only: new_unittest, unittest_type, error_type, check, test_failed
     use error_mod, only: status_type
     use handle_mod, only: handle_type
@@ -75,7 +76,7 @@ module test_elec_pair_mod
     end interface
 
     type(electric_pair_type), allocatable :: saved_pairs(:)
-    integer :: saved_skip_whitespace
+    type(choice_type) :: saved_skip_whitespace
 
 contains
 
@@ -401,7 +402,7 @@ contains
         logical, intent(in) :: bind
 
         if (bind) then
-            saved_skip_whitespace = electric_pair_skip_whitespace%choice
+            saved_skip_whitespace = choice_state(electric_pair_skip_whitespace)
             electric_pair_skip_whitespace = .true.
         else
             electric_pair_skip_whitespace = saved_skip_whitespace
@@ -412,7 +413,7 @@ contains
         logical, intent(in) :: bind
 
         if (bind) then
-            saved_skip_whitespace = electric_pair_skip_whitespace%choice
+            saved_skip_whitespace = choice_state(electric_pair_skip_whitespace)
             electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
         else
             electric_pair_skip_whitespace = saved_skip_whitespace

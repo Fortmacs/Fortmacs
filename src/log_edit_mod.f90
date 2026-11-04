@@ -1360,7 +1360,7 @@ contains
 
         if (status%ok()) then
             table%inhibit_same_window = .true.
-            table%window_height => shrink_window
+            table%window_height%procedure => shrink_window
             ! (dedicated . t)
             saved_dedicated = display_buffer_mark_dedicated
             display_buffer_mark_dedicated = DEDICATED_STRONG

@@ -44,8 +44,8 @@ module elec_pair_mod
     use callint_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER
     use error_mod, only: status_type, FM_SCAN_ERROR
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
-    use data_mod, only: default_value, set_default, clear_local_variable, choice_setting_type
+    use value_mod, only: value_type, xfixnum, vtag, V_INTEGER, choice_type
+    use data_mod, only: default_value, set_default, clear_local_variable, choice_setting_type, choice_state
     use commands_mod, only: commands
     use hooks_mod, only: hook_type, hook_current_prefix_arg
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
@@ -590,11 +590,11 @@ contains
         integer(int64), intent(in) :: times
         type(status_type), intent(out) :: status
         type(value_type) :: saved_event
-        integer :: saved_blink
+        type(choice_type) :: saved_blink
         logical :: saved_mode
 
         saved_event = last_command_event
-        saved_blink = blink_matching_paren%choice
+        saved_blink = choice_state(blink_matching_paren)
         saved_mode = minor_modes%electric_pair_mode%state%value
         last_command_event = value_type(int(char, int64))
         blink_matching_paren = .false.

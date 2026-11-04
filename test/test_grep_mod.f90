@@ -28,11 +28,12 @@
 !> run on a file with `next_error' visiting the matches.
 module test_grep_mod
     use, intrinsic :: iso_fortran_env, only: int64
+    use data_mod, only: choice_state
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, xstring, vtag, V_STRING
+    use value_mod, only: value_type, xstring, vtag, V_STRING, choice_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, &
                           is_buffer_live, set_buffer_read_only, current_buffer, restore_buffer_modified
     use insdel_mod, only: insert
@@ -294,11 +295,11 @@ contains
     subroutine test_expand_template(error)
         type(error_type), allocatable, intent(out) :: error
         logical :: saved_fold
-        integer :: saved_highlight
+        type(choice_type) :: saved_highlight
 
         call init_bindings()
         saved_fold = case_fold_search%value
-        saved_highlight = grep_highlight_matches%choice
+        saved_highlight = choice_state(grep_highlight_matches)
         case_fold_search = .true.
         grep_highlight_matches = .false.
         call check(error, grep_expand_template("grep <X> <C> -nH <R> <F>", "foo", "*.c", excl=" --exclude=x"), &

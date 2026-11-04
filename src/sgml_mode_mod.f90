@@ -115,7 +115,7 @@ module sgml_mode_mod
     use data_mod, only: history_setting_type
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     use string_type_mod, only: string_type, append_string
-    use data_mod, only: choice_setting_type
+    use data_mod, only: choice_setting_type, choice_state
     implicit none(type, external)
     private
 
@@ -3758,7 +3758,7 @@ contains
         end if
 
         html_quick_keys_default: if (html_quick_keys%choice == QUICK_KEYS_DEFAULT) then
-            html_quick_keys = sgml_quick_keys%choice
+            html_quick_keys = choice_state(sgml_quick_keys)
         end if html_quick_keys_default
 
         if (.not. html_quick_keys%is_off()) then

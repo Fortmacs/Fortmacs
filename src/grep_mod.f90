@@ -2882,11 +2882,11 @@ contains
         logical, intent(in), optional :: confirm
         character(len=:), allocatable :: saved_template
         logical :: had_template
-        integer :: saved_highlight
+        type(choice_type) :: saved_highlight
 
         had_template = allocated(grep_find_template)
         if (had_template) saved_template = grep_find_template
-        saved_highlight = grep_highlight_matches%choice
+        saved_highlight = choice_state(grep_highlight_matches)
 
         if (present(template)) then
             grep_find_template = template

@@ -217,6 +217,12 @@ module buffer_mod
         !> mode line (" Git-main"); unallocated when the file is not under
         !> version control.  Permanent-local.
         character(len=:), allocatable :: vc_mode
+        !> window.el's window--sides-shown: true if this buffer was shown
+        !> in a side window once; `switch_to_prev_buffer' and
+        !> `switch_to_next_buffer' then refrain from showing it within the
+        !> main window area.  Buffer-local, cleared with the other local
+        !> variables.
+        logical :: window_sides_shown = .false.
         !> modtime and modtime_size: the visited file's modification time
         !> and size when last read or written.  `modtime_known' is false
         !> for UNKNOWN_MODTIME_NSECS, and `modtime_file_exists' false for

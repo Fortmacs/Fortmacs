@@ -668,5 +668,8 @@ view_scroll_auto_exit
 visible_bell
 window_min_height
 window_min_width
+window_sides_reversed
+window_sides_slots
+window_sides_vertical
 words_include_escapes
 yes_or_no_prompt
