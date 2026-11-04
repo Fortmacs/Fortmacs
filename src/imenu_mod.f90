@@ -157,7 +157,7 @@ module imenu_mod
             character(len=*), intent(in) :: string, name
         end function imenu_name_lookup_procedure
 
-        !> An `imenu_default_goto_function_variable': go to the index item
+        !> An `imenu_default_goto_function': go to the index item
         !> NAME at POSITION.  Not a port.
         recursive subroutine imenu_goto_procedure(name, position, status)
             import :: int64, status_type
@@ -438,7 +438,7 @@ module imenu_mod
     !> The function in this variable is called when selecting a normal
     !> index-item (the procedure is `goto_imenu_position').  Port of imenu.el
     !> imenu-default-goto-function (not buffer-local yet).
-    procedure(imenu_goto_procedure), pointer, public :: imenu_default_goto_function_variable => null()
+    procedure(imenu_goto_procedure), pointer, public :: imenu_default_goto_function => null()
 
     !> Defines whether `make_imenu_generic_index' should fold case when matching.
     !>
@@ -485,8 +485,8 @@ contains
             imenu_prev_index_position_function%value => imenu_beginning_of_subprogram
         end if
 
-        if (.not. associated(imenu_default_goto_function_variable)) then
-            imenu_default_goto_function_variable => goto_imenu_position
+        if (.not. associated(imenu_default_goto_function)) then
+            imenu_default_goto_function => goto_imenu_position
         end if
 
         commands%imenu%execute => cmd_imenu
@@ -1559,7 +1559,7 @@ contains
         end if
 
         call push_mark(nomsg=.true.)
-        call imenu_default_goto_function_variable(chosen%name, chosen%position, status)
+        call imenu_default_goto_function(chosen%name, chosen%position, status)
         if (.not. status%ok()) return
         call imenu_after_jump_hook%execute(status)
     end subroutine imenu
