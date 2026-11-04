@@ -113,6 +113,8 @@ module bindings_mod
     use shell_mod, only: init_shell, shell_mode_map
     use rect_mod, only: init_rect
     use savehist_mod, only: init_savehist
+    use winner_mod, only: init_winner
+    use windmove_mod, only: init_windmove
     use saveplace_mod, only: init_saveplace
     use recentf_mod, only: init_recentf
     use tabulated_list_mod, only: init_tabulated_list
@@ -374,6 +376,8 @@ contains
         call init_diff()
         call init_rect()
         call init_savehist()
+        call init_winner()
+        call init_windmove()
         call init_saveplace()
         call init_recentf()
         call init_tabulated_list()
