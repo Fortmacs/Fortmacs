@@ -56,7 +56,8 @@ module test_project_mod
                           file_name_nondirectory
     use files_mod, only: delete_directory, executable_find, file_relative_name, is_file_equal
     use bindings_mod, only: init_bindings
-    use value_mod, only: value_type, make_keymap_ref, command_type
+    use value_mod, only: value_type, make_keymap_ref, command_type, list
+    use callproc_mod, only: execute_process
     use keymap_mod, only: key_parse, lookup_key, current_global_map
     use callint_mod, only: command_of
     use commands_mod, only: commands
@@ -170,6 +171,31 @@ contains
         call create_directory_internal(wd()//"build", st)
         call create_directory_internal(dir, st)
     end function temp_dir
+
+    !> When ST failed, the output of the Git version and of the listing
+    !> command run in the resources directory, standard error included (to
+    !> show why Git failed); else nothing.  Not a port.
+    function git_diagnosis(st) result(text)
+        type(status_type), intent(in) :: st
+        character(len=:), allocatable :: text
+        type(handle_type) :: old, h
+        type(status_type) :: st2
+        type(value_type) :: r
+
+        text = ""
+        if (st%ok()) return
+        old = current_buffer()
+        call get_or_make_buffer(" *project-test-git*", h, st2)
+        call set_buffer(h, st2)
+        buffers(current)%directory = resource_directory()
+        call execute_process("sh", r, st2, destination=value_type(.true.), &
+                             args=list(value_type(text="-c"), value_type(text="git --version; "// &
+                                                                         "git --no-pager ls-files -z -c --exclude-standard "// &
+                                                                         "--sparse -o --deduplicate -- "// &
+                                                                         "':(exclude,glob,top)**/etc' >/dev/null")))
+        text = " | git: "//buffer_string()
+        call set_buffer(old, st2)
+    end function git_diagnosis
 
     !> The project resources directory.
     function resource_directory() result(dir)
@@ -428,7 +454,7 @@ contains
 
         if (.not. allocated(error)) then
             call project%list_files(files, st)
-            call check(error, st%ok(), format_error(st))
+            call check(error, st%ok(), format_error(st)//git_diagnosis(st))
             if (.not. allocated(error)) call check(error, base_names(files), "foo")
         end if
 
@@ -454,7 +480,7 @@ contains
 
         if (.not. allocated(error)) then
             call project%list_files(files, st, strings(resource_directory()))
-            call check(error, st%ok(), format_error(st))
+            call check(error, st%ok(), format_error(st)//git_diagnosis(st))
             if (.not. allocated(error)) call check(error, base_names(files), "foo")
         end if
 
@@ -487,7 +513,7 @@ contains
 
         if (.not. allocated(error)) then
             call project%list_files(files, st, strings(resource_directory()))
-            call check(error, st%ok(), format_error(st))
+            call check(error, st%ok(), format_error(st)//git_diagnosis(st))
             if (.not. allocated(error)) call check(error, base_names(files), "foo")
         end if
 
