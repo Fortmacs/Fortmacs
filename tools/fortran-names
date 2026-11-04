@@ -2596,3 +2596,12 @@ name	follow_get_scrolled_point	get_follow_scrolled_point
 # two follow.el redisplay procedures are named for what they do.
 name	follow_advised_pre_redisplay_function	adjust_follow_windows_then_redisplay
 name	follow_pre_redisplay_function	adjust_follow_windows
+# R6-17 (owner, 2026-11-03): verb first in every new procedure name; the
+# window-- helpers of step 45b (side windows) drop their package prefix as
+# window_display_mod's do (try_to_split_window).  window_sides_check_failed
+# (the body of window--sides-check) waits for the owner (listed in PR #233).
+name	window_make_major_side_window_next_to	make_major_side_window_next_to
+name	window_make_major_side_window	make_major_side_window
+keep	window_sides_check_failed
+name	window_sides_check	check_window_sides
+name	window_child_count	count_window_children

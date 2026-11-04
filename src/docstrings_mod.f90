@@ -668,12 +668,14 @@ module docstrings_mod
     use view_mod, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
                         view_mode_map, view_no_disable_on_exit, view_scroll_auto_exit
     use window_mod, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
-                          DEDICATED_STRONG, display_buffer_overriding_action, even_window_sizes, &
+                          DEDICATED_STRONG, DEDICATED_SIDE, display_buffer_overriding_action, even_window_sizes, &
                           minibuffer_scroll_window, next_screen_context_lines, pop_up_windows, scroll_error_top_bottom, &
                           split_height_threshold, split_width_threshold, split_window_preferred_direction, &
                           SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST, SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL, &
                           SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL, window_min_height, window_min_width, &
-                          window_scroll_functions
+                          window_scroll_functions, window_sides_reversed, WINDOW_SIDES_REVERSED_NO, &
+                          WINDOW_SIDES_REVERSED_YES, WINDOW_SIDES_REVERSED_BIDI, window_sides_slots, &
+                          window_sides_vertical
     use xdisp_mod, only: fontification_functions, message_log_max, pre_redisplay_function, tab_width, &
                          truncate_partial_width_windows
     implicit none(type, external)
@@ -1221,7 +1223,7 @@ module docstrings_mod
                                                                     "window_end", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1524) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1527) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1745,11 +1747,12 @@ module docstrings_mod
                                                                    "view_scroll_auto_exit", "visible_bell", "widen_automatically", &
                                                            "window_divider_default_bottom_width", "window_divider_default_places", &
                                             "window_divider_default_right_width", "window_divider_mode_hook", "window_min_height", &
-                                                           "window_min_width", "window_scroll_functions", "words_include_escapes", &
+                                                           "window_min_width", "window_scroll_functions", "window_sides_reversed", &
+                                                           "window_sides_slots", "window_sides_vertical", "words_include_escapes", &
                                                                     "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(661) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(664) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -2409,6 +2412,9 @@ module docstrings_mod
                                                                       "visible_bell", &
                                                                       "window_min_height", &
                                                                       "window_min_width", &
+                                                                      "window_sides_reversed", &
+                                                                      "window_sides_slots", &
+                                                                      "window_sides_vertical", &
                                                                       "words_include_escapes", &
                                                                       "yes_or_no_prompt"]
 
@@ -6081,12 +6087,18 @@ contains
             entry%doc = "The command form of `delete_other_frames'."
         case ("delete_other_windows")
             entry%file = "window_mod.f90"
-            entry%fortran = "call delete_other_windows(window, status)"
+            entry%fortran = "call delete_other_windows(window, status, interactive)"
             entry%declarations = "type(handle_type), intent(in) :: window"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "Make WINDOW fill its frame."//LF// &
-                        "WINDOW must be a valid window and defaults to the selected one."
+                        "WINDOW must be a valid window and defaults to the selected one."//LF// &
+                        ""//LF// &
+                        "If the variable `ignore_window_parameters' is true, do not pay"//LF// &
+                        "attention to the parameters of WINDOW.  Otherwise, an error"//LF// &
+                        "condition occurs if WINDOW is a side window.  Do not delete any"//LF// &
+                        "window whose `no_delete_other_windows' parameter is true."
         case ("delete_pair")
             entry%file = "expression_motion_mod.f90"
             entry%command = .true.
@@ -6149,10 +6161,15 @@ contains
             entry%doc = "Delete specified WINDOW."//LF// &
                         "WINDOW must be a valid window and defaults to the selected one."//LF// &
                         ""//LF// &
-                        "An error condition occurs if WINDOW is the only window on its frame."//LF// &
+                        "If the variable `ignore_window_parameters' is true, do not process"//LF// &
+                        "any parameters of WINDOW.  An error condition occurs if WINDOW is"//LF// &
+                        "either the only window on its frame or the last non-side window."//LF// &
                         ""//LF// &
                         "If WINDOW is the selected window on its frame, choose some other"//LF// &
-                        "window as that frame's selected window: the most recently used one."
+                        "window as that frame's selected window: the most recently used one"//LF// &
+                        "(a window for which `is_window_no_other' returns true is chosen only"//LF// &
+                        "if all windows on that frame have their `no_other_window' parameter"//LF// &
+                        "set to true)."
         case ("describe_bindings")
             entry%file = "help_mod.f90"
             entry%fortran = "call describe_bindings(status)"
@@ -13430,9 +13447,10 @@ contains
             entry%doc = "The command form of `other_frame'."
         case ("other_window")
             entry%file = "window_mod.f90"
-            entry%fortran = "call other_window(count, status)"
+            entry%fortran = "call other_window(count, status, interactive)"
             entry%declarations = "integer(int64), intent(in) :: count"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "Select another window in cyclic ordering of windows."//LF// &
                         "COUNT specifies the number of windows to skip, starting with the"//LF// &
@@ -13440,7 +13458,9 @@ contains
                         "positive, skip COUNT windows forwards.  If COUNT is negative,"//LF// &
                         "skip -COUNT windows backwards.  COUNT zero means do not skip any"//LF// &
                         "window, so select the selected window.  In an interactive call,"//LF// &
-                        "COUNT is the numeric prefix argument."
+                        "COUNT is the numeric prefix argument."//LF// &
+                        ""//LF// &
+                        "Do not select a window for which `is_window_no_other' returns true."
         case ("other_window_backward")
             entry%file = "window_cmds_mod.f90"
             entry%command = .true.
@@ -16880,14 +16900,15 @@ contains
                         "position code of each of its dimensions in CODES."
         case ("split_window")
             entry%file = "window_mod.f90"
-            entry%fortran = "call split_window(window, size, has_size, horizontal, new, status, before)"
+            entry%fortran = "call split_window(window, size, has_size, horizontal, new, status, before, side_resize)"
             entry%declarations = "type(handle_type), intent(in) :: window"//LF// &
                                  "integer, intent(in) :: size"//LF// &
                                  "logical, intent(in) :: has_size"//LF// &
                                  "logical, intent(in) :: horizontal"//LF// &
                                  "type(handle_type), intent(out) :: new"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "logical, intent(in), optional :: before"
+                                 "logical, intent(in), optional :: before"//LF// &
+                                 "logical, intent(in), optional :: side_resize"
             entry%doc = "Make a new window adjacent to WINDOW: below it, or with"//LF// &
                         "`horizontal' to its right.  Without `has_size' both get half its"//LF// &
                         "size (or close to it); a nonnegative SIZE is the new size of"//LF// &
@@ -16895,8 +16916,11 @@ contains
                         "or columns.  The new window shows the buffer, start and point of"//LF// &
                         "WINDOW if it is live, else of the selected window.  WINDOW may"//LF// &
                         "be internal (the root window, say): its windows share what is"//LF// &
-                        "left.  With BEFORE the new window goes above WINDOW (with"//LF// &
-                        "HORIZONTAL to its left): upstream's SIDE `above' or `left'."
+                        "left.  With `before' the new window goes above WINDOW (or to its"//LF// &
+                        "left).  `side_resize' stands for `window_combination_resize'"//LF// &
+                        "bound to `side', as `display_buffer_in_side_window' does: the"//LF// &
+                        "new window takes space from the side windows next to it and"//LF// &
+                        "becomes a side window."
         case ("split_window_below")
             entry%file = "window_cmds_mod.f90"
             entry%command = .true.
@@ -24215,6 +24239,8 @@ contains
                 entry%value = "DEDICATED_WEAK"
             case (DEDICATED_STRONG)
                 entry%value = "DEDICATED_STRONG"
+            case (DEDICATED_SIDE)
+                entry%value = "DEDICATED_SIDE"
             case default
                 entry%value = repr(display_buffer_mark_dedicated)
             end select
@@ -34741,6 +34767,62 @@ contains
                         "Warning: Do not use this feature to alter the way the window"//LF// &
                         "is scrolled.  It is not designed for that, and such use probably won't"//LF// &
                         "work."
+        case ("window_sides_reversed")
+            entry%file = "window_mod.f90"
+            entry%fortran = "window_sides_reversed"
+            entry%user_option = .true.
+            entry%original = "WINDOW_SIDES_REVERSED_NO"
+
+            select case (window_sides_reversed)
+            case (WINDOW_SIDES_REVERSED_NO)
+                entry%value = "WINDOW_SIDES_REVERSED_NO"
+            case (WINDOW_SIDES_REVERSED_YES)
+                entry%value = "WINDOW_SIDES_REVERSED_YES"
+            case (WINDOW_SIDES_REVERSED_BIDI)
+                entry%value = "WINDOW_SIDES_REVERSED_BIDI"
+            case default
+                entry%value = repr(window_sides_reversed)
+            end select
+
+            entry%doc = "Whether top/bottom side windows appear in reverse order."//LF// &
+                        "When this is WINDOW_SIDES_REVERSED_NO, side windows on the top and"//LF// &
+                        "bottom of a frame are always drawn from left to right with"//LF// &
+                        "increasing slot values.  When this is WINDOW_SIDES_REVERSED_YES,"//LF// &
+                        "side windows on the top and bottom of a frame are always drawn"//LF// &
+                        "from right to left with increasing slot values."//LF// &
+                        ""//LF// &
+                        "When this is WINDOW_SIDES_REVERSED_BIDI, the drawing order is like"//LF// &
+                        "that for WINDOW_SIDES_REVERSED_YES if the value of"//LF// &
+                        "`bidi_paragraph_direction' is `right-to-left' in the buffer most"//LF// &
+                        "recently shown in the window selected within the main window area"//LF// &
+                        "of this frame."//LF// &
+                        ""//LF// &
+                        "The layout of side windows on the left or right of a frame is not"//LF// &
+                        "affected by the value of this variable."
+        case ("window_sides_slots")
+            entry%file = "window_mod.f90"
+            entry%fortran = "window_sides_slots"
+            entry%user_option = .true.
+            entry%doc = "Number of available side window slots on each side of a frame."//LF// &
+                        "The value has four components specifying the maximum number of"//LF// &
+                        "side windows that may be created on the `left', `top', `right'"//LF// &
+                        "and `bottom' side of any frame."//LF// &
+                        ""//LF// &
+                        "If a component is a number, `display_buffer_in_side_window' will"//LF// &
+                        "refrain from making a new side window if the number of windows on"//LF// &
+                        "that side is equal to or exceeds that number.  Rather, it will"//LF// &
+                        "reuse the window whose `window_slot' value is nearest to the slot"//LF// &
+                        "specified via its table argument.  If a component is"//LF// &
+                        "WINDOW_SIDES_SLOTS_UNLIMITED, this means there's no bound on the"//LF// &
+                        "number of windows on that side."
+        case ("window_sides_vertical")
+            entry%file = "window_mod.f90"
+            entry%fortran = "window_sides_vertical"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(window_sides_vertical)
+            entry%doc = "If true, left and right side windows occupy full frame height."//LF// &
+                        "If false, top and bottom side windows occupy full frame width."
         case ("words_include_escapes")
             entry%file = "syntax_mod.f90"
             entry%fortran = "words_include_escapes"
@@ -36033,6 +36115,10 @@ contains
             kind = OPTION_INTEGER
         case ("window_min_width")
             kind = OPTION_INTEGER
+        case ("window_sides_reversed")
+            kind = OPTION_CHOICE
+        case ("window_sides_vertical")
+            kind = OPTION_LOGICAL
         case ("words_include_escapes")
             kind = OPTION_LOGICAL
         case ("yes_or_no_prompt")
@@ -36782,6 +36868,8 @@ contains
             view_scroll_auto_exit = v
         case ("visible_bell")
             visible_bell = v
+        case ("window_sides_vertical")
+            window_sides_vertical = v
         case ("words_include_escapes")
             words_include_escapes = v
         case default
@@ -39393,6 +39481,17 @@ contains
             case default
                 ok = .false.
             end select
+        case ("window_sides_reversed")
+            select case (constant)
+            case ("WINDOW_SIDES_REVERSED_NO")
+                window_sides_reversed = WINDOW_SIDES_REVERSED_NO
+            case ("WINDOW_SIDES_REVERSED_YES")
+                window_sides_reversed = WINDOW_SIDES_REVERSED_YES
+            case ("WINDOW_SIDES_REVERSED_BIDI")
+                window_sides_reversed = WINDOW_SIDES_REVERSED_BIDI
+            case default
+                ok = .false.
+            end select
         case default
             ok = .false.
         end select
@@ -39903,6 +40002,11 @@ contains
                          "VC_REVERT_SHOW_DIFF_KILL"]
             values = [integer(int64) :: int(VC_REVERT_SHOW_DIFF_NO, int64), &
                       int(VC_REVERT_SHOW_DIFF_YES, int64), int(VC_REVERT_SHOW_DIFF_KILL, int64)]
+        case ("window_sides_reversed")
+            constants = [character(len=48) :: "WINDOW_SIDES_REVERSED_NO", &
+                         "WINDOW_SIDES_REVERSED_YES", "WINDOW_SIDES_REVERSED_BIDI"]
+            values = [integer(int64) :: int(WINDOW_SIDES_REVERSED_NO, int64), &
+                      int(WINDOW_SIDES_REVERSED_YES, int64), int(WINDOW_SIDES_REVERSED_BIDI, int64)]
         case default
             allocate (constants(0), values(0))
         end select

@@ -51,6 +51,7 @@ module window_mod
     public :: make_window, delete_window_object, window_ref, is_window_live, is_window_valid, same_window, same_handle, &
               window_leaves, resize_window_tree, window_text_cols, split_window_internal, &
               remove_window_from_tree, replace_window, delete_window_tree
+    public :: window_resize_child_windows
     public :: window_resize_reset, window_resize_this_window, window_resize_root_window, window_sizable, &
               is_window_sizable, window_min_delta, window_resize_check, window_resize_apply, window_normal_size
     public :: scroll_up, scroll_down, recenter, move_to_window_line, &
@@ -69,6 +70,8 @@ module window_mod
               force_window_update
     public :: select_window, split_window, delete_window, delete_other_windows, other_window, other_buffer, &
               replace_buffer_in_windows, switch_to_buffer, init_window_cmds
+    public :: window_main_window, window_with_side, walk_window_tree, is_window_no_other, check_window_sides, &
+              is_window_sides_reversed_on_frame, display_buffer_in_side_window
 
     !> Number of lines of continuity when scrolling by screenfuls.
     !> Port of window.c next-screen-context-lines.
@@ -126,8 +129,25 @@ module window_mod
     integer, parameter, public :: QR_NONE = 0, QR_WINDOW = 1, QR_FRAME = 2, QR_SAME = 3, QR_OTHER = 4
 
     !> Dedication of a window to its buffer: none, weak or strong
-    !> (DEDICATED_NONE, DEDICATED_WEAK and DEDICATED_STRONG).
-    integer, parameter, public :: DEDICATED_NONE = 0, DEDICATED_WEAK = 1, DEDICATED_STRONG = 2
+    !> (DEDICATED_NONE, DEDICATED_WEAK and DEDICATED_STRONG), or
+    !> DEDICATED_SIDE (`side'), weak dedication that a side window keeps
+    !> when it switches to another buffer.
+    integer, parameter, public :: DEDICATED_NONE = 0, DEDICATED_WEAK = 1, DEDICATED_STRONG = 2, DEDICATED_SIDE = 3
+
+    !> The side of the frame a side window is on (its `window_side'
+    !> parameter): WINDOW_SIDE_NONE for a window that is not a side
+    !> window, else left, top, right or bottom.  The four sides number 1
+    !> to 4 in that order.
+    integer, parameter, public :: WINDOW_SIDE_NONE = 0, WINDOW_SIDE_LEFT = 1, WINDOW_SIDE_TOP = 2, &
+                                  WINDOW_SIDE_RIGHT = 3, WINDOW_SIDE_BOTTOM = 4
+
+    !> Values of `window_sides_reversed'.
+    integer, parameter, public :: WINDOW_SIDES_REVERSED_NO = 0, WINDOW_SIDES_REVERSED_YES = 1, &
+                                  WINDOW_SIDES_REVERSED_BIDI = 2
+
+    !> No bound on the number of side windows on a side
+    !> (`window_sides_slots').
+    integer, parameter, public :: WINDOW_SIDES_SLOTS_UNLIMITED = huge(0)
 
     !> What `quit_restore_window' and `switch_to_prev_buffer' do with the
     !> window's buffer (BURY-OR-KILL): nothing, `append', `bury', `kill',
@@ -140,12 +160,14 @@ module window_mod
     !> display-buffer-reuse-window, display-buffer-pop-up-window,
     !> display-buffer--maybe-pop-up-window, display-buffer-in-previous-window,
     !> display-buffer-use-some-window, display-buffer-at-bottom and
-    !> display-buffer-below-selected and display-buffer-pop-up-frame).
+    !> display-buffer-below-selected, display-buffer-in-side-window and
+    !> display-buffer-pop-up-frame).
     integer, parameter, public :: DISPLAY_ACTION_SAME_WINDOW = 1, DISPLAY_ACTION_MAYBE_SAME_WINDOW = 2, &
                                   DISPLAY_ACTION_REUSE_WINDOW = 3, DISPLAY_ACTION_POP_UP_WINDOW = 4, &
                                   DISPLAY_ACTION_MAYBE_POP_UP_WINDOW = 5, DISPLAY_ACTION_IN_PREVIOUS_WINDOW = 6, &
                                   DISPLAY_ACTION_USE_SOME_WINDOW = 7, DISPLAY_ACTION_AT_BOTTOM = 8, &
-                                  DISPLAY_ACTION_BELOW_SELECTED = 9, DISPLAY_ACTION_POP_UP_FRAME = 10
+                                  DISPLAY_ACTION_BELOW_SELECTED = 9, DISPLAY_ACTION_IN_SIDE_WINDOW = 10, &
+                                  DISPLAY_ACTION_POP_UP_FRAME = 11
 
     !> Which frames `display_buffer_reuse_window' searches (an action
     !> table's `reusable_frames' entry): the selected frame, all frames,
@@ -165,9 +187,30 @@ module window_mod
         end subroutine window_height_procedure
     end interface
 
+    !> The height `display_buffer' gives a window it made (the
+    !> `window_height' entry of an action table, R6-39): a number of
+    !> `lines', a `fraction' of the frame's root window height, or a
+    !> `procedure' called with the window to set it; none set means no
+    !> entry.
+    type, public :: display_window_height_type
+        integer :: lines = 0
+        real(real64) :: fraction = 0.0_real64
+        procedure(window_height_procedure), pointer, nopass :: procedure => null()
+    end type display_window_height_type
+
+    !> The width `display_buffer' gives a window it made (the
+    !> `window_width' entry): a number of `columns' or a `fraction' of
+    !> the frame's root window width; none set means no entry.
+    type, public :: display_window_width_type
+        integer :: columns = 0
+        real(real64) :: fraction = 0.0_real64
+    end type display_window_width_type
+
     !> A buffer display action table: the entries ported.  Port of the
-    !> `inhibit_same_window', `allow_no_window', `reusable_frames', `window_height' (a
-    !> function) and `body_function' entries.
+    !> `inhibit_same_window', `allow_no_window', `reusable_frames',
+    !> `window_height' (a function, a number of lines or a fraction of the
+    !> frame's height), `window_width' (a number of columns or a fraction),
+    !> `dedicated', `side', `slot' and `body_function' entries.
     type, public :: display_action_parameters_type
         !> Don't use the selected window.
         logical :: inhibit_same_window = .false.
@@ -177,9 +220,21 @@ module window_mod
         !> The frames to search for a window showing the buffer
         !> (REUSABLE_FRAMES_*).
         integer :: reusable_frames = REUSABLE_FRAMES_SELECTED
-        !> Called with a window made to display the buffer, to set its
-        !> height.
-        procedure(window_height_procedure), pointer, nopass :: window_height => null()
+        !> The height to give a window made to display the buffer
+        !> (`window_height'): its `lines', `fraction' or `procedure'.
+        type(display_window_height_type) :: window_height
+        !> The width to give such a window (`window_width'): its
+        !> `columns' or `fraction'.
+        type(display_window_width_type) :: window_width
+        !> With `has_dedicated', the dedication (DEDICATED_*) to give the
+        !> window chosen, if it is new or a side window.
+        logical :: has_dedicated = .false.
+        integer :: dedicated = DEDICATED_NONE
+        !> For `display_buffer_in_side_window': the side of the frame
+        !> (WINDOW_SIDE_*) and the slot on that side: 0 for the middle,
+        !> negative before it (above or to the left), positive after it.
+        integer :: side = WINDOW_SIDE_BOTTOM
+        integer :: slot = 0
         !> Called with the window chosen to display the buffer (the buffer
         !> current, read-only text and modification hooks inhibited), to
         !> fill it before its size is adjusted.
@@ -237,6 +292,67 @@ module window_mod
     !> display-buffer-mark-dedicated (DEDICATED_NONE, DEDICATED_WEAK or
     !> DEDICATED_STRONG).
     integer, public :: display_buffer_mark_dedicated = DEDICATED_NONE
+
+    !> If true, left and right side windows occupy full frame height.
+    !> If false, top and bottom side windows occupy full frame width.
+    !> Port of window.el window-sides-vertical.
+    logical, public :: window_sides_vertical = .false.
+
+    !> Whether top/bottom side windows appear in reverse order.
+    !> When this is WINDOW_SIDES_REVERSED_NO, side windows on the top and
+    !> bottom of a frame are always drawn from left to right with
+    !> increasing slot values.  When this is WINDOW_SIDES_REVERSED_YES,
+    !> side windows on the top and bottom of a frame are always drawn
+    !> from right to left with increasing slot values.
+    !>
+    !> When this is WINDOW_SIDES_REVERSED_BIDI, the drawing order is like
+    !> that for WINDOW_SIDES_REVERSED_YES if the value of
+    !> `bidi_paragraph_direction' is `right-to-left' in the buffer most
+    !> recently shown in the window selected within the main window area
+    !> of this frame.
+    !>
+    !> The layout of side windows on the left or right of a frame is not
+    !> affected by the value of this variable.  Port of window.el
+    !> window-sides-reversed.
+    integer, public :: window_sides_reversed = WINDOW_SIDES_REVERSED_NO
+
+    !> The number of side window slots on each side of a frame
+    !> (`window_sides_slots', R6-39): `left', `top', `right' and
+    !> `bottom', each a number or WINDOW_SIDES_SLOTS_UNLIMITED.
+    type, public :: window_sides_slots_type
+        integer :: left = WINDOW_SIDES_SLOTS_UNLIMITED
+        integer :: top = WINDOW_SIDES_SLOTS_UNLIMITED
+        integer :: right = WINDOW_SIDES_SLOTS_UNLIMITED
+        integer :: bottom = WINDOW_SIDES_SLOTS_UNLIMITED
+    end type window_sides_slots_type
+
+    !> Number of available side window slots on each side of a frame.
+    !> The value has four components specifying the maximum number of
+    !> side windows that may be created on the `left', `top', `right'
+    !> and `bottom' side of any frame.
+    !>
+    !> If a component is a number, `display_buffer_in_side_window' will
+    !> refrain from making a new side window if the number of windows on
+    !> that side is equal to or exceeds that number.  Rather, it will
+    !> reuse the window whose `window_slot' value is nearest to the slot
+    !> specified via its table argument.  If a component is
+    !> WINDOW_SIDES_SLOTS_UNLIMITED, this means there's no bound on the
+    !> number of windows on that side.  Port of window.el
+    !> window-sides-slots.
+    type(window_sides_slots_type), public :: window_sides_slots
+
+    !> If true, standard functions ignore window parameters.
+    !> The functions currently affected by this are `split_window',
+    !> `delete_window', `delete_other_windows' and `other_window'.
+    !>
+    !> An application may set this to true around calls to these
+    !> functions to inhibit processing of window parameters.  Port of
+    !> window.el ignore-window-parameters.
+    logical, public :: ignore_window_parameters = .false.
+
+    !> True means inhibit any checks on side windows (window.el
+    !> window--sides-inhibit-check).
+    logical :: window_sides_inhibit_check = .false.
 
     !> Which windows `next_window' and its relatives consider besides the
     !> ordinary ones (their MINIBUF argument): the minibuffer window if the
@@ -329,6 +445,19 @@ module window_mod
         type(quit_restore_type) :: quit_restore, quit_restore_prev
         !> Whether the window is dedicated to its buffer.
         integer :: dedicated = DEDICATED_NONE
+        !> The `window_side' parameter: the side of the frame (WINDOW_SIDE_*)
+        !> of a side window, or of an internal window whose children are
+        !> the side windows on that side; WINDOW_SIDE_NONE for others.
+        integer :: window_side = WINDOW_SIDE_NONE
+        !> The `window_slot' parameter of a side window: its slot on its
+        !> side (0 the middle, negative before it, positive after it).
+        integer :: window_slot = 0
+        !> The `no_other_window' parameter: `other_window' and the
+        !> functions that look for an "other" window skip this one.
+        logical :: no_other_window = .false.
+        !> The `no_delete_other_windows' parameter: `delete_other_windows'
+        !> leaves this window alone.
+        logical :: no_delete_other_windows = .false.
         !> The window tree: the parent (internal) window, the next and
         !> previous siblings, and for an internal window its first child;
         !> null handles for none.  Port of window.h parent, next, prev and
@@ -678,18 +807,20 @@ module window_mod
         !> or columns.  The new window shows the buffer, start and point of
         !> WINDOW if it is live, else of the selected window.  WINDOW may
         !> be internal (the root window, say): its windows share what is
-        !> left.  With BEFORE the new window goes above WINDOW (with
-        !> HORIZONTAL to its left): upstream's SIDE `above' or `left'.
-        !> Port of window.el:split-window (`window_combination_resize'
-        !> .false., no REFER).
-        module subroutine split_window(window, size, has_size, horizontal, new, status, before)
+        !> left.  With `before' the new window goes above WINDOW (or to its
+        !> left).  `side_resize' stands for `window_combination_resize'
+        !> bound to `side', as `display_buffer_in_side_window' does: the
+        !> new window takes space from the side windows next to it and
+        !> becomes a side window.  Port of window.el:split-window
+        !> (`window_combination_resize' .false. otherwise, no REFER).
+        module subroutine split_window(window, size, has_size, horizontal, new, status, before, side_resize)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
             integer, intent(in) :: size
             logical, intent(in) :: has_size, horizontal
             type(handle_type), intent(out) :: new
             type(status_type), intent(out) :: status
-            logical, intent(in), optional :: before
+            logical, intent(in), optional :: before, side_resize
         end subroutine split_window
 
         !> Delete WINDOW: its space goes to a neighbor, and if it was
@@ -701,23 +832,29 @@ module window_mod
             type(status_type), intent(out) :: status
         end subroutine delete_window
 
-        !> Make WINDOW fill its frame.  Port of
-        !> window.el:delete-other-windows.
-        module subroutine delete_other_windows(window, status)
+        !> Make WINDOW fill its frame, or with side windows its main window
+        !> (side windows and windows with `no_delete_other_windows' stay).
+        !> INTERACTIVE says "No other windows to delete" when there is
+        !> nothing to do.  Port of window.el:delete-other-windows.
+        module subroutine delete_other_windows(window, status, interactive)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
             type(status_type), intent(out) :: status
+            logical, intent(in), optional :: interactive
         end subroutine delete_other_windows
 
         !> Select another window in cyclic ordering of windows.
         !> COUNT specifies the number of windows to skip, starting with the
         !> selected window, before making the selection.  If COUNT is
         !> positive, skip COUNT windows forwards.  If COUNT is negative,
-        !> skip -COUNT windows backwards.  Port of window.el:other-window.
-        module subroutine other_window(count, status)
+        !> skip -COUNT windows backwards.  Windows whose `no_other_window' parameter is
+        !> true are skipped.  INTERACTIVE says "No other window to select"
+        !> when it selects the selected window.  Port of window.el:other-window.
+        module subroutine other_window(count, status, interactive)
             implicit none(type, external)
             integer(int64), intent(in) :: count
             type(status_type), intent(out) :: status
+            logical, intent(in), optional :: interactive
         end subroutine other_window
 
         !> Return most recently selected buffer other than BUFFER.
@@ -1631,6 +1768,141 @@ module window_mod
         end function window_at
     end interface
 
+    ! Side windows, in submodule window_sides_mod; `window_display_buffer'
+    ! is in window_display_mod.
+    interface
+        !> Display BUFFER in WINDOW: TYPE is QR_OTHER when WINDOW existed
+        !> already (`reuse'), QR_WINDOW when it is new.  Unless it shows
+        !> BUFFER already, or is reused and not a side window, WINDOW is
+        !> dedicated as TABLE's `dedicated' entry says, else as
+        !> `display_buffer_mark_dedicated' says for a new window; a new
+        !> window gets the height and width TABLE's `window_height' and
+        !> `window_width' entries give it.  Return WINDOW if BUFFER and
+        !> WINDOW are live.  Port of window.el:window--display-buffer.
+        module function window_display_buffer(buffer, h, type, status, table) result(window)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer, h
+            integer, intent(in) :: type
+            type(status_type), intent(out) :: status
+            type(display_action_parameters_type), intent(in) :: table
+            type(handle_type) :: window
+        end function window_display_buffer
+
+        !> The windows of the tree under ROOT in pre-order, depth first: its
+        !> live windows, and with INTERNAL its internal windows too.  Port of
+        !> window.el:walk-window-tree and walk-window-subtree (the windows
+        !> are returned in LIST instead of passed to a function).
+        recursive module subroutine walk_window_tree(root, internal, list)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: root
+            logical, intent(in) :: internal
+            type(handle_type), allocatable, intent(out) :: list(:)
+        end subroutine walk_window_tree
+
+        !> Return the first window on the frame whose `window_side' is
+        !> SIDE, or with WINDOW_SIDE_NONE the first side window.  INTERNAL
+        !> true means consider internal windows too.  The null handle for none.
+        !> Port of window.el:window-with-parameter (for `window_side').
+        module function window_with_side(side, internal) result(window)
+            implicit none(type, external)
+            integer, intent(in) :: side
+            logical, intent(in) :: internal
+            type(handle_type) :: window
+        end function window_with_side
+
+        !> Return the main window of the frame.
+        !> If the frame has no side windows, return its root window.
+        !> Otherwise, return either an internal non-side window such that
+        !> all other non-side windows on the frame descend from it, or the
+        !> single live non-side window of the frame.  Port of
+        !> window.el:window-main-window.
+        module function window_main_window() result(main)
+            implicit none(type, external)
+            type(handle_type) :: main
+        end function window_main_window
+
+        !> Return true if WINDOW should not be used as "other" window.
+        !> WINDOW must be a live window.
+        !>
+        !> Return true if the `no_other_window' parameter of WINDOW is true
+        !> and `ignore_window_parameters' is false.  Return false in any
+        !> other case.  Port of window.el:window-no-other-p.
+        module function is_window_no_other(window) result(p)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+            logical :: p
+        end function is_window_no_other
+
+        !> Check side windows configuration of the frame.
+        !> In a valid side windows configuration there can be at most one
+        !> internal side window on each side and all its children must be
+        !> live and have the same `window_side' parameter and no other
+        !> window with the same `window_side' parameter exists on the
+        !> frame.  If there is no such internal window, there may be at
+        !> most one window with this side's `window_side' parameter on the
+        !> frame.
+        !>
+        !> If the configuration is invalid, reset the `window_side'
+        !> parameters of all windows on the frame.  Port of
+        !> window.el:window--sides-check (with window--sides-check-failed,
+        !> whose error condition STATUS returns).
+        module subroutine check_window_sides(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine check_window_sides
+
+        !> Return true when side windows should appear reversed on the
+        !> frame.  This uses some heuristics to guess the user's intentions
+        !> when the selected window of the frame is a side window.
+        !> Port of window.el:window--sides-reverse-on-frame-p.
+        module function is_window_sides_reversed_on_frame() result(p)
+            implicit none(type, external)
+            logical :: p
+        end function is_window_sides_reversed_on_frame
+
+        !> Display BUFFER in a side window of the selected frame.
+        !> TABLE is a buffer display action table.  Its `side' and `slot'
+        !> entries have a special meaning:
+        !>
+        !>  `side' denotes the side of the frame where the new window shall
+        !>    be located.  Valid values are WINDOW_SIDE_BOTTOM,
+        !>    WINDOW_SIDE_RIGHT, WINDOW_SIDE_TOP and WINDOW_SIDE_LEFT.  The
+        !>    default is WINDOW_SIDE_BOTTOM.
+        !>
+        !>  `slot' specifies the window slot where to display BUFFER.  A
+        !>    value of zero means use the middle slot on the specified
+        !>    side.  A negative value means use a slot preceding (that is,
+        !>    above or on the left of) the middle slot.  A positive value
+        !>    means use a slot following (that is, below or on the right
+        !>    of) the middle slot.  The default is zero.
+        !>
+        !> If the current frame size or the settings of `window_sides_slots'
+        !> do not permit making a new window, a suitable existing window may
+        !> be reused and have its `window_slot' parameter value accordingly
+        !> modified.
+        !>
+        !> Unless `display_buffer_mark_dedicated' is not DEDICATED_NONE,
+        !> dedicate the side window used to BUFFER (DEDICATED_SIDE) so that
+        !> it does not get reused by other `display_buffer' action
+        !> functions.  Return the window used for displaying BUFFER in
+        !> WINDOW, the null handle if no suitable window can be found.
+        !>
+        !> This function installs the `window_side' and `window_slot'
+        !> parameters.
+        !>
+        !> This is an action function for buffer display.  It should be
+        !> called only by `display_buffer' or a function directly or
+        !> indirectly called by the latter.  Port of
+        !> window.el:display-buffer-in-side-window.
+        module subroutine display_buffer_in_side_window(buffer, table, window, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(display_action_parameters_type), intent(in) :: table
+            type(handle_type), intent(out) :: window
+            type(status_type), intent(out) :: status
+        end subroutine display_buffer_in_side_window
+    end interface
+
 contains
 
     !> Whether `a' and `b' are the same buffer (or window) handle.
@@ -2515,22 +2787,27 @@ contains
 
     !> Split window `old' in two: make `new' (a new window showing the
     !> buffer of `refer', by default `old', which must then be live) below
-    !> it or, with
-    !> `horizontal', to its right.  `new_size' is the size of the new
+    !> it or, with `horizontal', to its right; with `before', above it or
+    !> to its left.  `new_size' is the size of the new
     !> window in lines or columns.  If `old' isn't already in a combination
     !> of that kind, an internal window replaces it there, with `old' and
     !> `new' as its children.  `root' is the frame's root window, updated
     !> if it was `old'.  `normal_size' is the new window's normal size;
     !> `old' keeps the rest of its own (all of the new internal window's).
     !> Without it the new window gets half: 0.5 of a new internal window,
-    !> else half of `old''s normal size.  Port of
+    !> else half of `old''s normal size.  With `resize' the space comes
+    !> from all the windows of `old''s combination instead, whose new
+    !> sizes (`new_total') the caller has set; it then sets the normal
+    !> sizes too.  With `new_parent' an internal window is made even if `old'
+    !> is in a combination of that kind (`window_combination_limit' t).
+    !> Port of
     !> window.c:Fsplit_window_internal (the sizes are worked out by the
     !> caller, window.el:split-window, which also gives `old' its new
     !> normal size and the default NORMAL-SIZE when SIZE is omitted).
     !> With `before' the new window goes above `old' (to its left with
     !> `horizontal'): window.c:Fsplit_window_internal's SIDE `above' or
     !> `left'.
-    subroutine split_window_internal(old, horizontal, new_size, root, new, status, refer, normal_size, before)
+    subroutine split_window_internal(old, horizontal, new_size, root, new, status, refer, normal_size, before, resize, new_parent)
         type(handle_type), intent(in) :: old
         logical, intent(in) :: horizontal
         integer, intent(in) :: new_size
@@ -2539,18 +2816,27 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: refer
         real(real64), intent(in), optional :: normal_size
-        logical, intent(in), optional :: before
-        type(handle_type) :: parent, nxt, prv, r
-        integer :: old_size
-        logical :: combine, first
+        logical, intent(in), optional :: before, resize, new_parent
+        type(handle_type) :: parent, nxt, prv, r, c
+        integer :: old_size, taken
+        logical :: combine, above, resizing
         real(real64) :: new_normal, old_normal
 
         status = status_type()
         r = old
         if (present(refer)) r = refer
+        above = .false.
+        if (present(before)) above = before
+        resizing = .false.
+        if (present(resize)) resizing = resize
         parent = windows(old%index)%parent
         combine = .false.
         if (wtable%is_live(parent)) combine = windows(parent%index)%horizontal .eqv. horizontal
+
+        if (present(new_parent)) then
+            if (new_parent) combine = .false.
+        end if
+
         ! The normal sizes of the new window and of old (window.el:split-window).
         old_normal = 1.0_real64
         if (combine) old_normal = window_normal_size(old, horizontal)
@@ -2565,6 +2851,7 @@ contains
 
         if (.not. combine) then
             ! A new internal window takes old's place, with old as its child.
+            resizing = .false.
             call make_window(parent)
             call replace_window(old, parent)
             windows(parent%index)%horizontal = horizontal
@@ -2574,23 +2861,22 @@ contains
         end if
 
         call make_window(new)
-        first = .false.
-        if (present(before)) first = before
 
         associate (o => windows(old%index), n => windows(new%index))
             n%parent = parent
 
-            if (first) then
+            if (above) then
                 prv = o%prev
                 n%prev = prv
-                n%next = old
-                o%prev = new
 
                 if (wtable%is_live(prv)) then
                     windows(prv%index)%next = new
                 else
                     windows(parent%index)%child = new
                 end if
+
+                n%next = old
+                o%prev = new
             else
                 nxt = o%next
                 n%next = nxt
@@ -2604,35 +2890,62 @@ contains
             n%total_lines = o%total_lines
             n%total_cols = o%total_cols
             n%divider = o%divider
+        end associate
+
+        if (resizing) then
+            ! The other windows of the combination have their new sizes:
+            ! the new window gets the rest, and window_resize_apply places
+            ! them all.
+            taken = 0
+            c = windows(parent%index)%child
+
+            do while (wtable%is_live(c))
+                if (.not. same_window(c, new)) taken = taken + windows(c%index)%new_total
+                c = windows(c%index)%next
+            end do
 
             if (horizontal) then
-                old_size = o%total_cols - new_size
-                o%total_cols = old_size
-                n%total_cols = new_size
-                o%normal_cols = old_normal - new_normal
-                n%normal_cols = new_normal
-
-                if (first) then
-                    o%left_col = o%left_col + new_size
-                    n%divider = .true.
-                else
-                    n%left_col = o%left_col + old_size
-                    o%divider = .true.
-                end if
+                windows(new%index)%new_total = windows(parent%index)%total_cols - taken
             else
-                old_size = o%total_lines - new_size
-                o%total_lines = old_size
-                n%total_lines = new_size
-                o%normal_lines = old_normal - new_normal
-                n%normal_lines = new_normal
-
-                if (first) then
-                    o%top_line = o%top_line + new_size
-                else
-                    n%top_line = o%top_line + old_size
-                end if
+                windows(new%index)%new_total = windows(parent%index)%total_lines - taken
             end if
-        end associate
+
+            associate (rw => windows(root%index))
+                call window_resize_apply(parent, horizontal, rw%left_col + rw%total_cols)
+            end associate
+        else
+            associate (o => windows(old%index), n => windows(new%index))
+                if (horizontal) then
+                    old_size = o%total_cols - new_size
+                    o%total_cols = old_size
+                    n%total_cols = new_size
+
+                    if (above) then
+                        o%left_col = n%left_col + new_size
+                        n%divider = .true.
+                    else
+                        n%left_col = o%left_col + old_size
+                        o%divider = .true.
+                    end if
+
+                    o%normal_cols = old_normal - new_normal
+                    n%normal_cols = new_normal
+                else
+                    old_size = o%total_lines - new_size
+                    o%total_lines = old_size
+                    n%total_lines = new_size
+
+                    if (above) then
+                        o%top_line = n%top_line + new_size
+                    else
+                        n%top_line = o%top_line + old_size
+                    end if
+
+                    o%normal_lines = old_normal - new_normal
+                    n%normal_lines = new_normal
+                end if
+            end associate
+        end if
 
         call set_window_buffer_internal(new, windows(r%index)%buffer, .true.)
         ! (set_window_buffer with run_hooks_p.)
