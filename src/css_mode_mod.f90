@@ -28,7 +28,7 @@
 !>
 !> Deferred: `css_lookup_symbol' (it needs eww; `css__mdn_find_symbol'
 !> is ported), Imenu (its index functions are ported, for
-!> `css_current_rule_name'), `add_log_current_subprogram_function', the menu,
+!> `css_current_rule_name'), the menu,
 !> `css_ts_mode', `less_css_mode' (less-css-mode.el) and the
 !> `:company_kind' completion properties.
 module css_mode_mod
@@ -43,6 +43,7 @@ module css_mode_mod
     use buffer_mod, only: buffers, current, buffer_serial_live, current_buffer, buffer_list, set_buffer, is_buffer_live
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
                           forward_comment, skip_chars_forward, skip_chars_backward, char_syntax
@@ -2659,17 +2660,14 @@ contains
         name = css_join_nested_selectors(parts)
     end function join_squeezed
 
-    !> Return the name of the CSS section at point (`found' false for
+    !> Return the name of the CSS section at point (unallocated for
     !> none).  Port of css-mode.el:css-current-defun-name.
-    recursive subroutine css_current_rule_name(name, found)
+    recursive subroutine css_current_rule_name(name)
         character(len=:), allocatable, intent(out) :: name
-        logical, intent(out) :: found
         integer(int64) :: opoint
 
-        name = ""
         opoint = point()
-        found = css_prev_index_position()
-        if (found) name = css_extract_index_name()
+        if (css_prev_index_position()) name = css_extract_index_name()
         call goto_char(opoint)
     end subroutine css_current_rule_name
 
@@ -3402,6 +3400,7 @@ contains
         call smie_setup(css_smie_grammar, css_smie_rules, css_smie_forward_token, css_smie_backward_token)
         call font_lock_fontify_region_function_set_local(css_fontify_region)
         call completion_at_point_functions%prepend(css_completion_at_point, local=.true.)
+        call add_log_current_subprogram_function%set_local(css_current_rule_name)
         call major_modes%css_mode%end(saved, status)
     end subroutine css_mode
 
