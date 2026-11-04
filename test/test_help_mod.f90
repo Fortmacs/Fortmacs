@@ -33,7 +33,7 @@ module test_help_mod
     use value_mod, only: value_type, make_list
     use print_mod, only: fortran_repr
     use callint_mod, only: current_prefix_arg
-    use files_mod, only: require_final_newline, FINAL_NEWLINE_VISIT
+    use files_mod, only: require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT
     use buffer_mod, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, current_buffer, is_buffer_modified, &
                           auto_fill_function, is_buffer_live
     use frame_mod, only: selected_frame, ensure_frame_windows
@@ -450,10 +450,10 @@ contains
         if (allocated(error)) return
         ! An enumerated integer setting: its named constant, and the one
         ! it started with.
-        require_final_newline = FINAL_NEWLINE_VISIT
+        require_final_newline = REQUIRE_FINAL_NEWLINE_VISIT
         call describe_variable_text("require_final_newline", text, found)
         require_final_newline = .false.
-        call check(error, index(text, "Its value is FINAL_NEWLINE_VISIT"//LF// &
+        call check(error, index(text, "Its value is REQUIRE_FINAL_NEWLINE_VISIT"//LF// &
                                 "Original value was .false."//LF) > 0, text)
         if (allocated(error)) return
         call describe_variable_text("fill_prefix", text, found)

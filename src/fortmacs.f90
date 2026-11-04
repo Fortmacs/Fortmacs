@@ -278,8 +278,9 @@ module fortmacs
     use kmacro_mod, only: kmacro_ring_max, kmacro_execute_before_append, kmacro_repeat_no_prefix, kmacro_execute_repeat_key, &
                           kmacro_execute_repeat_with_arg
     use edmacro_mod, only: edmacro_eight_bits
-    use files_mod, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_VISIT, &
-                         FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
+    use files_mod, only: require_final_newline, mode_require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT, &
+                         REQUIRE_FINAL_NEWLINE_VISIT_SAVE, REQUIRE_FINAL_NEWLINE_ASK, MODE_REQUIRE_FINAL_NEWLINE_VISIT, &
+                         MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, MODE_REQUIRE_FINAL_NEWLINE_ASK
     ! Dired.
     use dired_mode_mod, only: dired, dired_other_window, dired_noselect, dired_mode, dired_mode_map, dired_mode_hook, &
                               dired_before_readin_hook, dired_after_readin_hook, dired_initial_position_hook, &
@@ -385,8 +386,8 @@ module fortmacs
                           comint_mode_hook, comint_exec_hook, comint_output_filter_functions, &
                           comint_preoutput_filter_functions, comint_input_filter_functions, comint_mode_map, &
                           comint_truncate_buffer, comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, &
-                          comint_show_maximum_output, comint_input_autoexpand, COMINT_AUTOEXPAND_INPUT, &
-                          COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, &
+                          comint_show_maximum_output, comint_input_autoexpand, COMINT_INPUT_AUTOEXPAND_INPUT, &
+                          COMINT_INPUT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, &
                           COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, &
                           comint_insert_previous_argument_from_end, comint_history_isearch, &
                           COMINT_HISTORY_ISEARCH_DWIM, comint_password_prompt_regexp, comint_password_prompt_max_length
@@ -780,7 +781,7 @@ module fortmacs
               comint_input_filter_functions, comint_mode_map, &
               comint_truncate_buffer, comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, &
               comint_show_maximum_output, comint_input_autoexpand, &
-              COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, &
+              COMINT_INPUT_AUTOEXPAND_INPUT, COMINT_INPUT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, &
               COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, &
               COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, comint_insert_previous_argument_from_end, comint_history_isearch, &
               COMINT_HISTORY_ISEARCH_DWIM, &
@@ -908,7 +909,9 @@ module fortmacs
               parse_expression_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_identifier, &
               open_paren_in_column_0_is_subprogram_start, comment_use_syntax_ppss, require_final_newline, &
               mode_require_final_newline, redraw_after_suspend, &
-              FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, change_hook_type, &
+              REQUIRE_FINAL_NEWLINE_VISIT, REQUIRE_FINAL_NEWLINE_VISIT_SAVE, REQUIRE_FINAL_NEWLINE_ASK, &
+              MODE_REQUIRE_FINAL_NEWLINE_VISIT, MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, MODE_REQUIRE_FINAL_NEWLINE_ASK, &
+              change_hook_type, &
               after_change_hook_type, change_procedure, after_change_procedure, before_change_functions, &
               after_change_functions, first_change_hook, inhibit_modification_hooks
     public :: font_lock_defaults, font_lock_defaults_setting_type, font_lock_global_modes, font_lock_global_modes_type, &

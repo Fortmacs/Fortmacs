@@ -37,7 +37,7 @@ module test_simple_setvar_mod
     use replace_mod, only: case_replace
     use compile_mod, only: compile_command, compilation_scroll_output, COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
     use xdisp_mod, only: message_log_max, message_log_max_choice_setting_type
-    use files_mod, only: require_final_newline, FINAL_NEWLINE_VISIT
+    use files_mod, only: require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT
     use simple_mod, only: set_variable, copy_region_blink_delay
     implicit none(type, external)
     private
@@ -169,12 +169,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call fresh()
-        call set_var("require_final_newline", "final_newline_visit")
-        call check(error, require_final_newline%choice == FINAL_NEWLINE_VISIT, last_message)
+        call set_var("require_final_newline", "require_final_newline_visit")
+        call check(error, require_final_newline%choice == REQUIRE_FINAL_NEWLINE_VISIT, last_message)
         if (allocated(error)) return
         call set_var("require_final_newline", "7")
         call check(error, last_message, "Wrong type argument: expected .true., .false., "// &
-                   "FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE or FINAL_NEWLINE_ASK, got 7")
+                   "REQUIRE_FINAL_NEWLINE_VISIT, REQUIRE_FINAL_NEWLINE_VISIT_SAVE or REQUIRE_FINAL_NEWLINE_ASK, got 7")
         if (allocated(error)) return
         call set_var("require_final_newline", "visit")
         call check(error, index(last_message, "Wrong type argument: expected .true., .false.") == 1 .and. &

@@ -44,7 +44,9 @@ module test_files_mod
                          save_buffer, basic_save_buffer, make_backup_file_name, &
                          normal_backup_enable_test_function, save_some_buffers, &
                          save_buffers_exit_fortmacs, temporary_file_directory, create_directory, require_final_newline, &
-                         FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT, find_file_run_dired, create_temp_file
+                         REQUIRE_FINAL_NEWLINE_ASK, REQUIRE_FINAL_NEWLINE_VISIT, find_file_run_dired, create_temp_file, &
+                         mode_require_final_newline, MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, &
+                         REQUIRE_FINAL_NEWLINE_VISIT_SAVE, set_require_final_newline_from_mode
     use subr_mod, only: read_y_or_n
     use map_ynp_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK, YNP_ACT
     use fortmacs_mod, only: command_line_1
@@ -97,6 +99,7 @@ contains
                     new_unittest("command-line-files", test_command_line), &
                     new_unittest("files-tests-make-directory", test_create_directory), &
                     new_unittest("require-final-newline", test_final_newline), &
+                    new_unittest("mode-require-final-newline", test_mode_final_newline), &
                     new_unittest("write-file", test_write_file), &
                     new_unittest("files-tests-revert-buffer", test_revert_buffer), &
                     new_unittest("revert-buffer-replace", test_revert_buffer_replace), &
@@ -739,6 +742,31 @@ contains
         call delete_directory_internal(dir, st)
     end subroutine test_create_directory
 
+    !> A mode gives `require_final_newline' the state of
+    !> `mode_require_final_newline', each in its own named constants, in
+    !> the current buffer only.  Not a port.
+    subroutine test_mode_final_newline(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(handle_type) :: buffer
+
+        call get_or_make_buffer(" mode-final-newline", buffer, st)
+        call set_buffer(buffer, st)
+        mode_require_final_newline = MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE
+        call set_require_final_newline_from_mode()
+        call check(error, require_final_newline%choice == REQUIRE_FINAL_NEWLINE_VISIT_SAVE, "visit-save")
+
+        if (.not. allocated(error)) then
+            mode_require_final_newline = .true.
+            call set_require_final_newline_from_mode()
+            call check(error, require_final_newline%value, "t")
+        end if
+
+        mode_require_final_newline = .true.
+        call close_buffer(buffer, st)
+        if (.not. allocated(error)) call check(error, require_final_newline%is_off(), "default kept")
+    end subroutine test_mode_final_newline
+
     !> basic-save-buffer adds a final newline as `require_final_newline'
     !> says (asking for other values than t and visit-save), visiting adds
     !> one for `visit', and saving into a missing directory asks to create
@@ -759,7 +787,7 @@ contains
             call save_buffer(1_int64, .true., st)
             call check(error, slurp(path("x")) == "x", "nil: no newline")
             if (allocated(error)) exit body
-            require_final_newline = FINAL_NEWLINE_ASK
+            require_final_newline = REQUIRE_FINAL_NEWLINE_ASK
             call insert("y", st)
             call type_keys("n")
             call save_buffer(1_int64, .true., st)
@@ -786,7 +814,7 @@ contains
             call insert("v", st)
             call write_region(path("new"), .false., st)
             call close_buffer(buffer, st)
-            require_final_newline = FINAL_NEWLINE_VISIT
+            require_final_newline = REQUIRE_FINAL_NEWLINE_VISIT
             call find_file(path("new"), st)
             call check(error, buffer_string() == "v"//LF, "visit")
         end block body

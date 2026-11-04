@@ -108,12 +108,12 @@ module docstrings_mod
                           comint_exec_hook, comint_file_name_chars, comint_file_name_prefix, &
                           comint_file_name_quote_chars, comint_highlight_input, comint_history_isearch, &
                           COMINT_HISTORY_ISEARCH_DWIM, comint_inhibit_carriage_motion, comint_input_autoexpand, &
-                          COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, comint_input_filter_functions, &
-                          comint_input_history_ignore, comint_input_ignoredups, comint_input_ring_file_name, &
-                          comint_input_ring_file_prefix, comint_input_ring_separator, comint_input_ring_size, &
-                          comint_input_sender_no_newline, comint_insert_previous_argument_from_end, comint_mode_hook, &
-                          comint_mode_map, comint_move_point_for_matching_input, &
-                          COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT, &
+                          COMINT_INPUT_AUTOEXPAND_INPUT, COMINT_INPUT_AUTOEXPAND_HISTORY, &
+                          comint_input_filter_functions, comint_input_history_ignore, comint_input_ignoredups, &
+                          comint_input_ring_file_name, comint_input_ring_file_prefix, comint_input_ring_separator, &
+                          comint_input_ring_size, comint_input_sender_no_newline, &
+                          comint_insert_previous_argument_from_end, comint_mode_hook, comint_mode_map, &
+                          comint_move_point_for_matching_input, COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT, &
                           COMINT_MOVE_POINT_FOR_MATCHING_INPUT_END_OF_LINE, comint_move_point_for_output, &
                           COMINT_MOVE_POINT_FOR_OUTPUT_ALL, COMINT_MOVE_POINT_FOR_OUTPUT_THIS, &
                           COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS, comint_output_filter_functions, comint_pager, &
@@ -238,9 +238,10 @@ module docstrings_mod
                          close_buffer_hook, copy_directory_create_symlink, create_backup_files, &
                          directory_listing_before_filename_regexp, dired_ls_error_buffer, dired_ls_error_file, &
                          find_directory_functions, find_file_hook, find_file_run_dired, insert_directory_program, &
-                         locate_dominating_stop_dir_regexp, mode_require_final_newline, FINAL_NEWLINE_VISIT, &
-                         FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, mounted_file_systems, find_file, &
-                         require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, &
+                         locate_dominating_stop_dir_regexp, mode_require_final_newline, &
+                         MODE_REQUIRE_FINAL_NEWLINE_VISIT, MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, &
+                         MODE_REQUIRE_FINAL_NEWLINE_ASK, mounted_file_systems, find_file, require_final_newline, &
+                         REQUIRE_FINAL_NEWLINE_VISIT, REQUIRE_FINAL_NEWLINE_VISIT_SAVE, REQUIRE_FINAL_NEWLINE_ASK, &
                          revert_buffer_function, revert_buffer_in_progress, revert_buffer_preserve_modes, &
                          revert_without_query, save_some_buffers_functions, view_read_only, write_file_functions
     use fill_mod, only: adaptive_fill_first_line_regexp, adaptive_fill_function, adaptive_fill_mode, &
@@ -501,11 +502,11 @@ module docstrings_mod
                             query_sendmail_once, sendmail_coding_system, sendmail_error_reporting_interactive, &
                             sendmail_error_reporting_non_interactive, sendmail_program, sendmail_user_agent, &
                             set_up_mail_hook, set_up_mail_with_from
-    use sgml_mode_mod, only: html_mode_hook, html_mode_map, html_quick_keys, QUICK_KEYS_INDENT, &
-                             QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, html_tag_faces, html_tag_help, html_tags, &
+    use sgml_mode_mod, only: html_mode_hook, html_mode_map, html_quick_keys, HTML_QUICK_KEYS_INDENT, &
+                             HTML_QUICK_KEYS_CLOSE, HTML_QUICK_KEYS_DEFAULT, html_tag_faces, html_tag_help, html_tags, &
                              sgml_attribute_offset, sgml_basic_offset, sgml_char_names, sgml_empty_tags, sgml_mode_hook, &
-                             sgml_mode_map, sgml_mode_syntax_table, sgml_quick_keys, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, &
-                             QUICK_KEYS_DEFAULT, sgml_slash_distance, sgml_specials, sgml_tag_help_variable, &
+                             sgml_mode_map, sgml_mode_syntax_table, sgml_quick_keys, SGML_QUICK_KEYS_INDENT, &
+                             SGML_QUICK_KEYS_CLOSE, sgml_slash_distance, sgml_specials, sgml_tag_help_variable, &
                              sgml_tag_history, sgml_tag_last, sgml_tag_syntax_table, sgml_tags, &
                              sgml_transformation_function, sgml_unclosed_tags, sgml_validate_command, &
                              sgml_whitespace_sensitive_tags, sgml_xml_mode
@@ -539,10 +540,10 @@ module docstrings_mod
                          shell_dirstack_query, shell_dirtrack_mode_hook, shell_dirtrack_verbose, &
                          shell_dumb_shell_regexp, shell_dynamic_complete_functions, shell_file_name_chars, &
                          shell_file_name_quote_chars, shell_get_old_input_include_continuation_lines, &
-                         shell_has_auto_cd, shell_history_file_name, shell_input_autoexpand, COMINT_AUTOEXPAND_INPUT, &
-                         COMINT_AUTOEXPAND_HISTORY, shell_mode_hook, shell_mode_map, shell_popd_regexp, &
-                         shell_prompt_regexp, shell_pushd_dextract, shell_pushd_dunique, shell_pushd_regexp, &
-                         shell_pushd_tohome, shell_repeat_map
+                         shell_has_auto_cd, shell_history_file_name, shell_input_autoexpand, &
+                         SHELL_INPUT_AUTOEXPAND_INPUT, SHELL_INPUT_AUTOEXPAND_HISTORY, shell_mode_hook, &
+                         shell_mode_map, shell_popd_regexp, shell_prompt_regexp, shell_pushd_dextract, &
+                         shell_pushd_dunique, shell_pushd_regexp, shell_pushd_tohome, shell_repeat_map
     use simple_mod, only: async_shell_command_buffer, &
                           ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS, &
                           ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER, ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER, &
@@ -21309,10 +21310,10 @@ contains
             entry%original = ".false."
 
             select case (comint_input_autoexpand%choice)
-            case (COMINT_AUTOEXPAND_INPUT)
-                entry%value = "COMINT_AUTOEXPAND_INPUT"
-            case (COMINT_AUTOEXPAND_HISTORY)
-                entry%value = "COMINT_AUTOEXPAND_HISTORY"
+            case (COMINT_INPUT_AUTOEXPAND_INPUT)
+                entry%value = "COMINT_INPUT_AUTOEXPAND_INPUT"
+            case (COMINT_INPUT_AUTOEXPAND_HISTORY)
+                entry%value = "COMINT_INPUT_AUTOEXPAND_HISTORY"
             case default
                 entry%value = repr(comint_input_autoexpand%value)
             end select
@@ -21321,8 +21322,8 @@ contains
                         "references on completion.  This mirrors the optional behavior of"//LF// &
                         "tcsh (its autoexpand and histlist)."//LF// &
                         ""//LF// &
-                        "If the value is COMINT_AUTOEXPAND_INPUT, then the expansion is seen"//LF// &
-                        "on input.  If the value is COMINT_AUTOEXPAND_HISTORY, then the"//LF// &
+                        "If the value is COMINT_INPUT_AUTOEXPAND_INPUT, then the expansion is seen"//LF// &
+                        "on input.  If the value is COMINT_INPUT_AUTOEXPAND_HISTORY, then the"//LF// &
                         "expansion is only when inserting into the buffer's input ring."//LF// &
                         "See also `comint_magic_space' and `completion_at_point'."//LF// &
                         ""//LF// &
@@ -26547,15 +26548,15 @@ contains
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "html_quick_keys"
             entry%user_option = .true.
-            entry%original = "QUICK_KEYS_DEFAULT"
+            entry%original = "HTML_QUICK_KEYS_DEFAULT"
 
             select case (html_quick_keys%choice)
-            case (QUICK_KEYS_INDENT)
-                entry%value = "QUICK_KEYS_INDENT"
-            case (QUICK_KEYS_CLOSE)
-                entry%value = "QUICK_KEYS_CLOSE"
-            case (QUICK_KEYS_DEFAULT)
-                entry%value = "QUICK_KEYS_DEFAULT"
+            case (HTML_QUICK_KEYS_INDENT)
+                entry%value = "HTML_QUICK_KEYS_INDENT"
+            case (HTML_QUICK_KEYS_CLOSE)
+                entry%value = "HTML_QUICK_KEYS_CLOSE"
+            case (HTML_QUICK_KEYS_DEFAULT)
+                entry%value = "HTML_QUICK_KEYS_DEFAULT"
             case default
                 entry%value = repr(html_quick_keys%value)
             end select
@@ -29892,12 +29893,12 @@ contains
             entry%original = ".true."
 
             select case (mode_require_final_newline%choice)
-            case (FINAL_NEWLINE_VISIT)
-                entry%value = "FINAL_NEWLINE_VISIT"
-            case (FINAL_NEWLINE_VISIT_SAVE)
-                entry%value = "FINAL_NEWLINE_VISIT_SAVE"
-            case (FINAL_NEWLINE_ASK)
-                entry%value = "FINAL_NEWLINE_ASK"
+            case (MODE_REQUIRE_FINAL_NEWLINE_VISIT)
+                entry%value = "MODE_REQUIRE_FINAL_NEWLINE_VISIT"
+            case (MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE)
+                entry%value = "MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE"
+            case (MODE_REQUIRE_FINAL_NEWLINE_ASK)
+                entry%value = "MODE_REQUIRE_FINAL_NEWLINE_ASK"
             case default
                 entry%value = repr(mode_require_final_newline%value)
             end select
@@ -29908,9 +29909,10 @@ contains
                         "to end in newlines, and the question is how to arrange that."//LF// &
                         ""//LF// &
                         "A value of .true. means do this only when the file is about to be saved."//LF// &
-                        "A value of FINAL_NEWLINE_VISIT means do this right after the file is visited."//LF// &
-                        "A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times."//LF// &
-                        "A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving."//LF// &
+                        "A value of MODE_REQUIRE_FINAL_NEWLINE_VISIT means do this right after the file is visited."//LF// &
+                        "A value of MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE means do it at both of those times."//LF// &
+                        "A value of MODE_REQUIRE_FINAL_NEWLINE_ASK means ask user whether to add a newline, when sa"// &
+                        "ving."//LF// &
                         ""//LF// &
                         "A value of .false. means do not add newlines.  That is a risky choice in this"//LF// &
                         "variable since this value is used for modes for files that ought to have"//LF// &
@@ -31394,12 +31396,12 @@ contains
             entry%original = ".false."
 
             select case (require_final_newline%choice)
-            case (FINAL_NEWLINE_VISIT)
-                entry%value = "FINAL_NEWLINE_VISIT"
-            case (FINAL_NEWLINE_VISIT_SAVE)
-                entry%value = "FINAL_NEWLINE_VISIT_SAVE"
-            case (FINAL_NEWLINE_ASK)
-                entry%value = "FINAL_NEWLINE_ASK"
+            case (REQUIRE_FINAL_NEWLINE_VISIT)
+                entry%value = "REQUIRE_FINAL_NEWLINE_VISIT"
+            case (REQUIRE_FINAL_NEWLINE_VISIT_SAVE)
+                entry%value = "REQUIRE_FINAL_NEWLINE_VISIT_SAVE"
+            case (REQUIRE_FINAL_NEWLINE_ASK)
+                entry%value = "REQUIRE_FINAL_NEWLINE_ASK"
             case default
                 entry%value = repr(require_final_newline%value)
             end select
@@ -31407,9 +31409,9 @@ contains
             entry%doc = "Whether to add a newline automatically at the end of the file."//LF// &
                         ""//LF// &
                         "A value of .true. means do this only when the file is about to be saved."//LF// &
-                        "A value of FINAL_NEWLINE_VISIT means do this right after the file is visited."//LF// &
-                        "A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times."//LF// &
-                        "A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving."//LF// &
+                        "A value of REQUIRE_FINAL_NEWLINE_VISIT means do this right after the file is visited."//LF// &
+                        "A value of REQUIRE_FINAL_NEWLINE_VISIT_SAVE means do it at both of those times."//LF// &
+                        "A value of REQUIRE_FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving."//LF// &
                         "A value of .false. means don't add newlines."//LF// &
                         ""//LF// &
                         "Certain major modes set this locally to the value obtained"//LF// &
@@ -32150,18 +32152,16 @@ contains
             entry%original = ".false."
 
             select case (sgml_quick_keys%choice)
-            case (QUICK_KEYS_INDENT)
-                entry%value = "QUICK_KEYS_INDENT"
-            case (QUICK_KEYS_CLOSE)
-                entry%value = "QUICK_KEYS_CLOSE"
-            case (QUICK_KEYS_DEFAULT)
-                entry%value = "QUICK_KEYS_DEFAULT"
+            case (SGML_QUICK_KEYS_INDENT)
+                entry%value = "SGML_QUICK_KEYS_INDENT"
+            case (SGML_QUICK_KEYS_CLOSE)
+                entry%value = "SGML_QUICK_KEYS_CLOSE"
             case default
                 entry%value = repr(sgml_quick_keys%value)
             end select
 
             entry%doc = "Use <, >, &, /, SPC and `sgml_specials' keys ""electrically"" when"//LF// &
-                        "true.  By setting the option to QUICK_KEYS_INDENT, Fortmacs will"//LF// &
+                        "true.  By setting the option to SGML_QUICK_KEYS_INDENT, Fortmacs will"//LF// &
                         "eagerly reindent the current line when you manually close a tag."
         case ("sgml_slash_distance")
             entry%file = "sgml_mode_mod.f90"
@@ -33206,13 +33206,13 @@ contains
             entry%file = "shell_mod.f90"
             entry%fortran = "shell_input_autoexpand"
             entry%user_option = .true.
-            entry%original = "COMINT_AUTOEXPAND_HISTORY"
+            entry%original = "SHELL_INPUT_AUTOEXPAND_HISTORY"
 
             select case (shell_input_autoexpand%choice)
-            case (COMINT_AUTOEXPAND_INPUT)
-                entry%value = "COMINT_AUTOEXPAND_INPUT"
-            case (COMINT_AUTOEXPAND_HISTORY)
-                entry%value = "COMINT_AUTOEXPAND_HISTORY"
+            case (SHELL_INPUT_AUTOEXPAND_INPUT)
+                entry%value = "SHELL_INPUT_AUTOEXPAND_INPUT"
+            case (SHELL_INPUT_AUTOEXPAND_HISTORY)
+                entry%value = "SHELL_INPUT_AUTOEXPAND_HISTORY"
             case default
                 entry%value = repr(shell_input_autoexpand%value)
             end select
@@ -33221,8 +33221,8 @@ contains
                         "references on completion.  This mirrors the optional behavior of"//LF// &
                         "tcsh (its autoexpand and histlit)."//LF// &
                         ""//LF// &
-                        "If the value is COMINT_AUTOEXPAND_INPUT, then the expansion is seen"//LF// &
-                        "on input.  If the value is COMINT_AUTOEXPAND_HISTORY, then the"//LF// &
+                        "If the value is SHELL_INPUT_AUTOEXPAND_INPUT, then the expansion is seen"//LF// &
+                        "on input.  If the value is SHELL_INPUT_AUTOEXPAND_HISTORY, then the"//LF// &
                         "expansion is only when inserting into the buffer's input ring.  See"//LF// &
                         "also `comint_magic_space' and `comint_dynamic_complete_functions'."//LF// &
                         ""//LF// &
@@ -38918,17 +38918,17 @@ contains
                 else
                     comint_input_autoexpand = .false.
                 end if
-            case ("COMINT_AUTOEXPAND_INPUT")
+            case ("COMINT_INPUT_AUTOEXPAND_INPUT")
                 if (local) then
-                    call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_INPUT)
+                    call comint_input_autoexpand%set_local(COMINT_INPUT_AUTOEXPAND_INPUT)
                 else
-                    comint_input_autoexpand = COMINT_AUTOEXPAND_INPUT
+                    comint_input_autoexpand = COMINT_INPUT_AUTOEXPAND_INPUT
                 end if
-            case ("COMINT_AUTOEXPAND_HISTORY")
+            case ("COMINT_INPUT_AUTOEXPAND_HISTORY")
                 if (local) then
-                    call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_HISTORY)
+                    call comint_input_autoexpand%set_local(COMINT_INPUT_AUTOEXPAND_HISTORY)
                 else
-                    comint_input_autoexpand = COMINT_AUTOEXPAND_HISTORY
+                    comint_input_autoexpand = COMINT_INPUT_AUTOEXPAND_HISTORY
                 end if
             case default
                 ok = .false.
@@ -39821,23 +39821,23 @@ contains
                 else
                     html_quick_keys = .false.
                 end if
-            case ("QUICK_KEYS_INDENT")
+            case ("HTML_QUICK_KEYS_INDENT")
                 if (local) then
-                    call html_quick_keys%set_local(QUICK_KEYS_INDENT)
+                    call html_quick_keys%set_local(HTML_QUICK_KEYS_INDENT)
                 else
-                    html_quick_keys = QUICK_KEYS_INDENT
+                    html_quick_keys = HTML_QUICK_KEYS_INDENT
                 end if
-            case ("QUICK_KEYS_CLOSE")
+            case ("HTML_QUICK_KEYS_CLOSE")
                 if (local) then
-                    call html_quick_keys%set_local(QUICK_KEYS_CLOSE)
+                    call html_quick_keys%set_local(HTML_QUICK_KEYS_CLOSE)
                 else
-                    html_quick_keys = QUICK_KEYS_CLOSE
+                    html_quick_keys = HTML_QUICK_KEYS_CLOSE
                 end if
-            case ("QUICK_KEYS_DEFAULT")
+            case ("HTML_QUICK_KEYS_DEFAULT")
                 if (local) then
-                    call html_quick_keys%set_local(QUICK_KEYS_DEFAULT)
+                    call html_quick_keys%set_local(HTML_QUICK_KEYS_DEFAULT)
                 else
-                    html_quick_keys = QUICK_KEYS_DEFAULT
+                    html_quick_keys = HTML_QUICK_KEYS_DEFAULT
                 end if
             case default
                 ok = .false.
@@ -39998,23 +39998,23 @@ contains
                 else
                     mode_require_final_newline = .false.
                 end if
-            case ("FINAL_NEWLINE_VISIT")
+            case ("MODE_REQUIRE_FINAL_NEWLINE_VISIT")
                 if (local) then
-                    call mode_require_final_newline%set_local(FINAL_NEWLINE_VISIT)
+                    call mode_require_final_newline%set_local(MODE_REQUIRE_FINAL_NEWLINE_VISIT)
                 else
-                    mode_require_final_newline = FINAL_NEWLINE_VISIT
+                    mode_require_final_newline = MODE_REQUIRE_FINAL_NEWLINE_VISIT
                 end if
-            case ("FINAL_NEWLINE_VISIT_SAVE")
+            case ("MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE")
                 if (local) then
-                    call mode_require_final_newline%set_local(FINAL_NEWLINE_VISIT_SAVE)
+                    call mode_require_final_newline%set_local(MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE)
                 else
-                    mode_require_final_newline = FINAL_NEWLINE_VISIT_SAVE
+                    mode_require_final_newline = MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE
                 end if
-            case ("FINAL_NEWLINE_ASK")
+            case ("MODE_REQUIRE_FINAL_NEWLINE_ASK")
                 if (local) then
-                    call mode_require_final_newline%set_local(FINAL_NEWLINE_ASK)
+                    call mode_require_final_newline%set_local(MODE_REQUIRE_FINAL_NEWLINE_ASK)
                 else
-                    mode_require_final_newline = FINAL_NEWLINE_ASK
+                    mode_require_final_newline = MODE_REQUIRE_FINAL_NEWLINE_ASK
                 end if
             case default
                 ok = .false.
@@ -40097,23 +40097,23 @@ contains
                 else
                     require_final_newline = .false.
                 end if
-            case ("FINAL_NEWLINE_VISIT")
+            case ("REQUIRE_FINAL_NEWLINE_VISIT")
                 if (local) then
-                    call require_final_newline%set_local(FINAL_NEWLINE_VISIT)
+                    call require_final_newline%set_local(REQUIRE_FINAL_NEWLINE_VISIT)
                 else
-                    require_final_newline = FINAL_NEWLINE_VISIT
+                    require_final_newline = REQUIRE_FINAL_NEWLINE_VISIT
                 end if
-            case ("FINAL_NEWLINE_VISIT_SAVE")
+            case ("REQUIRE_FINAL_NEWLINE_VISIT_SAVE")
                 if (local) then
-                    call require_final_newline%set_local(FINAL_NEWLINE_VISIT_SAVE)
+                    call require_final_newline%set_local(REQUIRE_FINAL_NEWLINE_VISIT_SAVE)
                 else
-                    require_final_newline = FINAL_NEWLINE_VISIT_SAVE
+                    require_final_newline = REQUIRE_FINAL_NEWLINE_VISIT_SAVE
                 end if
-            case ("FINAL_NEWLINE_ASK")
+            case ("REQUIRE_FINAL_NEWLINE_ASK")
                 if (local) then
-                    call require_final_newline%set_local(FINAL_NEWLINE_ASK)
+                    call require_final_newline%set_local(REQUIRE_FINAL_NEWLINE_ASK)
                 else
-                    require_final_newline = FINAL_NEWLINE_ASK
+                    require_final_newline = REQUIRE_FINAL_NEWLINE_ASK
                 end if
             case default
                 ok = .false.
@@ -40178,23 +40178,17 @@ contains
                 else
                     sgml_quick_keys = .false.
                 end if
-            case ("QUICK_KEYS_INDENT")
+            case ("SGML_QUICK_KEYS_INDENT")
                 if (local) then
-                    call sgml_quick_keys%set_local(QUICK_KEYS_INDENT)
+                    call sgml_quick_keys%set_local(SGML_QUICK_KEYS_INDENT)
                 else
-                    sgml_quick_keys = QUICK_KEYS_INDENT
+                    sgml_quick_keys = SGML_QUICK_KEYS_INDENT
                 end if
-            case ("QUICK_KEYS_CLOSE")
+            case ("SGML_QUICK_KEYS_CLOSE")
                 if (local) then
-                    call sgml_quick_keys%set_local(QUICK_KEYS_CLOSE)
+                    call sgml_quick_keys%set_local(SGML_QUICK_KEYS_CLOSE)
                 else
-                    sgml_quick_keys = QUICK_KEYS_CLOSE
-                end if
-            case ("QUICK_KEYS_DEFAULT")
-                if (local) then
-                    call sgml_quick_keys%set_local(QUICK_KEYS_DEFAULT)
-                else
-                    sgml_quick_keys = QUICK_KEYS_DEFAULT
+                    sgml_quick_keys = SGML_QUICK_KEYS_CLOSE
                 end if
             case default
                 ok = .false.
@@ -40728,17 +40722,17 @@ contains
                 else
                     shell_input_autoexpand = .false.
                 end if
-            case ("COMINT_AUTOEXPAND_INPUT")
+            case ("SHELL_INPUT_AUTOEXPAND_INPUT")
                 if (local) then
-                    call shell_input_autoexpand%set_local(COMINT_AUTOEXPAND_INPUT)
+                    call shell_input_autoexpand%set_local(SHELL_INPUT_AUTOEXPAND_INPUT)
                 else
-                    shell_input_autoexpand = COMINT_AUTOEXPAND_INPUT
+                    shell_input_autoexpand = SHELL_INPUT_AUTOEXPAND_INPUT
                 end if
-            case ("COMINT_AUTOEXPAND_HISTORY")
+            case ("SHELL_INPUT_AUTOEXPAND_HISTORY")
                 if (local) then
-                    call shell_input_autoexpand%set_local(COMINT_AUTOEXPAND_HISTORY)
+                    call shell_input_autoexpand%set_local(SHELL_INPUT_AUTOEXPAND_HISTORY)
                 else
-                    shell_input_autoexpand = COMINT_AUTOEXPAND_HISTORY
+                    shell_input_autoexpand = SHELL_INPUT_AUTOEXPAND_HISTORY
                 end if
             case default
                 ok = .false.
@@ -41046,10 +41040,11 @@ contains
             constants = [character(len=48) :: ".true.", ".false.", "COMINT_HISTORY_ISEARCH_DWIM"]
             values = [integer(int64) :: 1_int64, 0_int64, int(COMINT_HISTORY_ISEARCH_DWIM, int64)]
         case ("comint_input_autoexpand")
-            constants = [character(len=48) :: ".true.", ".false.", "COMINT_AUTOEXPAND_INPUT", &
-                         "COMINT_AUTOEXPAND_HISTORY"]
-            values = [integer(int64) :: 1_int64, 0_int64, int(COMINT_AUTOEXPAND_INPUT, int64), &
-                      int(COMINT_AUTOEXPAND_HISTORY, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "COMINT_INPUT_AUTOEXPAND_INPUT", &
+                         "COMINT_INPUT_AUTOEXPAND_HISTORY"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
+                      int(COMINT_INPUT_AUTOEXPAND_INPUT, int64), &
+                      int(COMINT_INPUT_AUTOEXPAND_HISTORY, int64)]
         case ("comint_move_point_for_matching_input")
             constants = [character(len=48) :: "COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT", &
                          "COMINT_MOVE_POINT_FOR_MATCHING_INPUT_END_OF_LINE"]
@@ -41221,10 +41216,10 @@ contains
             values = [integer(int64) :: 1_int64, 0_int64, &
                       int(GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, int64)]
         case ("html_quick_keys")
-            constants = [character(len=48) :: ".true.", ".false.", "QUICK_KEYS_INDENT", &
-                         "QUICK_KEYS_CLOSE", "QUICK_KEYS_DEFAULT"]
-            values = [integer(int64) :: 1_int64, 0_int64, int(QUICK_KEYS_INDENT, int64), &
-                      int(QUICK_KEYS_CLOSE, int64), int(QUICK_KEYS_DEFAULT, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "HTML_QUICK_KEYS_INDENT", &
+                         "HTML_QUICK_KEYS_CLOSE", "HTML_QUICK_KEYS_DEFAULT"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(HTML_QUICK_KEYS_INDENT, int64), &
+                      int(HTML_QUICK_KEYS_CLOSE, int64), int(HTML_QUICK_KEYS_DEFAULT, int64)]
         case ("ibuffer_always_show_last_buffer")
             constants = [character(len=48) :: ".true.", ".false.", &
                          "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI"]
@@ -41255,10 +41250,13 @@ contains
             values = [integer(int64) :: 1_int64, 0_int64, int(MAIL_SEND_NONASCII_ASK, int64), &
                       int(MAIL_SEND_NONASCII_MIME, int64)]
         case ("mode_require_final_newline")
-            constants = [character(len=48) :: ".true.", ".false.", "FINAL_NEWLINE_VISIT", &
-                         "FINAL_NEWLINE_VISIT_SAVE", "FINAL_NEWLINE_ASK"]
-            values = [integer(int64) :: 1_int64, 0_int64, int(FINAL_NEWLINE_VISIT, int64), &
-                      int(FINAL_NEWLINE_VISIT_SAVE, int64), int(FINAL_NEWLINE_ASK, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "MODE_REQUIRE_FINAL_NEWLINE_VISIT", "MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE", &
+                         "MODE_REQUIRE_FINAL_NEWLINE_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
+                      int(MODE_REQUIRE_FINAL_NEWLINE_VISIT, int64), &
+                      int(MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, int64), &
+                      int(MODE_REQUIRE_FINAL_NEWLINE_ASK, int64)]
         case ("python_fill_docstring_style")
             constants = [character(len=48) :: "PYTHON_FILL_DOCSTRING_STYLE_NONE", &
                          "PYTHON_FILL_DOCSTRING_STYLE_DJANGO", "PYTHON_FILL_DOCSTRING_STYLE_ONETWO", &
@@ -41274,10 +41272,10 @@ contains
             constants = [character(len=48) :: ".true.", ".false.", "READ_ANSWER_SHORT_AUTO"]
             values = [integer(int64) :: 1_int64, 0_int64, int(READ_ANSWER_SHORT_AUTO, int64)]
         case ("require_final_newline")
-            constants = [character(len=48) :: ".true.", ".false.", "FINAL_NEWLINE_VISIT", &
-                         "FINAL_NEWLINE_VISIT_SAVE", "FINAL_NEWLINE_ASK"]
-            values = [integer(int64) :: 1_int64, 0_int64, int(FINAL_NEWLINE_VISIT, int64), &
-                      int(FINAL_NEWLINE_VISIT_SAVE, int64), int(FINAL_NEWLINE_ASK, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "REQUIRE_FINAL_NEWLINE_VISIT", &
+                         "REQUIRE_FINAL_NEWLINE_VISIT_SAVE", "REQUIRE_FINAL_NEWLINE_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(REQUIRE_FINAL_NEWLINE_VISIT, int64), &
+                      int(REQUIRE_FINAL_NEWLINE_VISIT_SAVE, int64), int(REQUIRE_FINAL_NEWLINE_ASK, int64)]
         case ("save_abbrevs")
             constants = [character(len=48) :: ".true.", ".false.", "SAVE_ABBREVS_SILENTLY"]
             values = [integer(int64) :: 1_int64, 0_int64, int(SAVE_ABBREVS_SILENTLY, int64)]
@@ -41285,10 +41283,10 @@ contains
             constants = [character(len=48) :: ".true.", ".false.", "SEARCH_UPPER_CASE_NOT_PASTED"]
             values = [integer(int64) :: 1_int64, 0_int64, int(SEARCH_UPPER_CASE_NOT_PASTED, int64)]
         case ("sgml_quick_keys")
-            constants = [character(len=48) :: ".true.", ".false.", "QUICK_KEYS_INDENT", &
-                         "QUICK_KEYS_CLOSE", "QUICK_KEYS_DEFAULT"]
-            values = [integer(int64) :: 1_int64, 0_int64, int(QUICK_KEYS_INDENT, int64), &
-                      int(QUICK_KEYS_CLOSE, int64), int(QUICK_KEYS_DEFAULT, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SGML_QUICK_KEYS_INDENT", &
+                         "SGML_QUICK_KEYS_CLOSE"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SGML_QUICK_KEYS_INDENT, int64), &
+                      int(SGML_QUICK_KEYS_CLOSE, int64)]
         case ("sh_indent_after_case")
             constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
                          "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
@@ -41372,10 +41370,10 @@ contains
                       int(SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, int64), &
                       int(SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT, int64)]
         case ("shell_input_autoexpand")
-            constants = [character(len=48) :: ".true.", ".false.", "COMINT_AUTOEXPAND_INPUT", &
-                         "COMINT_AUTOEXPAND_HISTORY"]
-            values = [integer(int64) :: 1_int64, 0_int64, int(COMINT_AUTOEXPAND_INPUT, int64), &
-                      int(COMINT_AUTOEXPAND_HISTORY, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SHELL_INPUT_AUTOEXPAND_INPUT", &
+                         "SHELL_INPUT_AUTOEXPAND_HISTORY"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SHELL_INPUT_AUTOEXPAND_INPUT, int64), &
+                      int(SHELL_INPUT_AUTOEXPAND_HISTORY, int64)]
         case ("show_paren_not_in_comments_or_strings")
             constants = [character(len=48) :: ".true.", ".false.", &
                          "SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH"]
