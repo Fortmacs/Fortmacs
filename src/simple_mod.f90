@@ -102,7 +102,7 @@ module simple_mod
     use keyboard_mod, only: last_command_event, this_command, &
                             real_this_command, last_command, &
                             real_last_command, last_prefix_arg, read_event, &
-                            set_transient_map, last_message, disabled_command_hook, &
+                            set_transient_map, last_message, handle_disabled_command, &
                             local_function_key_map, unread_command_events
     use keyboard_mod, only: defining_kbd_macro, DEFINING_KBD_MACRO_NO, redisplay_procedure, deactivate_mark_function, &
                             ascii_character, prefix_command_update
@@ -1365,7 +1365,8 @@ module simple_mod
     !>        .false. -- just delete one character.
     !> Port of simple.el backward-delete-char-untabify-method.
     type(choice_setting_type), public :: backward_delete_char_untabify_method = &
-              choice_setting_type(name="backward_delete_char_untabify_method", choice=BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY)
+                                         choice_setting_type(name="backward_delete_char_untabify_method", &
+                                                           true_valid=.false., choice=BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY)
 
     !> True means show matching open-paren when it is on screen.
     !> If false, don't show it (but the open-paren can still be shown
@@ -3110,8 +3111,7 @@ contains
         ! command-execute
         current_prefix_arg = prefixarg
         prefix_arg = prefix_arg_type()
-        handled = .false.
-        if (associated(disabled_command_hook)) call disabled_command_hook(function, handled, status)
+        call handle_disabled_command(function, handled, status)
         if (.not. handled) call execute_interactively(function, status)
         if (.not. status%ok()) return
 

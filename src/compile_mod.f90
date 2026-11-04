@@ -51,7 +51,8 @@
 !> the `first-error' value of `compilation_scroll_output' beyond scrolling
 !> (need timers), highlighting the locus (`next_error_highlight',
 !> `compilation_highlight_regexp': need overlays), the overlay arrow and
-!> margins (`compilation_context_lines' true, the fringe), the `keymap'
+!> margins (`compilation_context' COMPILATION_CONTEXT_NO_SCROLL, the
+!> fringe), the `keymap'
 !> text property (`compilation_button_map'), the mouse, menus and tool
 !> bar, `compilation_goto_in_progress_buffer'; a global
 !> `compilation_error_regexp_names' with rule specifications rather than
@@ -530,20 +531,34 @@ module compile_mod
     type(logical_setting_type), public :: compilation_search_all_directories = &
                                           logical_setting_type(name="compilation_search_all_directories", value=.true.)
 
-    !> Values of `compilation_context_lines' other than a number of lines.
-    integer, parameter, public :: COMPILATION_CONTEXT_TOP = -1, COMPILATION_CONTEXT_LINES_NO_SCROLL = -2
+    !> Values of `compilation_context' besides a number of lines
+    !> (`%lines'); it takes no .true. or .false..
+    integer, parameter, public :: COMPILATION_CONTEXT_TOP = 2, COMPILATION_CONTEXT_NO_SCROLL = 3
+
+    !> The setting `compilation_context': a number of lines (R6-39:
+    !> `compilation_context%lines = 3'; negative when no number is set) or
+    !> one of its named constants.  Not a port.
+    type, extends(choice_setting_type), public :: compilation_context_choice_setting_type
+        integer(int64) :: lines = -1
+    contains
+        procedure :: clear_kinds => compilation_context_clear_kinds
+        procedure :: other_value => compilation_context_other_value
+        procedure :: kind_hint => compilation_context_kind_hint
+    end type compilation_context_choice_setting_type
 
     !> Display this many lines of leading context before the current
-    !> message.  If COMPILATION_CONTEXT_TOP or COMPILATION_CONTEXT_LINES_NO_SCROLL, and
-    !> the left fringe is displayed, don't scroll the compilation output
-    !> window; an arrow in the left fringe points to the current message.
-    !> With no left fringe, if COMPILATION_CONTEXT_TOP, the message scrolls
-    !> to the top of the window; there is no arrow.  If
-    !> COMPILATION_CONTEXT_LINES_NO_SCROLL, don't scroll the compilation output window at
-    !> all; an arrow before column zero points to the current message.
-    !> Port of compile.el compilation-context-lines.
-    type(integer_setting_type), public :: compilation_context_lines = &
-                                          integer_setting_type(name="compilation_context_lines", value=COMPILATION_CONTEXT_TOP)
+    !> message (`compilation_context%lines').  If COMPILATION_CONTEXT_TOP or
+    !> COMPILATION_CONTEXT_NO_SCROLL, and the left fringe is displayed,
+    !> don't scroll the compilation output window; an arrow in the left
+    !> fringe points to the current message.  With no left fringe, if
+    !> COMPILATION_CONTEXT_TOP, the message scrolls to the top of the
+    !> window; there is no arrow.  If COMPILATION_CONTEXT_NO_SCROLL, don't
+    !> scroll the compilation output window at all; an arrow before column
+    !> zero points to the current message.  Port of compile.el
+    !> compilation-context-lines.
+    type(compilation_context_choice_setting_type), public :: compilation_context = &
+                                                             compilation_context_choice_setting_type(name="compilation_context", &
+                                                            true_valid=.false., false_valid=.false., choice=COMPILATION_CONTEXT_TOP)
 
     !> Face name to use for whole messages.
     !> Faces `compilation_error_face', `compilation_warning_face',
@@ -3614,12 +3629,12 @@ contains
         call marker_position(mk, pos, st)
         opoint = point()
 
-        if (compilation_context_lines%value >= 0) then
+        if (compilation_context%lines >= 0) then
             call goto_char(pos)
-            call compilation_beginning_of_line(1 - compilation_context_lines%value)
+            call compilation_beginning_of_line(1 - compilation_context%lines)
             call set_window_start(windows(w%index), point(), st)
             call goto_char(opoint)
-        else if (compilation_context_lines%value == COMPILATION_CONTEXT_TOP) then
+        else if (compilation_context%choice == COMPILATION_CONTEXT_TOP) then
             ! There is no left fringe.
             call goto_char(pos)
             moved = forward_line(0_int64)
@@ -5118,4 +5133,37 @@ contains
             compilation_leave_directory_face = "font_lock_builtin_face"
         end if
     end subroutine init_compile
+
+    !> Forget the lines of `compilation_context', as any assignment to it
+    !> does.  Not a port.
+    subroutine compilation_context_clear_kinds(self)
+        class(compilation_context_choice_setting_type), intent(inout) :: self
+
+        self%lines = -1
+    end subroutine compilation_context_clear_kinds
+
+    !> The lines of `compilation_context' as help shows it (`%lines = N');
+    !> "" when none is set.  Not a port.
+    function compilation_context_other_value(self) result(text)
+        class(compilation_context_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        character(len=40) :: digits
+
+        text = ""
+
+        if (self%lines >= 0) then
+            write (digits, "(i0)") self%lines
+            text = "%lines = "//trim(digits)
+        end if
+    end function compilation_context_other_value
+
+    !> The assignment that sets the number or procedure `compilation_context' takes, for the error of a rejected
+    !> value.  Not a port.
+    function compilation_context_kind_hint(self, number) result(text)
+        class(compilation_context_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of lines is `"//trim(self%name)//"%lines = "//number//"'"
+    end function compilation_context_kind_hint
 end module compile_mod

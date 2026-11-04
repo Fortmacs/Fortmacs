@@ -20,7 +20,8 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Disabled commands: a command whose `disabled' attribute is .true.
-!> property asks before it runs (`disabled_command_function'), as
+!> asks before it runs (`disabled_command_function', the procedure of
+!> keyboard_mod's `disabled_command_function_variable'), as
 !> simple.el:command-execute arranges.  `enable_command' and
 !> `disable_command' change the property and record the choice in the
 !> init file, as `commands%CMD%disabled = .false.' in `configure' (the
@@ -32,7 +33,7 @@ module novice_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_mod, only: commands, builtin_command
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR
-    use value_mod, only: value_type, xfixnum, symbols, xsymbol, vtag, V_NULL, V_INTEGER, V_NAME
+    use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
     use names_mod, only: user_init_file
     use handle_mod, only: handle_type
     use buffer_mod, only: current_buffer, set_buffer
@@ -46,7 +47,7 @@ module novice_mod
     use subr_mod, only: read_y_or_n
     use data_mod, only: symbol_name
     use keymap_mod, only: key_description
-    use keyboard_mod, only: this_command_keys, disabled_command_hook
+    use keyboard_mod, only: disabled_command_function_variable
     use callint_mod, only: execute_interactively, is_command, find_command, command_type
     use character_mod, only: CHAR_META
     use help_mod, only: substitute_command_keys, documentation_hook
@@ -58,36 +59,9 @@ module novice_mod
 
     public :: disabled_command_function, enable_command, disable_command, init_novice
 
-    !> Function to call to handle disabled commands.
-    !> If false, the feature is disabled, i.e., all commands work normally.
-    !> Port of novice.el disabled-command-function (true is the default
-    !> function, .false. is none).
-    logical, public :: disabled_command_function_variable = .true.
-
     character(len=*), parameter :: LF = achar(10)
 
 contains
-
-    !> The hook keyboard_mod runs before each command (command-execute's
-    !> test of the `disabled' property).
-    !> Port of the disabled-command test of simple.el:command-execute.
-    recursive subroutine check_disabled(cmd, handled, status)
-        type(value_type), intent(in) :: cmd
-        logical, intent(out) :: handled
-        type(status_type), intent(out) :: status
-        type(command_type), pointer :: p
-
-        handled = .false.
-        status = status_type()
-        if (.not. disabled_command_function_variable .or. (vtag(cmd) /= V_NAME .and. vtag(cmd) /= V_NULL) &
-            .or. .not. allocated(cmd%a)) return
-        p => find_command(symbols(xsymbol(cmd))%name)
-        if (.not. associated(p)) return
-        ! A string `disabled' property disables it too.
-        if (.not. (p%disabled .or. len_trim(p%disabled_message) > 0)) return
-        handled = .true.
-        call disabled_command_function(cmd, this_command_keys, status)
-    end subroutine check_disabled
 
     !> Ask whether to run the disabled command CMD, typed as KEYS: n (or
     !> C-g) cancels, y enables it (for the session), SPC runs it this
@@ -396,12 +370,14 @@ contains
         if (status%ok()) call disable_command(name, status)
     end subroutine cmd_disable_command
 
-    !> Install the check for disabled commands, disable the commands
+    !> Install `disabled_command_function' as the handler of disabled
+    !> commands, disable the commands
     !> upstream disables (subr.el `upcase_region' and `downcase_region')
     !> and register
     !> `enable_command' and `disable_command'.  Not a port.
     subroutine init_novice()
-        disabled_command_hook => check_disabled
+        call disabled_command_function_variable%set_standard_procedure(disabled_command_function, &
+                                                                       "disabled_command_function")
         commands%enable_command%execute => cmd_enable_command
         commands%disable_command%execute => cmd_disable_command
         commands%upcase_region%disabled = .true.

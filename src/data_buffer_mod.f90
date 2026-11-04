@@ -403,6 +403,8 @@ contains
         type(value_type), intent(out) :: v
         logical, intent(out) :: bound
         type(minor_mode_type), pointer :: m
+        type(value_type) :: kept
+        logical :: found
 
         bound = .true.
 
@@ -419,7 +421,9 @@ contains
             type is (history_setting_type)
                 call setting_value(p, history_value(p), v, bound)
             class is (choice_setting_type)
-                call setting_value(p, choice_value(p), v, bound)
+                call p%get_kind_value(kept, found)
+                if (.not. found) kept = choice_value(p)
+                call setting_value(p, kept, v, bound)
             class default
                 v = value_type()
             end select
@@ -534,6 +538,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
         type(minor_mode_type), pointer :: m
+        logical :: done
 
         status = status_type()
 
@@ -550,7 +555,8 @@ contains
             type is (history_setting_type)
                 call set_history(p, v, status)
             class is (choice_setting_type)
-                call set_choice(p, v, status)
+                call p%set_kind_value(v, done)
+                if (.not. done) call set_choice(p, v, status)
             class default
             end select
 
@@ -774,8 +780,11 @@ contains
         class(choice_setting_type), intent(inout) :: s
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
+        integer :: errors
 
         status = status_type()
+        errors = 0
+        if (allocated(setting_errors)) errors = size(setting_errors)
 
         if (.not. allocated(v%a)) then
             s = .false.
@@ -785,6 +794,14 @@ contains
             s = int(xfixnum(v))
         else
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected .true., .false. or a named constant")
+        end if
+
+        ! A value S does not accept (panel 2026-11-04).
+        if (allocated(setting_errors)) then
+            if (size(setting_errors) > errors) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, setting_errors(size(setting_errors))%text)
+                setting_errors = setting_errors(1:errors)
+            end if
         end if
     end subroutine set_choice
 

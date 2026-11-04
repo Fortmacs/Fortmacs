@@ -42,7 +42,8 @@ module test_fortmacs_mod
     use buffer_mod, only: close_buffer, get_file_buffer
     use fortmacs, only: status_type, set_error, FM_GENERIC_ERROR, command_type, &
                         keymap_global_set, insert, get_or_make_buffer, set_buffer, &
-                        handle_type, tab_width
+                        handle_type, tab_width, message_log_max, show_paren_style, SHOW_PAREN_STYLE_PARENTHESIS, &
+                        sh_indent_for_fi, sh_indent_after_if, SH_MINUS, SH_PLUS
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -63,6 +64,7 @@ contains
                     new_unittest("init-file-configure", test_configure), &
                     new_unittest("init-file-skipped-with-q", test_no_init_file), &
                     new_unittest("init-file-error", test_init_error), &
+                    new_unittest("init-file-rejected-choice", test_rejected_choice), &
                     new_unittest("scratch-fundamental-mode", test_scratch), &
                     new_unittest("initial-window-shows-scratch", test_initial_window), &
                     new_unittest("command-line-displays-files", test_display_files) &
@@ -92,6 +94,17 @@ contains
 
         call set_error(status, FM_GENERIC_ERROR, "Something is wrong")
     end subroutine failing_configure
+
+    !> An init file giving choice settings values they do not accept.
+    subroutine rejecting_configure(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        show_paren_style = .true.
+        sh_indent_for_fi = 0
+        sh_indent_after_if = SH_MINUS
+        message_log_max = 500
+    end subroutine rejecting_configure
 
     !> Execute the editor on a pty with `keys` typed (they must end with
     !> C-x C-c), *scratch* emptied first; the terminal has `lines` lines
@@ -272,6 +285,29 @@ contains
         ! Leave no init file name behind for other suites.
         if (allocated(user_init_file)) deallocate (user_init_file)
     end subroutine test_init_error
+
+    !> Values a choice setting does not accept are errors of the init file
+    !> (panel 2026-11-04); the settings keep their defaults, the accepted
+    !> assignments take effect.
+    subroutine test_rejected_choice(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call load_init_file(rejecting_configure)
+        call check(error, init_file_had_error, "init-file-had-error")
+        if (allocated(error)) return
+        call check(error, last_message, "An error occurred while loading the init file: message_log_max: 500 is not "// &
+                   "a value of this option; a number of lines is `message_log_max%lines = 500'")
+        if (allocated(error)) return
+        call check(error, show_paren_style%choice == SHOW_PAREN_STYLE_PARENTHESIS, "show_paren_style kept")
+        if (allocated(error)) return
+        call check(error, sh_indent_for_fi%other_value(), "%columns = 0")
+        if (allocated(error)) return
+        call check(error, message_log_max%lines == 1000, "message_log_max kept")
+        if (allocated(error)) return
+        call check(error, sh_indent_after_if%choice == SH_MINUS, "accepted value")
+        sh_indent_after_if = SH_PLUS
+        if (allocated(user_init_file)) deallocate (user_init_file)
+    end subroutine test_rejected_choice
 
     !> *scratch* starts empty (no initial-scratch-message: there is no
     !> Lisp to evaluate) and in Fundamental mode (initial-major-mode is

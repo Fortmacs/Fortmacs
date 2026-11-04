@@ -78,10 +78,14 @@ module dabbrev_mod
     public :: dabbrev_expand, dabbrev_reset_global_variables, is_dabbrev_same_major_mode, dabbrev_select_buffers, &
               dabbrev_friend_buffer_procedure, dabbrev_select_buffers_procedure, init_dabbrev
 
-    !> Values of the dabbrev choice settings besides .true. and .false.:
-    !> like `case_fold_search', like
-    !> `case_replace', and ask (another value).
-    integer, parameter, public :: DABBREV_LIKE_CASE_FOLD_SEARCH = 2, DABBREV_LIKE_CASE_REPLACE = 3, DABBREV_ASK = 4
+    !> Values of `dabbrev_case_fold_search' besides .true. and .false.: like
+    !> case_fold_search.
+    integer, parameter, public :: DABBREV_LIKE_CASE_FOLD_SEARCH = 2
+    !> Values of `dabbrev_case_distinction' and `dabbrev_case_replace' besides
+    !> .true. and .false.: like case_replace.
+    integer, parameter, public :: DABBREV_LIKE_CASE_REPLACE = 3
+    !> Values of `dabbrev_check_other_buffers' besides .true. and .false.: ask.
+    integer, parameter, public :: DABBREV_ASK = 4
 
     abstract interface
         !> A function deciding whether dabbrev should search OTHER_BUFFER.
@@ -143,12 +147,12 @@ module dabbrev_mod
     !> dabbrev-upcase-means-case-search.
     logical, public :: dabbrev_upcase_means_case_search = .false.
 
-    !> Whether dabbrev treats expansions as the same if they differ in case.
+    !> Whether dabbrev treats expansions that differ only in case as different.
     !>
-    !> .false. means treat them as different.
+    !> .true. means treat them as different (case differences count).
+    !> .false. means treat them as the same.
     !> A value of DABBREV_LIKE_CASE_REPLACE means distinguish them if
     !> `case_replace' is false.
-    !> Any other value means to treat them as the same.
     !>
     !> This variable has an effect only when the value of
     !> `dabbrev_case_fold_search' specifies to ignore case.  Port of
@@ -954,7 +958,7 @@ contains
         type(status_type), intent(out) :: status
         type(excursion_type) :: ex
         integer(int64) :: savedb, savedz, count
-        logical :: saved_fold, distinction
+        logical :: saved_fold, treat_as_same
         type(status_type) :: st
 
         status = status_type()
@@ -965,13 +969,13 @@ contains
         if (location_set) call goto_char(location())
         saved_fold = case_fold_search%value
         case_fold_search = ignore_case
-        distinction = .false.
+        treat_as_same = .false.
 
         if (ignore_case) then
             if (dabbrev_case_distinction%choice == DABBREV_LIKE_CASE_REPLACE) then
-                distinction = case_replace
+                treat_as_same = case_replace
             else
-                distinction = .not. dabbrev_case_distinction%is_off()
+                treat_as_same = .not. dabbrev_case_distinction%value
             end if
         end if
 
@@ -979,7 +983,7 @@ contains
 
         do while (count > 0)
             if (allocated(expansion)) deallocate (expansion)
-            call dabbrev_search(abbrev, reverse, distinction, expansion, status)
+            call dabbrev_search(abbrev, reverse, treat_as_same, expansion, status)
             if (.not. status%ok() .or. .not. allocated(expansion)) exit
             count = count - 1
         end do

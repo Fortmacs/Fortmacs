@@ -59,7 +59,7 @@ module keyboard_mod
     use error_mod, only: status_type, set_error, format_error, error_name, FM_GENERIC_ERROR, FM_QUIT, FM_USER_ERROR, &
                          FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_mod, only: handle_type, null_handle
-    use data_mod, only: value_eq
+    use data_mod, only: value_eq, choice_setting_type
     use value_mod, only: value_type, V_ARRAY, make_keymap_ref, vtag, xfixnum, xsymbol, xstring, list_elements, list_elt, &
                          make_list, symbols, command_procedure
     use names_mod, only: intern
@@ -73,7 +73,7 @@ module keyboard_mod
                           overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping, &
                           push_key_description, key_parse, M_UP, M_DOWN, M_DRAG, M_CLICK, M_DOUBLE, M_TRIPLE
     use callint_mod, only: execute_interactively, current_prefix_arg, prefix_arg, &
-                           prefix_numeric_value, this_command, command_name_of, command_of, command_type, &
+                           prefix_numeric_value, this_command, command_name_of, command_of, command_type, find_command, &
                            prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use buffer_mod, only: buffers, current, deactivate_mark_variable, transient_mark_mode, current_buffer, set_buffer, &
                           input_method_procedure
@@ -108,6 +108,7 @@ module keyboard_mod
               init_macros_commands
     public :: suspend_fortmacs, suspend_frame, init_keyboard_suspend_commands
     public :: recent_keys, lossage_size, message_log_procedure
+    public :: handle_disabled_command, disabled_command_function_procedure
     public :: read_char, read_char_exclusive, read_filtered_event, read_key_sequence_vs, barf_if_interaction_inhibited
     public :: this_command_key_events, this_single_command_keys, this_single_command_raw_keys, &
               set_this_command_keys, clear_this_command_keys, recursion_depth, top_level, recursive_edit
@@ -242,15 +243,16 @@ module keyboard_mod
             character(len=*), intent(in) :: text
         end subroutine message_log_procedure
 
-        !> Run a disabled command's handler instead of the command, if
-        !> CMD is disabled: `handled' says it was.  Not a port.
-        subroutine disabled_command_procedure(cmd, handled, status)
+        !> A `disabled_command_function_variable%procedure': handle the
+        !> disabled command CMD, typed as KEYS, instead of running it.
+        !> Not a port.
+        recursive subroutine disabled_command_function_procedure(cmd, keys, status)
             import :: value_type, status_type
             implicit none(type, external)
             type(value_type), intent(in) :: cmd
-            logical, intent(out) :: handled
+            type(value_type), intent(in) :: keys(:)
             type(status_type), intent(out) :: status
-        end subroutine disabled_command_procedure
+        end subroutine disabled_command_function_procedure
 
         !> Run when descriptor FD, given to `add_read_fd', is readable.
         !> Not a port.
@@ -290,10 +292,32 @@ module keyboard_mod
     type(special_event_type), allocatable :: special_events(:)
     integer :: special_event_count = 0
 
-    !> Checks for disabled commands (simple.el:command-execute's `disabled'
-    !> property test and `disabled_command_function'), set by novice_mod;
-    !> null for none.
-    procedure(disabled_command_procedure), pointer, public :: disabled_command_hook => null()
+    !> The setting `disabled_command_function_variable': .false. or a
+    !> procedure (R6-37), set with `=>'.  Not a port.
+    type, extends(choice_setting_type), public :: disabled_command_function_choice_setting_type
+        procedure(disabled_command_function_procedure), pointer, nopass :: procedure => null()
+        !> The standard procedure, set at startup by
+        !> `set_standard_procedure', and its name.
+        procedure(disabled_command_function_procedure), pointer, nopass :: standard => null()
+        character(len=64) :: standard_name = ""
+    contains
+        procedure :: clear_kinds => disabled_command_function_clear_kinds
+        procedure :: other_value => disabled_command_function_other_value
+        procedure :: standard_value => disabled_command_function_standard_value
+        !> Make HANDLER, called NAME, the standard value and the value.
+        procedure :: set_standard_procedure => disabled_command_function_set_standard_procedure
+        procedure :: kind_hint => disabled_command_function_kind_hint
+    end type disabled_command_function_choice_setting_type
+
+    !> Function to call to handle disabled commands.
+    !> If .false., the feature is disabled, i.e., all commands work normally.
+    !> The procedure (`disabled_command_function_variable%procedure =>
+    !> mine') is called with the command and the keys that invoked it;
+    !> novice_mod sets it to `disabled_command_function'.  Port of novice.el
+    !> disabled-command-function (which keyboard.c and
+    !> simple.el:command-execute call).
+    type(disabled_command_function_choice_setting_type), public :: disabled_command_function_variable = &
+                        disabled_command_function_choice_setting_type(name="disabled_command_function_variable", true_valid=.false.)
 
     !> Logs the error messages of the command loop in *Messages*
     !> (xdisp_mod sits above this module; set by simple_mod); null for
@@ -2496,8 +2520,7 @@ contains
             else if (vtag(cmd) == V_STRING .or. vtag(cmd) == V_ARRAY) then
                 call execute_kbd_macro(cmd, current_prefix_arg, status)
             else
-                handled = .false.
-                if (associated(disabled_command_hook)) call disabled_command_hook(cmd, handled, status)
+                call handle_disabled_command(cmd, handled, status)
                 if (.not. handled) call execute_interactively(cmd, status)
             end if
         end if
@@ -4035,4 +4058,90 @@ contains
         real_last_command => real_this_command
         if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command => real_this_command
     end subroutine command_loop_1_start
+
+    !> If CMD is a disabled command (its `disabled' attribute is .true. or
+    !> it has a disabled message), call
+    !> `disabled_command_function_variable%procedure' with it and
+    !> `this_command_keys' instead of running it; HANDLED says it did.
+    !> Port of the disabled-command test of simple.el:command-execute.
+    recursive subroutine handle_disabled_command(cmd, handled, status)
+        type(value_type), intent(in) :: cmd
+        logical, intent(out) :: handled
+        type(status_type), intent(out) :: status
+        type(command_type), pointer :: p
+
+        handled = .false.
+        status = status_type()
+        if (.not. associated(disabled_command_function_variable%procedure)) return
+        if (.not. allocated(cmd%a)) return
+        if (vtag(cmd) /= V_NAME .and. vtag(cmd) /= V_NULL) return
+        p => find_command(symbols(xsymbol(cmd))%name)
+        if (.not. associated(p)) return
+        ! A disabled message disables it too.
+        if (.not. (p%disabled .or. len_trim(p%disabled_message) > 0)) return
+        handled = .true.
+        call disabled_command_function_variable%procedure(cmd, this_command_keys, status)
+    end subroutine handle_disabled_command
+
+    !> Forget the procedure of `disabled_command_function_variable', as any
+    !> assignment to it does.  Not a port.
+    subroutine disabled_command_function_clear_kinds(self)
+        class(disabled_command_function_choice_setting_type), intent(inout) :: self
+
+        nullify (self%procedure)
+    end subroutine disabled_command_function_clear_kinds
+
+    !> The procedure of `disabled_command_function_variable' as help shows
+    !> it.  Not a port.
+    function disabled_command_function_other_value(self) result(text)
+        class(disabled_command_function_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+
+        if (associated(self%procedure) .and. associated(self%standard)) then
+            if (associated(self%procedure, self%standard)) then
+                text = trim(self%standard_name)
+            else
+                text = "a procedure set by the configuration"
+            end if
+        else if (associated(self%procedure)) then
+            text = "a procedure set by the configuration"
+        end if
+    end function disabled_command_function_other_value
+
+    !> The name of the standard procedure of
+    !> `disabled_command_function_variable', once set; "" before.
+    !> Not a port.
+    function disabled_command_function_standard_value(self) result(text)
+        class(disabled_command_function_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (associated(self%standard)) text = trim(self%standard_name)
+    end function disabled_command_function_standard_value
+
+    !> Make HANDLER, called NAME, the standard value of
+    !> `disabled_command_function_variable' (the value help compares
+    !> with) and its value, as novice.el's defvar does.  Not a port.
+    subroutine disabled_command_function_set_standard_procedure(self, handler, name)
+        class(disabled_command_function_choice_setting_type), intent(inout) :: self
+        procedure(disabled_command_function_procedure) :: handler
+        character(len=*), intent(in) :: name
+
+        self%standard => handler
+        self%standard_name = name
+        self%procedure => handler
+    end subroutine disabled_command_function_set_standard_procedure
+
+    !> The assignment that sets the procedure `disabled_command_function_variable' takes, for the error of a rejected
+    !> value.  Not a port.
+    function disabled_command_function_kind_hint(self, number) result(text)
+        class(disabled_command_function_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a procedure is `"//trim(self%name)//"%procedure => mine'"
+        if (len(number) < 0) text = number
+    end function disabled_command_function_kind_hint
 end module keyboard_mod

@@ -25,10 +25,11 @@
 !> The shell-dependent settings are feature tables (`sh_feature'): one
 !> entry per shell, an entry may append the value of another shell's
 !> (sh-append), and a shell without an entry uses its ancestor's
-!> (`sh_ancestors'), finally sh's.  The indentation variables take
-!> integers or the named constants SH_PLUS (+), SH_MINUS (-),
-!> SH_PLUS_PLUS (++), SH_MINUS_MINUS (--), SH_STAR (*) and SH_SLASH (/)
-!> that `sh_var_value' interprets.
+!> (`sh_ancestors'), finally sh's.  The indentation variables are choice
+!> settings: a number of columns in `%columns' (`sh_indent_for_fi%columns
+!> = 0') or the named constants SH_PLUS (+), SH_MINUS (-), SH_PLUS_PLUS
+!> (++), SH_MINUS_MINUS (--), SH_STAR (*) and SH_SLASH (/)
+!> (`sh_indent_after_if = SH_PLUS'), which `sh_var_value' interprets.
 !>
 !> The inferior shell commands (C-c C-z, C-c C-d, C-c C-n) find or start
 !> the shell with `sh_shell_process'; completion at point offers the
@@ -52,8 +53,10 @@ module sh_script_mod
     use callint_mod, only: PREFIX_NONE
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_ARITH_ERROR
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, xstring, list, list_elements, make_list, list_length, list_elt, vtag, V_STRING
-    use data_mod, only: integer_setting_type, string_setting_type, forward_setting, append_locals_clearer, choice_setting_type
+    use value_mod, only: value_type, xstring, list, list_elements, make_list, list_length, list_elt, vtag, V_STRING, &
+                         V_INTEGER, V_NAME, xfixnum, symbols, xsymbol, choice_type
+    use data_mod, only: integer_setting_type, string_setting_type, forward_setting, append_locals_clearer, choice_setting_type, &
+                        setting_type
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: this_command
@@ -162,10 +165,43 @@ module sh_script_mod
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
-    !> The names an indentation variable can hold, for `sh_var_value':
-    !> + - ++ -- * /.
-    integer, parameter, public :: SH_PLUS = -1000001, SH_MINUS = -1000002, SH_PLUS_PLUS = -1000003, &
-                                  SH_MINUS_MINUS = -1000004, SH_STAR = -1000005, SH_SLASH = -1000006
+    !> Values of `sh_indent_for_fi', `sh_indent_for_done',
+    !> `sh_indent_after_else', `sh_indent_after_if', `sh_indent_for_then',
+    !> `sh_indent_for_do', `sh_indent_after_do',
+    !> `sh_indent_after_loop_construct', `sh_indent_after_done',
+    !> `sh_indent_for_case_label', `sh_indent_for_case_alt',
+    !> `sh_indent_for_continuation', `sh_indent_after_open',
+    !> `sh_indent_after_function', `sh_indent_after_switch',
+    !> `sh_indent_after_case' besides a number of columns (`%columns'): + - ++
+    !> -- * /, which `sh_var_value' interprets.
+    integer, parameter, public :: SH_PLUS = 2, SH_MINUS = 3, SH_PLUS_PLUS = 4, SH_MINUS_MINUS = 5, SH_STAR = 6, SH_SLASH = 7
+
+    ! The `%columns' of an indentation variable set to a named constant.
+    integer, parameter :: COLUMNS_UNSET = -huge(0)
+
+    !> An indentation variable (sh-script.el's sh-number-or-symbol-list
+    !> type): a choice setting whose value can also be a number of columns
+    !> (R6-39: `sh_indent_for_fi%columns = 0'; COLUMNS_UNSET, the most
+    !> negative integer, when no number is set, since a negative number
+    !> indents left), or one of SH_PLUS ... SH_SLASH by plain assignment
+    !> (`sh_indent_after_if = SH_PLUS').  Not a port.
+    type, extends(choice_setting_type), public :: sh_indent_choice_setting_type
+        integer :: columns = COLUMNS_UNSET
+    contains
+        procedure :: clear_kinds => sh_indent_clear_kinds
+        procedure :: other_value => sh_indent_other_value
+        procedure :: kind_hint => sh_indent_kind_hint
+        procedure :: get_kind_value => sh_indent_get_kind_value
+        procedure :: set_kind_value => sh_indent_set_kind_value
+    end type sh_indent_choice_setting_type
+
+    !> The value of an indentation variable in an `sh_style_type': a
+    !> number of COLUMNS, or the named constant CHOICE (SH_PLUS ...
+    !> SH_SLASH; 0 for a number of columns).  Not a port.
+    type, public :: sh_indent_type
+        integer :: columns = 0
+        integer :: choice = 0
+    end type sh_indent_type
 
     !> Values of `sh_indent_after_continuation' besides .true. and .false.
     integer, parameter, public :: SH_INDENT_AFTER_CONTINUATION_ALWAYS = 2
@@ -303,10 +339,12 @@ module sh_script_mod
     character(len=*), parameter :: sh_completion_keywords(5) = [character(len=5) :: "if", "while", "until", "for", "then"]
 
     !> An indentation style of `sh_styles': its NAME and the VALUES of
-    !> the indentation variables in the order of `sh_vars'.
+    !> the indentation variables in the order of `sh_vars'
+    !> (`sh_style_type(name="mine", values=[sh_indent_type(columns=4),
+    !> sh_indent_type(choice=SH_PLUS), ...])').
     type, public :: sh_style_type
         character(len=64) :: name = ""
-        integer :: values(15) = 0
+        type(sh_indent_type) :: values(15)
     end type sh_style_type
 
     !> The indentation variables (sh-script.el sh-var-list), as their
@@ -514,41 +552,45 @@ module sh_script_mod
 
     !> How much to indent a `fi' relative to its `if'.  Usually 0.  Port of
     !> sh-script.el sh-indent-for-fi.
-    type(integer_setting_type), target, public :: sh_indent_for_fi = integer_setting_type(name="sh_indent_for_fi", value=0)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_fi = &
+                          sh_indent_choice_setting_type(name="sh_indent_for_fi", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a `done' relative to its matching stmt.  Usually 0.
     !> Port of sh-script.el sh-indent-for-done.
-    type(integer_setting_type), target, public :: sh_indent_for_done = integer_setting_type(name="sh_indent_for_done", value=0)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_done = &
+                        sh_indent_choice_setting_type(name="sh_indent_for_done", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a statement after an `else' statement.  Port of
     !> sh-script.el sh-indent-after-else.
-    type(integer_setting_type), target, public :: sh_indent_after_else = &
-                                                  integer_setting_type(name="sh_indent_after_else", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_else = &
+                 sh_indent_choice_setting_type(name="sh_indent_after_else", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement after an `if' statement.
     !> This includes lines after `else' and `elif' statements, too, but
     !> does not affect the `else', `elif' or `fi' statements themselves.
     !> Port of sh-script.el sh-indent-after-if.
-    type(integer_setting_type), target, public :: sh_indent_after_if = integer_setting_type(name="sh_indent_after_if", &
-                                                                                            value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_if = &
+                   sh_indent_choice_setting_type(name="sh_indent_after_if", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a `then' relative to its `if'.  Port of
     !> sh-script.el sh-indent-for-then.
-    type(integer_setting_type), target, public :: sh_indent_for_then = integer_setting_type(name="sh_indent_for_then", value=0)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_then = &
+                        sh_indent_choice_setting_type(name="sh_indent_for_then", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a `do' statement.
     !> This is relative to the statement before the `do', typically a
     !> `while', `until', `for', `repeat' or `select' statement.  Port of
     !> sh-script.el sh-indent-for-do.
-    type(integer_setting_type), target, public :: sh_indent_for_do = integer_setting_type(name="sh_indent_for_do", value=0)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_do = &
+                          sh_indent_choice_setting_type(name="sh_indent_for_do", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a line after a `do' statement.
     !> This is used when the `do' is the first word of the line.
     !> This is relative to the statement before the `do', typically a
     !> `while', `until', `for', `repeat' or `select' statement.  Port of
     !> sh-script.el sh-indent-after-do.
-    type(integer_setting_type), target, public :: sh_indent_after_do = integer_setting_type(name="sh_indent_after_do", &
-                                                                                            value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_do = &
+                   sh_indent_choice_setting_type(name="sh_indent_after_do", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement after a loop construct.
     !>
@@ -556,8 +598,8 @@ module sh_script_mod
     !> loop statement (e.g., `until', `while' or `for').
     !> If the `do' is on a line by itself, then `sh_indent_after_do' is used instead.
     !> Port of sh-script.el sh-indent-after-loop-construct.
-    type(integer_setting_type), target, public :: sh_indent_after_loop_construct = &
-                                                  integer_setting_type(name="sh_indent_after_loop_construct", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_loop_construct = &
+       sh_indent_choice_setting_type(name="sh_indent_after_loop_construct", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement after a `done' keyword.
     !> Normally this is 0, which aligns the `done' to the matching
@@ -565,45 +607,46 @@ module sh_script_mod
     !> Setting it non-zero allows you to have the `do' statement on a line
     !> by itself and align the done under to do.  Port of sh-script.el
     !> sh-indent-after-done.
-    type(integer_setting_type), target, public :: sh_indent_after_done = integer_setting_type(name="sh_indent_after_done", value=0)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_done = &
+                      sh_indent_choice_setting_type(name="sh_indent_after_done", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a case label statement.
     !> This is relative to the line containing the `case' statement.
     !> Port of sh-script.el sh-indent-for-case-label.
-    type(integer_setting_type), target, public :: sh_indent_for_case_label = &
-                                                  integer_setting_type(name="sh_indent_for_case_label", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_case_label = &
+             sh_indent_choice_setting_type(name="sh_indent_for_case_label", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent statements after the case label.
     !> This is relative to the line containing the `case' statement.
     !> Port of sh-script.el sh-indent-for-case-alt.
-    type(integer_setting_type), target, public :: sh_indent_for_case_alt = &
-                                                  integer_setting_type(name="sh_indent_for_case_alt", value=SH_PLUS_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_case_alt = &
+          sh_indent_choice_setting_type(name="sh_indent_for_case_alt", true_valid=.false., false_valid=.false., choice=SH_PLUS_PLUS)
 
     !> How much to indent for a continuation statement.  Port of
     !> sh-script.el sh-indent-for-continuation.
-    type(integer_setting_type), target, public :: sh_indent_for_continuation = &
-                                                  integer_setting_type(name="sh_indent_for_continuation", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_continuation = &
+           sh_indent_choice_setting_type(name="sh_indent_for_continuation", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent after a line with an opening parenthesis or brace.
     !> For an open paren after a function, `sh_indent_after_function' is used.
     !> Port of sh-script.el sh-indent-after-open.
-    type(integer_setting_type), target, public :: sh_indent_after_open = &
-                                                  integer_setting_type(name="sh_indent_after_open", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_open = &
+                 sh_indent_choice_setting_type(name="sh_indent_after_open", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent after a function line.  Port of sh-script.el
     !> sh-indent-after-function.
-    type(integer_setting_type), target, public :: sh_indent_after_function = &
-                                                  integer_setting_type(name="sh_indent_after_function", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_function = &
+             sh_indent_choice_setting_type(name="sh_indent_after_function", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a `case' statement relative to the `switch' statement.
     !> This is for the rc shell.  Port of sh-script.el sh-indent-after-switch.
-    type(integer_setting_type), target, public :: sh_indent_after_switch = &
-                                                  integer_setting_type(name="sh_indent_after_switch", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_switch = &
+               sh_indent_choice_setting_type(name="sh_indent_after_switch", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement relative to the `case' statement.
     !> This is for the rc shell.  Port of sh-script.el sh-indent-after-case.
-    type(integer_setting_type), target, public :: sh_indent_after_case = &
-                                                  integer_setting_type(name="sh_indent_after_case", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_case = &
+                 sh_indent_choice_setting_type(name="sh_indent_after_case", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> Column in which `sh_backslash_region' inserts backslashes.  Port of
     !> sh-script.el sh-backslash-column.
@@ -3726,12 +3769,17 @@ contains
     !> names SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR and
     !> SH_SLASH by `sh_basic_offset'.  Port of sh-script.el:sh-var-value.
     integer function sh_var_value(var) result(value)
-        type(integer_setting_type), intent(in) :: var
+        type(sh_indent_choice_setting_type), intent(in) :: var
         integer :: offset
 
         offset = int(sh_basic_offset%value)
 
-        select case (var%value)
+        if (var%columns /= COLUMNS_UNSET) then
+            value = var%columns
+            return
+        end if
+
+        select case (var%choice)
         case (SH_PLUS)
             value = offset
         case (SH_MINUS)
@@ -3745,7 +3793,8 @@ contains
         case (SH_SLASH)
             value = (-offset)/2
         case default
-            value = int(var%value)
+            ! .true. and .false. (upstream t and nil).
+            value = 0
         end select
     end function sh_var_value
 
@@ -3982,7 +4031,7 @@ contains
     contains
 
         subroutine one(var)
-            type(integer_setting_type), intent(inout) :: var
+            class(setting_type), intent(inout) :: var
 
             if (kill) call var%clear_local()
             if (make) call var%make_local()
@@ -4796,14 +4845,37 @@ contains
     ! The values of the indentation variables (sh-var-list).
     ! Not a port.
     function current_style_values() result(values)
-        integer :: values(15)
+        type(sh_indent_type) :: values(15)
 
-        values = [int(sh_basic_offset%value), int(sh_indent_after_case%value), int(sh_indent_after_do%value), &
-                  int(sh_indent_after_done%value), int(sh_indent_after_else%value), int(sh_indent_after_if%value), &
-                  int(sh_indent_after_loop_construct%value), int(sh_indent_after_open%value), &
-                  int(sh_indent_for_case_alt%value), int(sh_indent_for_case_label%value), &
-                  int(sh_indent_for_continuation%value), int(sh_indent_for_do%value), int(sh_indent_for_done%value), &
-                  int(sh_indent_for_fi%value), int(sh_indent_for_then%value)]
+        values(1)%columns = int(sh_basic_offset%value)
+        values(2) = style_value(sh_indent_after_case)
+        values(3) = style_value(sh_indent_after_do)
+        values(4) = style_value(sh_indent_after_done)
+        values(5) = style_value(sh_indent_after_else)
+        values(6) = style_value(sh_indent_after_if)
+        values(7) = style_value(sh_indent_after_loop_construct)
+        values(8) = style_value(sh_indent_after_open)
+        values(9) = style_value(sh_indent_for_case_alt)
+        values(10) = style_value(sh_indent_for_case_label)
+        values(11) = style_value(sh_indent_for_continuation)
+        values(12) = style_value(sh_indent_for_do)
+        values(13) = style_value(sh_indent_for_done)
+        values(14) = style_value(sh_indent_for_fi)
+        values(15) = style_value(sh_indent_for_then)
+
+    contains
+
+        ! The value of indentation variable VAR in a style.
+        function style_value(var) result(v)
+            type(sh_indent_choice_setting_type), intent(in) :: var
+            type(sh_indent_type) :: v
+
+            if (var%columns /= COLUMNS_UNSET) then
+                v%columns = var%columns
+            else if (var%choice >= SH_PLUS .and. var%choice <= SH_SLASH) then
+                v%choice = var%choice
+            end if
+        end function style_value
     end function current_style_values
 
     ! The index of the style NAME in `sh_styles', 0 if none.
@@ -4886,22 +4958,38 @@ contains
         end if
 
         associate (v => sh_styles(k)%values)
-            sh_basic_offset = v(1)
-            sh_indent_after_case = v(2)
-            sh_indent_after_do = v(3)
-            sh_indent_after_done = v(4)
-            sh_indent_after_else = v(5)
-            sh_indent_after_if = v(6)
-            sh_indent_after_loop_construct = v(7)
-            sh_indent_after_open = v(8)
-            sh_indent_for_case_alt = v(9)
-            sh_indent_for_case_label = v(10)
-            sh_indent_for_continuation = v(11)
-            sh_indent_for_do = v(12)
-            sh_indent_for_done = v(13)
-            sh_indent_for_fi = v(14)
-            sh_indent_for_then = v(15)
+            sh_basic_offset = v(1)%columns
+            call load(sh_indent_after_case, v(2))
+            call load(sh_indent_after_do, v(3))
+            call load(sh_indent_after_done, v(4))
+            call load(sh_indent_after_else, v(5))
+            call load(sh_indent_after_if, v(6))
+            call load(sh_indent_after_loop_construct, v(7))
+            call load(sh_indent_after_open, v(8))
+            call load(sh_indent_for_case_alt, v(9))
+            call load(sh_indent_for_case_label, v(10))
+            call load(sh_indent_for_continuation, v(11))
+            call load(sh_indent_for_do, v(12))
+            call load(sh_indent_for_done, v(13))
+            call load(sh_indent_for_fi, v(14))
+            call load(sh_indent_for_then, v(15))
         end associate
+
+    contains
+
+        ! Set indentation variable VAR to the style's value V.
+        subroutine load(var, v)
+            type(sh_indent_choice_setting_type), intent(inout) :: var
+            type(sh_indent_type), intent(in) :: v
+
+            if (v%choice /= 0) then
+                var = v%choice
+            else
+                ! (A plain state first: the assignment clears the columns.)
+                var = choice_type()
+                var%columns = v%columns
+            end if
+        end subroutine load
     end subroutine sh_load_style
 
     !> Set shell indentation values for this buffer from those in a style
@@ -4952,7 +5040,7 @@ contains
                 text = text//"sh_style_type(name="""//trim(sh_styles(k)%name)//""", values=["
 
                 do j = 1, size(sh_styles(k)%values)
-                    if (j > 1) text = text//", "
+                    if (j > 1) text = text//", &"//LF//"                       "
                     text = text//value_text(sh_styles(k)%values(j))
                 end do
 
@@ -4968,28 +5056,28 @@ contains
 
     contains
 
-        ! An indentation value as Fortran: an integer or a named constant.
+        ! An indentation value as Fortran: its `sh_indent_type'.
         function value_text(v) result(t)
-            integer, intent(in) :: v
+            type(sh_indent_type), intent(in) :: v
             character(len=:), allocatable :: t
             character(len=16) :: digits
 
-            select case (v)
+            select case (v%choice)
             case (SH_PLUS)
-                t = "SH_PLUS"
+                t = "sh_indent_type(choice=SH_PLUS)"
             case (SH_MINUS)
-                t = "SH_MINUS"
+                t = "sh_indent_type(choice=SH_MINUS)"
             case (SH_PLUS_PLUS)
-                t = "SH_PLUS_PLUS"
+                t = "sh_indent_type(choice=SH_PLUS_PLUS)"
             case (SH_MINUS_MINUS)
-                t = "SH_MINUS_MINUS"
+                t = "sh_indent_type(choice=SH_MINUS_MINUS)"
             case (SH_STAR)
-                t = "SH_STAR"
+                t = "sh_indent_type(choice=SH_STAR)"
             case (SH_SLASH)
-                t = "SH_SLASH"
+                t = "sh_indent_type(choice=SH_SLASH)"
             case default
-                write (digits, "(i0)") v
-                t = trim(digits)
+                write (digits, "(i0)") v%columns
+                t = "sh_indent_type(columns="//trim(digits)//")"
             end select
         end function value_text
     end subroutine sh_save_styles_to_buffer
@@ -5784,4 +5872,84 @@ contains
         call barf_if_buffer_read_only(status)
         if (status%ok()) call sh_while_getopts(status, arg=current_prefix_arg)
     end subroutine cmd_sh_while_getopts
+
+    !> Forget the number of columns of an indentation variable, as any
+    !> assignment to it does.  Not a port.
+    subroutine sh_indent_clear_kinds(self)
+        class(sh_indent_choice_setting_type), intent(inout) :: self
+
+        self%columns = COLUMNS_UNSET
+    end subroutine sh_indent_clear_kinds
+
+    !> The number of columns of an indentation variable as help shows it
+    !> (`%columns = N'); "" when none is set.  Not a port.
+    function sh_indent_other_value(self) result(text)
+        class(sh_indent_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        character(len=16) :: digits
+
+        text = ""
+
+        if (self%columns /= COLUMNS_UNSET) then
+            write (digits, "(i0)") self%columns
+            text = "%columns = "//trim(digits)
+        end if
+    end function sh_indent_other_value
+
+    !> The value a buffer keeps of an indentation variable: the number of
+    !> columns, or the name of a named constant (upstream's + - ++ -- *
+    !> /); FOUND is false for .true. and .false..  Not a port.
+    subroutine sh_indent_get_kind_value(self, v, found)
+        class(sh_indent_choice_setting_type), intent(in) :: self
+        type(value_type), intent(out) :: v
+        logical, intent(out) :: found
+        character(len=2), parameter :: names(SH_PLUS:SH_SLASH) = [character(len=2) :: "+", "-", "++", "--", "*", "/"]
+
+        found = .true.
+
+        if (self%columns /= COLUMNS_UNSET) then
+            v = value_type(int(self%columns, int64))
+        else if (self%choice >= SH_PLUS .and. self%choice <= SH_SLASH) then
+            v = value_type(name=trim(names(self%choice)))
+        else
+            found = .false.
+            v = value_type()
+        end if
+    end subroutine sh_indent_get_kind_value
+
+    !> Set an indentation variable from V, a value a buffer kept (as
+    !> `sh_indent_get_kind_value' gives it); DONE is false when V is
+    !> .true. or .false..  Not a port.
+    subroutine sh_indent_set_kind_value(self, v, done)
+        class(sh_indent_choice_setting_type), intent(inout) :: self
+        type(value_type), intent(in) :: v
+        logical, intent(out) :: done
+        character(len=2), parameter :: names(SH_PLUS:SH_SLASH) = [character(len=2) :: "+", "-", "++", "--", "*", "/"]
+        integer :: k
+
+        done = .false.
+
+        if (vtag(v) == V_INTEGER) then
+            self = choice_type()
+            self%columns = int(xfixnum(v))
+            done = .true.
+        else if (vtag(v) == V_NAME) then
+            k = findloc(names, symbols(xsymbol(v))%name, dim=1)
+
+            if (k > 0) then
+                self = SH_PLUS + k - 1
+                done = .true.
+            end if
+        end if
+    end subroutine sh_indent_set_kind_value
+
+    !> The assignment that sets the number an indentation variable takes, for the error of a rejected
+    !> value.  Not a port.
+    function sh_indent_kind_hint(self, number) result(text)
+        class(sh_indent_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of columns is `"//trim(self%name)//"%columns = "//number//"'"
+    end function sh_indent_kind_hint
 end module sh_script_mod

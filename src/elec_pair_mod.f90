@@ -135,6 +135,7 @@ module elec_pair_mod
     contains
         procedure :: clear_kinds => electric_pair_skip_self_clear_kinds
         procedure :: other_value => electric_pair_skip_self_other_value
+        procedure :: kind_hint => electric_pair_skip_self_kind_hint
     end type electric_pair_skip_self_choice_setting_type
 
     !> Table of pairs that should be used regardless of major mode.
@@ -1280,4 +1281,15 @@ contains
         text = ""
         if (associated(self%procedure)) text = "a procedure set by the configuration"
     end function electric_pair_skip_self_other_value
+
+    !> The assignment that sets the number or procedure `electric_pair_skip_self' takes, for the error of a rejected
+    !> value.  Not a port.
+    function electric_pair_skip_self_kind_hint(self, number) result(text)
+        class(electric_pair_skip_self_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a procedure is `"//trim(self%name)//"%procedure => mine'"
+        if (len(number) < 0) text = number
+    end function electric_pair_skip_self_kind_hint
 end module elec_pair_mod
