@@ -54,10 +54,9 @@ module test_project_mod
     use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                           create_directory_internal, write_region, expand_file_name, directory_file_name, &
                           file_name_nondirectory
-    use files_mod, only: delete_directory, executable_find, file_relative_name, is_file_equal
+    use files_mod, only: delete_directory, executable_find, file_relative_name, is_file_equal, abbreviate_file_name
     use bindings_mod, only: init_bindings
-    use value_mod, only: value_type, make_keymap_ref, command_type, list
-    use callproc_mod, only: execute_process
+    use value_mod, only: value_type, make_keymap_ref, command_type
     use keymap_mod, only: key_parse, lookup_key, current_global_map
     use callint_mod, only: command_of
     use commands_mod, only: commands
@@ -171,31 +170,6 @@ contains
         call create_directory_internal(wd()//"build", st)
         call create_directory_internal(dir, st)
     end function temp_dir
-
-    !> When ST failed, the output of the Git version and of the listing
-    !> command run in the resources directory, standard error included (to
-    !> show why Git failed); else nothing.  Not a port.
-    function git_diagnosis(st) result(text)
-        type(status_type), intent(in) :: st
-        character(len=:), allocatable :: text
-        type(handle_type) :: old, h
-        type(status_type) :: st2
-        type(value_type) :: r
-
-        text = ""
-        if (st%ok()) return
-        old = current_buffer()
-        call get_or_make_buffer(" *project-test-git*", h, st2)
-        call set_buffer(h, st2)
-        buffers(current)%directory = resource_directory()
-        call execute_process("sh", r, st2, destination=value_type(.true.), &
-                             args=list(value_type(text="-c"), value_type(text="git --version; "// &
-                                                                         "git --no-pager ls-files -z -c --exclude-standard "// &
-                                                                         "--sparse -o --deduplicate -- "// &
-                                                                         "':(exclude,glob,top)**/etc' >/dev/null")))
-        text = " | git: "//buffer_string()
-        call set_buffer(old, st2)
-    end function git_diagnosis
 
     !> The project resources directory.
     function resource_directory() result(dir)
@@ -454,7 +428,7 @@ contains
 
         if (.not. allocated(error)) then
             call project%list_files(files, st)
-            call check(error, st%ok(), format_error(st)//git_diagnosis(st))
+            call check(error, st%ok(), format_error(st))
             if (.not. allocated(error)) call check(error, base_names(files), "foo")
         end if
 
@@ -480,7 +454,7 @@ contains
 
         if (.not. allocated(error)) then
             call project%list_files(files, st, strings(resource_directory()))
-            call check(error, st%ok(), format_error(st)//git_diagnosis(st))
+            call check(error, st%ok(), format_error(st))
             if (.not. allocated(error)) call check(error, base_names(files), "foo")
         end if
 
@@ -513,7 +487,7 @@ contains
 
         if (.not. allocated(error)) then
             call project%list_files(files, st, strings(resource_directory()))
-            call check(error, st%ok(), format_error(st)//git_diagnosis(st))
+            call check(error, st%ok(), format_error(st))
             if (.not. allocated(error)) call check(error, base_names(files), "foo")
         end if
 
@@ -700,9 +674,9 @@ contains
         roots = known_project_roots()
         call check(error, size(roots) >= 2, "too few projects")
         if (allocated(error)) return
-        call check(error, roots(1)%text, a%directory)
+        call check(error, roots(1)%text, abbreviate_file_name(a%directory))
         if (allocated(error)) return
-        call check(error, roots(2)%text, b%directory)
+        call check(error, roots(2)%text, abbreviate_file_name(b%directory))
         if (allocated(error)) return
         old = current_buffer()
         call get_or_make_buffer(generate_new_buffer_name(" *project-test*"), h, st)
@@ -713,12 +687,13 @@ contains
         call set_buffer(old, st)
         call check(error, index(text, "&project") > 0 .and. index(text, "known_project_roots(1:") > 0, text)
         if (allocated(error)) return
+        ! The file holds the expanded names (project--write-project-list).
         call check(error, index(text, '"'//a%directory//'", "'//b%directory//'"') > 0, text)
         if (allocated(error)) return
-        call forget_project(a%directory, st)
+        call forget_project(abbreviate_file_name(a%directory), st)
         roots = known_project_roots()
-        call check(error, roots(1)%text, b%directory)
-        call forget_project(b%directory, st)
+        call check(error, roots(1)%text, abbreviate_file_name(b%directory))
+        call forget_project(abbreviate_file_name(b%directory), st)
         project_list_file = saved_file
 
     contains
