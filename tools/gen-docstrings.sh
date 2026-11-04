@@ -633,7 +633,7 @@ $1 == "V" {
         mods["callint_mod.f90"] = mods["callint_mod.f90"] (mods["callint_mod.f90"] == "" ? "" : ", ") "command_name_of"
     # A prefix argument is shown as its structure constructor.
     if ($5 ~ /prefix_arg_type\)/ && !named_prefix++)
-        mods["callint_mod.f90"] = mods["callint_mod.f90"] (mods["callint_mod.f90"] == "" ? "" : ", ") "prefix_arg_repr"
+        mods["callint_mod.f90"] = mods["callint_mod.f90"] (mods["callint_mod.f90"] == "" ? "" : ", ") "prefix_arg_text"
     if ($5 ~ /indent_line_setting_type\)/ && !named_indent++)
         mods["indent_mod.f90"] = mods["indent_mod.f90"] (mods["indent_mod.f90"] == "" ? "" : ", ") "indent_line_function_name"
     if ($7 ~ /^[A-Z][A-Z0-9_]*$/ && ($7 in group)) {
@@ -689,7 +689,7 @@ END {
         mlist[j + 1] = x
     }
     print "    use, intrinsic :: iso_fortran_env, only: int64"
-    print "    use print_mod, only: fortran_repr"
+    print "    use print_mod, only: fortran_text"
     for (i = 1; i <= nm; i++) {
         m = mlist[i]; sub(/\.f90$/, "", m)
         line = "    use " m ", only: "
@@ -772,9 +772,9 @@ END {
     print ""
     print "    character(len=*), parameter :: LF = achar(10)"
     print ""
-    print "    interface repr"
-    print "        module procedure repr_logical, repr_integer, repr_int64, repr_int64s, repr_integers, repr_real, repr_string, repr_strings"
-    print "    end interface repr"
+    print "    interface value_text"
+    print "        module procedure value_text_logical, value_text_int64s, value_text_integers, value_text_real, value_text_string, value_text_strings"
+    print "    end interface value_text"
     print ""
     print "contains"
     print ""
@@ -809,6 +809,7 @@ END {
     print "        character(len=*), intent(in) :: name"
     print "        type(doc_entry_type), intent(out) :: entry"
     print "        logical, intent(out) :: found"
+    print "        character(len=21) :: digits"
     print ""
     print "        found = .true."
     print "        entry%original = \"\""
@@ -837,7 +838,12 @@ END {
                 print "                entry%value = " q(d)
             }
             print "            case default"
-            print "                entry%value = repr(" ex ")"
+            if (vtype[i] ~ /^integer/ || vtype[i] ~ /integer_setting_type\)/) {
+                # An integer outside its named constants: its decimal text
+                # (an internal write, PORTING.md "Numbers to text").
+                print "                write (digits, \"(i0)\") " ex
+                print "                entry%value = trim(digits)"
+            } else print "                entry%value = value_text(" ex ")"
             print "            end select"
         } else {
             # Values as Fortran: a string or array that is not allocated
@@ -846,10 +852,13 @@ END {
             # prefix argument its structure constructor.  Other derived types
             # (hooks, keymaps, syntax tables) have no printed representation
             # yet: help leaves the value out.
-            if (vtype[i] ~ /(integer|logical)_setting_type\)/) print "            entry%value = repr(" vfort[i] "%value)"
+            if (vtype[i] ~ /integer_setting_type\)/) {
+                print "            write (digits, \"(i0)\") " vfort[i] "%value"
+                print "            entry%value = trim(digits)"
+            } else if (vtype[i] ~ /logical_setting_type\)/) print "            entry%value = value_text(" vfort[i] "%value)"
             else if (vtype[i] ~ /string_setting_type\)/) {
                 print "            if (allocated(" vfort[i] "%value)) then"
-                print "                entry%value = repr(" vfort[i] "%value)"
+                print "                entry%value = value_text(" vfort[i] "%value)"
                 print "            else"
                 print "                entry%value = \"unallocated\""
                 print "            end if"
@@ -891,17 +900,27 @@ END {
                 }
                 print "            end if"
             } else if (vtype[i] ~ /^type\(prefix_arg_type\)/)
-                print "            entry%value = prefix_arg_repr(" vfort[i] ")"
+                print "            entry%value = prefix_arg_text(" vfort[i] ")"
             else if (vtype[i] ~ /indent_line_setting_type\)/)
                 print "            entry%value = indent_line_function_name(" vfort[i] "%value)"
-            else if (vtype[i] ~ /value_type/ && !varr[i]) print "            entry%value = fortran_repr(" vfort[i] ")"
-            else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/) {
+            else if (vtype[i] ~ /value_type/ && !varr[i]) print "            entry%value = fortran_text(" vfort[i] ")"
+            else if (vtype[i] ~ /allocatable/ && vtype[i] ~ /^integer/ && !varr[i]) {
                 print "            if (allocated(" vfort[i] ")) then"
-                print "                entry%value = repr(" vfort[i] ")"
+                print "                write (digits, \"(i0)\") " vfort[i]
+                print "                entry%value = trim(digits)"
                 print "            else"
                 print "                entry%value = \"unallocated\""
                 print "            end if"
-            } else if (vtype[i] !~ /^type/) print "            entry%value = repr(" vfort[i] ")"
+            } else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/) {
+                print "            if (allocated(" vfort[i] ")) then"
+                print "                entry%value = value_text(" vfort[i] ")"
+                print "            else"
+                print "                entry%value = \"unallocated\""
+                print "            end if"
+            } else if (vtype[i] ~ /^integer/ && !varr[i]) {
+                print "            write (digits, \"(i0)\") " vfort[i]
+                print "            entry%value = trim(digits)"
+            } else if (vtype[i] !~ /^type/) print "            entry%value = value_text(" vfort[i] ")"
         }
         print "            entry%doc = " docexpr(vdoc[i], "                        ")
     }
@@ -1072,26 +1091,17 @@ END {
     print "        end select"
     print "    end subroutine user_option_constants"
     print ""
-    print "    function repr_logical(v) result(s)"
+    print "    function value_text_logical(v) result(s)"
     print "        logical, intent(in) :: v"
     print "        character(len=:), allocatable :: s"
     print ""
     print "        s = merge(\".true. \", \".false.\", v)"
     print "        s = trim(s)"
-    print "    end function repr_logical"
-    print ""
-    print "    function repr_integer(v) result(s)"
-    print "        integer, intent(in) :: v"
-    print "        character(len=:), allocatable :: s"
-    print "        character(len=12) :: digits"
-    print ""
-    print "        write (digits, \"(i0)\") v"
-    print "        s = trim(digits)"
-    print "    end function repr_integer"
+    print "    end function value_text_logical"
     print ""
     print "    ! A real with at least one digit"
     print "    ! after the point, no trailing zeros."
-    print "    function repr_real(v) result(s)"
+    print "    function value_text_real(v) result(s)"
     print "        real, intent(in) :: v"
     print "        character(len=:), allocatable :: s"
     print "        character(len=32) :: digits"
@@ -1106,51 +1116,46 @@ END {
     print "        if (len(s) > 1) then"
     print "            if (s(1:2) == \"-.\") s = \"-0\"//s(2:)"
     print "        end if"
-    print "    end function repr_real"
-    print ""
-    print "    function repr_int64(v) result(s)"
-    print "        integer(int64), intent(in) :: v"
-    print "        character(len=:), allocatable :: s"
-    print "        character(len=21) :: digits"
-    print ""
-    print "        write (digits, \"(i0)\") v"
-    print "        s = trim(digits)"
-    print "    end function repr_int64"
+    print "    end function value_text_real"
     print ""
     print "    !> An array of integers as a Fortran array constructor."
-    print "    function repr_int64s(v) result(s)"
+    print "    function value_text_int64s(v) result(s)"
     print "        integer(int64), intent(in) :: v(:)"
     print "        character(len=:), allocatable :: s"
+    print "        character(len=21) :: digits"
     print "        integer :: i"
     print ""
     print "        s = \"[\""
     print ""
     print "        do i = 1, size(v)"
     print "            if (i > 1) s = s//\", \""
-    print "            s = s//repr_int64(v(i))"
+    print "            write (digits, \"(i0)\") v(i)"
+    print "            s = s//trim(digits)"
     print "        end do"
     print ""
     print "        s = s//\"]\""
-    print "    end function repr_int64s"
+    print "    end function value_text_int64s"
     print ""
     print "    !> An array of default integers as a Fortran array constructor."
-    print "    function repr_integers(v) result(s)"
+    print "    function value_text_integers(v) result(s)"
     print "        integer, intent(in) :: v(:)"
     print "        character(len=:), allocatable :: s"
+    print "        character(len=12) :: digits"
     print "        integer :: i"
     print ""
     print "        s = \"[\""
     print ""
     print "        do i = 1, size(v)"
     print "            if (i > 1) s = s//\", \""
-    print "            s = s//repr_integer(v(i))"
+    print "            write (digits, \"(i0)\") v(i)"
+    print "            s = s//trim(digits)"
     print "        end do"
     print ""
     print "        s = s//\"]\""
-    print "    end function repr_integers"
+    print "    end function value_text_integers"
     print ""
     print "    !> A string as a Fortran literal."
-    print "    function repr_string(v) result(s)"
+    print "    function value_text_string(v) result(s)"
     print "        character(len=*), intent(in) :: v"
     print "        character(len=:), allocatable :: s"
     print "        integer :: i"
@@ -1163,10 +1168,10 @@ END {
     print "        end do"
     print ""
     print "        s = s//\"\"\"\""
-    print "    end function repr_string"
+    print "    end function value_text_string"
     print ""
     print "    !> An array of strings as a Fortran array constructor."
-    print "    function repr_strings(v) result(s)"
+    print "    function value_text_strings(v) result(s)"
     print "        character(len=*), intent(in) :: v(:)"
     print "        character(len=:), allocatable :: s"
     print "        integer :: i"
@@ -1175,11 +1180,11 @@ END {
     print ""
     print "        do i = 1, size(v)"
     print "            if (i > 1) s = s//\", \""
-    print "            s = s//repr_string(v(i))"
+    print "            s = s//value_text_string(v(i))"
     print "        end do"
     print ""
     print "        s = s//\"]\""
-    print "    end function repr_strings"
+    print "    end function value_text_strings"
     print "end module docstrings_mod"
 }
 ' "$tmp.records" >"$tmp.f90"

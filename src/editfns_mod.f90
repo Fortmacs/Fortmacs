@@ -64,7 +64,7 @@ module editfns_mod
     use textprop_mod, only: get_text_property, text_property_stickiness, &
                             next_single_char_property_change, previous_single_char_property_change, set_point_both, &
                             string_add_text_properties, extend_property_ranges, text_property_range_type
-    use print_mod, only: readable_repr, float_to_string, sprintf_float
+    use print_mod, only: readable_text, float_to_string, sprintf_float
     use error_mod, only: format_message
     implicit none(type, external)
     private
@@ -283,7 +283,7 @@ module editfns_mod
     !> the next available argument, or the argument explicitly specified:
     !>
     !> %s means produce a string argument: the text of a string or a name as it
-    !>    is; any other object as `readable_repr' gives it with NOESCAPE true.
+    !>    is; any other object as `readable_text' gives it with NOESCAPE true.
     !> %d or %i means produce a signed number in decimal.
     !> %b means produce a number in binary.
     !> %B is like %b, but %#B uses upper case.
@@ -296,7 +296,7 @@ module editfns_mod
     !>    less than -4 or greater than or equal to the precision (default: 6);
     !>    otherwise it produces in decimal-point notation.
     !> %c means produce a number as a single character.
-    !> %S means produce any object as `readable_repr' gives it (its printed
+    !> %S means produce any object as `readable_text' gives it (its printed
     !>    representation, which can be read back).
     !>
     !> The argument used for %d, %i, %o, %x, %e, %f, %g or %c must be a number.
@@ -3433,7 +3433,7 @@ contains
                 case (FORMAT_ARGUMENT_REAL)
                     text = float_to_string(arg%real_number)
                 case default
-                    text = readable_repr(arg%value, noescape=conversion == "s")
+                    text = readable_text(arg%value, noescape=conversion == "s")
                 end select
 
                 arg = format_argument_type()
@@ -3459,7 +3459,7 @@ contains
             end if
 
             if (is_name_argument(arg)) then
-                text = readable_repr(arg%value)
+                text = readable_text(arg%value)
                 arg%value = value_type(text=text)
             end if
 

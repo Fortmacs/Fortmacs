@@ -120,7 +120,7 @@ module dired_mode_mod
     use minibuffer_mod, only: read_file_name, completion_insert_strings
     use replace_mod, only: read_regexp
     use help_mod, only: substitute_command_keys, register_keymap_name
-    use print_mod, only: readable_repr
+    use print_mod, only: readable_text
     use hooks_mod, only: hook_type
     use derived_mod, only: is_derived_mode
     use modes_mod, only: major_modes
@@ -6628,7 +6628,7 @@ contains
                 if (k > 1) string = string//" "
 
                 if (scan(files(k)%text, " ""'") > 0) then
-                    string = string//readable_repr(value_type(text=files(k)%text))
+                    string = string//readable_text(value_type(text=files(k)%text))
                 else
                     string = string//files(k)%text
                 end if
