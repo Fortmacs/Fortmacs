@@ -67,7 +67,7 @@ module ispell_mod
     use search_mod, only: re_search_forward, re_search_backward, search_forward, search_backward, looking_at, &
                           string_match, match_beginning, match_end, regexp_quote, case_fold_search, SEARCH_NOERROR, &
                           SEARCH_MOVE
-    use subr_mod, only: match_string_no_properties, read_y_or_n, read_key, is_version_less_or_equal
+    use subr_mod, only: match_string_no_properties, read_y_or_n, read_key, version_type, version, operator(<=), operator(>)
     use casefiddle_mod, only: upcase_string, downcase_string
     use regexp_opt_mod, only: regexp_opt, regexp_unmatchable
     use fileio_mod, only: expand_file_name, file_name_nondirectory, is_file_readable, is_file_accessible_directory, &
@@ -814,10 +814,11 @@ contains
         logical, intent(in), optional :: interactive
         type(handle_type) :: old, temp
         type(value_type) :: code
-        character(len=:), allocatable :: libvar, version, minver, envval
+        character(len=:), allocatable :: libvar, program_version, minver, envval
         logical :: envfound
         integer(int64) :: found
         logical :: saved_fold, interactivep, hunspell8
+        type(version_type) :: program, really_version
         type(status_type) :: st
         character(len=40) :: code_text
 
@@ -868,9 +869,9 @@ contains
         ! Get relevant version strings.
         saved_fold = case_fold_search%value
         case_fold_search = .false.
-        version = ""
+        program_version = ""
         call re_search_forward("\([0-9]+\.[0-9.]+\)", found, st, noerror=SEARCH_NOERROR)
-        if (st%ok() .and. found > 0) version = match_string_no_properties(1)
+        if (st%ok() .and. found > 0) program_version = match_string_no_properties(1)
         ! Make sure these variables are (re-)initialized to the default value.
         ispell_really_aspell = ""
         ispell_really_hunspell = ""
@@ -888,20 +889,29 @@ contains
         minver = ""
 
         ! No version found (upstream's nil).
-        if (len(version) == 0) then
+        if (len(program_version) == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Version must be a string")
             return
         end if
 
-        if (.not. is_version_less_or_equal("3.1.12", version, status)) then
+        ! Invalid version syntax is an `error' error condition, as upstream.
+        program = version(program_version)
+        status = program%status
+        if (.not. status%ok()) return
+
+        if (version("3.1.12") > program) then
             minver = "3.1.12"
         else if (len(ispell_really_aspell) > 0) then
-            if (.not. is_version_less_or_equal("0.60", ispell_really_aspell, status)) minver = "0.60"
+            really_version = version(ispell_really_aspell)
+            status = really_version%status
+            if (.not. status%ok()) return
+            if (version("0.60") > really_version) minver = "0.60"
         else if (len(ispell_really_enchant) > 0) then
-            if (.not. is_version_less_or_equal("2.1.0", ispell_really_enchant, status)) minver = "2.1.0"
+            really_version = version(ispell_really_enchant)
+            status = really_version%status
+            if (.not. status%ok()) return
+            if (version("2.1.0") > really_version) minver = "2.1.0"
         end if
-
-        if (.not. status%ok()) return
 
         if (len(minver) > 0) then
             call set_error(status, FM_GENERIC_ERROR, ispell_program_name//" release "//minver//" or greater is required")
@@ -911,8 +921,10 @@ contains
         if (len(ispell_really_aspell) > 0) then
             ispell_encoding8_command = "--encoding="
         else if (len(ispell_really_hunspell) > 0) then
-            hunspell8 = is_version_less_or_equal("1.1.6", ispell_really_hunspell, status)
+            really_version = version(ispell_really_hunspell)
+            status = really_version%status
             if (.not. status%ok()) return
+            hunspell8 = version("1.1.6") <= really_version
 
             if (hunspell8) then
                 ispell_encoding8_command = "-i"
