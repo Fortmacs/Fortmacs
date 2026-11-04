@@ -31,8 +31,7 @@ module docstrings_mod
                           abbrev_start_location, abbrev_start_location_buffer, abbrev_tables, abbrevs_changed, &
                           edit_abbrevs_mode_abbrev_table, edit_abbrevs_mode_hook, edit_abbrevs_mode_map, &
                           fundamental_mode_abbrev_table, global_abbrev_table, last_abbrev, last_abbrev_location, &
-                          last_abbrev_text, only_global_abbrevs, save_abbrevs, SAVE_ABBREVS_NO, SAVE_ABBREVS_ASK, &
-                          SAVE_ABBREVS_SILENTLY
+                          last_abbrev_text, only_global_abbrevs, save_abbrevs, SAVE_ABBREVS_SILENTLY
     use add_log_mod, only: add_log_always_start_new_record, add_log_buffer_file_name_function, &
                            add_log_current_subprogram_function, add_log_current_subprogram_header_regexp, &
                            add_log_dont_create_changelog_file, add_log_file_name_function, add_log_full_name, &
@@ -43,8 +42,8 @@ module docstrings_mod
                            change_log_version_number_regexps
     use ansi_color_mod, only: ansi_color_apply_face_function, ansi_color_basic_faces, &
                               ansi_color_bold_is_bright, ansi_color_bright_colors, ansi_color_for_comint_mode, &
-                              ANSI_COLOR_NO, ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_for_compilation_mode, &
-                              ANSI_COLOR_NO, ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_normal_colors
+                              ANSI_COLOR_FILTER, ansi_color_for_compilation_mode, ANSI_COLOR_FILTER, &
+                              ansi_color_normal_colors
     use apropos_mod, only: apropos_all_words_regexp, apropos_mode_hook, apropos_mode_map, &
                            apropos_pattern, apropos_regexp
     use autorevert_mod, only: auto_revert_lockout_interval, auto_revert_avoid_polling, &
@@ -66,19 +65,15 @@ module docstrings_mod
                             bookmark_file_coding_system, bookmark_fringe_mark, bookmark_history, &
                             bookmark_inhibit_context_functions, bookmark_make_record_function, bookmark_map, &
                             bookmark_menu_bookmark, bookmark_menu_confirm_deletion, bookmark_minibuffer_read_name_map, &
-                            bookmark_paste_point, bookmark_save_flag, BOOKMARK_SAVE_FLAG_NO, BOOKMARK_SAVE_FLAG_ON_EXIT, &
-                            bookmark_search_delay, bookmark_search_size, bookmark_sort_flag, BOOKMARK_SORT_FLAG_CREATED, &
-                            BOOKMARK_SORT_FLAG_ALPHABETICAL, BOOKMARK_SORT_FLAG_LAST_MODIFIED, bookmark_use_annotations, &
-                            bookmark_version_control, BOOKMARK_VERSION_CONTROL_NUMBERED, &
-                            BOOKMARK_VERSION_CONTROL_EXISTING, BOOKMARK_VERSION_CONTROL_NO, &
-                            BOOKMARK_VERSION_CONTROL_NOSPECIAL, bookmark_watch_bookmark_file, &
-                            BOOKMARK_WATCH_BOOKMARK_FILE_NO, BOOKMARK_WATCH_BOOKMARK_FILE_ASK, &
+                            bookmark_paste_point, bookmark_save_flag, bookmark_search_delay, bookmark_search_size, &
+                            bookmark_sort_flag, BOOKMARK_SORT_FLAG_LAST_MODIFIED, bookmark_use_annotations, &
+                            bookmark_version_control, BOOKMARK_VERSION_CONTROL_IF_EXISTING, &
+                            BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL, bookmark_watch_bookmark_file, &
                             BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, bookmarks, bookmarks_modification_count
     use buff_menu_mod, only: buffer_menu_buffer_face, buffer_menu_del_char, &
                              buffer_menu_human_readable_sizes, buffer_menu_marker_char, buffer_menu_mode_hook, &
-                             buffer_menu_mode_map, buffer_menu_mode_width, buffer_menu_name_width, &
-                             buffer_menu_name_width_function, buffer_menu_size_width, buffer_menu_use_frame_buffer_list, &
-                             buffer_menu_use_header_line
+                             buffer_menu_mode_map, buffer_menu_mode_width, buffer_menu_name_width, buffer_menu_size_width, &
+                             buffer_menu_use_frame_buffer_list, buffer_menu_use_header_line
     use buffer_mod, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use button_mod, only: button_face, button_buffer_map, button_map, button_mode_hook
     use calendar_mod, only: calendar_abbrev_length, calendar_buffer, calendar_column_width, &
@@ -112,23 +107,20 @@ module docstrings_mod
                           comint_delimiter_arguments, comint_dynamic_complete_functions, comint_eol_on_send, &
                           comint_exec_hook, comint_file_name_chars, comint_file_name_prefix, &
                           comint_file_name_quote_chars, comint_highlight_input, comint_history_isearch, &
-                          COMINT_HISTORY_ISEARCH_NO, COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_ALWAYS, &
-                          comint_inhibit_carriage_motion, comint_input_autoexpand, COMINT_AUTOEXPAND_NO, &
-                          COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, &
-                          comint_input_filter_functions, comint_input_history_ignore, comint_input_ignoredups, &
-                          comint_input_ring_file_name, comint_input_ring_file_prefix, comint_input_ring_separator, &
-                          comint_input_ring_size, comint_input_sender_no_newline, &
-                          comint_insert_previous_argument_from_end, comint_mode_hook, comint_mode_map, &
-                          comint_move_point_for_matching_input, COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT, &
+                          COMINT_HISTORY_ISEARCH_DWIM, comint_inhibit_carriage_motion, comint_input_autoexpand, &
+                          COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, comint_input_filter_functions, &
+                          comint_input_history_ignore, comint_input_ignoredups, comint_input_ring_file_name, &
+                          comint_input_ring_file_prefix, comint_input_ring_separator, comint_input_ring_size, &
+                          comint_input_sender_no_newline, comint_insert_previous_argument_from_end, comint_mode_hook, &
+                          comint_mode_map, comint_move_point_for_matching_input, &
+                          COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT, &
                           COMINT_MOVE_POINT_FOR_MATCHING_INPUT_END_OF_LINE, comint_move_point_for_output, &
-                          COMINT_MOVE_POINT_FOR_OUTPUT_NO, COMINT_MOVE_POINT_FOR_OUTPUT_YES, &
                           COMINT_MOVE_POINT_FOR_OUTPUT_ALL, COMINT_MOVE_POINT_FOR_OUTPUT_THIS, &
                           COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS, comint_output_filter_functions, comint_pager, &
                           comint_password_prompt_max_length, comint_password_prompt_regexp, &
                           comint_preoutput_filter_functions, comint_process_echoes, comint_prompt_read_only, &
                           comint_prompt_regexp, comint_repeat_map, comint_requote_function, comint_requote_argument, &
                           comint_scroll_show_maximum_output, comint_scroll_to_bottom_on_input, &
-                          COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES, &
                           COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, &
                           comint_terminfo_terminal, comint_unquote_function, comint_unquote_argument, &
                           comint_use_prompt_regexp
@@ -143,8 +135,7 @@ module docstrings_mod
                            compilation_info_count_found, compilation_info_face, compilation_leave_directory_face, &
                            compilation_line_face, compilation_message_face, compilation_minor_mode_hook, &
                            compilation_minor_mode_map, compilation_mode_hook, compilation_mode_map, &
-                           compilation_read_command, compilation_scroll_output, COMPILATION_SCROLL_OUTPUT_NO, &
-                           COMPILATION_SCROLL_OUTPUT_YES, COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, &
+                           compilation_read_command, compilation_scroll_output, COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, &
                            compilation_search_all_directories, compilation_shell_minor_mode_hook, &
                            compilation_shell_minor_mode_map, compilation_skip_threshold, &
                            compilation_skip_to_next_location, compilation_skip_visited, &
@@ -167,20 +158,17 @@ module docstrings_mod
                             css_indent_offset, css_lookup_url_format, css_mode_hook, css_mode_map, css_mode_syntax_table, &
                             css_smie_grammar, scss_mode_hook, scss_mode_map, scss_mode_syntax_table
     use dabbrev_mod, only: dabbrev_abbrev_char_regexp, dabbrev_abbrev_skip_leading_regexp, &
-                           dabbrev_backward_only, dabbrev_case_distinction, DABBREV_NO, DABBREV_YES, &
+                           dabbrev_backward_only, dabbrev_case_distinction, DABBREV_LIKE_CASE_FOLD_SEARCH, &
+                           DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, dabbrev_case_fold_search, &
+                           DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, dabbrev_case_replace, &
                            DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
-                           dabbrev_case_fold_search, DABBREV_NO, DABBREV_YES, DABBREV_LIKE_CASE_FOLD_SEARCH, &
-                           DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, dabbrev_case_replace, DABBREV_NO, DABBREV_YES, &
-                           DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
-                           dabbrev_check_all_buffers, dabbrev_check_other_buffers, DABBREV_NO, DABBREV_YES, &
-                           DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
-                           dabbrev_eliminate_newlines, dabbrev_friend_buffer_function, dabbrev_ignored_buffer_modes, &
-                           dabbrev_ignored_buffer_names, dabbrev_ignored_buffer_regexps, dabbrev_limit, &
-                           dabbrev_search_these_buffers_only, dabbrev_select_buffers_function, &
-                           dabbrev_upcase_means_case_search
+                           dabbrev_check_all_buffers, dabbrev_check_other_buffers, dabbrev_eliminate_newlines, &
+                           dabbrev_friend_buffer_function, dabbrev_ignored_buffer_modes, dabbrev_ignored_buffer_names, &
+                           dabbrev_ignored_buffer_regexps, dabbrev_limit, dabbrev_search_these_buffers_only, &
+                           dabbrev_select_buffers_function, dabbrev_upcase_means_case_search
     use data_mod, only: history_delete_duplicates, history_length
     use diff_mod, only: diff_command, diff_entire_buffers, diff_switches, diff_use_labels, &
-                        DIFF_USE_LABELS_NO, DIFF_USE_LABELS_YES, DIFF_USE_LABELS_CHECK
+                        DIFF_USE_LABELS_CHECK
     use diff_mode_mod, only: diff_add_log_use_relative_names, diff_advance_after_apply_hunk, &
                              diff_ask_before_revert_and_cut_hunk, diff_default_read_only, diff_jump_to_old_file, &
                              diff_mode_hook, diff_mode_map, diff_mode_read_only, diff_mode_read_only_map, &
@@ -191,37 +179,32 @@ module docstrings_mod
                               dired_check_symlinks, dired_chown_program, dired_compress_directory_default_suffix, &
                               dired_compress_file_commands, dired_compress_file_default_suffix, &
                               dired_compress_file_suffixes, dired_compress_files_commands, dired_copy_dereference, &
-                              dired_copy_preserve_time, dired_create_destination_dirs, DIRED_CREATE_DESTINATION_DIRS_NO, &
-                              DIRED_CREATE_DESTINATION_DIRS_YES, DIRED_CREATE_DESTINATION_DIRS_ASK, &
+                              dired_copy_preserve_time, dired_create_destination_dirs, DIRED_CREATE_DESTINATION_DIRS_ASK, &
                               dired_create_destination_dirs_on_trailing_dirsep, &
                               dired_create_empty_file_in_current_directory, dired_del_marker, dired_deletion_confirmer, &
                               dired_directory, dired_directory_face, dired_do_revert_buffer, dired_dwim_target, &
-                              DIRED_DWIM_TARGET_NO, DIRED_DWIM_TARGET_NEXT, DIRED_DWIM_TARGET_NEXT_VISIBLE, &
-                              DIRED_DWIM_TARGET_RECENT, dired_flagged, dired_flagged_face, dired_free_space, &
-                              DIRED_FREE_SPACE_NONE, DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST, &
-                              dired_garbage_files_regexp, dired_header, dired_header_face, dired_ignored, &
-                              dired_ignored_face, dired_initial_position_hook, dired_keep_marker_copy, &
+                              DIRED_DWIM_TARGET_NEXT, DIRED_DWIM_TARGET_NEXT_VISIBLE, DIRED_DWIM_TARGET_RECENT, &
+                              dired_flagged, dired_flagged_face, dired_free_space, DIRED_FREE_SPACE_SEPARATE, &
+                              DIRED_FREE_SPACE_FIRST, dired_garbage_files_regexp, dired_header, dired_header_face, &
+                              dired_ignored, dired_ignored_face, dired_initial_position_hook, dired_keep_marker_copy, &
                               dired_keep_marker_hardlink, dired_keep_marker_relsymlink, dired_keep_marker_rename, &
                               dired_keep_marker_symlink, dired_listing_switches, dired_ls_f_marks_symlinks, dired_mark, &
-                              dired_mark_face, dired_mark_region, DIRED_MARK_REGION_NO, DIRED_MARK_REGION_FILE, &
-                              DIRED_MARK_REGION_LINE, dired_marked, dired_marked_face, dired_marker_char, dired_mode_hook, &
-                              dired_mode_map, dired_movement_style, DIRED_MOVEMENT_STYLE_PLAIN, DIRED_MOVEMENT_STYLE_CYCLE, &
-                              DIRED_MOVEMENT_STYLE_BOUNDED, DIRED_MOVEMENT_STYLE_CYCLE_FILES, &
-                              DIRED_MOVEMENT_STYLE_BOUNDED_FILES, dired_no_confirm, dired_perm_write, &
-                              dired_perm_write_face, dired_recursive_copies, DIRED_RECURSIVE_NO, DIRED_RECURSIVE_YES, &
-                              DIRED_RECURSIVE_TOP, DIRED_RECURSIVE_ASK, dired_recursive_deletes, DIRED_RECURSIVE_NO, &
-                              DIRED_RECURSIVE_YES, DIRED_RECURSIVE_TOP, DIRED_RECURSIVE_ASK, dired_set_id, &
-                              dired_sort_inhibit, dired_special, dired_switches_in_mode_line, &
+                              dired_mark_face, dired_mark_region, DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE, &
+                              dired_marked, dired_marked_face, dired_marker_char, dired_mode_hook, dired_mode_map, &
+                              dired_movement_style, DIRED_MOVEMENT_STYLE_CYCLE, DIRED_MOVEMENT_STYLE_BOUNDED, &
+                              DIRED_MOVEMENT_STYLE_CYCLE_FILES, DIRED_MOVEMENT_STYLE_BOUNDED_FILES, dired_no_confirm, &
+                              dired_perm_write, dired_perm_write_face, dired_recursive_copies, DIRED_RECURSIVE_TOP, &
+                              DIRED_RECURSIVE_ASK, dired_recursive_deletes, DIRED_RECURSIVE_TOP, DIRED_RECURSIVE_ASK, &
+                              dired_set_id, dired_sort_inhibit, dired_special, dired_switches_in_mode_line, &
                               DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, DIRED_SWITCHES_IN_MODE_LINE_AS_IS, dired_symlink, &
                               dired_symlink_face, dired_touch_program, dired_trivial_filenames, dired_use_ls_dired, &
-                              DIRED_USE_LS_DIRED_NO, DIRED_USE_LS_DIRED_YES, DIRED_USE_LS_DIRED_UNSPECIFIED, dired_warning, &
-                              dired_warning_face
+                              DIRED_USE_LS_DIRED_UNSPECIFIED, dired_warning, dired_warning_face
     use editfns_mod, only: inhibit_field_text_motion
     use edmacro_mod, only: edmacro_eight_bits
     use elec_pair_mod, only: electric_pair_inhibit_test_function, electric_pair_local_mode_hook, &
                              electric_pair_mode_hook, electric_pair_open_newline_between_pairs, electric_pair_pairs, &
-                             electric_pair_preserve_balance, electric_pair_skip_self, electric_pair_skip_whitespace, &
-                             ELECTRIC_PAIR_SKIP_WHITESPACE_NO, ELECTRIC_PAIR_SKIP_WHITESPACE_YES, &
+                             electric_pair_preserve_balance, electric_pair_skip_self, &
+                             ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE, electric_pair_skip_whitespace, &
                              ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, electric_pair_skip_whitespace_chars, &
                              electric_pair_skip_whitespace_function, electric_pair_string_bound_function, &
                              electric_pair_text_pairs, electric_pair_text_syntax_table
@@ -229,8 +212,7 @@ module docstrings_mod
                             electric_indent_inhibit, electric_indent_local_mode_hook, electric_indent_mode_hook
     use executable_mod, only: executable_chmod, executable_font_lock_keywords, executable_insert, &
                               executable_magicless_file_regexp, executable_prefix, executable_prefix_env, executable_query, &
-                              EXECUTABLE_QUERY_NO, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_ALWAYS, &
-                              executable_self_display
+                              EXECUTABLE_QUERY_FUNCTION, executable_self_display
     use expression_motion_mod, only: beginning_of_subprogram_function, delete_pair_blink_delay, &
                                      delete_pair_push_mark, end_of_subprogram_function, end_of_subprogram_moves_to_eol, &
                                      forward_expression_function, insert_pairs, narrow_to_subprogram_include_comments, &
@@ -246,8 +228,8 @@ module docstrings_mod
                        f90_indented_comment_regexp, f90_keywords_level_3_regexp, f90_keywords_regexp, &
                        f90_leave_line_no, f90_mode_abbrev_table, f90_mode_hook, f90_mode_map, f90_mode_syntax_table, &
                        f90_no_break_regexp, f90_operators_regexp, f90_procedures_regexp, f90_program_block_regexp, &
-                       f90_program_indent, f90_smart_end, F90_SMART_END_NO, F90_SMART_END_BLINK, &
-                       F90_SMART_END_NO_BLINK, f90_smart_end_names, f90_start_block_regexp, f90_type_indent
+                       f90_program_indent, f90_smart_end, F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, &
+                       f90_smart_end_names, f90_start_block_regexp, f90_type_indent
     use face_table_mod, only: faces
     use fileio_mod, only: select_safe_coding_system_function, set_auto_coding_function
     use files_mod, only: after_revert_hook, after_save_hook, after_set_visited_file_name_hook, &
@@ -256,12 +238,11 @@ module docstrings_mod
                          close_buffer_hook, copy_directory_create_symlink, create_backup_files, &
                          directory_listing_before_filename_regexp, dired_ls_error_buffer, dired_ls_error_file, &
                          find_directory_functions, find_file_hook, find_file_run_dired, insert_directory_program, &
-                         locate_dominating_stop_dir_regexp, mode_require_final_newline, FINAL_NEWLINE_NO, &
-                         FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, &
-                         mounted_file_systems, find_file, require_final_newline, FINAL_NEWLINE_NO, FINAL_NEWLINE_SAVE, &
-                         FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, revert_buffer_function, &
-                         revert_buffer_in_progress, revert_buffer_preserve_modes, revert_without_query, &
-                         save_some_buffers_functions, view_read_only, write_file_functions
+                         locate_dominating_stop_dir_regexp, mode_require_final_newline, FINAL_NEWLINE_VISIT, &
+                         FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, mounted_file_systems, find_file, &
+                         require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, &
+                         revert_buffer_function, revert_buffer_in_progress, revert_buffer_preserve_modes, &
+                         revert_without_query, save_some_buffers_functions, view_read_only, write_file_functions
     use fill_mod, only: adaptive_fill_first_line_regexp, adaptive_fill_function, adaptive_fill_mode, &
                         adaptive_fill_regexp, colon_double_space, default_justification, DEFAULT_JUSTIFICATION_NONE, &
                         DEFAULT_JUSTIFICATION_LEFT, DEFAULT_JUSTIFICATION_RIGHT, DEFAULT_JUSTIFICATION_FULL, &
@@ -276,8 +257,8 @@ module docstrings_mod
                              global_font_lock_mode_hook
     use font_lock_mod, only: font_lock_comment_end_skip, font_lock_comment_start_skip, &
                              font_lock_dont_widen, font_lock_extra_managed_props, font_lock_maximum_decoration, &
-                             FONT_LOCK_MAXIMUM_DECORATION_MAX, font_lock_support_mode, FONT_LOCK_SUPPORT_MODE_NONE, &
-                             FONT_LOCK_SUPPORT_MODE_JIT_LOCK, font_lock_syntactic_face_function, font_lock_verbose
+                             font_lock_support_mode, FONT_LOCK_SUPPORT_MODE_NONE, FONT_LOCK_SUPPORT_MODE_JIT_LOCK, &
+                             font_lock_syntactic_face_function, font_lock_verbose
     use frame_mod, only: window_divider_default_bottom_width, window_divider_default_places, &
                          WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY, WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY, &
                          WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT, window_divider_default_right_width, &
@@ -288,19 +269,15 @@ module docstrings_mod
                         grep_files_aliases, grep_files_history, grep_find_abbreviate, grep_find_command, &
                         grep_find_command_position, grep_find_history, grep_find_ignored_directories, &
                         grep_find_ignored_files_variable, grep_find_template, grep_find_use_xargs, &
-                        GREP_FIND_USE_XARGS_UNKNOWN, GREP_FIND_USE_XARGS_EXEC, GREP_FIND_USE_XARGS_EXEC_PLUS, &
-                        GREP_FIND_USE_XARGS_GNU, GREP_FIND_USE_XARGS_GNU_SORT, GREP_FIND_USE_XARGS_OTHER, &
-                        grep_first_column, grep_heading, grep_heading_regexp, grep_highlight_matches, &
-                        GREP_HIGHLIGHT_MATCHES_NO, GREP_HIGHLIGHT_MATCHES_YES, GREP_HIGHLIGHT_MATCHES_AUTO_DETECT, &
-                        GREP_HIGHLIGHT_MATCHES_ALWAYS, GREP_HIGHLIGHT_MATCHES_AUTO, grep_history, grep_hit_face, &
-                        grep_last_buffer, grep_match_face, grep_match_regexp, grep_mode_font_lock_keywords, &
-                        grep_mode_hook, grep_mode_map, grep_program, grep_quoting_style, grep_read_files_function, &
-                        grep_regexp_history, grep_regexps, grep_save_buffers, GREP_SAVE_BUFFERS_NO, &
-                        GREP_SAVE_BUFFERS_YES, GREP_SAVE_BUFFERS_ASK, grep_save_buffers_function, grep_scroll_output, &
-                        grep_setup_hook, grep_template, grep_use_headings, grep_use_null_device, &
-                        GREP_USE_NULL_DEVICE_NO, GREP_USE_NULL_DEVICE_YES, GREP_USE_NULL_DEVICE_AUTO_DETECT, &
-                        grep_use_null_filename_separator, GREP_USE_NULL_FILENAME_SEPARATOR_NO, &
-                        GREP_USE_NULL_FILENAME_SEPARATOR_YES, GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, &
+                        GREP_FIND_USE_XARGS_EXEC, GREP_FIND_USE_XARGS_EXEC_PLUS, GREP_FIND_USE_XARGS_GNU, &
+                        GREP_FIND_USE_XARGS_GNU_SORT, grep_first_column, grep_heading, grep_heading_regexp, &
+                        grep_highlight_matches, GREP_HIGHLIGHT_MATCHES_AUTO_DETECT, GREP_HIGHLIGHT_MATCHES_ALWAYS, &
+                        GREP_HIGHLIGHT_MATCHES_AUTO, grep_history, grep_hit_face, grep_last_buffer, grep_match_face, &
+                        grep_match_regexp, grep_mode_font_lock_keywords, grep_mode_hook, grep_mode_map, grep_program, &
+                        grep_quoting_style, grep_read_files_function, grep_regexp_history, grep_regexps, &
+                        grep_save_buffers, GREP_SAVE_BUFFERS_ASK, grep_scroll_output, grep_setup_hook, grep_template, &
+                        grep_use_headings, grep_use_null_device, GREP_USE_NULL_DEVICE_AUTO_DETECT, &
+                        grep_use_null_filename_separator, GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, &
                         rgrep_find_ignores_in_f, xargs_program
     use help_mod, only: help_map
     use help_mode_mod, only: help_back_label, help_forward_label, help_mode_abbrev_table, &
@@ -308,7 +285,6 @@ module docstrings_mod
                              help_xref_stack_item
     use hooks_mod, only: buffer_list_update_hook, change_major_mode_hook
     use ibuffer_mod, only: ibuffer_columns, ibuffer_always_show_last_buffer, &
-                           IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES, &
                            IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI, ibuffer_always_show_tests, ibuffer_case_fold_search, &
                            ibuffer_compressed_file_name_regexp, ibuffer_default_directory, &
                            ibuffer_default_display_maybe_show_tests, ibuffer_default_shrink_to_minimum_size, &
@@ -325,8 +301,7 @@ module docstrings_mod
                            ibuffer_read_only_char, ibuffer_save_with_custom, ibuffer_saved_filter_groups, &
                            ibuffer_saved_filters, ibuffer_show_empty_filter_groups, ibuffer_sorting_functions, &
                            ibuffer_title_face_def, ibuffer_title_face, ibuffer_truncate_lines, ibuffer_use_header_line, &
-                           IBUFFER_USE_HEADER_LINE_NO, IBUFFER_USE_HEADER_LINE_FILTERS, IBUFFER_USE_HEADER_LINE_TITLE, &
-                           ibuffer_use_other_window, ibuffer_view_ibuffer
+                           IBUFFER_USE_HEADER_LINE_TITLE, ibuffer_use_other_window, ibuffer_view_ibuffer
     use indent_mod, only: indent_line_function, indent_line_function_name, indent_region_function, &
                           indent_tabs_mode, standard_indent, tab_always_indent, tab_stops
     use info_look_mod, only: info_lookup_file_names, info_lookup_highlight_face, &
@@ -334,11 +309,10 @@ module docstrings_mod
     use info_mod, only: info_additional_directories, info_breadcrumbs_depth, &
                         info_default_directories, info_directories, info_files_for_fortmacs, &
                         info_fontify_maximum_menu_size, info_fontify_visited_nodes, info_header_node_face, &
-                        info_header_xref_face, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NO, &
-                        INFO_HIDE_NOTE_REFERENCES_SEE, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
-                        info_history_skip_intermediate_nodes, info_index_match_face, info_isearch_search, &
-                        info_menu_header_face, info_menu_star_face, info_mode_hook, info_mode_map, &
-                        info_mode_syntax_table, info_node_face, info_scroll_prefer_subnodes, &
+                        info_header_xref_face, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_SEE, &
+                        INFO_HIDE_NOTE_REFERENCES_TAG, info_history_skip_intermediate_nodes, info_index_match_face, &
+                        info_isearch_search, info_menu_header_face, info_menu_star_face, info_mode_hook, &
+                        info_mode_map, info_mode_syntax_table, info_node_face, info_scroll_prefer_subnodes, &
                         info_search_whitespace_regexp, info_selection_hook, info_streamline_headings, info_suffixes, &
                         info_title_1_face, info_title_2_face, info_title_3_face, info_title_4_face, info_url_table, &
                         info_use_header_line, info_warn_on_index_alternatives_wrap, info_xref_face, &
@@ -351,36 +325,33 @@ module docstrings_mod
                            isearch_regexp_lax_whitespace, isearch_search_fun_function, isearch_wrap_function, &
                            lazy_highlight, regexp_search_ring, regexp_search_ring_max, search_exit_option, &
                            search_nonincremental_instead, search_ring, search_ring_max, search_upper_case, &
-                           SEARCH_UPPER_CASE_NO, SEARCH_UPPER_CASE_YES, SEARCH_UPPER_CASE_NOT_PASTED, &
-                           search_whitespace_regexp
+                           SEARCH_UPPER_CASE_NOT_PASTED, search_whitespace_regexp
     use ispell_mod, only: ispell_aspell_found_dictionaries, ispell_alternate_dictionary, &
                           ispell_aspell_data_dir, ispell_aspell_dict_dir, ispell_aspell_dictionaries, &
-                          ispell_change_dictionary_hook, ispell_check_comments, ISPELL_CHECK_COMMENTS_NO, &
-                          ISPELL_CHECK_COMMENTS_YES, ISPELL_CHECK_COMMENTS_EXCLUSIVE, ispell_check_only, &
-                          ispell_choices_win_default_height, ispell_complete_word_dict, ispell_current_dictionary, &
-                          ispell_current_personal_dictionary, ispell_dictionary, ispell_dictionaries, &
-                          ispell_base_dictionaries, ispell_dicts_name2locale_equivs, ispell_encoding8_command, &
-                          ispell_extra_args, ispell_following_word, ispell_format_word_function, ispell_grep_command, &
-                          ispell_grep_options, ispell_help_in_buffer, ISPELL_HELP_IN_BUFFER_NO, &
-                          ISPELL_HELP_IN_BUFFER_YES, ispell_help_timeout, ispell_highlight_face, ispell_highlight, &
-                          ISPELL_HIGHLIGHT_NO, ISPELL_HIGHLIGHT_YES, ISPELL_HIGHLIGHT_BLOCK, ispell_html_skip_regions, &
-                          ispell_initialize_spellchecker_hook, ispell_keep_choices_win, ispell_kill_ispell_hook, &
-                          ispell_library_directory, ispell_local_dictionary, ispell_local_dictionaries, &
-                          ispell_local_dictionary_overridden, ispell_local_pdict, ispell_look_command, &
-                          ispell_look_options, ispell_parser, ISPELL_PARSER_USE_MODE_NAME, ISPELL_PARSER_TEX, &
-                          ISPELL_PARSER_NROFF, ispell_pdict_modified, ispell_personal_dictionary, ispell_program_name, &
-                          ispell_query_replace_choices, ispell_quietly, ispell_really_aspell, ispell_really_enchant, &
-                          ispell_really_hunspell, ispell_save_corrections_as_abbrevs, ispell_silently_save, &
-                          ispell_skip_html, ISPELL_SKIP_HTML_NO, ISPELL_SKIP_HTML_YES, ISPELL_SKIP_HTML_USE_MODE_NAME, &
-                          ispell_skip_regions, ispell_skip_tib, ispell_tex_skip_environments, ispell_tex_skip_regions, &
+                          ispell_change_dictionary_hook, ispell_check_comments, ISPELL_CHECK_COMMENTS_EXCLUSIVE, &
+                          ispell_check_only, ispell_choices_win_default_height, ispell_complete_word_dict, &
+                          ispell_current_dictionary, ispell_current_personal_dictionary, ispell_dictionary, &
+                          ispell_dictionaries, ispell_base_dictionaries, ispell_dicts_name2locale_equivs, &
+                          ispell_encoding8_command, ispell_extra_args, ispell_following_word, &
+                          ispell_format_word_function, ispell_grep_command, ispell_grep_options, ispell_help_in_buffer, &
+                          ispell_help_timeout, ispell_highlight_face, ispell_highlight, ISPELL_HIGHLIGHT_BLOCK, &
+                          ispell_html_skip_regions, ispell_initialize_spellchecker_hook, ispell_keep_choices_win, &
+                          ispell_kill_ispell_hook, ispell_library_directory, ispell_local_dictionary, &
+                          ispell_local_dictionaries, ispell_local_dictionary_overridden, ispell_local_pdict, &
+                          ispell_look_command, ispell_look_options, ispell_parser, ISPELL_PARSER_USE_MODE_NAME, &
+                          ISPELL_PARSER_TEX, ISPELL_PARSER_NROFF, ispell_pdict_modified, ispell_personal_dictionary, &
+                          ispell_program_name, ispell_query_replace_choices, ispell_quietly, ispell_really_aspell, &
+                          ispell_really_enchant, ispell_really_hunspell, ispell_save_corrections_as_abbrevs, &
+                          ispell_silently_save, ispell_skip_html, ISPELL_SKIP_HTML_USE_MODE_NAME, ispell_skip_regions, &
+                          ispell_skip_tib, ispell_tex_skip_environments, ispell_tex_skip_regions, &
                           ispell_tib_ref_beginning, ispell_tib_ref_end, ispell_update_post_hook, ispell_use_ptys
     use jit_lock_mod, only: jit_lock_chunk_size
     use js_mod, only: js_base_mode_hook, js_base_mode_map, js_chain_indent, js_comment_lineup_func, &
                       js_curly_indent_offset, js_enabled_frameworks, js_expr_indent_offset, js_flat_functions, &
-                      js_indent_align_list_continuation, js_indent_first_init, JS_INDENT_FIRST_INIT_NO, &
-                      JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC, js_indent_level, js_json_mode_hook, &
-                      js_json_mode_map, js_mode_hook, js_mode_map, js_mode_syntax_table, js_paren_indent_offset, &
-                      js_square_indent_offset, js_switch_indent_offset
+                      js_indent_align_list_continuation, js_indent_first_init, JS_INDENT_FIRST_INIT_DYNAMIC, &
+                      js_indent_level, js_json_mode_hook, js_json_mode_map, js_mode_hook, js_mode_map, &
+                      js_mode_syntax_table, js_paren_indent_offset, js_square_indent_offset, &
+                      js_switch_indent_offset
     use keyboard_mod, only: defining_kbd_macro, DEFINING_KBD_MACRO_NO, DEFINING_KBD_MACRO_YES, &
                             DEFINING_KBD_MACRO_APPEND, disable_point_adjustment, echo_keystrokes, echo_keystrokes_help, &
                             exit_fortmacs_hook, global_disable_point_adjustment, help_char, help_events, &
@@ -390,17 +361,14 @@ module docstrings_mod
                             suspend_resume_hook, translate_upper_case_key_bindings
     use kmacro_mod, only: kmacro_counter, kmacro_counter_format, kmacro_counter_format_start, &
                           kmacro_counter_value_start, kmacro_default_counter_format, kmacro_execute_before_append, &
-                          kmacro_execute_repeat_key, KMACRO_EXECUTE_REPEAT_KEY_NO, KMACRO_EXECUTE_REPEAT_KEY_LAST, &
-                          kmacro_execute_repeat_with_arg, kmacro_initial_counter_value, kmacro_keymap, &
-                          kmacro_last_counter, kmacro_repeat_no_prefix, kmacro_ring, kmacro_ring_max
+                          kmacro_execute_repeat_key, kmacro_execute_repeat_with_arg, kmacro_initial_counter_value, &
+                          kmacro_keymap, kmacro_last_counter, kmacro_repeat_no_prefix, kmacro_ring, kmacro_ring_max
     use log_edit_mod, only: log_edit_changelog_full_paragraphs, log_edit_comment_ring, &
-                            log_edit_common_indent, log_edit_confirm, LOG_EDIT_CONFIRM_NO, LOG_EDIT_CONFIRM_YES, &
-                            LOG_EDIT_CONFIRM_CHANGED, log_edit_done_hook, log_edit_font_lock_gnu_style, log_edit_hook, &
-                            log_edit_keep_buffer, log_edit_mode_hook, log_edit_mode_map, log_edit_require_final_newline, &
-                            LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO, LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT, &
-                            LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK, log_edit_rewrite_fixes_regexp, &
-                            log_edit_rewrite_tiny_change, log_edit_setup_add_author, log_edit_setup_invert, &
-                            log_edit_strip_single_file_name, log_edit_summary
+                            log_edit_common_indent, log_edit_confirm, LOG_EDIT_CONFIRM_CHANGED, log_edit_done_hook, &
+                            log_edit_font_lock_gnu_style, log_edit_hook, log_edit_keep_buffer, log_edit_mode_hook, &
+                            log_edit_mode_map, log_edit_require_final_newline, LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK, &
+                            log_edit_rewrite_fixes_regexp, log_edit_rewrite_tiny_change, log_edit_setup_add_author, &
+                            log_edit_setup_invert, log_edit_strip_single_file_name, log_edit_summary
     use mail_utils_mod, only: mail_dont_reply_to_names
     use mailabbrev_mod, only: mail_abbrev_mode_regexp, mail_abbrevs, mail_abbrevs_only, &
                               mail_alias_separator_string
@@ -418,8 +386,7 @@ module docstrings_mod
                              makefile_rule_action_regexp, makefile_runtime_macros, makefile_special_targets, &
                              makefile_tab_after_target_colon, makefile_target_colon, makefile_up_to_date_buffer_name, &
                              makefile_use_curly_braces_for_macros
-    use map_ynp_mod, only: read_answer_short, READ_ANSWER_SHORT_NO, READ_ANSWER_SHORT_YES, &
-                           READ_ANSWER_SHORT_AUTO
+    use map_ynp_mod, only: read_answer_short, READ_ANSWER_SHORT_AUTO
     use minibuf_mod, only: completion_ignore_case, completion_regexps, enable_recursive_minibuffers, &
                            history_append_new_input, minibuffer_exit_hook, minibuffer_setup_hook, read_hide_char, &
                            read_minibuffer_restore_windows
@@ -444,16 +411,15 @@ module docstrings_mod
     use mule_util_mod, only: truncate_string_ellipsis_variable
     use names_mod, only: user_init_file
     use newcomment_mod, only: comment_add, comment_auto_fill_only_comments, comment_column, &
-                              comment_combine_change_calls, comment_continue, comment_empty_lines, COMMENT_EMPTY_LINES_NO, &
-                              COMMENT_EMPTY_LINES_YES, COMMENT_EMPTY_LINES_EOL, comment_end, comment_end_skip, &
-                              comment_fill_column, comment_indent_function, comment_inline_offset, &
-                              comment_insert_comment_function, comment_multi_line, comment_padding, comment_quote_nested, &
-                              comment_quote_nested_function, comment_region_function, comment_setup_function, &
-                              comment_start, comment_start_skip, comment_style, COMMENT_STYLE_PLAIN, &
-                              COMMENT_STYLE_INDENT_OR_TRIPLE, COMMENT_STYLE_INDENT, COMMENT_STYLE_ALIGNED, &
-                              COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
-                              COMMENT_STYLE_BOX_MULTI, comment_use_global_state, comment_use_syntax, COMMENT_USE_SYNTAX_NO, &
-                              COMMENT_USE_SYNTAX_YES, COMMENT_USE_SYNTAX_UNDECIDED, uncomment_region_function
+                              comment_combine_change_calls, comment_continue, comment_empty_lines, COMMENT_EMPTY_LINES_EOL, &
+                              comment_end, comment_end_skip, comment_fill_column, comment_indent_function, &
+                              comment_inline_offset, comment_insert_comment_function, comment_multi_line, comment_padding, &
+                              comment_quote_nested, comment_quote_nested_function, comment_region_function, &
+                              comment_setup_function, comment_start, comment_start_skip, comment_style, &
+                              COMMENT_STYLE_PLAIN, COMMENT_STYLE_INDENT_OR_TRIPLE, COMMENT_STYLE_INDENT, &
+                              COMMENT_STYLE_ALIGNED, COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
+                              COMMENT_STYLE_BOX_MULTI, comment_use_global_state, comment_use_syntax, &
+                              COMMENT_USE_SYNTAX_UNDECIDED, uncomment_region_function
     use novice_mod, only: disabled_command_function_variable
     use paragraphs_mod, only: page_delimiter, paragraph_ignore_fill_prefix, paragraph_separate, &
                               paragraph_start, sentence_end, sentence_end_base, sentence_end_double_space, &
@@ -461,7 +427,6 @@ module docstrings_mod
     use paren_mod, only: show_paren_context_when_offscreen, show_paren_data_function, &
                          show_paren_delay, show_paren_highlight_openparen, show_paren_local_mode_hook, &
                          show_paren_mode_hook, show_paren_not_in_comments_or_strings, &
-                         SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO, SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL, &
                          SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH, show_paren_priority, &
                          show_paren_ring_bell_on_mismatch, show_paren_style, SHOW_PAREN_STYLE_PARENTHESIS, &
                          SHOW_PAREN_STYLE_EXPRESSION, SHOW_PAREN_STYLE_MIXED, show_paren_test_function, &
@@ -488,11 +453,11 @@ module docstrings_mod
                           python_indent_guess_indent_offset_verbose, python_indent_offset, python_indent_repeat_map, &
                           python_indent_trigger_commands, python_mode_hook, python_mode_map, python_mode_syntax_table, &
                           python_nav_beginning_of_block_regexp, python_nav_beginning_of_definition_regexp
-    use recentf_mod, only: recentf_auto_cleanup, RECENTF_AUTO_CLEANUP_MODE, RECENTF_AUTO_CLEANUP_NO, &
-                           recentf_autosave_interval, recentf_exclude, recentf_exclude_ignored_extensions, &
-                           recentf_filename_handlers, recentf_files, recentf_initialize_file_name_history, recentf_keep, &
-                           recentf_max_saved_items, recentf_menu_action, recentf_mode_hook, recentf_mode_map, &
-                           recentf_save_file, recentf_save_file_modes, recentf_show_messages
+    use recentf_mod, only: recentf_auto_cleanup, recentf_autosave_interval, recentf_exclude, &
+                           recentf_exclude_ignored_extensions, recentf_filename_handlers, recentf_files, &
+                           recentf_initialize_file_name_history, recentf_keep, recentf_max_saved_items, &
+                           recentf_menu_action, recentf_mode_hook, recentf_mode_map, recentf_save_file, &
+                           recentf_save_file_modes, recentf_show_messages
     use rect_mod, only: last_cut_rectangle, rectangle_mark_mode_hook, rectangle_mark_mode_map, &
                         string_rectangle_history
     use register_mod, only: register_separator, registers
@@ -520,8 +485,8 @@ module docstrings_mod
                              save_place_ignore_files_regexp, save_place_limit, save_place_loaded, &
                              save_place_local_mode_hook, save_place_mode_hook, save_place_save_skipped, &
                              save_place_skip_check_regexp, save_place_version_control, &
-                             SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING, &
-                             SAVE_PLACE_VERSION_CONTROL_NO, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL, save_places
+                             SAVE_PLACE_VERSION_CONTROL_IF_EXISTING, SAVE_PLACE_VERSION_CONTROL_AS_VERSION_CONTROL, &
+                             save_places
     use search_mod, only: case_fold_search, search_spaces_regexp
     use sendmail_mod, only: default_sendmail_coding_system, mail_alias_file, mail_archive_file_name, &
                             mail_citation_header, mail_citation_hook, mail_citation_prefix_regexp, &
@@ -531,44 +496,42 @@ module docstrings_mod
                             mail_indentation_spaces, mail_interactive, mail_mailing_lists, mail_mode_hook, mail_mode_map, &
                             mail_mode_syntax_table, mail_paste_ignored_headers, mail_paste_prefix, &
                             mail_personal_alias_file, mail_self_blind, mail_send_hook, mail_send_nonascii, &
-                            MAIL_SEND_NONASCII_NO, MAIL_SEND_NONASCII_YES, MAIL_SEND_NONASCII_ASK, &
-                            MAIL_SEND_NONASCII_MIME, mail_signature_variable, MAIL_SIGNATURE_NO, MAIL_SIGNATURE_YES, &
-                            MAIL_SIGNATURE_STRING, MAIL_SIGNATURE_PROCEDURE, mail_signature_file, &
-                            mail_specify_envelope_from, mail_use_dsn, send_mail_function, query_sendmail_once, &
-                            sendmail_coding_system, sendmail_error_reporting_interactive, &
+                            MAIL_SEND_NONASCII_ASK, MAIL_SEND_NONASCII_MIME, mail_signature_variable, &
+                            mail_signature_file, mail_specify_envelope_from, mail_use_dsn, send_mail_function, &
+                            query_sendmail_once, sendmail_coding_system, sendmail_error_reporting_interactive, &
                             sendmail_error_reporting_non_interactive, sendmail_program, sendmail_user_agent, &
                             set_up_mail_hook, set_up_mail_with_from
-    use sgml_mode_mod, only: html_mode_hook, html_mode_map, html_quick_keys, QUICK_KEYS_NO, &
-                             QUICK_KEYS_YES, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, html_tag_faces, &
-                             html_tag_help, html_tags, sgml_attribute_offset, sgml_basic_offset, sgml_char_names, &
-                             sgml_empty_tags, sgml_mode_hook, sgml_mode_map, sgml_mode_syntax_table, sgml_quick_keys, &
-                             QUICK_KEYS_NO, QUICK_KEYS_YES, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, &
-                             sgml_slash_distance, sgml_specials, sgml_tag_help_variable, sgml_tag_history, sgml_tag_last, &
-                             sgml_tag_syntax_table, sgml_tags, sgml_transformation_function, sgml_unclosed_tags, &
-                             sgml_validate_command, sgml_whitespace_sensitive_tags, sgml_xml_mode
+    use sgml_mode_mod, only: html_mode_hook, html_mode_map, html_quick_keys, QUICK_KEYS_INDENT, &
+                             QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, html_tag_faces, html_tag_help, html_tags, &
+                             sgml_attribute_offset, sgml_basic_offset, sgml_char_names, sgml_empty_tags, sgml_mode_hook, &
+                             sgml_mode_map, sgml_mode_syntax_table, sgml_quick_keys, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, &
+                             QUICK_KEYS_DEFAULT, sgml_slash_distance, sgml_specials, sgml_tag_help_variable, &
+                             sgml_tag_history, sgml_tag_last, sgml_tag_syntax_table, sgml_tags, &
+                             sgml_transformation_function, sgml_unclosed_tags, sgml_validate_command, &
+                             sgml_whitespace_sensitive_tags, sgml_xml_mode
     use sh_script_mod, only: sh_aliases, sh_ancestors, sh_assignment_regexp, sh_backslash_align, &
                              sh_backslash_column, sh_base_mode_hook, sh_base_mode_map, sh_basic_offset, &
                              sh_beginning_of_command, sh_builtins, sh_dynamic_complete_functions, sh_end_of_command, &
                              sh_font_lock_keywords_var, sh_font_lock_keywords_var_1, sh_font_lock_keywords_var_2, &
                              sh_here_document_word, sh_indent_after_case, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
-                             SH_STAR, SH_SLASH, sh_indent_after_continuation, SH_INDENT_AFTER_CONTINUATION_NO, &
-                             SH_INDENT_AFTER_CONTINUATION_DEEPER, SH_INDENT_AFTER_CONTINUATION_ALWAYS, sh_indent_after_do, &
-                             SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_done, &
-                             sh_indent_after_else, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
-                             sh_indent_after_function, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
-                             sh_indent_after_if, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
-                             sh_indent_after_loop_construct, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
-                             SH_SLASH, sh_indent_after_open, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
-                             SH_SLASH, sh_indent_after_switch, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
-                             SH_SLASH, sh_indent_for_case_alt, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
-                             SH_SLASH, sh_indent_for_case_label, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
-                             SH_SLASH, sh_indent_for_continuation, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
-                             SH_STAR, SH_SLASH, sh_indent_for_do, sh_indent_for_done, sh_indent_for_fi, &
-                             sh_indent_for_then, sh_indent_statement_after_and, sh_indent_supported, sh_leading_keywords, &
-                             sh_make_vars_local, sh_mode_abbrev_table, sh_mode_hook, sh_mode_map, sh_mode_syntax_table, &
-                             sh_mode_syntax_table_input, sh_other_keywords, sh_remember_variable_min, sh_set_shell_hook, &
-                             sh_shell, sh_shell_arg, sh_shell_file, sh_skeleton_default_pairs, sh_smie_rc_grammar, &
-                             sh_smie_sh_grammar, sh_styles, sh_test, sh_variables
+                             SH_STAR, SH_SLASH, sh_indent_after_continuation, SH_INDENT_AFTER_CONTINUATION_ALWAYS, &
+                             sh_indent_after_do, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
+                             sh_indent_after_done, sh_indent_after_else, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                             SH_STAR, SH_SLASH, sh_indent_after_function, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                             SH_STAR, SH_SLASH, sh_indent_after_if, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                             SH_STAR, SH_SLASH, sh_indent_after_loop_construct, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
+                             SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_open, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
+                             SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_switch, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
+                             SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_case_alt, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
+                             SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_case_label, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
+                             SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_continuation, SH_PLUS, SH_MINUS, &
+                             SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_do, sh_indent_for_done, &
+                             sh_indent_for_fi, sh_indent_for_then, sh_indent_statement_after_and, sh_indent_supported, &
+                             sh_leading_keywords, sh_make_vars_local, sh_mode_abbrev_table, sh_mode_hook, sh_mode_map, &
+                             sh_mode_syntax_table, sh_mode_syntax_table_input, sh_other_keywords, &
+                             sh_remember_variable_min, sh_set_shell_hook, sh_shell, sh_shell_arg, sh_shell_file, &
+                             sh_skeleton_default_pairs, sh_smie_rc_grammar, sh_smie_sh_grammar, sh_styles, sh_test, &
+                             sh_variables
     use shell_mod, only: explicit_bash_args, explicit_csh_args, explicit_shell_file_name, &
                          list_buffers_directory, shell_cd_regexp, shell_close_buffer_on_exit, shell_command_mode_hook, &
                          shell_command_mode_map, shell_command_regexp, shell_command_separator_regexp, &
@@ -576,21 +539,19 @@ module docstrings_mod
                          shell_dirstack_query, shell_dirtrack_mode_hook, shell_dirtrack_verbose, &
                          shell_dumb_shell_regexp, shell_dynamic_complete_functions, shell_file_name_chars, &
                          shell_file_name_quote_chars, shell_get_old_input_include_continuation_lines, &
-                         shell_has_auto_cd, shell_history_file_name, shell_input_autoexpand, COMINT_AUTOEXPAND_NO, &
-                         COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, &
-                         shell_mode_hook, shell_mode_map, shell_popd_regexp, shell_prompt_regexp, &
-                         shell_pushd_dextract, shell_pushd_dunique, shell_pushd_regexp, shell_pushd_tohome, &
-                         shell_repeat_map
+                         shell_has_auto_cd, shell_history_file_name, shell_input_autoexpand, COMINT_AUTOEXPAND_INPUT, &
+                         COMINT_AUTOEXPAND_HISTORY, shell_mode_hook, shell_mode_map, shell_popd_regexp, &
+                         shell_prompt_regexp, shell_pushd_dextract, shell_pushd_dunique, shell_pushd_regexp, &
+                         shell_pushd_tohome, shell_repeat_map
     use simple_mod, only: async_shell_command_buffer, &
                           ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS, &
                           ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER, ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER, &
                           ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER, ASYNC_SHELL_COMMAND_BUFFER_RENAME_BUFFER, &
                           async_shell_command_display_buffer, async_shell_command_mode, async_shell_command_width, &
                           auto_fill_inhibit_regexp, auto_fill_mode_hook, backward_delete_char_untabify_method, &
-                          BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY, &
-                          BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL, &
-                          blink_matching_check_function, blink_matching_delay, blink_matching_paren, &
-                          BLINK_MATCHING_PAREN_NO, BLINK_MATCHING_PAREN_YES, BLINK_MATCHING_PAREN_JUMP, &
+                          BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY, &
+                          BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL, blink_matching_check_function, &
+                          blink_matching_delay, blink_matching_paren, BLINK_MATCHING_PAREN_JUMP, &
                           BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, blink_matching_paren_distance, &
                           blink_matching_paren_dont_ignore_comments, blink_matching_paren_on_screen, &
                           blink_paren_function, clipboard_history_max, clipboard_history_paste_pointer, &
@@ -604,8 +565,7 @@ module docstrings_mod
                           paste_undo_function, pending_undo_entries, prefix_command_preserve_state_hook, &
                           read_only_mode_hook, read_quoted_char_radix, region_extract_function, region_insert_function, &
                           set_variable_value_history, shell_command_default_error_buffer, shell_command_keep_output, &
-                          SHELL_COMMAND_KEEP_OUTPUT_NO, SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, &
-                          SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, &
+                          SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, &
                           SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT, &
                           shell_command_prompt_show_cwd, shell_command_switch, special_mode_abbrev_table, &
                           special_mode_hook, special_mode_map, suggest_key_bindings, transient_mark_mode_hook, &
@@ -638,14 +598,12 @@ module docstrings_mod
     use textprop_mod, only: inhibit_modification_hooks, inhibit_point_motion_hooks
     use timer_mod, only: timer_max_repeats
     use undo_mod, only: amalgamating_undo_limit, this_command_amalgamating
-    use vc_dir_mod, only: vc_dir_allow_mass_mark_changes, VC_DIR_ALLOW_MASS_MARK_CHANGES_NO, &
-                          VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK, VC_DIR_ALLOW_MASS_MARK_CHANGES_YES, &
-                          vc_dir_auto_hide_up_to_date, VC_DIR_AUTO_HIDE_UP_TO_DATE_NO, VC_DIR_AUTO_HIDE_UP_TO_DATE_YES, &
-                          VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT, vc_dir_mode_hook, vc_dir_save_some_buffers_on_revert
-    use vc_dispatcher_mod, only: vc_command_messages, VC_COMMAND_MESSAGES_NO, &
-                                 VC_COMMAND_MESSAGES_YES, VC_COMMAND_MESSAGES_LOG, vc_compilation_mode_hook, &
-                                 vc_delete_logbuf_window, vc_display_failed_async_commands, vc_finish_logentry_hook, &
-                                 vc_logentry_check_hook, vc_sentinel_movepoint, vc_suppress_confirm
+    use vc_dir_mod, only: vc_dir_allow_mass_mark_changes, VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK, &
+                          vc_dir_auto_hide_up_to_date, VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT, vc_dir_mode_hook, &
+                          vc_dir_save_some_buffers_on_revert
+    use vc_dispatcher_mod, only: vc_command_messages, VC_COMMAND_MESSAGES_LOG, &
+                                 vc_compilation_mode_hook, vc_delete_logbuf_window, vc_display_failed_async_commands, &
+                                 vc_finish_logentry_hook, vc_logentry_check_hook, vc_sentinel_movepoint, vc_suppress_confirm
     use vc_git_mod, only: vc_git_diff_switches, vc_git_error_regexps, vc_git_log_edit_mode_map, &
                           vc_git_log_edit_summary_max_len, vc_git_log_edit_summary_max_warning, &
                           vc_git_log_edit_summary_target_len, vc_git_log_edit_summary_target_warning, &
@@ -653,22 +611,20 @@ module docstrings_mod
                           vc_git_revision_complete_only_branches, vc_git_root_log_format, vc_git_shortlog_switches, &
                           vc_git_use_literal_pathspecs
     use vc_hooks_mod, only: vc_consult_headers, vc_create_backup_files, vc_dir_buffers, &
-                            vc_directory_exclusions, vc_display_status, VC_DISPLAY_STATUS_NO, VC_DISPLAY_STATUS_YES, &
-                            VC_DISPLAY_STATUS_NO_BACKEND, vc_follow_symlinks, VC_FOLLOW_SYMLINKS_NO, &
-                            VC_FOLLOW_SYMLINKS_YES, VC_FOLLOW_SYMLINKS_ASK, vc_handled_backends, vc_ignore_dir_regexp, &
-                            vc_prefix_map, vc_resolve_conflicts, vc_state_base, vc_use_short_revision
+                            vc_directory_exclusions, vc_display_status, VC_DISPLAY_STATUS_NO_BACKEND, vc_follow_symlinks, &
+                            VC_FOLLOW_SYMLINKS_ASK, vc_handled_backends, vc_ignore_dir_regexp, vc_prefix_map, &
+                            vc_resolve_conflicts, vc_state_base, vc_use_short_revision
     use vc_mod, only: vc_allow_async_diff, vc_allow_async_revert, vc_annotate_switches, &
                       vc_before_checkin_hook, vc_checkin_hook, vc_checkin_switches, vc_checkout_hook, &
                       vc_checkout_switches, vc_deduce_backend_nonvc_modes, vc_diff_added_files, vc_diff_switches, &
                       vc_find_revision_no_save, vc_log_finish_functions, vc_log_short_style, vc_log_show_limit, &
-                      vc_register_switches, vc_retrieve_tag_hook, vc_revert_show_diff, VC_REVERT_SHOW_DIFF_NO, &
-                      VC_REVERT_SHOW_DIFF_YES, VC_REVERT_SHOW_DIFF_KILL
+                      vc_register_switches, vc_retrieve_tag_hook, vc_revert_show_diff, VC_REVERT_SHOW_DIFF_KILL
     use vc_svn_mod, only: vc_svn_diff_switches, vc_svn_global_switches, vc_svn_program, &
                           vc_svn_register_switches
     use view_mod, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
                         view_mode_map, view_no_disable_on_exit, view_scroll_auto_exit
-    use windmove_mod, only: windmove_allow_all_windows, windmove_create_window, &
-                            windmove_create_window_function, windmove_mode_hook, windmove_mode_map, windmove_wrap_around
+    use windmove_mod, only: windmove_allow_all_windows, windmove_create_window, windmove_mode_hook, &
+                            windmove_mode_map, windmove_wrap_around
     use window_mod, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
                           DEDICATED_STRONG, DEDICATED_SIDE, display_buffer_overriding_action, even_window_sizes, &
                           minibuffer_scroll_window, next_screen_context_lines, pop_up_windows, scroll_error_top_bottom, &
@@ -676,8 +632,7 @@ module docstrings_mod
                           SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST, SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL, &
                           SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL, window_configuration_change_hook, &
                           window_min_height, window_min_width, window_scroll_functions, window_sides_reversed, &
-                          WINDOW_SIDES_REVERSED_NO, WINDOW_SIDES_REVERSED_YES, WINDOW_SIDES_REVERSED_BIDI, &
-                          window_sides_slots, window_sides_vertical
+                          WINDOW_SIDES_REVERSED_BIDI, window_sides_slots, window_sides_vertical
     use winner_mod, only: winner_boring_buffers, winner_boring_buffers_regexp, &
                           winner_dont_bind_my_keys, winner_mode_hook, winner_mode_map, winner_repeat_map, &
                           winner_ring_size
@@ -1235,7 +1190,7 @@ module docstrings_mod
                                                   "window_in_direction", "winner_mode", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1541) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1538) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1282,22 +1237,21 @@ module docstrings_mod
                                                      "buffer_file_coding_system", "buffer_list_update_hook", "buffer_menu_buffer", &
                                             "buffer_menu_del_char", "buffer_menu_human_readable_sizes", "buffer_menu_marker_char", &
                                                         "buffer_menu_mode_hook", "buffer_menu_mode_map", "buffer_menu_mode_width", &
-                                            "buffer_menu_name_width", "buffer_menu_name_width_function", "buffer_menu_size_width", &
-                                                               "buffer_menu_use_frame_buffer_list", "buffer_menu_use_header_line", &
-                                         "buffer_stale_function", "button", "button_buffer_map", "button_map", "button_mode_hook", &
-                                                             "calendar_abbrev_length", "calendar_buffer", "calendar_column_width", &
-                                                    "calendar_date_echo_text", "calendar_date_style", "calendar_day_abbrev_array", &
-                                             "calendar_day_digit_width", "calendar_day_header_array", "calendar_day_header_width", &
-                                          "calendar_day_name_array", "calendar_initial_window_hook", "calendar_intermonth_header", &
-                                                "calendar_intermonth_spacing", "calendar_intermonth_text", "calendar_left_margin", &
-                                                      "calendar_minimum_window_height", "calendar_mode_hook", "calendar_mode_map", &
-                                             "calendar_month_abbrev_array", "calendar_month_digit_width", "calendar_month_header", &
-                                                        "calendar_month_name_array", "calendar_month_width", "calendar_move_hook", &
-                                                 "calendar_offset", "calendar_recenter_last_op", "calendar_split_width_threshold", &
-                                                 "calendar_today", "calendar_today_invisible_hook", "calendar_today_visible_hook", &
-                                                    "calendar_total_months", "calendar_week_start_day", "calendar_weekday_header", &
-                                                           "calendar_weekend_days", "calendar_weekend_header", "case_fold_search", &
-                                                                   "case_identifiers_as_words", "case_replace", "change_log_date", &
+                                          "buffer_menu_name_width", "buffer_menu_size_width", "buffer_menu_use_frame_buffer_list", &
+                                            "buffer_menu_use_header_line", "buffer_stale_function", "button", "button_buffer_map", &
+                                                    "button_map", "button_mode_hook", "calendar_abbrev_length", "calendar_buffer", &
+                                                        "calendar_column_width", "calendar_date_echo_text", "calendar_date_style", &
+                                             "calendar_day_abbrev_array", "calendar_day_digit_width", "calendar_day_header_array", &
+                                           "calendar_day_header_width", "calendar_day_name_array", "calendar_initial_window_hook", &
+                                          "calendar_intermonth_header", "calendar_intermonth_spacing", "calendar_intermonth_text", &
+                                                   "calendar_left_margin", "calendar_minimum_window_height", "calendar_mode_hook", &
+                                                 "calendar_mode_map", "calendar_month_abbrev_array", "calendar_month_digit_width", &
+                                                     "calendar_month_header", "calendar_month_name_array", "calendar_month_width", &
+                                                             "calendar_move_hook", "calendar_offset", "calendar_recenter_last_op", &
+                                              "calendar_split_width_threshold", "calendar_today", "calendar_today_invisible_hook", &
+                                                "calendar_today_visible_hook", "calendar_total_months", "calendar_week_start_day", &
+                                                    "calendar_weekday_header", "calendar_weekend_days", "calendar_weekend_header", &
+                                               "case_fold_search", "case_identifiers_as_words", "case_replace", "change_log_date", &
                                                   "change_log_default_name", "change_log_directory_files", "change_log_mode_hook", &
                                          "change_log_mode_map", "change_log_mode_syntax_table", "change_log_version_info_enabled", &
                                                      "change_log_version_number_regexp_list", "change_major_mode_after_body_hook", &
@@ -1470,8 +1424,8 @@ module docstrings_mod
                                                            "grep_history", "grep_hit_face", "grep_last_buffer", "grep_match_face", &
                                            "grep_match_regexp", "grep_mode_font_lock_keywords", "grep_mode_hook", "grep_mode_map", &
                                           "grep_program", "grep_quoting_style", "grep_read_files_function", "grep_regexp_history", &
-                                          "grep_regexps", "grep_save_buffers", "grep_save_buffers_function", "grep_scroll_output", &
-                                                  "grep_setup_hook", "grep_template", "grep_use_headings", "grep_use_null_device", &
+                                                     "grep_regexps", "grep_save_buffers", "grep_scroll_output", "grep_setup_hook", &
+                                                                    "grep_template", "grep_use_headings", "grep_use_null_device", &
                                                 "grep_use_null_filename_separator", "help_back_label", "help_char", "help_events", &
                                                      "help_forward_label", "help_map", "help_mode_abbrev_table", "help_mode_hook", &
                                              "help_mode_map", "help_xref_following", "help_xref_forward_stack", "help_xref_stack", &
@@ -1757,9 +1711,8 @@ module docstrings_mod
                                            "vc_use_short_revision", "view_exits_all_viewing_windows", "view_inhibit_help_message", &
                                                    "view_mode_hook", "view_mode_map", "view_no_disable_on_exit", "view_read_only", &
                                                                    "view_scroll_auto_exit", "visible_bell", "widen_automatically", &
-                                                                    "windmove_allow_all_windows", "windmove_create_window", &
-                                                     "windmove_create_window_function", "windmove_mode_hook", "windmove_mode_map", &
-                                                                    "windmove_wrap_around", "window_configuration_change_hook", &
+                                                     "windmove_allow_all_windows", "windmove_create_window", "windmove_mode_hook", &
+                                                  "windmove_mode_map", "windmove_wrap_around", "window_configuration_change_hook", &
                                                            "window_divider_default_bottom_width", "window_divider_default_places", &
                                             "window_divider_default_right_width", "window_divider_mode_hook", "window_min_height", &
                                                            "window_min_width", "window_scroll_functions", "window_sides_reversed", &
@@ -1769,7 +1722,7 @@ module docstrings_mod
                                                                     "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(673) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(671) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1828,7 +1781,6 @@ module docstrings_mod
                                                                       "buffer_menu_human_readable_sizes", &
                                                                       "buffer_menu_mode_width", &
                                                                       "buffer_menu_name_width", &
-                                                                      "buffer_menu_name_width_function", &
                                                                       "buffer_menu_size_width", &
                                                                       "buffer_menu_use_frame_buffer_list", &
                                                                       "buffer_menu_use_header_line", &
@@ -2429,7 +2381,6 @@ module docstrings_mod
                                                                       "visible_bell", &
                                                                       "windmove_allow_all_windows", &
                                                                       "windmove_create_window", &
-                                                                      "windmove_create_window_function", &
                                                                       "windmove_wrap_around", &
                                                                       "window_min_height", &
                                                                       "window_min_width", &
@@ -2705,11 +2656,11 @@ contains
         case ("ansi_color_for_comint_mode_off")
             entry%file = "ansi_color_mod.f90"
             entry%command = .true.
-            entry%doc = "Set `ansi_color_for_comint_mode' to ANSI_COLOR_NO."
+            entry%doc = "Set `ansi_color_for_comint_mode' to .false."
         case ("ansi_color_for_comint_mode_on")
             entry%file = "ansi_color_mod.f90"
             entry%command = .true.
-            entry%doc = "Set `ansi_color_for_comint_mode' to ANSI_COLOR_YES."
+            entry%doc = "Set `ansi_color_for_comint_mode' to .true."
         case ("ansi_color_process_output")
             entry%file = "ansi_color_mod.f90"
             entry%fortran = "call ansi_color_process_output(ignored, status)"
@@ -7813,7 +7764,7 @@ contains
                         "`f90_smart_end'"//LF// &
                         "  From an END statement, check and fill the end using matching block start."//LF// &
                         "  Allowed values are F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, and"//LF// &
-                        "  F90_SMART_END_NO, which determine whether to blink the matching"//LF// &
+                        "  .false., which determine whether to blink the matching"//LF// &
                         "  beginning (default F90_SMART_END_BLINK)."//LF// &
                         "`f90_auto_keyword_case'"//LF// &
                         "  Automatic change of case of keywords (default F90_AUTO_KEYWORD_CASE_NONE)."//LF// &
@@ -8346,7 +8297,7 @@ contains
                                  "type(font_lock_highlight_type) :: h"
             entry%doc = "A MATCH-HIGHLIGHT: give subexpression SUBEXP of the match the face"//LF// &
                         "FACE (or the face FACE_FUNCTION names), combined with existing"//LF// &
-                        "fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NO by default),"//LF// &
+                        "fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NONE by default),"//LF// &
                         "LAXMATCH if SUBEXP need not match."
         case ("font_lock_keyword")
             entry%file = "font_lock_mod.f90"
@@ -8793,13 +8744,13 @@ contains
                             "ing_style)"
             entry%declarations = "character(len=*), intent(in), optional :: command"//LF// &
                                  "character(len=*), intent(in), optional :: template"//LF// &
-                                 "integer, intent(in), optional :: use_null_device"//LF// &
+                                 "type(choice_type), intent(in), optional :: use_null_device"//LF// &
                                  "character(len=*), intent(in), optional :: find_command"//LF// &
                                  "integer, intent(in), optional :: find_command_position"//LF// &
                                  "character(len=*), intent(in), optional :: find_template"//LF// &
-                                 "integer, intent(in), optional :: find_use_xargs"//LF// &
-                                 "integer, intent(in), optional :: use_null_filename_separator"//LF// &
-                                 "integer, intent(in), optional :: highlight_matches"//LF// &
+                                 "type(choice_type), intent(in), optional :: find_use_xargs"//LF// &
+                                 "type(choice_type), intent(in), optional :: use_null_filename_separator"//LF// &
+                                 "type(choice_type), intent(in), optional :: highlight_matches"//LF// &
                                  "logical, intent(in), optional :: quoting_style"
             entry%doc = "Set the given settings, and update `grep_host_defaults'."//LF// &
                         "The settings are `grep_command', `grep_template',"//LF// &
@@ -12386,11 +12337,10 @@ contains
             entry%file = "sendmail_mod.f90"
             entry%command = .true.
             entry%doc = "Sign letter with signature."//LF// &
-                        "If the variable `mail_signature_variable' is MAIL_SIGNATURE_STRING,"//LF// &
-                        "inserts `mail_signature_text'."//LF// &
-                        "If it is MAIL_SIGNATURE_YES or MAIL_SIGNATURE_NO, inserts the"//LF// &
+                        "If the variable `mail_signature_variable' has its text set,"//LF// &
+                        "inserts that text; if it has its procedure set, calls it."//LF// &
+                        "Otherwise (.true. or .false.), inserts the"//LF// &
                         "contents of the file `mail_signature_file'."//LF// &
-                        "Otherwise, calls `mail_signature_function'."//LF// &
                         "ATPOINT means insert at point rather than the end."
         case ("mail_subject")
             entry%file = "sendmail_mod.f90"
@@ -14135,8 +14085,8 @@ contains
                         "search string as the string to replace."//LF// &
                         ""//LF// &
                         "Matching is independent of case if both `case_fold_search'"//LF// &
-                        "and `search_upper_case' are true (not SEARCH_UPPER_CASE_NO) and FROM_STRING has no"//LF// &
-                        "uppercase letters; if `search_upper_case' is SEARCH_UPPER_CASE_NO, then whether"//LF// &
+                        "and `search_upper_case' are true and FROM_STRING has no"//LF// &
+                        "uppercase letters; if `search_upper_case' is .false., then whether"//LF// &
                         "matching ignores case depends on `case_fold_search' regardless"//LF// &
                         "of whether there are uppercase letters in FROM_STRING."//LF// &
                         "Replacement transfers the case pattern of the old text to the"//LF// &
@@ -14187,8 +14137,8 @@ contains
                         "use `C-q C-j' instead.  To match a tab character (`\t'), just press `TAB'."//LF// &
                         ""//LF// &
                         "Matching is independent of case if both `case_fold_search'"//LF// &
-                        "and `search_upper_case' are true (not SEARCH_UPPER_CASE_NO) and REGEXP has no uppercase"//LF// &
-                        "letters; if `search_upper_case' is SEARCH_UPPER_CASE_NO, then whether matching"//LF// &
+                        "and `search_upper_case' are true and REGEXP has no uppercase"//LF// &
+                        "letters; if `search_upper_case' is .false., then whether matching"//LF// &
                         "ignores case depends on `case_fold_search' regardless of whether"//LF// &
                         "there are uppercase letters in REGEXP."//LF// &
                         "Replacement transfers the case pattern of the old text to the new"//LF// &
@@ -16264,7 +16214,7 @@ contains
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
             entry%doc = "Insert ARG slash characters."//LF// &
-                        "Behaves electrically if `sgml_quick_keys' is not QUICK_KEYS_NO."
+                        "Behaves electrically if `sgml_quick_keys' is true."
         case ("sgml_slash_matching")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
@@ -18750,7 +18700,7 @@ contains
             entry%doc = "Move to the window at direction DIRECTION as seen from WINDOW."//LF// &
                         "DIRECTION, ARG, and WINDOW are handled as by `windmove_find_other_window'."//LF// &
                         "If no window is at direction DIRECTION, an error condition occurs."//LF// &
-                        "If `windmove_create_window_function' is set, call that function with"//LF// &
+                        "If `windmove_create_window%procedure' is set, call that function with"//LF// &
                         "DIRECTION, ARG and WINDOW.  If `windmove_create_window' is true, try"//LF// &
                         "to create a new window in direction DIRECTION instead."
         case ("windmove_find_other_window")
@@ -19281,23 +19231,19 @@ contains
             entry%file = "ansi_color_mod.f90"
             entry%fortran = "ansi_color_for_comint_mode"
             entry%user_option = .true.
-            entry%original = "ANSI_COLOR_YES"
+            entry%original = ".true."
 
-            select case (ansi_color_for_comint_mode%value)
-            case (ANSI_COLOR_NO)
-                entry%value = "ANSI_COLOR_NO"
+            select case (ansi_color_for_comint_mode%choice)
             case (ANSI_COLOR_FILTER)
                 entry%value = "ANSI_COLOR_FILTER"
-            case (ANSI_COLOR_YES)
-                entry%value = "ANSI_COLOR_YES"
             case default
                 entry%value = repr(ansi_color_for_comint_mode%value)
             end select
 
             entry%doc = "Determines what to do with comint output."//LF// &
-                        "If ANSI_COLOR_NO, do nothing."//LF// &
+                        "If .false., do nothing."//LF// &
                         "If ANSI_COLOR_FILTER, then filter all SGR control sequences."//LF// &
-                        "If anything else (such as ANSI_COLOR_YES), then translate SGR"//LF// &
+                        "If anything else (such as .true.), then translate SGR"//LF// &
                         "control sequences into text properties."//LF// &
                         ""//LF// &
                         "In order for this to have any effect, `ansi_color_process_output'"//LF// &
@@ -19312,26 +19258,22 @@ contains
             entry%file = "ansi_color_mod.f90"
             entry%fortran = "ansi_color_for_compilation_mode"
             entry%user_option = .true.
-            entry%original = "ANSI_COLOR_YES"
+            entry%original = ".true."
 
-            select case (ansi_color_for_compilation_mode%value)
-            case (ANSI_COLOR_NO)
-                entry%value = "ANSI_COLOR_NO"
+            select case (ansi_color_for_compilation_mode%choice)
             case (ANSI_COLOR_FILTER)
                 entry%value = "ANSI_COLOR_FILTER"
-            case (ANSI_COLOR_YES)
-                entry%value = "ANSI_COLOR_YES"
             case default
                 entry%value = repr(ansi_color_for_compilation_mode%value)
             end select
 
             entry%doc = "Determines what to do with compilation output."//LF// &
-                        "If ANSI_COLOR_NO, do nothing."//LF// &
+                        "If .false., do nothing."//LF// &
                         ""//LF// &
                         "If ANSI_COLOR_FILTER, then filter all ANSI graphical control"//LF// &
                         "sequences."//LF// &
                         ""//LF// &
-                        "If anything else (such as ANSI_COLOR_YES), then translate ANSI"//LF// &
+                        "If anything else (such as .true.), then translate ANSI"//LF// &
                         "graphical control sequences into text properties."//LF// &
                         ""//LF// &
                         "In order for this to have any effect,"//LF// &
@@ -19696,9 +19638,7 @@ contains
             entry%user_option = .true.
             entry%original = "BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY"
 
-            select case (backward_delete_char_untabify_method)
-            case (BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE)
-                entry%value = "BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE"
+            select case (backward_delete_char_untabify_method%choice)
             case (BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY)
                 entry%value = "BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY"
             case (BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY)
@@ -19706,7 +19646,7 @@ contains
             case (BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL)
                 entry%value = "BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL"
             case default
-                entry%value = repr(backward_delete_char_untabify_method)
+                entry%value = repr(backward_delete_char_untabify_method%value)
             end select
 
             entry%doc = "The method for untabifying when deleting backward."//LF// &
@@ -19716,7 +19656,7 @@ contains
                         "nd spaces;"//LF// &
                         "       `BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL' -- delete all whitespace, including tabs"// &
                         ", spaces and newlines;"//LF// &
-                        "       `BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE' -- just delete one character."
+                        "       .false. -- just delete one character."
         case ("before_change_functions")
             entry%file = "insdel_mod.f90"
             entry%fortran = "before_change_functions"
@@ -19793,19 +19733,15 @@ contains
             entry%file = "simple_mod.f90"
             entry%fortran = "blink_matching_paren"
             entry%user_option = .true.
-            entry%original = "BLINK_MATCHING_PAREN_YES"
+            entry%original = ".true."
 
-            select case (blink_matching_paren)
-            case (BLINK_MATCHING_PAREN_NO)
-                entry%value = "BLINK_MATCHING_PAREN_NO"
-            case (BLINK_MATCHING_PAREN_YES)
-                entry%value = "BLINK_MATCHING_PAREN_YES"
+            select case (blink_matching_paren%choice)
             case (BLINK_MATCHING_PAREN_JUMP)
                 entry%value = "BLINK_MATCHING_PAREN_JUMP"
             case (BLINK_MATCHING_PAREN_JUMP_OFFSCREEN)
                 entry%value = "BLINK_MATCHING_PAREN_JUMP_OFFSCREEN"
             case default
-                entry%value = repr(blink_matching_paren)
+                entry%value = repr(blink_matching_paren%value)
             end select
 
             entry%doc = "True means show matching open-paren when close-paren is inserted."//LF// &
@@ -19815,8 +19751,8 @@ contains
                         ""//LF// &
                         "The valid values are:"//LF// &
                         ""//LF// &
-                        "  `BLINK_MATCHING_PAREN_YES'               Highlight the matching open-paren if it is visi"// &
-                        "ble"//LF// &
+                        "  .true.                                 Highlight the matching open-paren if it is visibl"// &
+                        "e"//LF// &
                         "                                         in the window, otherwise show the text with match"// &
                         "ing"//LF// &
                         "                                         open-paren in the echo area.  This is the default"// &
@@ -19829,7 +19765,7 @@ contains
                         "a."//LF// &
                         "  `BLINK_MATCHING_PAREN_JUMP_OFFSCREEN'  Briefly move cursor to the matching open-paren"//LF// &
                         "                                         even if it is not visible in the window."//LF// &
-                        "  `BLINK_MATCHING_PAREN_NO'             Don't show the matching open-paren."
+                        "  .false.                                Don't show the matching open-paren."
         case ("blink_matching_paren_distance")
             entry%file = "simple_mod.f90"
             entry%fortran = "blink_matching_paren_distance"
@@ -19859,7 +19795,7 @@ contains
                         "in the echo area when it is off screen)."//LF// &
                         ""//LF// &
                         "This variable has no effect if `blink_matching_paren' is"//LF// &
-                        "`BLINK_MATCHING_PAREN_NO'.  (In that case, the open-paren is never"//LF// &
+                        ".false.  (In that case, the open-paren is never"//LF// &
                         "shown.)  It is also ignored if `show_paren_mode' is enabled."
         case ("blink_paren_function")
             entry%file = "simple_mod.f90"
@@ -20097,30 +20033,29 @@ contains
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmark_save_flag"
             entry%user_option = .true.
-            entry%original = "BOOKMARK_SAVE_FLAG_ON_EXIT"
+            entry%original = ".true."
+            entry%value = bookmark_save_flag%other_value()
 
-            select case (bookmark_save_flag)
-            case (BOOKMARK_SAVE_FLAG_NO)
-                entry%value = "BOOKMARK_SAVE_FLAG_NO"
-            case (BOOKMARK_SAVE_FLAG_ON_EXIT)
-                entry%value = "BOOKMARK_SAVE_FLAG_ON_EXIT"
-            case default
-                entry%value = repr(bookmark_save_flag)
-            end select
+            if (len(entry%value) == 0) then
+                select case (bookmark_save_flag%choice)
+                case default
+                    entry%value = repr(bookmark_save_flag%value)
+                end select
+            end if
 
             entry%doc = "Controls when Fortmacs saves bookmarks to a file."//LF// &
-                        "--> BOOKMARK_SAVE_FLAG_NO means never save bookmarks, except when"//LF// &
+                        "--> .false. means never save bookmarks, except when"//LF// &
                         "    `bookmark_save' is explicitly called (\[bookmark_save])."//LF// &
-                        "--> BOOKMARK_SAVE_FLAG_ON_EXIT means save bookmarks when Fortmacs is"//LF// &
+                        "--> .true. means save bookmarks when Fortmacs is"//LF// &
                         "    killed."//LF// &
-                        "--> Otherwise, it should be a number that is the frequency with which"//LF// &
+                        "--> Otherwise, `bookmark_save_flag%modifications' is the frequency with which"//LF// &
                         "    the bookmark list is saved (i.e.: the number of times which"//LF// &
                         "    Fortmacs's bookmark list may be modified before it is"//LF// &
                         "    automatically saved.).  If it is a number, Fortmacs will also"//LF// &
                         "    automatically save bookmarks when it is killed."//LF// &
                         ""//LF// &
                         "Therefore, the way to get it to save every time you make or delete a"//LF// &
-                        "bookmark is to set this variable to 1 (or 0, which produces the same"//LF// &
+                        "bookmark is to set its modifications to 1 (or 0, which produces the same"//LF// &
                         "behavior.)"//LF// &
                         ""//LF// &
                         "To specify the file in which to save them, modify the variable"//LF// &
@@ -20143,21 +20078,17 @@ contains
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmark_sort_flag"
             entry%user_option = .true.
-            entry%original = "BOOKMARK_SORT_FLAG_ALPHABETICAL"
+            entry%original = ".true."
 
-            select case (bookmark_sort_flag)
-            case (BOOKMARK_SORT_FLAG_CREATED)
-                entry%value = "BOOKMARK_SORT_FLAG_CREATED"
-            case (BOOKMARK_SORT_FLAG_ALPHABETICAL)
-                entry%value = "BOOKMARK_SORT_FLAG_ALPHABETICAL"
+            select case (bookmark_sort_flag%choice)
             case (BOOKMARK_SORT_FLAG_LAST_MODIFIED)
                 entry%value = "BOOKMARK_SORT_FLAG_LAST_MODIFIED"
             case default
-                entry%value = repr(bookmark_sort_flag)
+                entry%value = repr(bookmark_sort_flag%value)
             end select
 
             entry%doc = "This controls the bookmark display sorting."//LF// &
-                        "BOOKMARK_SORT_FLAG_CREATED means they will be displayed in LIFO order"//LF// &
+                        ".false. means they will be displayed in LIFO order"//LF// &
                         "(that is, most recently created ones come first, oldest ones come"//LF// &
                         "last)."//LF// &
                         ""//LF// &
@@ -20165,7 +20096,7 @@ contains
                         "displayed sorted from most recently modified to least recently"//LF// &
                         "modified."//LF// &
                         ""//LF// &
-                        "Other values means that bookmarks will be displayed sorted by"//LF// &
+                        ".true. means that bookmarks will be displayed sorted by"//LF// &
                         "bookmark name."
         case ("bookmark_use_annotations")
             entry%file = "bookmark_mod.f90"
@@ -20178,44 +20109,37 @@ contains
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmark_version_control"
             entry%user_option = .true.
-            entry%original = "BOOKMARK_VERSION_CONTROL_NOSPECIAL"
+            entry%original = "BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL"
 
-            select case (bookmark_version_control)
-            case (BOOKMARK_VERSION_CONTROL_NUMBERED)
-                entry%value = "BOOKMARK_VERSION_CONTROL_NUMBERED"
-            case (BOOKMARK_VERSION_CONTROL_EXISTING)
-                entry%value = "BOOKMARK_VERSION_CONTROL_EXISTING"
-            case (BOOKMARK_VERSION_CONTROL_NO)
-                entry%value = "BOOKMARK_VERSION_CONTROL_NO"
-            case (BOOKMARK_VERSION_CONTROL_NOSPECIAL)
-                entry%value = "BOOKMARK_VERSION_CONTROL_NOSPECIAL"
+            select case (bookmark_version_control%choice)
+            case (BOOKMARK_VERSION_CONTROL_IF_EXISTING)
+                entry%value = "BOOKMARK_VERSION_CONTROL_IF_EXISTING"
+            case (BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL)
+                entry%value = "BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL"
             case default
-                entry%value = repr(bookmark_version_control)
+                entry%value = repr(bookmark_version_control%value)
             end select
 
             entry%doc = "Whether or not to make numbered backups of the bookmark file."//LF// &
-                        "It can have four values: BOOKMARK_VERSION_CONTROL_NUMBERED, _NIL, _NEVER,"//LF// &
-                        "or _NOSPECIAL.  The first three have the same meaning that they do"//LF// &
-                        "for the variable `version_control'; the value _NOSPECIAL (the"//LF// &
-                        "default) means just use the value of `version_control'."
+                        "If .true., always make numbered backups; if .false., never."//LF// &
+                        "BOOKMARK_VERSION_CONTROL_IF_EXISTING makes them only when numbered"//LF// &
+                        "backups of the file already exist, and"//LF// &
+                        "BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL (the default) follows the"//LF// &
+                        "option `version_control'."
         case ("bookmark_watch_bookmark_file")
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmark_watch_bookmark_file"
             entry%user_option = .true.
-            entry%original = "BOOKMARK_WATCH_BOOKMARK_FILE_ASK"
+            entry%original = ".true."
 
-            select case (bookmark_watch_bookmark_file)
-            case (BOOKMARK_WATCH_BOOKMARK_FILE_NO)
-                entry%value = "BOOKMARK_WATCH_BOOKMARK_FILE_NO"
-            case (BOOKMARK_WATCH_BOOKMARK_FILE_ASK)
-                entry%value = "BOOKMARK_WATCH_BOOKMARK_FILE_ASK"
+            select case (bookmark_watch_bookmark_file%choice)
             case (BOOKMARK_WATCH_BOOKMARK_FILE_SILENT)
                 entry%value = "BOOKMARK_WATCH_BOOKMARK_FILE_SILENT"
             case default
-                entry%value = repr(bookmark_watch_bookmark_file)
+                entry%value = repr(bookmark_watch_bookmark_file%value)
             end select
 
-            entry%doc = "If BOOKMARK_WATCH_BOOKMARK_FILE_ASK, reload the default bookmark file"//LF// &
+            entry%doc = "If true, reload the default bookmark file"//LF// &
                         "if it was changed.  If this file has changed on disk since it was"//LF// &
                         "last loaded, query the user whether to load it again.  If the value"//LF// &
                         "is BOOKMARK_WATCH_BOOKMARK_FILE_SILENT reload without querying."//LF// &
@@ -20332,26 +20256,17 @@ contains
             entry%fortran = "buffer_menu_name_width"
             entry%user_option = .true.
             entry%original = "19"
-            entry%value = repr(buffer_menu_name_width)
-            entry%doc = "Width of buffer name column in the Buffer Menu, used while"//LF// &
-                        "`buffer_menu_name_width_function' is null."
-        case ("buffer_menu_name_width_function")
-            entry%file = "buff_menu_mod.f90"
-            entry%fortran = "buffer_menu_name_width_function"
-            entry%user_option = .true.
-            entry%original = "null()"
-            entry%declarations = "procedure(buffer_menu_name_width_procedure), pointer :: buffer_menu_name_width_function"
+            entry%value = buffer_menu_name_width%other_value()
 
-            if (.not. associated(buffer_menu_name_width_function)) then
-                entry%value = "null()"
-            else
-                entry%value = "a procedure set by the configuration"
+            if (len(entry%value) == 0) then
+                entry%value = repr(buffer_menu_name_width%value)
             end if
 
-            entry%doc = "Function returning the width of the buffer name column in the"//LF// &
-                        "Buffer Menu: it is called with the list of buffers and should"//LF// &
-                        "return a number.  When it is null, `buffer_menu_name_width' is used"//LF// &
-                        "directly."
+            entry%doc = "Width of buffer name column in the Buffer Menu."//LF// &
+                        "This can either be a number (used directly) or a procedure"//LF// &
+                        "(buffer_menu_name_width%procedure => mine) that is called with the"//LF// &
+                        "list of buffers and should return a number; the default is"//LF// &
+                        "`buffer_menu_dynamic_name_width'."
         case ("buffer_menu_size_width")
             entry%file = "buff_menu_mod.f90"
             entry%fortran = "buffer_menu_size_width"
@@ -21056,27 +20971,23 @@ contains
             entry%file = "comint_mod.f90"
             entry%fortran = "comint_history_isearch"
             entry%user_option = .true.
-            entry%original = "COMINT_HISTORY_ISEARCH_NO"
+            entry%original = ".false."
 
-            select case (comint_history_isearch%value)
-            case (COMINT_HISTORY_ISEARCH_NO)
-                entry%value = "COMINT_HISTORY_ISEARCH_NO"
+            select case (comint_history_isearch%choice)
             case (COMINT_HISTORY_ISEARCH_DWIM)
                 entry%value = "COMINT_HISTORY_ISEARCH_DWIM"
-            case (COMINT_HISTORY_ISEARCH_ALWAYS)
-                entry%value = "COMINT_HISTORY_ISEARCH_ALWAYS"
             case default
                 entry%value = repr(comint_history_isearch%value)
             end select
 
-            entry%doc = "If not COMINT_HISTORY_ISEARCH_NO, Isearch in input history only,"//LF// &
-                        "not in comint buffer output.  If COMINT_HISTORY_ISEARCH_ALWAYS, usual"//LF// &
+            entry%doc = "If true, Isearch in input history only,"//LF// &
+                        "not in comint buffer output.  If .true., usual"//LF// &
                         "Isearch keys like \`C-r' and \`C-M-r' in comint mode search in the"//LF// &
                         "input history.  If COMINT_HISTORY_ISEARCH_DWIM, Isearch keys search"//LF// &
                         "in the input history only when initial point position is at the"//LF// &
                         "comint command line.  When starting Isearch from other parts of the"//LF// &
-                        "comint buffer, they search in the comint buffer.  If"//LF// &
-                        "COMINT_HISTORY_ISEARCH_NO, Isearch operates on the whole comint"//LF// &
+                        "comint buffer, they search in the comint buffer.  If .false.,"//LF// &
+                        "Isearch operates on the whole comint"//LF// &
                         "buffer."
         case ("comint_inhibit_carriage_motion")
             entry%file = "comint_mod.f90"
@@ -21089,13 +21000,9 @@ contains
             entry%file = "comint_mod.f90"
             entry%fortran = "comint_input_autoexpand"
             entry%user_option = .true.
-            entry%original = "COMINT_AUTOEXPAND_NO"
+            entry%original = ".false."
 
-            select case (comint_input_autoexpand%value)
-            case (COMINT_AUTOEXPAND_NO)
-                entry%value = "COMINT_AUTOEXPAND_NO"
-            case (COMINT_AUTOEXPAND_ON_COMPLETION)
-                entry%value = "COMINT_AUTOEXPAND_ON_COMPLETION"
+            select case (comint_input_autoexpand%choice)
             case (COMINT_AUTOEXPAND_INPUT)
                 entry%value = "COMINT_AUTOEXPAND_INPUT"
             case (COMINT_AUTOEXPAND_HISTORY)
@@ -21104,7 +21011,7 @@ contains
                 entry%value = repr(comint_input_autoexpand%value)
             end select
 
-            entry%doc = "If not COMINT_AUTOEXPAND_NO, expand input command history"//LF// &
+            entry%doc = "If true, expand input command history"//LF// &
                         "references on completion.  This mirrors the optional behavior of"//LF// &
                         "tcsh (its autoexpand and histlist)."//LF// &
                         ""//LF// &
@@ -21246,13 +21153,9 @@ contains
             entry%file = "comint_mod.f90"
             entry%fortran = "comint_move_point_for_output"
             entry%user_option = .true.
-            entry%original = "COMINT_MOVE_POINT_FOR_OUTPUT_NO"
+            entry%original = ".false."
 
-            select case (comint_move_point_for_output%value)
-            case (COMINT_MOVE_POINT_FOR_OUTPUT_NO)
-                entry%value = "COMINT_MOVE_POINT_FOR_OUTPUT_NO"
-            case (COMINT_MOVE_POINT_FOR_OUTPUT_YES)
-                entry%value = "COMINT_MOVE_POINT_FOR_OUTPUT_YES"
+            select case (comint_move_point_for_output%choice)
             case (COMINT_MOVE_POINT_FOR_OUTPUT_ALL)
                 entry%value = "COMINT_MOVE_POINT_FOR_OUTPUT_ALL"
             case (COMINT_MOVE_POINT_FOR_OUTPUT_THIS)
@@ -21265,16 +21168,15 @@ contains
 
             entry%doc = "Controls whether interpreter output moves point to the end of the"//LF// &
                         "output."//LF// &
-                        "If COMINT_MOVE_POINT_FOR_OUTPUT_NO, then output never moves point to the output."//LF// &
+                        "If .false., then output never moves point to the output."//LF// &
                         " (If the output occurs at point, it is inserted before point.)"//LF// &
-                        "If COMINT_MOVE_POINT_FOR_OUTPUT_YES or COMINT_MOVE_POINT_FOR_OUTPUT_ALL, move point in all"// &
-                        " windows"//LF// &
+                        "If .true. or COMINT_MOVE_POINT_FOR_OUTPUT_ALL, move point in all windows"//LF// &
                         "showing the buffer."//LF// &
                         "If COMINT_MOVE_POINT_FOR_OUTPUT_THIS, move point only the selected window."//LF// &
                         "If COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS, move point only in other windows, not in the"//LF// &
                         "selected window."//LF// &
                         ""//LF// &
-                        "The default is COMINT_MOVE_POINT_FOR_OUTPUT_NO."//LF// &
+                        "The default is .false."//LF// &
                         ""//LF// &
                         "See the variable `comint_scroll_show_maximum_output' and the"//LF// &
                         "function `comint_postoutput_scroll_to_bottom'."//LF// &
@@ -21460,13 +21362,9 @@ contains
             entry%file = "comint_mod.f90"
             entry%fortran = "comint_scroll_to_bottom_on_input"
             entry%user_option = .true.
-            entry%original = "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO"
+            entry%original = ".false."
 
-            select case (comint_scroll_to_bottom_on_input%value)
-            case (COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO)
-                entry%value = "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO"
-            case (COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES)
-                entry%value = "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES"
+            select case (comint_scroll_to_bottom_on_input%choice)
             case (COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL)
                 entry%value = "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL"
             case (COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS)
@@ -21476,12 +21374,12 @@ contains
             end select
 
             entry%doc = "Controls whether input to interpreter causes window to scroll."//LF// &
-                        "If COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO, then do not scroll.  If"//LF// &
-                        "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES or COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, scroll all"//LF// &
-                        "windows showing buffer.  If COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, scroll only"//LF// &
+                        "If .false., then do not scroll.  If .true. or"//LF// &
+                        "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, scroll all windows showing"//LF// &
+                        "buffer.  If COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, scroll only"//LF// &
                         "the selected window."//LF// &
                         ""//LF// &
-                        "The default is COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO."//LF// &
+                        "The default is .false."//LF// &
                         ""//LF// &
                         "See `comint_preinput_scroll_to_bottom'.  This variable is"//LF// &
                         "buffer-local."
@@ -21595,21 +21493,17 @@ contains
             entry%file = "newcomment_mod.f90"
             entry%fortran = "comment_empty_lines"
             entry%user_option = .true.
-            entry%original = "COMMENT_EMPTY_LINES_NO"
+            entry%original = ".false."
 
-            select case (comment_empty_lines%value)
-            case (COMMENT_EMPTY_LINES_NO)
-                entry%value = "COMMENT_EMPTY_LINES_NO"
-            case (COMMENT_EMPTY_LINES_YES)
-                entry%value = "COMMENT_EMPTY_LINES_YES"
+            select case (comment_empty_lines%choice)
             case (COMMENT_EMPTY_LINES_EOL)
                 entry%value = "COMMENT_EMPTY_LINES_EOL"
             case default
                 entry%value = repr(comment_empty_lines%value)
             end select
 
-            entry%doc = "If COMMENT_EMPTY_LINES_NO, `comment_region' does not comment out"//LF// &
-                        "empty lines.  If COMMENT_EMPTY_LINES_YES, it always comments out empty"//LF// &
+            entry%doc = "If .false., `comment_region' does not comment out"//LF// &
+                        "empty lines.  If .true., it always comments out empty"//LF// &
                         "lines.  If COMMENT_EMPTY_LINES_EOL, it only comments out empty lines"//LF// &
                         "if comments are terminated by the end of line (i.e., `comment_end'"//LF// &
                         "is empty)."
@@ -21813,7 +21707,7 @@ contains
             end if
 
             entry%doc = "Regexp to match the start of a comment plus everything up to its body."//LF// &
-                        "If there are any \(...\) groups and `comment_use_syntax' is COMMENT_USE_SYNTAX_NO,"//LF// &
+                        "If there are any \(...\) groups and `comment_use_syntax' is .false.,"//LF// &
                         "the comment delimiter text is held to begin at the place matched"//LF// &
                         "by the close of the first group."
         case ("comment_style")
@@ -21861,11 +21755,7 @@ contains
             entry%fortran = "comment_use_syntax"
             entry%original = "COMMENT_USE_SYNTAX_UNDECIDED"
 
-            select case (comment_use_syntax%value)
-            case (COMMENT_USE_SYNTAX_NO)
-                entry%value = "COMMENT_USE_SYNTAX_NO"
-            case (COMMENT_USE_SYNTAX_YES)
-                entry%value = "COMMENT_USE_SYNTAX_YES"
+            select case (comment_use_syntax%choice)
             case (COMMENT_USE_SYNTAX_UNDECIDED)
                 entry%value = "COMMENT_USE_SYNTAX_UNDECIDED"
             case default
@@ -22208,13 +22098,9 @@ contains
             entry%file = "compile_mod.f90"
             entry%fortran = "compilation_scroll_output"
             entry%user_option = .true.
-            entry%original = "COMPILATION_SCROLL_OUTPUT_NO"
+            entry%original = ".false."
 
-            select case (compilation_scroll_output%value)
-            case (COMPILATION_SCROLL_OUTPUT_NO)
-                entry%value = "COMPILATION_SCROLL_OUTPUT_NO"
-            case (COMPILATION_SCROLL_OUTPUT_YES)
-                entry%value = "COMPILATION_SCROLL_OUTPUT_YES"
+            select case (compilation_scroll_output%choice)
             case (COMPILATION_SCROLL_OUTPUT_FIRST_ERROR)
                 entry%value = "COMPILATION_SCROLL_OUTPUT_FIRST_ERROR"
             case default
@@ -23095,11 +22981,7 @@ contains
             entry%user_option = .true.
             entry%original = "DABBREV_LIKE_CASE_REPLACE"
 
-            select case (dabbrev_case_distinction)
-            case (DABBREV_NO)
-                entry%value = "DABBREV_NO"
-            case (DABBREV_YES)
-                entry%value = "DABBREV_YES"
+            select case (dabbrev_case_distinction%choice)
             case (DABBREV_LIKE_CASE_FOLD_SEARCH)
                 entry%value = "DABBREV_LIKE_CASE_FOLD_SEARCH"
             case (DABBREV_LIKE_CASE_REPLACE)
@@ -23107,12 +22989,12 @@ contains
             case (DABBREV_ASK)
                 entry%value = "DABBREV_ASK"
             case default
-                entry%value = repr(dabbrev_case_distinction)
+                entry%value = repr(dabbrev_case_distinction%value)
             end select
 
             entry%doc = "Whether dabbrev treats expansions as the same if they differ in case."//LF// &
                         ""//LF// &
-                        "A value of DABBREV_NO means treat them as different."//LF// &
+                        ".false. means treat them as different."//LF// &
                         "A value of DABBREV_LIKE_CASE_REPLACE means distinguish them if"//LF// &
                         "`case_replace' is false."//LF// &
                         "Any other value means to treat them as the same."//LF// &
@@ -23125,11 +23007,7 @@ contains
             entry%user_option = .true.
             entry%original = "DABBREV_LIKE_CASE_FOLD_SEARCH"
 
-            select case (dabbrev_case_fold_search)
-            case (DABBREV_NO)
-                entry%value = "DABBREV_NO"
-            case (DABBREV_YES)
-                entry%value = "DABBREV_YES"
+            select case (dabbrev_case_fold_search%choice)
             case (DABBREV_LIKE_CASE_FOLD_SEARCH)
                 entry%value = "DABBREV_LIKE_CASE_FOLD_SEARCH"
             case (DABBREV_LIKE_CASE_REPLACE)
@@ -23137,11 +23015,11 @@ contains
             case (DABBREV_ASK)
                 entry%value = "DABBREV_ASK"
             case default
-                entry%value = repr(dabbrev_case_fold_search)
+                entry%value = repr(dabbrev_case_fold_search%value)
             end select
 
             entry%doc = "Control whether dabbrev searches should ignore case."//LF// &
-                        "A value of DABBREV_NO means case is significant."//LF// &
+                        ".false. means case is significant."//LF// &
                         "A value of DABBREV_LIKE_CASE_FOLD_SEARCH means case is significant"//LF// &
                         " if `case_fold_search' is false."//LF// &
                         "Any other value means case is not significant."
@@ -23151,11 +23029,7 @@ contains
             entry%user_option = .true.
             entry%original = "DABBREV_LIKE_CASE_REPLACE"
 
-            select case (dabbrev_case_replace)
-            case (DABBREV_NO)
-                entry%value = "DABBREV_NO"
-            case (DABBREV_YES)
-                entry%value = "DABBREV_YES"
+            select case (dabbrev_case_replace%choice)
             case (DABBREV_LIKE_CASE_FOLD_SEARCH)
                 entry%value = "DABBREV_LIKE_CASE_FOLD_SEARCH"
             case (DABBREV_LIKE_CASE_REPLACE)
@@ -23163,12 +23037,12 @@ contains
             case (DABBREV_ASK)
                 entry%value = "DABBREV_ASK"
             case default
-                entry%value = repr(dabbrev_case_replace)
+                entry%value = repr(dabbrev_case_replace%value)
             end select
 
             entry%doc = "Whether dabbrev applies the abbreviations's case pattern to the expansion."//LF// &
                         ""//LF// &
-                        "A value of DABBREV_NO means preserve the expansion's case pattern."//LF// &
+                        ".false. means preserve the expansion's case pattern."//LF// &
                         "A value of DABBREV_LIKE_CASE_REPLACE means preserve it if `case_replace'"//LF// &
                         "is false."//LF// &
                         "Any other value means modify the expansion"//LF// &
@@ -23195,32 +23069,22 @@ contains
             entry%file = "dabbrev_mod.f90"
             entry%fortran = "dabbrev_check_other_buffers"
             entry%user_option = .true.
-            entry%original = "DABBREV_YES"
+            entry%original = ".true."
 
-            select case (dabbrev_check_other_buffers)
-            case (DABBREV_NO)
-                entry%value = "DABBREV_NO"
-            case (DABBREV_YES)
-                entry%value = "DABBREV_YES"
-            case (DABBREV_LIKE_CASE_FOLD_SEARCH)
-                entry%value = "DABBREV_LIKE_CASE_FOLD_SEARCH"
-            case (DABBREV_LIKE_CASE_REPLACE)
-                entry%value = "DABBREV_LIKE_CASE_REPLACE"
-            case (DABBREV_ASK)
-                entry%value = "DABBREV_ASK"
+            select case (dabbrev_check_other_buffers%choice)
             case default
-                entry%value = repr(dabbrev_check_other_buffers)
+                entry%value = repr(dabbrev_check_other_buffers%value)
             end select
 
             entry%doc = "Should \[dabbrev_expand] look in other buffers?"//LF// &
-                        "DABBREV_NO: Don't look in other buffers."//LF// &
-                        "DABBREV_YES: Also look for expansions in the buffers pointed out by"//LF// &
+                        ".false.: Don't look in other buffers."//LF// &
+                        ".true.: Also look for expansions in the buffers pointed out by"//LF// &
                         "   `dabbrev_select_buffers_function'."//LF// &
                         "DABBREV_ASK: When we can't find any more expansions in"//LF// &
                         "the current buffer, then ask the user whether to look in other"//LF// &
                         "buffers too."//LF// &
                         ""//LF// &
-                        "The default value is DABBREV_YES."
+                        "The default value is .true."
         case ("dabbrev_eliminate_newlines")
             entry%file = "dabbrev_mod.f90"
             entry%fortran = "dabbrev_eliminate_newlines"
@@ -23368,7 +23232,7 @@ contains
             entry%user_option = .true.
             entry%original = "DEFAULT_JUSTIFICATION_LEFT"
 
-            select case (default_justification)
+            select case (default_justification%choice)
             case (DEFAULT_JUSTIFICATION_NONE)
                 entry%value = "DEFAULT_JUSTIFICATION_NONE"
             case (DEFAULT_JUSTIFICATION_LEFT)
@@ -23382,7 +23246,7 @@ contains
             case (DEFAULT_JUSTIFICATION_CURRENT)
                 entry%value = "DEFAULT_JUSTIFICATION_CURRENT"
             case default
-                entry%value = repr(default_justification)
+                entry%value = repr(default_justification%value)
             end select
 
             entry%doc = "Method of justifying text not otherwise specified."//LF// &
@@ -23630,21 +23494,17 @@ contains
             entry%fortran = "diff_use_labels"
             entry%original = "DIFF_USE_LABELS_CHECK"
 
-            select case (diff_use_labels)
-            case (DIFF_USE_LABELS_NO)
-                entry%value = "DIFF_USE_LABELS_NO"
-            case (DIFF_USE_LABELS_YES)
-                entry%value = "DIFF_USE_LABELS_YES"
+            select case (diff_use_labels%choice)
             case (DIFF_USE_LABELS_CHECK)
                 entry%value = "DIFF_USE_LABELS_CHECK"
             case default
-                entry%value = repr(diff_use_labels)
+                entry%value = repr(diff_use_labels%value)
             end select
 
             entry%doc = "Whether `diff_command' understands the ""--label"" option."//LF// &
                         "Possible values are:"//LF// &
-                        "  DIFF_USE_LABELS_YES   -- yes, it does"//LF// &
-                        "  DIFF_USE_LABELS_NO    -- no, it does not"//LF// &
+                        "  .true.                -- yes, it does"//LF// &
+                        "  .false.               -- no, it does not"//LF// &
                         "  DIFF_USE_LABELS_CHECK -- try to probe whether it does"
         case ("diff_valid_unified_empty_line")
             entry%file = "diff_mode_mod.f90"
@@ -23826,23 +23686,19 @@ contains
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "dired_create_destination_dirs"
             entry%user_option = .true.
-            entry%original = "DIRED_CREATE_DESTINATION_DIRS_NO"
+            entry%original = ".false."
 
-            select case (dired_create_destination_dirs)
-            case (DIRED_CREATE_DESTINATION_DIRS_NO)
-                entry%value = "DIRED_CREATE_DESTINATION_DIRS_NO"
-            case (DIRED_CREATE_DESTINATION_DIRS_YES)
-                entry%value = "DIRED_CREATE_DESTINATION_DIRS_YES"
+            select case (dired_create_destination_dirs%choice)
             case (DIRED_CREATE_DESTINATION_DIRS_ASK)
                 entry%value = "DIRED_CREATE_DESTINATION_DIRS_ASK"
             case default
-                entry%value = repr(dired_create_destination_dirs)
+                entry%value = repr(dired_create_destination_dirs%value)
             end select
 
             entry%doc = "Whether Dired should create destination dirs when copying/moving files."//LF// &
-                        "If DIRED_CREATE_DESTINATION_DIRS_NO, don't create non-existent destination directories."//LF// &
+                        "If .false., don't create non-existent destination directories."//LF// &
                         "If DIRED_CREATE_DESTINATION_DIRS_ASK, ask the user whether to create them."//LF// &
-                        "If DIRED_CREATE_DESTINATION_DIRS_YES, create them without asking."//LF// &
+                        "If .true., create them without asking."//LF// &
                         ""//LF// &
                         "Also see `dired_create_destination_dirs_on_trailing_dirsep'."
         case ("dired_create_destination_dirs_on_trailing_dirsep")
@@ -23931,22 +23787,23 @@ contains
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "dired_dwim_target"
             entry%user_option = .true.
-            entry%original = "DIRED_DWIM_TARGET_NO"
+            entry%original = ".false."
+            entry%value = dired_dwim_target%other_value()
 
-            select case (dired_dwim_target)
-            case (DIRED_DWIM_TARGET_NO)
-                entry%value = "DIRED_DWIM_TARGET_NO"
-            case (DIRED_DWIM_TARGET_NEXT)
-                entry%value = "DIRED_DWIM_TARGET_NEXT"
-            case (DIRED_DWIM_TARGET_NEXT_VISIBLE)
-                entry%value = "DIRED_DWIM_TARGET_NEXT_VISIBLE"
-            case (DIRED_DWIM_TARGET_RECENT)
-                entry%value = "DIRED_DWIM_TARGET_RECENT"
-            case default
-                entry%value = repr(dired_dwim_target)
-            end select
+            if (len(entry%value) == 0) then
+                select case (dired_dwim_target%choice)
+                case (DIRED_DWIM_TARGET_NEXT)
+                    entry%value = "DIRED_DWIM_TARGET_NEXT"
+                case (DIRED_DWIM_TARGET_NEXT_VISIBLE)
+                    entry%value = "DIRED_DWIM_TARGET_NEXT_VISIBLE"
+                case (DIRED_DWIM_TARGET_RECENT)
+                    entry%value = "DIRED_DWIM_TARGET_RECENT"
+                case default
+                    entry%value = repr(dired_dwim_target%value)
+                end select
+            end if
 
-            entry%doc = "If set, Dired tries to guess a default target directory."//LF// &
+            entry%doc = "If true, Dired tries to guess a default target directory."//LF// &
                         "This means: if there is a Dired buffer displayed in some window,"//LF// &
                         "use its current directory, instead of this Dired buffer's"//LF// &
                         "current directory."//LF// &
@@ -23956,7 +23813,9 @@ contains
                         "visible frames), or the most recently used window with a Dired"//LF// &
                         "buffer (DIRED_DWIM_TARGET_RECENT)."//LF// &
                         ""//LF// &
-                        "The target is used in the prompt for file copy, rename etc."
+                        "The target is used in the prompt for file copy, rename etc."//LF// &
+                        "A procedure of your own set with `=>' (dired_dwim_target%procedure)"//LF// &
+                        "gives the directories to offer, the default first."
         case ("dired_flagged")
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "dired_flagged"
@@ -23978,19 +23837,17 @@ contains
             entry%user_option = .true.
             entry%original = "DIRED_FREE_SPACE_FIRST"
 
-            select case (dired_free_space)
-            case (DIRED_FREE_SPACE_NONE)
-                entry%value = "DIRED_FREE_SPACE_NONE"
+            select case (dired_free_space%choice)
             case (DIRED_FREE_SPACE_SEPARATE)
                 entry%value = "DIRED_FREE_SPACE_SEPARATE"
             case (DIRED_FREE_SPACE_FIRST)
                 entry%value = "DIRED_FREE_SPACE_FIRST"
             case default
-                entry%value = repr(dired_free_space)
+                entry%value = repr(dired_free_space%value)
             end select
 
             entry%doc = "Whether and how to display the disk space usage info in Dired buffers."//LF// &
-                        "If DIRED_FREE_SPACE_NONE, don't display."//LF// &
+                        "If .false., don't display."//LF// &
                         "If DIRED_FREE_SPACE_SEPARATE, display on a separate line, and include both the used"//LF// &
                         "and the free disk space."//LF// &
                         "If DIRED_FREE_SPACE_FIRST, the default, display only the free disk space on the first"//LF// &
@@ -24151,20 +24008,18 @@ contains
             entry%user_option = .true.
             entry%original = "DIRED_MARK_REGION_FILE"
 
-            select case (dired_mark_region)
-            case (DIRED_MARK_REGION_NO)
-                entry%value = "DIRED_MARK_REGION_NO"
+            select case (dired_mark_region%choice)
             case (DIRED_MARK_REGION_FILE)
                 entry%value = "DIRED_MARK_REGION_FILE"
             case (DIRED_MARK_REGION_LINE)
                 entry%value = "DIRED_MARK_REGION_LINE"
             case default
-                entry%value = repr(dired_mark_region)
+                entry%value = repr(dired_mark_region%value)
             end select
 
             entry%doc = "Defines what commands that mark files do with the active region."//LF// &
                         ""//LF// &
-                        "When DIRED_MARK_REGION_NO, marking commands don't operate on all files in the"//LF// &
+                        "When .false., marking commands don't operate on all files in the"//LF// &
                         "active region.  They process their prefix arguments as usual."//LF// &
                         ""//LF// &
                         "When the value of this option is another one, then all Dired commands"//LF// &
@@ -24217,11 +24072,9 @@ contains
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "dired_movement_style"
             entry%user_option = .true.
-            entry%original = "DIRED_MOVEMENT_STYLE_PLAIN"
+            entry%original = ".false."
 
-            select case (dired_movement_style)
-            case (DIRED_MOVEMENT_STYLE_PLAIN)
-                entry%value = "DIRED_MOVEMENT_STYLE_PLAIN"
+            select case (dired_movement_style%choice)
             case (DIRED_MOVEMENT_STYLE_CYCLE)
                 entry%value = "DIRED_MOVEMENT_STYLE_CYCLE"
             case (DIRED_MOVEMENT_STYLE_BOUNDED)
@@ -24231,15 +24084,15 @@ contains
             case (DIRED_MOVEMENT_STYLE_BOUNDED_FILES)
                 entry%value = "DIRED_MOVEMENT_STYLE_BOUNDED_FILES"
             case default
-                entry%value = repr(dired_movement_style)
+                entry%value = repr(dired_movement_style%value)
             end select
 
-            entry%doc = "A value other than DIRED_MOVEMENT_STYLE_PLAIN means point skips empty"//LF// &
+            entry%doc = "True means point skips empty"//LF// &
                         "lines when moving in Dired buffers."//LF// &
                         "This affects only `dired_next_line', `dired_previous_line',"//LF// &
                         "`dired_next_dirline', `dired_prev_dirline'."//LF// &
                         ""//LF// &
-                        "Possible values other than DIRED_MOVEMENT_STYLE_PLAIN:"//LF// &
+                        "Possible values other than .false. (.true. is DIRED_MOVEMENT_STYLE_BOUNDED):"//LF// &
                         " * DIRED_MOVEMENT_STYLE_CYCLE:  when moving from the last/first visible line, cycle back"//LF// &
                         "             to the first/last visible line."//LF// &
                         " * DIRED_MOVEMENT_STYLE_BOUNDED: don't move up/down if the current line is the"//LF// &
@@ -24285,22 +24138,18 @@ contains
             entry%user_option = .true.
             entry%original = "DIRED_RECURSIVE_TOP"
 
-            select case (dired_recursive_copies)
-            case (DIRED_RECURSIVE_NO)
-                entry%value = "DIRED_RECURSIVE_NO"
-            case (DIRED_RECURSIVE_YES)
-                entry%value = "DIRED_RECURSIVE_YES"
+            select case (dired_recursive_copies%choice)
             case (DIRED_RECURSIVE_TOP)
                 entry%value = "DIRED_RECURSIVE_TOP"
             case (DIRED_RECURSIVE_ASK)
                 entry%value = "DIRED_RECURSIVE_ASK"
             case default
-                entry%value = repr(dired_recursive_copies)
+                entry%value = repr(dired_recursive_copies%value)
             end select
 
             entry%doc = "Whether Dired copies directories recursively."//LF// &
-                        "If DIRED_RECURSIVE_NO, never copy recursively."//LF// &
-                        "DIRED_RECURSIVE_YES means to copy recursively without asking."//LF// &
+                        "If .false., never copy recursively."//LF// &
+                        ".true. means to copy recursively without asking."//LF// &
                         "DIRED_RECURSIVE_TOP means to ask for each directory at top level."//LF// &
                         "DIRED_RECURSIVE_ASK means to ask for each directory."
         case ("dired_recursive_deletes")
@@ -24309,22 +24158,18 @@ contains
             entry%user_option = .true.
             entry%original = "DIRED_RECURSIVE_TOP"
 
-            select case (dired_recursive_deletes)
-            case (DIRED_RECURSIVE_NO)
-                entry%value = "DIRED_RECURSIVE_NO"
-            case (DIRED_RECURSIVE_YES)
-                entry%value = "DIRED_RECURSIVE_YES"
+            select case (dired_recursive_deletes%choice)
             case (DIRED_RECURSIVE_TOP)
                 entry%value = "DIRED_RECURSIVE_TOP"
             case (DIRED_RECURSIVE_ASK)
                 entry%value = "DIRED_RECURSIVE_ASK"
             case default
-                entry%value = repr(dired_recursive_deletes)
+                entry%value = repr(dired_recursive_deletes%value)
             end select
 
             entry%doc = "Whether Dired deletes directories recursively."//LF// &
-                        "If DIRED_RECURSIVE_NO, Dired will not delete non-empty directories."//LF// &
-                        "DIRED_RECURSIVE_YES means to delete non-empty directories recursively,"//LF// &
+                        "If .false., Dired will not delete non-empty directories."//LF// &
+                        ".true. means to delete non-empty directories recursively,"//LF// &
                         "without asking.  This is dangerous!"//LF// &
                         "DIRED_RECURSIVE_TOP means to ask for each top-level directory specified by the"//LF// &
                         "Dired deletion command, and delete its subdirectories without"//LF// &
@@ -24412,26 +24257,22 @@ contains
             entry%user_option = .true.
             entry%original = "DIRED_USE_LS_DIRED_UNSPECIFIED"
 
-            select case (dired_use_ls_dired)
-            case (DIRED_USE_LS_DIRED_NO)
-                entry%value = "DIRED_USE_LS_DIRED_NO"
-            case (DIRED_USE_LS_DIRED_YES)
-                entry%value = "DIRED_USE_LS_DIRED_YES"
+            select case (dired_use_ls_dired%choice)
             case (DIRED_USE_LS_DIRED_UNSPECIFIED)
                 entry%value = "DIRED_USE_LS_DIRED_UNSPECIFIED"
             case default
-                entry%value = repr(dired_use_ls_dired)
+                entry%value = repr(dired_use_ls_dired%value)
             end select
 
-            entry%doc = "DIRED_USE_LS_DIRED_YES means Dired should pass the ""--dired"" option to ""ls""."//LF// &
-                        "If DIRED_USE_LS_DIRED_NO, don't pass ""--dired"" to ""ls""."//LF// &
+            entry%doc = ".true. means Dired should pass the ""--dired"" option to ""ls""."//LF// &
+                        "If .false., don't pass ""--dired"" to ""ls""."//LF// &
                         "The special value DIRED_USE_LS_DIRED_UNSPECIFIED means to check whether"//LF// &
                         "`insert_directory_program' supports the ""--dired"" option, and save"//LF// &
                         "the result in this variable."//LF// &
                         "This is performed the first time `dired_insert_directory'"//LF// &
                         "invokes `insert_directory_program'."//LF// &
                         ""//LF// &
-                        "Note that if you set this option to DIRED_USE_LS_DIRED_NO, either through choice or"//LF// &
+                        "Note that if you set this option to .false., either through choice or"//LF// &
                         "because your ""ls"" program does not support ""--dired"", Dired"//LF// &
                         "will fail to parse some ""unusual"" file names, e.g. those with leading"//LF// &
                         "spaces.  You might want to install ls from GNU Coreutils, which does"//LF// &
@@ -24672,13 +24513,16 @@ contains
             entry%file = "elec_pair_mod.f90"
             entry%fortran = "electric_pair_skip_self"
             entry%user_option = .true.
-            entry%original = "null()"
-            entry%declarations = "procedure(electric_pair_char_procedure), pointer :: electric_pair_skip_self"
+            entry%original = "ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE"
+            entry%value = electric_pair_skip_self%other_value()
 
-            if (.not. associated(electric_pair_skip_self)) then
-                entry%value = "null()"
-            else
-                entry%value = "a procedure set by the configuration"
+            if (len(entry%value) == 0) then
+                select case (electric_pair_skip_self%choice)
+                case (ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE)
+                    entry%value = "ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE"
+                case default
+                    entry%value = repr(electric_pair_skip_self%value)
+                end select
             end if
 
             entry%doc = "If set, skip char instead of inserting a second closing paren."//LF// &
@@ -24690,33 +24534,32 @@ contains
                         "This can be convenient for people who find it easier to type `)' than"//LF// &
                         "\[forward_char]."//LF// &
                         ""//LF// &
-                        "It is a function of one argument (the closing delimiter just"//LF// &
-                        "inserted), whose return value is considered; null never skips."
+                        ".true. always skips, .false. never, and ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE"//LF// &
+                        "skips when that helps balance the delimiters.  A procedure of your"//LF// &
+                        "own (electric_pair_skip_self%procedure => mine) is called with the"//LF// &
+                        "closing delimiter just inserted, and its value is considered"//LF// &
+                        "instead."
         case ("electric_pair_skip_whitespace")
             entry%file = "elec_pair_mod.f90"
             entry%fortran = "electric_pair_skip_whitespace"
             entry%user_option = .true.
-            entry%original = "ELECTRIC_PAIR_SKIP_WHITESPACE_YES"
+            entry%original = ".true."
 
-            select case (electric_pair_skip_whitespace)
-            case (ELECTRIC_PAIR_SKIP_WHITESPACE_NO)
-                entry%value = "ELECTRIC_PAIR_SKIP_WHITESPACE_NO"
-            case (ELECTRIC_PAIR_SKIP_WHITESPACE_YES)
-                entry%value = "ELECTRIC_PAIR_SKIP_WHITESPACE_YES"
+            select case (electric_pair_skip_whitespace%choice)
             case (ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP)
                 entry%value = "ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP"
             case default
-                entry%value = repr(electric_pair_skip_whitespace)
+                entry%value = repr(electric_pair_skip_whitespace%value)
             end select
 
             entry%doc = "Whether typing a closing delimiter moves point over whitespace."//LF// &
-                        "If `ELECTRIC_PAIR_SKIP_WHITESPACE_YES' and point is separated from a"//LF// &
+                        "If .true. and point is separated from a"//LF// &
                         "closing delimiter only by whitespace, then typing a closing delimiter"//LF// &
                         "of the same type does not insert that character but instead moves"//LF// &
                         "point to immediately after the already present closing delimiter.  If"//LF// &
                         "the value of this variable is `ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP',"//LF// &
                         "then the whitespace moved over is deleted.  If the value is"//LF// &
-                        "`ELECTRIC_PAIR_SKIP_WHITESPACE_NO', typing a closing delimiter simply"//LF// &
+                        ".false., typing a closing delimiter simply"//LF// &
                         "inserts it at point."//LF// &
                         ""//LF// &
                         "The specific kind of whitespace skipped is given by the variable"//LF// &
@@ -24747,7 +24590,7 @@ contains
 
             entry%doc = "Function to use to move point forward over whitespace."//LF// &
                         "Before attempting a skip, if `electric_pair_skip_whitespace' is"//LF// &
-                        "not `ELECTRIC_PAIR_SKIP_WHITESPACE_NO', this function is called.  It"//LF// &
+                        "not .false., this function is called.  It"//LF// &
                         "moves point to a new buffer position, presumably skipping only"//LF// &
                         "whitespace in between."
         case ("electric_pair_string_bound_function")
@@ -24942,18 +24785,14 @@ contains
             entry%user_option = .true.
             entry%original = "EXECUTABLE_QUERY_FUNCTION"
 
-            select case (executable_query)
-            case (EXECUTABLE_QUERY_NO)
-                entry%value = "EXECUTABLE_QUERY_NO"
+            select case (executable_query%choice)
             case (EXECUTABLE_QUERY_FUNCTION)
                 entry%value = "EXECUTABLE_QUERY_FUNCTION"
-            case (EXECUTABLE_QUERY_ALWAYS)
-                entry%value = "EXECUTABLE_QUERY_ALWAYS"
             case default
-                entry%value = repr(executable_query)
+                entry%value = repr(executable_query%value)
             end select
 
-            entry%doc = "If true (not `EXECUTABLE_QUERY_NO'), ask user before changing an"//LF// &
+            entry%doc = "If true, ask user before changing an"//LF// &
                         "existing magic number.  When this is `EXECUTABLE_QUERY_FUNCTION',"//LF// &
                         "only ask when called non-interactively."
         case ("executable_self_display")
@@ -25318,9 +25157,7 @@ contains
             entry%user_option = .true.
             entry%original = "F90_SMART_END_BLINK"
 
-            select case (f90_smart_end%value)
-            case (F90_SMART_END_NO)
-                entry%value = "F90_SMART_END_NO"
+            select case (f90_smart_end%choice)
             case (F90_SMART_END_BLINK)
                 entry%value = "F90_SMART_END_BLINK"
             case (F90_SMART_END_NO_BLINK)
@@ -25333,7 +25170,7 @@ contains
                         "For example, change the END that closes an IF block to END IF."//LF// &
                         "If the block has a label, add it as well (unless `f90_smart_end_names'"//LF// &
                         "says not to).  Allowed values are F90_SMART_END_BLINK,"//LF// &
-                        "F90_SMART_END_NO_BLINK, and F90_SMART_END_NO.  If F90_SMART_END_NO,"//LF// &
+                        "F90_SMART_END_NO_BLINK, and .false.  If .false.,"//LF// &
                         "nothing is done.  The other two settings have the same effect, but F90_SMART_END_BLINK"//LF// &
                         "additionally blinks the cursor to the start of the block."
         case ("f90_smart_end_names")
@@ -25636,20 +25473,22 @@ contains
             entry%file = "font_lock_mod.f90"
             entry%fortran = "font_lock_maximum_decoration"
             entry%user_option = .true.
-            entry%original = "FONT_LOCK_MAXIMUM_DECORATION_MAX"
+            entry%original = ".true."
+            entry%value = font_lock_maximum_decoration%other_value()
 
-            select case (font_lock_maximum_decoration)
-            case (FONT_LOCK_MAXIMUM_DECORATION_MAX)
-                entry%value = "FONT_LOCK_MAXIMUM_DECORATION_MAX"
-            case default
-                entry%value = repr(font_lock_maximum_decoration)
-            end select
+            if (len(entry%value) == 0) then
+                select case (font_lock_maximum_decoration%choice)
+                case default
+                    entry%value = repr(font_lock_maximum_decoration%value)
+                end select
+            end if
 
             entry%doc = "Maximum decoration level for fontification."//LF// &
-                        "If 0, use the default decoration (typically the minimum available)."//LF// &
-                        "If FONT_LOCK_MAXIMUM_DECORATION_MAX (the default), use the maximum decoration"//LF// &
+                        "If .false., use the default decoration (typically the minimum available)."//LF// &
+                        "If .true. (the default), use the maximum decoration"//LF// &
                         "available."//LF// &
-                        "If a number, use that level of decoration (or if not available the"//LF// &
+                        "If `font_lock_maximum_decoration%level' is a number, use that level of decoration (or if n"// &
+                        "ot available the"//LF// &
                         "maximum).  The higher the number, the more decoration is done."
         case ("font_lock_mode_hook")
             entry%file = "font_core_mod.f90"
@@ -25984,11 +25823,9 @@ contains
             entry%file = "grep_mod.f90"
             entry%fortran = "grep_find_use_xargs"
             entry%user_option = .true.
-            entry%original = "GREP_FIND_USE_XARGS_UNKNOWN"
+            entry%original = ".false."
 
-            select case (grep_find_use_xargs)
-            case (GREP_FIND_USE_XARGS_UNKNOWN)
-                entry%value = "GREP_FIND_USE_XARGS_UNKNOWN"
+            select case (grep_find_use_xargs%choice)
             case (GREP_FIND_USE_XARGS_EXEC)
                 entry%value = "GREP_FIND_USE_XARGS_EXEC"
             case (GREP_FIND_USE_XARGS_EXEC_PLUS)
@@ -25997,10 +25834,8 @@ contains
                 entry%value = "GREP_FIND_USE_XARGS_GNU"
             case (GREP_FIND_USE_XARGS_GNU_SORT)
                 entry%value = "GREP_FIND_USE_XARGS_GNU_SORT"
-            case (GREP_FIND_USE_XARGS_OTHER)
-                entry%value = "GREP_FIND_USE_XARGS_OTHER"
             case default
-                entry%value = repr(grep_find_use_xargs)
+                entry%value = repr(grep_find_use_xargs%value)
             end select
 
             entry%doc = "How to invoke find and grep."//LF// &
@@ -26008,7 +25843,7 @@ contains
                         "If GREP_FIND_USE_XARGS_EXEC_PLUS use `find -exec {} +'."//LF// &
                         "If GREP_FIND_USE_XARGS_GNU, use `find -print0' and `xargs -0'."//LF// &
                         "If GREP_FIND_USE_XARGS_GNU_SORT, use `find -print0', `sort -z' and"//LF// &
-                        "`xargs -0'.  GREP_FIND_USE_XARGS_OTHER means to use `find -print'"//LF// &
+                        "`xargs -0'.  .true. means to use `find -print'"//LF// &
                         "and `xargs'."//LF// &
                         ""//LF// &
                         "This variable's value takes effect when `grep_compute_defaults' is"//LF// &
@@ -26045,11 +25880,7 @@ contains
             entry%user_option = .true.
             entry%original = "GREP_HIGHLIGHT_MATCHES_AUTO_DETECT"
 
-            select case (grep_highlight_matches)
-            case (GREP_HIGHLIGHT_MATCHES_NO)
-                entry%value = "GREP_HIGHLIGHT_MATCHES_NO"
-            case (GREP_HIGHLIGHT_MATCHES_YES)
-                entry%value = "GREP_HIGHLIGHT_MATCHES_YES"
+            select case (grep_highlight_matches%choice)
             case (GREP_HIGHLIGHT_MATCHES_AUTO_DETECT)
                 entry%value = "GREP_HIGHLIGHT_MATCHES_AUTO_DETECT"
             case (GREP_HIGHLIGHT_MATCHES_ALWAYS)
@@ -26057,7 +25888,7 @@ contains
             case (GREP_HIGHLIGHT_MATCHES_AUTO)
                 entry%value = "GREP_HIGHLIGHT_MATCHES_AUTO"
             case default
-                entry%value = repr(grep_highlight_matches)
+                entry%value = repr(grep_highlight_matches%value)
             end select
 
             entry%doc = "Use special markers to highlight grep matches."//LF// &
@@ -26193,36 +26024,22 @@ contains
             entry%fortran = "grep_save_buffers"
             entry%user_option = .true.
             entry%original = "GREP_SAVE_BUFFERS_ASK"
+            entry%value = grep_save_buffers%other_value()
 
-            select case (grep_save_buffers)
-            case (GREP_SAVE_BUFFERS_NO)
-                entry%value = "GREP_SAVE_BUFFERS_NO"
-            case (GREP_SAVE_BUFFERS_YES)
-                entry%value = "GREP_SAVE_BUFFERS_YES"
-            case (GREP_SAVE_BUFFERS_ASK)
-                entry%value = "GREP_SAVE_BUFFERS_ASK"
-            case default
-                entry%value = repr(grep_save_buffers)
-            end select
-
-            entry%doc = "If not GREP_SAVE_BUFFERS_NO, save buffers before running the grep"//LF// &
-                        "commands.  If GREP_SAVE_BUFFERS_ASK, ask before saving.  If"//LF// &
-                        "`grep_save_buffers_function' is set, call it with no arguments with"//LF// &
-                        "each buffer current, as a test to determine whether that buffer"//LF// &
-                        "should be saved or not."
-        case ("grep_save_buffers_function")
-            entry%file = "grep_mod.f90"
-            entry%fortran = "grep_save_buffers_function"
-            entry%original = "null()"
-            entry%declarations = "procedure(grep_save_buffers_procedure), pointer :: grep_save_buffers_function"
-
-            if (.not. associated(grep_save_buffers_function)) then
-                entry%value = "null()"
-            else
-                entry%value = "a procedure set by the configuration"
+            if (len(entry%value) == 0) then
+                select case (grep_save_buffers%choice)
+                case (GREP_SAVE_BUFFERS_ASK)
+                    entry%value = "GREP_SAVE_BUFFERS_ASK"
+                case default
+                    entry%value = repr(grep_save_buffers%value)
+                end select
             end if
 
-            entry%doc = "The function value of `grep_save_buffers' (null for none)."
+            entry%doc = "If true, save buffers before running the grep commands.  If"//LF// &
+                        "GREP_SAVE_BUFFERS_ASK, ask before saving.  If its procedure is set,"//LF// &
+                        "call it with each buffer current, as a test of whether that buffer"//LF// &
+                        "should be saved.  E.g., one can point it at a test of your own:"//LF// &
+                        "grep_save_buffers%procedure => my_grep_save_test."
         case ("grep_scroll_output")
             entry%file = "grep_mod.f90"
             entry%fortran = "grep_scroll_output"
@@ -26275,18 +26092,14 @@ contains
             entry%user_option = .true.
             entry%original = "GREP_USE_NULL_DEVICE_AUTO_DETECT"
 
-            select case (grep_use_null_device)
-            case (GREP_USE_NULL_DEVICE_NO)
-                entry%value = "GREP_USE_NULL_DEVICE_NO"
-            case (GREP_USE_NULL_DEVICE_YES)
-                entry%value = "GREP_USE_NULL_DEVICE_YES"
+            select case (grep_use_null_device%choice)
             case (GREP_USE_NULL_DEVICE_AUTO_DETECT)
                 entry%value = "GREP_USE_NULL_DEVICE_AUTO_DETECT"
             case default
-                entry%value = repr(grep_use_null_device)
+                entry%value = repr(grep_use_null_device%value)
             end select
 
-            entry%doc = "If GREP_USE_NULL_DEVICE_YES, append the value of `null_device' to `grep' commands."//LF// &
+            entry%doc = "If .true., append the value of `null_device' to `grep' commands."//LF// &
                         "This is done to ensure that the output of grep includes the filename"//LF// &
                         "of any match in the case where only a single file is searched, and"//LF// &
                         "is not necessary if the grep program used supports the `-H' option."//LF// &
@@ -26300,18 +26113,14 @@ contains
             entry%user_option = .true.
             entry%original = "GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT"
 
-            select case (grep_use_null_filename_separator)
-            case (GREP_USE_NULL_FILENAME_SEPARATOR_NO)
-                entry%value = "GREP_USE_NULL_FILENAME_SEPARATOR_NO"
-            case (GREP_USE_NULL_FILENAME_SEPARATOR_YES)
-                entry%value = "GREP_USE_NULL_FILENAME_SEPARATOR_YES"
+            select case (grep_use_null_filename_separator%choice)
             case (GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT)
                 entry%value = "GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT"
             case default
-                entry%value = repr(grep_use_null_filename_separator)
+                entry%value = repr(grep_use_null_filename_separator%value)
             end select
 
-            entry%doc = "If true (GREP_USE_NULL_FILENAME_SEPARATOR_YES), use `grep''s `--null' option."//LF// &
+            entry%doc = "If true, use `grep''s `--null' option."//LF// &
                         "This is done to disambiguate file names in `grep''s output."
         case ("help_back_label")
             entry%file = "help_mode_mod.f90"
@@ -26434,11 +26243,7 @@ contains
             entry%user_option = .true.
             entry%original = "QUICK_KEYS_DEFAULT"
 
-            select case (html_quick_keys)
-            case (QUICK_KEYS_NO)
-                entry%value = "QUICK_KEYS_NO"
-            case (QUICK_KEYS_YES)
-                entry%value = "QUICK_KEYS_YES"
+            select case (html_quick_keys%choice)
             case (QUICK_KEYS_INDENT)
                 entry%value = "QUICK_KEYS_INDENT"
             case (QUICK_KEYS_CLOSE)
@@ -26446,11 +26251,11 @@ contains
             case (QUICK_KEYS_DEFAULT)
                 entry%value = "QUICK_KEYS_DEFAULT"
             case default
-                entry%value = repr(html_quick_keys)
+                entry%value = repr(html_quick_keys%value)
             end select
 
-            entry%doc = "Use C-c X combinations for quick insertion of frequent tags when not"//LF// &
-                        "QUICK_KEYS_NO.  This defaults to `sgml_quick_keys', which see."
+            entry%doc = "Use C-c X combinations for quick insertion of frequent tags when"//LF// &
+                        "true.  This defaults to `sgml_quick_keys', which see."
         case ("html_tag_faces")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "html_tag_faces"
@@ -26467,21 +26272,17 @@ contains
             entry%file = "ibuffer_mod.f90"
             entry%fortran = "ibuffer_always_show_last_buffer"
             entry%user_option = .true.
-            entry%original = "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO"
+            entry%original = ".false."
 
-            select case (ibuffer_always_show_last_buffer)
-            case (IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO)
-                entry%value = "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO"
-            case (IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES)
-                entry%value = "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES"
+            select case (ibuffer_always_show_last_buffer%choice)
             case (IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI)
                 entry%value = "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI"
             case default
-                entry%value = repr(ibuffer_always_show_last_buffer)
+                entry%value = repr(ibuffer_always_show_last_buffer%value)
             end select
 
-            entry%doc = "If not IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, always display the previous buffer:"//LF// &
-                        "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES always, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI always"//LF// &
+            entry%doc = "If true, always display the previous buffer: .true. always,"//LF// &
+                        "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI always"//LF// &
                         "except a minibuffer.  This variable takes precedence over"//LF// &
                         "filtering, and even `ibuffer_never_show_tests'."
         case ("ibuffer_always_show_tests")
@@ -26947,21 +26748,17 @@ contains
             entry%file = "ibuffer_mod.f90"
             entry%fortran = "ibuffer_use_header_line"
             entry%user_option = .true.
-            entry%original = "IBUFFER_USE_HEADER_LINE_FILTERS"
+            entry%original = ".true."
 
-            select case (ibuffer_use_header_line)
-            case (IBUFFER_USE_HEADER_LINE_NO)
-                entry%value = "IBUFFER_USE_HEADER_LINE_NO"
-            case (IBUFFER_USE_HEADER_LINE_FILTERS)
-                entry%value = "IBUFFER_USE_HEADER_LINE_FILTERS"
+            select case (ibuffer_use_header_line%choice)
             case (IBUFFER_USE_HEADER_LINE_TITLE)
                 entry%value = "IBUFFER_USE_HEADER_LINE_TITLE"
             case default
-                entry%value = repr(ibuffer_use_header_line)
+                entry%value = repr(ibuffer_use_header_line%value)
             end select
 
-            entry%doc = "If not IBUFFER_USE_HEADER_LINE_NO, display a header line."//LF// &
-                        "If the variable's value is IBUFFER_USE_HEADER_LINE_FILTERS, the header line"//LF// &
+            entry%doc = "If true, display a header line."//LF// &
+                        "If the variable's value is .true., the header line"//LF// &
                         "displays the current filters.  For IBUFFER_USE_HEADER_LINE_TITLE,"//LF// &
                         "display the column titles."
         case ("ibuffer_use_other_window")
@@ -27126,25 +26923,21 @@ contains
             entry%user_option = .true.
             entry%original = "INFO_HIDE_NOTE_REFERENCES_SEE"
 
-            select case (info_hide_note_references)
-            case (INFO_HIDE_NOTE_REFERENCES_NO)
-                entry%value = "INFO_HIDE_NOTE_REFERENCES_NO"
+            select case (info_hide_note_references%choice)
             case (INFO_HIDE_NOTE_REFERENCES_SEE)
                 entry%value = "INFO_HIDE_NOTE_REFERENCES_SEE"
-            case (INFO_HIDE_NOTE_REFERENCES_HIDE)
-                entry%value = "INFO_HIDE_NOTE_REFERENCES_HIDE"
             case (INFO_HIDE_NOTE_REFERENCES_TAG)
                 entry%value = "INFO_HIDE_NOTE_REFERENCES_TAG"
             case default
-                entry%value = repr(info_hide_note_references)
+                entry%value = repr(info_hide_note_references%value)
             end select
 
             entry%doc = "If true, hide the tag and section reference in *note and * menu"//LF// &
                         "items.  If the value is INFO_HIDE_NOTE_REFERENCES_SEE, the default,"//LF// &
                         "replace ""*note"" with ""see"".  If the value is"//LF// &
-                        "INFO_HIDE_NOTE_REFERENCES_HIDE, remove ""*note"" without replacing it"//LF// &
+                        ".true., remove ""*note"" without replacing it"//LF// &
                         "with anything.  If the value is INFO_HIDE_NOTE_REFERENCES_TAG, the"//LF// &
-                        "reference section is still shown.  INFO_HIDE_NOTE_REFERENCES_NO"//LF// &
+                        "reference section is still shown.  .false."//LF// &
                         "completely disables this feature, leaving the original ""*note"""//LF// &
                         "visible.  (`info_refill_paragraphs' is Deferred.)"
         case ("info_history_skip_intermediate_nodes")
@@ -27651,20 +27444,16 @@ contains
         case ("ispell_check_comments")
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_check_comments"
-            entry%original = "ISPELL_CHECK_COMMENTS_YES"
+            entry%original = ".true."
 
-            select case (ispell_check_comments)
-            case (ISPELL_CHECK_COMMENTS_NO)
-                entry%value = "ISPELL_CHECK_COMMENTS_NO"
-            case (ISPELL_CHECK_COMMENTS_YES)
-                entry%value = "ISPELL_CHECK_COMMENTS_YES"
+            select case (ispell_check_comments%choice)
             case (ISPELL_CHECK_COMMENTS_EXCLUSIVE)
                 entry%value = "ISPELL_CHECK_COMMENTS_EXCLUSIVE"
             case default
-                entry%value = repr(ispell_check_comments)
+                entry%value = repr(ispell_check_comments%value)
             end select
 
-            entry%doc = "Spelling of comments checked when ISPELL_CHECK_COMMENTS_YES."//LF// &
+            entry%doc = "Spelling of comments checked when true."//LF// &
                         "When set to ISPELL_CHECK_COMMENTS_EXCLUSIVE, ONLY comments are checked."//LF// &
                         "(For code comments).  Warning!  Not checking comments, when a"//LF// &
                         "comment start is embedded in strings, may produce undesired results."
@@ -27838,25 +27627,12 @@ contains
         case ("ispell_help_in_bufferp")
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_help_in_buffer"
-            entry%original = "ISPELL_HELP_IN_BUFFER_NO"
-
-            select case (ispell_help_in_buffer)
-            case (ISPELL_HELP_IN_BUFFER_NO)
-                entry%value = "ISPELL_HELP_IN_BUFFER_NO"
-            case (ISPELL_HELP_IN_BUFFER_YES)
-                entry%value = "ISPELL_HELP_IN_BUFFER_YES"
-            case default
-                entry%value = repr(ispell_help_in_buffer)
-            end select
-
-            entry%doc = "Whether to display interactive keymap help in a buffer."//LF// &
-                        "The following values are supported:"//LF// &
-                        "  ISPELL_HELP_IN_BUFFER_NO   Expand the minibuffer and display a"//LF// &
-                        "                             short help message there for a couple"//LF// &
-                        "                             of seconds."//LF// &
-                        "  ISPELL_HELP_IN_BUFFER_YES  Pop up a new buffer and display a short"//LF// &
-                        "                             help message there for a couple of"//LF// &
-                        "                             seconds."
+            entry%original = ".false."
+            entry%value = repr(ispell_help_in_buffer)
+            entry%doc = "True means display interactive keymap help in a buffer: pop up a"//LF// &
+                        "new buffer and display a short help message there for a couple of"//LF// &
+                        "seconds.  If false, expand the minibuffer and display the message"//LF// &
+                        "there for a couple of seconds."
         case ("ispell_help_timeout")
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_help_timeout"
@@ -27875,18 +27651,14 @@ contains
             entry%fortran = "ispell_highlight"
             entry%original = "ISPELL_HIGHLIGHT_BLOCK"
 
-            select case (ispell_highlight)
-            case (ISPELL_HIGHLIGHT_NO)
-                entry%value = "ISPELL_HIGHLIGHT_NO"
-            case (ISPELL_HIGHLIGHT_YES)
-                entry%value = "ISPELL_HIGHLIGHT_YES"
+            select case (ispell_highlight%choice)
             case (ISPELL_HIGHLIGHT_BLOCK)
                 entry%value = "ISPELL_HIGHLIGHT_BLOCK"
             case default
-                entry%value = repr(ispell_highlight)
+                entry%value = repr(ispell_highlight%value)
             end select
 
-            entry%doc = "Highlight spelling errors when not ISPELL_HIGHLIGHT_NO."//LF// &
+            entry%doc = "Highlight spelling errors when true."//LF// &
                         "When set to ISPELL_HIGHLIGHT_BLOCK, assumes a block cursor with TTY"//LF// &
                         "displays."
         case ("ispell_html_skip_alists")
@@ -28119,11 +27891,7 @@ contains
             entry%fortran = "ispell_skip_html"
             entry%original = "ISPELL_SKIP_HTML_USE_MODE_NAME"
 
-            select case (ispell_skip_html%value)
-            case (ISPELL_SKIP_HTML_NO)
-                entry%value = "ISPELL_SKIP_HTML_NO"
-            case (ISPELL_SKIP_HTML_YES)
-                entry%value = "ISPELL_SKIP_HTML_YES"
+            select case (ispell_skip_html%choice)
             case (ISPELL_SKIP_HTML_USE_MODE_NAME)
                 entry%value = "ISPELL_SKIP_HTML_USE_MODE_NAME"
             case default
@@ -28131,8 +27899,8 @@ contains
             end select
 
             entry%doc = "Indicates whether ispell should skip spell checking of SGML markup."//LF// &
-                        "If ISPELL_SKIP_HTML_YES, always skip SGML markup; if"//LF// &
-                        "ISPELL_SKIP_HTML_NO, never skip; if ISPELL_SKIP_HTML_USE_MODE_NAME,"//LF// &
+                        "If .true., always skip SGML markup; if"//LF// &
+                        ".false., never skip; if ISPELL_SKIP_HTML_USE_MODE_NAME,"//LF// &
                         "guess whether SGML markup should be skipped according to the name of"//LF// &
                         "the buffer's major mode."//LF// &
                         ""//LF// &
@@ -28305,13 +28073,9 @@ contains
             entry%file = "js_mod.f90"
             entry%fortran = "js_indent_first_init"
             entry%user_option = .true.
-            entry%original = "JS_INDENT_FIRST_INIT_NO"
+            entry%original = ".false."
 
-            select case (js_indent_first_init%value)
-            case (JS_INDENT_FIRST_INIT_NO)
-                entry%value = "JS_INDENT_FIRST_INIT_NO"
-            case (JS_INDENT_FIRST_INIT_YES)
-                entry%value = "JS_INDENT_FIRST_INIT_YES"
+            select case (js_indent_first_init%choice)
             case (JS_INDENT_FIRST_INIT_DYNAMIC)
                 entry%value = "JS_INDENT_FIRST_INIT_DYNAMIC"
             case default
@@ -28332,7 +28096,7 @@ contains
                         "    },"//LF// &
                         "        bar = 2;"//LF// &
                         ""//LF// &
-                        "If this option has the value JS_INDENT_FIRST_INIT_YES, indent the"//LF// &
+                        "If this option has the value .true., indent the"//LF// &
                         "first declaration's initializer by an additional level:"//LF// &
                         ""//LF// &
                         "    var o = {"//LF// &
@@ -28503,20 +28267,19 @@ contains
             entry%file = "kmacro_mod.f90"
             entry%fortran = "kmacro_execute_repeat_key"
             entry%user_option = .true.
-            entry%original = "KMACRO_EXECUTE_REPEAT_KEY_LAST"
+            entry%original = ".true."
+            entry%value = kmacro_execute_repeat_key%other_value()
 
-            select case (kmacro_execute_repeat_key)
-            case (KMACRO_EXECUTE_REPEAT_KEY_NO)
-                entry%value = "KMACRO_EXECUTE_REPEAT_KEY_NO"
-            case (KMACRO_EXECUTE_REPEAT_KEY_LAST)
-                entry%value = "KMACRO_EXECUTE_REPEAT_KEY_LAST"
-            case default
-                entry%value = repr(kmacro_execute_repeat_key)
-            end select
+            if (len(entry%value) == 0) then
+                select case (kmacro_execute_repeat_key%choice)
+                case default
+                    entry%value = repr(kmacro_execute_repeat_key%value)
+                end select
+            end if
 
             entry%doc = "Allow repeating macro call using last key or a specific key."//LF// &
-                        "In Fortran: KMACRO_EXECUTE_REPEAT_KEY_NO (none),"//LF// &
-                        "KMACRO_EXECUTE_REPEAT_KEY_LAST (the last key) or a character."
+                        ".false. means no repeat key, .true. the last key, and"//LF// &
+                        "`kmacro_execute_repeat_key%char' a character."
         case ("kmacro_execute_repeat_with_arg")
             entry%file = "kmacro_mod.f90"
             entry%fortran = "kmacro_execute_repeat_with_arg"
@@ -28880,15 +28643,11 @@ contains
             entry%fortran = "log_edit_confirm"
             entry%original = "LOG_EDIT_CONFIRM_CHANGED"
 
-            select case (log_edit_confirm)
-            case (LOG_EDIT_CONFIRM_NO)
-                entry%value = "LOG_EDIT_CONFIRM_NO"
-            case (LOG_EDIT_CONFIRM_YES)
-                entry%value = "LOG_EDIT_CONFIRM_YES"
+            select case (log_edit_confirm%choice)
             case (LOG_EDIT_CONFIRM_CHANGED)
                 entry%value = "LOG_EDIT_CONFIRM_CHANGED"
             case default
-                entry%value = repr(log_edit_confirm)
+                entry%value = repr(log_edit_confirm%value)
             end select
 
             entry%doc = "If true, `log_edit_done' will request confirmation."//LF// &
@@ -28931,23 +28690,18 @@ contains
         case ("log_edit_require_final_newline")
             entry%file = "log_edit_mod.f90"
             entry%fortran = "log_edit_require_final_newline"
-            entry%original = "LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT"
+            entry%original = ".true."
 
-            select case (log_edit_require_final_newline)
-            case (LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO)
-                entry%value = "LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO"
-            case (LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT)
-                entry%value = "LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT"
+            select case (log_edit_require_final_newline%choice)
             case (LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK)
                 entry%value = "LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK"
             case default
-                entry%value = repr(log_edit_require_final_newline)
+                entry%value = repr(log_edit_require_final_newline%value)
             end select
 
             entry%doc = "Enforce a newline at the end of commit log messages."//LF// &
-                        "Enforce it silently if LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT, query if"//LF// &
-                        "LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK and don't do anything if"//LF// &
-                        "LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO."
+                        "Enforce it silently if .true., query if"//LF// &
+                        "LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK and don't do anything if .false."
         case ("log_edit_rewrite_fixes")
             entry%file = "log_edit_mod.f90"
             entry%fortran = "log_edit_rewrite_fixes_regexp"
@@ -29350,22 +29104,18 @@ contains
             entry%user_option = .true.
             entry%original = "MAIL_SEND_NONASCII_MIME"
 
-            select case (mail_send_nonascii)
-            case (MAIL_SEND_NONASCII_NO)
-                entry%value = "MAIL_SEND_NONASCII_NO"
-            case (MAIL_SEND_NONASCII_YES)
-                entry%value = "MAIL_SEND_NONASCII_YES"
+            select case (mail_send_nonascii%choice)
             case (MAIL_SEND_NONASCII_ASK)
                 entry%value = "MAIL_SEND_NONASCII_ASK"
             case (MAIL_SEND_NONASCII_MIME)
                 entry%value = "MAIL_SEND_NONASCII_MIME"
             case default
-                entry%value = repr(mail_send_nonascii)
+                entry%value = repr(mail_send_nonascii%value)
             end select
 
             entry%doc = "Specify whether to allow sending non-ASCII characters in mail."//LF// &
-                        "If MAIL_SEND_NONASCII_YES, that means do allow it."//LF// &
-                        "MAIL_SEND_NONASCII_NO means don't allow it."//LF// &
+                        "If .true., that means do allow it."//LF// &
+                        ".false. means don't allow it."//LF// &
                         "MAIL_SEND_NONASCII_ASK means ask the user each time."//LF// &
                         "MAIL_SEND_NONASCII_MIME means add an appropriate MIME header if none"//LF// &
                         "already present.  The default is MAIL_SEND_NONASCII_MIME."//LF// &
@@ -29375,31 +29125,27 @@ contains
             entry%file = "sendmail_mod.f90"
             entry%fortran = "mail_signature_variable"
             entry%user_option = .true.
-            entry%original = "MAIL_SIGNATURE_YES"
+            entry%original = ".true."
+            entry%value = mail_signature_variable%other_value()
 
-            select case (mail_signature_variable)
-            case (MAIL_SIGNATURE_NO)
-                entry%value = "MAIL_SIGNATURE_NO"
-            case (MAIL_SIGNATURE_YES)
-                entry%value = "MAIL_SIGNATURE_YES"
-            case (MAIL_SIGNATURE_STRING)
-                entry%value = "MAIL_SIGNATURE_STRING"
-            case (MAIL_SIGNATURE_PROCEDURE)
-                entry%value = "MAIL_SIGNATURE_PROCEDURE"
-            case default
-                entry%value = repr(mail_signature_variable)
-            end select
+            if (len(entry%value) == 0) then
+                select case (mail_signature_variable%choice)
+                case default
+                    entry%value = repr(mail_signature_variable%value)
+                end select
+            end if
 
             entry%doc = "Text inserted at end of mail buffer when a message is initialized."//LF// &
-                        "If MAIL_SIGNATURE_NO, no signature is inserted."//LF// &
-                        "If MAIL_SIGNATURE_YES, it means to insert the contents of the file"//LF// &
+                        "If .false., no signature is inserted."//LF// &
+                        "If .true., it means to insert the contents of the file"//LF// &
                         "`mail_signature_file'."//LF// &
-                        "If MAIL_SIGNATURE_STRING, the string `mail_signature_text' is inserted."//LF// &
+                        "If its text is set (`mail_signature_variable%text = ""...""'), that"//LF// &
+                        "string is inserted."//LF// &
                         " (To make a proper signature, the string should begin with a blank"//LF// &
                         " line and ""-- "" and a newline, which is the standard way to delimit"//LF// &
                         " a signature in a message.)"//LF// &
-                        "If MAIL_SIGNATURE_PROCEDURE, the procedure `mail_signature_function'"//LF// &
-                        "is called, and should insert whatever you want to insert."
+                        "If its procedure is set (`mail_signature_variable%procedure => f'),"//LF// &
+                        "it is called, and should insert whatever you want to insert."
         case ("mail_signature_file")
             entry%file = "sendmail_mod.f90"
             entry%fortran = "mail_signature_file"
@@ -29779,11 +29525,20 @@ contains
             entry%file = "xdisp_mod.f90"
             entry%fortran = "message_log_max"
             entry%user_option = .true.
-            entry%original = "1000"
-            entry%value = repr(message_log_max)
-            entry%doc = "Maximum number of lines to keep in the message log buffer."//LF// &
-                        "If MESSAGE_LOG_MAX_NO, disable message logging.  If"//LF// &
-                        "MESSAGE_LOG_MAX_UNLIMITED, log messages but don't truncate the buffer"//LF// &
+            entry%original = "%lines = 1000"
+            entry%value = message_log_max%other_value()
+
+            if (len(entry%value) == 0) then
+                select case (message_log_max%choice)
+                case default
+                    entry%value = repr(message_log_max%value)
+                end select
+            end if
+
+            entry%doc = "Maximum number of lines to keep in the message log buffer"//LF// &
+                        "(`message_log_max%lines')."//LF// &
+                        "If .false., disable message logging.  If .true., log messages but"//LF// &
+                        "don't truncate the buffer"//LF// &
                         "when it becomes large."
         case ("messages_buffer_mode_hook")
             entry%file = "simple_mod.f90"
@@ -29828,13 +29583,9 @@ contains
             entry%file = "files_mod.f90"
             entry%fortran = "mode_require_final_newline"
             entry%user_option = .true.
-            entry%original = "FINAL_NEWLINE_SAVE"
+            entry%original = ".true."
 
-            select case (mode_require_final_newline%value)
-            case (FINAL_NEWLINE_NO)
-                entry%value = "FINAL_NEWLINE_NO"
-            case (FINAL_NEWLINE_SAVE)
-                entry%value = "FINAL_NEWLINE_SAVE"
+            select case (mode_require_final_newline%choice)
             case (FINAL_NEWLINE_VISIT)
                 entry%value = "FINAL_NEWLINE_VISIT"
             case (FINAL_NEWLINE_VISIT_SAVE)
@@ -29850,14 +29601,14 @@ contains
                         "They do so because they are often used for files that are supposed"//LF// &
                         "to end in newlines, and the question is how to arrange that."//LF// &
                         ""//LF// &
-                        "A value of FINAL_NEWLINE_SAVE means do this only when the file is about to be saved."//LF// &
+                        "A value of .true. means do this only when the file is about to be saved."//LF// &
                         "A value of FINAL_NEWLINE_VISIT means do this right after the file is visited."//LF// &
                         "A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times."//LF// &
                         "A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving."//LF// &
                         ""//LF// &
-                        "A value of FINAL_NEWLINE_NO means do not add newlines.  That is a risky choice in this"//LF// &
+                        "A value of .false. means do not add newlines.  That is a risky choice in this"//LF// &
                         "variable since this value is used for modes for files that ought to have"//LF// &
-                        "final newlines.  So if you set this to FINAL_NEWLINE_NO, you must explicitly check and"//LF// &
+                        "final newlines.  So if you set this to .false., you must explicitly check and"//LF// &
                         "add a final newline, whenever you save a file that really needs one."
         case ("mounted_file_systems")
             entry%file = "files_mod.f90"
@@ -30832,20 +30583,16 @@ contains
             entry%user_option = .true.
             entry%original = "READ_ANSWER_SHORT_AUTO"
 
-            select case (read_answer_short)
-            case (READ_ANSWER_SHORT_NO)
-                entry%value = "READ_ANSWER_SHORT_NO"
-            case (READ_ANSWER_SHORT_YES)
-                entry%value = "READ_ANSWER_SHORT_YES"
+            select case (read_answer_short%choice)
             case (READ_ANSWER_SHORT_AUTO)
                 entry%value = "READ_ANSWER_SHORT_AUTO"
             case default
-                entry%value = repr(read_answer_short)
+                entry%value = repr(read_answer_short%value)
             end select
 
             entry%doc = "Whether the `read_answer' function accepts single-character answers."//LF// &
-                        "If READ_ANSWER_SHORT_YES, accept short (single key-press) answers to the"//LF// &
-                        "question.  If READ_ANSWER_SHORT_NO, require long answers.  If"//LF// &
+                        "If .true., accept short (single key-press) answers to the"//LF// &
+                        "question.  If .false., require long answers.  If"//LF// &
                         "READ_ANSWER_SHORT_AUTO, accept short answers if"//LF// &
                         "`use_short_answers' is true."//LF// &
                         ""//LF// &
@@ -30941,27 +30688,26 @@ contains
         case ("recentf_auto_cleanup")
             entry%file = "recentf_mod.f90"
             entry%fortran = "recentf_auto_cleanup"
-            entry%original = "RECENTF_AUTO_CLEANUP_MODE"
+            entry%original = ".true."
+            entry%value = recentf_auto_cleanup%other_value()
 
-            select case (recentf_auto_cleanup)
-            case (RECENTF_AUTO_CLEANUP_MODE)
-                entry%value = "RECENTF_AUTO_CLEANUP_MODE"
-            case (RECENTF_AUTO_CLEANUP_NO)
-                entry%value = "RECENTF_AUTO_CLEANUP_NO"
-            case default
-                entry%value = repr(recentf_auto_cleanup)
-            end select
+            if (len(entry%value) == 0) then
+                select case (recentf_auto_cleanup%choice)
+                case default
+                    entry%value = repr(recentf_auto_cleanup%value)
+                end select
+            end if
 
             entry%doc = "Define when to automatically cleanup the recent list."//LF// &
                         "That is, remove duplicates, non-kept, and excluded files."//LF// &
                         ""//LF// &
                         "The following values can be set:"//LF// &
                         ""//LF// &
-                        "- RECENTF_AUTO_CLEANUP_MODE"//LF// &
+                        "- .true."//LF// &
                         "    Cleanup when turning the mode on (default)."//LF// &
-                        "- RECENTF_AUTO_CLEANUP_NO"//LF// &
+                        "- .false."//LF// &
                         "    Never cleanup the list automatically."//LF// &
-                        "- A number"//LF// &
+                        "- A number of seconds (`recentf_auto_cleanup%seconds')"//LF// &
                         "    Cleanup each time Fortmacs has been idle that number of seconds."//LF// &
                         ""//LF// &
                         "See also the command `recentf_cleanup', that can be used to"//LF// &
@@ -31199,9 +30945,9 @@ contains
                         ""//LF// &
                         "You can also set the component `repeat_check_key' of the command."//LF// &
                         "This component can override the value of this variable."//LF// &
-                        "When the variable value is true, but the component is `REPEAT_CHECK_KEY_NO',"//LF// &
+                        "When the variable value is true, but the component is .false.,"//LF// &
                         "then don't check the last key.  Also when the variable value is false,"//LF// &
-                        "but the component is `REPEAT_CHECK_KEY_YES', then check the last key."
+                        "but the component is .true., then check the last key."
         case ("repeat_echo_function")
             entry%file = "repeat_mod.f90"
             entry%fortran = "repeat_echo_function"
@@ -31339,13 +31085,9 @@ contains
             entry%file = "files_mod.f90"
             entry%fortran = "require_final_newline"
             entry%user_option = .true.
-            entry%original = "FINAL_NEWLINE_NO"
+            entry%original = ".false."
 
-            select case (require_final_newline%value)
-            case (FINAL_NEWLINE_NO)
-                entry%value = "FINAL_NEWLINE_NO"
-            case (FINAL_NEWLINE_SAVE)
-                entry%value = "FINAL_NEWLINE_SAVE"
+            select case (require_final_newline%choice)
             case (FINAL_NEWLINE_VISIT)
                 entry%value = "FINAL_NEWLINE_VISIT"
             case (FINAL_NEWLINE_VISIT_SAVE)
@@ -31358,11 +31100,11 @@ contains
 
             entry%doc = "Whether to add a newline automatically at the end of the file."//LF// &
                         ""//LF// &
-                        "A value of FINAL_NEWLINE_SAVE means do this only when the file is about to be saved."//LF// &
+                        "A value of .true. means do this only when the file is about to be saved."//LF// &
                         "A value of FINAL_NEWLINE_VISIT means do this right after the file is visited."//LF// &
                         "A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times."//LF// &
                         "A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving."//LF// &
-                        "A value of FINAL_NEWLINE_NO means don't add newlines."//LF// &
+                        "A value of .false. means don't add newlines."//LF// &
                         ""//LF// &
                         "Certain major modes set this locally to the value obtained"//LF// &
                         "from `mode_require_final_newline'."//LF// &
@@ -31427,17 +31169,13 @@ contains
             entry%file = "abbrev_mod.f90"
             entry%fortran = "save_abbrevs"
             entry%user_option = .true.
-            entry%original = "SAVE_ABBREVS_ASK"
+            entry%original = ".true."
 
-            select case (save_abbrevs)
-            case (SAVE_ABBREVS_NO)
-                entry%value = "SAVE_ABBREVS_NO"
-            case (SAVE_ABBREVS_ASK)
-                entry%value = "SAVE_ABBREVS_ASK"
+            select case (save_abbrevs%choice)
             case (SAVE_ABBREVS_SILENTLY)
                 entry%value = "SAVE_ABBREVS_SILENTLY"
             case default
-                entry%value = repr(save_abbrevs)
+                entry%value = repr(save_abbrevs%value)
             end select
 
             entry%doc = "True means save word abbrevs too when files are saved."//LF// &
@@ -31553,26 +31291,22 @@ contains
         case ("save_place_version_control")
             entry%file = "saveplace_mod.f90"
             entry%fortran = "save_place_version_control"
-            entry%original = "SAVE_PLACE_VERSION_CONTROL_EXISTING"
+            entry%original = "SAVE_PLACE_VERSION_CONTROL_IF_EXISTING"
 
-            select case (save_place_version_control)
-            case (SAVE_PLACE_VERSION_CONTROL_NUMBERED)
-                entry%value = "SAVE_PLACE_VERSION_CONTROL_NUMBERED"
-            case (SAVE_PLACE_VERSION_CONTROL_EXISTING)
-                entry%value = "SAVE_PLACE_VERSION_CONTROL_EXISTING"
-            case (SAVE_PLACE_VERSION_CONTROL_NO)
-                entry%value = "SAVE_PLACE_VERSION_CONTROL_NO"
-            case (SAVE_PLACE_VERSION_CONTROL_NOSPECIAL)
-                entry%value = "SAVE_PLACE_VERSION_CONTROL_NOSPECIAL"
+            select case (save_place_version_control%choice)
+            case (SAVE_PLACE_VERSION_CONTROL_IF_EXISTING)
+                entry%value = "SAVE_PLACE_VERSION_CONTROL_IF_EXISTING"
+            case (SAVE_PLACE_VERSION_CONTROL_AS_VERSION_CONTROL)
+                entry%value = "SAVE_PLACE_VERSION_CONTROL_AS_VERSION_CONTROL"
             case default
-                entry%value = repr(save_place_version_control)
+                entry%value = repr(save_place_version_control%value)
             end select
 
             entry%doc = "Controls whether to make numbered backups of master `save_place'"//LF// &
-                        "file.  It can have four values: SAVE_PLACE_VERSION_CONTROL_NUMBERED,"//LF// &
-                        "_NIL, _NEVER, and _NOSPECIAL.  The first three have the same"//LF// &
-                        "meaning that they do for the variable `version_control', and the"//LF// &
-                        "final value _NOSPECIAL means just use the value of"//LF// &
+                        "file.  If .true., always make numbered backups; if .false., never."//LF// &
+                        "SAVE_PLACE_VERSION_CONTROL_IF_EXISTING (the default) makes them only"//LF// &
+                        "when numbered backups of the file already exist, and"//LF// &
+                        "SAVE_PLACE_VERSION_CONTROL_AS_VERSION_CONTROL follows the option"//LF// &
                         "`version_control'."
         case ("save_places")
             entry%file = "saveplace_mod.f90"
@@ -31793,18 +31527,14 @@ contains
             entry%user_option = .true.
             entry%original = "SEARCH_UPPER_CASE_NOT_PASTED"
 
-            select case (search_upper_case)
-            case (SEARCH_UPPER_CASE_NO)
-                entry%value = "SEARCH_UPPER_CASE_NO"
-            case (SEARCH_UPPER_CASE_YES)
-                entry%value = "SEARCH_UPPER_CASE_YES"
+            select case (search_upper_case%choice)
             case (SEARCH_UPPER_CASE_NOT_PASTED)
                 entry%value = "SEARCH_UPPER_CASE_NOT_PASTED"
             case default
-                entry%value = repr(search_upper_case)
+                entry%value = repr(search_upper_case%value)
             end select
 
-            entry%doc = "If not SEARCH_UPPER_CASE_NO, upper case chars disable case fold searching."//LF// &
+            entry%doc = "If true, upper case chars disable case fold searching."//LF// &
                         "That is, upper and lower case chars must match exactly."//LF// &
                         "This applies no matter where the chars come from, but does not"//LF// &
                         "apply to chars in regexps that are prefixed with `\'."//LF// &
@@ -32111,13 +31841,9 @@ contains
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "sgml_quick_keys"
             entry%user_option = .true.
-            entry%original = "QUICK_KEYS_NO"
+            entry%original = ".false."
 
-            select case (sgml_quick_keys)
-            case (QUICK_KEYS_NO)
-                entry%value = "QUICK_KEYS_NO"
-            case (QUICK_KEYS_YES)
-                entry%value = "QUICK_KEYS_YES"
+            select case (sgml_quick_keys%choice)
             case (QUICK_KEYS_INDENT)
                 entry%value = "QUICK_KEYS_INDENT"
             case (QUICK_KEYS_CLOSE)
@@ -32125,11 +31851,11 @@ contains
             case (QUICK_KEYS_DEFAULT)
                 entry%value = "QUICK_KEYS_DEFAULT"
             case default
-                entry%value = repr(sgml_quick_keys)
+                entry%value = repr(sgml_quick_keys%value)
             end select
 
-            entry%doc = "Use <, >, &, /, SPC and `sgml_specials' keys ""electrically"" when not"//LF// &
-                        "QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Fortmacs will"//LF// &
+            entry%doc = "Use <, >, &, /, SPC and `sgml_specials' keys ""electrically"" when"//LF// &
+                        "true.  By setting the option to QUICK_KEYS_INDENT, Fortmacs will"//LF// &
                         "eagerly reindent the current line when you manually close a tag."
         case ("sgml_slash_distance")
             entry%file = "sgml_mode_mod.f90"
@@ -32434,17 +32160,13 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_indent_after_continuation"
             entry%user_option = .true.
-            entry%original = "SH_INDENT_AFTER_CONTINUATION_DEEPER"
+            entry%original = ".true."
 
-            select case (sh_indent_after_continuation)
-            case (SH_INDENT_AFTER_CONTINUATION_NO)
-                entry%value = "SH_INDENT_AFTER_CONTINUATION_NO"
-            case (SH_INDENT_AFTER_CONTINUATION_DEEPER)
-                entry%value = "SH_INDENT_AFTER_CONTINUATION_DEEPER"
+            select case (sh_indent_after_continuation%choice)
             case (SH_INDENT_AFTER_CONTINUATION_ALWAYS)
                 entry%value = "SH_INDENT_AFTER_CONTINUATION_ALWAYS"
             case default
-                entry%value = repr(sh_indent_after_continuation)
+                entry%value = repr(sh_indent_after_continuation%value)
             end select
 
             entry%doc = "If true, indent relative to the continued line's beginning."//LF// &
@@ -32464,8 +32186,7 @@ contains
                         "   done"//LF// &
                         ""//LF// &
                         "With `SH_INDENT_AFTER_CONTINUATION_ALWAYS' you get the former behavior whereas with"//LF// &
-                        "`SH_INDENT_AFTER_CONTINUATION_NO' you get the latter.  With `SH_INDENT_AFTER_CONTINUATION_"// &
-                        "DEEPER', you"//LF// &
+                        ".false. you get the latter.  With .true., you"//LF// &
                         "get the latter as long as that would indent the continuation line"//LF// &
                         "deeper than the initial line."
         case ("sh_indent_after_do")
@@ -32925,11 +32646,9 @@ contains
             entry%file = "simple_mod.f90"
             entry%fortran = "shell_command_keep_output"
             entry%user_option = .true.
-            entry%original = "SHELL_COMMAND_KEEP_OUTPUT_NO"
+            entry%original = ".false."
 
-            select case (shell_command_keep_output%value)
-            case (SHELL_COMMAND_KEEP_OUTPUT_NO)
-                entry%value = "SHELL_COMMAND_KEEP_OUTPUT_NO"
+            select case (shell_command_keep_output%choice)
             case (SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT)
                 entry%value = "SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT"
             case (SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT)
@@ -32942,15 +32661,15 @@ contains
                 entry%value = repr(shell_command_keep_output%value)
             end select
 
-            entry%doc = "Whether to erase the output buffer before executing shell command."//LF// &
+            entry%doc = "Whether to keep the output buffer before executing shell command."//LF// &
                         ""//LF// &
-                        "SHELL_COMMAND_KEEP_OUTPUT_NO erases the output buffer before execution of the"//LF// &
+                        ".false. erases the output buffer before execution of the"//LF// &
                         "shell command, except when the output buffer is the current one."//LF// &
                         ""//LF// &
                         "SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT ensures the output buffer is erased before"//LF// &
                         "execution of the shell command even if it is the current buffer."//LF// &
                         ""//LF// &
-                        "Other values prevent the output buffer from being erased; they"//LF// &
+                        ".true. keeps the output buffer as it is.  The other values keep it too; they"//LF// &
                         "also reposition point in the shell output buffer after execution of the"//LF// &
                         "shell command, except when the output buffer is the current buffer."//LF// &
                         ""//LF// &
@@ -33183,11 +32902,7 @@ contains
             entry%user_option = .true.
             entry%original = "COMINT_AUTOEXPAND_HISTORY"
 
-            select case (shell_input_autoexpand%value)
-            case (COMINT_AUTOEXPAND_NO)
-                entry%value = "COMINT_AUTOEXPAND_NO"
-            case (COMINT_AUTOEXPAND_ON_COMPLETION)
-                entry%value = "COMINT_AUTOEXPAND_ON_COMPLETION"
+            select case (shell_input_autoexpand%choice)
             case (COMINT_AUTOEXPAND_INPUT)
                 entry%value = "COMINT_AUTOEXPAND_INPUT"
             case (COMINT_AUTOEXPAND_HISTORY)
@@ -33196,7 +32911,7 @@ contains
                 entry%value = repr(shell_input_autoexpand%value)
             end select
 
-            entry%doc = "If not COMINT_AUTOEXPAND_NO, expand input command history"//LF// &
+            entry%doc = "If not .false., expand input command history"//LF// &
                         "references on completion.  This mirrors the optional behavior of"//LF// &
                         "tcsh (its autoexpand and histlit)."//LF// &
                         ""//LF// &
@@ -33351,23 +33066,19 @@ contains
             entry%file = "paren_mod.f90"
             entry%fortran = "show_paren_not_in_comments_or_strings"
             entry%user_option = .true.
-            entry%original = "SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO"
+            entry%original = ".false."
 
-            select case (show_paren_not_in_comments_or_strings)
-            case (SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO)
-                entry%value = "SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO"
-            case (SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL)
-                entry%value = "SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL"
+            select case (show_paren_not_in_comments_or_strings%choice)
             case (SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH)
                 entry%value = "SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH"
             case default
-                entry%value = repr(show_paren_not_in_comments_or_strings)
+                entry%value = repr(show_paren_not_in_comments_or_strings%value)
             end select
 
-            entry%doc = "If `SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL', never highlight parens inside"//LF// &
+            entry%doc = "If .true., never highlight parens inside"//LF// &
                         "comments and strings.  If `SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH',"//LF// &
                         "do not highlight mismatched parens inside comments and strings.  If"//LF// &
-                        "`SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO' (the default), always highlight"//LF// &
+                        ".false. (the default), always highlight"//LF// &
                         "parens wherever they are."
         case ("show_paren_priority")
             entry%file = "paren_mod.f90"
@@ -33389,7 +33100,7 @@ contains
             entry%user_option = .true.
             entry%original = "SHOW_PAREN_STYLE_PARENTHESIS"
 
-            select case (show_paren_style)
+            select case (show_paren_style%choice)
             case (SHOW_PAREN_STYLE_PARENTHESIS)
                 entry%value = "SHOW_PAREN_STYLE_PARENTHESIS"
             case (SHOW_PAREN_STYLE_EXPRESSION)
@@ -33397,7 +33108,7 @@ contains
             case (SHOW_PAREN_STYLE_MIXED)
                 entry%value = "SHOW_PAREN_STYLE_MIXED"
             case default
-                entry%value = repr(show_paren_style)
+                entry%value = repr(show_paren_style%value)
             end select
 
             entry%doc = "Style used when showing a matching paren."//LF// &
@@ -33766,7 +33477,7 @@ contains
             entry%user_option = .true.
             entry%original = "SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST"
 
-            select case (split_window_preferred_direction)
+            select case (split_window_preferred_direction%choice)
             case (SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST)
                 entry%value = "SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST"
             case (SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL)
@@ -33774,7 +33485,7 @@ contains
             case (SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL)
                 entry%value = "SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL"
             case default
-                entry%value = repr(split_window_preferred_direction)
+                entry%value = repr(split_window_preferred_direction%value)
             end select
 
             entry%doc = "The first direction tried when Fortmacs needs to split a window."//LF// &
@@ -34311,17 +34022,13 @@ contains
             entry%file = "vc_dispatcher_mod.f90"
             entry%fortran = "vc_command_messages"
             entry%user_option = .true.
-            entry%original = "VC_COMMAND_MESSAGES_NO"
+            entry%original = ".false."
 
-            select case (vc_command_messages)
-            case (VC_COMMAND_MESSAGES_NO)
-                entry%value = "VC_COMMAND_MESSAGES_NO"
-            case (VC_COMMAND_MESSAGES_YES)
-                entry%value = "VC_COMMAND_MESSAGES_YES"
+            select case (vc_command_messages%choice)
             case (VC_COMMAND_MESSAGES_LOG)
                 entry%value = "VC_COMMAND_MESSAGES_LOG"
             case default
-                entry%value = repr(vc_command_messages)
+                entry%value = repr(vc_command_messages%value)
             end select
 
             entry%doc = "If true, display and log messages about running back-end commands."//LF// &
@@ -34394,15 +34101,11 @@ contains
             entry%fortran = "vc_dir_allow_mass_mark_changes"
             entry%original = "VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK"
 
-            select case (vc_dir_allow_mass_mark_changes)
-            case (VC_DIR_ALLOW_MASS_MARK_CHANGES_NO)
-                entry%value = "VC_DIR_ALLOW_MASS_MARK_CHANGES_NO"
+            select case (vc_dir_allow_mass_mark_changes%choice)
             case (VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK)
                 entry%value = "VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK"
-            case (VC_DIR_ALLOW_MASS_MARK_CHANGES_YES)
-                entry%value = "VC_DIR_ALLOW_MASS_MARK_CHANGES_YES"
             case default
-                entry%value = repr(vc_dir_allow_mass_mark_changes)
+                entry%value = repr(vc_dir_allow_mass_mark_changes%value)
             end select
 
             entry%doc = "If true, VC-Dir commands may mark or unmark many items at once."//LF// &
@@ -34421,31 +34124,27 @@ contains
                         "unmarked too, Fortmacs will prompt you to confirm that you do mean"//LF// &
                         "for the other items to be marked or unmarked."//LF// &
                         ""//LF// &
-                        "If this variable is VC_DIR_ALLOW_MASS_MARK_CHANGES_NO, the commands will refuse to"//LF// &
+                        "If this variable is .false., the commands will refuse to"//LF// &
                         "do anything if they would need to mark or unmark other entries too."//LF// &
-                        "If this variable is VC_DIR_ALLOW_MASS_MARK_CHANGES_YES, the commands will always"//LF// &
+                        "If this variable is .true., the commands will always"//LF// &
                         "proceed to mark and unmark other entries, without asking."
         case ("vc_dir_auto_hide_up_to_date")
             entry%file = "vc_dir_mod.f90"
             entry%fortran = "vc_dir_auto_hide_up_to_date"
-            entry%original = "VC_DIR_AUTO_HIDE_UP_TO_DATE_NO"
+            entry%original = ".false."
 
-            select case (vc_dir_auto_hide_up_to_date)
-            case (VC_DIR_AUTO_HIDE_UP_TO_DATE_NO)
-                entry%value = "VC_DIR_AUTO_HIDE_UP_TO_DATE_NO"
-            case (VC_DIR_AUTO_HIDE_UP_TO_DATE_YES)
-                entry%value = "VC_DIR_AUTO_HIDE_UP_TO_DATE_YES"
+            select case (vc_dir_auto_hide_up_to_date%choice)
             case (VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT)
                 entry%value = "VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT"
             case default
-                entry%value = repr(vc_dir_auto_hide_up_to_date)
+                entry%value = repr(vc_dir_auto_hide_up_to_date%value)
             end select
 
             entry%doc = "Whether VC-Dir auto-removes `up-to-date'/`ignored' files from display."//LF// &
                         ""//LF// &
-                        "If the value is VC_DIR_AUTO_HIDE_UP_TO_DATE_NO, files shown in the VC-Dir buffer"//LF// &
+                        "If the value is .false., files shown in the VC-Dir buffer"//LF// &
                         "will remain on display if they become `up-to-date' or `ignored'."//LF// &
-                        "If the value is VC_DIR_AUTO_HIDE_UP_TO_DATE_YES, files are automatically removed"//LF// &
+                        "If the value is .true., files are automatically removed"//LF// &
                         "from display when they become `up-to-date' or `ignored'."//LF// &
                         "If the value is VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT, any displayed files that"//LF// &
                         "are `up-to-date' or `ignored' are removed from display"//LF// &
@@ -34499,17 +34198,13 @@ contains
             entry%file = "vc_hooks_mod.f90"
             entry%fortran = "vc_display_status"
             entry%user_option = .true.
-            entry%original = "VC_DISPLAY_STATUS_YES"
+            entry%original = ".true."
 
-            select case (vc_display_status)
-            case (VC_DISPLAY_STATUS_NO)
-                entry%value = "VC_DISPLAY_STATUS_NO"
-            case (VC_DISPLAY_STATUS_YES)
-                entry%value = "VC_DISPLAY_STATUS_YES"
+            select case (vc_display_status%choice)
             case (VC_DISPLAY_STATUS_NO_BACKEND)
                 entry%value = "VC_DISPLAY_STATUS_NO_BACKEND"
             case default
-                entry%value = repr(vc_display_status)
+                entry%value = repr(vc_display_status%value)
             end select
 
             entry%doc = "If true, display revision number and lock status in mode line."//LF// &
@@ -34534,24 +34229,20 @@ contains
             entry%user_option = .true.
             entry%original = "VC_FOLLOW_SYMLINKS_ASK"
 
-            select case (vc_follow_symlinks)
-            case (VC_FOLLOW_SYMLINKS_NO)
-                entry%value = "VC_FOLLOW_SYMLINKS_NO"
-            case (VC_FOLLOW_SYMLINKS_YES)
-                entry%value = "VC_FOLLOW_SYMLINKS_YES"
+            select case (vc_follow_symlinks%choice)
             case (VC_FOLLOW_SYMLINKS_ASK)
                 entry%value = "VC_FOLLOW_SYMLINKS_ASK"
             case default
-                entry%value = repr(vc_follow_symlinks)
+                entry%value = repr(vc_follow_symlinks%value)
             end select
 
             entry%doc = "What to do if visiting a symbolic link to a file under version control."//LF// &
                         "Editing such a file through the link bypasses the version control system,"//LF// &
                         "which is dangerous and probably not what you want."//LF// &
                         ""//LF// &
-                        "If this variable is VC_FOLLOW_SYMLINKS_YES, VC follows the link and visits the real file,"//LF// &
+                        "If this variable is .true., VC follows the link and visits the real file,"//LF// &
                         "telling you about it in the echo area.  If it is VC_FOLLOW_SYMLINKS_ASK, VC asks for"//LF// &
-                        "confirmation whether it should follow the link.  If VC_FOLLOW_SYMLINKS_NO, the link is"//LF// &
+                        "confirmation whether it should follow the link.  If .false., the link is"//LF// &
                         "visited and a warning displayed."
         case ("vc_git_diff_switches")
             entry%file = "vc_git_mod.f90"
@@ -34767,23 +34458,19 @@ contains
             entry%file = "vc_mod.f90"
             entry%fortran = "vc_revert_show_diff"
             entry%user_option = .true.
-            entry%original = "VC_REVERT_SHOW_DIFF_YES"
+            entry%original = ".true."
 
-            select case (vc_revert_show_diff)
-            case (VC_REVERT_SHOW_DIFF_NO)
-                entry%value = "VC_REVERT_SHOW_DIFF_NO"
-            case (VC_REVERT_SHOW_DIFF_YES)
-                entry%value = "VC_REVERT_SHOW_DIFF_YES"
+            select case (vc_revert_show_diff%choice)
             case (VC_REVERT_SHOW_DIFF_KILL)
                 entry%value = "VC_REVERT_SHOW_DIFF_KILL"
             case default
-                entry%value = repr(vc_revert_show_diff)
+                entry%value = repr(vc_revert_show_diff%value)
             end select
 
             entry%doc = "If true, `vc_revert' shows a `vc_diff' buffer before querying."//LF// &
-                        "VC_REVERT_SHOW_DIFF_YES shows it and buries it afterwards,"//LF// &
+                        ".true. shows it and buries it afterwards,"//LF// &
                         "VC_REVERT_SHOW_DIFF_KILL shows it and kills it afterwards, and"//LF// &
-                        "VC_REVERT_SHOW_DIFF_NO doesn't show it."
+                        ".false. doesn't show it."
         case ("vc_sentinel_movepoint")
             entry%file = "vc_dispatcher_mod.f90"
             entry%fortran = "vc_sentinel_movepoint"
@@ -34933,33 +34620,23 @@ contains
             entry%file = "windmove_mod.f90"
             entry%fortran = "windmove_create_window"
             entry%user_option = .true.
-            entry%original = ".false."
-            entry%value = repr(windmove_create_window)
+            entry%value = windmove_create_window%other_value()
+
+            if (len(entry%value) == 0) then
+                entry%value = repr(windmove_create_window%value)
+            end if
+
             entry%doc = "Whether movement off the edge of the frame creates a new window."//LF// &
                         "If this variable is set to true, moving left from the leftmost window in"//LF// &
                         "a frame will create a new window on the left, and similarly for the other"//LF// &
                         "directions."//LF// &
                         "This variable may also be a function to be called in this circumstance"//LF// &
-                        "by `windmove_do_window_select' (`windmove_create_window_function')."
-        case ("windmove_create_window_function")
-            entry%file = "windmove_mod.f90"
-            entry%fortran = "windmove_create_window_function"
-            entry%user_option = .true.
-            entry%original = "null()"
-            entry%declarations = "procedure(windmove_create_window_procedure), pointer :: windmove_create_window_function"
-
-            if (.not. associated(windmove_create_window_function)) then
-                entry%value = "null()"
-            else
-                entry%value = "a procedure set by the configuration"
-            end if
-
-            entry%doc = "The function `windmove_do_window_select' calls in the circumstance"//LF// &
-                        "of `windmove_create_window', which see (null for none).  The function"//LF// &
-                        "should accept then as argument the DIRECTION targeted, a numeric prefix"//LF// &
-                        "ARG and a WINDOW corresponding to the currently selected window.  It"//LF// &
-                        "should also return a valid window that `windmove_do_window_select'"//LF// &
-                        "will select, or NO_SELECT to ignore that final selection."
+                        "by `windmove_do_window_select': point `windmove_create_window%procedure'"//LF// &
+                        "at it.  The function should accept then as argument the DIRECTION"//LF// &
+                        "targeted, a numeric prefix ARG and a WINDOW corresponding to the"//LF// &
+                        "currently selected window.  It should also return a valid window"//LF// &
+                        "that `windmove_do_window_select' will select, or NO_SELECT to"//LF// &
+                        "ignore that final selection."
         case ("windmove_mode_hook")
             entry%file = "windmove_mod.f90"
             entry%fortran = "windmove_mode_hook"
@@ -35092,28 +34769,24 @@ contains
             entry%file = "window_mod.f90"
             entry%fortran = "window_sides_reversed"
             entry%user_option = .true.
-            entry%original = "WINDOW_SIDES_REVERSED_NO"
+            entry%original = ".false."
 
-            select case (window_sides_reversed)
-            case (WINDOW_SIDES_REVERSED_NO)
-                entry%value = "WINDOW_SIDES_REVERSED_NO"
-            case (WINDOW_SIDES_REVERSED_YES)
-                entry%value = "WINDOW_SIDES_REVERSED_YES"
+            select case (window_sides_reversed%choice)
             case (WINDOW_SIDES_REVERSED_BIDI)
                 entry%value = "WINDOW_SIDES_REVERSED_BIDI"
             case default
-                entry%value = repr(window_sides_reversed)
+                entry%value = repr(window_sides_reversed%value)
             end select
 
             entry%doc = "Whether top/bottom side windows appear in reverse order."//LF// &
-                        "When this is WINDOW_SIDES_REVERSED_NO, side windows on the top and"//LF// &
+                        "When this is .false., side windows on the top and"//LF// &
                         "bottom of a frame are always drawn from left to right with"//LF// &
-                        "increasing slot values.  When this is WINDOW_SIDES_REVERSED_YES,"//LF// &
+                        "increasing slot values.  When this is .true.,"//LF// &
                         "side windows on the top and bottom of a frame are always drawn"//LF// &
                         "from right to left with increasing slot values."//LF// &
                         ""//LF// &
                         "When this is WINDOW_SIDES_REVERSED_BIDI, the drawing order is like"//LF// &
-                        "that for WINDOW_SIDES_REVERSED_YES if the value of"//LF// &
+                        "that for .true. if the value of"//LF// &
                         "`bidi_paragraph_direction' is `right-to-left' in the buffer most"//LF// &
                         "recently shown in the window selected within the main window area"//LF// &
                         "of this frame."//LF// &
@@ -35331,10 +35004,12 @@ contains
             kind = OPTION_LOGICAL
         case ("backward_delete_char_untabify_method")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("blink_matching_delay")
             kind = OPTION_REAL
         case ("blink_matching_paren")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("blink_matching_paren_distance")
             kind = OPTION_INTEGER
         case ("blink_matching_paren_dont_ignore_comments")
@@ -35357,24 +35032,26 @@ contains
             kind = OPTION_STRING
         case ("bookmark_menu_confirm_deletion")
             kind = OPTION_LOGICAL
-        case ("bookmark_save_flag")
-            kind = OPTION_CHOICE
         case ("bookmark_search_delay")
             kind = OPTION_REAL
         case ("bookmark_sort_flag")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("bookmark_use_annotations")
             kind = OPTION_LOGICAL
         case ("bookmark_version_control")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("bookmark_watch_bookmark_file")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("buffer_menu_human_readable_sizes")
             kind = OPTION_LOGICAL
         case ("buffer_menu_mode_width")
             kind = OPTION_INTEGER
         case ("buffer_menu_name_width")
             kind = OPTION_INTEGER
+            setting = .true.
         case ("buffer_menu_size_width")
             kind = OPTION_INTEGER
         case ("buffer_menu_use_frame_buffer_list")
@@ -35566,14 +35243,15 @@ contains
             kind = OPTION_LOGICAL
         case ("dabbrev_case_distinction")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("dabbrev_case_fold_search")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("dabbrev_case_replace")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("dabbrev_check_all_buffers")
             kind = OPTION_LOGICAL
-        case ("dabbrev_check_other_buffers")
-            kind = OPTION_CHOICE
         case ("dabbrev_eliminate_newlines")
             kind = OPTION_LOGICAL
         case ("dabbrev_limit")
@@ -35582,6 +35260,7 @@ contains
             kind = OPTION_LOGICAL
         case ("default_justification")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("delete_active_region")
             kind = OPTION_LOGICAL
         case ("delete_exited_processes")
@@ -35626,6 +35305,7 @@ contains
             kind = OPTION_LOGICAL
         case ("dired_create_destination_dirs")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("dired_create_destination_dirs_on_trailing_dirsep")
             kind = OPTION_LOGICAL
         case ("dired_create_empty_file_in_current_directory")
@@ -35634,8 +35314,10 @@ contains
             kind = OPTION_LOGICAL
         case ("dired_dwim_target")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("dired_free_space")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("dired_garbage_files_regexp")
             kind = OPTION_STRING
         case ("dired_keep_marker_copy")
@@ -35650,12 +35332,16 @@ contains
             kind = OPTION_STRING
         case ("dired_mark_region")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("dired_movement_style")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("dired_recursive_copies")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("dired_recursive_deletes")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("dired_switches_in_mode_line")
             kind = OPTION_CHOICE
         case ("dired_touch_program")
@@ -35664,14 +35350,19 @@ contains
             kind = OPTION_STRING
         case ("dired_use_ls_dired")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("edmacro_eight_bits")
             kind = OPTION_LOGICAL
         case ("electric_pair_open_newline_between_pairs")
             kind = OPTION_LOGICAL
         case ("electric_pair_preserve_balance")
             kind = OPTION_LOGICAL
+        case ("electric_pair_skip_self")
+            kind = OPTION_CHOICE
+            setting = .true.
         case ("electric_pair_skip_whitespace")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("enable_recursive_minibuffers")
             kind = OPTION_LOGICAL
         case ("eol_mnemonic_dos")
@@ -35700,6 +35391,7 @@ contains
             kind = OPTION_LOGICAL
         case ("executable_query")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("executable_self_display")
             kind = OPTION_STRING
         case ("explicit_shell_file_name")
@@ -35768,8 +35460,6 @@ contains
             kind = OPTION_LOGICAL
         case ("find_name_arg")
             kind = OPTION_STRING
-        case ("font_lock_maximum_decoration")
-            kind = OPTION_CHOICE
         case ("font_lock_verbose")
             kind = OPTION_LOGICAL
         case ("global_auto_revert_mode_text")
@@ -35792,12 +35482,15 @@ contains
             kind = OPTION_STRING
         case ("grep_find_use_xargs")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("grep_highlight_matches")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("grep_match_regexp")
             kind = OPTION_STRING
         case ("grep_save_buffers")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("grep_scroll_output")
             kind = OPTION_LOGICAL
         case ("grep_template")
@@ -35806,16 +35499,20 @@ contains
             kind = OPTION_LOGICAL
         case ("grep_use_null_device")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("grep_use_null_filename_separator")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("history_delete_duplicates")
             kind = OPTION_LOGICAL
         case ("history_length")
             kind = OPTION_INTEGER
         case ("html_quick_keys")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("ibuffer_always_show_last_buffer")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("ibuffer_case_fold_search")
             kind = OPTION_LOGICAL
         case ("ibuffer_compressed_file_name_regexp")
@@ -35870,6 +35567,7 @@ contains
             kind = OPTION_LOGICAL
         case ("ibuffer_use_header_line")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("ibuffer_use_other_window")
             kind = OPTION_LOGICAL
         case ("ibuffer_view_ibuffer")
@@ -35886,6 +35584,7 @@ contains
             setting = .true.
         case ("info_hide_note_references")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("info_history_skip_intermediate_nodes")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -35957,8 +35656,6 @@ contains
             kind = OPTION_INTEGER
         case ("cut_whole_line")
             kind = OPTION_LOGICAL
-        case ("kmacro_execute_repeat_key")
-            kind = OPTION_CHOICE
         case ("kmacro_execute_repeat_with_arg")
             kind = OPTION_LOGICAL
         case ("kmacro_execute_before_append")
@@ -36028,12 +35725,11 @@ contains
             kind = OPTION_LOGICAL
         case ("mail_send_nonascii")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("set_up_mail_with_from")
             kind = OPTION_LOGICAL
         case ("mail_signature_file")
             kind = OPTION_STRING
-        case ("mail_signature")
-            kind = OPTION_CHOICE
         case ("mail_specify_envelope_from")
             kind = OPTION_LOGICAL
         case ("makefile_backslash_align")
@@ -36072,8 +35768,6 @@ contains
         case ("mark_even_if_inactive")
             kind = OPTION_LOGICAL
         case ("mark_ring_max")
-            kind = OPTION_INTEGER
-        case ("message_log_max")
             kind = OPTION_INTEGER
         case ("mode_require_final_newline")
             kind = OPTION_CHOICE
@@ -36168,6 +35862,7 @@ contains
             kind = OPTION_STRING
         case ("read_answer_short")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("read_buffer_completion_ignore_case")
             kind = OPTION_LOGICAL
         case ("read_file_name_completion_ignore_case")
@@ -36201,6 +35896,7 @@ contains
             setting = .true.
         case ("save_abbrevs")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("scroll_error_top_bottom")
             kind = OPTION_LOGICAL
         case ("search_exit_option")
@@ -36211,6 +35907,7 @@ contains
             kind = OPTION_INTEGER
         case ("search_upper_case")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("search_whitespace_regexp")
             kind = OPTION_STRING
         case ("sendmail_program")
@@ -36235,6 +35932,7 @@ contains
             setting = .true.
         case ("sgml_quick_keys")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("sgml_slash_distance")
             kind = OPTION_INTEGER
             setting = .true.
@@ -36262,6 +35960,7 @@ contains
             setting = .true.
         case ("sh_indent_after_continuation")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("sh_indent_after_do")
             kind = OPTION_CHOICE
             setting = .true.
@@ -36391,12 +36090,14 @@ contains
             kind = OPTION_LOGICAL
         case ("show_paren_not_in_comments_or_strings")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("show_paren_priority")
             kind = OPTION_INTEGER
         case ("show_paren_ring_bell_on_mismatch")
             kind = OPTION_LOGICAL
         case ("show_paren_style")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("show_paren_when_point_in_periphery")
             kind = OPTION_LOGICAL
         case ("show_paren_when_point_inside_paren")
@@ -36411,6 +36112,7 @@ contains
             kind = OPTION_INTEGER
         case ("split_window_preferred_direction")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("standard_indent")
             kind = OPTION_INTEGER
             setting = .true.
@@ -36449,16 +36151,19 @@ contains
             kind = OPTION_LOGICAL
         case ("vc_command_messages")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("vc_consult_headers")
             kind = OPTION_LOGICAL
         case ("vc_display_failed_async_commands")
             kind = OPTION_LOGICAL
         case ("vc_display_status")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("vc_find_revision_no_save")
             kind = OPTION_LOGICAL
         case ("vc_follow_symlinks")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("vc_git_program")
             kind = OPTION_STRING
         case ("vc_git_revision_complete_only_branches")
@@ -36473,6 +36178,7 @@ contains
             kind = OPTION_LOGICAL
         case ("vc_revert_show_diff")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("vc_suppress_confirm")
             kind = OPTION_LOGICAL
         case ("view_exits_all_viewing_windows")
@@ -36489,6 +36195,7 @@ contains
             kind = OPTION_LOGICAL
         case ("windmove_create_window")
             kind = OPTION_LOGICAL
+            setting = .true.
         case ("windmove_wrap_around")
             kind = OPTION_LOGICAL
         case ("window_min_height")
@@ -36503,6 +36210,7 @@ contains
             kind = OPTION_INTEGER
         case ("window_sides_reversed")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("window_sides_vertical")
             kind = OPTION_LOGICAL
         case ("words_include_escapes")
@@ -37257,7 +36965,11 @@ contains
         case ("windmove_allow_all_windows")
             windmove_allow_all_windows = v
         case ("windmove_create_window")
-            windmove_create_window = v
+            if (local) then
+                call windmove_create_window%set_local(v)
+            else
+                windmove_create_window = v
+            end if
         case ("windmove_wrap_around")
             windmove_wrap_around = v
         case ("winner_dont_bind_my_keys")
@@ -37312,12 +37024,11 @@ contains
 
             buffer_menu_mode_width = int(v)
         case ("buffer_menu_name_width")
-            if (v < -huge(0) - 1 .or. v > huge(0)) then
-                ok = .false.
-                return
+            if (local) then
+                call buffer_menu_name_width%set_local(v)
+            else
+                buffer_menu_name_width = v
             end if
-
-            buffer_menu_name_width = int(v)
         case ("buffer_menu_size_width")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
@@ -37561,8 +37272,6 @@ contains
             end if
 
             mark_ring_max = int(v)
-        case ("message_log_max")
-            message_log_max = v
         case ("next_screen_context_lines")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
@@ -38259,8 +37968,9 @@ contains
     end subroutine set_user_option_string
 
     !> Set the enumerated user option called `name` to its named constant
-    !> `constant` (in upper case), buffer-locally if `local` (a setting
-    !> object); `ok` is false if `constant` is not one of its constants.
+    !> `constant` (in upper case; .TRUE. or .FALSE. for a choice setting),
+    !> buffer-locally if `local` (a setting object); `ok` is false if
+    !> `constant` is not one of its constants.
     subroutine set_user_option_choice(name, constant, local, ok)
         character(len=*), intent(in) :: name, constant
         logical, intent(in) :: local
@@ -38271,11 +37981,17 @@ contains
         select case (name)
         case ("ansi_color_for_comint_mode")
             select case (constant)
-            case ("ANSI_COLOR_NO")
+            case (".TRUE.")
                 if (local) then
-                    call ansi_color_for_comint_mode%set_local(ANSI_COLOR_NO)
+                    call ansi_color_for_comint_mode%set_local(.true.)
                 else
-                    ansi_color_for_comint_mode = ANSI_COLOR_NO
+                    ansi_color_for_comint_mode = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call ansi_color_for_comint_mode%set_local(.false.)
+                else
+                    ansi_color_for_comint_mode = .false.
                 end if
             case ("ANSI_COLOR_FILTER")
                 if (local) then
@@ -38283,34 +37999,28 @@ contains
                 else
                     ansi_color_for_comint_mode = ANSI_COLOR_FILTER
                 end if
-            case ("ANSI_COLOR_YES")
-                if (local) then
-                    call ansi_color_for_comint_mode%set_local(ANSI_COLOR_YES)
-                else
-                    ansi_color_for_comint_mode = ANSI_COLOR_YES
-                end if
             case default
                 ok = .false.
             end select
         case ("ansi_color_for_compilation_mode")
             select case (constant)
-            case ("ANSI_COLOR_NO")
+            case (".TRUE.")
                 if (local) then
-                    call ansi_color_for_compilation_mode%set_local(ANSI_COLOR_NO)
+                    call ansi_color_for_compilation_mode%set_local(.true.)
                 else
-                    ansi_color_for_compilation_mode = ANSI_COLOR_NO
+                    ansi_color_for_compilation_mode = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call ansi_color_for_compilation_mode%set_local(.false.)
+                else
+                    ansi_color_for_compilation_mode = .false.
                 end if
             case ("ANSI_COLOR_FILTER")
                 if (local) then
                     call ansi_color_for_compilation_mode%set_local(ANSI_COLOR_FILTER)
                 else
                     ansi_color_for_compilation_mode = ANSI_COLOR_FILTER
-                end if
-            case ("ANSI_COLOR_YES")
-                if (local) then
-                    call ansi_color_for_compilation_mode%set_local(ANSI_COLOR_YES)
-                else
-                    ansi_color_for_compilation_mode = ANSI_COLOR_YES
                 end if
             case default
                 ok = .false.
@@ -38352,81 +38062,156 @@ contains
             end select
         case ("backward_delete_char_untabify_method")
             select case (constant)
-            case ("BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE")
-                backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE
+            case (".TRUE.")
+                if (local) then
+                    call backward_delete_char_untabify_method%set_local(.true.)
+                else
+                    backward_delete_char_untabify_method = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call backward_delete_char_untabify_method%set_local(.false.)
+                else
+                    backward_delete_char_untabify_method = .false.
+                end if
             case ("BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY")
-                backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY
+                if (local) then
+                    call backward_delete_char_untabify_method%set_local(BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY)
+                else
+                    backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY
+                end if
             case ("BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY")
-                backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY
+                if (local) then
+                    call backward_delete_char_untabify_method%set_local(BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY)
+                else
+                    backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY
+                end if
             case ("BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL")
-                backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL
+                if (local) then
+                    call backward_delete_char_untabify_method%set_local(BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL)
+                else
+                    backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL
+                end if
             case default
                 ok = .false.
             end select
         case ("blink_matching_paren")
             select case (constant)
-            case ("BLINK_MATCHING_PAREN_NO")
-                blink_matching_paren = BLINK_MATCHING_PAREN_NO
-            case ("BLINK_MATCHING_PAREN_YES")
-                blink_matching_paren = BLINK_MATCHING_PAREN_YES
+            case (".TRUE.")
+                if (local) then
+                    call blink_matching_paren%set_local(.true.)
+                else
+                    blink_matching_paren = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call blink_matching_paren%set_local(.false.)
+                else
+                    blink_matching_paren = .false.
+                end if
             case ("BLINK_MATCHING_PAREN_JUMP")
-                blink_matching_paren = BLINK_MATCHING_PAREN_JUMP
+                if (local) then
+                    call blink_matching_paren%set_local(BLINK_MATCHING_PAREN_JUMP)
+                else
+                    blink_matching_paren = BLINK_MATCHING_PAREN_JUMP
+                end if
             case ("BLINK_MATCHING_PAREN_JUMP_OFFSCREEN")
-                blink_matching_paren = BLINK_MATCHING_PAREN_JUMP_OFFSCREEN
-            case default
-                ok = .false.
-            end select
-        case ("bookmark_save_flag")
-            select case (constant)
-            case ("BOOKMARK_SAVE_FLAG_NO")
-                bookmark_save_flag = BOOKMARK_SAVE_FLAG_NO
-            case ("BOOKMARK_SAVE_FLAG_ON_EXIT")
-                bookmark_save_flag = BOOKMARK_SAVE_FLAG_ON_EXIT
+                if (local) then
+                    call blink_matching_paren%set_local(BLINK_MATCHING_PAREN_JUMP_OFFSCREEN)
+                else
+                    blink_matching_paren = BLINK_MATCHING_PAREN_JUMP_OFFSCREEN
+                end if
             case default
                 ok = .false.
             end select
         case ("bookmark_sort_flag")
             select case (constant)
-            case ("BOOKMARK_SORT_FLAG_CREATED")
-                bookmark_sort_flag = BOOKMARK_SORT_FLAG_CREATED
-            case ("BOOKMARK_SORT_FLAG_ALPHABETICAL")
-                bookmark_sort_flag = BOOKMARK_SORT_FLAG_ALPHABETICAL
+            case (".TRUE.")
+                if (local) then
+                    call bookmark_sort_flag%set_local(.true.)
+                else
+                    bookmark_sort_flag = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call bookmark_sort_flag%set_local(.false.)
+                else
+                    bookmark_sort_flag = .false.
+                end if
             case ("BOOKMARK_SORT_FLAG_LAST_MODIFIED")
-                bookmark_sort_flag = BOOKMARK_SORT_FLAG_LAST_MODIFIED
+                if (local) then
+                    call bookmark_sort_flag%set_local(BOOKMARK_SORT_FLAG_LAST_MODIFIED)
+                else
+                    bookmark_sort_flag = BOOKMARK_SORT_FLAG_LAST_MODIFIED
+                end if
             case default
                 ok = .false.
             end select
         case ("bookmark_version_control")
             select case (constant)
-            case ("BOOKMARK_VERSION_CONTROL_NUMBERED")
-                bookmark_version_control = BOOKMARK_VERSION_CONTROL_NUMBERED
-            case ("BOOKMARK_VERSION_CONTROL_EXISTING")
-                bookmark_version_control = BOOKMARK_VERSION_CONTROL_EXISTING
-            case ("BOOKMARK_VERSION_CONTROL_NO")
-                bookmark_version_control = BOOKMARK_VERSION_CONTROL_NO
-            case ("BOOKMARK_VERSION_CONTROL_NOSPECIAL")
-                bookmark_version_control = BOOKMARK_VERSION_CONTROL_NOSPECIAL
+            case (".TRUE.")
+                if (local) then
+                    call bookmark_version_control%set_local(.true.)
+                else
+                    bookmark_version_control = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call bookmark_version_control%set_local(.false.)
+                else
+                    bookmark_version_control = .false.
+                end if
+            case ("BOOKMARK_VERSION_CONTROL_IF_EXISTING")
+                if (local) then
+                    call bookmark_version_control%set_local(BOOKMARK_VERSION_CONTROL_IF_EXISTING)
+                else
+                    bookmark_version_control = BOOKMARK_VERSION_CONTROL_IF_EXISTING
+                end if
+            case ("BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL")
+                if (local) then
+                    call bookmark_version_control%set_local(BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL)
+                else
+                    bookmark_version_control = BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL
+                end if
             case default
                 ok = .false.
             end select
         case ("bookmark_watch_bookmark_file")
             select case (constant)
-            case ("BOOKMARK_WATCH_BOOKMARK_FILE_NO")
-                bookmark_watch_bookmark_file = BOOKMARK_WATCH_BOOKMARK_FILE_NO
-            case ("BOOKMARK_WATCH_BOOKMARK_FILE_ASK")
-                bookmark_watch_bookmark_file = BOOKMARK_WATCH_BOOKMARK_FILE_ASK
+            case (".TRUE.")
+                if (local) then
+                    call bookmark_watch_bookmark_file%set_local(.true.)
+                else
+                    bookmark_watch_bookmark_file = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call bookmark_watch_bookmark_file%set_local(.false.)
+                else
+                    bookmark_watch_bookmark_file = .false.
+                end if
             case ("BOOKMARK_WATCH_BOOKMARK_FILE_SILENT")
-                bookmark_watch_bookmark_file = BOOKMARK_WATCH_BOOKMARK_FILE_SILENT
+                if (local) then
+                    call bookmark_watch_bookmark_file%set_local(BOOKMARK_WATCH_BOOKMARK_FILE_SILENT)
+                else
+                    bookmark_watch_bookmark_file = BOOKMARK_WATCH_BOOKMARK_FILE_SILENT
+                end if
             case default
                 ok = .false.
             end select
         case ("comint_history_isearch")
             select case (constant)
-            case ("COMINT_HISTORY_ISEARCH_NO")
+            case (".TRUE.")
                 if (local) then
-                    call comint_history_isearch%set_local(COMINT_HISTORY_ISEARCH_NO)
+                    call comint_history_isearch%set_local(.true.)
                 else
-                    comint_history_isearch = COMINT_HISTORY_ISEARCH_NO
+                    comint_history_isearch = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call comint_history_isearch%set_local(.false.)
+                else
+                    comint_history_isearch = .false.
                 end if
             case ("COMINT_HISTORY_ISEARCH_DWIM")
                 if (local) then
@@ -38434,28 +38219,22 @@ contains
                 else
                     comint_history_isearch = COMINT_HISTORY_ISEARCH_DWIM
                 end if
-            case ("COMINT_HISTORY_ISEARCH_ALWAYS")
-                if (local) then
-                    call comint_history_isearch%set_local(COMINT_HISTORY_ISEARCH_ALWAYS)
-                else
-                    comint_history_isearch = COMINT_HISTORY_ISEARCH_ALWAYS
-                end if
             case default
                 ok = .false.
             end select
         case ("comint_input_autoexpand")
             select case (constant)
-            case ("COMINT_AUTOEXPAND_NO")
+            case (".TRUE.")
                 if (local) then
-                    call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_NO)
+                    call comint_input_autoexpand%set_local(.true.)
                 else
-                    comint_input_autoexpand = COMINT_AUTOEXPAND_NO
+                    comint_input_autoexpand = .true.
                 end if
-            case ("COMINT_AUTOEXPAND_ON_COMPLETION")
+            case (".FALSE.")
                 if (local) then
-                    call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_ON_COMPLETION)
+                    call comint_input_autoexpand%set_local(.false.)
                 else
-                    comint_input_autoexpand = COMINT_AUTOEXPAND_ON_COMPLETION
+                    comint_input_autoexpand = .false.
                 end if
             case ("COMINT_AUTOEXPAND_INPUT")
                 if (local) then
@@ -38491,17 +38270,17 @@ contains
             end select
         case ("comint_move_point_for_output")
             select case (constant)
-            case ("COMINT_MOVE_POINT_FOR_OUTPUT_NO")
+            case (".TRUE.")
                 if (local) then
-                    call comint_move_point_for_output%set_local(COMINT_MOVE_POINT_FOR_OUTPUT_NO)
+                    call comint_move_point_for_output%set_local(.true.)
                 else
-                    comint_move_point_for_output = COMINT_MOVE_POINT_FOR_OUTPUT_NO
+                    comint_move_point_for_output = .true.
                 end if
-            case ("COMINT_MOVE_POINT_FOR_OUTPUT_YES")
+            case (".FALSE.")
                 if (local) then
-                    call comint_move_point_for_output%set_local(COMINT_MOVE_POINT_FOR_OUTPUT_YES)
+                    call comint_move_point_for_output%set_local(.false.)
                 else
-                    comint_move_point_for_output = COMINT_MOVE_POINT_FOR_OUTPUT_YES
+                    comint_move_point_for_output = .false.
                 end if
             case ("COMINT_MOVE_POINT_FOR_OUTPUT_ALL")
                 if (local) then
@@ -38526,17 +38305,17 @@ contains
             end select
         case ("comint_scroll_to_bottom_on_input")
             select case (constant)
-            case ("COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO")
+            case (".TRUE.")
                 if (local) then
-                    call comint_scroll_to_bottom_on_input%set_local(COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO)
+                    call comint_scroll_to_bottom_on_input%set_local(.true.)
                 else
-                    comint_scroll_to_bottom_on_input = COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO
+                    comint_scroll_to_bottom_on_input = .true.
                 end if
-            case ("COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES")
+            case (".FALSE.")
                 if (local) then
-                    call comint_scroll_to_bottom_on_input%set_local(COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES)
+                    call comint_scroll_to_bottom_on_input%set_local(.false.)
                 else
-                    comint_scroll_to_bottom_on_input = COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES
+                    comint_scroll_to_bottom_on_input = .false.
                 end if
             case ("COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL")
                 if (local) then
@@ -38555,17 +38334,17 @@ contains
             end select
         case ("comment_empty_lines")
             select case (constant)
-            case ("COMMENT_EMPTY_LINES_NO")
+            case (".TRUE.")
                 if (local) then
-                    call comment_empty_lines%set_local(COMMENT_EMPTY_LINES_NO)
+                    call comment_empty_lines%set_local(.true.)
                 else
-                    comment_empty_lines = COMMENT_EMPTY_LINES_NO
+                    comment_empty_lines = .true.
                 end if
-            case ("COMMENT_EMPTY_LINES_YES")
+            case (".FALSE.")
                 if (local) then
-                    call comment_empty_lines%set_local(COMMENT_EMPTY_LINES_YES)
+                    call comment_empty_lines%set_local(.false.)
                 else
-                    comment_empty_lines = COMMENT_EMPTY_LINES_YES
+                    comment_empty_lines = .false.
                 end if
             case ("COMMENT_EMPTY_LINES_EOL")
                 if (local) then
@@ -38648,17 +38427,17 @@ contains
             end select
         case ("compilation_scroll_output")
             select case (constant)
-            case ("COMPILATION_SCROLL_OUTPUT_NO")
+            case (".TRUE.")
                 if (local) then
-                    call compilation_scroll_output%set_local(COMPILATION_SCROLL_OUTPUT_NO)
+                    call compilation_scroll_output%set_local(.true.)
                 else
-                    compilation_scroll_output = COMPILATION_SCROLL_OUTPUT_NO
+                    compilation_scroll_output = .true.
                 end if
-            case ("COMPILATION_SCROLL_OUTPUT_YES")
+            case (".FALSE.")
                 if (local) then
-                    call compilation_scroll_output%set_local(COMPILATION_SCROLL_OUTPUT_YES)
+                    call compilation_scroll_output%set_local(.false.)
                 else
-                    compilation_scroll_output = COMPILATION_SCROLL_OUTPUT_YES
+                    compilation_scroll_output = .false.
                 end if
             case ("COMPILATION_SCROLL_OUTPUT_FIRST_ERROR")
                 if (local) then
@@ -38671,165 +38450,374 @@ contains
             end select
         case ("dabbrev_case_distinction")
             select case (constant)
-            case ("DABBREV_NO")
-                dabbrev_case_distinction = DABBREV_NO
-            case ("DABBREV_YES")
-                dabbrev_case_distinction = DABBREV_YES
+            case (".TRUE.")
+                if (local) then
+                    call dabbrev_case_distinction%set_local(.true.)
+                else
+                    dabbrev_case_distinction = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dabbrev_case_distinction%set_local(.false.)
+                else
+                    dabbrev_case_distinction = .false.
+                end if
             case ("DABBREV_LIKE_CASE_FOLD_SEARCH")
-                dabbrev_case_distinction = DABBREV_LIKE_CASE_FOLD_SEARCH
+                if (local) then
+                    call dabbrev_case_distinction%set_local(DABBREV_LIKE_CASE_FOLD_SEARCH)
+                else
+                    dabbrev_case_distinction = DABBREV_LIKE_CASE_FOLD_SEARCH
+                end if
             case ("DABBREV_LIKE_CASE_REPLACE")
-                dabbrev_case_distinction = DABBREV_LIKE_CASE_REPLACE
+                if (local) then
+                    call dabbrev_case_distinction%set_local(DABBREV_LIKE_CASE_REPLACE)
+                else
+                    dabbrev_case_distinction = DABBREV_LIKE_CASE_REPLACE
+                end if
             case ("DABBREV_ASK")
-                dabbrev_case_distinction = DABBREV_ASK
+                if (local) then
+                    call dabbrev_case_distinction%set_local(DABBREV_ASK)
+                else
+                    dabbrev_case_distinction = DABBREV_ASK
+                end if
             case default
                 ok = .false.
             end select
         case ("dabbrev_case_fold_search")
             select case (constant)
-            case ("DABBREV_NO")
-                dabbrev_case_fold_search = DABBREV_NO
-            case ("DABBREV_YES")
-                dabbrev_case_fold_search = DABBREV_YES
+            case (".TRUE.")
+                if (local) then
+                    call dabbrev_case_fold_search%set_local(.true.)
+                else
+                    dabbrev_case_fold_search = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dabbrev_case_fold_search%set_local(.false.)
+                else
+                    dabbrev_case_fold_search = .false.
+                end if
             case ("DABBREV_LIKE_CASE_FOLD_SEARCH")
-                dabbrev_case_fold_search = DABBREV_LIKE_CASE_FOLD_SEARCH
+                if (local) then
+                    call dabbrev_case_fold_search%set_local(DABBREV_LIKE_CASE_FOLD_SEARCH)
+                else
+                    dabbrev_case_fold_search = DABBREV_LIKE_CASE_FOLD_SEARCH
+                end if
             case ("DABBREV_LIKE_CASE_REPLACE")
-                dabbrev_case_fold_search = DABBREV_LIKE_CASE_REPLACE
+                if (local) then
+                    call dabbrev_case_fold_search%set_local(DABBREV_LIKE_CASE_REPLACE)
+                else
+                    dabbrev_case_fold_search = DABBREV_LIKE_CASE_REPLACE
+                end if
             case ("DABBREV_ASK")
-                dabbrev_case_fold_search = DABBREV_ASK
+                if (local) then
+                    call dabbrev_case_fold_search%set_local(DABBREV_ASK)
+                else
+                    dabbrev_case_fold_search = DABBREV_ASK
+                end if
             case default
                 ok = .false.
             end select
         case ("dabbrev_case_replace")
             select case (constant)
-            case ("DABBREV_NO")
-                dabbrev_case_replace = DABBREV_NO
-            case ("DABBREV_YES")
-                dabbrev_case_replace = DABBREV_YES
+            case (".TRUE.")
+                if (local) then
+                    call dabbrev_case_replace%set_local(.true.)
+                else
+                    dabbrev_case_replace = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dabbrev_case_replace%set_local(.false.)
+                else
+                    dabbrev_case_replace = .false.
+                end if
             case ("DABBREV_LIKE_CASE_FOLD_SEARCH")
-                dabbrev_case_replace = DABBREV_LIKE_CASE_FOLD_SEARCH
+                if (local) then
+                    call dabbrev_case_replace%set_local(DABBREV_LIKE_CASE_FOLD_SEARCH)
+                else
+                    dabbrev_case_replace = DABBREV_LIKE_CASE_FOLD_SEARCH
+                end if
             case ("DABBREV_LIKE_CASE_REPLACE")
-                dabbrev_case_replace = DABBREV_LIKE_CASE_REPLACE
+                if (local) then
+                    call dabbrev_case_replace%set_local(DABBREV_LIKE_CASE_REPLACE)
+                else
+                    dabbrev_case_replace = DABBREV_LIKE_CASE_REPLACE
+                end if
             case ("DABBREV_ASK")
-                dabbrev_case_replace = DABBREV_ASK
-            case default
-                ok = .false.
-            end select
-        case ("dabbrev_check_other_buffers")
-            select case (constant)
-            case ("DABBREV_NO")
-                dabbrev_check_other_buffers = DABBREV_NO
-            case ("DABBREV_YES")
-                dabbrev_check_other_buffers = DABBREV_YES
-            case ("DABBREV_LIKE_CASE_FOLD_SEARCH")
-                dabbrev_check_other_buffers = DABBREV_LIKE_CASE_FOLD_SEARCH
-            case ("DABBREV_LIKE_CASE_REPLACE")
-                dabbrev_check_other_buffers = DABBREV_LIKE_CASE_REPLACE
-            case ("DABBREV_ASK")
-                dabbrev_check_other_buffers = DABBREV_ASK
+                if (local) then
+                    call dabbrev_case_replace%set_local(DABBREV_ASK)
+                else
+                    dabbrev_case_replace = DABBREV_ASK
+                end if
             case default
                 ok = .false.
             end select
         case ("default_justification")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call default_justification%set_local(.true.)
+                else
+                    default_justification = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call default_justification%set_local(.false.)
+                else
+                    default_justification = .false.
+                end if
             case ("DEFAULT_JUSTIFICATION_NONE")
-                default_justification = DEFAULT_JUSTIFICATION_NONE
+                if (local) then
+                    call default_justification%set_local(DEFAULT_JUSTIFICATION_NONE)
+                else
+                    default_justification = DEFAULT_JUSTIFICATION_NONE
+                end if
             case ("DEFAULT_JUSTIFICATION_LEFT")
-                default_justification = DEFAULT_JUSTIFICATION_LEFT
+                if (local) then
+                    call default_justification%set_local(DEFAULT_JUSTIFICATION_LEFT)
+                else
+                    default_justification = DEFAULT_JUSTIFICATION_LEFT
+                end if
             case ("DEFAULT_JUSTIFICATION_RIGHT")
-                default_justification = DEFAULT_JUSTIFICATION_RIGHT
+                if (local) then
+                    call default_justification%set_local(DEFAULT_JUSTIFICATION_RIGHT)
+                else
+                    default_justification = DEFAULT_JUSTIFICATION_RIGHT
+                end if
             case ("DEFAULT_JUSTIFICATION_FULL")
-                default_justification = DEFAULT_JUSTIFICATION_FULL
+                if (local) then
+                    call default_justification%set_local(DEFAULT_JUSTIFICATION_FULL)
+                else
+                    default_justification = DEFAULT_JUSTIFICATION_FULL
+                end if
             case ("DEFAULT_JUSTIFICATION_CENTER")
-                default_justification = DEFAULT_JUSTIFICATION_CENTER
+                if (local) then
+                    call default_justification%set_local(DEFAULT_JUSTIFICATION_CENTER)
+                else
+                    default_justification = DEFAULT_JUSTIFICATION_CENTER
+                end if
             case ("DEFAULT_JUSTIFICATION_CURRENT")
-                default_justification = DEFAULT_JUSTIFICATION_CURRENT
+                if (local) then
+                    call default_justification%set_local(DEFAULT_JUSTIFICATION_CURRENT)
+                else
+                    default_justification = DEFAULT_JUSTIFICATION_CURRENT
+                end if
             case default
                 ok = .false.
             end select
         case ("dired_create_destination_dirs")
             select case (constant)
-            case ("DIRED_CREATE_DESTINATION_DIRS_NO")
-                dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NO
-            case ("DIRED_CREATE_DESTINATION_DIRS_YES")
-                dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_YES
+            case (".TRUE.")
+                if (local) then
+                    call dired_create_destination_dirs%set_local(.true.)
+                else
+                    dired_create_destination_dirs = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dired_create_destination_dirs%set_local(.false.)
+                else
+                    dired_create_destination_dirs = .false.
+                end if
             case ("DIRED_CREATE_DESTINATION_DIRS_ASK")
-                dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_ASK
+                if (local) then
+                    call dired_create_destination_dirs%set_local(DIRED_CREATE_DESTINATION_DIRS_ASK)
+                else
+                    dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_ASK
+                end if
             case default
                 ok = .false.
             end select
         case ("dired_dwim_target")
             select case (constant)
-            case ("DIRED_DWIM_TARGET_NO")
-                dired_dwim_target = DIRED_DWIM_TARGET_NO
+            case (".TRUE.")
+                if (local) then
+                    call dired_dwim_target%set_local(.true.)
+                else
+                    dired_dwim_target = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dired_dwim_target%set_local(.false.)
+                else
+                    dired_dwim_target = .false.
+                end if
             case ("DIRED_DWIM_TARGET_NEXT")
-                dired_dwim_target = DIRED_DWIM_TARGET_NEXT
+                if (local) then
+                    call dired_dwim_target%set_local(DIRED_DWIM_TARGET_NEXT)
+                else
+                    dired_dwim_target = DIRED_DWIM_TARGET_NEXT
+                end if
             case ("DIRED_DWIM_TARGET_NEXT_VISIBLE")
-                dired_dwim_target = DIRED_DWIM_TARGET_NEXT_VISIBLE
+                if (local) then
+                    call dired_dwim_target%set_local(DIRED_DWIM_TARGET_NEXT_VISIBLE)
+                else
+                    dired_dwim_target = DIRED_DWIM_TARGET_NEXT_VISIBLE
+                end if
             case ("DIRED_DWIM_TARGET_RECENT")
-                dired_dwim_target = DIRED_DWIM_TARGET_RECENT
+                if (local) then
+                    call dired_dwim_target%set_local(DIRED_DWIM_TARGET_RECENT)
+                else
+                    dired_dwim_target = DIRED_DWIM_TARGET_RECENT
+                end if
             case default
                 ok = .false.
             end select
         case ("dired_free_space")
             select case (constant)
-            case ("DIRED_FREE_SPACE_NONE")
-                dired_free_space = DIRED_FREE_SPACE_NONE
+            case (".TRUE.")
+                if (local) then
+                    call dired_free_space%set_local(.true.)
+                else
+                    dired_free_space = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dired_free_space%set_local(.false.)
+                else
+                    dired_free_space = .false.
+                end if
             case ("DIRED_FREE_SPACE_SEPARATE")
-                dired_free_space = DIRED_FREE_SPACE_SEPARATE
+                if (local) then
+                    call dired_free_space%set_local(DIRED_FREE_SPACE_SEPARATE)
+                else
+                    dired_free_space = DIRED_FREE_SPACE_SEPARATE
+                end if
             case ("DIRED_FREE_SPACE_FIRST")
-                dired_free_space = DIRED_FREE_SPACE_FIRST
+                if (local) then
+                    call dired_free_space%set_local(DIRED_FREE_SPACE_FIRST)
+                else
+                    dired_free_space = DIRED_FREE_SPACE_FIRST
+                end if
             case default
                 ok = .false.
             end select
         case ("dired_mark_region")
             select case (constant)
-            case ("DIRED_MARK_REGION_NO")
-                dired_mark_region = DIRED_MARK_REGION_NO
+            case (".TRUE.")
+                if (local) then
+                    call dired_mark_region%set_local(.true.)
+                else
+                    dired_mark_region = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dired_mark_region%set_local(.false.)
+                else
+                    dired_mark_region = .false.
+                end if
             case ("DIRED_MARK_REGION_FILE")
-                dired_mark_region = DIRED_MARK_REGION_FILE
+                if (local) then
+                    call dired_mark_region%set_local(DIRED_MARK_REGION_FILE)
+                else
+                    dired_mark_region = DIRED_MARK_REGION_FILE
+                end if
             case ("DIRED_MARK_REGION_LINE")
-                dired_mark_region = DIRED_MARK_REGION_LINE
+                if (local) then
+                    call dired_mark_region%set_local(DIRED_MARK_REGION_LINE)
+                else
+                    dired_mark_region = DIRED_MARK_REGION_LINE
+                end if
             case default
                 ok = .false.
             end select
         case ("dired_movement_style")
             select case (constant)
-            case ("DIRED_MOVEMENT_STYLE_PLAIN")
-                dired_movement_style = DIRED_MOVEMENT_STYLE_PLAIN
+            case (".TRUE.")
+                if (local) then
+                    call dired_movement_style%set_local(.true.)
+                else
+                    dired_movement_style = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dired_movement_style%set_local(.false.)
+                else
+                    dired_movement_style = .false.
+                end if
             case ("DIRED_MOVEMENT_STYLE_CYCLE")
-                dired_movement_style = DIRED_MOVEMENT_STYLE_CYCLE
+                if (local) then
+                    call dired_movement_style%set_local(DIRED_MOVEMENT_STYLE_CYCLE)
+                else
+                    dired_movement_style = DIRED_MOVEMENT_STYLE_CYCLE
+                end if
             case ("DIRED_MOVEMENT_STYLE_BOUNDED")
-                dired_movement_style = DIRED_MOVEMENT_STYLE_BOUNDED
+                if (local) then
+                    call dired_movement_style%set_local(DIRED_MOVEMENT_STYLE_BOUNDED)
+                else
+                    dired_movement_style = DIRED_MOVEMENT_STYLE_BOUNDED
+                end if
             case ("DIRED_MOVEMENT_STYLE_CYCLE_FILES")
-                dired_movement_style = DIRED_MOVEMENT_STYLE_CYCLE_FILES
+                if (local) then
+                    call dired_movement_style%set_local(DIRED_MOVEMENT_STYLE_CYCLE_FILES)
+                else
+                    dired_movement_style = DIRED_MOVEMENT_STYLE_CYCLE_FILES
+                end if
             case ("DIRED_MOVEMENT_STYLE_BOUNDED_FILES")
-                dired_movement_style = DIRED_MOVEMENT_STYLE_BOUNDED_FILES
+                if (local) then
+                    call dired_movement_style%set_local(DIRED_MOVEMENT_STYLE_BOUNDED_FILES)
+                else
+                    dired_movement_style = DIRED_MOVEMENT_STYLE_BOUNDED_FILES
+                end if
             case default
                 ok = .false.
             end select
         case ("dired_recursive_copies")
             select case (constant)
-            case ("DIRED_RECURSIVE_NO")
-                dired_recursive_copies = DIRED_RECURSIVE_NO
-            case ("DIRED_RECURSIVE_YES")
-                dired_recursive_copies = DIRED_RECURSIVE_YES
+            case (".TRUE.")
+                if (local) then
+                    call dired_recursive_copies%set_local(.true.)
+                else
+                    dired_recursive_copies = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dired_recursive_copies%set_local(.false.)
+                else
+                    dired_recursive_copies = .false.
+                end if
             case ("DIRED_RECURSIVE_TOP")
-                dired_recursive_copies = DIRED_RECURSIVE_TOP
+                if (local) then
+                    call dired_recursive_copies%set_local(DIRED_RECURSIVE_TOP)
+                else
+                    dired_recursive_copies = DIRED_RECURSIVE_TOP
+                end if
             case ("DIRED_RECURSIVE_ASK")
-                dired_recursive_copies = DIRED_RECURSIVE_ASK
+                if (local) then
+                    call dired_recursive_copies%set_local(DIRED_RECURSIVE_ASK)
+                else
+                    dired_recursive_copies = DIRED_RECURSIVE_ASK
+                end if
             case default
                 ok = .false.
             end select
         case ("dired_recursive_deletes")
             select case (constant)
-            case ("DIRED_RECURSIVE_NO")
-                dired_recursive_deletes = DIRED_RECURSIVE_NO
-            case ("DIRED_RECURSIVE_YES")
-                dired_recursive_deletes = DIRED_RECURSIVE_YES
+            case (".TRUE.")
+                if (local) then
+                    call dired_recursive_deletes%set_local(.true.)
+                else
+                    dired_recursive_deletes = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dired_recursive_deletes%set_local(.false.)
+                else
+                    dired_recursive_deletes = .false.
+                end if
             case ("DIRED_RECURSIVE_TOP")
-                dired_recursive_deletes = DIRED_RECURSIVE_TOP
+                if (local) then
+                    call dired_recursive_deletes%set_local(DIRED_RECURSIVE_TOP)
+                else
+                    dired_recursive_deletes = DIRED_RECURSIVE_TOP
+                end if
             case ("DIRED_RECURSIVE_ASK")
-                dired_recursive_deletes = DIRED_RECURSIVE_ASK
+                if (local) then
+                    call dired_recursive_deletes%set_local(DIRED_RECURSIVE_ASK)
+                else
+                    dired_recursive_deletes = DIRED_RECURSIVE_ASK
+                end if
             case default
                 ok = .false.
             end select
@@ -38844,34 +38832,93 @@ contains
             end select
         case ("dired_use_ls_dired")
             select case (constant)
-            case ("DIRED_USE_LS_DIRED_NO")
-                dired_use_ls_dired = DIRED_USE_LS_DIRED_NO
-            case ("DIRED_USE_LS_DIRED_YES")
-                dired_use_ls_dired = DIRED_USE_LS_DIRED_YES
+            case (".TRUE.")
+                if (local) then
+                    call dired_use_ls_dired%set_local(.true.)
+                else
+                    dired_use_ls_dired = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dired_use_ls_dired%set_local(.false.)
+                else
+                    dired_use_ls_dired = .false.
+                end if
             case ("DIRED_USE_LS_DIRED_UNSPECIFIED")
-                dired_use_ls_dired = DIRED_USE_LS_DIRED_UNSPECIFIED
+                if (local) then
+                    call dired_use_ls_dired%set_local(DIRED_USE_LS_DIRED_UNSPECIFIED)
+                else
+                    dired_use_ls_dired = DIRED_USE_LS_DIRED_UNSPECIFIED
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("electric_pair_skip_self")
+            select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call electric_pair_skip_self%set_local(.true.)
+                else
+                    electric_pair_skip_self = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call electric_pair_skip_self%set_local(.false.)
+                else
+                    electric_pair_skip_self = .false.
+                end if
+            case ("ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE")
+                if (local) then
+                    call electric_pair_skip_self%set_local(ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE)
+                else
+                    electric_pair_skip_self = ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE
+                end if
             case default
                 ok = .false.
             end select
         case ("electric_pair_skip_whitespace")
             select case (constant)
-            case ("ELECTRIC_PAIR_SKIP_WHITESPACE_NO")
-                electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_NO
-            case ("ELECTRIC_PAIR_SKIP_WHITESPACE_YES")
-                electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_YES
+            case (".TRUE.")
+                if (local) then
+                    call electric_pair_skip_whitespace%set_local(.true.)
+                else
+                    electric_pair_skip_whitespace = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call electric_pair_skip_whitespace%set_local(.false.)
+                else
+                    electric_pair_skip_whitespace = .false.
+                end if
             case ("ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP")
-                electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
+                if (local) then
+                    call electric_pair_skip_whitespace%set_local(ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP)
+                else
+                    electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
+                end if
             case default
                 ok = .false.
             end select
         case ("executable_query")
             select case (constant)
-            case ("EXECUTABLE_QUERY_NO")
-                executable_query = EXECUTABLE_QUERY_NO
+            case (".TRUE.")
+                if (local) then
+                    call executable_query%set_local(.true.)
+                else
+                    executable_query = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call executable_query%set_local(.false.)
+                else
+                    executable_query = .false.
+                end if
             case ("EXECUTABLE_QUERY_FUNCTION")
-                executable_query = EXECUTABLE_QUERY_FUNCTION
-            case ("EXECUTABLE_QUERY_ALWAYS")
-                executable_query = EXECUTABLE_QUERY_ALWAYS
+                if (local) then
+                    call executable_query%set_local(EXECUTABLE_QUERY_FUNCTION)
+                else
+                    executable_query = EXECUTABLE_QUERY_FUNCTION
+                end if
             case default
                 ok = .false.
             end select
@@ -38906,11 +38953,17 @@ contains
             end select
         case ("f90_smart_end")
             select case (constant)
-            case ("F90_SMART_END_NO")
+            case (".TRUE.")
                 if (local) then
-                    call f90_smart_end%set_local(F90_SMART_END_NO)
+                    call f90_smart_end%set_local(.true.)
                 else
-                    f90_smart_end = F90_SMART_END_NO
+                    f90_smart_end = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call f90_smart_end%set_local(.false.)
+                else
+                    f90_smart_end = .false.
                 end if
             case ("F90_SMART_END_BLINK")
                 if (local) then
@@ -38927,141 +38980,274 @@ contains
             case default
                 ok = .false.
             end select
-        case ("font_lock_maximum_decoration")
-            select case (constant)
-            case ("FONT_LOCK_MAXIMUM_DECORATION_MAX")
-                font_lock_maximum_decoration = FONT_LOCK_MAXIMUM_DECORATION_MAX
-            case default
-                ok = .false.
-            end select
         case ("grep_find_use_xargs")
             select case (constant)
-            case ("GREP_FIND_USE_XARGS_UNKNOWN")
-                grep_find_use_xargs = GREP_FIND_USE_XARGS_UNKNOWN
+            case (".TRUE.")
+                if (local) then
+                    call grep_find_use_xargs%set_local(.true.)
+                else
+                    grep_find_use_xargs = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call grep_find_use_xargs%set_local(.false.)
+                else
+                    grep_find_use_xargs = .false.
+                end if
             case ("GREP_FIND_USE_XARGS_EXEC")
-                grep_find_use_xargs = GREP_FIND_USE_XARGS_EXEC
+                if (local) then
+                    call grep_find_use_xargs%set_local(GREP_FIND_USE_XARGS_EXEC)
+                else
+                    grep_find_use_xargs = GREP_FIND_USE_XARGS_EXEC
+                end if
             case ("GREP_FIND_USE_XARGS_EXEC_PLUS")
-                grep_find_use_xargs = GREP_FIND_USE_XARGS_EXEC_PLUS
+                if (local) then
+                    call grep_find_use_xargs%set_local(GREP_FIND_USE_XARGS_EXEC_PLUS)
+                else
+                    grep_find_use_xargs = GREP_FIND_USE_XARGS_EXEC_PLUS
+                end if
             case ("GREP_FIND_USE_XARGS_GNU")
-                grep_find_use_xargs = GREP_FIND_USE_XARGS_GNU
+                if (local) then
+                    call grep_find_use_xargs%set_local(GREP_FIND_USE_XARGS_GNU)
+                else
+                    grep_find_use_xargs = GREP_FIND_USE_XARGS_GNU
+                end if
             case ("GREP_FIND_USE_XARGS_GNU_SORT")
-                grep_find_use_xargs = GREP_FIND_USE_XARGS_GNU_SORT
-            case ("GREP_FIND_USE_XARGS_OTHER")
-                grep_find_use_xargs = GREP_FIND_USE_XARGS_OTHER
+                if (local) then
+                    call grep_find_use_xargs%set_local(GREP_FIND_USE_XARGS_GNU_SORT)
+                else
+                    grep_find_use_xargs = GREP_FIND_USE_XARGS_GNU_SORT
+                end if
             case default
                 ok = .false.
             end select
         case ("grep_highlight_matches")
             select case (constant)
-            case ("GREP_HIGHLIGHT_MATCHES_NO")
-                grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_NO
-            case ("GREP_HIGHLIGHT_MATCHES_YES")
-                grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_YES
+            case (".TRUE.")
+                if (local) then
+                    call grep_highlight_matches%set_local(.true.)
+                else
+                    grep_highlight_matches = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call grep_highlight_matches%set_local(.false.)
+                else
+                    grep_highlight_matches = .false.
+                end if
             case ("GREP_HIGHLIGHT_MATCHES_AUTO_DETECT")
-                grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_AUTO_DETECT
+                if (local) then
+                    call grep_highlight_matches%set_local(GREP_HIGHLIGHT_MATCHES_AUTO_DETECT)
+                else
+                    grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_AUTO_DETECT
+                end if
             case ("GREP_HIGHLIGHT_MATCHES_ALWAYS")
-                grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_ALWAYS
+                if (local) then
+                    call grep_highlight_matches%set_local(GREP_HIGHLIGHT_MATCHES_ALWAYS)
+                else
+                    grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_ALWAYS
+                end if
             case ("GREP_HIGHLIGHT_MATCHES_AUTO")
-                grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_AUTO
+                if (local) then
+                    call grep_highlight_matches%set_local(GREP_HIGHLIGHT_MATCHES_AUTO)
+                else
+                    grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_AUTO
+                end if
             case default
                 ok = .false.
             end select
         case ("grep_save_buffers")
             select case (constant)
-            case ("GREP_SAVE_BUFFERS_NO")
-                grep_save_buffers = GREP_SAVE_BUFFERS_NO
-            case ("GREP_SAVE_BUFFERS_YES")
-                grep_save_buffers = GREP_SAVE_BUFFERS_YES
+            case (".TRUE.")
+                if (local) then
+                    call grep_save_buffers%set_local(.true.)
+                else
+                    grep_save_buffers = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call grep_save_buffers%set_local(.false.)
+                else
+                    grep_save_buffers = .false.
+                end if
             case ("GREP_SAVE_BUFFERS_ASK")
-                grep_save_buffers = GREP_SAVE_BUFFERS_ASK
+                if (local) then
+                    call grep_save_buffers%set_local(GREP_SAVE_BUFFERS_ASK)
+                else
+                    grep_save_buffers = GREP_SAVE_BUFFERS_ASK
+                end if
             case default
                 ok = .false.
             end select
         case ("grep_use_null_device")
             select case (constant)
-            case ("GREP_USE_NULL_DEVICE_NO")
-                grep_use_null_device = GREP_USE_NULL_DEVICE_NO
-            case ("GREP_USE_NULL_DEVICE_YES")
-                grep_use_null_device = GREP_USE_NULL_DEVICE_YES
+            case (".TRUE.")
+                if (local) then
+                    call grep_use_null_device%set_local(.true.)
+                else
+                    grep_use_null_device = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call grep_use_null_device%set_local(.false.)
+                else
+                    grep_use_null_device = .false.
+                end if
             case ("GREP_USE_NULL_DEVICE_AUTO_DETECT")
-                grep_use_null_device = GREP_USE_NULL_DEVICE_AUTO_DETECT
+                if (local) then
+                    call grep_use_null_device%set_local(GREP_USE_NULL_DEVICE_AUTO_DETECT)
+                else
+                    grep_use_null_device = GREP_USE_NULL_DEVICE_AUTO_DETECT
+                end if
             case default
                 ok = .false.
             end select
         case ("grep_use_null_filename_separator")
             select case (constant)
-            case ("GREP_USE_NULL_FILENAME_SEPARATOR_NO")
-                grep_use_null_filename_separator = GREP_USE_NULL_FILENAME_SEPARATOR_NO
-            case ("GREP_USE_NULL_FILENAME_SEPARATOR_YES")
-                grep_use_null_filename_separator = GREP_USE_NULL_FILENAME_SEPARATOR_YES
+            case (".TRUE.")
+                if (local) then
+                    call grep_use_null_filename_separator%set_local(.true.)
+                else
+                    grep_use_null_filename_separator = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call grep_use_null_filename_separator%set_local(.false.)
+                else
+                    grep_use_null_filename_separator = .false.
+                end if
             case ("GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT")
-                grep_use_null_filename_separator = GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT
+                if (local) then
+                    call grep_use_null_filename_separator%set_local(GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT)
+                else
+                    grep_use_null_filename_separator = GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT
+                end if
             case default
                 ok = .false.
             end select
         case ("html_quick_keys")
             select case (constant)
-            case ("QUICK_KEYS_NO")
-                html_quick_keys = QUICK_KEYS_NO
-            case ("QUICK_KEYS_YES")
-                html_quick_keys = QUICK_KEYS_YES
+            case (".TRUE.")
+                if (local) then
+                    call html_quick_keys%set_local(.true.)
+                else
+                    html_quick_keys = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call html_quick_keys%set_local(.false.)
+                else
+                    html_quick_keys = .false.
+                end if
             case ("QUICK_KEYS_INDENT")
-                html_quick_keys = QUICK_KEYS_INDENT
+                if (local) then
+                    call html_quick_keys%set_local(QUICK_KEYS_INDENT)
+                else
+                    html_quick_keys = QUICK_KEYS_INDENT
+                end if
             case ("QUICK_KEYS_CLOSE")
-                html_quick_keys = QUICK_KEYS_CLOSE
+                if (local) then
+                    call html_quick_keys%set_local(QUICK_KEYS_CLOSE)
+                else
+                    html_quick_keys = QUICK_KEYS_CLOSE
+                end if
             case ("QUICK_KEYS_DEFAULT")
-                html_quick_keys = QUICK_KEYS_DEFAULT
+                if (local) then
+                    call html_quick_keys%set_local(QUICK_KEYS_DEFAULT)
+                else
+                    html_quick_keys = QUICK_KEYS_DEFAULT
+                end if
             case default
                 ok = .false.
             end select
         case ("ibuffer_always_show_last_buffer")
             select case (constant)
-            case ("IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO")
-                ibuffer_always_show_last_buffer = IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO
-            case ("IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES")
-                ibuffer_always_show_last_buffer = IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES
+            case (".TRUE.")
+                if (local) then
+                    call ibuffer_always_show_last_buffer%set_local(.true.)
+                else
+                    ibuffer_always_show_last_buffer = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call ibuffer_always_show_last_buffer%set_local(.false.)
+                else
+                    ibuffer_always_show_last_buffer = .false.
+                end if
             case ("IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI")
-                ibuffer_always_show_last_buffer = IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI
+                if (local) then
+                    call ibuffer_always_show_last_buffer%set_local(IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI)
+                else
+                    ibuffer_always_show_last_buffer = IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI
+                end if
             case default
                 ok = .false.
             end select
         case ("ibuffer_use_header_line")
             select case (constant)
-            case ("IBUFFER_USE_HEADER_LINE_NO")
-                ibuffer_use_header_line = IBUFFER_USE_HEADER_LINE_NO
-            case ("IBUFFER_USE_HEADER_LINE_FILTERS")
-                ibuffer_use_header_line = IBUFFER_USE_HEADER_LINE_FILTERS
+            case (".TRUE.")
+                if (local) then
+                    call ibuffer_use_header_line%set_local(.true.)
+                else
+                    ibuffer_use_header_line = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call ibuffer_use_header_line%set_local(.false.)
+                else
+                    ibuffer_use_header_line = .false.
+                end if
             case ("IBUFFER_USE_HEADER_LINE_TITLE")
-                ibuffer_use_header_line = IBUFFER_USE_HEADER_LINE_TITLE
+                if (local) then
+                    call ibuffer_use_header_line%set_local(IBUFFER_USE_HEADER_LINE_TITLE)
+                else
+                    ibuffer_use_header_line = IBUFFER_USE_HEADER_LINE_TITLE
+                end if
             case default
                 ok = .false.
             end select
         case ("info_hide_note_references")
             select case (constant)
-            case ("INFO_HIDE_NOTE_REFERENCES_NO")
-                info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_NO
+            case (".TRUE.")
+                if (local) then
+                    call info_hide_note_references%set_local(.true.)
+                else
+                    info_hide_note_references = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call info_hide_note_references%set_local(.false.)
+                else
+                    info_hide_note_references = .false.
+                end if
             case ("INFO_HIDE_NOTE_REFERENCES_SEE")
-                info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_SEE
-            case ("INFO_HIDE_NOTE_REFERENCES_HIDE")
-                info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_HIDE
+                if (local) then
+                    call info_hide_note_references%set_local(INFO_HIDE_NOTE_REFERENCES_SEE)
+                else
+                    info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_SEE
+                end if
             case ("INFO_HIDE_NOTE_REFERENCES_TAG")
-                info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_TAG
+                if (local) then
+                    call info_hide_note_references%set_local(INFO_HIDE_NOTE_REFERENCES_TAG)
+                else
+                    info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_TAG
+                end if
             case default
                 ok = .false.
             end select
         case ("js_indent_first_init")
             select case (constant)
-            case ("JS_INDENT_FIRST_INIT_NO")
+            case (".TRUE.")
                 if (local) then
-                    call js_indent_first_init%set_local(JS_INDENT_FIRST_INIT_NO)
+                    call js_indent_first_init%set_local(.true.)
                 else
-                    js_indent_first_init = JS_INDENT_FIRST_INIT_NO
+                    js_indent_first_init = .true.
                 end if
-            case ("JS_INDENT_FIRST_INIT_YES")
+            case (".FALSE.")
                 if (local) then
-                    call js_indent_first_init%set_local(JS_INDENT_FIRST_INIT_YES)
+                    call js_indent_first_init%set_local(.false.)
                 else
-                    js_indent_first_init = JS_INDENT_FIRST_INIT_YES
+                    js_indent_first_init = .false.
                 end if
             case ("JS_INDENT_FIRST_INIT_DYNAMIC")
                 if (local) then
@@ -39069,15 +39255,6 @@ contains
                 else
                     js_indent_first_init = JS_INDENT_FIRST_INIT_DYNAMIC
                 end if
-            case default
-                ok = .false.
-            end select
-        case ("kmacro_execute_repeat_key")
-            select case (constant)
-            case ("KMACRO_EXECUTE_REPEAT_KEY_NO")
-                kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_NO
-            case ("KMACRO_EXECUTE_REPEAT_KEY_LAST")
-                kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_LAST
             case default
                 ok = .false.
             end select
@@ -39098,43 +39275,46 @@ contains
             end select
         case ("mail_send_nonascii")
             select case (constant)
-            case ("MAIL_SEND_NONASCII_NO")
-                mail_send_nonascii = MAIL_SEND_NONASCII_NO
-            case ("MAIL_SEND_NONASCII_YES")
-                mail_send_nonascii = MAIL_SEND_NONASCII_YES
+            case (".TRUE.")
+                if (local) then
+                    call mail_send_nonascii%set_local(.true.)
+                else
+                    mail_send_nonascii = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call mail_send_nonascii%set_local(.false.)
+                else
+                    mail_send_nonascii = .false.
+                end if
             case ("MAIL_SEND_NONASCII_ASK")
-                mail_send_nonascii = MAIL_SEND_NONASCII_ASK
+                if (local) then
+                    call mail_send_nonascii%set_local(MAIL_SEND_NONASCII_ASK)
+                else
+                    mail_send_nonascii = MAIL_SEND_NONASCII_ASK
+                end if
             case ("MAIL_SEND_NONASCII_MIME")
-                mail_send_nonascii = MAIL_SEND_NONASCII_MIME
-            case default
-                ok = .false.
-            end select
-        case ("mail_signature")
-            select case (constant)
-            case ("MAIL_SIGNATURE_NO")
-                mail_signature_variable = MAIL_SIGNATURE_NO
-            case ("MAIL_SIGNATURE_YES")
-                mail_signature_variable = MAIL_SIGNATURE_YES
-            case ("MAIL_SIGNATURE_STRING")
-                mail_signature_variable = MAIL_SIGNATURE_STRING
-            case ("MAIL_SIGNATURE_PROCEDURE")
-                mail_signature_variable = MAIL_SIGNATURE_PROCEDURE
+                if (local) then
+                    call mail_send_nonascii%set_local(MAIL_SEND_NONASCII_MIME)
+                else
+                    mail_send_nonascii = MAIL_SEND_NONASCII_MIME
+                end if
             case default
                 ok = .false.
             end select
         case ("mode_require_final_newline")
             select case (constant)
-            case ("FINAL_NEWLINE_NO")
+            case (".TRUE.")
                 if (local) then
-                    call mode_require_final_newline%set_local(FINAL_NEWLINE_NO)
+                    call mode_require_final_newline%set_local(.true.)
                 else
-                    mode_require_final_newline = FINAL_NEWLINE_NO
+                    mode_require_final_newline = .true.
                 end if
-            case ("FINAL_NEWLINE_SAVE")
+            case (".FALSE.")
                 if (local) then
-                    call mode_require_final_newline%set_local(FINAL_NEWLINE_SAVE)
+                    call mode_require_final_newline%set_local(.false.)
                 else
-                    mode_require_final_newline = FINAL_NEWLINE_SAVE
+                    mode_require_final_newline = .false.
                 end if
             case ("FINAL_NEWLINE_VISIT")
                 if (local) then
@@ -39200,28 +39380,40 @@ contains
             end select
         case ("read_answer_short")
             select case (constant)
-            case ("READ_ANSWER_SHORT_NO")
-                read_answer_short = READ_ANSWER_SHORT_NO
-            case ("READ_ANSWER_SHORT_YES")
-                read_answer_short = READ_ANSWER_SHORT_YES
+            case (".TRUE.")
+                if (local) then
+                    call read_answer_short%set_local(.true.)
+                else
+                    read_answer_short = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call read_answer_short%set_local(.false.)
+                else
+                    read_answer_short = .false.
+                end if
             case ("READ_ANSWER_SHORT_AUTO")
-                read_answer_short = READ_ANSWER_SHORT_AUTO
+                if (local) then
+                    call read_answer_short%set_local(READ_ANSWER_SHORT_AUTO)
+                else
+                    read_answer_short = READ_ANSWER_SHORT_AUTO
+                end if
             case default
                 ok = .false.
             end select
         case ("require_final_newline")
             select case (constant)
-            case ("FINAL_NEWLINE_NO")
+            case (".TRUE.")
                 if (local) then
-                    call require_final_newline%set_local(FINAL_NEWLINE_NO)
+                    call require_final_newline%set_local(.true.)
                 else
-                    require_final_newline = FINAL_NEWLINE_NO
+                    require_final_newline = .true.
                 end if
-            case ("FINAL_NEWLINE_SAVE")
+            case (".FALSE.")
                 if (local) then
-                    call require_final_newline%set_local(FINAL_NEWLINE_SAVE)
+                    call require_final_newline%set_local(.false.)
                 else
-                    require_final_newline = FINAL_NEWLINE_SAVE
+                    require_final_newline = .false.
                 end if
             case ("FINAL_NEWLINE_VISIT")
                 if (local) then
@@ -39246,38 +39438,82 @@ contains
             end select
         case ("save_abbrevs")
             select case (constant)
-            case ("SAVE_ABBREVS_NO")
-                save_abbrevs = SAVE_ABBREVS_NO
-            case ("SAVE_ABBREVS_ASK")
-                save_abbrevs = SAVE_ABBREVS_ASK
+            case (".TRUE.")
+                if (local) then
+                    call save_abbrevs%set_local(.true.)
+                else
+                    save_abbrevs = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call save_abbrevs%set_local(.false.)
+                else
+                    save_abbrevs = .false.
+                end if
             case ("SAVE_ABBREVS_SILENTLY")
-                save_abbrevs = SAVE_ABBREVS_SILENTLY
+                if (local) then
+                    call save_abbrevs%set_local(SAVE_ABBREVS_SILENTLY)
+                else
+                    save_abbrevs = SAVE_ABBREVS_SILENTLY
+                end if
             case default
                 ok = .false.
             end select
         case ("search_upper_case")
             select case (constant)
-            case ("SEARCH_UPPER_CASE_NO")
-                search_upper_case = SEARCH_UPPER_CASE_NO
-            case ("SEARCH_UPPER_CASE_YES")
-                search_upper_case = SEARCH_UPPER_CASE_YES
+            case (".TRUE.")
+                if (local) then
+                    call search_upper_case%set_local(.true.)
+                else
+                    search_upper_case = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call search_upper_case%set_local(.false.)
+                else
+                    search_upper_case = .false.
+                end if
             case ("SEARCH_UPPER_CASE_NOT_PASTED")
-                search_upper_case = SEARCH_UPPER_CASE_NOT_PASTED
+                if (local) then
+                    call search_upper_case%set_local(SEARCH_UPPER_CASE_NOT_PASTED)
+                else
+                    search_upper_case = SEARCH_UPPER_CASE_NOT_PASTED
+                end if
             case default
                 ok = .false.
             end select
         case ("sgml_quick_keys")
             select case (constant)
-            case ("QUICK_KEYS_NO")
-                sgml_quick_keys = QUICK_KEYS_NO
-            case ("QUICK_KEYS_YES")
-                sgml_quick_keys = QUICK_KEYS_YES
+            case (".TRUE.")
+                if (local) then
+                    call sgml_quick_keys%set_local(.true.)
+                else
+                    sgml_quick_keys = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sgml_quick_keys%set_local(.false.)
+                else
+                    sgml_quick_keys = .false.
+                end if
             case ("QUICK_KEYS_INDENT")
-                sgml_quick_keys = QUICK_KEYS_INDENT
+                if (local) then
+                    call sgml_quick_keys%set_local(QUICK_KEYS_INDENT)
+                else
+                    sgml_quick_keys = QUICK_KEYS_INDENT
+                end if
             case ("QUICK_KEYS_CLOSE")
-                sgml_quick_keys = QUICK_KEYS_CLOSE
+                if (local) then
+                    call sgml_quick_keys%set_local(QUICK_KEYS_CLOSE)
+                else
+                    sgml_quick_keys = QUICK_KEYS_CLOSE
+                end if
             case ("QUICK_KEYS_DEFAULT")
-                sgml_quick_keys = QUICK_KEYS_DEFAULT
+                if (local) then
+                    call sgml_quick_keys%set_local(QUICK_KEYS_DEFAULT)
+                else
+                    sgml_quick_keys = QUICK_KEYS_DEFAULT
+                end if
             case default
                 ok = .false.
             end select
@@ -39324,12 +39560,24 @@ contains
             end select
         case ("sh_indent_after_continuation")
             select case (constant)
-            case ("SH_INDENT_AFTER_CONTINUATION_NO")
-                sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_NO
-            case ("SH_INDENT_AFTER_CONTINUATION_DEEPER")
-                sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_DEEPER
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_after_continuation%set_local(.true.)
+                else
+                    sh_indent_after_continuation = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_after_continuation%set_local(.false.)
+                else
+                    sh_indent_after_continuation = .false.
+                end if
             case ("SH_INDENT_AFTER_CONTINUATION_ALWAYS")
-                sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_ALWAYS
+                if (local) then
+                    call sh_indent_after_continuation%set_local(SH_INDENT_AFTER_CONTINUATION_ALWAYS)
+                else
+                    sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_ALWAYS
+                end if
             case default
                 ok = .false.
             end select
@@ -39745,11 +39993,17 @@ contains
             end select
         case ("shell_command_keep_output")
             select case (constant)
-            case ("SHELL_COMMAND_KEEP_OUTPUT_NO")
+            case (".TRUE.")
                 if (local) then
-                    call shell_command_keep_output%set_local(SHELL_COMMAND_KEEP_OUTPUT_NO)
+                    call shell_command_keep_output%set_local(.true.)
                 else
-                    shell_command_keep_output = SHELL_COMMAND_KEEP_OUTPUT_NO
+                    shell_command_keep_output = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call shell_command_keep_output%set_local(.false.)
+                else
+                    shell_command_keep_output = .false.
                 end if
             case ("SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT")
                 if (local) then
@@ -39780,17 +40034,17 @@ contains
             end select
         case ("shell_input_autoexpand")
             select case (constant)
-            case ("COMINT_AUTOEXPAND_NO")
+            case (".TRUE.")
                 if (local) then
-                    call shell_input_autoexpand%set_local(COMINT_AUTOEXPAND_NO)
+                    call shell_input_autoexpand%set_local(.true.)
                 else
-                    shell_input_autoexpand = COMINT_AUTOEXPAND_NO
+                    shell_input_autoexpand = .true.
                 end if
-            case ("COMINT_AUTOEXPAND_ON_COMPLETION")
+            case (".FALSE.")
                 if (local) then
-                    call shell_input_autoexpand%set_local(COMINT_AUTOEXPAND_ON_COMPLETION)
+                    call shell_input_autoexpand%set_local(.false.)
                 else
-                    shell_input_autoexpand = COMINT_AUTOEXPAND_ON_COMPLETION
+                    shell_input_autoexpand = .false.
                 end if
             case ("COMINT_AUTOEXPAND_INPUT")
                 if (local) then
@@ -39809,89 +40063,209 @@ contains
             end select
         case ("show_paren_not_in_comments_or_strings")
             select case (constant)
-            case ("SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO")
-                show_paren_not_in_comments_or_strings = SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO
-            case ("SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL")
-                show_paren_not_in_comments_or_strings = SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL
+            case (".TRUE.")
+                if (local) then
+                    call show_paren_not_in_comments_or_strings%set_local(.true.)
+                else
+                    show_paren_not_in_comments_or_strings = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call show_paren_not_in_comments_or_strings%set_local(.false.)
+                else
+                    show_paren_not_in_comments_or_strings = .false.
+                end if
             case ("SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH")
-                show_paren_not_in_comments_or_strings = SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH
+                if (local) then
+                    call show_paren_not_in_comments_or_strings%set_local(SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH)
+                else
+                    show_paren_not_in_comments_or_strings = SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH
+                end if
             case default
                 ok = .false.
             end select
         case ("show_paren_style")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call show_paren_style%set_local(.true.)
+                else
+                    show_paren_style = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call show_paren_style%set_local(.false.)
+                else
+                    show_paren_style = .false.
+                end if
             case ("SHOW_PAREN_STYLE_PARENTHESIS")
-                show_paren_style = SHOW_PAREN_STYLE_PARENTHESIS
+                if (local) then
+                    call show_paren_style%set_local(SHOW_PAREN_STYLE_PARENTHESIS)
+                else
+                    show_paren_style = SHOW_PAREN_STYLE_PARENTHESIS
+                end if
             case ("SHOW_PAREN_STYLE_EXPRESSION")
-                show_paren_style = SHOW_PAREN_STYLE_EXPRESSION
+                if (local) then
+                    call show_paren_style%set_local(SHOW_PAREN_STYLE_EXPRESSION)
+                else
+                    show_paren_style = SHOW_PAREN_STYLE_EXPRESSION
+                end if
             case ("SHOW_PAREN_STYLE_MIXED")
-                show_paren_style = SHOW_PAREN_STYLE_MIXED
+                if (local) then
+                    call show_paren_style%set_local(SHOW_PAREN_STYLE_MIXED)
+                else
+                    show_paren_style = SHOW_PAREN_STYLE_MIXED
+                end if
             case default
                 ok = .false.
             end select
         case ("split_window_preferred_direction")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call split_window_preferred_direction%set_local(.true.)
+                else
+                    split_window_preferred_direction = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call split_window_preferred_direction%set_local(.false.)
+                else
+                    split_window_preferred_direction = .false.
+                end if
             case ("SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST")
-                split_window_preferred_direction = SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST
+                if (local) then
+                    call split_window_preferred_direction%set_local(SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST)
+                else
+                    split_window_preferred_direction = SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST
+                end if
             case ("SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL")
-                split_window_preferred_direction = SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL
+                if (local) then
+                    call split_window_preferred_direction%set_local(SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL)
+                else
+                    split_window_preferred_direction = SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL
+                end if
             case ("SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL")
-                split_window_preferred_direction = SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL
+                if (local) then
+                    call split_window_preferred_direction%set_local(SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL)
+                else
+                    split_window_preferred_direction = SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL
+                end if
             case default
                 ok = .false.
             end select
         case ("vc_command_messages")
             select case (constant)
-            case ("VC_COMMAND_MESSAGES_NO")
-                vc_command_messages = VC_COMMAND_MESSAGES_NO
-            case ("VC_COMMAND_MESSAGES_YES")
-                vc_command_messages = VC_COMMAND_MESSAGES_YES
+            case (".TRUE.")
+                if (local) then
+                    call vc_command_messages%set_local(.true.)
+                else
+                    vc_command_messages = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call vc_command_messages%set_local(.false.)
+                else
+                    vc_command_messages = .false.
+                end if
             case ("VC_COMMAND_MESSAGES_LOG")
-                vc_command_messages = VC_COMMAND_MESSAGES_LOG
+                if (local) then
+                    call vc_command_messages%set_local(VC_COMMAND_MESSAGES_LOG)
+                else
+                    vc_command_messages = VC_COMMAND_MESSAGES_LOG
+                end if
             case default
                 ok = .false.
             end select
         case ("vc_display_status")
             select case (constant)
-            case ("VC_DISPLAY_STATUS_NO")
-                vc_display_status = VC_DISPLAY_STATUS_NO
-            case ("VC_DISPLAY_STATUS_YES")
-                vc_display_status = VC_DISPLAY_STATUS_YES
+            case (".TRUE.")
+                if (local) then
+                    call vc_display_status%set_local(.true.)
+                else
+                    vc_display_status = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call vc_display_status%set_local(.false.)
+                else
+                    vc_display_status = .false.
+                end if
             case ("VC_DISPLAY_STATUS_NO_BACKEND")
-                vc_display_status = VC_DISPLAY_STATUS_NO_BACKEND
+                if (local) then
+                    call vc_display_status%set_local(VC_DISPLAY_STATUS_NO_BACKEND)
+                else
+                    vc_display_status = VC_DISPLAY_STATUS_NO_BACKEND
+                end if
             case default
                 ok = .false.
             end select
         case ("vc_follow_symlinks")
             select case (constant)
-            case ("VC_FOLLOW_SYMLINKS_NO")
-                vc_follow_symlinks = VC_FOLLOW_SYMLINKS_NO
-            case ("VC_FOLLOW_SYMLINKS_YES")
-                vc_follow_symlinks = VC_FOLLOW_SYMLINKS_YES
+            case (".TRUE.")
+                if (local) then
+                    call vc_follow_symlinks%set_local(.true.)
+                else
+                    vc_follow_symlinks = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call vc_follow_symlinks%set_local(.false.)
+                else
+                    vc_follow_symlinks = .false.
+                end if
             case ("VC_FOLLOW_SYMLINKS_ASK")
-                vc_follow_symlinks = VC_FOLLOW_SYMLINKS_ASK
+                if (local) then
+                    call vc_follow_symlinks%set_local(VC_FOLLOW_SYMLINKS_ASK)
+                else
+                    vc_follow_symlinks = VC_FOLLOW_SYMLINKS_ASK
+                end if
             case default
                 ok = .false.
             end select
         case ("vc_revert_show_diff")
             select case (constant)
-            case ("VC_REVERT_SHOW_DIFF_NO")
-                vc_revert_show_diff = VC_REVERT_SHOW_DIFF_NO
-            case ("VC_REVERT_SHOW_DIFF_YES")
-                vc_revert_show_diff = VC_REVERT_SHOW_DIFF_YES
+            case (".TRUE.")
+                if (local) then
+                    call vc_revert_show_diff%set_local(.true.)
+                else
+                    vc_revert_show_diff = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call vc_revert_show_diff%set_local(.false.)
+                else
+                    vc_revert_show_diff = .false.
+                end if
             case ("VC_REVERT_SHOW_DIFF_KILL")
-                vc_revert_show_diff = VC_REVERT_SHOW_DIFF_KILL
+                if (local) then
+                    call vc_revert_show_diff%set_local(VC_REVERT_SHOW_DIFF_KILL)
+                else
+                    vc_revert_show_diff = VC_REVERT_SHOW_DIFF_KILL
+                end if
             case default
                 ok = .false.
             end select
         case ("window_sides_reversed")
             select case (constant)
-            case ("WINDOW_SIDES_REVERSED_NO")
-                window_sides_reversed = WINDOW_SIDES_REVERSED_NO
-            case ("WINDOW_SIDES_REVERSED_YES")
-                window_sides_reversed = WINDOW_SIDES_REVERSED_YES
+            case (".TRUE.")
+                if (local) then
+                    call window_sides_reversed%set_local(.true.)
+                else
+                    window_sides_reversed = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call window_sides_reversed%set_local(.false.)
+                else
+                    window_sides_reversed = .false.
+                end if
             case ("WINDOW_SIDES_REVERSED_BIDI")
-                window_sides_reversed = WINDOW_SIDES_REVERSED_BIDI
+                if (local) then
+                    call window_sides_reversed%set_local(WINDOW_SIDES_REVERSED_BIDI)
+                else
+                    window_sides_reversed = WINDOW_SIDES_REVERSED_BIDI
+                end if
             case default
                 ok = .false.
             end select
@@ -39909,15 +40283,11 @@ contains
 
         select case (name)
         case ("ansi_color_for_comint_mode")
-            constants = [character(len=48) :: "ANSI_COLOR_NO", "ANSI_COLOR_FILTER", &
-                         "ANSI_COLOR_YES"]
-            values = [integer(int64) :: int(ANSI_COLOR_NO, int64), int(ANSI_COLOR_FILTER, int64), &
-                      int(ANSI_COLOR_YES, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "ANSI_COLOR_FILTER"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(ANSI_COLOR_FILTER, int64)]
         case ("ansi_color_for_compilation_mode")
-            constants = [character(len=48) :: "ANSI_COLOR_NO", "ANSI_COLOR_FILTER", &
-                         "ANSI_COLOR_YES"]
-            values = [integer(int64) :: int(ANSI_COLOR_NO, int64), int(ANSI_COLOR_FILTER, int64), &
-                      int(ANSI_COLOR_YES, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "ANSI_COLOR_FILTER"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(ANSI_COLOR_FILTER, int64)]
         case ("async_shell_command_buffer")
             constants = [character(len=48) :: "ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS", &
                          "ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER", &
@@ -39931,56 +40301,43 @@ contains
                       int(ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER, int64), &
                       int(ASYNC_SHELL_COMMAND_BUFFER_RENAME_BUFFER, int64)]
         case ("backward_delete_char_untabify_method")
-            constants = [character(len=48) :: "BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE", &
+            constants = [character(len=48) :: ".true.", ".false.", &
                          "BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY", &
                          "BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY", &
                          "BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL"]
-            values = [integer(int64) :: int(BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE, int64), &
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY, int64), &
                       int(BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY, int64), &
                       int(BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL, int64)]
         case ("blink_matching_paren")
-            constants = [character(len=48) :: "BLINK_MATCHING_PAREN_NO", &
-                         "BLINK_MATCHING_PAREN_YES", "BLINK_MATCHING_PAREN_JUMP", &
+            constants = [character(len=48) :: ".true.", ".false.", "BLINK_MATCHING_PAREN_JUMP", &
                          "BLINK_MATCHING_PAREN_JUMP_OFFSCREEN"]
-            values = [integer(int64) :: int(BLINK_MATCHING_PAREN_NO, int64), &
-                      int(BLINK_MATCHING_PAREN_YES, int64), int(BLINK_MATCHING_PAREN_JUMP, int64), &
+            values = [integer(int64) :: 1_int64, 0_int64, int(BLINK_MATCHING_PAREN_JUMP, int64), &
                       int(BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, int64)]
-        case ("bookmark_save_flag")
-            constants = [character(len=48) :: "BOOKMARK_SAVE_FLAG_NO", "BOOKMARK_SAVE_FLAG_ON_EXIT"]
-            values = [integer(int64) :: int(BOOKMARK_SAVE_FLAG_NO, int64), &
-                      int(BOOKMARK_SAVE_FLAG_ON_EXIT, int64)]
         case ("bookmark_sort_flag")
-            constants = [character(len=48) :: "BOOKMARK_SORT_FLAG_CREATED", &
-                         "BOOKMARK_SORT_FLAG_ALPHABETICAL", "BOOKMARK_SORT_FLAG_LAST_MODIFIED"]
-            values = [integer(int64) :: int(BOOKMARK_SORT_FLAG_CREATED, int64), &
-                      int(BOOKMARK_SORT_FLAG_ALPHABETICAL, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "BOOKMARK_SORT_FLAG_LAST_MODIFIED"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(BOOKMARK_SORT_FLAG_LAST_MODIFIED, int64)]
         case ("bookmark_version_control")
-            constants = [character(len=48) :: "BOOKMARK_VERSION_CONTROL_NUMBERED", &
-                         "BOOKMARK_VERSION_CONTROL_EXISTING", "BOOKMARK_VERSION_CONTROL_NO", &
-                         "BOOKMARK_VERSION_CONTROL_NOSPECIAL"]
-            values = [integer(int64) :: int(BOOKMARK_VERSION_CONTROL_NUMBERED, int64), &
-                      int(BOOKMARK_VERSION_CONTROL_EXISTING, int64), &
-                      int(BOOKMARK_VERSION_CONTROL_NO, int64), &
-                      int(BOOKMARK_VERSION_CONTROL_NOSPECIAL, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "BOOKMARK_VERSION_CONTROL_IF_EXISTING", &
+                         "BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
+                      int(BOOKMARK_VERSION_CONTROL_IF_EXISTING, int64), &
+                      int(BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL, int64)]
         case ("bookmark_watch_bookmark_file")
-            constants = [character(len=48) :: "BOOKMARK_WATCH_BOOKMARK_FILE_NO", &
-                         "BOOKMARK_WATCH_BOOKMARK_FILE_ASK", "BOOKMARK_WATCH_BOOKMARK_FILE_SILENT"]
-            values = [integer(int64) :: int(BOOKMARK_WATCH_BOOKMARK_FILE_NO, int64), &
-                      int(BOOKMARK_WATCH_BOOKMARK_FILE_ASK, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "BOOKMARK_WATCH_BOOKMARK_FILE_SILENT"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, int64)]
         case ("comint_history_isearch")
-            constants = [character(len=48) :: "COMINT_HISTORY_ISEARCH_NO", &
-                         "COMINT_HISTORY_ISEARCH_DWIM", "COMINT_HISTORY_ISEARCH_ALWAYS"]
-            values = [integer(int64) :: int(COMINT_HISTORY_ISEARCH_NO, int64), &
-                      int(COMINT_HISTORY_ISEARCH_DWIM, int64), int(COMINT_HISTORY_ISEARCH_ALWAYS, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "COMINT_HISTORY_ISEARCH_DWIM"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(COMINT_HISTORY_ISEARCH_DWIM, int64)]
         case ("comint_input_autoexpand")
-            constants = [character(len=48) :: "COMINT_AUTOEXPAND_NO", &
-                         "COMINT_AUTOEXPAND_ON_COMPLETION", "COMINT_AUTOEXPAND_INPUT", &
+            constants = [character(len=48) :: ".true.", ".false.", "COMINT_AUTOEXPAND_INPUT", &
                          "COMINT_AUTOEXPAND_HISTORY"]
-            values = [integer(int64) :: int(COMINT_AUTOEXPAND_NO, int64), &
-                      int(COMINT_AUTOEXPAND_ON_COMPLETION, int64), int(COMINT_AUTOEXPAND_INPUT, int64), &
+            values = [integer(int64) :: 1_int64, 0_int64, int(COMINT_AUTOEXPAND_INPUT, int64), &
                       int(COMINT_AUTOEXPAND_HISTORY, int64)]
         case ("comint_move_point_for_matching_input")
             constants = [character(len=48) :: "COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT", &
@@ -39989,27 +40346,22 @@ contains
                       int(COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT, int64), &
                       int(COMINT_MOVE_POINT_FOR_MATCHING_INPUT_END_OF_LINE, int64)]
         case ("comint_move_point_for_output")
-            constants = [character(len=48) :: "COMINT_MOVE_POINT_FOR_OUTPUT_NO", &
-                         "COMINT_MOVE_POINT_FOR_OUTPUT_YES", "COMINT_MOVE_POINT_FOR_OUTPUT_ALL", &
-                         "COMINT_MOVE_POINT_FOR_OUTPUT_THIS", "COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS"]
-            values = [integer(int64) :: int(COMINT_MOVE_POINT_FOR_OUTPUT_NO, int64), &
-                      int(COMINT_MOVE_POINT_FOR_OUTPUT_YES, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "COMINT_MOVE_POINT_FOR_OUTPUT_ALL", "COMINT_MOVE_POINT_FOR_OUTPUT_THIS", &
+                         "COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(COMINT_MOVE_POINT_FOR_OUTPUT_ALL, int64), &
                       int(COMINT_MOVE_POINT_FOR_OUTPUT_THIS, int64), &
                       int(COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS, int64)]
         case ("comint_scroll_to_bottom_on_input")
-            constants = [character(len=48) :: "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO", &
-                         "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES", "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL", &
-                         "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS"]
-            values = [integer(int64) :: int(COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO, int64), &
-                      int(COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL", "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, int64), &
                       int(COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, int64)]
         case ("comment_empty_lines")
-            constants = [character(len=48) :: "COMMENT_EMPTY_LINES_NO", "COMMENT_EMPTY_LINES_YES", &
-                         "COMMENT_EMPTY_LINES_EOL"]
-            values = [integer(int64) :: int(COMMENT_EMPTY_LINES_NO, int64), &
-                      int(COMMENT_EMPTY_LINES_YES, int64), int(COMMENT_EMPTY_LINES_EOL, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "COMMENT_EMPTY_LINES_EOL"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(COMMENT_EMPTY_LINES_EOL, int64)]
         case ("comment_style")
             constants = [character(len=48) :: "COMMENT_STYLE_PLAIN", &
                          "COMMENT_STYLE_INDENT_OR_TRIPLE", "COMMENT_STYLE_INDENT", "COMMENT_STYLE_ALIGNED", &
@@ -40026,85 +40378,74 @@ contains
             values = [integer(int64) :: int(COMPILATION_CONTEXT_TOP, int64), &
                       int(COMPILATION_CONTEXT_LINES_NO_SCROLL, int64)]
         case ("compilation_scroll_output")
-            constants = [character(len=48) :: "COMPILATION_SCROLL_OUTPUT_NO", &
-                         "COMPILATION_SCROLL_OUTPUT_YES", "COMPILATION_SCROLL_OUTPUT_FIRST_ERROR"]
-            values = [integer(int64) :: int(COMPILATION_SCROLL_OUTPUT_NO, int64), &
-                      int(COMPILATION_SCROLL_OUTPUT_YES, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "COMPILATION_SCROLL_OUTPUT_FIRST_ERROR"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, int64)]
         case ("dabbrev_case_distinction")
-            constants = [character(len=48) :: "DABBREV_NO", "DABBREV_YES", &
-                         "DABBREV_LIKE_CASE_FOLD_SEARCH", "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
-            values = [integer(int64) :: int(DABBREV_NO, int64), int(DABBREV_YES, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", "DABBREV_LIKE_CASE_FOLD_SEARCH", &
+                         "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64), int(DABBREV_LIKE_CASE_REPLACE, int64), &
                       int(DABBREV_ASK, int64)]
         case ("dabbrev_case_fold_search")
-            constants = [character(len=48) :: "DABBREV_NO", "DABBREV_YES", &
-                         "DABBREV_LIKE_CASE_FOLD_SEARCH", "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
-            values = [integer(int64) :: int(DABBREV_NO, int64), int(DABBREV_YES, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", "DABBREV_LIKE_CASE_FOLD_SEARCH", &
+                         "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64), int(DABBREV_LIKE_CASE_REPLACE, int64), &
                       int(DABBREV_ASK, int64)]
         case ("dabbrev_case_replace")
-            constants = [character(len=48) :: "DABBREV_NO", "DABBREV_YES", &
-                         "DABBREV_LIKE_CASE_FOLD_SEARCH", "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
-            values = [integer(int64) :: int(DABBREV_NO, int64), int(DABBREV_YES, int64), &
-                      int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64), int(DABBREV_LIKE_CASE_REPLACE, int64), &
-                      int(DABBREV_ASK, int64)]
-        case ("dabbrev_check_other_buffers")
-            constants = [character(len=48) :: "DABBREV_NO", "DABBREV_YES", &
-                         "DABBREV_LIKE_CASE_FOLD_SEARCH", "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
-            values = [integer(int64) :: int(DABBREV_NO, int64), int(DABBREV_YES, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", "DABBREV_LIKE_CASE_FOLD_SEARCH", &
+                         "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64), int(DABBREV_LIKE_CASE_REPLACE, int64), &
                       int(DABBREV_ASK, int64)]
         case ("default_justification")
-            constants = [character(len=48) :: "DEFAULT_JUSTIFICATION_NONE", &
+            constants = [character(len=48) :: ".true.", ".false.", "DEFAULT_JUSTIFICATION_NONE", &
                          "DEFAULT_JUSTIFICATION_LEFT", "DEFAULT_JUSTIFICATION_RIGHT", &
                          "DEFAULT_JUSTIFICATION_FULL", "DEFAULT_JUSTIFICATION_CENTER", &
                          "DEFAULT_JUSTIFICATION_CURRENT"]
-            values = [integer(int64) :: int(DEFAULT_JUSTIFICATION_NONE, int64), &
+            values = [integer(int64) :: 1_int64, 0_int64, int(DEFAULT_JUSTIFICATION_NONE, int64), &
                       int(DEFAULT_JUSTIFICATION_LEFT, int64), int(DEFAULT_JUSTIFICATION_RIGHT, int64), &
                       int(DEFAULT_JUSTIFICATION_FULL, int64), int(DEFAULT_JUSTIFICATION_CENTER, int64), &
                       int(DEFAULT_JUSTIFICATION_CURRENT, int64)]
         case ("dired_create_destination_dirs")
-            constants = [character(len=48) :: "DIRED_CREATE_DESTINATION_DIRS_NO", &
-                         "DIRED_CREATE_DESTINATION_DIRS_YES", "DIRED_CREATE_DESTINATION_DIRS_ASK"]
-            values = [integer(int64) :: int(DIRED_CREATE_DESTINATION_DIRS_NO, int64), &
-                      int(DIRED_CREATE_DESTINATION_DIRS_YES, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "DIRED_CREATE_DESTINATION_DIRS_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(DIRED_CREATE_DESTINATION_DIRS_ASK, int64)]
         case ("dired_dwim_target")
-            constants = [character(len=48) :: "DIRED_DWIM_TARGET_NO", "DIRED_DWIM_TARGET_NEXT", &
+            constants = [character(len=48) :: ".true.", ".false.", "DIRED_DWIM_TARGET_NEXT", &
                          "DIRED_DWIM_TARGET_NEXT_VISIBLE", "DIRED_DWIM_TARGET_RECENT"]
-            values = [integer(int64) :: int(DIRED_DWIM_TARGET_NO, int64), &
-                      int(DIRED_DWIM_TARGET_NEXT, int64), int(DIRED_DWIM_TARGET_NEXT_VISIBLE, int64), &
-                      int(DIRED_DWIM_TARGET_RECENT, int64)]
+            values = [integer(int64) :: 1_int64, 0_int64, int(DIRED_DWIM_TARGET_NEXT, int64), &
+                      int(DIRED_DWIM_TARGET_NEXT_VISIBLE, int64), int(DIRED_DWIM_TARGET_RECENT, int64)]
         case ("dired_free_space")
-            constants = [character(len=48) :: "DIRED_FREE_SPACE_NONE", "DIRED_FREE_SPACE_SEPARATE", &
+            constants = [character(len=48) :: ".true.", ".false.", "DIRED_FREE_SPACE_SEPARATE", &
                          "DIRED_FREE_SPACE_FIRST"]
-            values = [integer(int64) :: int(DIRED_FREE_SPACE_NONE, int64), &
-                      int(DIRED_FREE_SPACE_SEPARATE, int64), int(DIRED_FREE_SPACE_FIRST, int64)]
+            values = [integer(int64) :: 1_int64, 0_int64, int(DIRED_FREE_SPACE_SEPARATE, int64), &
+                      int(DIRED_FREE_SPACE_FIRST, int64)]
         case ("dired_mark_region")
-            constants = [character(len=48) :: "DIRED_MARK_REGION_NO", "DIRED_MARK_REGION_FILE", &
+            constants = [character(len=48) :: ".true.", ".false.", "DIRED_MARK_REGION_FILE", &
                          "DIRED_MARK_REGION_LINE"]
-            values = [integer(int64) :: int(DIRED_MARK_REGION_NO, int64), &
-                      int(DIRED_MARK_REGION_FILE, int64), int(DIRED_MARK_REGION_LINE, int64)]
+            values = [integer(int64) :: 1_int64, 0_int64, int(DIRED_MARK_REGION_FILE, int64), &
+                      int(DIRED_MARK_REGION_LINE, int64)]
         case ("dired_movement_style")
-            constants = [character(len=48) :: "DIRED_MOVEMENT_STYLE_PLAIN", &
-                         "DIRED_MOVEMENT_STYLE_CYCLE", "DIRED_MOVEMENT_STYLE_BOUNDED", &
-                         "DIRED_MOVEMENT_STYLE_CYCLE_FILES", "DIRED_MOVEMENT_STYLE_BOUNDED_FILES"]
-            values = [integer(int64) :: int(DIRED_MOVEMENT_STYLE_PLAIN, int64), &
-                      int(DIRED_MOVEMENT_STYLE_CYCLE, int64), int(DIRED_MOVEMENT_STYLE_BOUNDED, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", "DIRED_MOVEMENT_STYLE_CYCLE", &
+                         "DIRED_MOVEMENT_STYLE_BOUNDED", "DIRED_MOVEMENT_STYLE_CYCLE_FILES", &
+                         "DIRED_MOVEMENT_STYLE_BOUNDED_FILES"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(DIRED_MOVEMENT_STYLE_CYCLE, int64), &
+                      int(DIRED_MOVEMENT_STYLE_BOUNDED, int64), &
                       int(DIRED_MOVEMENT_STYLE_CYCLE_FILES, int64), &
                       int(DIRED_MOVEMENT_STYLE_BOUNDED_FILES, int64)]
         case ("dired_recursive_copies")
-            constants = [character(len=48) :: "DIRED_RECURSIVE_NO", "DIRED_RECURSIVE_YES", &
-                         "DIRED_RECURSIVE_TOP", "DIRED_RECURSIVE_ASK"]
-            values = [integer(int64) :: int(DIRED_RECURSIVE_NO, int64), &
-                      int(DIRED_RECURSIVE_YES, int64), int(DIRED_RECURSIVE_TOP, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", "DIRED_RECURSIVE_TOP", &
+                         "DIRED_RECURSIVE_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(DIRED_RECURSIVE_TOP, int64), &
                       int(DIRED_RECURSIVE_ASK, int64)]
         case ("dired_recursive_deletes")
-            constants = [character(len=48) :: "DIRED_RECURSIVE_NO", "DIRED_RECURSIVE_YES", &
-                         "DIRED_RECURSIVE_TOP", "DIRED_RECURSIVE_ASK"]
-            values = [integer(int64) :: int(DIRED_RECURSIVE_NO, int64), &
-                      int(DIRED_RECURSIVE_YES, int64), int(DIRED_RECURSIVE_TOP, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", "DIRED_RECURSIVE_TOP", &
+                         "DIRED_RECURSIVE_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(DIRED_RECURSIVE_TOP, int64), &
                       int(DIRED_RECURSIVE_ASK, int64)]
         case ("dired_switches_in_mode_line")
             constants = [character(len=48) :: "DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER", &
@@ -40112,21 +40453,22 @@ contains
             values = [integer(int64) :: int(DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, int64), &
                       int(DIRED_SWITCHES_IN_MODE_LINE_AS_IS, int64)]
         case ("dired_use_ls_dired")
-            constants = [character(len=48) :: "DIRED_USE_LS_DIRED_NO", "DIRED_USE_LS_DIRED_YES", &
-                         "DIRED_USE_LS_DIRED_UNSPECIFIED"]
-            values = [integer(int64) :: int(DIRED_USE_LS_DIRED_NO, int64), &
-                      int(DIRED_USE_LS_DIRED_YES, int64), int(DIRED_USE_LS_DIRED_UNSPECIFIED, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "DIRED_USE_LS_DIRED_UNSPECIFIED"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
+                      int(DIRED_USE_LS_DIRED_UNSPECIFIED, int64)]
+        case ("electric_pair_skip_self")
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
+                      int(ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE, int64)]
         case ("electric_pair_skip_whitespace")
-            constants = [character(len=48) :: "ELECTRIC_PAIR_SKIP_WHITESPACE_NO", &
-                         "ELECTRIC_PAIR_SKIP_WHITESPACE_YES", "ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP"]
-            values = [integer(int64) :: int(ELECTRIC_PAIR_SKIP_WHITESPACE_NO, int64), &
-                      int(ELECTRIC_PAIR_SKIP_WHITESPACE_YES, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, int64)]
         case ("executable_query")
-            constants = [character(len=48) :: "EXECUTABLE_QUERY_NO", "EXECUTABLE_QUERY_FUNCTION", &
-                         "EXECUTABLE_QUERY_ALWAYS"]
-            values = [integer(int64) :: int(EXECUTABLE_QUERY_NO, int64), &
-                      int(EXECUTABLE_QUERY_FUNCTION, int64), int(EXECUTABLE_QUERY_ALWAYS, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "EXECUTABLE_QUERY_FUNCTION"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(EXECUTABLE_QUERY_FUNCTION, int64)]
         case ("f90_auto_keyword_case")
             constants = [character(len=48) :: "F90_AUTO_KEYWORD_CASE_NONE", &
                          "F90_AUTO_KEYWORD_CASE_DOWNCASE_WORD", "F90_AUTO_KEYWORD_CASE_UPCASE_WORD", &
@@ -40136,83 +40478,59 @@ contains
                       int(F90_AUTO_KEYWORD_CASE_UPCASE_WORD, int64), &
                       int(F90_AUTO_KEYWORD_CASE_CAPITALIZE_WORD, int64)]
         case ("f90_smart_end")
-            constants = [character(len=48) :: "F90_SMART_END_NO", "F90_SMART_END_BLINK", &
+            constants = [character(len=48) :: ".true.", ".false.", "F90_SMART_END_BLINK", &
                          "F90_SMART_END_NO_BLINK"]
-            values = [integer(int64) :: int(F90_SMART_END_NO, int64), &
-                      int(F90_SMART_END_BLINK, int64), int(F90_SMART_END_NO_BLINK, int64)]
-        case ("font_lock_maximum_decoration")
-            constants = [character(len=48) :: "FONT_LOCK_MAXIMUM_DECORATION_MAX"]
-            values = [integer(int64) :: int(FONT_LOCK_MAXIMUM_DECORATION_MAX, int64)]
+            values = [integer(int64) :: 1_int64, 0_int64, int(F90_SMART_END_BLINK, int64), &
+                      int(F90_SMART_END_NO_BLINK, int64)]
         case ("grep_find_use_xargs")
-            constants = [character(len=48) :: "GREP_FIND_USE_XARGS_UNKNOWN", &
-                         "GREP_FIND_USE_XARGS_EXEC", "GREP_FIND_USE_XARGS_EXEC_PLUS", &
-                         "GREP_FIND_USE_XARGS_GNU", "GREP_FIND_USE_XARGS_GNU_SORT", &
-                         "GREP_FIND_USE_XARGS_OTHER"]
-            values = [integer(int64) :: int(GREP_FIND_USE_XARGS_UNKNOWN, int64), &
-                      int(GREP_FIND_USE_XARGS_EXEC, int64), int(GREP_FIND_USE_XARGS_EXEC_PLUS, int64), &
-                      int(GREP_FIND_USE_XARGS_GNU, int64), int(GREP_FIND_USE_XARGS_GNU_SORT, int64), &
-                      int(GREP_FIND_USE_XARGS_OTHER, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "GREP_FIND_USE_XARGS_EXEC", &
+                         "GREP_FIND_USE_XARGS_EXEC_PLUS", "GREP_FIND_USE_XARGS_GNU", &
+                         "GREP_FIND_USE_XARGS_GNU_SORT"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(GREP_FIND_USE_XARGS_EXEC, int64), &
+                      int(GREP_FIND_USE_XARGS_EXEC_PLUS, int64), int(GREP_FIND_USE_XARGS_GNU, int64), &
+                      int(GREP_FIND_USE_XARGS_GNU_SORT, int64)]
         case ("grep_highlight_matches")
-            constants = [character(len=48) :: "GREP_HIGHLIGHT_MATCHES_NO", &
-                         "GREP_HIGHLIGHT_MATCHES_YES", "GREP_HIGHLIGHT_MATCHES_AUTO_DETECT", &
-                         "GREP_HIGHLIGHT_MATCHES_ALWAYS", "GREP_HIGHLIGHT_MATCHES_AUTO"]
-            values = [integer(int64) :: int(GREP_HIGHLIGHT_MATCHES_NO, int64), &
-                      int(GREP_HIGHLIGHT_MATCHES_YES, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "GREP_HIGHLIGHT_MATCHES_AUTO_DETECT", "GREP_HIGHLIGHT_MATCHES_ALWAYS", &
+                         "GREP_HIGHLIGHT_MATCHES_AUTO"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(GREP_HIGHLIGHT_MATCHES_AUTO_DETECT, int64), &
                       int(GREP_HIGHLIGHT_MATCHES_ALWAYS, int64), int(GREP_HIGHLIGHT_MATCHES_AUTO, int64)]
         case ("grep_save_buffers")
-            constants = [character(len=48) :: "GREP_SAVE_BUFFERS_NO", "GREP_SAVE_BUFFERS_YES", &
-                         "GREP_SAVE_BUFFERS_ASK"]
-            values = [integer(int64) :: int(GREP_SAVE_BUFFERS_NO, int64), &
-                      int(GREP_SAVE_BUFFERS_YES, int64), int(GREP_SAVE_BUFFERS_ASK, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "GREP_SAVE_BUFFERS_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(GREP_SAVE_BUFFERS_ASK, int64)]
         case ("grep_use_null_device")
-            constants = [character(len=48) :: "GREP_USE_NULL_DEVICE_NO", &
-                         "GREP_USE_NULL_DEVICE_YES", "GREP_USE_NULL_DEVICE_AUTO_DETECT"]
-            values = [integer(int64) :: int(GREP_USE_NULL_DEVICE_NO, int64), &
-                      int(GREP_USE_NULL_DEVICE_YES, int64), int(GREP_USE_NULL_DEVICE_AUTO_DETECT, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "GREP_USE_NULL_DEVICE_AUTO_DETECT"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
+                      int(GREP_USE_NULL_DEVICE_AUTO_DETECT, int64)]
         case ("grep_use_null_filename_separator")
-            constants = [character(len=48) :: "GREP_USE_NULL_FILENAME_SEPARATOR_NO", &
-                         "GREP_USE_NULL_FILENAME_SEPARATOR_YES", &
+            constants = [character(len=48) :: ".true.", ".false.", &
                          "GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT"]
-            values = [integer(int64) :: int(GREP_USE_NULL_FILENAME_SEPARATOR_NO, int64), &
-                      int(GREP_USE_NULL_FILENAME_SEPARATOR_YES, int64), &
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, int64)]
         case ("html_quick_keys")
-            constants = [character(len=48) :: "QUICK_KEYS_NO", "QUICK_KEYS_YES", &
-                         "QUICK_KEYS_INDENT", "QUICK_KEYS_CLOSE", "QUICK_KEYS_DEFAULT"]
-            values = [integer(int64) :: int(QUICK_KEYS_NO, int64), int(QUICK_KEYS_YES, int64), &
-                      int(QUICK_KEYS_INDENT, int64), int(QUICK_KEYS_CLOSE, int64), &
-                      int(QUICK_KEYS_DEFAULT, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "QUICK_KEYS_INDENT", &
+                         "QUICK_KEYS_CLOSE", "QUICK_KEYS_DEFAULT"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(QUICK_KEYS_INDENT, int64), &
+                      int(QUICK_KEYS_CLOSE, int64), int(QUICK_KEYS_DEFAULT, int64)]
         case ("ibuffer_always_show_last_buffer")
-            constants = [character(len=48) :: "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO", &
-                         "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES", "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI"]
-            values = [integer(int64) :: int(IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, int64), &
-                      int(IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI, int64)]
         case ("ibuffer_use_header_line")
-            constants = [character(len=48) :: "IBUFFER_USE_HEADER_LINE_NO", &
-                         "IBUFFER_USE_HEADER_LINE_FILTERS", "IBUFFER_USE_HEADER_LINE_TITLE"]
-            values = [integer(int64) :: int(IBUFFER_USE_HEADER_LINE_NO, int64), &
-                      int(IBUFFER_USE_HEADER_LINE_FILTERS, int64), &
-                      int(IBUFFER_USE_HEADER_LINE_TITLE, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "IBUFFER_USE_HEADER_LINE_TITLE"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(IBUFFER_USE_HEADER_LINE_TITLE, int64)]
         case ("info_hide_note_references")
-            constants = [character(len=48) :: "INFO_HIDE_NOTE_REFERENCES_NO", &
-                         "INFO_HIDE_NOTE_REFERENCES_SEE", "INFO_HIDE_NOTE_REFERENCES_HIDE", &
+            constants = [character(len=48) :: ".true.", ".false.", "INFO_HIDE_NOTE_REFERENCES_SEE", &
                          "INFO_HIDE_NOTE_REFERENCES_TAG"]
-            values = [integer(int64) :: int(INFO_HIDE_NOTE_REFERENCES_NO, int64), &
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(INFO_HIDE_NOTE_REFERENCES_SEE, int64), &
-                      int(INFO_HIDE_NOTE_REFERENCES_HIDE, int64), &
                       int(INFO_HIDE_NOTE_REFERENCES_TAG, int64)]
         case ("js_indent_first_init")
-            constants = [character(len=48) :: "JS_INDENT_FIRST_INIT_NO", &
-                         "JS_INDENT_FIRST_INIT_YES", "JS_INDENT_FIRST_INIT_DYNAMIC"]
-            values = [integer(int64) :: int(JS_INDENT_FIRST_INIT_NO, int64), &
-                      int(JS_INDENT_FIRST_INIT_YES, int64), int(JS_INDENT_FIRST_INIT_DYNAMIC, int64)]
-        case ("kmacro_execute_repeat_key")
-            constants = [character(len=48) :: "KMACRO_EXECUTE_REPEAT_KEY_NO", &
-                         "KMACRO_EXECUTE_REPEAT_KEY_LAST"]
-            values = [integer(int64) :: int(KMACRO_EXECUTE_REPEAT_KEY_NO, int64), &
-                      int(KMACRO_EXECUTE_REPEAT_KEY_LAST, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "JS_INDENT_FIRST_INIT_DYNAMIC"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(JS_INDENT_FIRST_INIT_DYNAMIC, int64)]
         case ("mail_from_style")
             constants = [character(len=48) :: "MAIL_FROM_STYLE_SIMPLE", "MAIL_FROM_STYLE_PARENS", &
                          "MAIL_FROM_STYLE_ANGLES", "MAIL_FROM_STYLE_DEFAULT", &
@@ -40221,22 +40539,14 @@ contains
                       int(MAIL_FROM_STYLE_PARENS, int64), int(MAIL_FROM_STYLE_ANGLES, int64), &
                       int(MAIL_FROM_STYLE_DEFAULT, int64), int(MAIL_FROM_STYLE_SYSTEM_DEFAULT, int64)]
         case ("mail_send_nonascii")
-            constants = [character(len=48) :: "MAIL_SEND_NONASCII_NO", "MAIL_SEND_NONASCII_YES", &
-                         "MAIL_SEND_NONASCII_ASK", "MAIL_SEND_NONASCII_MIME"]
-            values = [integer(int64) :: int(MAIL_SEND_NONASCII_NO, int64), &
-                      int(MAIL_SEND_NONASCII_YES, int64), int(MAIL_SEND_NONASCII_ASK, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", "MAIL_SEND_NONASCII_ASK", &
+                         "MAIL_SEND_NONASCII_MIME"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(MAIL_SEND_NONASCII_ASK, int64), &
                       int(MAIL_SEND_NONASCII_MIME, int64)]
-        case ("mail_signature")
-            constants = [character(len=48) :: "MAIL_SIGNATURE_NO", "MAIL_SIGNATURE_YES", &
-                         "MAIL_SIGNATURE_STRING", "MAIL_SIGNATURE_PROCEDURE"]
-            values = [integer(int64) :: int(MAIL_SIGNATURE_NO, int64), &
-                      int(MAIL_SIGNATURE_YES, int64), int(MAIL_SIGNATURE_STRING, int64), &
-                      int(MAIL_SIGNATURE_PROCEDURE, int64)]
         case ("mode_require_final_newline")
-            constants = [character(len=48) :: "FINAL_NEWLINE_NO", "FINAL_NEWLINE_SAVE", &
-                         "FINAL_NEWLINE_VISIT", "FINAL_NEWLINE_VISIT_SAVE", "FINAL_NEWLINE_ASK"]
-            values = [integer(int64) :: int(FINAL_NEWLINE_NO, int64), &
-                      int(FINAL_NEWLINE_SAVE, int64), int(FINAL_NEWLINE_VISIT, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", "FINAL_NEWLINE_VISIT", &
+                         "FINAL_NEWLINE_VISIT_SAVE", "FINAL_NEWLINE_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(FINAL_NEWLINE_VISIT, int64), &
                       int(FINAL_NEWLINE_VISIT_SAVE, int64), int(FINAL_NEWLINE_ASK, int64)]
         case ("python_fill_docstring_style")
             constants = [character(len=48) :: "PYTHON_FILL_DOCSTRING_STYLE_NONE", &
@@ -40250,32 +40560,24 @@ contains
                       int(PYTHON_FILL_DOCSTRING_STYLE_PEP_257_NN, int64), &
                       int(PYTHON_FILL_DOCSTRING_STYLE_SYMMETRIC, int64)]
         case ("read_answer_short")
-            constants = [character(len=48) :: "READ_ANSWER_SHORT_NO", "READ_ANSWER_SHORT_YES", &
-                         "READ_ANSWER_SHORT_AUTO"]
-            values = [integer(int64) :: int(READ_ANSWER_SHORT_NO, int64), &
-                      int(READ_ANSWER_SHORT_YES, int64), int(READ_ANSWER_SHORT_AUTO, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "READ_ANSWER_SHORT_AUTO"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(READ_ANSWER_SHORT_AUTO, int64)]
         case ("require_final_newline")
-            constants = [character(len=48) :: "FINAL_NEWLINE_NO", "FINAL_NEWLINE_SAVE", &
-                         "FINAL_NEWLINE_VISIT", "FINAL_NEWLINE_VISIT_SAVE", "FINAL_NEWLINE_ASK"]
-            values = [integer(int64) :: int(FINAL_NEWLINE_NO, int64), &
-                      int(FINAL_NEWLINE_SAVE, int64), int(FINAL_NEWLINE_VISIT, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", "FINAL_NEWLINE_VISIT", &
+                         "FINAL_NEWLINE_VISIT_SAVE", "FINAL_NEWLINE_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(FINAL_NEWLINE_VISIT, int64), &
                       int(FINAL_NEWLINE_VISIT_SAVE, int64), int(FINAL_NEWLINE_ASK, int64)]
         case ("save_abbrevs")
-            constants = [character(len=48) :: "SAVE_ABBREVS_NO", "SAVE_ABBREVS_ASK", &
-                         "SAVE_ABBREVS_SILENTLY"]
-            values = [integer(int64) :: int(SAVE_ABBREVS_NO, int64), int(SAVE_ABBREVS_ASK, int64), &
-                      int(SAVE_ABBREVS_SILENTLY, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SAVE_ABBREVS_SILENTLY"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SAVE_ABBREVS_SILENTLY, int64)]
         case ("search_upper_case")
-            constants = [character(len=48) :: "SEARCH_UPPER_CASE_NO", "SEARCH_UPPER_CASE_YES", &
-                         "SEARCH_UPPER_CASE_NOT_PASTED"]
-            values = [integer(int64) :: int(SEARCH_UPPER_CASE_NO, int64), &
-                      int(SEARCH_UPPER_CASE_YES, int64), int(SEARCH_UPPER_CASE_NOT_PASTED, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SEARCH_UPPER_CASE_NOT_PASTED"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SEARCH_UPPER_CASE_NOT_PASTED, int64)]
         case ("sgml_quick_keys")
-            constants = [character(len=48) :: "QUICK_KEYS_NO", "QUICK_KEYS_YES", &
-                         "QUICK_KEYS_INDENT", "QUICK_KEYS_CLOSE", "QUICK_KEYS_DEFAULT"]
-            values = [integer(int64) :: int(QUICK_KEYS_NO, int64), int(QUICK_KEYS_YES, int64), &
-                      int(QUICK_KEYS_INDENT, int64), int(QUICK_KEYS_CLOSE, int64), &
-                      int(QUICK_KEYS_DEFAULT, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "QUICK_KEYS_INDENT", &
+                         "QUICK_KEYS_CLOSE", "QUICK_KEYS_DEFAULT"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(QUICK_KEYS_INDENT, int64), &
+                      int(QUICK_KEYS_CLOSE, int64), int(QUICK_KEYS_DEFAULT, int64)]
         case ("sh_indent_after_case")
             constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
                          "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
@@ -40283,10 +40585,9 @@ contains
                       int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
                       int(SH_SLASH, int64)]
         case ("sh_indent_after_continuation")
-            constants = [character(len=48) :: "SH_INDENT_AFTER_CONTINUATION_NO", &
-                         "SH_INDENT_AFTER_CONTINUATION_DEEPER", "SH_INDENT_AFTER_CONTINUATION_ALWAYS"]
-            values = [integer(int64) :: int(SH_INDENT_AFTER_CONTINUATION_NO, int64), &
-                      int(SH_INDENT_AFTER_CONTINUATION_DEEPER, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "SH_INDENT_AFTER_CONTINUATION_ALWAYS"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(SH_INDENT_AFTER_CONTINUATION_ALWAYS, int64)]
         case ("sh_indent_after_do")
             constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
@@ -40349,67 +40650,55 @@ contains
                       int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
                       int(SH_SLASH, int64)]
         case ("shell_command_keep_output")
-            constants = [character(len=48) :: "SHELL_COMMAND_KEEP_OUTPUT_NO", &
+            constants = [character(len=48) :: ".true.", ".false.", &
                          "SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT", &
                          "SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT", &
                          "SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT", &
                          "SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT"]
-            values = [integer(int64) :: int(SHELL_COMMAND_KEEP_OUTPUT_NO, int64), &
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, int64), &
                       int(SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, int64), &
                       int(SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, int64), &
                       int(SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT, int64)]
         case ("shell_input_autoexpand")
-            constants = [character(len=48) :: "COMINT_AUTOEXPAND_NO", &
-                         "COMINT_AUTOEXPAND_ON_COMPLETION", "COMINT_AUTOEXPAND_INPUT", &
+            constants = [character(len=48) :: ".true.", ".false.", "COMINT_AUTOEXPAND_INPUT", &
                          "COMINT_AUTOEXPAND_HISTORY"]
-            values = [integer(int64) :: int(COMINT_AUTOEXPAND_NO, int64), &
-                      int(COMINT_AUTOEXPAND_ON_COMPLETION, int64), int(COMINT_AUTOEXPAND_INPUT, int64), &
+            values = [integer(int64) :: 1_int64, 0_int64, int(COMINT_AUTOEXPAND_INPUT, int64), &
                       int(COMINT_AUTOEXPAND_HISTORY, int64)]
         case ("show_paren_not_in_comments_or_strings")
-            constants = [character(len=48) :: "SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO", &
-                         "SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL", &
+            constants = [character(len=48) :: ".true.", ".false.", &
                          "SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH"]
-            values = [integer(int64) :: int(SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO, int64), &
-                      int(SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL, int64), &
+            values = [integer(int64) :: 1_int64, 0_int64, &
                       int(SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH, int64)]
         case ("show_paren_style")
-            constants = [character(len=48) :: "SHOW_PAREN_STYLE_PARENTHESIS", &
+            constants = [character(len=48) :: ".true.", ".false.", "SHOW_PAREN_STYLE_PARENTHESIS", &
                          "SHOW_PAREN_STYLE_EXPRESSION", "SHOW_PAREN_STYLE_MIXED"]
-            values = [integer(int64) :: int(SHOW_PAREN_STYLE_PARENTHESIS, int64), &
+            values = [integer(int64) :: 1_int64, 0_int64, int(SHOW_PAREN_STYLE_PARENTHESIS, int64), &
                       int(SHOW_PAREN_STYLE_EXPRESSION, int64), int(SHOW_PAREN_STYLE_MIXED, int64)]
         case ("split_window_preferred_direction")
-            constants = [character(len=48) :: "SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST", &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST", &
                          "SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL", &
                          "SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL"]
-            values = [integer(int64) :: int(SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST, int64), &
+            values = [integer(int64) :: 1_int64, 0_int64, &
+                      int(SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST, int64), &
                       int(SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL, int64), &
                       int(SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL, int64)]
         case ("vc_command_messages")
-            constants = [character(len=48) :: "VC_COMMAND_MESSAGES_NO", "VC_COMMAND_MESSAGES_YES", &
-                         "VC_COMMAND_MESSAGES_LOG"]
-            values = [integer(int64) :: int(VC_COMMAND_MESSAGES_NO, int64), &
-                      int(VC_COMMAND_MESSAGES_YES, int64), int(VC_COMMAND_MESSAGES_LOG, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "VC_COMMAND_MESSAGES_LOG"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(VC_COMMAND_MESSAGES_LOG, int64)]
         case ("vc_display_status")
-            constants = [character(len=48) :: "VC_DISPLAY_STATUS_NO", "VC_DISPLAY_STATUS_YES", &
-                         "VC_DISPLAY_STATUS_NO_BACKEND"]
-            values = [integer(int64) :: int(VC_DISPLAY_STATUS_NO, int64), &
-                      int(VC_DISPLAY_STATUS_YES, int64), int(VC_DISPLAY_STATUS_NO_BACKEND, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "VC_DISPLAY_STATUS_NO_BACKEND"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(VC_DISPLAY_STATUS_NO_BACKEND, int64)]
         case ("vc_follow_symlinks")
-            constants = [character(len=48) :: "VC_FOLLOW_SYMLINKS_NO", "VC_FOLLOW_SYMLINKS_YES", &
-                         "VC_FOLLOW_SYMLINKS_ASK"]
-            values = [integer(int64) :: int(VC_FOLLOW_SYMLINKS_NO, int64), &
-                      int(VC_FOLLOW_SYMLINKS_YES, int64), int(VC_FOLLOW_SYMLINKS_ASK, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "VC_FOLLOW_SYMLINKS_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(VC_FOLLOW_SYMLINKS_ASK, int64)]
         case ("vc_revert_show_diff")
-            constants = [character(len=48) :: "VC_REVERT_SHOW_DIFF_NO", "VC_REVERT_SHOW_DIFF_YES", &
-                         "VC_REVERT_SHOW_DIFF_KILL"]
-            values = [integer(int64) :: int(VC_REVERT_SHOW_DIFF_NO, int64), &
-                      int(VC_REVERT_SHOW_DIFF_YES, int64), int(VC_REVERT_SHOW_DIFF_KILL, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "VC_REVERT_SHOW_DIFF_KILL"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(VC_REVERT_SHOW_DIFF_KILL, int64)]
         case ("window_sides_reversed")
-            constants = [character(len=48) :: "WINDOW_SIDES_REVERSED_NO", &
-                         "WINDOW_SIDES_REVERSED_YES", "WINDOW_SIDES_REVERSED_BIDI"]
-            values = [integer(int64) :: int(WINDOW_SIDES_REVERSED_NO, int64), &
-                      int(WINDOW_SIDES_REVERSED_YES, int64), int(WINDOW_SIDES_REVERSED_BIDI, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "WINDOW_SIDES_REVERSED_BIDI"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(WINDOW_SIDES_REVERSED_BIDI, int64)]
         case default
             allocate (constants(0), values(0))
         end select

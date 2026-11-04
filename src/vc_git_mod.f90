@@ -812,7 +812,7 @@ contains
         end if
 
         s = ""
-        if (vc_display_status /= VC_DISPLAY_STATUS_NO_BACKEND) s = "Git"
+        if (vc_display_status%choice /= VC_DISPLAY_STATUS_NO_BACKEND) s = "Git"
         s = s//indicator//disp_rev
         found = .true.
     end subroutine vc_git_mode_line_string

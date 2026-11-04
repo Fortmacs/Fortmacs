@@ -42,7 +42,6 @@ module test_dired_aux_mod
                               dired_deletion_confirmer, dired_auto_revert_buffer, dired_mark_files_regexp, &
                               dired_copy_file_recursive, dired_rename_file, dired_do_create_files, dired_copy_file, &
                               dired_create_empty_file, dired_unmark_all_files, dired_create_destination_dirs, &
-                              DIRED_CREATE_DESTINATION_DIRS_NO, DIRED_CREATE_DESTINATION_DIRS_YES, &
                               DIRED_CREATE_DESTINATION_DIRS_ASK, DIRED_CREATOR_COPY, DIRED_ARG_NONE, DIRED_LOCALP_NO_DIR, &
                               dired_file_creator_procedure
     use string_type_mod, only: string_type
@@ -109,7 +108,7 @@ contains
         call make_file("b.txt", "beta")
         call create_directory_internal(tdir()//"sub", st)
         dired_auto_revert_buffer = .false.
-        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NO
+        dired_create_destination_dirs = .false.
     end subroutine setup
 
     !> Remove the test directory and the buffers showing it.
@@ -124,7 +123,7 @@ contains
         call show_alone()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         dired_deletion_confirmer => null()
-        dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NO
+        dired_create_destination_dirs = .false.
     end subroutine teardown
 
     !> Close every Dired buffer of the test directory and its subdirectories.
@@ -237,7 +236,7 @@ contains
             to_cp = tdir()//"bar/foo-cp"
             to_mv = tdir()//"qux/foo-mv"
             ! `dired_create_destination_dirs' set to always.
-            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_YES
+            dired_create_destination_dirs = .true.
             call dired_copy_file_recursive(from, to_cp, .false., st)
             call check(error, st%ok() .and. file_exists(to_cp), "always: copy "//format_error(st))
             if (allocated(error)) exit body
@@ -246,7 +245,7 @@ contains
             if (allocated(error)) exit body
             ! `dired_create_destination_dirs' set to nil.
             call reset()
-            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NO
+            dired_create_destination_dirs = .false.
             call dired_copy_file_recursive(from, to_cp, .false., st)
             call check(error,.not. st%ok(), "nil: copy fails")
             if (allocated(error)) exit body
@@ -301,7 +300,7 @@ contains
         body: block
             call make_file("bug30624_file1", "1")
             call make_file("bug30624_file2", "2")
-            dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_YES
+            dired_create_destination_dirs = .true.
             call dired(tdir(), st)
             call show_alone()
             call dired_mark_files_regexp("bug30624_file", st)

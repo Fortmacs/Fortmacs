@@ -28,10 +28,10 @@
 !> defined; and the variables major modes set to describe their comments
 !> (`comment_start', `comment_end', `comment_start_skip', ...).
 !>
-!> Values: `comment_use_syntax' is COMMENT_USE_SYNTAX_NO, _T or
-!> _UNDECIDED; `comment_style' one of the COMMENT_STYLE_* constants (the
-!> styles of `comment_styles'); `comment_empty_lines' one of the
-!> COMMENT_EMPTY_LINES_* constants; `comment_fill_column' negative for
+!> Values: `comment_use_syntax' is .false., .true. or
+!> COMMENT_USE_SYNTAX_UNDECIDED; `comment_style' one of the COMMENT_STYLE_*
+!> constants (the styles of `comment_styles'); `comment_empty_lines' .false.,
+!> .true. or COMMENT_EMPTY_LINES_EOL; `comment_fill_column' negative for
 !> none (use `fill_column'); `comment_padding' a string (upstream's integer
 !> N is N spaces, and no padding the empty string).  A function that computes a
 !> comment's indentation (`comment_indent_function') gives its answer as
@@ -85,6 +85,7 @@ module newcomment_mod
     use fill_mod, only: adaptive_fill_mode
     use simple_mod, only: newline, delete_horizontal_space, cut_region, is_use_region, back_to_indentation, &
                           comment_line_break_function, fill_prefix, simple_count_lines => count_lines
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -98,16 +99,16 @@ module newcomment_mod
               comment_add_count, comment_indent_new_line, comment_line, is_comment_valid_prefix, &
               comment_quote_nested_default, comment_make_bol_ws
 
-    !> `comment_use_syntax' values: COMMENT_USE_SYNTAX_NO, COMMENT_USE_SYNTAX_YES and COMMENT_USE_SYNTAX_UNDECIDED.
-    integer, parameter, public :: COMMENT_USE_SYNTAX_NO = 0, COMMENT_USE_SYNTAX_YES = 1, COMMENT_USE_SYNTAX_UNDECIDED = 2
+    !> Values of `comment_use_syntax' besides .true. and .false.
+    integer, parameter, public :: COMMENT_USE_SYNTAX_UNDECIDED = 2
 
     !> `comment_style' values: the styles of `comment_styles'.
     integer, parameter, public :: COMMENT_STYLE_PLAIN = 1, COMMENT_STYLE_INDENT_OR_TRIPLE = 2, COMMENT_STYLE_INDENT = 3, &
                                   COMMENT_STYLE_ALIGNED = 4, COMMENT_STYLE_BOX = 5, COMMENT_STYLE_EXTRA_LINE = 6, &
                                   COMMENT_STYLE_MULTI_LINE = 7, COMMENT_STYLE_BOX_MULTI = 8
 
-    !> `comment_empty_lines' values: COMMENT_EMPTY_LINES_NO, COMMENT_EMPTY_LINES_YES and COMMENT_EMPTY_LINES_EOL.
-    integer, parameter, public :: COMMENT_EMPTY_LINES_NO = 0, COMMENT_EMPTY_LINES_YES = 1, COMMENT_EMPTY_LINES_EOL = 2
+    !> Values of `comment_empty_lines' besides .true. and .false.
+    integer, parameter, public :: COMMENT_EMPTY_LINES_EOL = 2
 
     !> What a `comment_indent_function' answers: a column, a range of
     !> acceptable columns (MIN and MAX), or nothing.
@@ -179,9 +180,9 @@ module newcomment_mod
     !> be used to try to determine whether syntax-tables should be trusted
     !> to understand comments or not in the given buffer.
     !> Major modes should set this variable.  Port of newcomment.el
-    !> comment-use-syntax (COMMENT_USE_SYNTAX_NO, _T or _UNDECIDED).
-    type(integer_setting_type), target, public :: comment_use_syntax = &
-                                                 integer_setting_type(name="comment_use_syntax", value=COMMENT_USE_SYNTAX_UNDECIDED)
+    !> comment-use-syntax (.false., .true. or COMMENT_USE_SYNTAX_UNDECIDED).
+    type(choice_setting_type), target, public :: comment_use_syntax = &
+                                                 choice_setting_type(name="comment_use_syntax", choice=COMMENT_USE_SYNTAX_UNDECIDED)
 
     !> Column to use for `comment_indent'.  If negative, use
     !> `fill_column' instead.  Port of newcomment.el comment-fill-column.
@@ -200,7 +201,7 @@ module newcomment_mod
     type(string_setting_type), target, public :: comment_start = string_setting_type(name="comment_start")
 
     !> Regexp to match the start of a comment plus everything up to its body.
-    !> If there are any \(...\) groups and `comment_use_syntax' is COMMENT_USE_SYNTAX_NO,
+    !> If there are any \(...\) groups and `comment_use_syntax' is .false.,
     !> the comment delimiter text is held to begin at the place matched
     !> by the close of the first group.  Port of newcomment.el
     !> comment-start-skip.
@@ -352,13 +353,13 @@ module newcomment_mod
     type(logical_setting_type), target, public :: comment_multi_line = logical_setting_type(name="comment_multi_line", &
                                                                                             value=.false.)
 
-    !> If COMMENT_EMPTY_LINES_NO, `comment_region' does not comment out
-    !> empty lines.  If COMMENT_EMPTY_LINES_YES, it always comments out empty
+    !> If .false., `comment_region' does not comment out
+    !> empty lines.  If .true., it always comments out empty
     !> lines.  If COMMENT_EMPTY_LINES_EOL, it only comments out empty lines
     !> if comments are terminated by the end of line (i.e., `comment_end'
     !> is empty).  Port of newcomment.el comment-empty-lines.
-    type(integer_setting_type), target, public :: comment_empty_lines = &
-                                                  integer_setting_type(name="comment_empty_lines", value=COMMENT_EMPTY_LINES_NO)
+    type(choice_setting_type), target, public :: comment_empty_lines = &
+                                                 choice_setting_type(name="comment_empty_lines")
 
     !> Function to set up variables needed by commenting functions (null
     !> to do nothing).  Port of newcomment.el comment-setup-function.
@@ -691,10 +692,10 @@ contains
         if (allocated(comment_padding%value)) s = comment_padding%value
     end function cpad
 
-    !> Whether comment-use-syntax is true (anything but COMMENT_USE_SYNTAX_NO: COMMENT_USE_SYNTAX_UNDECIDED
+    !> Whether comment-use-syntax is true (anything but .false.: COMMENT_USE_SYNTAX_UNDECIDED
     !> counts as true, as upstream).  Not a port.
     logical function use_syntax()
-        use_syntax = comment_use_syntax%value /= COMMENT_USE_SYNTAX_NO
+        use_syntax = .not. comment_use_syntax%is_off()
     end function use_syntax
 
     !> A marker at POS that advances when text is inserted at it if
@@ -833,7 +834,7 @@ contains
         end if
 
         ! comment-use-syntax
-        if (comment_use_syntax%value == COMMENT_USE_SYNTAX_UNDECIDED) then
+        if (comment_use_syntax%choice == COMMENT_USE_SYNTAX_UNDECIDED) then
             ! Try to skip over a comment using forward-comment
             ! to see if the syntax tables properly recognize it.
             table = syntax_table()
@@ -852,9 +853,9 @@ contains
             call close_buffer(tmp, st)
 
             if (ok) then
-                call comment_use_syntax%set_local(COMMENT_USE_SYNTAX_YES)
+                call comment_use_syntax%set_local(.true.)
             else
-                call comment_use_syntax%set_local(COMMENT_USE_SYNTAX_NO)
+                call comment_use_syntax%set_local(.false.)
             end if
         end if
 
@@ -879,7 +880,7 @@ contains
         if (.not. ok) then
             skip = ""
 
-            if (comment_use_syntax%value /= COMMENT_USE_SYNTAX_YES) then
+            if (.not. comment_use_syntax%value) then
                 ! `syntax-ppss' will detect escaping.
                 skip = "\(\(^\|[^\"//LF//"]\)\(\\\\\)*\)"
             end if
@@ -2385,8 +2386,8 @@ contains
         has_cce = present(cce_in)
         cce = ""
         if (has_cce) cce = cce_in
-        no_empty = .not. (comment_empty_lines%value == COMMENT_EMPTY_LINES_YES .or. &
-                          (comment_empty_lines%value /= COMMENT_EMPTY_LINES_NO .and. len(ce) == 0))
+        no_empty = .not. (comment_empty_lines%value .or. &
+                          (.not. comment_empty_lines%is_off() .and. len(ce) == 0))
         ! Sanitize CE and CCE.
         if (has_ce .and. ce == "") has_ce = .false.
         ce_sanitized = has_ce

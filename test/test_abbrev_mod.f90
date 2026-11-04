@@ -57,7 +57,7 @@ module test_abbrev_mod
     use files_mod, only: save_some_buffers
     use abbrev_mod, only: abbrev_table_type, abbrev_ref_type, global_abbrev_table, fundamental_mode_abbrev_table, &
                           abbrev_tables, abbrev_mode, abbrev_all_caps, only_global_abbrevs, abbrevs_changed, &
-                          abbrev_file_name, save_abbrevs, SAVE_ABBREVS_ASK, SAVE_ABBREVS_NO, last_abbrev_text, &
+                          abbrev_file_name, save_abbrevs, last_abbrev_text, &
                           clear_all_abbrevs, copy_abbrev_table, insert_abbrevs, abbrev_table_name, prepare_abbrev_list_buffer, &
                           write_abbrev_file, inverse_add_abbrev, abbrev_expansion, abbrev_table_names, expand_abbrev, &
                           unexpand_abbrev, expand_region_abbrevs, define_global_abbrev, abbrev_possibly_save, &
@@ -556,7 +556,7 @@ contains
 
         call fresh(h)
         abbrev_file_name = test_file("abbrev-save.f90")
-        save_abbrevs = SAVE_ABBREVS_ASK
+        save_abbrevs = .true.
         ! Save
         abbrevs_changed = .true.
         call abbrev_possibly_save(.false., .true., result, st)
@@ -1027,7 +1027,7 @@ contains
         end do
 
         call set_buffer(h, st)
-        save_abbrevs = SAVE_ABBREVS_ASK
+        save_abbrevs = .true.
         call global_abbrev_table%define("teh", "the")
         call save_some_buffers(.true., .false., st)
         call check(error, st%ok() .and. .not. abbrevs_changed, "saved: "//format_error(st))
@@ -1037,11 +1037,11 @@ contains
         if (allocated(error)) return
         ! save_abbrevs off: nothing happens.
         call delete_file_internal(abbrev_file_name, st)
-        save_abbrevs = SAVE_ABBREVS_NO
+        save_abbrevs = .false.
         abbrevs_changed = .true.
         call save_some_buffers(.true., .false., st)
         call check(error, abbrevs_changed .and. .not. file_exists(abbrev_file_name), "not saved")
-        save_abbrevs = SAVE_ABBREVS_ASK
+        save_abbrevs = .true.
         abbrevs_changed = .false.
         deallocate (abbrev_file_name)
         call close_buffer(h, st)

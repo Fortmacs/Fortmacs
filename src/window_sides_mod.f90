@@ -191,20 +191,12 @@ contains
         type(handle_type), allocatable :: list(:)
         integer :: k
 
-        select case (window_sides_reversed)
-        case (WINDOW_SIDES_REVERSED_NO)
-            ! Do not reverse when `window_sides_reversed' is
-            ! WINDOW_SIDES_REVERSED_NO.
-            p = .false.
+        if (window_sides_reversed%choice /= WINDOW_SIDES_REVERSED_BIDI) then
+            ! Reverse when `window_sides_reversed' is .true., do not
+            ! reverse when it is .false.
+            p = window_sides_reversed%value
             return
-        case (WINDOW_SIDES_REVERSED_YES)
-            ! Reverse when `window_sides_reversed' is
-            ! WINDOW_SIDES_REVERSED_YES.
-            p = .true.
-            return
-        case default
-            continue
-        end select
+        end if
 
         ! Reverse when the frame's selected window shows a right-to-left
         ! buffer.

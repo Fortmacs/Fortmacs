@@ -40,7 +40,7 @@ module files_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use minibuf_table_mod, only: completion_test_procedure
-    use data_mod, only: integer_setting_type, logical_setting_type
+    use data_mod, only: integer_setting_type, logical_setting_type, choice_setting_type
     use buffer_mod, only: buffers, current, current_buffer, resolve_buffer, set_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, get_file_buffer, &
                           buffer_list, close_buffer, erase_buffer, set_buffer_read_only, &
@@ -686,17 +686,17 @@ module files_mod
     !> make-backup-files.
     logical, public :: create_backup_files = .true.
 
-    !> Values of `require_final_newline' and `mode_require_final_newline'.
-    integer, parameter, public :: FINAL_NEWLINE_NO = 0, FINAL_NEWLINE_SAVE = 1, FINAL_NEWLINE_VISIT = 2, &
-                                  FINAL_NEWLINE_VISIT_SAVE = 3, FINAL_NEWLINE_ASK = 4
+    !> Values of `require_final_newline' and `mode_require_final_newline'
+    !> besides .true. and .false.
+    integer, parameter, public :: FINAL_NEWLINE_VISIT = 2, FINAL_NEWLINE_VISIT_SAVE = 3, FINAL_NEWLINE_ASK = 4
 
     !> Whether to add a newline automatically at the end of the file.
     !>
-    !> A value of FINAL_NEWLINE_SAVE means do this only when the file is about to be saved.
+    !> A value of .true. means do this only when the file is about to be saved.
     !> A value of FINAL_NEWLINE_VISIT means do this right after the file is visited.
     !> A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
     !> A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
-    !> A value of FINAL_NEWLINE_NO means don't add newlines.
+    !> A value of .false. means don't add newlines.
     !>
     !> Certain major modes set this locally to the value obtained
     !> from `mode_require_final_newline'.
@@ -705,8 +705,7 @@ module files_mod
     !> buffers into files they visit).  Writing data to the file system
     !> with `write_region' and the like is not influenced by this variable.
     !> Port of files.el require-final-newline.
-    type(integer_setting_type), public :: require_final_newline = &
-                                          integer_setting_type(name="require_final_newline", value=FINAL_NEWLINE_NO)
+    type(choice_setting_type), public :: require_final_newline = choice_setting_type(name="require_final_newline")
 
     !> Regexp of directory names that stop the search in `locate_dominating_file'.
     !> Any directory whose name matches this regexp will be treated like
@@ -750,19 +749,19 @@ module files_mod
     !> They do so because they are often used for files that are supposed
     !> to end in newlines, and the question is how to arrange that.
     !>
-    !> A value of FINAL_NEWLINE_SAVE means do this only when the file is about to be saved.
+    !> A value of .true. means do this only when the file is about to be saved.
     !> A value of FINAL_NEWLINE_VISIT means do this right after the file is visited.
     !> A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
     !> A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
     !>
-    !> A value of FINAL_NEWLINE_NO means do not add newlines.  That is a risky choice in this
+    !> A value of .false. means do not add newlines.  That is a risky choice in this
     !> variable since this value is used for modes for files that ought to have
-    !> final newlines.  So if you set this to FINAL_NEWLINE_NO, you must explicitly check and
+    !> final newlines.  So if you set this to .false., you must explicitly check and
     !> add a final newline, whenever you save a file that really needs one.
     !> Port of files.el mode-require-final-newline (values as for
     !> `require_final_newline').
-    type(integer_setting_type), public :: mode_require_final_newline = &
-                                          integer_setting_type(name="mode_require_final_newline", value=FINAL_NEWLINE_SAVE)
+    type(choice_setting_type), public :: mode_require_final_newline = &
+                                         choice_setting_type(name="mode_require_final_newline", value=.true.)
 
     !> True means \[write_file] should set the major mode from the file name.
     !> However, the mode will not be changed if
@@ -1364,8 +1363,8 @@ contains
         call normal_mode(st, .true.)
 
         ! If requested, add a newline at the end of the file.
-        if (require_final_newline%value == FINAL_NEWLINE_VISIT .or. &
-            require_final_newline%value == FINAL_NEWLINE_VISIT_SAVE) then
+        if (require_final_newline%choice == FINAL_NEWLINE_VISIT .or. &
+            require_final_newline%choice == FINAL_NEWLINE_VISIT_SAVE) then
             if (missing_final_newline()) call insert_final_newline(st)
         end if
 
@@ -1760,15 +1759,14 @@ contains
         status = status_type()
         if (.not. missing_final_newline()) return
 
-        select case (require_final_newline%value)
-        case (FINAL_NEWLINE_NO)
+        if (require_final_newline%is_off()) then
             add = .false.
-        case (FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT_SAVE)
+        else if (require_final_newline%value .or. require_final_newline%choice == FINAL_NEWLINE_VISIT_SAVE) then
             add = .true.
-        case default
+        else
             call read_y_or_n("Buffer "//buffers(current)%name//" does not end in newline.  Add one? ", add, status)
             if (.not. status%ok()) return
-        end select
+        end if
 
         if (add) call insert_final_newline(status)
     end subroutine final_newline_on_save
