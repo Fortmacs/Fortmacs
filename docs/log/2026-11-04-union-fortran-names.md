@@ -3,5 +3,4 @@
 Every PR that adds renames appends them at the end of tools/fortran-names,
 so two open PRs always conflicted there although their entries are
 independent. .gitattributes now marks the file `merge=union`: git keeps both
-sides' lines in such a conflict. A duplicate entry that results is caught by
-tools/fortran-names.sh --check (run by tools/check.sh).
+sides' lines in such a conflict. A duplicate entry that results is caught bytools/fortran-names.sh --check (run by tools/check.sh).

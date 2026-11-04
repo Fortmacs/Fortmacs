@@ -151,6 +151,14 @@ if $style; then
         exit 1
     fi
     tools/test-fortran-names.sh
+    # A union merge of tools/fortran-names (.gitattributes) can leave the same
+    # entry twice when two branches add it: an exact duplicate line is an error.
+    dups=$(awk '($1 == "name" || $1 == "keep") { if ($0 in seen) print NR ": " $0; seen[$0] = 1 }' tools/fortran-names)
+    if [ -n "$dups" ]; then
+        echo "tools/fortran-names: duplicate entries:" >&2
+        echo "$dups" >&2
+        exit 1
+    fi
 
     # The wording of docstrings and messages (PORTING.md, "Fortran names
     # for Lisp terms", "Wording"): tools/fortran-prose.awk, and its test.
