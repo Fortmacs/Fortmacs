@@ -75,7 +75,7 @@ module smerge_mode_mod
                              FONT_LOCK_ADD_END
     use easy_mmode_mod, only: easy_mmode_next, easy_mmode_prev
     use modes_mod, only: minor_modes
-    use diff_mod, only: diff_switches, diff_command, diff_check_labels, diff_use_labels, DIFF_USE_LABELS_YES
+    use diff_mod, only: diff_switches, diff_command, diff_check_labels, diff_use_labels
     use diff_mode_mod, only: diff_mode
     implicit none(type, external)
     private
@@ -1851,7 +1851,7 @@ contains
 
                 call diff_check_labels()
 
-                if (diff_use_labels == DIFF_USE_LABELS_YES) then
+                if (diff_use_labels%value) then
                     call append_arg(args, "--label")
                     call append_arg(args, name1//"/"//file)
                     call append_arg(args, "--label")
