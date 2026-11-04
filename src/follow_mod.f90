@@ -55,12 +55,12 @@ module follow_mod
     implicit none(type, external)
     private
 
-    public :: follow_mode, turn_on_follow_mode, turn_off_follow_mode, follow_scroll_up_window, &
-              follow_scroll_down_window, follow_scroll_up, follow_scroll_down, follow_delete_other_windows_and_split, &
+    public :: follow_mode, turn_on_follow_mode, turn_off_follow_mode, scroll_follow_up_window, &
+              scroll_follow_down_window, scroll_follow_up, scroll_follow_down, follow_delete_other_windows_and_split, &
               follow_switch_to_buffer, follow_switch_to_buffer_all, follow_switch_to_current_buffer_all, &
-              follow_next_window, follow_previous_window, follow_first_window, follow_last_window, follow_recenter, &
-              follow_redraw, follow_end_of_buffer, follow_all_followers, follow_redisplay, follow_post_command_hook, &
-              follow_adjust_window, follow_avoid_tail_recenter, follow_pre_redisplay_function, init_follow
+              next_follow_window, previous_follow_window, follow_first_window, follow_last_window, recenter_follow, &
+              redraw_follow, follow_end_of_buffer, follow_all_followers, redisplay_follow, follow_post_command_hook, &
+              adjust_follow_window, avoid_follow_tail_recenter, follow_pre_redisplay_function, init_follow
 
     !> Normal hook run by `follow_mode'.  Port of follow.el follow-mode-hook.
     type(hook_type), target, public :: follow_mode_hook = hook_type(name="follow_mode_hook")
@@ -397,7 +397,7 @@ contains
     !> Split WINDOWS into two sets: predecessors and successors.
     !> TEST and SUCC are ordered starting from the window WIN (by default
     !> the selected window).  Port of follow.el:follow-split-followers.
-    subroutine follow_split_followers(list, test, succ, win)
+    subroutine split_follow_followers(list, test, succ, win)
         type(handle_type), intent(in) :: list(:)
         type(handle_type), allocatable, intent(out) :: test(:), succ(:)
         type(handle_type), intent(in), optional :: win
@@ -420,7 +420,7 @@ contains
         else
             allocate (succ(0))
         end if
-    end subroutine follow_split_followers
+    end subroutine split_follow_followers
 
     !> Calculate the end position for window WIN: END_POS and END_OF_BUFFER.
     !> Actually, the position returned is the start of the line after
@@ -429,7 +429,7 @@ contains
     !> used.  Port of follow.el:follow-calc-win-end (on a text terminal the
     !> last line of a window is never partly visible, so the position of
     !> its start is always visible).
-    subroutine follow_calculate_window_end(end_pos, end_of_buffer, win)
+    subroutine calculate_follow_window_end(end_pos, end_of_buffer, win)
         integer(int64), intent(out) :: end_pos
         logical, intent(out) :: end_of_buffer
         type(handle_type), intent(in), optional :: win
@@ -441,14 +441,14 @@ contains
         end_pos = window_end(w, st, update=.true.)
         if (.not. st%ok()) end_pos = start_of(w)
         end_of_buffer = is_pos_visible_in_window(point_max(), w)
-    end subroutine follow_calculate_window_end
+    end subroutine calculate_follow_window_end
 
     !> Determine the start of window WIN in a Follow mode window chain.
     !> WINDOWS is a list of chained windows, and POS is the starting
     !> position for the first window in the list.  If WIN is the null
     !> handle, return the point below all windows.  Port of
     !> follow.el:follow-calc-win-start.
-    integer(int64) function follow_calculate_window_start(list, pos, win) result(start)
+    integer(int64) function calculate_follow_window_start(list, pos, win) result(start)
         type(handle_type), intent(in) :: list(:)
         integer(int64), intent(in) :: pos
         type(handle_type), intent(in) :: win
@@ -462,10 +462,10 @@ contains
             if (same_window(list(k), win)) exit
             old_start = start_of(list(k))
             call set_start_of(list(k), start, noforce=.true.)
-            call follow_calculate_window_end(start, eob, list(k))
+            call calculate_follow_window_end(start, eob, list(k))
             call set_start_of(list(k), old_start, noforce=.true.)
         end do
-    end function follow_calculate_window_start
+    end function calculate_follow_window_start
 
     !> Test if the cached value of `follow_windows_start_end' can be used.
     !> Note that this handles the case when the cache has been set to
@@ -517,7 +517,7 @@ contains
             call select_live_window(list(k), norecord=.true.)
             wse(k)%window = list(k)
             wse(k)%start = start_of(list(k))
-            call follow_calculate_window_end(wse(k)%end, wse(k)%buffer_end)
+            call calculate_follow_window_end(wse(k)%end, wse(k)%buffer_end)
         end do
 
         call select_live_window(orig_win, norecord=.true.)
@@ -585,7 +585,7 @@ contains
 
     !> Make sure that the start of WIN starts at a full screen line.
     !> Port of follow.el:follow-update-window-start.
-    subroutine follow_update_window_start(win)
+    subroutine update_follow_window_start(win)
         type(handle_type), intent(in) :: win
         integer(int64) :: opoint, moved
 
@@ -602,7 +602,7 @@ contains
         end if
 
         call goto_char(opoint)
-    end subroutine follow_update_window_start
+    end subroutine update_follow_window_start
 
     !> Select and return a window, if DEST is visible in it (the null
     !> handle for none).  Port of follow.el:follow-select-if-visible.
@@ -646,7 +646,7 @@ contains
 
     !> Try to select one of WINDOWS without repositioning the topmost window.
     !> If one of the windows in WINDOWS contains DEST, select it, call
-    !> `follow_redisplay', move point to DEST, and return that window.
+    !> `redisplay_follow', move point to DEST, and return that window.
     !> Otherwise, return the null handle.  Port of
     !> follow.el:follow-select-if-visible-from-first.
     function follow_select_if_visible_from_first(dest, list) result(win)
@@ -676,7 +676,7 @@ contains
 
             do k = 1, size(list)
                 call set_start_of(list(k), point(), noforce=.true.)
-                call follow_calculate_window_end(end_pos, end_p, list(k))
+                call calculate_follow_window_end(end_pos, end_p, list(k))
                 call goto_char(end_pos)
 
                 if (end_p .or. dest < point()) then
@@ -695,7 +695,7 @@ contains
 
         if (is_window_live(win)) then
             call select_live_window(win)
-            call follow_redisplay(list, list(1))
+            call redisplay_follow(list, list(1))
             call goto_char(dest)
         end if
     end function follow_select_if_visible_from_first
@@ -713,7 +713,7 @@ contains
     !> Should WIN be absent, the selected window is used.
     !> If PRESERVE_WIN is true, keep WIN itself unchanged while
     !> repositioning the other windows.  Port of follow.el:follow-redisplay.
-    recursive subroutine follow_redisplay(list, win, preserve_win)
+    recursive subroutine redisplay_follow(list, win, preserve_win)
         type(handle_type), intent(in), optional :: list(:)
         type(handle_type), intent(in), optional :: win
         logical, intent(in), optional :: preserve_win
@@ -735,31 +735,31 @@ contains
         preserve = .false.
         if (present(preserve_win)) preserve = preserve_win
         old_win_start = start_of(w)
-        try_first_start = follow_estimate_first_window_start(chain, w, old_win_start)
-        try_win_start = follow_calculate_window_start(chain, try_first_start, w)
+        try_first_start = estimate_follow_first_window_start(chain, w, old_win_start)
+        try_win_start = calculate_follow_window_start(chain, try_first_start, w)
 
         if (try_win_start == old_win_start) then
             call follow_debug_message("exact")
             start = try_first_start
         else if (try_win_start < old_win_start) then
             call follow_debug_message("above")
-            start = follow_calculate_first_window_start_from_above(chain, try_first_start, w, old_win_start)
+            start = calculate_follow_first_window_start_from_above(chain, try_first_start, w, old_win_start)
         else
             call follow_debug_message("below")
-            start = follow_calculate_first_window_start_from_below(chain, try_first_start, w, old_win_start)
+            start = calculate_follow_first_window_start_from_below(chain, try_first_start, w, old_win_start)
         end if
 
         do k = 1, size(chain)
             if (.not. (preserve .and. same_window(chain(k), w))) call set_start_of(chain(k), start)
-            call follow_calculate_window_end(start, eob, chain(k))
+            call calculate_follow_window_end(start, eob, chain(k))
         end do
-    end subroutine follow_redisplay
+    end subroutine redisplay_follow
 
     !> Estimate the position of the first window.
     !> The estimate is computed by assuming that the window WIN, which
     !> should be a member of WINDOWS, starts at position START.  Port of
     !> follow.el:follow-estimate-first-window-start.
-    integer(int64) function follow_estimate_first_window_start(list, win, start) result(pos)
+    integer(int64) function estimate_follow_first_window_start(list, win, start) result(pos)
         type(handle_type), intent(in) :: list(:)
         type(handle_type), intent(in) :: win
         integer(int64), intent(in) :: start
@@ -767,7 +767,7 @@ contains
         integer(int64) :: opoint, moved
         integer :: k
 
-        call follow_split_followers(list, test, succ, win)
+        call split_follow_followers(list, test, succ, win)
         opoint = point()
         call goto_char(start)
         call vertical_motion(0_int64, moved, window=windows(win%index))
@@ -779,12 +779,12 @@ contains
 
         pos = point()
         call goto_char(opoint)
-    end function follow_estimate_first_window_start
+    end function estimate_follow_first_window_start
 
     !> The start of the first window of WINDOWS that puts WIN's start at
     !> START or below, trying from GUESS down.  Port of
     !> follow.el:follow-calculate-first-window-start-from-above.
-    integer(int64) function follow_calculate_first_window_start_from_above(list, guess, win, start) result(res)
+    integer(int64) function calculate_follow_first_window_start_from_above(list, guess, win, start) result(res)
         type(handle_type), intent(in) :: list(:)
         integer(int64), intent(in) :: guess
         type(handle_type), intent(in) :: win
@@ -802,7 +802,7 @@ contains
                 exit
             end if
 
-            win_start = follow_calculate_window_start(list, point(), win)
+            win_start = calculate_follow_window_start(list, point(), win)
 
             if (win_start >= start) then
                 res = point()
@@ -811,12 +811,12 @@ contains
         end do
 
         call goto_char(opoint)
-    end function follow_calculate_first_window_start_from_above
+    end function calculate_follow_first_window_start_from_above
 
     !> The start of the first window of WINDOWS that puts WIN's start at
     !> START, or the last one above it, trying from GUESS up.  Port of
     !> follow.el:follow-calculate-first-window-start-from-below.
-    integer(int64) function follow_calculate_first_window_start_from_below(list, guess, win, start) result(res)
+    integer(int64) function calculate_follow_first_window_start_from_below(list, guess, win, start) result(res)
         type(handle_type), intent(in) :: list(:)
         integer(int64), intent(in) :: guess
         type(handle_type), intent(in) :: win
@@ -837,7 +837,7 @@ contains
                 exit
             end if
 
-            win_start = follow_calculate_window_start(list, point(), win)
+            win_start = calculate_follow_window_start(list, point(), win)
 
             if (point() >= opoint) then
                 res = point()
@@ -856,13 +856,13 @@ contains
         end do
 
         call goto_char(saved)
-    end function follow_calculate_first_window_start_from_below
+    end function calculate_follow_first_window_start_from_below
 
     !> Make sure windows displaying the end of a buffer aren't recentered.
     !> This is done by reading and rewriting the start position of
     !> non-first windows in Follow mode.  Port of
     !> follow.el:follow-avoid-tail-recenter.
-    recursive subroutine follow_avoid_tail_recenter()
+    recursive subroutine avoid_follow_tail_recenter()
         type(handle_type), allocatable :: leaves(:), seen(:)
         type(handle_type) :: orig_buffer, top, win
         type(status_type) :: st
@@ -896,18 +896,18 @@ contains
         end do
 
         if (is_buffer_live(orig_buffer)) call set_buffer(orig_buffer, st)
-    end subroutine follow_avoid_tail_recenter
+    end subroutine avoid_follow_tail_recenter
 
-    !> `follow_avoid_tail_recenter' as a function of
+    !> `avoid_follow_tail_recenter' as a function of
     !> `window_scroll_functions' (which ignores its arguments).  Not a port.
-    recursive subroutine follow_avoid_tail_recenter_on_scroll(window, pos, status)
+    recursive subroutine avoid_follow_tail_recenter_on_scroll(window, pos, status)
         type(handle_type), intent(in) :: window
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call follow_avoid_tail_recenter()
-    end subroutine follow_avoid_tail_recenter_on_scroll
+        call avoid_follow_tail_recenter()
+    end subroutine avoid_follow_tail_recenter_on_scroll
 
     !> Follow mode's `pre_redisplay_function': `follow_post_command_hook'
     !> when the selected window is redisplayed.  Port of
@@ -950,7 +950,7 @@ contains
                 if (allocated(follow_windows_start_end_cache)) deallocate (follow_windows_start_end_cache)
             end if
 
-            call follow_adjust_window(win)
+            call adjust_follow_window(win)
         end if
 
         if (is_buffer_live(old)) call set_buffer(old, st)
@@ -959,7 +959,7 @@ contains
 
     !> Adjust the window WIN and its followers.  Port of
     !> follow.el:follow-adjust-window.
-    recursive subroutine follow_adjust_window(win)
+    recursive subroutine adjust_follow_window(win)
         type(handle_type), intent(in) :: win
         type(handle_type), allocatable :: chain(:)
         type(window_start_end_type), allocatable :: wse(:)
@@ -974,13 +974,13 @@ contains
             ! not be moved.
             if (follow_fixed_window) then
                 call follow_debug_message("fixed")
-                call follow_redisplay(chain, win)
-                call goto_char(follow_get_scrolled_point(point(), chain))
+                call redisplay_follow(chain, win)
+                call goto_char(get_follow_scrolled_point(point(), chain))
                 follow_fixed_window = .false.
             end if
 
             dest = point()
-            call follow_update_window_start(chain(1))
+            call update_follow_window_start(chain(1))
             wse = follow_windows_start_end(chain)
             aligned = is_follow_windows_aligned(wse)
             visible = is_follow_pos_visible(dest, win, wse)
@@ -1084,7 +1084,7 @@ contains
                 end if
 
                 selected_window_up_to_date = .true.
-                call follow_avoid_tail_recenter()
+                call avoid_follow_tail_recenter()
                 wse = follow_windows_start_end(chain)
                 if (allocated(follow_windows_start_end_cache)) deallocate (follow_windows_start_end_cache)
                 aligned = .false.
@@ -1094,7 +1094,7 @@ contains
             if (.not. (.not. follow_internal_force_redisplay .and. (aligned .or. is_follow_windows_aligned(wse)) &
                        .and. is_follow_point_visible_all_windows(wse))) then
                 follow_internal_force_redisplay = .false.
-                call follow_redisplay(chain, selected_window(), selected_window_up_to_date)
+                call redisplay_follow(chain, selected_window(), selected_window_up_to_date)
                 wse = follow_windows_start_end(chain)
                 if (allocated(follow_windows_start_end_cache)) deallocate (follow_windows_start_end_cache)
 
@@ -1111,13 +1111,13 @@ contains
 
             ! If the region is visible, make it look good when spanning
             ! multiple windows.
-            if (is_region_active()) call follow_maximize_region(selected_window(), chain, wse)
+            if (is_region_active()) call maximize_follow_region(selected_window(), chain, wse)
         end if
 
         ! Whether or not the buffer was in follow mode, update windows
         ! displaying the tail so that Emacs won't recenter them.
-        call follow_avoid_tail_recenter()
-    end subroutine follow_adjust_window
+        call avoid_follow_tail_recenter()
+    end subroutine adjust_follow_window
 
     !> Whether this command is one that deletes backward (they may leave
     !> point at the end of a window).  Port of the memq in
@@ -1132,14 +1132,14 @@ contains
 
     !> Make a highlighted region stretching multiple windows look good.
     !> Port of follow.el:follow-maximize-region.
-    subroutine follow_maximize_region(win, list, wse)
+    subroutine maximize_follow_region(win, list, wse)
         type(handle_type), intent(in) :: win
         type(handle_type), intent(in) :: list(:)
         type(window_start_end_type), intent(in) :: wse(:)
         type(handle_type), allocatable :: test(:), succ(:)
         integer :: k, e
 
-        call follow_split_followers(list, test, succ, win)
+        call split_follow_followers(list, test, succ, win)
 
         do k = 1, size(test)
             e = entry_of(test(k), wse)
@@ -1150,7 +1150,7 @@ contains
             e = entry_of(succ(k), wse)
             if (e > 0) call set_point_of(succ(k), wse(e)%start)
         end do
-    end subroutine follow_maximize_region
+    end subroutine maximize_follow_region
 
     ! ------------------------------------------------------------------
     ! Scrolling
@@ -1165,7 +1165,7 @@ contains
     !>
     !> Return the new position.  Port of follow.el:follow-get-scrolled-point
     !> (`scroll_preserve_screen_position' .false.).
-    integer(int64) function follow_get_scrolled_point(dest, list) result(pos)
+    integer(int64) function get_follow_scrolled_point(dest, list) result(pos)
         integer(int64), intent(in) :: dest
         type(handle_type), intent(in) :: list(:)
         type(handle_type) :: orig
@@ -1213,14 +1213,14 @@ contains
         end if
 
         call select_live_window(orig, norecord=.true.)
-    end function follow_get_scrolled_point
+    end function get_follow_scrolled_point
 
     !> Scroll the text in a follow mode window chain up by ARG lines.
     !> If ARG is no prefix, scroll the size of the current window.
     !>
-    !> This is an internal function for `follow_scroll_up' and
-    !> `follow_scroll_up_window'.  Port of follow.el:follow-scroll-up-arg.
-    recursive subroutine follow_scroll_up_arg(arg, status)
+    !> This is an internal function for `scroll_follow_up' and
+    !> `scroll_follow_up_window'.  Port of follow.el:follow-scroll-up-arg.
+    recursive subroutine scroll_follow_up_arg(arg, status)
         type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         type(handle_type) :: owin
@@ -1234,7 +1234,7 @@ contains
             call scroll_up_command(arg, status)
             if (status%code /= FM_END_OF_BUFFER) exit
             ! If we are too near EOB, try scrolling the previous window.
-            call follow_previous_window(st)
+            call previous_follow_window(st)
 
             if (.not. st%ok()) then
                 call select_live_window(owin)
@@ -1247,14 +1247,14 @@ contains
         if (.not. status%ok()) return
         call goto_char(opoint)
         follow_fixed_window = .true.
-    end subroutine follow_scroll_up_arg
+    end subroutine scroll_follow_up_arg
 
     !> Scroll the text in a follow mode window chain down by ARG lines.
     !> If ARG is no prefix, scroll the size of the current window.
     !>
-    !> This is an internal function for `follow_scroll_down' and
-    !> `follow_scroll_down_window'.  Port of follow.el:follow-scroll-down-arg.
-    recursive subroutine follow_scroll_down_arg(arg, status)
+    !> This is an internal function for `scroll_follow_down' and
+    !> `scroll_follow_down_window'.  Port of follow.el:follow-scroll-down-arg.
+    recursive subroutine scroll_follow_down_arg(arg, status)
         type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: opoint
@@ -1264,7 +1264,7 @@ contains
         if (.not. status%ok()) return
         call goto_char(opoint)
         follow_fixed_window = .true.
-    end subroutine follow_scroll_down_arg
+    end subroutine scroll_follow_down_arg
 
     !> Scroll text in a Follow mode window up by that window's size.
     !> The other windows in the window chain will scroll synchronously.
@@ -1277,18 +1277,18 @@ contains
     !>
     !> Works like `scroll_up' when not in Follow mode.  Port of
     !> follow.el:follow-scroll-up-window.
-    recursive subroutine follow_scroll_up_window(arg, status)
+    recursive subroutine scroll_follow_up_window(arg, status)
         type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
 
         if (.not. minor_modes%follow_mode%enabled()) then
             call scroll_up_command(arg, status)
         else if (arg%kind == PREFIX_MINUS) then
-            call follow_scroll_down_window(prefix_arg_type(), status)
+            call scroll_follow_down_window(prefix_arg_type(), status)
         else
-            call follow_scroll_up_arg(arg, status)
+            call scroll_follow_up_arg(arg, status)
         end if
-    end subroutine follow_scroll_up_window
+    end subroutine scroll_follow_up_window
 
     !> Scroll text in a Follow mode window down by that window's size.
     !> The other windows in the window chain will scroll synchronously.
@@ -1301,18 +1301,18 @@ contains
     !>
     !> Works like `scroll_down' when not in Follow mode.  Port of
     !> follow.el:follow-scroll-down-window.
-    recursive subroutine follow_scroll_down_window(arg, status)
+    recursive subroutine scroll_follow_down_window(arg, status)
         type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
 
         if (.not. minor_modes%follow_mode%enabled()) then
             call scroll_down_command(arg, status)
         else if (arg%kind == PREFIX_MINUS) then
-            call follow_scroll_up_window(prefix_arg_type(), status)
+            call scroll_follow_up_window(prefix_arg_type(), status)
         else
-            call follow_scroll_down_arg(arg, status)
+            call scroll_follow_down_arg(arg, status)
         end if
-    end subroutine follow_scroll_down_window
+    end subroutine scroll_follow_down_window
 
     !> Scroll text in a Follow mode window chain up.
     !>
@@ -1324,7 +1324,7 @@ contains
     !>
     !> Works like `scroll_up' when not in Follow mode.  Port of
     !> follow.el:follow-scroll-up.
-    recursive subroutine follow_scroll_up(arg, status)
+    recursive subroutine scroll_follow_up(arg, status)
         type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: chain(:)
@@ -1335,7 +1335,7 @@ contains
         if (.not. minor_modes%follow_mode%enabled()) then
             call scroll_up_command(arg, status)
         else if (arg%kind /= PREFIX_NONE) then
-            call follow_scroll_up_arg(arg, status)
+            call scroll_follow_up_arg(arg, status)
         else
             chain = follow_all_followers()
             end = window_end(chain(size(chain)), status)
@@ -1354,7 +1354,7 @@ contains
                 call set_start_of(chain(1), point())
             end if
         end if
-    end subroutine follow_scroll_up
+    end subroutine scroll_follow_up
 
     !> Scroll text in a Follow mode window chain down.
     !>
@@ -1366,7 +1366,7 @@ contains
     !>
     !> Works like `scroll_down' when not in Follow mode.  Port of
     !> follow.el:follow-scroll-down (no tab line).
-    recursive subroutine follow_scroll_down(arg, status)
+    recursive subroutine scroll_follow_down(arg, status)
         type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: chain(:)
@@ -1379,7 +1379,7 @@ contains
         if (.not. minor_modes%follow_mode%enabled()) then
             call scroll_down_command(arg, status)
         else if (arg%kind /= PREFIX_NONE) then
-            call follow_scroll_down_arg(arg, status)
+            call scroll_follow_down_arg(arg, status)
         else
             orig_point = point()
             chain = follow_all_followers()
@@ -1418,7 +1418,7 @@ contains
                 follow_internal_force_redisplay = .true.
             end if
         end if
-    end subroutine follow_scroll_down
+    end subroutine scroll_follow_down
 
     ! ------------------------------------------------------------------
     ! User functions
@@ -1526,7 +1526,7 @@ contains
         call select_live_window(orig_window, norecord=.true.)
         if (.not. status%ok()) return
         call select_live_window(orig_window)
-        call follow_redisplay()
+        call redisplay_follow()
     end subroutine follow_switch_to_buffer_all
 
     !> Show current buffer in all windows on this frame, and enter Follow
@@ -1546,35 +1546,35 @@ contains
 
     !> Select the next window showing the same buffer.  Port of
     !> follow.el:follow-next-window.
-    recursive subroutine follow_next_window(status)
+    recursive subroutine next_follow_window(status)
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: test(:), succ(:)
 
         status = status_type()
-        call follow_split_followers(follow_all_followers(), test, succ)
+        call split_follow_followers(follow_all_followers(), test, succ)
 
         if (size(succ) > 0) then
             call select_live_window(succ(1))
         else
             call set_error(status, FM_GENERIC_ERROR, "No more windows")
         end if
-    end subroutine follow_next_window
+    end subroutine next_follow_window
 
     !> Select the previous window showing the same buffer.  Port of
     !> follow.el:follow-previous-window.
-    recursive subroutine follow_previous_window(status)
+    recursive subroutine previous_follow_window(status)
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: test(:), succ(:)
 
         status = status_type()
-        call follow_split_followers(follow_all_followers(), test, succ)
+        call split_follow_followers(follow_all_followers(), test, succ)
 
         if (size(test) > 0) then
             call select_live_window(test(1))
         else
             call set_error(status, FM_GENERIC_ERROR, "No more windows")
         end if
-    end subroutine follow_previous_window
+    end subroutine previous_follow_window
 
     !> Select the first window in the frame showing the same buffer.
     !> Port of follow.el:follow-first-window.
@@ -1604,7 +1604,7 @@ contains
     !> With a positive argument, place the current line ARG lines
     !> from the top.  With a negative argument, place it -ARG lines
     !> from the bottom.  Port of follow.el:follow-recenter.
-    subroutine follow_recenter(arg, status)
+    subroutine recenter_follow(arg, status)
         type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: chain(:)
@@ -1638,7 +1638,7 @@ contains
             ! windows above it: they are redisplayed.
             if (dest < win_s) follow_internal_force_redisplay = .true.
         end if
-    end subroutine follow_recenter
+    end subroutine recenter_follow
 
     !> Arrange windows displaying the same buffer in successor order.
     !> This function can be called even if the buffer is not in Follow mode.
@@ -1646,13 +1646,13 @@ contains
     !> Hopefully, there should be no reason to call this function when in
     !> Follow mode since the windows should always be aligned.  Port of
     !> follow.el:follow-redraw.
-    recursive subroutine follow_redraw(status)
+    recursive subroutine redraw_follow(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call sit_for(0)
-        call follow_redisplay()
-    end subroutine follow_redraw
+        call redisplay_follow()
+    end subroutine redraw_follow
 
     !> Move point to the end of the buffer, Follow mode style.
     !>
@@ -1687,29 +1687,29 @@ contains
     ! The commands
     ! ------------------------------------------------------------------
 
-    subroutine cmd_follow_scroll_up_window(status)
+    subroutine cmd_scroll_follow_up_window(status)
         type(status_type), intent(out) :: status
 
-        call follow_scroll_up_window(current_prefix_arg, status)
-    end subroutine cmd_follow_scroll_up_window
+        call scroll_follow_up_window(current_prefix_arg, status)
+    end subroutine cmd_scroll_follow_up_window
 
-    subroutine cmd_follow_scroll_down_window(status)
+    subroutine cmd_scroll_follow_down_window(status)
         type(status_type), intent(out) :: status
 
-        call follow_scroll_down_window(current_prefix_arg, status)
-    end subroutine cmd_follow_scroll_down_window
+        call scroll_follow_down_window(current_prefix_arg, status)
+    end subroutine cmd_scroll_follow_down_window
 
-    subroutine cmd_follow_scroll_up(status)
+    subroutine cmd_scroll_follow_up(status)
         type(status_type), intent(out) :: status
 
-        call follow_scroll_up(current_prefix_arg, status)
-    end subroutine cmd_follow_scroll_up
+        call scroll_follow_up(current_prefix_arg, status)
+    end subroutine cmd_scroll_follow_up
 
-    subroutine cmd_follow_scroll_down(status)
+    subroutine cmd_scroll_follow_down(status)
         type(status_type), intent(out) :: status
 
-        call follow_scroll_down(current_prefix_arg, status)
-    end subroutine cmd_follow_scroll_down
+        call scroll_follow_down(current_prefix_arg, status)
+    end subroutine cmd_scroll_follow_down
 
     subroutine cmd_follow_delete_other_windows_and_split(status)
         type(status_type), intent(out) :: status
@@ -1745,11 +1745,11 @@ contains
         call follow_switch_to_buffer_all(status, name)
     end subroutine cmd_follow_switch_to_buffer_all
 
-    subroutine cmd_follow_recenter(status)
+    subroutine cmd_recenter_follow(status)
         type(status_type), intent(out) :: status
 
-        call follow_recenter(current_prefix_arg, status)
-    end subroutine cmd_follow_recenter
+        call recenter_follow(current_prefix_arg, status)
+    end subroutine cmd_recenter_follow
 
     subroutine cmd_follow_end_of_buffer(status)
         type(status_type), intent(out) :: status
@@ -1758,7 +1758,7 @@ contains
     end subroutine cmd_follow_end_of_buffer
 
     !> Define Follow mode, its keymaps and commands, and put
-    !> `follow_avoid_tail_recenter' on `window_scroll_functions'.  Not a port.
+    !> `avoid_follow_tail_recenter' on `window_scroll_functions'.  Not a port.
     subroutine init_follow()
         type(status_type) :: st
 
@@ -1768,17 +1768,17 @@ contains
         call register_keymap_name("follow_mode_map", follow_mode_map)
         call make_sparse_keymap(follow_mode_submap)
         call register_keymap_name("follow_mode_submap", follow_mode_submap)
-        call keymap_set(follow_mode_submap, "C-v", "follow_scroll_up", st)
-        call keymap_set(follow_mode_submap, "M-v", "follow_scroll_down", st)
-        call keymap_set(follow_mode_submap, "v", "follow_scroll_down", st)
+        call keymap_set(follow_mode_submap, "C-v", "scroll_follow_up", st)
+        call keymap_set(follow_mode_submap, "M-v", "scroll_follow_down", st)
+        call keymap_set(follow_mode_submap, "v", "scroll_follow_down", st)
         call keymap_set(follow_mode_submap, "1", "follow_delete_other_windows_and_split", st)
         call keymap_set(follow_mode_submap, "b", "follow_switch_to_buffer", st)
         call keymap_set(follow_mode_submap, "C-b", "follow_switch_to_buffer_all", st)
-        call keymap_set(follow_mode_submap, "C-l", "follow_recenter", st)
+        call keymap_set(follow_mode_submap, "C-l", "recenter_follow", st)
         call keymap_set(follow_mode_submap, "<", "follow_first_window", st)
         call keymap_set(follow_mode_submap, ">", "follow_last_window", st)
-        call keymap_set(follow_mode_submap, "n", "follow_next_window", st)
-        call keymap_set(follow_mode_submap, "p", "follow_previous_window", st)
+        call keymap_set(follow_mode_submap, "n", "next_follow_window", st)
+        call keymap_set(follow_mode_submap, "p", "previous_follow_window", st)
         call keymap_set(follow_mode_map, trim(follow_mode_prefix_key), make_keymap_ref(follow_mode_submap), st)
         ! Replace the standard `end_of_buffer' when in Follow mode.
         call keymap_set(follow_mode_map, "<remap> <end_of_buffer>", "follow_end_of_buffer", st)
@@ -1790,22 +1790,22 @@ contains
         commands%backward_char%follow_mode_use_cache = .true.
         commands%right_char%follow_mode_use_cache = .true.
         commands%left_char%follow_mode_use_cache = .true.
-        call window_scroll_functions%append(follow_avoid_tail_recenter_on_scroll)
+        call window_scroll_functions%append(avoid_follow_tail_recenter_on_scroll)
         commands%follow_mode%execute => follow_mode
-        commands%follow_scroll_up_window%execute => cmd_follow_scroll_up_window
-        commands%follow_scroll_down_window%execute => cmd_follow_scroll_down_window
-        commands%follow_scroll_up%execute => cmd_follow_scroll_up
-        commands%follow_scroll_down%execute => cmd_follow_scroll_down
+        commands%scroll_follow_up_window%execute => cmd_scroll_follow_up_window
+        commands%scroll_follow_down_window%execute => cmd_scroll_follow_down_window
+        commands%scroll_follow_up%execute => cmd_scroll_follow_up
+        commands%scroll_follow_down%execute => cmd_scroll_follow_down
         commands%follow_delete_other_windows_and_split%execute => cmd_follow_delete_other_windows_and_split
         commands%follow_switch_to_buffer%execute => cmd_follow_switch_to_buffer
         commands%follow_switch_to_buffer_all%execute => cmd_follow_switch_to_buffer_all
         commands%follow_switch_to_current_buffer_all%execute => follow_switch_to_current_buffer_all
-        commands%follow_next_window%execute => follow_next_window
-        commands%follow_previous_window%execute => follow_previous_window
+        commands%next_follow_window%execute => next_follow_window
+        commands%previous_follow_window%execute => previous_follow_window
         commands%follow_first_window%execute => follow_first_window
         commands%follow_last_window%execute => follow_last_window
-        commands%follow_recenter%execute => cmd_follow_recenter
-        commands%follow_redraw%execute => follow_redraw
+        commands%recenter_follow%execute => cmd_recenter_follow
+        commands%redraw_follow%execute => redraw_follow
         commands%follow_end_of_buffer%execute => cmd_follow_end_of_buffer
     end subroutine init_follow
 end module follow_mod

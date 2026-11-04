@@ -875,9 +875,7 @@ module docstrings_mod
                                                "find_file_read_only_other_frame", "find_file_read_only_other_window", "find_grep", &
                                                                     "first_error", "fixup_whitespace", "flush_lines", &
                                            "follow_delete_other_windows_and_split", "follow_end_of_buffer", "follow_first_window", &
-                                              "follow_last_window", "follow_mode", "follow_next_window", "follow_previous_window", &
-                                            "follow_recenter", "follow_redraw", "follow_scroll_down", "follow_scroll_down_window", &
-                                                         "follow_scroll_up", "follow_scroll_up_window", "follow_switch_to_buffer", &
+                                                                   "follow_last_window", "follow_mode", "follow_switch_to_buffer", &
                                                              "follow_switch_to_buffer_all", "follow_switch_to_current_buffer_all", &
                                                           "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
                                                       "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
@@ -1048,25 +1046,25 @@ module docstrings_mod
                                                       "move_to_tab_stop", "move_to_window_line", "move_to_window_line_top_bottom", &
                                            "multi_occur", "multi_occur_in_matching_buffers", "narrow_to_page", "narrow_to_region", &
                                                      "narrow_to_subprogram", "negative_argument", "newline", "newline_and_indent", &
-                                         "next_buffer", "next_error", "next_error_no_select", "next_history_element", "next_line", &
-                                            "next_line_or_history_element", "normal_mode", "num_processors", "number_to_register", &
-                                                  "occur", "occur_cease_edit", "occur_edit_mode", "occur_in_region", "occur_mode", &
-                                                                    "occur_mode_display_occurrence", "occur_mode_goto_occurrence", &
-                                                 "occur_mode_goto_occurrence_other_window", "occur_mode_mouse_goto", "occur_next", &
-                                          "occur_prev", "occur_rename_buffer", "open_dribble_file", "open_line", "open_rectangle", &
-                                                             "optimize_char_table", "other_buffer", "other_frame", "other_window", &
-                                                   "other_window_backward", "parse_partial_expression", "paste", "paste_previous", &
-                                                        "paste_rectangle", "point", "point_max", "point_min", "point_to_register", &
-                                                               "pop_to_mark_command", "posix_looking_at", "posix_search_backward", &
-                                                             "posix_search_forward", "posix_string_match", "prefer_coding_system", &
-                                                  "prepend_auto_mode", "prepend_to_register", "previous_buffer", "previous_error", &
-                                                          "previous_error_no_select", "previous_history_element", "previous_line", &
-                                                    "previous_line_or_history_element", "process_buffer", "process_coding_system", &
-                                           "process_command", "process_exit_status", "process_id", "process_list", "process_mark", &
-                                                               "process_menu_delete_process", "process_menu_mode", "process_name", &
-                                                          "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
-                                                         "process_send_string", "process_status", "process_tty_name", "prog_mode", &
-                                                        "provided_mode_derived_p", "push_button", "push_mark", "python_base_mode", &
+                                                        "next_buffer", "next_error", "next_error_no_select", "next_follow_window", &
+                                               "next_history_element", "next_line", "next_line_or_history_element", "normal_mode", &
+                                           "num_processors", "number_to_register", "occur", "occur_cease_edit", "occur_edit_mode", &
+                                                                 "occur_in_region", "occur_mode", "occur_mode_display_occurrence", &
+                                                          "occur_mode_goto_occurrence", "occur_mode_goto_occurrence_other_window", &
+                                                       "occur_mode_mouse_goto", "occur_next", "occur_prev", "occur_rename_buffer", &
+                                                        "open_dribble_file", "open_line", "open_rectangle", "optimize_char_table", &
+                                                           "other_buffer", "other_frame", "other_window", "other_window_backward", &
+                                                "parse_partial_expression", "paste", "paste_previous", "paste_rectangle", "point", &
+                                         "point_max", "point_min", "point_to_register", "pop_to_mark_command", "posix_looking_at", &
+                                                            "posix_search_backward", "posix_search_forward", "posix_string_match", &
+                                            "prefer_coding_system", "prepend_auto_mode", "prepend_to_register", "previous_buffer", &
+                                                           "previous_error", "previous_error_no_select", "previous_follow_window", &
+                                                  "previous_history_element", "previous_line", "previous_line_or_history_element", &
+                                              "process_buffer", "process_coding_system", "process_command", "process_exit_status", &
+                                                      "process_id", "process_list", "process_mark", "process_menu_delete_process", &
+                                            "process_menu_mode", "process_name", "process_query_on_exit_flag", "process_send_eof", &
+                                               "process_send_region", "process_send_string", "process_status", "process_tty_name", &
+                                           "prog_mode", "provided_mode_derived_p", "push_button", "push_mark", "python_base_mode", &
                                                                     "python_fill_paragraph", "python_indent_dedent_line", &
                                                        "python_indent_dedent_line_backspace", "python_indent_guess_indent_offset", &
                                                 "python_indent_shift_left", "python_indent_shift_right", "python_mark_definition", &
@@ -1085,14 +1083,14 @@ module docstrings_mod
                                                   "read_key_sequence_vs", "read_multiple_choice", "read_number", "read_only_mode", &
                                          "read_passwd_mode", "read_passwd_toggle_visibility", "read_shell_command", "read_string", &
                                                                 "read_y_or_n", "read_y_or_n_insert_n", "read_y_or_n_insert_other", &
-                                              "read_y_or_n_insert_y", "read_yes_or_no", "real", "recenter", "recenter_top_bottom", &
-                                                   "recentf", "recentf_cleanup", "recentf_keep_default_test", "recentf_load_list", &
-                                             "recentf_mode", "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", &
-                                                                   "recompile", "rectangle_backward_char", "rectangle_dimensions", &
+                                                  "read_y_or_n_insert_y", "read_yes_or_no", "real", "recenter", "recenter_follow", &
+                                                 "recenter_top_bottom", "recentf", "recentf_cleanup", "recentf_keep_default_test", &
+                                             "recentf_load_list", "recentf_mode", "recentf_open", "recentf_open_most_recent_file", &
+                                              "recentf_save_list", "recompile", "rectangle_backward_char", "rectangle_dimensions", &
                                              "rectangle_exchange_point_and_mark", "rectangle_forward_char", "rectangle_left_char", &
                                                            "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
                                            "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
-                                                            "recursion_depth", "recursive_edit", "redraw_display", "regexp_quote", &
+                                           "recursion_depth", "recursive_edit", "redraw_display", "redraw_follow", "regexp_quote", &
                                                   "region_beginning", "region_bounds", "region_end", "register_read_with_preview", &
                                                "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
                                                 "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
@@ -1101,10 +1099,11 @@ module docstrings_mod
                                                                "save_buffers_exit_terminal", "save_place_forget_unreadable_files", &
                                                  "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
                                          "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
-                                              "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                                         "scss_mode", "search_backward", "search_forward", "select_frame_by_name", &
-                                                        "select_window", "selected_window", "self_insert_command", "sentence_end", &
-                                                                   "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
+                                                            "scroll_follow_down", "scroll_follow_down_window", "scroll_follow_up", &
+                                                     "scroll_follow_up_window", "scroll_other_window", "scroll_other_window_down", &
+                                               "scroll_up", "scroll_up_command", "scss_mode", "search_backward", "search_forward", &
+                                                "select_frame_by_name", "select_window", "selected_window", "self_insert_command", &
+                                                   "sentence_end", "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
                                                        "set_buffer_process_coding_system", "set_case_table", "set_category_table", &
                                                      "set_char_table_extra_slot", "set_char_table_parent", "set_char_table_range", &
                                                      "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
@@ -7973,102 +7972,6 @@ contains
                         ""//LF// &
                         "Keys specific to Follow mode:"//LF// &
                         "\{follow_mode_map}"
-        case ("follow_next_window")
-            entry%file = "follow_mod.f90"
-            entry%fortran = "call follow_next_window(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Select the next window showing the same buffer."
-        case ("follow_previous_window")
-            entry%file = "follow_mod.f90"
-            entry%fortran = "call follow_previous_window(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Select the previous window showing the same buffer."
-        case ("follow_recenter")
-            entry%file = "follow_mod.f90"
-            entry%fortran = "call follow_recenter(arg, status)"
-            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
-                                 "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Recenter the middle window around point."//LF// &
-                        "Rearrange all other windows around the middle window."//LF// &
-                        ""//LF// &
-                        "With a positive argument, place the current line ARG lines"//LF// &
-                        "from the top.  With a negative argument, place it -ARG lines"//LF// &
-                        "from the bottom."
-        case ("follow_redraw")
-            entry%file = "follow_mod.f90"
-            entry%fortran = "call follow_redraw(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Arrange windows displaying the same buffer in successor order."//LF// &
-                        "This function can be called even if the buffer is not in Follow mode."//LF// &
-                        ""//LF// &
-                        "Hopefully, there should be no reason to call this function when in"//LF// &
-                        "Follow mode since the windows should always be aligned."
-        case ("follow_scroll_down")
-            entry%file = "follow_mod.f90"
-            entry%fortran = "call follow_scroll_down(arg, status)"
-            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
-                                 "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Scroll text in a Follow mode window chain down."//LF// &
-                        ""//LF// &
-                        "If called with no ARG, the `next_screen_context_lines' top lines of"//LF// &
-                        "the top window in the chain will be visible in the bottom window."//LF// &
-                        ""//LF// &
-                        "If called with an argument, scroll ARG lines down."//LF// &
-                        "Negative ARG means scroll upward."//LF// &
-                        ""//LF// &
-                        "Works like `scroll_down' when not in Follow mode."
-        case ("follow_scroll_down_window")
-            entry%file = "follow_mod.f90"
-            entry%fortran = "call follow_scroll_down_window(arg, status)"
-            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
-                                 "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Scroll text in a Follow mode window down by that window's size."//LF// &
-                        "The other windows in the window chain will scroll synchronously."//LF// &
-                        ""//LF// &
-                        "If called with no ARG, the `next_screen_context_lines' top lines of"//LF// &
-                        "the window in the chain will be visible after the scroll."//LF// &
-                        ""//LF// &
-                        "If called with an argument, scroll ARG lines down."//LF// &
-                        "Negative ARG means scroll upward."//LF// &
-                        ""//LF// &
-                        "Works like `scroll_down' when not in Follow mode."
-        case ("follow_scroll_up")
-            entry%file = "follow_mod.f90"
-            entry%fortran = "call follow_scroll_up(arg, status)"
-            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
-                                 "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Scroll text in a Follow mode window chain up."//LF// &
-                        ""//LF// &
-                        "If called with no ARG, the `next_screen_context_lines' last lines of"//LF// &
-                        "the bottom window in the chain will be visible in the top window."//LF// &
-                        ""//LF// &
-                        "If called with an argument, scroll ARG lines up."//LF// &
-                        "Negative ARG means scroll downward."//LF// &
-                        ""//LF// &
-                        "Works like `scroll_up' when not in Follow mode."
-        case ("follow_scroll_up_window")
-            entry%file = "follow_mod.f90"
-            entry%fortran = "call follow_scroll_up_window(arg, status)"
-            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
-                                 "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Scroll text in a Follow mode window up by that window's size."//LF// &
-                        "The other windows in the window chain will scroll synchronously."//LF// &
-                        ""//LF// &
-                        "If called with no ARG, the `next_screen_context_lines' last lines of"//LF// &
-                        "the window will be visible after the scroll."//LF// &
-                        ""//LF// &
-                        "If called with an argument, scroll ARG lines up."//LF// &
-                        "Negative ARG means scroll downward."//LF// &
-                        ""//LF// &
-                        "Works like `scroll_up' when not in Follow mode."
         case ("follow_switch_to_buffer")
             entry%file = "follow_mod.f90"
             entry%fortran = "call follow_switch_to_buffer(buffer, status)"
@@ -12942,6 +12845,12 @@ contains
                         "forwards (or backwards, if negative).  Finds and highlights the"//LF// &
                         "source line like \[next_error], but does not select the source"//LF// &
                         "buffer."
+        case ("next_follow_window")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call next_follow_window(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the next window showing the same buffer."
         case ("next_history_element")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -13413,6 +13322,12 @@ contains
                         "backwards (or forwards, if negative).  Finds and highlights the"//LF// &
                         "source line like \[previous_error], but does not select the source"//LF// &
                         "buffer."
+        case ("previous_follow_window")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call previous_follow_window(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the previous window showing the same buffer."
         case ("previous_history_element")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -14350,6 +14265,18 @@ contains
                         ""//LF// &
                         "Just C-u as prefix means put point in the center of the window"//LF// &
                         "and redisplay normally--don't erase and redraw the frame."
+        case ("recenter_follow")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call recenter_follow(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Recenter the middle window around point."//LF// &
+                        "Rearrange all other windows around the middle window."//LF// &
+                        ""//LF// &
+                        "With a positive argument, place the current line ARG lines"//LF// &
+                        "from the top.  With a negative argument, place it -ARG lines"//LF// &
+                        "from the bottom."
         case ("recenter_top_bottom")
             entry%file = "window_scroll_mod.f90"
             entry%command = .true.
@@ -14525,6 +14452,16 @@ contains
             entry%file = "dispnew_mod.f90"
             entry%command = .true.
             entry%doc = "Clear and redisplay all visible frames."
+        case ("redraw_follow")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call redraw_follow(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Arrange windows displaying the same buffer in successor order."//LF// &
+                        "This function can be called even if the buffer is not in Follow mode."//LF// &
+                        ""//LF// &
+                        "Hopefully, there should be no reason to call this function when in"//LF// &
+                        "Follow mode since the windows should always be aligned."
         case ("regexp_quote")
             entry%file = "search_mod.f90"
             entry%fortran = "regexp_quote(string)"
@@ -15061,6 +14998,68 @@ contains
                         ""//LF// &
                         "The command \[set_goal_column] can be used to create a"//LF// &
                         "semipermanent goal column for this command."
+        case ("scroll_follow_down")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call scroll_follow_down(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Scroll text in a Follow mode window chain down."//LF// &
+                        ""//LF// &
+                        "If called with no ARG, the `next_screen_context_lines' top lines of"//LF// &
+                        "the top window in the chain will be visible in the bottom window."//LF// &
+                        ""//LF// &
+                        "If called with an argument, scroll ARG lines down."//LF// &
+                        "Negative ARG means scroll upward."//LF// &
+                        ""//LF// &
+                        "Works like `scroll_down' when not in Follow mode."
+        case ("scroll_follow_down_window")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call scroll_follow_down_window(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Scroll text in a Follow mode window down by that window's size."//LF// &
+                        "The other windows in the window chain will scroll synchronously."//LF// &
+                        ""//LF// &
+                        "If called with no ARG, the `next_screen_context_lines' top lines of"//LF// &
+                        "the window in the chain will be visible after the scroll."//LF// &
+                        ""//LF// &
+                        "If called with an argument, scroll ARG lines down."//LF// &
+                        "Negative ARG means scroll upward."//LF// &
+                        ""//LF// &
+                        "Works like `scroll_down' when not in Follow mode."
+        case ("scroll_follow_up")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call scroll_follow_up(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Scroll text in a Follow mode window chain up."//LF// &
+                        ""//LF// &
+                        "If called with no ARG, the `next_screen_context_lines' last lines of"//LF// &
+                        "the bottom window in the chain will be visible in the top window."//LF// &
+                        ""//LF// &
+                        "If called with an argument, scroll ARG lines up."//LF// &
+                        "Negative ARG means scroll downward."//LF// &
+                        ""//LF// &
+                        "Works like `scroll_up' when not in Follow mode."
+        case ("scroll_follow_up_window")
+            entry%file = "follow_mod.f90"
+            entry%fortran = "call scroll_follow_up_window(arg, status)"
+            entry%declarations = "type(prefix_arg_type), intent(in) :: arg"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Scroll text in a Follow mode window up by that window's size."//LF// &
+                        "The other windows in the window chain will scroll synchronously."//LF// &
+                        ""//LF// &
+                        "If called with no ARG, the `next_screen_context_lines' last lines of"//LF// &
+                        "the window will be visible after the scroll."//LF// &
+                        ""//LF// &
+                        "If called with an argument, scroll ARG lines up."//LF// &
+                        "Negative ARG means scroll downward."//LF// &
+                        ""//LF// &
+                        "Works like `scroll_up' when not in Follow mode."
         case ("scroll_other_window")
             entry%file = "window_scroll_mod.f90"
             entry%command = .true.

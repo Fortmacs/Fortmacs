@@ -44,7 +44,7 @@ module test_follow_mod
     use window_mod, only: windows, window_start, window_end, window_leaves, same_window, delete_window_tree, &
                           resize_window_tree, set_window_buffer, select_window, set_window_start, window_point, &
                           set_window_point, is_pos_visible_in_window, window_body_lines
-    use follow_mod, only: follow_all_followers, follow_post_command_hook, follow_scroll_up, follow_scroll_down, &
+    use follow_mod, only: follow_all_followers, follow_post_command_hook, scroll_follow_up, scroll_follow_down, &
                           follow_delete_other_windows_and_split, follow_mode
     implicit none(type, external)
     private
@@ -270,11 +270,11 @@ contains
         call record_window_ends()
         call check(error, window_start(windows(ws(2)%index)) == point_max(), "the end in the last window")
         if (allocated(error)) return
-        call follow_scroll_up(prefix_arg_type(), st)
+        call scroll_follow_up(prefix_arg_type(), st)
         call check(error, st%code == FM_END_OF_BUFFER, "end_of_buffer")
         if (allocated(error)) return
         ! With an argument: by lines.
-        call follow_scroll_down(prefix_arg_type(PREFIX_NUMBER, 3_int64), st)
+        call scroll_follow_down(prefix_arg_type(PREFIX_NUMBER, 3_int64), st)
         call check(error, st%ok() .and. window_start(windows(selected_frame%selected_window%index)) == line(48), &
                    "scroll down by 3")
         call leave(h)

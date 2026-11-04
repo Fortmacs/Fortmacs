@@ -532,14 +532,6 @@ module commands_mod
         type(command_type) :: follow_first_window
         type(command_type) :: follow_last_window
         type(command_type) :: follow_mode
-        type(command_type) :: follow_next_window
-        type(command_type) :: follow_previous_window
-        type(command_type) :: follow_recenter
-        type(command_type) :: follow_redraw
-        type(command_type) :: follow_scroll_down
-        type(command_type) :: follow_scroll_down_window
-        type(command_type) :: follow_scroll_up
-        type(command_type) :: follow_scroll_up_window
         type(command_type) :: follow_switch_to_buffer
         type(command_type) :: follow_switch_to_buffer_all
         type(command_type) :: follow_switch_to_current_buffer_all
@@ -985,6 +977,7 @@ module commands_mod
         type(command_type) :: next_buffer
         type(command_type) :: next_error
         type(command_type) :: next_error_no_select
+        type(command_type) :: next_follow_window
         type(command_type) :: next_history_element
         type(command_type) :: next_line
         type(command_type) :: next_line_or_history_element
@@ -1019,6 +1012,7 @@ module commands_mod
         type(command_type) :: previous_buffer
         type(command_type) :: previous_error
         type(command_type) :: previous_error_no_select
+        type(command_type) :: previous_follow_window
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
         type(command_type) :: previous_line_or_history_element
@@ -1069,6 +1063,7 @@ module commands_mod
         type(command_type) :: read_y_or_n_insert_other
         type(command_type) :: read_y_or_n_insert_y
         type(command_type) :: recenter
+        type(command_type) :: recenter_follow
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recentf
         type(command_type) :: recentf_cleanup
@@ -1089,6 +1084,7 @@ module commands_mod
         type(command_type) :: rectangle_right_char
         type(command_type) :: recursive_edit
         type(command_type) :: redraw_display
+        type(command_type) :: redraw_follow
         type(command_type) :: reindent_then_newline_and_indent
         type(command_type) :: repeat
         type(command_type) :: repeat_exit
@@ -1113,6 +1109,10 @@ module commands_mod
         type(command_type) :: savehist_save
         type(command_type) :: scroll_down
         type(command_type) :: scroll_down_command
+        type(command_type) :: scroll_follow_down
+        type(command_type) :: scroll_follow_down_window
+        type(command_type) :: scroll_follow_up
+        type(command_type) :: scroll_follow_up_window
         type(command_type) :: scroll_other_window
         type(command_type) :: scroll_other_window_down
         type(command_type) :: scroll_up
@@ -1869,14 +1869,6 @@ module commands_mod
                                                                   "follow_first_window", &
                                                                   "follow_last_window", &
                                                                   "follow_mode", &
-                                                                  "follow_next_window", &
-                                                                  "follow_previous_window", &
-                                                                  "follow_recenter", &
-                                                                  "follow_redraw", &
-                                                                  "follow_scroll_down", &
-                                                                  "follow_scroll_down_window", &
-                                                                  "follow_scroll_up", &
-                                                                  "follow_scroll_up_window", &
                                                                   "follow_switch_to_buffer", &
                                                                   "follow_switch_to_buffer_all", &
                                                                   "follow_switch_to_current_buffer_all", &
@@ -2322,6 +2314,7 @@ module commands_mod
                                                                   "next_buffer", &
                                                                   "next_error", &
                                                                   "next_error_no_select", &
+                                                                  "next_follow_window", &
                                                                   "next_history_element", &
                                                                   "next_line", &
                                                                   "next_line_or_history_element", &
@@ -2356,6 +2349,7 @@ module commands_mod
                                                                   "previous_buffer", &
                                                                   "previous_error", &
                                                                   "previous_error_no_select", &
+                                                                  "previous_follow_window", &
                                                                   "previous_history_element", &
                                                                   "previous_line", &
                                                                   "previous_line_or_history_element", &
@@ -2406,6 +2400,7 @@ module commands_mod
                                                                   "read_y_or_n_insert_other", &
                                                                   "read_y_or_n_insert_y", &
                                                                   "recenter", &
+                                                                  "recenter_follow", &
                                                                   "recenter_top_bottom", &
                                                                   "recentf", &
                                                                   "recentf_cleanup", &
@@ -2426,6 +2421,7 @@ module commands_mod
                                                                   "rectangle_right_char", &
                                                                   "recursive_edit", &
                                                                   "redraw_display", &
+                                                                  "redraw_follow", &
                                                                   "reindent_then_newline_and_indent", &
                                                                   "repeat", &
                                                                   "repeat_exit", &
@@ -2450,6 +2446,10 @@ module commands_mod
                                                                   "savehist_save", &
                                                                   "scroll_down", &
                                                                   "scroll_down_command", &
+                                                                  "scroll_follow_down", &
+                                                                  "scroll_follow_down_window", &
+                                                                  "scroll_follow_up", &
+                                                                  "scroll_follow_up_window", &
                                                                   "scroll_other_window", &
                                                                   "scroll_other_window_down", &
                                                                   "scroll_up", &
@@ -3710,22 +3710,6 @@ contains
             p => commands%follow_last_window
         case ("follow_mode")
             p => commands%follow_mode
-        case ("follow_next_window")
-            p => commands%follow_next_window
-        case ("follow_previous_window")
-            p => commands%follow_previous_window
-        case ("follow_recenter")
-            p => commands%follow_recenter
-        case ("follow_redraw")
-            p => commands%follow_redraw
-        case ("follow_scroll_down")
-            p => commands%follow_scroll_down
-        case ("follow_scroll_down_window")
-            p => commands%follow_scroll_down_window
-        case ("follow_scroll_up")
-            p => commands%follow_scroll_up
-        case ("follow_scroll_up_window")
-            p => commands%follow_scroll_up_window
         case ("follow_switch_to_buffer")
             p => commands%follow_switch_to_buffer
         case ("follow_switch_to_buffer_all")
@@ -4616,6 +4600,8 @@ contains
             p => commands%next_error
         case ("next_error_no_select")
             p => commands%next_error_no_select
+        case ("next_follow_window")
+            p => commands%next_follow_window
         case ("next_history_element")
             p => commands%next_history_element
         case ("next_line")
@@ -4684,6 +4670,8 @@ contains
             p => commands%previous_error
         case ("previous_error_no_select")
             p => commands%previous_error_no_select
+        case ("previous_follow_window")
+            p => commands%previous_follow_window
         case ("previous_history_element")
             p => commands%previous_history_element
         case ("previous_line")
@@ -4784,6 +4772,8 @@ contains
             p => commands%read_y_or_n_insert_y
         case ("recenter")
             p => commands%recenter
+        case ("recenter_follow")
+            p => commands%recenter_follow
         case ("recenter_top_bottom")
             p => commands%recenter_top_bottom
         case ("recentf")
@@ -4824,6 +4814,8 @@ contains
             p => commands%recursive_edit
         case ("redraw_display")
             p => commands%redraw_display
+        case ("redraw_follow")
+            p => commands%redraw_follow
         case ("reindent_then_newline_and_indent")
             p => commands%reindent_then_newline_and_indent
         case ("repeat")
@@ -4872,6 +4864,14 @@ contains
             p => commands%scroll_down
         case ("scroll_down_command")
             p => commands%scroll_down_command
+        case ("scroll_follow_down")
+            p => commands%scroll_follow_down
+        case ("scroll_follow_down_window")
+            p => commands%scroll_follow_down_window
+        case ("scroll_follow_up")
+            p => commands%scroll_follow_up
+        case ("scroll_follow_up_window")
+            p => commands%scroll_follow_up_window
         case ("scroll_other_window")
             p => commands%scroll_other_window
         case ("scroll_other_window_down")
