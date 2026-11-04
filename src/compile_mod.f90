@@ -543,6 +543,7 @@ module compile_mod
     contains
         procedure :: clear_kinds => compilation_context_clear_kinds
         procedure :: other_value => compilation_context_other_value
+        procedure :: kind_hint => compilation_context_kind_hint
     end type compilation_context_choice_setting_type
 
     !> Display this many lines of leading context before the current
@@ -556,7 +557,8 @@ module compile_mod
     !> zero points to the current message.  Port of compile.el
     !> compilation-context-lines.
     type(compilation_context_choice_setting_type), public :: compilation_context = &
-                                 compilation_context_choice_setting_type(name="compilation_context", choice=COMPILATION_CONTEXT_TOP)
+                                                             compilation_context_choice_setting_type(name="compilation_context", &
+                                                            true_valid=.false., false_valid=.false., choice=COMPILATION_CONTEXT_TOP)
 
     !> Face name to use for whole messages.
     !> Faces `compilation_error_face', `compilation_warning_face',
@@ -3671,8 +3673,7 @@ contains
             call compilation_beginning_of_line(1 - compilation_context%lines)
             call set_window_start(windows(w%index), point(), st)
             call goto_char(opoint)
-        else if (compilation_context%choice == COMPILATION_CONTEXT_TOP .or. compilation_context%is_off()) then
-            ! (.false. is upstream's nil too.)
+        else if (compilation_context%choice == COMPILATION_CONTEXT_TOP) then
             ! There is no left fringe.
             call goto_char(pos)
             moved = forward_line(0_int64)
@@ -5190,4 +5191,14 @@ contains
         text = ""
         if (self%lines >= 0) text = "%lines = "//number_to_string(self%lines)
     end function compilation_context_other_value
+
+    !> The assignment that sets the number or procedure `compilation_context' takes, for the error of a rejected
+    !> value.  Not a port.
+    function compilation_context_kind_hint(self, number) result(text)
+        class(compilation_context_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of lines is `"//trim(self%name)//"%lines = "//number//"'"
+    end function compilation_context_kind_hint
 end module compile_mod

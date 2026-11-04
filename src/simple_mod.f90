@@ -1365,7 +1365,8 @@ module simple_mod
     !>        .false. -- just delete one character.
     !> Port of simple.el backward-delete-char-untabify-method.
     type(choice_setting_type), public :: backward_delete_char_untabify_method = &
-              choice_setting_type(name="backward_delete_char_untabify_method", choice=BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY)
+                                         choice_setting_type(name="backward_delete_char_untabify_method", &
+                                                           true_valid=.false., choice=BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY)
 
     !> True means show matching open-paren when it is on screen.
     !> If false, don't show it (but the open-paren can still be shown

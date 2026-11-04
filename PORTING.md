@@ -1730,6 +1730,31 @@ scroll = .not. compilation_scroll_output%is_off()
   unset (`mail_signature_variable%text = "..."`, beside
   `mail_signature_variable%procedure`; recentf's time string stays
   Deferred).
+- Each choice setting declares the values it accepts (panel
+  2026-11-04; precedents A8, the wrong-type error, and Q12, set_variable
+  rejecting non-constants), as data on the one `choice_setting_type`:
+  `choices`, its named constants, which docstrings_mod's generated
+  `init_choice_values` fills from the "Values of `x'" parameter statement
+  naming it (so a family shared by several settings is split into one
+  statement per setting where they accept different constants, as the
+  DABBREV_* ones are), and `true_valid`/`false_valid`, set to `.false.`
+  in the declaration when `.true.` or `.false.` is not a state
+  (`show_paren_style`, `default_justification`,
+  `split_window_preferred_direction`, `compilation_context`,
+  `dired_switches_in_mode_line` and the sh_indent_* options take
+  neither; `dired_free_space`, `dired_mark_region`,
+  `backward_delete_char_untabify_method` and
+  `disabled_command_function_variable` take no `.true.`).  Any other `=`
+  leaves the state as it was and records an error in data_mod's
+  `setting_errors`: loading the init file reports each one like an
+  error of `configure` ("An error occurred while loading the init file:
+  sh_indent_for_fi: 0 is not a value of this option; a number of columns
+  is `sh_indent_for_fi%columns = 0'", `init_file_had_error`), and
+  `set_variable` and a buffer-local value set through its variable return
+  it as a `wrong-type-argument` error.  The right assignment comes from the
+  extension's `kind_hint` binding (the number or procedure it takes).
+  The settings the generator does not see (not in the config API) accept
+  any constant, as before.
 - The setting objects with other kinds override `other_value`, the
   text C-h v shows for them ("a procedure set by the configuration",
   "%lines = 500"); `clear_kinds` and `other_value` are bindings of the

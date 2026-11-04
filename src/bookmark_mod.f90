@@ -234,6 +234,7 @@ module bookmark_mod
     contains
         procedure :: clear_kinds => bookmark_save_flag_clear_kinds
         procedure :: other_value => bookmark_save_flag_other_value
+        procedure :: kind_hint => bookmark_save_flag_kind_hint
     end type bookmark_save_flag_choice_setting_type
 
     !> Controls when Fortmacs saves bookmarks to a file.
@@ -4103,4 +4104,14 @@ contains
         text = ""
         if (self%modifications >= 0) text = "%modifications = "//number_to_string(self%modifications)
     end function bookmark_save_flag_other_value
+
+    !> The assignment that sets the number or procedure `bookmark_save_flag' takes, for the error of a rejected
+    !> value.  Not a port.
+    function bookmark_save_flag_kind_hint(self, number) result(text)
+        class(bookmark_save_flag_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of modifications is `"//trim(self%name)//"%modifications = "//number//"'"
+    end function bookmark_save_flag_kind_hint
 end module bookmark_mod

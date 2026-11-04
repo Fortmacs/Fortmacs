@@ -62,6 +62,8 @@ module fortmacs_mod
     use indent_mod, only: move_to_column
     use abbrev_mod, only: abbrevs_changed
     use string_type_mod, only: string_type
+    use data_mod, only: setting_errors
+    use docstrings_mod, only: init_choice_values
     use coding_mod, only: eol_mnemonic_dos, eol_mnemonic_mac
     use mule_mod, only: set_locale_environment
     implicit none(type, external)
@@ -475,6 +477,9 @@ contains
         if (.not. color_status%ok()) call message(format_error(color_status))
         if (.not. locale_status%ok()) call message(format_error(locale_status))
         init_file_had_error = .false.
+        ! The values each choice setting accepts, for the init file and
+        ! `set_variable'.
+        call init_choice_values()
 
         if (opt_status%ok()) then
             if (init .and. present(configure)) then
@@ -511,16 +516,30 @@ contains
     end subroutine fortmacs_main
 
     !> Run the init file's `configure'.  An error is shown in the echo area
-    !> and sets `init_file_had_error'; startup goes on.  Port of
+    !> and sets `init_file_had_error'; startup goes on.  So is each value
+    !> a choice setting rejected (panel 2026-11-04: `setting_errors'; the
+    !> setting keeps its value).  Port of
     !> startup.el:startup--load-user-init-file (the init file is compiled
     !> in, so loading it is calling it).
     subroutine load_init_file(configure)
         procedure(init_procedure) :: configure
         type(status_type) :: status
+        integer :: k
 
         init_file_had_error = .false.
         user_init_file = init_file_name()
+        call init_choice_values()
+        if (allocated(setting_errors)) deallocate (setting_errors)
         call configure(status)
+
+        if (allocated(setting_errors)) then
+            do k = 1, size(setting_errors)
+                init_file_had_error = .true.
+                call message("An error occurred while loading the init file: "//setting_errors(k)%text)
+            end do
+
+            deallocate (setting_errors)
+        end if
 
         if (.not. status%ok()) then
             init_file_had_error = .true.

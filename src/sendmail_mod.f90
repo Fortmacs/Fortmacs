@@ -266,6 +266,7 @@ module sendmail_mod
     contains
         procedure :: clear_kinds => mail_signature_variable_clear_kinds
         procedure :: other_value => mail_signature_variable_other_value
+        procedure :: kind_hint => mail_signature_variable_kind_hint
     end type mail_signature_variable_choice_setting_type
 
     !> Keymap of `mail_mode'.  Port of sendmail.el mail-mode-map.
@@ -2994,4 +2995,15 @@ contains
         if (allocated(self%text)) text = "%text = """//self%text//""""
         if (associated(self%procedure)) text = "a procedure set by the configuration"
     end function mail_signature_variable_other_value
+
+    !> The assignment that sets the number or procedure `mail_signature_variable' takes, for the error of a rejected
+    !> value.  Not a port.
+    function mail_signature_variable_kind_hint(self, number) result(text)
+        class(mail_signature_variable_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a string is `"//trim(self%name)//"%text = ""...""' and a procedure `"//trim(self%name)//"%procedure => mine'"
+        if (len(number) < 0) text = number
+    end function mail_signature_variable_kind_hint
 end module sendmail_mod

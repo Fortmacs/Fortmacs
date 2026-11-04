@@ -193,6 +193,7 @@ module recentf_mod
     contains
         procedure :: clear_kinds => recentf_auto_cleanup_clear_kinds
         procedure :: other_value => recentf_auto_cleanup_other_value
+        procedure :: kind_hint => recentf_auto_cleanup_kind_hint
     end type recentf_auto_cleanup_choice_setting_type
 
     !> Define when to automatically cleanup the recent list.
@@ -921,4 +922,14 @@ contains
         text = ""
         if (self%seconds >= 0) text = "%seconds = "//number_to_string(self%seconds)
     end function recentf_auto_cleanup_other_value
+
+    !> The assignment that sets the number or procedure `recentf_auto_cleanup' takes, for the error of a rejected
+    !> value.  Not a port.
+    function recentf_auto_cleanup_kind_hint(self, number) result(text)
+        class(recentf_auto_cleanup_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of seconds is `"//trim(self%name)//"%seconds = "//number//"'"
+    end function recentf_auto_cleanup_kind_hint
 end module recentf_mod

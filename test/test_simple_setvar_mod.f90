@@ -39,6 +39,7 @@ module test_simple_setvar_mod
     use xdisp_mod, only: message_log_max, message_log_max_choice_setting_type
     use files_mod, only: require_final_newline, FINAL_NEWLINE_VISIT
     use simple_mod, only: set_variable, copy_region_blink_delay
+    use paren_mod, only: show_paren_style, SHOW_PAREN_STYLE_PARENTHESIS
     implicit none(type, external)
     private
 
@@ -59,6 +60,7 @@ contains
                     new_unittest("set-variable-choice", test_choice), &
                     new_unittest("set-variable-on-off-choice", test_on_off_choice), &
                     new_unittest("choice-setting-number-kind", test_number_kind), &
+                    new_unittest("set-variable-rejected-choice", test_rejected_choice), &
                     new_unittest("set-variable-real", test_real), &
                     new_unittest("set-variable-type-mismatch", test_mismatch), &
                     new_unittest("set-variable-read-errors", test_read_errors), &
@@ -223,6 +225,18 @@ contains
         call check(error, message_log_max%is_off(), "off")
         message_log_max = saved
     end subroutine test_number_kind
+
+    !> A value the choice setting does not accept is an error, as in the
+    !> init file (panel 2026-11-04), and the value stays.
+    subroutine test_rejected_choice(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call fresh()
+        call set_var("show_paren_style", ".true.")
+        call check(error, last_message, "Wrong type argument: show_paren_style: .true. is not a value of this option")
+        if (allocated(error)) return
+        call check(error, show_paren_style%choice == SHOW_PAREN_STYLE_PARENTHESIS, "value kept")
+    end subroutine test_rejected_choice
 
     subroutine test_real(error)
         type(error_type), allocatable, intent(out) :: error

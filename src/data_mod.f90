@@ -126,6 +126,9 @@ module data_mod
         procedure, private :: set_local_function => function_set_local
     end type function_setting_type
 
+    !> The most named constants a choice setting accepts.  Not a port.
+    integer, parameter, public :: MAX_CHOICES = 12
+
     !> A setting with more than two states (R6-38): `=' takes .true. and
     !> .false. for its on and off states (upstream t and nil) and its
     !> named constants for the others:
@@ -142,12 +145,27 @@ module data_mod
     !> number or a string (R6-39) is an extension of this type with a
     !> `procedure' component, set with `=>', or an allocatable component
     !> named for what the value is (`%lines = 5'); assigning with `='
-    !> clears them (`clear_kinds').  Not a port.
+    !> clears them (`clear_kinds').
+    !>
+    !> The object also says which values it accepts (panel 2026-11-04):
+    !> `choices', its named constants (filled by docstrings_mod's
+    !> `init_choice_values' from the "Values of `x'" parameter statements,
+    !> once `choices_declared' is set), and `true_valid' and `false_valid',
+    !> given in its declaration when .true. or .false. is not one of its
+    !> states.  Assigning anything else leaves the state as it was and
+    !> records an error in `setting_errors', which loading the init file
+    !> and `set_variable' report.  Not a port.
     type, extends(setting_type), public :: choice_setting_type
         !> On (.true.) or off (.false.); .false. in a named state.
         logical :: value = .false.
         !> The named constant of the state; 0 for on and off.
         integer :: choice = 0
+        !> The named constants it accepts (unused entries 0), once
+        !> `choices_declared' is set; any constant before.
+        integer :: choices(MAX_CHOICES) = 0
+        logical :: choices_declared = .false.
+        !> Whether .true. and .false. are states of it.
+        logical :: true_valid = .true., false_valid = .true.
     contains
         generic :: assignment(=) => assign_choice, assign_logical, assign_state
         generic :: set_local => set_local_choice, set_local_logical, set_local_setting
@@ -167,7 +185,17 @@ module data_mod
         !> Set the value of another kind that V, a value a buffer kept,
         !> holds; DONE is false when V is none.  This type has none.
         procedure :: set_kind_value => choice_set_kind_value
+        !> The assignment that sets the number or the procedure an extension
+        !> takes, shown when NUMBER (a number, or "N") is rejected
+        !> ("a number of columns is `x%columns = 0'"); "" for none.
+        procedure :: kind_hint => choice_kind_hint
     end type choice_setting_type
+
+    !> The errors of rejected assignments to choice settings, oldest first
+    !> ("sh_indent_for_fi: 0 is not a value of this option; ..."), for
+    !> the init file's loading and `set_variable' to report and clear.
+    !> Not a port.
+    type(string_type), allocatable, public :: setting_errors(:)
 
     !> The `%length' of a history that uses `history_length'.  Not a port.
     integer, parameter, public :: HISTORY_LENGTH_DEFAULT = -huge(0)
@@ -1007,11 +1035,15 @@ contains
         call settled(self)
     end subroutine choice_set_local_setting
 
-    !> Set the state to the named constant NAMED.  Not a port.
+    !> Set the state to the named constant NAMED, if it is one of SELF's
+    !> (else record the error and keep the state).  Not a port.
     subroutine choice_assign_choice(self, named)
         class(choice_setting_type), intent(inout) :: self
         integer, intent(in) :: named
+        logical :: accepted
 
+        call check_choice(self, named, accepted)
+        if (.not. accepted) return
         call set_choice_state(self%value, self%choice, named=named)
         call settled(self)
     end subroutine choice_assign_choice
@@ -1021,19 +1053,89 @@ contains
     subroutine choice_assign_logical(self, on)
         class(choice_setting_type), intent(inout) :: self
         logical, intent(in) :: on
+        logical :: accepted
 
+        call check_logical(self, on, accepted)
+        if (.not. accepted) return
         call set_choice_state(self%value, self%choice, on=on)
         call settled(self)
     end subroutine choice_assign_logical
+
+    !> Whether NAMED is one of SELF's named constants (ACCEPTED); records
+    !> the error when it is not.  Not a port.
+    subroutine check_choice(self, named, accepted)
+        class(choice_setting_type), intent(in) :: self
+        integer, intent(in) :: named
+        logical, intent(out) :: accepted
+
+        accepted = .true.
+
+        if (self%choices_declared) then
+            ! (0, the mark of unused entries, is never a named constant.)
+            accepted = named /= 0 .and. any(self%choices == named)
+            if (.not. accepted) call reject_choice(self, number_to_string(int(named, int64)))
+        end if
+    end subroutine check_choice
+
+    !> Whether ON (.true. or .false.) is a state of SELF (ACCEPTED);
+    !> records the error when it is not.  Not a port.
+    subroutine check_logical(self, on, accepted)
+        class(choice_setting_type), intent(in) :: self
+        logical, intent(in) :: on
+        logical, intent(out) :: accepted
+
+        if (on) then
+            accepted = self%true_valid
+            if (.not. accepted) call reject_choice(self, ".true.")
+        else
+            accepted = self%false_valid
+            if (.not. accepted) call reject_choice(self, ".false.")
+        end if
+    end subroutine check_logical
+
+    !> Record that VALUE (as Fortran) is not a value of choice setting
+    !> SELF, with the right assignment when SELF takes a number or a procedure.
+    !> Not a port.
+    subroutine reject_choice(self, value)
+        class(choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: value
+        type(string_type) :: error
+        character(len=:), allocatable :: hint
+
+        if (value(1:1) == ".") then
+            hint = self%kind_hint("N")
+        else
+            hint = self%kind_hint(value)
+        end if
+
+        error%text = trim(self%name)//": "//value//" is not a value of this option"
+        if (len(hint) > 0) error%text = error%text//"; "//hint
+        if (.not. allocated(setting_errors)) allocate (setting_errors(0))
+        setting_errors = [setting_errors, error]
+    end subroutine reject_choice
+
+    !> None: this type takes no number or procedure.  Not a port.
+    function choice_kind_hint(self, number) result(text)
+        class(choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (self%void .and. len(number) < 0) text = number
+    end function choice_kind_hint
 
     !> Give the current buffer its own state, the named constant NAMED.
     !> Port of subr.el:setq-local.
     subroutine choice_set_local_choice(self, named)
         class(choice_setting_type), intent(inout) :: self
         integer, intent(in) :: named
+        logical :: accepted
 
+        call check_choice(self, named, accepted)
+        if (.not. accepted) return
         call self%make_local()
-        call choice_assign_choice(self, named)
+        call set_choice_state(self%value, self%choice, named=named)
+        call settled(self)
     end subroutine choice_set_local_choice
 
     !> Give the current buffer its own on (.true.) or off (.false.)
@@ -1041,9 +1143,13 @@ contains
     subroutine choice_set_local_logical(self, on)
         class(choice_setting_type), intent(inout) :: self
         logical, intent(in) :: on
+        logical :: accepted
 
+        call check_logical(self, on, accepted)
+        if (.not. accepted) return
         call self%make_local()
-        call choice_assign_logical(self, on)
+        call set_choice_state(self%value, self%choice, on=on)
+        call settled(self)
     end subroutine choice_set_local_logical
 
     ! ------------------------------------------------------------------

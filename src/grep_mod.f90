@@ -195,6 +195,7 @@ module grep_mod
     contains
         procedure :: clear_kinds => grep_save_buffers_clear_kinds
         procedure :: other_value => grep_save_buffers_other_value
+        procedure :: kind_hint => grep_save_buffers_kind_hint
     end type grep_save_buffers_choice_setting_type
 
     !> An element of `grep_find_ignored_files_variable' and
@@ -3120,4 +3121,15 @@ contains
             if (l > 0) ends_with_slash = s(l:l) == "/"
         end function ends_with_slash
     end subroutine init_grep
+
+    !> The assignment that sets the number or procedure `grep_save_buffers' takes, for the error of a rejected
+    !> value.  Not a port.
+    function grep_save_buffers_kind_hint(self, number) result(text)
+        class(grep_save_buffers_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a procedure is `"//trim(self%name)//"%procedure => mine'"
+        if (len(number) < 0) text = number
+    end function grep_save_buffers_kind_hint
 end module grep_mod

@@ -158,14 +158,13 @@ module docstrings_mod
                             css_indent_offset, css_lookup_url_format, css_mode_hook, css_mode_map, css_mode_syntax_table, &
                             css_smie_grammar, scss_mode_hook, scss_mode_map, scss_mode_syntax_table
     use dabbrev_mod, only: dabbrev_abbrev_char_regexp, dabbrev_abbrev_skip_leading_regexp, &
-                           dabbrev_backward_only, dabbrev_case_distinction, DABBREV_LIKE_CASE_FOLD_SEARCH, &
-                           DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, dabbrev_case_fold_search, &
-                           DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, dabbrev_case_replace, &
-                           DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
-                           dabbrev_check_all_buffers, dabbrev_check_other_buffers, dabbrev_eliminate_newlines, &
-                           dabbrev_friend_buffer_function, dabbrev_ignored_buffer_modes, dabbrev_ignored_buffer_names, &
-                           dabbrev_ignored_buffer_regexps, dabbrev_limit, dabbrev_search_these_buffers_only, &
-                           dabbrev_select_buffers_function, dabbrev_upcase_means_case_search
+                           dabbrev_backward_only, dabbrev_case_distinction, DABBREV_LIKE_CASE_REPLACE, &
+                           dabbrev_case_fold_search, DABBREV_LIKE_CASE_FOLD_SEARCH, dabbrev_case_replace, &
+                           DABBREV_LIKE_CASE_REPLACE, dabbrev_check_all_buffers, dabbrev_check_other_buffers, &
+                           DABBREV_ASK, dabbrev_eliminate_newlines, dabbrev_friend_buffer_function, &
+                           dabbrev_ignored_buffer_modes, dabbrev_ignored_buffer_names, dabbrev_ignored_buffer_regexps, &
+                           dabbrev_limit, dabbrev_search_these_buffers_only, dabbrev_select_buffers_function, &
+                           dabbrev_upcase_means_case_search
     use data_mod, only: history_delete_duplicates, history_length
     use diff_mod, only: diff_command, diff_entire_buffers, diff_switches, diff_use_labels, &
                         DIFF_USE_LABELS_CHECK
@@ -659,6 +658,7 @@ module docstrings_mod
     public :: function_doc, variable_doc
     public :: user_option_info, set_user_option_logical, set_user_option_integer, set_user_option_real, &
               set_user_option_string, set_user_option_choice, user_option_constants
+    public :: init_choice_values
 
     !> Kinds of value of a user option, as `set_variable` reads it.
     integer, parameter, public :: OPTION_NONE = 0, OPTION_LOGICAL = 1, OPTION_INTEGER = 2, OPTION_REAL = 3, &
@@ -23294,12 +23294,8 @@ contains
             entry%original = "DABBREV_LIKE_CASE_REPLACE"
 
             select case (dabbrev_case_distinction%choice)
-            case (DABBREV_LIKE_CASE_FOLD_SEARCH)
-                entry%value = "DABBREV_LIKE_CASE_FOLD_SEARCH"
             case (DABBREV_LIKE_CASE_REPLACE)
                 entry%value = "DABBREV_LIKE_CASE_REPLACE"
-            case (DABBREV_ASK)
-                entry%value = "DABBREV_ASK"
             case default
                 entry%value = repr(dabbrev_case_distinction%value)
             end select
@@ -23322,10 +23318,6 @@ contains
             select case (dabbrev_case_fold_search%choice)
             case (DABBREV_LIKE_CASE_FOLD_SEARCH)
                 entry%value = "DABBREV_LIKE_CASE_FOLD_SEARCH"
-            case (DABBREV_LIKE_CASE_REPLACE)
-                entry%value = "DABBREV_LIKE_CASE_REPLACE"
-            case (DABBREV_ASK)
-                entry%value = "DABBREV_ASK"
             case default
                 entry%value = repr(dabbrev_case_fold_search%value)
             end select
@@ -23342,12 +23334,8 @@ contains
             entry%original = "DABBREV_LIKE_CASE_REPLACE"
 
             select case (dabbrev_case_replace%choice)
-            case (DABBREV_LIKE_CASE_FOLD_SEARCH)
-                entry%value = "DABBREV_LIKE_CASE_FOLD_SEARCH"
             case (DABBREV_LIKE_CASE_REPLACE)
                 entry%value = "DABBREV_LIKE_CASE_REPLACE"
-            case (DABBREV_ASK)
-                entry%value = "DABBREV_ASK"
             case default
                 entry%value = repr(dabbrev_case_replace%value)
             end select
@@ -23384,6 +23372,8 @@ contains
             entry%original = ".true."
 
             select case (dabbrev_check_other_buffers%choice)
+            case (DABBREV_ASK)
+                entry%value = "DABBREV_ASK"
             case default
                 entry%value = repr(dabbrev_check_other_buffers%value)
             end select
@@ -36049,6 +36039,9 @@ contains
             setting = .true.
         case ("dabbrev_check_all_buffers")
             kind = OPTION_LOGICAL
+        case ("dabbrev_check_other_buffers")
+            kind = OPTION_CHOICE
+            setting = .true.
         case ("dabbrev_eliminate_newlines")
             kind = OPTION_LOGICAL
         case ("dabbrev_limit")
@@ -39281,23 +39274,11 @@ contains
                 else
                     dabbrev_case_distinction = .false.
                 end if
-            case ("DABBREV_LIKE_CASE_FOLD_SEARCH")
-                if (local) then
-                    call dabbrev_case_distinction%set_local(DABBREV_LIKE_CASE_FOLD_SEARCH)
-                else
-                    dabbrev_case_distinction = DABBREV_LIKE_CASE_FOLD_SEARCH
-                end if
             case ("DABBREV_LIKE_CASE_REPLACE")
                 if (local) then
                     call dabbrev_case_distinction%set_local(DABBREV_LIKE_CASE_REPLACE)
                 else
                     dabbrev_case_distinction = DABBREV_LIKE_CASE_REPLACE
-                end if
-            case ("DABBREV_ASK")
-                if (local) then
-                    call dabbrev_case_distinction%set_local(DABBREV_ASK)
-                else
-                    dabbrev_case_distinction = DABBREV_ASK
                 end if
             case default
                 ok = .false.
@@ -39322,18 +39303,6 @@ contains
                 else
                     dabbrev_case_fold_search = DABBREV_LIKE_CASE_FOLD_SEARCH
                 end if
-            case ("DABBREV_LIKE_CASE_REPLACE")
-                if (local) then
-                    call dabbrev_case_fold_search%set_local(DABBREV_LIKE_CASE_REPLACE)
-                else
-                    dabbrev_case_fold_search = DABBREV_LIKE_CASE_REPLACE
-                end if
-            case ("DABBREV_ASK")
-                if (local) then
-                    call dabbrev_case_fold_search%set_local(DABBREV_ASK)
-                else
-                    dabbrev_case_fold_search = DABBREV_ASK
-                end if
             case default
                 ok = .false.
             end select
@@ -39351,23 +39320,34 @@ contains
                 else
                     dabbrev_case_replace = .false.
                 end if
-            case ("DABBREV_LIKE_CASE_FOLD_SEARCH")
-                if (local) then
-                    call dabbrev_case_replace%set_local(DABBREV_LIKE_CASE_FOLD_SEARCH)
-                else
-                    dabbrev_case_replace = DABBREV_LIKE_CASE_FOLD_SEARCH
-                end if
             case ("DABBREV_LIKE_CASE_REPLACE")
                 if (local) then
                     call dabbrev_case_replace%set_local(DABBREV_LIKE_CASE_REPLACE)
                 else
                     dabbrev_case_replace = DABBREV_LIKE_CASE_REPLACE
                 end if
+            case default
+                ok = .false.
+            end select
+        case ("dabbrev_check_other_buffers")
+            select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call dabbrev_check_other_buffers%set_local(.true.)
+                else
+                    dabbrev_check_other_buffers = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dabbrev_check_other_buffers%set_local(.false.)
+                else
+                    dabbrev_check_other_buffers = .false.
+                end if
             case ("DABBREV_ASK")
                 if (local) then
-                    call dabbrev_case_replace%set_local(DABBREV_ASK)
+                    call dabbrev_check_other_buffers%set_local(DABBREV_ASK)
                 else
-                    dabbrev_case_replace = DABBREV_ASK
+                    dabbrev_check_other_buffers = DABBREV_ASK
                 end if
             case default
                 ok = .false.
@@ -41648,23 +41628,17 @@ contains
             values = [integer(int64) :: 1_int64, 0_int64, &
                       int(COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, int64)]
         case ("dabbrev_case_distinction")
-            constants = [character(len=48) :: ".true.", ".false.", "DABBREV_LIKE_CASE_FOLD_SEARCH", &
-                         "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
-            values = [integer(int64) :: 1_int64, 0_int64, &
-                      int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64), int(DABBREV_LIKE_CASE_REPLACE, int64), &
-                      int(DABBREV_ASK, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "DABBREV_LIKE_CASE_REPLACE"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(DABBREV_LIKE_CASE_REPLACE, int64)]
         case ("dabbrev_case_fold_search")
-            constants = [character(len=48) :: ".true.", ".false.", "DABBREV_LIKE_CASE_FOLD_SEARCH", &
-                         "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
-            values = [integer(int64) :: 1_int64, 0_int64, &
-                      int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64), int(DABBREV_LIKE_CASE_REPLACE, int64), &
-                      int(DABBREV_ASK, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "DABBREV_LIKE_CASE_FOLD_SEARCH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64)]
         case ("dabbrev_case_replace")
-            constants = [character(len=48) :: ".true.", ".false.", "DABBREV_LIKE_CASE_FOLD_SEARCH", &
-                         "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
-            values = [integer(int64) :: 1_int64, 0_int64, &
-                      int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64), int(DABBREV_LIKE_CASE_REPLACE, int64), &
-                      int(DABBREV_ASK, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "DABBREV_LIKE_CASE_REPLACE"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(DABBREV_LIKE_CASE_REPLACE, int64)]
+        case ("dabbrev_check_other_buffers")
+            constants = [character(len=48) :: ".true.", ".false.", "DABBREV_ASK"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(DABBREV_ASK, int64)]
         case ("default_justification")
             constants = [character(len=48) :: ".true.", ".false.", "DEFAULT_JUSTIFICATION_NONE", &
                          "DEFAULT_JUSTIFICATION_LEFT", "DEFAULT_JUSTIFICATION_RIGHT", &
@@ -42005,6 +41979,318 @@ contains
             allocate (constants(0), values(0))
         end select
     end subroutine user_option_constants
+
+    !> Declare the named constants each choice setting of the config API
+    !> accepts: those of the parameter statement documenting its values
+    !> (none when it has none).  Not a port.
+    subroutine init_choice_values()
+        ansi_color_for_comint_mode%choices = 0
+        ansi_color_for_comint_mode%choices(1:1) = [ANSI_COLOR_FILTER]
+        ansi_color_for_comint_mode%choices_declared = .true.
+        ansi_color_for_compilation_mode%choices = 0
+        ansi_color_for_compilation_mode%choices(1:1) = [ANSI_COLOR_FILTER]
+        ansi_color_for_compilation_mode%choices_declared = .true.
+        backward_delete_char_untabify_method%choices = 0
+        backward_delete_char_untabify_method%choices(1:3) = [BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY, &
+                                              BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL]
+        backward_delete_char_untabify_method%choices_declared = .true.
+        blink_matching_paren%choices = 0
+        blink_matching_paren%choices(1:2) = [BLINK_MATCHING_PAREN_JUMP, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN]
+        blink_matching_paren%choices_declared = .true.
+        bookmark_save_flag%choices = 0
+        bookmark_save_flag%choices_declared = .true.
+        bookmark_sort_flag%choices = 0
+        bookmark_sort_flag%choices(1:1) = [BOOKMARK_SORT_FLAG_LAST_MODIFIED]
+        bookmark_sort_flag%choices_declared = .true.
+        bookmark_version_control%choices = 0
+        bookmark_version_control%choices(1:2) = [BOOKMARK_VERSION_CONTROL_IF_EXISTING, &
+                                                 BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL]
+        bookmark_version_control%choices_declared = .true.
+        bookmark_watch_bookmark_file%choices = 0
+        bookmark_watch_bookmark_file%choices(1:1) = [BOOKMARK_WATCH_BOOKMARK_FILE_SILENT]
+        bookmark_watch_bookmark_file%choices_declared = .true.
+        comint_history_isearch%choices = 0
+        comint_history_isearch%choices(1:1) = [COMINT_HISTORY_ISEARCH_DWIM]
+        comint_history_isearch%choices_declared = .true.
+        comint_input_autoexpand%choices = 0
+        comint_input_autoexpand%choices(1:2) = [COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY]
+        comint_input_autoexpand%choices_declared = .true.
+        comint_move_point_for_output%choices = 0
+        comint_move_point_for_output%choices(1:3) = [COMINT_MOVE_POINT_FOR_OUTPUT_ALL, &
+                                                     COMINT_MOVE_POINT_FOR_OUTPUT_THIS, COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS]
+        comint_move_point_for_output%choices_declared = .true.
+        comint_scroll_to_bottom_on_input%choices = 0
+        comint_scroll_to_bottom_on_input%choices(1:2) = [COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, &
+                                                         COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS]
+        comint_scroll_to_bottom_on_input%choices_declared = .true.
+        comment_empty_lines%choices = 0
+        comment_empty_lines%choices(1:1) = [COMMENT_EMPTY_LINES_EOL]
+        comment_empty_lines%choices_declared = .true.
+        comment_use_syntax%choices = 0
+        comment_use_syntax%choices(1:1) = [COMMENT_USE_SYNTAX_UNDECIDED]
+        comment_use_syntax%choices_declared = .true.
+        compilation_context%choices = 0
+        compilation_context%choices(1:2) = [COMPILATION_CONTEXT_TOP, COMPILATION_CONTEXT_NO_SCROLL]
+        compilation_context%choices_declared = .true.
+        compilation_scroll_output%choices = 0
+        compilation_scroll_output%choices(1:1) = [COMPILATION_SCROLL_OUTPUT_FIRST_ERROR]
+        compilation_scroll_output%choices_declared = .true.
+        dabbrev_case_distinction%choices = 0
+        dabbrev_case_distinction%choices(1:1) = [DABBREV_LIKE_CASE_REPLACE]
+        dabbrev_case_distinction%choices_declared = .true.
+        dabbrev_case_fold_search%choices = 0
+        dabbrev_case_fold_search%choices(1:1) = [DABBREV_LIKE_CASE_FOLD_SEARCH]
+        dabbrev_case_fold_search%choices_declared = .true.
+        dabbrev_case_replace%choices = 0
+        dabbrev_case_replace%choices(1:1) = [DABBREV_LIKE_CASE_REPLACE]
+        dabbrev_case_replace%choices_declared = .true.
+        dabbrev_check_other_buffers%choices = 0
+        dabbrev_check_other_buffers%choices(1:1) = [DABBREV_ASK]
+        dabbrev_check_other_buffers%choices_declared = .true.
+        default_justification%choices = 0
+        default_justification%choices(1:6) = [DEFAULT_JUSTIFICATION_NONE, DEFAULT_JUSTIFICATION_LEFT, &
+                                            DEFAULT_JUSTIFICATION_RIGHT, DEFAULT_JUSTIFICATION_FULL, DEFAULT_JUSTIFICATION_CENTER, &
+                                              DEFAULT_JUSTIFICATION_CURRENT]
+        default_justification%choices_declared = .true.
+        diff_use_labels%choices = 0
+        diff_use_labels%choices(1:1) = [DIFF_USE_LABELS_CHECK]
+        diff_use_labels%choices_declared = .true.
+        dired_create_destination_dirs%choices = 0
+        dired_create_destination_dirs%choices(1:1) = [DIRED_CREATE_DESTINATION_DIRS_ASK]
+        dired_create_destination_dirs%choices_declared = .true.
+        dired_dwim_target%choices = 0
+        dired_dwim_target%choices(1:3) = [DIRED_DWIM_TARGET_NEXT, DIRED_DWIM_TARGET_NEXT_VISIBLE, &
+                                          DIRED_DWIM_TARGET_RECENT]
+        dired_dwim_target%choices_declared = .true.
+        dired_free_space%choices = 0
+        dired_free_space%choices(1:2) = [DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST]
+        dired_free_space%choices_declared = .true.
+        dired_mark_region%choices = 0
+        dired_mark_region%choices(1:2) = [DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE]
+        dired_mark_region%choices_declared = .true.
+        dired_movement_style%choices = 0
+        dired_movement_style%choices(1:4) = [DIRED_MOVEMENT_STYLE_CYCLE, DIRED_MOVEMENT_STYLE_BOUNDED, &
+                                             DIRED_MOVEMENT_STYLE_CYCLE_FILES, DIRED_MOVEMENT_STYLE_BOUNDED_FILES]
+        dired_movement_style%choices_declared = .true.
+        dired_recursive_copies%choices = 0
+        dired_recursive_copies%choices(1:2) = [DIRED_RECURSIVE_TOP, DIRED_RECURSIVE_ASK]
+        dired_recursive_copies%choices_declared = .true.
+        dired_recursive_deletes%choices = 0
+        dired_recursive_deletes%choices(1:2) = [DIRED_RECURSIVE_TOP, DIRED_RECURSIVE_ASK]
+        dired_recursive_deletes%choices_declared = .true.
+        dired_switches_in_mode_line%choices = 0
+        dired_switches_in_mode_line%choices(1:2) = [DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, &
+                                                    DIRED_SWITCHES_IN_MODE_LINE_AS_IS]
+        dired_switches_in_mode_line%choices_declared = .true.
+        dired_use_ls_dired%choices = 0
+        dired_use_ls_dired%choices(1:1) = [DIRED_USE_LS_DIRED_UNSPECIFIED]
+        dired_use_ls_dired%choices_declared = .true.
+        disabled_command_function_variable%choices = 0
+        disabled_command_function_variable%choices_declared = .true.
+        electric_pair_skip_self%choices = 0
+        electric_pair_skip_self%choices(1:1) = [ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE]
+        electric_pair_skip_self%choices_declared = .true.
+        electric_pair_skip_whitespace%choices = 0
+        electric_pair_skip_whitespace%choices(1:1) = [ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP]
+        electric_pair_skip_whitespace%choices_declared = .true.
+        executable_query%choices = 0
+        executable_query%choices(1:1) = [EXECUTABLE_QUERY_FUNCTION]
+        executable_query%choices_declared = .true.
+        f90_smart_end%choices = 0
+        f90_smart_end%choices(1:2) = [F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK]
+        f90_smart_end%choices_declared = .true.
+        font_lock_maximum_decoration%choices = 0
+        font_lock_maximum_decoration%choices_declared = .true.
+        grep_find_use_xargs%choices = 0
+        grep_find_use_xargs%choices(1:4) = [GREP_FIND_USE_XARGS_EXEC, GREP_FIND_USE_XARGS_EXEC_PLUS, &
+                                            GREP_FIND_USE_XARGS_GNU, GREP_FIND_USE_XARGS_GNU_SORT]
+        grep_find_use_xargs%choices_declared = .true.
+        grep_highlight_matches%choices = 0
+        grep_highlight_matches%choices(1:3) = [GREP_HIGHLIGHT_MATCHES_AUTO_DETECT, &
+                                               GREP_HIGHLIGHT_MATCHES_ALWAYS, GREP_HIGHLIGHT_MATCHES_AUTO]
+        grep_highlight_matches%choices_declared = .true.
+        grep_save_buffers%choices = 0
+        grep_save_buffers%choices(1:1) = [GREP_SAVE_BUFFERS_ASK]
+        grep_save_buffers%choices_declared = .true.
+        grep_use_null_device%choices = 0
+        grep_use_null_device%choices(1:1) = [GREP_USE_NULL_DEVICE_AUTO_DETECT]
+        grep_use_null_device%choices_declared = .true.
+        grep_use_null_filename_separator%choices = 0
+        grep_use_null_filename_separator%choices(1:1) = [GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT]
+        grep_use_null_filename_separator%choices_declared = .true.
+        html_quick_keys%choices = 0
+        html_quick_keys%choices(1:3) = [QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT]
+        html_quick_keys%choices_declared = .true.
+        ibuffer_always_show_last_buffer%choices = 0
+        ibuffer_always_show_last_buffer%choices(1:1) = [IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI]
+        ibuffer_always_show_last_buffer%choices_declared = .true.
+        ibuffer_use_header_line%choices = 0
+        ibuffer_use_header_line%choices(1:1) = [IBUFFER_USE_HEADER_LINE_TITLE]
+        ibuffer_use_header_line%choices_declared = .true.
+        info_hide_note_references%choices = 0
+        info_hide_note_references%choices(1:2) = [INFO_HIDE_NOTE_REFERENCES_SEE, &
+                                                  INFO_HIDE_NOTE_REFERENCES_TAG]
+        info_hide_note_references%choices_declared = .true.
+        ispell_check_comments%choices = 0
+        ispell_check_comments%choices(1:1) = [ISPELL_CHECK_COMMENTS_EXCLUSIVE]
+        ispell_check_comments%choices_declared = .true.
+        ispell_highlight%choices = 0
+        ispell_highlight%choices(1:1) = [ISPELL_HIGHLIGHT_BLOCK]
+        ispell_highlight%choices_declared = .true.
+        ispell_skip_html%choices = 0
+        ispell_skip_html%choices(1:1) = [ISPELL_SKIP_HTML_USE_MODE_NAME]
+        ispell_skip_html%choices_declared = .true.
+        js_indent_first_init%choices = 0
+        js_indent_first_init%choices(1:1) = [JS_INDENT_FIRST_INIT_DYNAMIC]
+        js_indent_first_init%choices_declared = .true.
+        kmacro_execute_repeat_key%choices = 0
+        kmacro_execute_repeat_key%choices_declared = .true.
+        log_edit_confirm%choices = 0
+        log_edit_confirm%choices(1:1) = [LOG_EDIT_CONFIRM_CHANGED]
+        log_edit_confirm%choices_declared = .true.
+        log_edit_require_final_newline%choices = 0
+        log_edit_require_final_newline%choices(1:1) = [LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK]
+        log_edit_require_final_newline%choices_declared = .true.
+        mail_send_nonascii%choices = 0
+        mail_send_nonascii%choices(1:2) = [MAIL_SEND_NONASCII_ASK, MAIL_SEND_NONASCII_MIME]
+        mail_send_nonascii%choices_declared = .true.
+        mail_signature_variable%choices = 0
+        mail_signature_variable%choices_declared = .true.
+        message_log_max%choices = 0
+        message_log_max%choices_declared = .true.
+        mode_require_final_newline%choices = 0
+        mode_require_final_newline%choices(1:3) = [FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, &
+                                                   FINAL_NEWLINE_ASK]
+        mode_require_final_newline%choices_declared = .true.
+        read_answer_short%choices = 0
+        read_answer_short%choices(1:1) = [READ_ANSWER_SHORT_AUTO]
+        read_answer_short%choices_declared = .true.
+        recentf_auto_cleanup%choices = 0
+        recentf_auto_cleanup%choices_declared = .true.
+        require_final_newline%choices = 0
+        require_final_newline%choices(1:3) = [FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, &
+                                              FINAL_NEWLINE_ASK]
+        require_final_newline%choices_declared = .true.
+        save_abbrevs%choices = 0
+        save_abbrevs%choices(1:1) = [SAVE_ABBREVS_SILENTLY]
+        save_abbrevs%choices_declared = .true.
+        save_place_version_control%choices = 0
+        save_place_version_control%choices(1:2) = [SAVE_PLACE_VERSION_CONTROL_IF_EXISTING, &
+                                                   SAVE_PLACE_VERSION_CONTROL_AS_VERSION_CONTROL]
+        save_place_version_control%choices_declared = .true.
+        search_upper_case%choices = 0
+        search_upper_case%choices(1:1) = [SEARCH_UPPER_CASE_NOT_PASTED]
+        search_upper_case%choices_declared = .true.
+        sgml_quick_keys%choices = 0
+        sgml_quick_keys%choices(1:3) = [QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT]
+        sgml_quick_keys%choices_declared = .true.
+        sh_indent_after_case%choices = 0
+        sh_indent_after_case%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                                             SH_SLASH]
+        sh_indent_after_case%choices_declared = .true.
+        sh_indent_after_continuation%choices = 0
+        sh_indent_after_continuation%choices(1:1) = [SH_INDENT_AFTER_CONTINUATION_ALWAYS]
+        sh_indent_after_continuation%choices_declared = .true.
+        sh_indent_after_do%choices = 0
+        sh_indent_after_do%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH]
+        sh_indent_after_do%choices_declared = .true.
+        sh_indent_after_done%choices = 0
+        sh_indent_after_done%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                                             SH_SLASH]
+        sh_indent_after_done%choices_declared = .true.
+        sh_indent_after_else%choices = 0
+        sh_indent_after_else%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                                             SH_SLASH]
+        sh_indent_after_else%choices_declared = .true.
+        sh_indent_after_function%choices = 0
+        sh_indent_after_function%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                                                 SH_SLASH]
+        sh_indent_after_function%choices_declared = .true.
+        sh_indent_after_if%choices = 0
+        sh_indent_after_if%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH]
+        sh_indent_after_if%choices_declared = .true.
+        sh_indent_after_loop_construct%choices = 0
+        sh_indent_after_loop_construct%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                                                       SH_STAR, SH_SLASH]
+        sh_indent_after_loop_construct%choices_declared = .true.
+        sh_indent_after_open%choices = 0
+        sh_indent_after_open%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                                             SH_SLASH]
+        sh_indent_after_open%choices_declared = .true.
+        sh_indent_after_switch%choices = 0
+        sh_indent_after_switch%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                                               SH_SLASH]
+        sh_indent_after_switch%choices_declared = .true.
+        sh_indent_for_case_alt%choices = 0
+        sh_indent_for_case_alt%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                                               SH_SLASH]
+        sh_indent_for_case_alt%choices_declared = .true.
+        sh_indent_for_case_label%choices = 0
+        sh_indent_for_case_label%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                                                 SH_SLASH]
+        sh_indent_for_case_label%choices_declared = .true.
+        sh_indent_for_continuation%choices = 0
+        sh_indent_for_continuation%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                                                   SH_SLASH]
+        sh_indent_for_continuation%choices_declared = .true.
+        sh_indent_for_do%choices = 0
+        sh_indent_for_do%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH]
+        sh_indent_for_do%choices_declared = .true.
+        sh_indent_for_done%choices = 0
+        sh_indent_for_done%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH]
+        sh_indent_for_done%choices_declared = .true.
+        sh_indent_for_fi%choices = 0
+        sh_indent_for_fi%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH]
+        sh_indent_for_fi%choices_declared = .true.
+        sh_indent_for_then%choices = 0
+        sh_indent_for_then%choices(1:6) = [SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH]
+        sh_indent_for_then%choices_declared = .true.
+        shell_command_keep_output%choices = 0
+        shell_command_keep_output%choices(1:4) = [SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, &
+                                 SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, &
+                                                  SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT]
+        shell_command_keep_output%choices_declared = .true.
+        shell_input_autoexpand%choices = 0
+        shell_input_autoexpand%choices(1:2) = [COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY]
+        shell_input_autoexpand%choices_declared = .true.
+        show_paren_not_in_comments_or_strings%choices = 0
+        show_paren_not_in_comments_or_strings%choices(1:1) = [ &
+                                                             SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH]
+        show_paren_not_in_comments_or_strings%choices_declared = .true.
+        show_paren_style%choices = 0
+        show_paren_style%choices(1:3) = [SHOW_PAREN_STYLE_PARENTHESIS, SHOW_PAREN_STYLE_EXPRESSION, &
+                                         SHOW_PAREN_STYLE_MIXED]
+        show_paren_style%choices_declared = .true.
+        split_window_preferred_direction%choices = 0
+        split_window_preferred_direction%choices(1:3) = [SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST, &
+                                             SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL, SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL]
+        split_window_preferred_direction%choices_declared = .true.
+        vc_command_messages%choices = 0
+        vc_command_messages%choices(1:1) = [VC_COMMAND_MESSAGES_LOG]
+        vc_command_messages%choices_declared = .true.
+        vc_dir_allow_mass_mark_changes%choices = 0
+        vc_dir_allow_mass_mark_changes%choices(1:1) = [VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK]
+        vc_dir_allow_mass_mark_changes%choices_declared = .true.
+        vc_dir_auto_hide_up_to_date%choices = 0
+        vc_dir_auto_hide_up_to_date%choices(1:1) = [VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT]
+        vc_dir_auto_hide_up_to_date%choices_declared = .true.
+        vc_display_status%choices = 0
+        vc_display_status%choices(1:1) = [VC_DISPLAY_STATUS_NO_BACKEND]
+        vc_display_status%choices_declared = .true.
+        vc_follow_symlinks%choices = 0
+        vc_follow_symlinks%choices(1:1) = [VC_FOLLOW_SYMLINKS_ASK]
+        vc_follow_symlinks%choices_declared = .true.
+        vc_git_resolve_conflicts%choices = 0
+        vc_git_resolve_conflicts%choices(1:2) = [VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE, &
+                                                 VC_GIT_RESOLVE_CONFLICTS_DEFAULT]
+        vc_git_resolve_conflicts%choices_declared = .true.
+        vc_revert_show_diff%choices = 0
+        vc_revert_show_diff%choices(1:1) = [VC_REVERT_SHOW_DIFF_KILL]
+        vc_revert_show_diff%choices_declared = .true.
+        window_sides_reversed%choices = 0
+        window_sides_reversed%choices(1:1) = [WINDOW_SIDES_REVERSED_BIDI]
+        window_sides_reversed%choices_declared = .true.
+    end subroutine init_choice_values
 
     function repr_logical(v) result(s)
         logical, intent(in) :: v

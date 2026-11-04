@@ -78,10 +78,14 @@ module dabbrev_mod
     public :: dabbrev_expand, dabbrev_reset_global_variables, is_dabbrev_same_major_mode, dabbrev_select_buffers, &
               dabbrev_friend_buffer_procedure, dabbrev_select_buffers_procedure, init_dabbrev
 
-    !> Values of the dabbrev choice settings besides .true. and .false.:
-    !> like `case_fold_search', like
-    !> `case_replace', and ask (another value).
-    integer, parameter, public :: DABBREV_LIKE_CASE_FOLD_SEARCH = 2, DABBREV_LIKE_CASE_REPLACE = 3, DABBREV_ASK = 4
+    !> Values of `dabbrev_case_fold_search' besides .true. and .false.: like
+    !> case_fold_search.
+    integer, parameter, public :: DABBREV_LIKE_CASE_FOLD_SEARCH = 2
+    !> Values of `dabbrev_case_distinction' and `dabbrev_case_replace' besides
+    !> .true. and .false.: like case_replace.
+    integer, parameter, public :: DABBREV_LIKE_CASE_REPLACE = 3
+    !> Values of `dabbrev_check_other_buffers' besides .true. and .false.: ask.
+    integer, parameter, public :: DABBREV_ASK = 4
 
     abstract interface
         !> A function deciding whether dabbrev should search OTHER_BUFFER.

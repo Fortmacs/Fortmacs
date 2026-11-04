@@ -299,6 +299,7 @@ module keyboard_mod
     contains
         procedure :: clear_kinds => disabled_command_function_clear_kinds
         procedure :: other_value => disabled_command_function_other_value
+        procedure :: kind_hint => disabled_command_function_kind_hint
     end type disabled_command_function_choice_setting_type
 
     !> Function to call to handle disabled commands.
@@ -309,7 +310,7 @@ module keyboard_mod
     !> disabled-command-function (which keyboard.c and
     !> simple.el:command-execute call).
     type(disabled_command_function_choice_setting_type), public :: disabled_command_function_variable = &
-                                            disabled_command_function_choice_setting_type(name="disabled_command_function_variable")
+                        disabled_command_function_choice_setting_type(name="disabled_command_function_variable", true_valid=.false.)
 
     !> Logs the error messages of the command loop in *Messages*
     !> (xdisp_mod sits above this module; set by simple_mod); null for
@@ -4092,4 +4093,15 @@ contains
         text = ""
         if (associated(self%procedure)) text = "a procedure (disabled_command_function by default)"
     end function disabled_command_function_other_value
+
+    !> The assignment that sets the procedure `disabled_command_function_variable' takes, for the error of a rejected
+    !> value.  Not a port.
+    function disabled_command_function_kind_hint(self, number) result(text)
+        class(disabled_command_function_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a procedure is `"//trim(self%name)//"%procedure => mine'"
+        if (len(number) < 0) text = number
+    end function disabled_command_function_kind_hint
 end module keyboard_mod

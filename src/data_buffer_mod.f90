@@ -769,8 +769,11 @@ contains
         class(choice_setting_type), intent(inout) :: s
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
+        integer :: errors
 
         status = status_type()
+        errors = 0
+        if (allocated(setting_errors)) errors = size(setting_errors)
 
         if (.not. allocated(v%a)) then
             s = .false.
@@ -780,6 +783,14 @@ contains
             s = int(xfixnum(v))
         else
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected .true., .false. or a named constant")
+        end if
+
+        ! A value S does not accept (panel 2026-11-04).
+        if (allocated(setting_errors)) then
+            if (size(setting_errors) > errors) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, setting_errors(size(setting_errors))%text)
+                setting_errors = setting_errors(1:errors)
+            end if
         end if
     end subroutine set_choice
 

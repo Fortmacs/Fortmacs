@@ -120,6 +120,7 @@ module font_lock_mod
     contains
         procedure :: clear_kinds => font_lock_maximum_decoration_clear_kinds
         procedure :: other_value => font_lock_maximum_decoration_other_value
+        procedure :: kind_hint => font_lock_maximum_decoration_kind_hint
     end type font_lock_maximum_decoration_choice_setting_type
 
     !> Maximum decoration level for fontification.
@@ -2349,4 +2350,14 @@ contains
         text = ""
         if (self%level >= 0) text = "%level = "//number_to_string(self%level)
     end function font_lock_maximum_decoration_other_value
+
+    !> The assignment that sets the number or procedure `font_lock_maximum_decoration' takes, for the error of a rejected
+    !> value.  Not a port.
+    function font_lock_maximum_decoration_kind_hint(self, number) result(text)
+        class(font_lock_maximum_decoration_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a level is `"//trim(self%name)//"%level = "//number//"'"
+    end function font_lock_maximum_decoration_kind_hint
 end module font_lock_mod

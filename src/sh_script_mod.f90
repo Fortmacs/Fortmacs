@@ -56,7 +56,7 @@ module sh_script_mod
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_ARITH_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xstring, list, list_elements, make_list, list_length, list_elt, vtag, V_STRING, &
-                         V_INTEGER, V_NAME, xfixnum, symbols, xsymbol
+                         V_INTEGER, V_NAME, xfixnum, symbols, xsymbol, choice_type
     use data_mod, only: integer_setting_type, string_setting_type, forward_setting, append_locals_clearer, choice_setting_type, &
                         setting_type
     use commands_mod, only: commands
@@ -190,6 +190,7 @@ module sh_script_mod
     contains
         procedure :: clear_kinds => sh_indent_clear_kinds
         procedure :: other_value => sh_indent_other_value
+        procedure :: kind_hint => sh_indent_kind_hint
         procedure :: get_kind_value => sh_indent_get_kind_value
         procedure :: set_kind_value => sh_indent_set_kind_value
     end type sh_indent_choice_setting_type
@@ -531,36 +532,36 @@ module sh_script_mod
     !> How much to indent a `fi' relative to its `if'.  Usually 0.  Port of
     !> sh-script.el sh-indent-for-fi.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_for_fi = &
-                                                           sh_indent_choice_setting_type(name="sh_indent_for_fi", columns=0)
+                          sh_indent_choice_setting_type(name="sh_indent_for_fi", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a `done' relative to its matching stmt.  Usually 0.
     !> Port of sh-script.el sh-indent-for-done.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_for_done = &
-                                                           sh_indent_choice_setting_type(name="sh_indent_for_done", columns=0)
+                        sh_indent_choice_setting_type(name="sh_indent_for_done", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a statement after an `else' statement.  Port of
     !> sh-script.el sh-indent-after-else.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_after_else = &
-                                                          sh_indent_choice_setting_type(name="sh_indent_after_else", choice=SH_PLUS)
+                 sh_indent_choice_setting_type(name="sh_indent_after_else", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement after an `if' statement.
     !> This includes lines after `else' and `elif' statements, too, but
     !> does not affect the `else', `elif' or `fi' statements themselves.
     !> Port of sh-script.el sh-indent-after-if.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_after_if = &
-                                                           sh_indent_choice_setting_type(name="sh_indent_after_if", choice=SH_PLUS)
+                   sh_indent_choice_setting_type(name="sh_indent_after_if", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a `then' relative to its `if'.  Port of
     !> sh-script.el sh-indent-for-then.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_for_then = &
-                                                           sh_indent_choice_setting_type(name="sh_indent_for_then", columns=0)
+                        sh_indent_choice_setting_type(name="sh_indent_for_then", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a `do' statement.
     !> This is relative to the statement before the `do', typically a
     !> `while', `until', `for', `repeat' or `select' statement.  Port of
     !> sh-script.el sh-indent-for-do.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_for_do = &
-                                                           sh_indent_choice_setting_type(name="sh_indent_for_do", columns=0)
+                          sh_indent_choice_setting_type(name="sh_indent_for_do", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a line after a `do' statement.
     !> This is used when the `do' is the first word of the line.
@@ -568,7 +569,7 @@ module sh_script_mod
     !> `while', `until', `for', `repeat' or `select' statement.  Port of
     !> sh-script.el sh-indent-after-do.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_after_do = &
-                                                           sh_indent_choice_setting_type(name="sh_indent_after_do", choice=SH_PLUS)
+                   sh_indent_choice_setting_type(name="sh_indent_after_do", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement after a loop construct.
     !>
@@ -577,7 +578,7 @@ module sh_script_mod
     !> If the `do' is on a line by itself, then `sh_indent_after_do' is used instead.
     !> Port of sh-script.el sh-indent-after-loop-construct.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_after_loop_construct = &
-                                                sh_indent_choice_setting_type(name="sh_indent_after_loop_construct", choice=SH_PLUS)
+       sh_indent_choice_setting_type(name="sh_indent_after_loop_construct", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement after a `done' keyword.
     !> Normally this is 0, which aligns the `done' to the matching
@@ -586,45 +587,45 @@ module sh_script_mod
     !> by itself and align the done under to do.  Port of sh-script.el
     !> sh-indent-after-done.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_after_done = &
-                                                           sh_indent_choice_setting_type(name="sh_indent_after_done", columns=0)
+                      sh_indent_choice_setting_type(name="sh_indent_after_done", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a case label statement.
     !> This is relative to the line containing the `case' statement.
     !> Port of sh-script.el sh-indent-for-case-label.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_for_case_label = &
-                                                      sh_indent_choice_setting_type(name="sh_indent_for_case_label", choice=SH_PLUS)
+             sh_indent_choice_setting_type(name="sh_indent_for_case_label", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent statements after the case label.
     !> This is relative to the line containing the `case' statement.
     !> Port of sh-script.el sh-indent-for-case-alt.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_for_case_alt = &
-                                                   sh_indent_choice_setting_type(name="sh_indent_for_case_alt", choice=SH_PLUS_PLUS)
+          sh_indent_choice_setting_type(name="sh_indent_for_case_alt", true_valid=.false., false_valid=.false., choice=SH_PLUS_PLUS)
 
     !> How much to indent for a continuation statement.  Port of
     !> sh-script.el sh-indent-for-continuation.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_for_continuation = &
-                                                    sh_indent_choice_setting_type(name="sh_indent_for_continuation", choice=SH_PLUS)
+           sh_indent_choice_setting_type(name="sh_indent_for_continuation", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent after a line with an opening parenthesis or brace.
     !> For an open paren after a function, `sh_indent_after_function' is used.
     !> Port of sh-script.el sh-indent-after-open.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_after_open = &
-                                                          sh_indent_choice_setting_type(name="sh_indent_after_open", choice=SH_PLUS)
+                 sh_indent_choice_setting_type(name="sh_indent_after_open", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent after a function line.  Port of sh-script.el
     !> sh-indent-after-function.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_after_function = &
-                                                      sh_indent_choice_setting_type(name="sh_indent_after_function", choice=SH_PLUS)
+             sh_indent_choice_setting_type(name="sh_indent_after_function", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a `case' statement relative to the `switch' statement.
     !> This is for the rc shell.  Port of sh-script.el sh-indent-after-switch.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_after_switch = &
-                                                        sh_indent_choice_setting_type(name="sh_indent_after_switch", choice=SH_PLUS)
+               sh_indent_choice_setting_type(name="sh_indent_after_switch", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement relative to the `case' statement.
     !> This is for the rc shell.  Port of sh-script.el sh-indent-after-case.
     type(sh_indent_choice_setting_type), target, public :: sh_indent_after_case = &
-                                                          sh_indent_choice_setting_type(name="sh_indent_after_case", choice=SH_PLUS)
+                 sh_indent_choice_setting_type(name="sh_indent_after_case", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> Column in which `sh_backslash_region' inserts backslashes.  Port of
     !> sh-script.el sh-backslash-column.
@@ -4887,7 +4888,8 @@ contains
             if (v%choice /= 0) then
                 var = v%choice
             else
-                var = .false.
+                ! (A plain state first: the assignment clears the columns.)
+                var = choice_type()
                 var%columns = v%columns
             end if
         end subroutine load
@@ -5831,7 +5833,7 @@ contains
         done = .false.
 
         if (vtag(v) == V_INTEGER) then
-            self = .false.
+            self = choice_type()
             self%columns = int(xfixnum(v))
             done = .true.
         else if (vtag(v) == V_NAME) then
@@ -5843,4 +5845,14 @@ contains
             end if
         end if
     end subroutine sh_indent_set_kind_value
+
+    !> The assignment that sets the number an indentation variable takes, for the error of a rejected
+    !> value.  Not a port.
+    function sh_indent_kind_hint(self, number) result(text)
+        class(sh_indent_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of columns is `"//trim(self%name)//"%columns = "//number//"'"
+    end function sh_indent_kind_hint
 end module sh_script_mod

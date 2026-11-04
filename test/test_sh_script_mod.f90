@@ -40,7 +40,7 @@ module test_sh_script_mod
     use indent_mod, only: indent_region, indent_for_tab_command
     use font_lock_mod, only: font_lock_ensure
     use syntax_mod, only: parse_state_type, syntax_ppss, ST_STRING_STYLE
-    use data_mod, only: choice_state
+    use data_mod, only: choice_state, setting_errors
     use sh_script_mod, only: sh_mode, sh_indent_supported_here, sh_indent_for_continuation, &
                              sh_indent_after_continuation, sh_smie_default_backward_token, sh_set_shell, &
                              sh_builtins, sh_canonicalize_shell, sh_shell, &
@@ -655,6 +655,16 @@ contains
             if (allocated(error)) exit checks
             call sh_indent_for_fi%clear_local()
             call check(error, sh_indent_for_fi%choice == SH_STAR, "local value cleared")
+            if (allocated(error)) exit checks
+            ! A plain number is not a value (panel 2026-11-04).
+            if (allocated(setting_errors)) deallocate (setting_errors)
+            sh_indent_for_fi%choices_declared = .true.
+            sh_indent_for_fi = 0
+            call check(error, sh_indent_for_fi%choice == SH_STAR .and. size(setting_errors) == 1, "rejected")
+            if (allocated(error)) exit checks
+            call check(error, setting_errors(1)%text, "sh_indent_for_fi: 0 is not a value of this option; "// &
+                       "a number of columns is `sh_indent_for_fi%columns = 0'")
+            deallocate (setting_errors)
         end block checks
 
         if (sh_indent_for_fi%local_p()) call sh_indent_for_fi%clear_local()

@@ -113,7 +113,12 @@ contains
 
         do way = 1, n
             do k = 1, size(SAVE_POS)
-                shell_command_keep_output = SAVE_POS(k)
+                if (SAVE_POS(k) == 0) then
+                    shell_command_keep_output = .false.
+                else
+                    shell_command_keep_output = SAVE_POS(k)
+                end if
+
                 call set_buffer(output, st)
                 call erase_buffer(st)
                 call set_buffer(caller, st)
