@@ -11,7 +11,7 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
-<img src="docs/progress/pie.svg" width="871" height="236" alt="Ported: ≈5.89% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 158,180 of the about 10,392,596 lines of Emacs and its packages translated">
+<img src="docs/progress/pie.svg" width="871" height="236" alt="Ported: ≈5.89% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 158,186 of the about 10,392,596 lines of Emacs and its packages translated">
 </picture>
 <!-- progress:end -->
 
@@ -25,13 +25,17 @@ confirm or correct it.
 
 Requires gfortran ≥ 13 and [fpm](https://fpm.fortran-lang.org); development
 also needs [fprettify](https://github.com/fortran-lang/fprettify) 0.3.7 and
-[Fortitude](https://fortitude.readthedocs.io) 0.9.2.
+[Fortitude](https://fortitude.readthedocs.io) 0.9.2. Build through
+`tools/build.sh`, which first generates the modules made from `src/` (the
+command, mode, face and help tables, not kept in git) and then runs fpm with
+its arguments.
 
 ```sh
-fpm build
-fpm run -- FILE         # edit FILE (C-x C-s saves, C-x C-c exits)
-tools/check.sh          # format, lint, debug build and tests, as CI runs them
-tools/check.sh --fix    # reformat and apply safe lint fixes
+tools/build.sh                 # fpm build
+tools/build.sh run -- FILE     # edit FILE (C-x C-s saves, C-x C-c exits)
+tools/build.sh test            # all the tests (test -- SUITE for one)
+tools/check.sh                 # format, lint, debug build and tests, as CI runs them
+tools/check.sh --fix           # reformat and apply safe lint fixes
 ```
 
 CI runs the same check on Ubuntu and Fedora (x86-64 and aarch64) and Arch
@@ -48,12 +52,12 @@ Write your configuration in `~/.config/fortmacs/init.f90`
 `keymap_global_set("C-c d", "my_command", status)`.
 
 ```sh
-fpm install --profile release   # fortmacs, its library and modules, in ~/.local
-fortmacs --recompile            # build init.f90 into a new generation
-fortmacs -q                     # start without your configuration
-fortmacs --list-generations     # every build, the current one marked
-fortmacs --rollback             # back to the generation before
-fortmacs --switch-generation 3  # or to any generation
+tools/build.sh install --profile release  # fortmacs, its library and modules, in ~/.local
+fortmacs --recompile                      # build init.f90 into a new generation
+fortmacs -q                               # start without your configuration
+fortmacs --list-generations               # every build, the current one marked
+fortmacs --rollback                       # back to the generation before
+fortmacs --switch-generation 3            # or to any generation
 ```
 
 A failed build shows the compiler's errors and leaves your last good build

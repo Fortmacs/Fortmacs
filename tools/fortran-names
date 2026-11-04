@@ -2,8 +2,9 @@
 #
 # Fortmacs is Fortran-first: where upstream names a thing with a Lisp
 # term, Fortmacs uses a Fortran word.  Every term, name and file entry
-# below was confirmed by the project owner individually; do not add one
-# without that.
+# below was confirmed by the owner, by an existing rule (decided and
+# reported), or by the decision panel (CLAUDE.md); do not add one
+# otherwise.
 # tools/fortran-names.sh applies this table (to this tree, to branches
 # written before an entry existed, and to code freshly ported from a new
 # upstream version), and tools/check.sh fails on what it would still
@@ -41,7 +42,7 @@
 #   Every keep entry says why in a comment above it.
 #
 # Matching ignores case and keeps it: ERROR_REGEXP_ALIST becomes
-# ERROR_REGEXP_TABLE, "Sexp" becomes "Expression".  Upstream names are
+# ERROR_REGEXPS, "Sexp" becomes "Expression".  Upstream names are
 # never renamed: FILE.el:NAME, FILE.c:NAME and FILE.h:NAME citations,
 # hyphenated names (forward-sexp), C names (Fscan_lists, Vfoo_alist),
 # upper-case C predicate macros (CHAR_HEAD_P, for a name ending in p),
@@ -429,7 +430,8 @@ name	full_directory_p	full_directory
 name	string_collate_lessp	is_string_collate_less
 
 # A1: named constants say what nil and t mean for their setting (_NO and
-# _YES for plain off/on, _ALWAYS for "always", or the meaning itself).
+# _YES for plain off/on, which since R6-38 are .false. and .true. of a
+# choice setting; _ALWAYS for "always", or the meaning itself).
 # isearch's CASE_FOLD_YES (upstream `yes') became CASE_FOLD_FORCED by
 # hand first; kmacro's REPEAT reads positively (upstream NO-REPEAT nil is
 # KMACRO_REPEAT_YES).
@@ -1077,6 +1079,16 @@ name	kill_compilation	stop_compilation
 name	kill_grep	stop_grep
 name	compilation_always_kill	compilation_always_stop
 name	comint_kill_subjob	comint_stop_subjob
+# R6-43 (owner, 2026-11-04): "stop" ends a process, "suspend" pauses it
+# (SIGTSTP), so upstream's comint-stop-subjob and stop-process are
+# comint_suspend_subjob and suspend_process.  The Fortran names
+# comint_stop_subjob and stop_process belong to the ports of
+# comint-kill-subjob and kill-process, kept in the files that hold them.
+name	comint_stop_subjob	comint_suspend_subjob
+keep	comint_stop_subjob	src/comint_mod.f90 src/commands_mod.f90 src/docstrings_mod.f90 PORTING.md
+name	stop_process	suspend_process
+keep	stop_process	src/process_mod.f90 src/comint_mod.f90 src/docstrings_mod.f90 src/fortmacs.f90 src/simple_shell_mod.f90 test/test_process_mod.f90 PORTING.md README.md
+keep	ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS
 name	vc_dir_kill_dir_status_process	vc_dir_stop_dir_status_process
 name	kill_without_query	stop_without_query	src/process_mod.f90
 # Fortmacs exits (R6-21: exit_fortmacs, not exit_emacs).

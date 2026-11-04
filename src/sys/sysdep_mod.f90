@@ -64,7 +64,7 @@ module sysdep_mod
                              IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
                              IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, &
                              IN_ALL_EVENTS, IN_MOVE, IN_CLOSE, c_tcdrain, c_ioctl_char, c_getpid, c_getpgrp, c_setpgid, &
-                             TIOCSTI, SIGTSTP
+                             TIOCSTI, SIGTSTP, SIGHUP
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
@@ -81,8 +81,8 @@ module sysdep_mod
               reset_sys_modes, get_tty_size, set_tty_size, fortmacs_read, &
               fortmacs_full_write, fortmacs_write, input_available
     public :: install_window_change_handler, window_change_pending, clear_window_change
-    public :: sys_suspend, stuff_char, SIGTSTP
-    public :: signal_disposition_type, ignore_signal, restore_signal, fortmacs_getpid, fortmacs_getpgrp, sys_setpgid
+    public :: sys_suspend, stuff_char, SIGTSTP, SIGHUP
+    public :: signal_disposition_type, ignore_signal, default_signal, restore_signal, fortmacs_getpid, fortmacs_getpgrp, sys_setpgid
     public :: install_interrupt_handler, interrupt_pending
     public :: open_pty, close_fd, is_tabs_safe, fortmacs_isatty
     public :: file_stat_type, fortmacs_open_read, fortmacs_creat, sys_access, sys_rename, &
@@ -124,8 +124,8 @@ module sysdep_mod
         character(len=:), allocatable :: name
     end type inotify_raw_event_type
 
-    !> How a signal was handled before `ignore_signal', so that
-    !> `restore_signal' can put it back.
+    !> How a signal was handled before `ignore_signal' or
+    !> `default_signal', so that `restore_signal' can put it back.
     type :: signal_disposition_type
         private
         type(c_funptr) :: handler = c_null_funptr
@@ -570,6 +570,16 @@ contains
 
         old%handler = c_signal(int(sig, c_int), transfer(1_c_intptr_t, c_null_funptr))
     end subroutine ignore_signal
+
+    !> Set signal `sig' to its default action, saving in `old' how it was
+    !> handled.  A child inherits an ignored signal through exec, but not
+    !> a handler, which exec puts back to the default.  Not a port.
+    subroutine default_signal(sig, old)
+        integer, intent(in) :: sig
+        type(signal_disposition_type), intent(out) :: old
+
+        old%handler = c_signal(int(sig, c_int), c_null_funptr)
+    end subroutine default_signal
 
     !> Handle signal `sig' again as `old' says.  Not a port.
     subroutine restore_signal(sig, old)

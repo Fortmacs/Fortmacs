@@ -32,6 +32,7 @@ module test_process_mod
     use editfns_mod, only: buffer_string
     use keyboard_mod, only: sit_for
     use sys_worker_mod, only: on_main_thread, wait_for_worker_messages
+    use sysdep_mod, only: signal_disposition_type, default_signal, restore_signal, SIGHUP
     use process_mod, only: make_process, start_process, delete_process, destroy_process, &
                            process_status, process_exit_status, is_process_live, process_name, process_tty_name, &
                            set_process_sentinel, set_process_filter, accept_process_output, stop_process, &
@@ -529,18 +530,25 @@ contains
         call process_shutdown()
     end subroutine test_unique_names
 
-    !> Closing a buffer sends SIGHUP to its process.
+    !> Closing a buffer sends SIGHUP to its process.  The child starts
+    !> with SIGHUP at its default, as under interactive Emacs (whose
+    !> handler, sysdep.c:init_signals, exec resets), whatever the test
+    !> runner left: under nohup an ignored SIGHUP would pass through exec,
+    !> and the child would run until `sleep' ends ("finished").
     subroutine test_close_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer, other
         type(string_type), allocatable :: args(:)
         type(status_type) :: st
+        type(signal_disposition_type) :: old_hup
 
         call get_or_make_buffer("*process-test*", buffer, st)
         call set_buffer(buffer, st)
         call reset_records()
         call sh_args("sleep 100", args)
+        call default_signal(SIGHUP, old_hup)
         call start_process("hup", buffer, "sh", process, st, args)
+        call restore_signal(SIGHUP, old_hup)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         other = get_buffer_process(buffer)

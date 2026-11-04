@@ -343,7 +343,8 @@ Design decisions).
    session log entry (`docs/log/DATE-BRANCH.md`).  The README progress
    block is not touched: the Progress workflow updates it on main after
    each merge.
-7. **Merge.** The user merges. Claude polls the open PR
+7. **Merge.** The owner merges, or clears a PR by number for Claude to
+   merge once CI is green. Claude polls the open PR
    (`gh api repos/Fortmacs/Fortmacs/pulls/N --jq .merged`) and, once it
    is merged, starts the next step on a fresh branch from main; work done
    while waiting is rebased onto main before its PR is opened.
@@ -443,7 +444,7 @@ regenerates) when upstream/emacs is present (see "Known debt").
 | intervals_mod | intervals.c, intervals.h | intervals as a sorted run array: `create_root_interval`, `find_interval`, `split_interval_right/left`, `intervals_equal` (`intervals_equal_1`), `offset_intervals` (insertion/deletion: `adjust_intervals_for_insertion`, `adjust_intervals_for_deletion`; the inserted text inheriting by stickiness through `insertion_plist`), `merge_properties`, `merge_properties_sticky`, `graft_intervals_into_buffer` (`copy_properties`), `copy_intervals`, `copy_intervals_to_string`, `compare_string_intervals`, `textget` (with `category` and `char-property-alias-alist`), `lookup_char_property`, TMEM, textprop.c `property_value`; textprop_mod has `temp_set_point`, `set_point`, `set_point_both`, `adjust_for_invis_intang`, `move_if_not_intangible` (they need the char-property functions), keymap_mod `get_local_map` | `default-text-properties`, `set_intervals_multibyte(_1)` (with set-buffer-multibyte); Not applicable: the balanced tree and its parent links, which the run array replaces (`balance_*`, `rotate_left/right`, `set_interval_left/right`, `copy_interval_parent`, `delete_node`, `delete_interval`, `merge_interval_left/right`, `interval_deletion_adjustment`, `reproduce_tree(_obj)`, `reproduce_interval`, `update_interval`, `next_interval`/`previous_interval` (k ± 1), `interval_start_pos`, `traverse_intervals(_noorder)`); waits for the GUI: nothing | test_textprop_mod, test_insdel_mod | done |
 | textprop_mod, textprop_modify_mod (submodule) | textprop.c (+ intervals.c point motion) | `text-properties-at`, `get-text-property`, `put-text-property`, `add-text-properties`, `set-text-properties` (`set_text_properties`, `set_text_properties_1`, `set_properties`), `remove-text-properties`, `remove-list-of-text-properties`, `next/previous(-single)-property-change`, `text-property-any`, `text-property-not-all`, `verify_interval_modification` (read-only, inhibit-read-only, stickiness on insertion, the `modification-hooks` of changed text and the `insert-behind-hooks`/`insert-in-front-hooks` recorded for an insertion), `report_interval_modification`, `execute_mod_hooks`, `modify_text_properties` (with insdel.c's `prepare_to_modify_buffer_1`: the before-change hooks) and the after-change hooks of property changes, starting over when a before-change function changed the intervals, `text_property_stickiness`, `next/previous-single-char-property-change` (without overlays); `get-char-property` and `get-char-property-and-overlay` (overlays by priority, then text properties), `get-pos-property` (editfns.c: stickiness and overlay insertion types), `next-char-property-change`, `previous-char-property-change`, `next-single-char-property-change` and `previous-single-char-property-change` with overlays, get_property_and_range (intervals.c), TEXT_PROP_MEANS_INVISIBLE (xdisp.c:invisible_prop), the text properties of strings (`text-properties-at`, `get-text-property`, `add-text-properties`, `put-text-property`, `next-single-property-change` with a string OBJECT; `propertize`; `substring` and `concat` keeping them; CHECK_STRING_OR_BUFFER), `add-face-text-property` (in the buffer), `text_property_list`, `add_text_properties_from_list`, `extend_property_ranges` and `copy_text_properties` (buffers; the elements are `text_property_range_type` records), `inhibit-point-motion-hooks` and intervals.c's point motion (`set_point`, `set_point_both`: `intangible` text and the `point-left`/`point-entered` functions; `move_if_not_intangible`, `temp_set_point`); property functions are symbols naming hooks_mod's `property_function_type` | string OBJECTs of the property-list helpers (with `format`, 42f), the `window` property of overlays, undo records, LIMIT t, `add-face-text-property` on strings, `text-property-default-nonsticky` as a (buffer-local) variable (its table needs dotted pairs; the standard value is built in), SET_PT in the primitives other than `goto-char` (they keep `temp_set_point_both`, the same while `inhibit-point-motion-hooks` is t, its default; 42c, 42f); Not applicable: `interval_of` (an index into the run array), `syms_of_textprop` (symbol and variable definitions), the scanner's doc-line artifact `returns`; waits for the GUI: nothing | test_textprop_mod (ports textprop-interval-immutability; own: modification and insert hooks, intangible text and point motion hooks, property lists and copying, string intervals, `keymap` and `local-map` properties) | partial |
 | sys_linux_mod (src/sys) | — (glibc/kernel headers) | struct termios / winsize / pollfd, termios flags and c_cc indices, ioctl/open/signal/errno constants, bindings for tcgetattr, tcsetattr, read, write, close, isatty, poll, ioctl, signal, raise, posix_openpt, grantpt, unlockpt, ptsname, open, errno; file calls (creat, access, rename, unlink, chmod, mkdir, rmdir, statx, getcwd, setenv, unsetenv), user ids and password entries (getuid, geteuid, getegid, getpwnam, getpwuid), strerror, struct statvfs and statvfs; `open` with a mode, `link`, `renameat2`, `utimensat`, `futimens`, `umask`, `fchmod`, `fchmodat`, `fchown`, `getgrgid` and the passwd and group enumerations (`setpwent`/`getpwent`/`endpwent`, `setgrent`/`getgrent`/`endgrent`), O_CREAT/O_EXCL/O_TRUNC, RENAME_NOREPLACE, UTIME_NOW/UTIME_OMIT, EXDEV/EINVAL/ENOTSUP; step 42e: `tcdrain`, `getpid`, `getpgrp`, `setpgid`, `ioctl` with a character and TIOCSTI | — | test_sysdep_mod (struct sizes checked on both arches in CI) | done |
-| sysdep_mod (src/sys) | sysdep.c (+ dispnew.c SIGWINCH flag, process.c `allocate_pty`) | `fortmacs_get_tty`, `fortmacs_set_tty`, the termios part of `init_sys_modes` / `reset_sys_modes` (raw-mode transform as pure `tty_raw_settings`), `get_tty_size`, `set_window_size`, `fortmacs_read`, `fortmacs_full_write`, `fortmacs_write`, `input_available` (poll), SIGWINCH and SIGINT flags, `open_pty`, file wrappers returning errno (`fortmacs_open_read`, `fortmacs_creat`, access, rename, chmod, mkdir, stat via statx, setenv), `fortmacs_get_current_dir_name` (prefers a matching $PWD), password-entry home directories, `fortmacs_strerror`, `child_setup_tty`, `fortmacs_spawn_async` (a pipe or a pty, a new session, the exec-monitor pipe, extra environment entries over the editor's own copy of its environment, read from /proc/self/environ and kept current by `sys_setenv`), `fortmacs_kill`, SIGPIPE ignored, `fortmacs_num_processors`, `inputs_available` (several descriptors), `fortmacs_statvfs`; for fileio.c's file operations: `fortmacs_open_mode`, `sys_link`, `sys_rename_noreplace`, `sys_set_file_times`, `sys_futimens`, `fortmacs_umask`, `sys_fchmod`, `sys_chmod_at`, `sys_fchown`, user and group names of ids and the lists of all of them; access times in `file_stat_type`; step 42e: `sys_suspend` (SIGTSTP to the process group), `stuff_char` (TIOCSTI), the descriptor part of `reset_sys_modes` (tcdrain, O_NONBLOCK cleared; `reset_all_sys_modes` and `init_all_sys_modes`, which need the terminal and the frame, are in term_mod, above this module), dispnew.c's `deliver_window_change_signal` (the SIGWINCH handler sets a flag, `window_change_pending`, cleared by `clear_window_change`; the size is read outside the handler) and SIGWINCH ending the wait for input; for tests: a signal ignored and its handling restored (`ignore_signal`, `restore_signal`), `fortmacs_getpid`, `fortmacs_getpgrp`, `sys_setpgid`; for timefns_mod (step 42e): `sys_localtime` (localtime_r with tm_gmtoff and tm_zone), `sys_mktime`, `sys_set_time_zone` (TZ for the C library, then tzset), `fortmacs_clock_process_cputime` | job control: the foreground process group (`narrow_foreground_group`, `widen_foreground_group`, `inherited_pgroup`); the subshell run instead of suspending when `cannot-suspend` is set (`sys_subshell`: GNU/Linux has job control, so upstream runs it only on that request); F_SETOWN/SIGIO, keypad/meta terminfo setup, process groups | test_sysdep_mod (runs on a pty, so CI needs no terminal) | done |
+| sysdep_mod (src/sys) | sysdep.c (+ dispnew.c SIGWINCH flag, process.c `allocate_pty`) | `fortmacs_get_tty`, `fortmacs_set_tty`, the termios part of `init_sys_modes` / `reset_sys_modes` (raw-mode transform as pure `tty_raw_settings`), `get_tty_size`, `set_window_size`, `fortmacs_read`, `fortmacs_full_write`, `fortmacs_write`, `input_available` (poll), SIGWINCH and SIGINT flags, `open_pty`, file wrappers returning errno (`fortmacs_open_read`, `fortmacs_creat`, access, rename, chmod, mkdir, stat via statx, setenv), `fortmacs_get_current_dir_name` (prefers a matching $PWD), password-entry home directories, `fortmacs_strerror`, `child_setup_tty`, `fortmacs_spawn_async` (a pipe or a pty, a new session, the exec-monitor pipe, extra environment entries over the editor's own copy of its environment, read from /proc/self/environ and kept current by `sys_setenv`), `fortmacs_kill`, SIGPIPE ignored, `fortmacs_num_processors`, `inputs_available` (several descriptors), `fortmacs_statvfs`; for fileio.c's file operations: `fortmacs_open_mode`, `sys_link`, `sys_rename_noreplace`, `sys_set_file_times`, `sys_futimens`, `fortmacs_umask`, `sys_fchmod`, `sys_chmod_at`, `sys_fchown`, user and group names of ids and the lists of all of them; access times in `file_stat_type`; step 42e: `sys_suspend` (SIGTSTP to the process group), `stuff_char` (TIOCSTI), the descriptor part of `reset_sys_modes` (tcdrain, O_NONBLOCK cleared; `reset_all_sys_modes` and `init_all_sys_modes`, which need the terminal and the frame, are in term_mod, above this module), dispnew.c's `deliver_window_change_signal` (the SIGWINCH handler sets a flag, `window_change_pending`, cleared by `clear_window_change`; the size is read outside the handler) and SIGWINCH ending the wait for input; for tests: a signal ignored or set to its default and its handling restored (`ignore_signal`, `default_signal`, `restore_signal`), `fortmacs_getpid`, `fortmacs_getpgrp`, `sys_setpgid`; for timefns_mod (step 42e): `sys_localtime` (localtime_r with tm_gmtoff and tm_zone), `sys_mktime`, `sys_set_time_zone` (TZ for the C library, then tzset), `fortmacs_clock_process_cputime` | job control: the foreground process group (`narrow_foreground_group`, `widen_foreground_group`, `inherited_pgroup`); the subshell run instead of suspending when `cannot-suspend` is set (`sys_subshell`: GNU/Linux has job control, so upstream runs it only on that request); F_SETOWN/SIGIO, keypad/meta terminfo setup, process groups | test_sysdep_mod (runs on a pty, so CI needs no terminal) | done |
 | character_mod | character.c, character.h | encoding table, `char_string`, `multibyte_length`, `string_char_and_length`, `raw_prev_char_len`, raw-byte (eight-bit) conversions, `multibyte_chars_in_text`, `parse_str_as_multibyte`, `str_as_multibyte`, `count_size_as_multibyte`, `str_to_multibyte`, `str_as_unibyte`, `char_resolve_modifier_mask`, small tests, `is_alphabetic`, `is_alphanumeric`, `is_graphic`, `is_printable`, `is_blank` (general categories from uni_category_mod), `glyph_width` (an approximation of `char_width`, moved from xdisp_mod for editfns_mod's `format`; xdisp_mod re-exports it) | `chars_in_text` (needs current buffer → buffer_mod); `char_width`/`string-width` (display phase); `translate_char`; Lisp-level DEFUNs | test_character_mod (own; character-tests.el only tests `string-width`, deferred) | done |
 | value_mod, value_names_mod (submodule), names_mod, data_mod, data_buffer_mod (submodule), fns_mod, fns_hash_mod (submodule) | lisp.h, alloc.c, lread.c (obarray), data.c, fns.c (+ buffer.c local variables) | `value_type` (nil, fixnums, symbols, strings, proper lists, buffer/marker/keymap refs), constructors (the generic `value_type(...)`: `value_type()`, `value_type(.true.)`, `value_type(42_int64)`, `value_type(name="x")`, `value_type(text="abc")`) and tests, obarray (`intern`, `intern-soft`), `eq`, `car`/`cdr`, symbol values, `equal`, `length`, `nth`, `memq`, `member`, `string-lessp`, `compare-strings`, `substring` and COUNT_CHARACTERS on strings, plists, `get`/`put`, fns.c `yes-or-no-p` (submodule fns_ask_mod; ASCII downcase); buffer-local variables in data_buffer_mod: `make-local-variable`, `make-variable-buffer-local`, `kill-local-variable`, `kill-all-local-variables` (running `change-major-mode-hook`, keeping `permanent-local` ones), `local-variable-p`, `local-variable-if-set-p`, `default-value`, `set-default`, `default-boundp`, `buffer-local-value`, `buffer-local-variables` (two-element lists), `setq-local`, choice settings (`choice_setting_type`: `.true.`/`.false.` and named constants, R6-38, with a `%procedure` in an extension, R6-37; buffer-local when forwarded), the history lists (`history_setting_type` with `%items`, `%length` and `%append`, found by name with `find_history` in the settings registry), and variables forwarded to Fortran settings (`fill-column`, `tab-width`, `case-fold-search`, `fill-prefix`, `auto-fill-function`, `major-mode`, `mode-name`, `buffer-read-only` and others); lread.c string literal syntax (`read_string_literal`: the escapes of the reader, \N{U+X}) for `ls --quoting-style=escape` file names, window values (`make_window_ref`, `is_window`), strings' text property intervals (`string_intervals`, `set_string_intervals`; `equal` ignores them); Not applicable: run-time variables (a variable that exists only because a name was set at run time: data.c `set`, `boundp`, `makunbound`, `symbol-value` on names no Fortran object declares, and the data-tests cases on such variables); unknown names in set_variable, file-local and directory-local variables are ignored ; step 42f chunk 4 in fns_mod (and submodule fns_buffer_mod): `string-search`, `string-distance` (BYTECOMPARE), `string_char_to_byte`/`string_byte_to_char`, `substring-no-properties`, `string-equal` (`is_string_equal`, names allowed), `string-collate-lessp`/`-equalp` (`is_string_collate_less`/`_equal`, the C locale: character-code order, A–Z folded for IGNORE-CASE; bookmark_mod's private copy is gone), `clear-string`, `equal-including-properties` (`value_equal_including_properties`, intervals.c `compare_string_intervals`), the base64 functions (`base64-encode-string`, `base64url-encode-string`, `base64-decode-string`, and the region commands `base64-encode-region`, `base64url-encode-region`, `base64-decode-region` with M-x; MULTIBYTE for raw bytes), `buffer-line-statistics`, `random` (a generic: no argument, a positive LIMIT, a string seed, `.true.` to reseed from the system's entropy; the intrinsic `random_number` behind sysdep.c `get_random`), `load-average` (integers times 100 or reals; Gnulib getloadavg's /proc/loadavg reading in Fortran, sysdep_mod `get_load_averages`), `locale-info` (the C locale's codeset, days, months and paper, items `LOCALE_INFO_CODESET`/`_DAYS`/`_MONTHS`/`_PAPER`; a result of another kind stays unallocated, upstream's nil); data.c `string-to-number` (int64 or real64 result, BASE 2–16, +INF/NaN); `string-bytes` is the intrinsic `len`, `memq`/`member` the intrinsics `any`/`findloc` (no procedure); `Flength`, `Fnth`, `Fcar`, `set_internal`, `default_value`, `find_symbol_value`, `set_default_internal`, `swap_in_global_binding`, `do_symval_forwarding` cited where implemented; fns.c `md5`, `secure-hash` (strings and buffers; START/END as BEGINNING/END, CODING-SYSTEM, NOERROR, BINARY; the algorithms the named constants `SECURE_HASH_MD5` … `SECURE_HASH_SHA3_512`; the input encoded as extract_data_from_object does: a string by the most preferred coding system or `raw-text` if unibyte, a buffer by the coding system `write-region` would choose, with `select_safe_coding_system_function`; the `iv-auto` OBJECT as `hash_random_bytes(algorithm, length, hash, status, binary)` (R6-31), LENGTH bytes from getrandom through sysdep_mod `fortmacs_getrandom`), `secure-hash-algorithms`, `buffer-hash` (SHA-1 of both sides of the gap), `secure_hash`, `hexbuf_digest`/`make_digest_string` (`digest_to_hex`), in submodule fns_hash_mod over md5_mod … sha3_mod | dotted pairs, floats, bignums, vectors, hash tables, function cells, `let` (also buffer-local), variable watchers and aliases, `default-toplevel-value` ; other locales than C for collation and `locale-info`, unibyte strings (base64 results are byte strings in `character`), the string-to-byte cache, bignum results of `string-to-number` (nearest int64); subr.el's `sha1` (it is `secure_hash` with SECURE_HASH_SHA1) | test_values_mod (ports fns-tests length and plist cases, binding-test-set-constant), test_fns_mod (ports fns-tests-compare-strings; own `substring` tests), test_data_buffer_mod (ports binding-test-manual, -setq-default and -makunbound without `let`) ; test_fns_mod ports string-search, test-string-distance, substring-no-properties, string-equal, clear-string, fns-tests-collate-strings, -collate-sort (C locale cases), -equal-including-properties (and /string-prop-vals), -base64-encode-region, -base64-encode-string, fns-test-base64url-encode-region, -base64url-encode-string, fns-tests-base64-decode-string, fns-tests-random, test-buffer-line-stats-nogap, -gap, and own string-indexes, base64-decode-region, load-average and locale-info tests; test_values_mod ports lread-string-to-number-trailing-dot and own string-to-number tests; test_fns_mod ports test-secure-hash (`iv-auto` as `hash_random_bytes`) and fns-tests-hash-buffer, and own md5/secure-hash range, buffer, BINARY, coding-system and error tests and hash-random-bytes (digest lengths, BINARY, two calls differ, errors) | partial |
 | keymap_mod | keymap.c (+ keymap.el `key-parse`, `key-valid-p`, `keymap-set`, `keymap-global-set`, keyboard.c `reorder_modifiers` subset) | `where-is-internal` (all or the first preferred binding, advertised bindings, char-table runs as FROM..TO intervals, shadowed bindings left out; KEYMAP and the global map, or the active maps; a map reached again is searched again unless through a cycle, as accessible-keymaps does), registry with explicit lifetimes, `make-keymap`, `make-sparse-keymap`, `is_keymap`, `keymap-parent`, `set-keymap-parent` (cycle check), `copy-keymap`, `access_keymap` (meta→ESC, t defaults, parent and composite prefix maps), `define-key` (with REMOVE, `define_as_prefix`), character ranges (the char-table part of full keymaps), overriding-terminal-local-map, `lookup-key` (lists of keymaps, too-long), `current-global-map`, `use-global-map`, `current-local-map`, `use-local-map`, `current-active-maps` (with the `keymap` and `local-map` properties at point, intervals.c `get_local_map`), `key-binding` (local + global), keyboard.c `parse_modifiers`/`apply_modifiers`/`reorder_modifiers` (symbols), `kbd`, `key-description`, `single-key-description`, `push_key_description`, `key-valid-p`, `keymap-set` (a character definition names a command), `keymap-global-set`, minor-mode maps (`minor-mode-map-alist`, via `append_minor_mode_map`; the buffer-local `minor-mode-overriding-map-alist`, via `push_minor_mode_overriding_map`); `accessible-keymaps` (prefix maps breadth first, ESC maps meta-ized), `map-keymap` items (char-table runs, then entries, with the parents), `current_minor_maps`; keyboard.c `parse_modifiers_uncached` with the click modifiers (`down-`, `drag-`, `double-`, `triple-`, `up-`, click for `mouse-N` and `wheel-`) and `apply_modifiers_uncached` with their prefixes; `keymap-prompt` (through the parents), `get_keymap`, `keymap_parent`, `lookup_key_1`, `text-char-description` (`push_text_char_description`), `current-minor-mode-maps`, `minor-mode-key-binding` (the pairs as two arrays), keys given as ["C-c a"] to `define-key` and `lookup-key` (`possibly_translate_key_sequence`), `silly_event_symbol_error`, `where_is_internal` and `shadow_lookup`, `append_key` and `map_keymap_canonical` in accessible-keymaps, the map-keymap family (`Fmap_keymap`, `Fmap_keymap_internal`, `map_keymap_internal`, `map_keymap_item`, `map_keymap_call`, `map_keymap_char_table_item`), `copy_keymap_item` and `copy_keymap_set_char_table`, `help--describe-vector` (help_mod) | `keymap-local-set` and the other keymap.el functions, char-tables/vectors (full keymap is a flag), menu items, remapping in `where-is-internal`, symbol function cells as prefix maps, event ranges, text-property / overriding maps,; after step 42c: menu items (`get_keyelt`, `keymap--get-keyelt`), mouse events (`click_position`), `describe-vector` of an arbitrary vector or char-table with `describe_vector_basic` and `describe_vector_princ` (no Lisp vectors; char-tables hold integers), faces in *Help* text (`describe_key_maybe_fontify`); Not applicable: `CHECK_VECTOR_OR_CHAR_TABLE` (type checks of Lisp vectors), `initial_define_lispy_key` (bindings are defined in Fortran by bindings_mod), the scanner's artifact `static_assert`; waits for the GUI: menu bars and tool bars | test_keymap_mod (own: char-table ranges, printing, equal; ports keymap-tests: make-keymap, is_keymap, keymap-parent, copy-keymap, define-key/undefined, /keyboard-macro, /keymap, lookup-key, /list-of-keymaps, /too-long, removal-inherit, unset-test-remove-and-inheritance, keymap--key-description, keymap-set-consistency (the `keymap-set` part); subr-tests: subr-test-key-valid-p); own: keymap-string-keys-and-silly-symbols, keymap-prompt-and-minor-mode-key-binding; ports keymap-text-char-description | done |
@@ -456,7 +457,7 @@ regenerates) when upstream/emacs is present (see "Known debt").
 | tty_colors_mod (+ submodule tty_colors_startup_mod) | term/tty-colors.el, xfaces.c (`tty-defined-color-alist`, `color-values-from-color-spec` / `parse_color_spec`), startup.el and faces.el (the color part of terminal setup) | `tty-defined-color-alist` (one terminal), `tty-standard-colors`, `tty-color-alist`, `tty-modify-color-alist`, `tty-register-default-colors`, `tty-color-canonicalize`, `tty-color-24bit`, `tty-color-define`, `tty-color-clear`, `tty-color-off-gray-diag`, `tty-color-approximate`, `tty-color-standard-values` (#RGB, rgb:, rgbi:, names), `tty-color-translate`, `tty-color-by-index`, `tty-color-values`, `tty-color-desc`, `tty-color-gray-shades`; `tty_register_colors` (startup.el's tty-register-default-colors, then xterm's colors) at terminal setup; `clear_face_cache_hook` where upstream calls clear-face-cache | `tty-color-mode-alist` and the tty-color-mode frame parameter; FRAME/DISPLAY arguments; an xterm color error does not cut command-line short | test_tty_colors_mod (tty-colors-tests.el + own) | partial |
 | tty_colors_rgb_mod (generated) | term/tty-colors.el `color-name-rgb-alist` | the 657 X color names and 16-bit RGB values, generated by `tools/gen-tty-colors.sh` | — | test_tty_colors_mod | done |
 | faces_mod | faces.el (the deffaces, `face-spec-recalc`, `face-spec-choose`, `face-spec-set-match-display`), font.c (weight and slant tables) | `color-values`, `color-dark-p` and `readable-foreground-color` (with `color-luminance-dark-limit`); every face of faces.el as a named object (`named_face_type`, typed attributes assignable from the configuration through `faces%`: `faces%region%background = "blue"`; `face_underline` and `face_box` build the property-list values of `:underline` (:color, :style, :position) and `:box` (:line-width, :color, :style), and a box takes a color as well), its spec alternatives with display conditions (class, min-colors, background, type, `supports`), `face_spec_recalc` (the alternative matching the frame, then the configuration's attributes), `face-list` order, `faces_equal` (lface_equal_p) | themes and Customize, frame-local `set-face-attribute`, X resources, face aliases, `face-override-spec`, stipples, fonts and fontsets, `face-no-inherit` | test_faces_mod (own) | partial |
-| face_table_mod | — (generated by tools/gen-faces.sh) | `faces`, one pointer component per face named after the face, pointing at the face object in the module that defines it (the config API's `faces%region%background = "blue"`) | — | test_faces_mod (config-faces) | done |
+| face_table_mod | — (generated by tools/gen-faces.sh at build time, not committed) | `faces`, one pointer component per face named after the face, pointing at the face object in the module that defines it (the config API's `faces%region%background = "blue"`) | — | test_faces_mod (config-faces) | done |
 | xfaces_mod | xfaces.c | overlays' `face` properties merged by priority with the region in `face_at_buffer_position`, the face cache (`realize_basic_faces` with every basic face id, `realize_default_face`, `realize_named_face`, `realize_tty_face`, `map_tty_color`, `tty_defined_color`, `tty_lookup_color`, `color_distance`), `merge_face_attributes` (inheritance, relative heights), `merge_named_face` and `merge_face_ref` (face names, attribute property lists with Fortran keywords, lists; the `:extend` filter with `face_inherited_attr`), `lookup_face`, `lookup_named_face`, `merge_faces`, `face_at_buffer_position` (text property and the region), `is_tty_supports_face_attributes` (display-supports-face-attributes-p), `clear-face-cache`, `tty-suppress-bold-inverse-default-colors`; frame.el `frame-set-background-mode` for terminals (light for xterm-like terminals), overlays' `window` property, `face_at_string_position` (an overlay string's `face`), faces.el's `face-differs-from-default-p` | overlays' `window` property, `face-remapping-alist`, mouse faces, `:filter` face references, (FOREGROUND-COLOR . COLOR) references, the `reset` value, float and functional heights in references, fonts and window-system faces, the background color query (xterm.el) | test_xfaces_mod (own; xfaces-tests.el tests graphical colors and fonts), test_xdisp_mod | partial |
 | font_core_mod | font-core.el | `font-lock-mode` (with its :after-hook `font-lock-initial-fontify`, `change-major-mode-hook` handling, hidden buffers), `font-lock-defaults` (a typed buffer-local `font_lock_defaults_type`: keyword levels, KEYWORDS-ONLY, CASE-FOLD, SYNTAX-ALIST), `font-lock-function`, `font-lock-default-function` (the `font-lock-face` alias in `char-property-alias-alist`), `font-lock-change-mode`, `font-lock-defontify`, `turn-on-font-lock`, `font-lock-global-modes`, `turn-on-font-lock-if-desired`, `global-font-lock-mode` (define-globalized-minor-mode written out: `-enable-in-buffer`, `--set-explicitly`); the keyword types of `font-lock-keywords` | OTHER-VARS of `font-lock-defaults` other than `font-lock-syntactic-face-function`, keywords as variables to evaluate, `define-globalized-minor-mode` in general | test_font_lock_mod (own; font-lock-tests.el needs Lisp modes) | partial |
 | font_lock_mod | font-lock.el | the faces (font-lock-comment-face … font-lock-misc-punctuation-face), `font-lock-maximum-decoration` (levels and t), `font-lock-verbose`, `font-lock-dont-widen`, `font-lock-support-mode` (jit-lock or none), `font-lock-extra-managed-props`, comment delimiters in `font-lock-comment-delimiter-face` (`font-lock-comment-start-skip`, `font-lock-comment-end-skip`), `font-lock-specified-p`, `font-lock-initial-fontify`, `font-lock-mode-internal`, `font-lock-add-keywords` (mode or buffer; with `font-lock-keywords-alist`), `font-lock-turn-on/off-thing-lock`, `font-lock-fontify-buffer`, `font-lock-unfontify-buffer`, `font-lock-fontify-region`, `font-lock-unfontify-region`, `font-lock-flush`, `font-lock-ensure`, `font-lock-update` (C-x x f), `font-lock-default-fontify-buffer`/`-unfontify-buffer`, `font-lock-extend-region-wholelines`/`-multiline`, `font-lock-default-fontify-region`/`-unfontify-region`, `font-lock-after-change-function`, `font-lock-extend-jit-lock-region-after-change`, `font-lock-fontify-block`, the prepend/append/fillin text property functions, `font-lock-default-fontify-syntactically` (strings and comments via `syntax-ppss` and `parse-partial-sexp`), `font-lock-syntactic-face-function` (a subroutine with the face as an `intent(out)` argument: gfortran 14 cannot re-export a procedure pointer to a function with a deferred-length result), `font-lock-apply-highlight` (overrides nil, t, keep, prepend, append; LAXMATCH), anchored keywords, `font-lock-fontify-keywords-region`, `font-lock-choose-keywords`, `font-lock-set-defaults` (SYNTAX-ALIST), `font-lock-refresh-defaults`, `font-lock-debug-fontify`; FACENAME (face FACE PROP t ...) as `true_properties`; a highlight's face function is a subroutine (gfortran frees a procedure pointer component to a function with an allocatable result); `syntax-propertize` before syntactic fontification, `syntax-ppss-table` there, `font-lock-extend-region-wholelines` through `syntax-propertize-wholelines`; keyword levels given as functions (font-lock-eval-keywords) and a buffer's `font-lock-syntactic-face-function` from OTHER-VARS, highlights of the form (face FACE PROP VAL ...) with nil properties, a `display` string or properties that depend on the match, a buffer's own `font-lock-fontify-region-function` (`font_lock_fontify_region_function_set_local`), `cpp-font-lock-keywords` (with `cpp-font-lock-keywords-source-directives` and `-depth`) | font-lock-syntactic-keywords, font-lock-multiline, OTHER-VARS other than `font-lock-syntactic-face-function`, `font-lock-remove-keywords`, `font-lock-ignore`, keyword forms to evaluate, (face FACE PROP VAL…) values other than t, the table forms of `font-lock-maximum-decoration`/`-verbose`, the toplevel-defun keyword, the obsolete face variables (not applicable) | test_font_lock_mod (own) | partial |
@@ -561,7 +562,7 @@ regenerates) when upstream/emacs is present (see "Known debt").
 | help_mode_mod, help_mode_xref_mod (submodule) | help-mode.el | `help-mode`, derived from `special-mode` (its keys come from special-mode-map; the keys of button-buffer-map bound in help-mode-map itself, as make-composed-keymap is not ported), the button types `help-xref`, `help-function`, `help-variable`, `help-symbol` (`help_name`), `help-back`, `help-forward` (button_mod objects, a name as the button data), `help-button-action`, `help-do-xref`, `help-xref-following`, `help-xref-stack`, `help-xref-forward-stack`, `help-xref-stack-item` (items of `help_xref_item_type`: position, procedure pointer, argument), `help-setup-xref` (from C-h f, C-h v, C-h o and C-h k), `help-make-xrefs` (from `with-help-window`: the first paragraph skipped, quoted names after variable/option, function/command/call, or none, M-x commands, `\\=` escapes; `help-xref-symbol-regexp` as `help_xref_name_regexp`), `help-xref-button`, `help-insert-xref-button`, `help-xref--navigation-buttons` ([back], [forward], `help-back-label`, `help-forward-label`; with ensure-empty-lines), `help-xref-go-back`, `help-xref-go-forward`, `help-go-back` (l, C-c C-b, <XF86Back>), `help-go-forward` (r, C-c C-f, <XF86Forward>), `help-follow-symbol` (C-c C-c, `help_follow_name`), `help-goto-next-page` (n), `help-goto-previous-page` (p) | s (help-view-source), i, I, c (customize), g (revert), h, ?, <, >; `help-buffer` returning a help-mode current buffer while following (one set of stacks, for *Help*, not buffer-local); the Info node, man page, customization group, URL and multilingual references, and the face, type and `source of` (help-function-def) buttons of help-make-xrefs, `help-xref-on-pp`, `help-clean-buttons`; help-setup-xref in describe-key (describe-key--helper looks the keys up again in their buffer), describe-mode, describe-bindings, the mule describe commands and button-describe; help-make-xrefs from `with-output-to-temp-buffer` (help-mode-finish); the menu, tool bar, context menu, bookmarks | test_help_mode_mod (ports help-mode-tests.el: make-xrefs (the name button), xref-button, xref-go-back, xref-go-forward, go-back, go-back-no-stack, go-forward, go-forward-no-stack, do-xref, follow-symbol, follow-symbol-no-symbol; own tests for [back] and [forward]), test_help_mod | partial |
 | apropos_mod, apropos_print_mod (submodule) | apropos.el | `apropos-command` (C-h a; C-u for all functions), `apropos-function`, `apropos-user-option` (C-h u; C-u for all variables), `apropos-variable`, `apropos-documentation` (C-h d; sorted by score, full docstrings filled, "----------------" between items), `apropos-read-pattern`, `apropos-parse-pattern` (word lists with synonyms, regexps, multiline), `apropos-words-to-regexp`, `apropos-calc-scores`, `apropos-score-doc`, `apropos-score-symbol`, `apropos-true-hit`, `apropos-print` (keys from column 30, type labels, "Value:" excerpts as Fortran, the return message), Apropos mode with `apropos-follow` (RET), `apropos-next-symbol` (n), `apropos-previous-symbol` (p); labels and names marked by text properties standing for the buttons | `apropos` itself, `apropos-value`, `apropos-library`, `apropos-local-variable`, `apropos-local-value` (symbol plists, faces, libraries, values of all symbols), `apropos-sort-by-scores` and its verbose scores, faces, mouse buttons, `apropos-compact-layout`, `apropos-do-all`, revert | test_apropos_mod (ports apropos-tests-words-to-regexp-1, -2, -parse-pattern-1, -2, -3, -single-regexp, -synonyms, -calc-scores, -true-hit; own tests through the command loop) | partial |
 | simple_setvar_mod (submodule of simple_mod) | simple.el `set-variable` (+ minibuf.c `read-variable`, the reading of the value) | M-x set-variable: the user options with completion (custom-variable-p over `tools/user-options`, history `custom-variable-history`), the prompt "Set NAME globally/buffer-locally/(buffer-local) to value: " with the current value for M-n, the value as one Fortran literal of the option's type (`.true.`/`.false.`, integers, reals, character literals in either quote, named constants of enumerated settings, or `.true.`, `.false.` and the named constants of a choice setting, read with completion over them, each annotated with its value), another value of an enumerated setting (such as upstream's symbol) a `wrong-type-argument` error naming its constants, "Value ‘…’ does not match type … of …", the reader's "End of file during parsing" and "Trailing garbage following expression", C-u and automatically buffer-local options set buffer-locally (make-local-variable) | options holding hooks, procedures, arrays and other derived types, unallocated string values, the default from point, `variable-interactive`, obsolescence messages, `minibuffer-help-form`, buffer-local values of options that are not setting objects ("Symbol NAME may not be buffer-local") | test_simple_setvar_mod (own; upstream has none) | partial |
-| docstrings_mod | — (generated by tools/gen-docstrings.sh; the counterpart of etc/DOC from lib-src/make-docfile.c) | the docstrings of the commands, the config API's procedures and its variables, collected from `!>` comments; variables' current values and values at startup; the user options (`tools/user-options`: upstream's defcustoms and cus-start.el entries) for C-h v, apropos and `set-variable`, with generated setters (`user_option_info`, `set_user_option_logical`/`_integer`/`_real`/`_string`/`_choice`) | — | test_help_mod | done |
+| docstrings_mod | — (generated by tools/gen-docstrings.sh at build time, not committed; the counterpart of etc/DOC from lib-src/make-docfile.c) | the docstrings of the commands, the config API's procedures and its variables, collected from `!>` comments; variables' current values and values at startup; the user options (`tools/user-options`: upstream's defcustoms and cus-start.el entries) for C-h v, apropos and `set-variable`, with generated setters (`user_option_info`, `set_user_option_logical`/`_integer`/`_real`/`_string`/`_choice`) | — | test_help_mod | done |
 | print_mod | print.c | `prin1-to-string` (nil, integers, symbols, strings with escapes, lists, buffers, markers as `#<marker at N in BUFFER>`, sparse keymaps as their list); `fortran_text` and `fortran_string` (ours: values as Fortran for help and error messages); `prin1-to-string`'s NOESCAPE (`princ` on strings: `readable_text(object, noescape=.true.)`), `float_to_string` (real64 values: dtoastr's shortest digits, `1.0e+INF`, `0.0e+NaN`), `sprintf_float` (C's %e %f %g with flags, exact digits rounded to even, for `format`) | print streams, `print-length`/`print-level`, symbol escaping, float values (`float_to_string` takes a real64), `float-output-format`, the text properties of a printed string, full keymaps' char-tables | test_help_mod, test_marker_mod, test_keymap_mod, test_editfns_mod (floats through `format`) | partial |
 | syntax_mod, syntax_skip_mod, syntax_scan_mod (submodules) | syntax.c, syntax.h (+ category.c `is_word_boundary`, subr.el `make-syntax-table`) | syntax classes and raw descriptors (code with flags, matching character), syntax tables as registry objects with parents (`standard-syntax-table` from `init_syntax_once` plus characters_mod, `make-syntax-table`, `copy-syntax-table`, `set-syntax-table` with `bset_syntax_table`, `syntax-table`, `syntax-table-p`, `check_syntax_table`, `SET_RAW_SYNTAX_ENTRY(_RANGE)`, the buffer's table), `char-syntax` (raw bytes in unibyte buffers), `internal-describe-syntax-value` (the text it inserts; `SYNTAX_FLAGS_COMMENT_STYLEB`, `SYNTAX_FLAGS_COMMENT_STYLEC`), `SYNTAX_MATCH`, `SYNTAX_COMEND_FIRST`, `in_classes`, `syntax-class-to-char`, `matching-paren`, `string-to-syntax`, `modify-syntax-entry` (characters and ranges), `scan_words`, `forward-word` (M-f; fields), `words-include-escapes`, word boundaries between scripts (`char-script-table`) with characters.el's `word-combining-categories` and `word-separating-categories` ; `skip-chars-forward`, `skip-chars-backward` (ranges, `^`, quoting, character classes; in the submodule syntax_skip_mod), `skip-syntax-forward`, `skip-syntax-backward`, `backward-prefix-chars` (with `char_quoted`); comments and expressions in the submodule syntax_scan_mod: `forward-comment` (`forw_comment`, `back_comment` with its lossage path through `find_subprogram_start`, `prev_char_comend_first`), `scan-lists`, `scan-sexps` (`scan_groups`, `syntax_multibyte`; the `scan-error` error with its data), `parse-partial-sexp` (`scan_expressions_forward`, `in_2char_comment_start`, `internalize_parse_state`; the state as `parse_state_type`, TARGETDEPTH, STOPBEFORE, OLDSTATE, COMMENTSTOP nil/t/`syntax-table`), comment styles a, b and c, nested comments, two-character delimiters (flags 1234), generic comment and string fences, `parse-sexp-ignore-comments`, `comment-end-can-be-escaped` (buffer-local when set), `multibyte-syntax-as-symbol`, `open-paren-in-column-0-is-defun-start`, `comment-use-syntax-ppss` (through `syntax_ppss`, which is syntax_propertize_mod's cached `syntax-ppss`), `syntax-table` text properties (`parse-sexp-lookup-properties`, `syntax-propertize--done`, both buffer-local when set; raw descriptors and syntax tables as values) in the comment and expression scanners, `scan_words`, `skip-syntax-*` and `backward-prefix-chars`, with `parse_expression_propertize` calling `internal--syntax-propertize` lazily (lookups by position replace `gl_state`'s interval cache) | `parse_expression_propertize`'s errors when `internal--syntax-propertize` modified the buffer or did not move `syntax-propertize--done`, `forward-comment-function`, raw bytes in `skip-chars-*`, `find-word-boundary-function-table`, `describe-syntax`, `forward-word-strictly`, unibyte raw bytes in the scanners, quitting during scans; in part: `update_syntax_table`, `update_syntax_table_forward`, `SETUP_SYNTAX_TABLE` and `RE_SETUP_SYNTAX_TABLE_FOR_OBJECT` (the `syntax-table` property is looked up at each position instead of gl_state's interval cache; strings have none); Not applicable: the extractor's `c` and `point` lines (comment text); waits for the GUI: nothing | test_syntax_mod (ports syntax-class-character-test, syntax-char-syntax (interpreted only: no byte compiler); own tests, including `internal-describe-syntax-value`, including skip-chars and skip-syntax), test_syntax_scan_mod (ports parse-partial-sexp-continue-over-comment-marker, parse-partial-sexp-paren-comments, test-from-to-parse-partial-sexp and all the syntax-comments, syntax-br-comments and syntax-pps-comments tests over syntax-resources/syntax-comments.txt; own tests for nested comments, C-like two-character delimiters, scan errors and the parse state) | done |
 | syntax_propertize_mod (named so as not to clash with syntax_mod) | emacs-lisp/syntax.el (+ subr.el `subregexp-context-p` in subr_mod, regexp-opt.el `regexp-opt-depth` in regexp_opt_mod) | `syntax-propertize-function` (buffer-local when set), `syntax-propertize` (chunks, `syntax-propertize-extend-region-functions` run until stable with `syntax-propertize--done` bound against recursion, the narrowing message, silent modifications, `syntax-ppss-table`), `internal--syntax-propertize` (hooked into syntax_mod, `syntax-propertize-chunks`), `syntax-propertize-wholelines` (`syntax-wholeline-max`, `syntax--lbp`), `syntax-propertize-multiline`, `syntax-propertize--shift-groups-and-backrefs`, `syntax-propertize-rules` as `syntax_propertize_rules_type` (one regexp of all rules, extra groups for match 0, shifted groups and back-references, match data shifted for code; string, code and (prog1 SYNTAX . EXPS) / (ignore . EXPS) highlights; precompiled rules as rule arrays), `syntax-ppss` with both caches (wide and narrowed, `syntax-ppss-max-span`, intermediate entries, the last-call shortcut and its statistics, `syntax-begin-function`, args-out-of-range fallback), `syntax-ppss-flush-cache` (in `before-change-functions` at depth 99), `syntax-ppss-depth`, `syntax-ppss-toplevel-pos`, `syntax-ppss-context`, `syntax-propertize--in-process-p` | `syntax-propertize-via-font-lock` (font-lock-syntactic-keywords), `syntax-ppss-stats`, `syntax-ppss-debug`, `ignore` as a `syntax-propertize-function` (null is nil) | test_syntax_propertize_mod (ports syntax-propertize--shift-groups-and-backrefs; own tests of `regexp-opt-depth`, `subregexp-context-p`, rules that the scanners and `\s<` obey, the cache against `parse-partial-sexp` before and after a change, `syntax-propertize-wholelines`) | partial |
@@ -649,15 +650,16 @@ Lisp's mixed integer and float numbers.
 Fortmacs is Fortran-first, not Lisp-first: where upstream names a thing
 with a Lisp term, Fortmacs uses a Fortran word, in identifiers, file
 names, command and variable names (M-x, C-h f/v/k), docstrings, messages,
-tests and these documents.  The owner confirms each term individually;
-no rename is added without that.  The confirmed renames:
+tests and these documents.  Each term is confirmed by the owner, by an
+existing rule (decided and reported), or by the decision panel
+(CLAUDE.md); no rename is added otherwise.  The confirmed renames:
 
 | Lisp term | Fortran name | Examples |
 |---|---|---|
 | defun (a top-level definition) | subprogram | `beginning_of_subprogram`, `mark_subprogram`, `subprogram_prompt_regexp`, `open_paren_in_column_0_is_subprogram_start`, `add_log_current_subprogram`, `f90_beginning_of_subprogram`; `f90_subprogram_start` and `f90_subprogram_end` (f90_mod's adapters to `beginning_of_subprogram_function` and `end_of_subprogram_function`, whose plain renames would be the f90.el commands they adapt) |
-| defun, in a mode's own helper | the language's term | `python_mark_definition`, `python_nav_beginning_of_definition` (and `_regexp`), `python_nav_end_of_definition` (and `_function`), `python_nav_forward_definition`, `python_nav_backward_definition`, `python_info_current_definition`, `python_info_looking_at_beginning_of_definition`; `makefile_add_log_target`; `sh_current_function_name`; `log_view_beginning_of_entry`, `log_view_end_of_entry`; `css_current_rule_name`.  Generic commands, hooks and helpers keep subprogram: `search_subprogram_forward`/`_backward`, `nav_*_subprogram`, `beg_subprogram_indent`, `change_log_read_subprograms`, `log_edit_insert_filled_subprograms`, `diff_add_log_current_subprograms` |
-| sexp (a balanced expression) | expression | `forward_expression`, `kill_expression`, `parse_partial_expression`, `scan_expressions`, `parse_expression_ignore_comments`, `halfexpression`, `expression_flag` (and the analogous `cmd_`, `test_` and `_1` forms of the renamed names) |
-| list, as a parenthesised group (these names only) | group | `forward_group`, `backward_group`, `up_group`, `down_group`, `backward_up_group`, `kill_backward_up_group`, their `*_group_function` variables, `scan_groups`, `smie_down_group` |
+| defun, in a mode's own helper | the language's term | `python_mark_definition`, `python_nav_beginning_of_definition` (and `_regexp`), `python_nav_end_of_definition` (and `_function`), `python_nav_forward_definition`, `python_nav_backward_definition`, `python_info_current_definition`, `python_info_looking_at_beginning_of_definition`; `makefile_add_log_target`; `sh_current_function_name`; `log_view_beginning_of_entry`, `log_view_end_of_entry`; `css_current_rule_name`.  Generic commands, hooks and helpers keep subprogram: `search_subprogram_forward`/`_backward`, `nav_*_subprogram`, `beginning_subprogram_indent`, `change_log_read_subprograms`, `log_edit_insert_filled_subprograms`, `diff_add_log_current_subprograms` |
+| sexp (a balanced expression) | expression | `forward_expression`, `cut_expression`, `parse_partial_expression`, `scan_expressions`, `parse_expression_ignore_comments`, `halfexpression`, `expression_flag` (and the analogous `cmd_`, `test_` and `_1` forms of the renamed names) |
+| list, as a parenthesised group (these names only) | group | `forward_group`, `backward_group`, `up_group`, `down_group`, `backward_up_group`, `cut_backward_up_group`, their `*_group_function` variables, `scan_groups`, `smie_down_group` |
 | alist (an association list) | a plural name, no suffix (R2-Q8; first `_table`) | `auto_modes`, `bookmarks`, `file_coding_systems`, `registers`, `save_places`; `compilation_error_regexps` (all known formats) and `compilation_error_regexp_names` (the enabled ones); where the plural is taken or unclear, the plural names the records: `minor_mode_lighters`, `coding_system_names`, `display_buffer_rules`; `abbrev_minor_mode_tables`, `syntax_modifications` (font-lock-defaults' SYNTAX-ALIST, not `syntax_table`), `display_action_parameters_type` (display-buffer's action alist, fixed keys as components); in buffer_mod, buffer_ops_mod and process_mod, Vbuffer_alist and Vprocess_alist are `buffer_order`/`buffer_order_count` and `process_order`/`process_order_count` (the modules already have a `table`) |
 | module lisp_cmds_mod (lisp.el) | expression_motion_mod | src/expression_motion_mod.f90, `init_expression_motion` |
 | the modules of lisp.h, eval.c and lread.c | `value_mod` (submodule `value_names_mod`), `hooks_mod`, `names_mod`, each named for what it holds (print.c stays `print_mod`) | src/value_mod.f90, src/hooks_mod.f90, src/names_mod.f90 |
@@ -682,7 +684,7 @@ no rename is added without that.  The confirmed renames:
 | help-form | help procedure | `help_procedure`, `help_procedure_show`, `minibuffer_help_procedure` |
 | prin1-to-string, prin1 of a string | `readable_text`, `quoted_text` | help shows values with `fortran_text` |
 | register value | register contents | `register_contents_type` |
-| this-command, last-command, real-this-command, real-last-command, last-repeatable-command, current-minibuffer-command (A7) | `type(command_type), pointer`, compared with `associated()` | `associated(last_command, commands%kill_region)`, `this_command => commands%yank`; a key's binding is resolved once with `command_of`; `last_macro_command` where upstream holds a keyboard macro (A7a: a `command_type` whose `macro` handle names the macro's events in keyboard_mod's `command_macros` and whose procedure executes it once, so C-x z repeats it; help shows the events as an array constructor); null for a name that is no command and that nothing compares (undo-start, kill-region-dont-append, mode-exited, yank's t); the two that are compared are typed objects of their modules, `mark_subprogram_back` and `comment_line_backward` (`is_command` .false.); help shows the command's name or null() |
+| this-command, last-command, real-this-command, real-last-command, last-repeatable-command, current-minibuffer-command (A7) | `type(command_type), pointer`, compared with `associated()` | `associated(last_command, commands%cut_region)`, `this_command => commands%paste`; a key's binding is resolved once with `command_of`; `last_macro_command` where upstream holds a keyboard macro (A7a: a `command_type` whose `macro` handle names the macro's events in keyboard_mod's `command_macros` and whose procedure executes it once, so C-x z repeats it; help shows the events as an array constructor); null for a name that is no command and that nothing compares (undo-start, kill-region-dont-append, mode-exited, yank's t); the two that are compared are typed objects of their modules, `mark_subprogram_back` and `comment_line_backward` (`is_command` .false.); help shows the command's name or null() |
 | prefix-arg, current-prefix-arg, last-prefix-arg, a raw prefix argument "P" (A7) | `type(prefix_arg_type)`: `%kind` (`PREFIX_NONE`, `PREFIX_NUMBER`, `PREFIX_RAW` for C-u's, `PREFIX_MINUS`) and `%value` | `current_prefix_arg%kind /= PREFIX_NONE`, `prefix_arg = prefix_arg_type(PREFIX_RAW, 4_int64)`, `call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .false., status)`; `prefix_numeric_value` takes it; help shows `prefix_arg_type(kind=PREFIX_RAW, value=4)` |
 | the interactive spec of a command | `is_command` | `commands%dired_mode%is_command = .false.`; tools/gen-docstrings.sh's help-name field (`hname`) and command column (the help entry's `command`) |
 
@@ -903,7 +905,7 @@ named with it.
   properties an array of `text_property_type` (name, value) searched with
   `findloc`.
 - C5-1: the `defvar_nil` histories become typed history objects
-  (`type(history_type) :: bookmark_history`, with `%length` per C4).
+  (`type(history_setting_type) :: bookmark_history`, with `%length` per C4).
 - C5-2: `setq_local` is removed in favor of the setting's `%set_local()`.
 - C5-3: `boundp` and `makunbound` (data_mod's run-time variables, which
   port data-tests.el) become direct components; they go with C3's name
@@ -949,22 +951,22 @@ Settled by the owner later the same day and applied in PR 2b:
   specific (two specifics with one character argument each cannot be
   told apart), in the submodule value_names_mod, which uses names_mod's name
   table.  The handle constructors (`make_buffer_ref`, ...) stay.
-- Q10: histories are `history_setting` objects (a `setting_type` with
+- Q10: histories are `history_setting_type` objects (a `setting_type` with
   `%items`, `%length` and `%append`), registered with `forward_setting` and
   found by name with `find_history` (the HISTORY argument of the
   minibuffer readers, `add_to_history`, savehist through their values);
   the `defvar_nil` histories are typed objects (`bookmark_history`,
-  `grep_history`, `search_ring`, ...); `kill_ring`, which is no history,
+  `grep_history`, `search_ring`, ...); `clipboard_history`, which is no history,
   keeps `defvar_nil` until C4.
 - Q10b: no run-time variables: a variable exists only as a Fortran
   object; the run-time-variable parts of data.c and data-tests.el are
   listed Not applicable (the data_mod row).
 - Q12: set_variable takes the named constants of an enumerated option
-  only, read with completion over them, each annotated with its value
-  (upstream's `:annotation-function`, now ported for *Completions*);
-  anything else is a `wrong-type-argument` error naming the constants.
-  The constants carry no docstrings of their own, so the annotation is
-  the value, not a one-line meaning.
+  only (since R6-38 also `.true.`/`.false.`), read with completion over
+  them, each annotated with its value (upstream's `:annotation-function`,
+  now ported for *Completions*); anything else is a `wrong-type-argument`
+  error naming the constants.  The constants carry no docstrings of their
+  own, so the annotation is the value, not a one-line meaning.
 - `PYTHON_DOCSTRING_NONE` and the logo's blended (multiply) shadows are
   confirmed.
 
@@ -1000,8 +1002,9 @@ run it again; then regenerate (tools/gen-*.sh), run
 `tools/check.sh --fix` and then `tools/check.sh`, and read the renamed
 docstrings: grammar the article fix does not cover ("balanced expression
 (sexp)") and "list" in the group sense are adapted by hand.  A new
-Lisp-derived term found while porting is proposed to the owner, never
-renamed on one's own; once confirmed it becomes a line of
+Lisp-derived term found while porting is confirmed by the owner, by an
+existing rule (decided and reported), or by the decision panel
+(CLAUDE.md), never renamed otherwise; once confirmed it becomes a line of
 tools/fortran-names and a row above.
 <!-- fortran-names: on -->
 
@@ -1036,8 +1039,8 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
   `cons_repr`, `cons_arg`;
 - **predicate**: a procedure named like a Lisp predicate, ending in `_p`
   or in `p` after a type or position word (`charsetp`, `processp`,
-  `bobp`); logical user options named `*_p` upstream are variables and
-  keep their names;
+  `bobp`); logical user options named `*_p` upstream are variables, not
+  predicates, and drop upstream's p/-p (Q8);
 - **constant**: a named constant ending in `_NIL`, `_T`, `_TRUE` or
   `_FALSE`, or in `_DISABLED`, `_NEVER`, `_OFF`, `_ON` or `_NO_LIMIT` (R2-Q16, R2-Q17);
 - **vector**: a name ending in `_vector`;
@@ -1209,6 +1212,15 @@ their word), and tools/intrinsics.awk's verb rule rejects a new
 procedure, procedure pointer or binding named `run`, `run_*` or
 `call_*`.
 
+**Verb first (R6-17, R6-40).**  Names are verb first: `set_bookmark`
+(bookmark-set), `execute_kmacro`, `update_font_lock`; a command without
+a verb takes one from what it does (`undo_window_change`); keys and
+behavior are unchanged.  The verb-last names in the tables below
+(`kmacro_execute_*`, `hook_execute`, `table_destroy`, `history_append`,
+`hook_append`, `buffer_order_append`, `process_order_prepend`, the
+`X_set_local` examples) keep their form until the verb-first rename
+(R6-17).
+
 **Running something: execute (V1).**  Commands, keyboard macros, hooks,
 timers and processes are executed, user-visible names included; a
 procedure pointer is called directly, with no wrapper that only
@@ -1217,12 +1229,12 @@ dispatches.
 | Before | After |
 |---|---|
 | `call_interactively`, `call_last_kbd_macro` | `execute_interactively`, `execute_last_kbd_macro` |
-| `kmacro_call_macro`, `kmacro_call_ring_2nd` (and `_repeat`), `kmacro_end_or_call_macro`, `kmacro_end_and_call_macro`, `kmacro_call_repeat_key`, `KMACRO_CALL_REPEAT_*` | `kmacro_execute_macro`, `kmacro_execute_ring_2nd`, `kmacro_end_or_execute_macro`, `kmacro_end_and_execute_macro`, `kmacro_execute_repeat_key`, `KMACRO_EXECUTE_REPEAT_*` |
+| `kmacro_call_macro`, `kmacro_call_ring_2nd` (and `_repeat`), `kmacro_end_or_call_macro`, `kmacro_end_and_call_macro`, `kmacro_call_repeat_key`, `KMACRO_CALL_REPEAT_*` | `kmacro_execute_macro`, `kmacro_execute_ring_2nd`, `kmacro_end_or_execute_macro`, `kmacro_end_and_execute_macro`, `kmacro_execute_repeat_key`, `KMACRO_EXECUTE_REPEAT_*` (until the verb-first rename, R6-17) |
 | `run_at_time`, `run_with_timer`, `run_with_idle_timer`, `run_timers` | `execute_at_time`, `execute_with_timer`, `execute_with_idle_timer`, `execute_timers` |
 | `call_process`, `call_process_region`, `call_process_shell_command`, `call_shell_region`, `comint_run`, `vc_git_call`, `vc_git_run_command_string` | `execute_process`, `execute_process_region`, `execute_process_shell_command`, `execute_shell_region`, `comint_execute`, `vc_git_execute`, `vc_git_execute_command_string` |
 | `run_mode_hooks`, `safe_run_hooks`, `run_buffer_list_update_hook`, `run_exit_minibuf_hook`, `run_undoable_change`, `call_mod_hooks`, `call_overlay_mod_hooks`, `jit_lock_run_functions` | `execute_mode_hooks`, `safe_execute_hooks`, `execute_buffer_list_update_hook`, `execute_exit_minibuf_hook`, `execute_undoable_change`, `execute_mod_hooks`, `execute_overlay_mod_hooks`, `jit_lock_execute_functions` |
-| `%run`, `%run_safe` of `command_type`, `major_mode_type`, the hook types, `yank_handler_function_type`, `vc_action_type` and `vc_log_operation_type` | `%execute`, `%execute_safe`: `call commands%yank%execute(status)`, `call text_mode_hook%execute(status)` |
-| `hook_run`, `change_hook_run`, ... (the bindings' procedures), `run_kill_buffer_hook` (a procedure pointer) | `hook_execute`, `change_hook_execute`, ..., `execute_kill_buffer_hook` |
+| `%run`, `%run_safe` of `command_type`, `major_mode_type`, the hook types, `yank_handler_function_type`, `vc_action_type` and `vc_log_operation_type` | `%execute`, `%execute_safe`: `call commands%paste%execute(status)`, `call text_mode_hook%execute(status)` |
+| `hook_run`, `change_hook_run`, ... (the bindings' procedures), `run_kill_buffer_hook` (a procedure pointer) | `hook_execute`, `change_hook_execute`, ... (until the verb-first rename, R6-17), `execute_kill_buffer_hook` |
 | emacs_mod's `run` (the program), `recentf_auto_cleanup_run`, `completion_at_point_run` | `execute_editor`, `execute_recentf_auto_cleanup`, `execute_completion_at_point` |
 | wrappers that do more than dispatch (a default, a status, a lookup): `call_indent_line_function`, `call_end_of_subprogram_function`, `call_get_old_input`, `call_callback`, `call_entry`, `call_rules`, `call_property_function`, `call_overlay_change_function`, `run_body_function`, `run_detector`, `run_action`, `run_point_hook`, `call_log_edit` | `execute_indent_line_function`, `execute_end_of_subprogram_function`, `execute_get_old_input`, `execute_callback`, `execute_entry`, `execute_rules`, `execute_property_function`, `execute_overlay_change_function`, `execute_body_function`, `execute_detector`, `execute_action`, `execute_point_hook`, `execute_log_edit`; the unused `call_diff_function` is gone |
 | `vc_call_root`, `vc_call_responsible`, `is_vc_call_make_version_backups` | `vc_execute_root`, `vc_execute_responsible`, `is_vc_make_version_backups` |
@@ -1237,12 +1249,12 @@ words (a name whose citation uses the word stays: `buf_fetch_char`,
 |---|---|---|
 | read a value | get (fetch) | `get_char_before` |
 | construct | make_ (new_) | `make_info`, `make_node`, `make_table`, `make_token`, `make_keymap_slot` (keymap_mod's `make_keymap` is upstream's) |
-| destroy | destroy_ (release, free_; R2-Q6) | `destroy_dead_window`, `table_destroy`, `destroy_marker_if_live`, `destroy_marker_position` |
+| destroy | destroy_ (release, free_; R2-Q6) | `destroy_dead_window`, `table_destroy` (until the verb-first rename, R6-17), `destroy_marker_if_live`, `destroy_marker_position` |
 | forget a buffer-local value | clear_local, clear_X_locals (drop_local, free_local, reset_local, kill_local; R2-Q3) | isearch's `%clear_local`, `search_fun_clear_local`, data_buffer_mod's `clear_local` |
-| a setting's local value | X_set_local, X_clear_local (set_local_X) | `abbrev_table_set_local`, `blink_matching_check_function_clear_local`, `electric_indent_chars_set_local` |
+| a setting's local value | set_local_X, clear_local_X (X_set_local, X_clear_local; R6-17) | `abbrev_table_set_local`, `blink_matching_check_function_clear_local`, `electric_indent_chars_set_local` (until the verb-first rename, R6-17) |
 | a setting's current value | current_X, the binding `%current` (X_get, `%get`) | `fill_paragraph_function%current()`, `current_adaptive_fill`, `current_message_function` |
 | store | set (put) | `set_current`, `prec2_set`; put-text-property's helpers (`put_prop`, `put_syntax`) keep Emacs's word, and output keeps put (`tty_put_bytes`, xdisp_mod's glyph `put`) |
-| grow an array by one | append_X, prepend_X at the front (push, add_, add_X_front; R2-Q4) | `append_string`, `append_record`, `prepend_record`, `append_undo_entry`, `buffer_order_append`; a stack's push (terminfo_mod, Info's history) stays; vc_git_mod's helper that appends many is `append_all`; moving to the front is `move_to_front` |
+| grow an array by one | append_X, prepend_X at the front (push, add_, add_X_front; R2-Q4) | `append_string`, `append_record`, `prepend_record`, `append_undo_entry`, `buffer_order_append` (until the verb-first rename, R6-17); a stack's push (terminfo_mod, Info's history) stays; vc_git_mod's helper that appends many is `append_all`; moving to the front is `move_to_front` |
 | draw the whole frame again; update what changed | redraw; redisplay (garbaged, SET_FRAME_GARBAGED, frame_garbaged; R6-9) | the frame flag `needs_redraw` (upstream `f->garbaged`), `redraw_frame`, `redraw_display`; `redisplay`, `redisplay_internal` |
 | a pair of steps | X_begin, X_end (finish, save, restore; R2-Q9) | `major_mode_end` and the binding `%end`, `fn_begin`, `fn_end` |
 | the one before | previous (prev) | `previous_char`, `previous_entry`, `previous_newline_byte`; upstream's prev names stay (`window_prev_buffers`, `switch_to_prev_buffer`) |
@@ -1269,7 +1281,7 @@ rejects the forms a script can see (below).
 **Kill split by meaning (R2-Q2, R2-Q3).**  Text is cut, copied and
 pasted, and the copies are kept in the clipboard history; the X or
 Wayland clipboard is "the clipboard".  A buffer is closed, a process
-stopped, Emacs exited, a buffer-local value cleared.  Keys are
+stopped, Fortmacs exited, a buffer-local value cleared.  Keys are
 unchanged (C-w, M-w, C-y, M-y, C-x k, C-x C-c); help and messages follow
 ("Copied to the clipboard history").
 
@@ -1286,6 +1298,14 @@ unchanged (C-w, M-w, C-y, M-y, C-x k, C-x C-c); help and messages follow
 | `kill_emacs`, `kill_emacs_hook`, `kill_emacs_query_functions`, `save_buffers_kill_emacs`, `save_buffers_kill_terminal` | `exit_fortmacs`, `exit_fortmacs_hook`, `exit_fortmacs_query_functions`, `save_buffers_exit_fortmacs`, `save_buffers_exit_terminal` (R6-21: fortmacs, not emacs) |
 | `kill_local_variable`, `kill_all_local_variables`, `kill_local`, `kill_X_locals`, `kill_delayed_mode_hooks`, `kill_all_abbrevs`, data_mod's `killers` | `clear_local_variable`, `clear_all_local_variables`, `clear_local`, `clear_X_locals`, `clear_delayed_mode_hooks`, `clear_all_abbrevs`, `locals_clearers` |
 
+R6-43 (2026-11-04): "stop" ends a process and "suspend" pauses it
+(SIGTSTP), as the table above says; tools/fortran-names now records
+the whole chain, so upstream's comint-stop-subjob and stop-process map
+to `comint_suspend_subjob` and `suspend_process` in freshly ported code
+and in tools/unported-commands.sh's probe, while the ported
+`comint_stop_subjob` (comint-kill-subjob) and `stop_process`
+(kill-process) are kept by name in the files that hold them.
+
 **Growing an array (R2-Q4, R2-Q5).**  `append_X` adds at the end,
 `prepend_X` at the front; no `_last`, `_front` or `add_`.  The config
 API's typed `%add` is `%append` (`call ibuffer_formats%append(...)`; a hook's `%prepend` is add-hook's default place and `%append` APPEND, R3-2,
@@ -1294,8 +1314,8 @@ API's typed `%add` is `%append` (`call ibuffer_formats%append(...)`; a hook's `%
 | Before | After |
 |---|---|
 | `add_auto_mode_last`, `add_auto_mode` (front) | `append_auto_mode`, `prepend_auto_mode` |
-| `add_arg`, `add_record`, `add_undo_entry`, `buffer_order_add`, `add_local_variables_killer`, `add_save_some_buffers_function`, the bindings' `history_add`, `hook_add`, `item_add_string` | `append_arg`, `append_record`, `append_undo_entry`, `buffer_order_append`, `append_locals_clearer`, `append_save_some_buffers_function`, `history_append`, `hook_append`, `item_append_string` |
-| `add_record_front`, `add_shadow_front`, `add_front`, `process_order_add`, `add_in_progress`, `add_defaults` | `prepend_record`, `prepend_shadow`, `prepend`, `process_order_prepend`, `prepend_in_progress`, `prepend_defaults` |
+| `add_arg`, `add_record`, `add_undo_entry`, `buffer_order_add`, `add_local_variables_killer`, `add_save_some_buffers_function`, the bindings' `history_add`, `hook_add`, `item_add_string` | `append_arg`, `append_record`, `append_undo_entry`, `buffer_order_append`, `append_locals_clearer`, `append_save_some_buffers_function`, `history_append`, `hook_append`, `item_append_string` (`buffer_order_append`, `history_append`, `hook_append` and `item_append_string` until the verb-first rename, R6-17) |
+| `add_record_front`, `add_shadow_front`, `add_front`, `process_order_add`, `add_in_progress`, `add_defaults` | `prepend_record`, `prepend_shadow`, `prepend`, `process_order_prepend` (until the verb-first rename, R6-17), `prepend_in_progress`, `prepend_defaults` |
 | `%add`, `%add_string`, `%add_parent` | `%append`, `%append_string`, `%append_parent` |
 
 **Ending a life; files on disk (R2-Q6, R2-Q13).**  Objects in memory
@@ -1304,7 +1324,7 @@ deleted.
 
 | Before | After |
 |---|---|
-| `free_marker`, `free_keymap`, `free_overlay`, `free_process`, `free_timer`, `free_window`, `free_char_table`, `ewoc_free`, `table_free` | `destroy_marker`, `destroy_keymap`, `destroy_overlay`, `destroy_process`, `destroy_timer`, `destroy_window`, `destroy_char_table`, `destroy_ewoc`, `table_destroy` (a free slot, a free buffer name and Dired's free space stay adjectives) |
+| `free_marker`, `free_keymap`, `free_overlay`, `free_process`, `free_timer`, `free_window`, `free_char_table`, `ewoc_free`, `table_free` | `destroy_marker`, `destroy_keymap`, `destroy_overlay`, `destroy_process`, `destroy_timer`, `destroy_window`, `destroy_char_table`, `destroy_ewoc`, `table_destroy` (until the verb-first rename, R6-17) (a free slot, a free buffer name and Dired's free space stay adjectives) |
 | `make_directory`, `make_temp_file`, `make_symbolic_link`, `make_empty_file`, `make_backup_files` | `create_directory`, `create_temp_file`, `create_symbolic_link`, `create_empty_file`, `create_backup_files` |
 | `create_file_buffer`, `get_buffer_create`, `ewoc_create` | `make_file_buffer`, `get_or_make_buffer`, `make_ewoc` |
 
@@ -1348,6 +1368,9 @@ time) and `_ALWAYS` (only where a family also has `_YES`); "no limit" is
 `_VISIT_SAVE`, `SH_PLUS`).  Options are named positively (R2-Q18b).
 Since R6-38 a setting's off and on states are `.false.` and `.true.`, not
 `_NO` and `_YES` ("Choice settings"); the table shows the names of that time.
+This applies to settings only: internal enumerations such as arguments,
+record fields and face attribute states keep `_NO`/`_YES` (`FACE_NO`/`FACE_YES`,
+`CASE_FOLD_*`; panel 2026-11-04).
 
 | Before | After |
 |---|---|
@@ -1399,7 +1422,7 @@ The owner settled the questions steps 41 and 40d raised; the audit of
 | stop-process (SIGSTOP) beside kill-process (R3-1) | `suspend_process` suspends (`continue_process` resumes), `stop_process` ends; `comint_suspend_subjob` (C-c C-z), `comint_stop_subjob` (C-c C-k) |
 | add-hook's two places (R3-2) | `%prepend(fn, depth, local)` is add-hook's default (the front, depth 0), `%append(fn, depth, local)` add-hook with APPEND (depth 90, upstream's `t`); `%remove` is remove-hook; every ported `(add-hook ...)` uses the one upstream's arguments mean |
 | face attribute states (R3-3) | `FACE_NO`, `FACE_YES`, `FACE_UNSPECIFIED`, `FACE_COLOR` stay |
-| shell-command-dont-erase-buffer's fifth value `erase` (R3-4) | `SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT` (erase even the current buffer); `_NO` stays the default |
+| shell-command-dont-erase-buffer's fifth value `erase` (R3-4) | `SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT` (erase even the current buffer); `.false.` is the default (R6-38) |
 | logical fields named `*_p` upstream (R3-5) | the plain name (`ascii_compatible`, `code_linear`, `supplementary`); `is_`/`has_` only for logical functions |
 | reading a table's fields (R3-6) | the table is a public protected array read directly, with `find_X(name)` for the lookup; no field-reading accessor functions |
 | acronyms (R3-7) | an encoding's own short name stays (`SJIS`, like `UTF8` and `ISO`) |
@@ -1416,7 +1439,7 @@ The owner settled the questions steps 41 and 40d raised; the audit of
 | per-shell skeletons (R4-6) | `skeleton_variants_type`, chosen by `skeleton_filter_function` (sh-mode's `sh_skeleton_feature`) |
 | smie-config's rules (R4-7) | `smie_config_rule_type(mode=, method=, token=, normal=, new=, normal_kind=, new_kind=)`; messages and prompts in Fortran form (`SMIE_AFTER "then" -> 4`) |
 | sgml-tag-alist's end-tag field (R4-8) | `SGML_END_TAG_NONE` (absent), `_DEFAULT` (an explicit nil), `_NO` (t), `_NEWLINES`, `_SKELETON` |
-| sgml-quick-keys and html-quick-keys (R4-9) | one set, `QUICK_KEYS_NO`, `_YES`, `_INDENT`, `_CLOSE`, with `QUICK_KEYS_DEFAULT` for html-quick-keys's "follow sgml-quick-keys" |
+| sgml-quick-keys and html-quick-keys (R4-9) | one set, `.false.`, `.true.` (R6-38), `QUICK_KEYS_INDENT`, `_CLOSE`, with `QUICK_KEYS_DEFAULT` for html-quick-keys's "follow sgml-quick-keys" |
 | the command and the variable sgml-tag-help (R4-10) | `sgml_tag_help` and `sgml_tag_help_variable` (the `_variable` rule) |
 | procedure-valued variables (R4-11) | plain procedure pointers (`sgml_transformation_function => upcase_tag_name`); tools/gen-docstrings.sh documents them (the value is `null()`, the default target's name while it is the target, else "a procedure set by the configuration"); the defcustoms among them are in tools/user-options |
 | a place in our own helper names (R5-1) | "beginning", as in upstream's names: `_beginning`/`_end`, `line_beginning`, `hunk_beginning`; "start" only as a verb.  The `_start` names (58 procedures) are renamed in a PR of their own |
@@ -1501,7 +1524,10 @@ docstring or choosing a data structure for something that comes from Lisp.
    `count`/`count_rate`, not upstream's TICKS/HZ (R6-3).
 3. **Is there an established Fortran convention?**  Follow it: the `_mod`
    module suffix, `read_*` for prompts (READ is Fortran's input verb),
-   `is_*`/`has_*` for logical functions, plural array names without
+   names verb first (R6-17, R6-40: `set_bookmark` for bookmark-set,
+   `execute_kmacro`, `update_font_lock`; a command without a verb takes
+   one from what it does, `undo_window_change`; keys and behavior
+   unchanged), `is_*`/`has_*` for logical functions, plural array names without
    `_array`/`_vector`/`_list`/`_table` (R2-Q8, R2-Q14), `_type` on every derived type and `_procedure` on every interface and no other keyword suffix (R2-Q19), "beginning" for a place, in our own helpers too (`line_beginning`,
    `hunk_beginning`; R2-Q18a, R5-1), "start" only as a verb, a
    tagged record with `select case` where `select type` is blocked.
@@ -1518,7 +1544,10 @@ docstring or choosing a data structure for something that comes from Lisp.
    others, named with the option's full name after their meaning
    (COMPILATION_SCROLL_OUTPUT_FIRST_ERROR; the vocabulary _NONE, _ASK,
    _ALWAYS beside an on state, _UNLIMITED), never
-   `_NO`/`_YES`/`_NIL`/`_T`/`_TRUE`/`_FALSE`; a function value is its
+   `_NO`/`_YES`/`_NIL`/`_T`/`_TRUE`/`_FALSE` (internal enumerations such
+   as arguments, record fields and face attribute states keep
+   `_NO`/`_YES`: `FACE_NO`/`FACE_YES`, `CASE_FOLD_*`; panel 2026-11-04);
+   a function value is its
    `%procedure` (R6-37), a string or number value a named component
    (R6-39) ("Choice settings").  A pair is a derived type with named
    components (`decoding`/`encoding`), never a generic "pair".  A value
@@ -1541,15 +1570,17 @@ text are unchanged.
 
 ### When the answer is not clear: ask
 
-Obvious cases that follow an existing rule or pattern (e.g. _NIL/_T →
-_NO/_YES, _p → is_*) are decided by Claude and reported, not asked; only
-cases no rule covers go to the owner.  The report names each case and the
-rule it follows, so the owner can still overrule it.
+Cases one existing rule or pattern covers unambiguously (e.g. upstream
+nil/t → `.false.`/`.true.` of a choice setting, `_p` → `is_*`) are
+decided by Claude and reported, not asked.  The report names each case
+and the rule it follows, so the owner can still overrule it.
 
-A Lisp-derived term with no line in tools/fortran-names, or a choice the
-questions above do not settle, goes to the owner; it is never invented
-and never copied from Lisp.  Ask as a multiple-choice question, one
-decision at a time:
+A Lisp-derived term with no line in tools/fortran-names, a case where
+rules conflict, or a choice the questions above do not settle exactly,
+goes to the decision panel (CLAUDE.md), and what the panel does not
+settle to the "Owner questions" issue (#261) for the owner; it is never
+invented and never copied from Lisp.  Ask as a multiple-choice question,
+one decision at a time:
 
 - state what the thing is and where it occurs (with counts), so the
   question stands alone;
@@ -1592,7 +1623,7 @@ The decisions that shaped this guide, with the owner's reasoning:
 | kmacro-call-macro's NO-REPEAT | `KMACRO_REPEAT_YES`, `KMACRO_REPEAT_NO`; the argument is REPEAT | names read positively, never as a double negative (`KMACRO_NO_REPEAT_NO`) |
 | constants shared by several settings (GREP_NIL, GREP_T) | one family per setting: `GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*` | each setting has its own states (only grep-highlight-matches has `always` and `auto`), so a generic pair would admit values the setting does not have |
 | face attribute states | `FACE_ON`, `FACE_OFF` kept; since R2-Q17 `FACE_YES`, `FACE_NO` | one constant vocabulary everywhere (`_NO`, `_YES`, `_NONE`, `_ASK`, `_ALWAYS`) |
-| kill (R2-Q2) | by meaning: text is cut, copied and pasted into the clipboard history; a buffer closed, a process stopped, Emacs exited, a local value cleared | one word per behavior: Emacs's "kill" means five different things |
+| kill (R2-Q2) | by meaning: text is cut, copied and pasted into the clipboard history; a buffer closed, a process stopped, Fortmacs exited, a local value cleared | one word per behavior: Emacs's "kill" means five different things |
 | growing an array (R2-Q4) | `append_X` at the end, `prepend_X` at the front; the config API's `%append` | the word says where the entry goes |
 | ending a life; files (R2-Q6, R2-Q13) | `make_`/`destroy_` for objects in memory, `create_`/`delete_` for files and directories on disk | Fortran's own pairs: ALLOCATE/DEALLOCATE in memory, OPEN with STATUS="new" and CLOSE with STATUS="delete" on disk |
 | keyword suffixes (R2-Q19) | only `_type`, `_procedure` and the module suffix | Fortran has one case-blind namespace, so only a type or an interface would clash with a variable of the same name |
@@ -1601,7 +1632,7 @@ The decisions that shaped this guide, with the owner's reasoning:
 | values with no Fortran type | a null `value_type` is "unallocated"; a 0 or -1 sentinel is "none"; an absent prefix argument is "no prefix" | "unallocated" matches the test `.not. allocated(v%a)` |
 | pair (a cons) | never said: our types name their components, and upstream data is "two values, X and Y" | there is no pair type in Fortran; no "upstream's cons" aside |
 | obarray, symbol table | the name table holds run-time names only (`find_name`, `add_name`); compile-time things are typed objects | names typed by the user are the only names looked up at run time |
-| defvar'd history lists | typed history objects (`type(history_type)`, with `%length`) | a history is a record with a known shape |
+| defvar'd history lists | typed history objects (`type(history_setting_type)`, with `%length`) | a history is a record with a known shape |
 | setq-local | `%set_local()` of the setting | the buffer-local value is a component operation of the typed setting |
 | funcall, apply | the procedure pointer called directly | Fortran calls a procedure pointer like a procedure |
 | boundp, fboundp, makunbound | direct components and `associated()` | `associated` is the standard test for a pointer |
@@ -1733,6 +1764,13 @@ Checked by hand on every PR's diff (no script can tell):
   elemental comparisons do not.  Search with the comparison,
   `findloc(list%name == name, .true., dim=1)`, and gather selected
   strings with a loop (grep_mod's `filter_list_by_dir`).
+- A test that signals a child assumes the signal's default action in the
+  child, but a signal the test runner ignores (SIGHUP under `nohup`)
+  stays ignored through fork and exec: set it to the default around the
+  start of the child (sysdep_mod's `default_signal`, then
+  `restore_signal`), as test_process_mod's `process-kill-buffer` does.
+  It failed after 100 s with "finished" (its `sleep 100` ran out) only in
+  `nohup` runs, which looked like a flake under load.
 
 A newly learned hazard goes into `tools/hazards.awk` when a script can find
 it, otherwise into this checklist.
@@ -1743,7 +1781,9 @@ it, otherwise into this checklist.
 
 A user-settable setting with more than two states is a
 `choice_setting_type` (data_mod), not an integer with `_NO`/`_YES`
-constants (R6-38).  Its `=` takes `.true.` and `.false.` for its on and
+constants (R6-38); internal enumerations that are not settings
+(arguments, record fields, face attribute states) keep `_NO`/`_YES`
+(`FACE_NO`/`FACE_YES`, `CASE_FOLD_*`; panel 2026-11-04).  Its `=` takes `.true.` and `.false.` for its on and
 off states and named constants for its other states only; those start
 with the option's full name, or a stem the options share (`DABBREV_*`,
 `QUICK_KEYS_*`, `ANSI_COLOR_FILTER`), and take the values 2, 3, ...
@@ -1865,11 +1905,14 @@ scroll = .not. compilation_scroll_output%is_off()
   applied both.  A search for an element or a component of intrinsic type
   (a fixed-length string included) is `findloc`, `any`, `count` or `where`,
   not a loop; a deferred-length component can't be searched that way and
-  keeps its loop.  An integer's decimal text is an internal `write`
-  where it is used ("Intrinsics first", "Numbers to text"; data_mod's
-  generic `number_to_string` that `simplify-a2` made the one copy is gone
-  since R6-44), a string's character count fns_mod's
-  `count_characters`, the ASCII lowercase of a string character_mod's
+  keeps its loop.  An integer's decimal text, and any text built from a
+  format fixed in the source, is an internal write with edit descriptors
+  (`write (text, "(i0)") n`) where it is used ("Intrinsics first",
+  "Numbers to text"), never `number_to_string` (data_mod's generic one,
+  which `simplify-a2` had made the one copy, is gone since R6-44),
+  `format` or a private wrapper (R6-44, R6-45); a string's character
+  count fns_mod's `count_characters`, the ASCII lowercase of a string
+  character_mod's
   `downcase_ascii` (R6-16): no module keeps its own copy (`simplify-a2`,
   2026-11-03).
 - A list of strings of different lengths is an array of string_type_mod's
@@ -1971,8 +2014,8 @@ scroll = .not. compilation_scroll_output%is_off()
   (a variable) and any notes on the port. Help shows the text before
   "Port of". Write keys as upstream does: `\[command]`, `\<map>`,
   `` \`KEY' ``, `` `quote' ``. After changing one, run
-  `tools/gen-docstrings.sh` (check.sh fails on a stale
-  src/docstrings_mod.f90).
+  `tools/build.sh` (it regenerates src/docstrings_mod.f90, which is not
+  committed, before fpm builds).
 
 - User options: a variable that upstream defines with `defcustom` (or
   lists in lisp/cus-start.el) goes in `tools/user-options`, so C-h v
@@ -2034,6 +2077,27 @@ scroll = .not. compilation_scroll_output%is_off()
 
 ## Design decisions
 
+- **Generated at build time (2026-11-04, decided by the owner).**  The
+  four modules made from src/ alone, src/commands_mod.f90,
+  src/modes_mod.f90, src/face_table_mod.f90 and src/docstrings_mod.f90
+  (tools/gen-commands.sh, gen-modes.sh, gen-faces.sh, gen-docstrings.sh),
+  are not committed (.gitignore), so they no longer show in diffs or
+  conflict between PRs.  `tools/build.sh [FPM-ARGUMENTS]`
+  runs the generators, only when an input is newer than
+  build/generated.stamp (or a file is missing; `--force` always), then
+  fpm with the arguments (`build` when there are none).  tools/check.sh
+  generates first (`--fix` always), so CI and the Guix job build from
+  generated files; check.sh no longer compares them with a committed copy.
+  The generators also work without fprettify (the Guix job has none):
+  their output then keeps the generator's indentation, within 132
+  columns.  `fortmacs --recompile` needs nothing new: it compiles init.f90
+  against the installed library and module files (PREFIX/lib,
+  PREFIX/include), which `tools/build.sh install` builds from the
+  generated sources.  The tables made from upstream data (the outputs of
+  tools/gen-uni*.sh, gen-charsets.sh, gen-charscript.sh and
+  gen-tty-colors.sh) stay committed: they need upstream/emacs,
+  which a build does not have.
+
 - **Module names (2026-11-01, decided by the owner).**  The module
   suffix is `_mod`, the most common Fortran module suffix (`_f90` would
   read as the Fortran 90 dialect): `buffer_mod` in buffer_mod.f90,
@@ -2055,8 +2119,10 @@ scroll = .not. compilation_scroll_output%is_off()
 
 - **Fortran-first names for Lisp terms (2026-10-31, decided by the owner).**
   Fortmacs leans Fortran-first, not Lisp-first: Lisp-derived terms get
-  Fortran names (subprogram, expression, group, table, and the module
-  expression_motion_mod), each term confirmed by the owner individually.
+  Fortran names (subprogram, expression, group, a plural name for an
+  alist, and the module expression_motion_mod), each term confirmed by
+  the owner, by an existing rule (decided and reported), or by the
+  decision panel (CLAUDE.md).
   So that the names never drift and new upstream versions port without
   bringing the old ones back, the renames are data (tools/fortran-names)
   applied by a script (tools/fortran-names.sh) and enforced by
@@ -2068,7 +2134,8 @@ scroll = .not. compilation_scroll_output%is_off()
   timers, processes), user-visible names included (`execute_with_timer`,
   `commands%paste%execute`); procedure pointers are called directly; and
   other synonyms used for one meaning are merged (fetch into get, new
-  into make, release into free, push and append into add, ...), while
+  into make, release and free into destroy, push and add into
+  append/prepend, ...), while
   Emacs words whose behavior differs stay distinct.  The renames are
   per-name lines of tools/fortran-names and tools/intrinsics.awk rejects
   new run_ and call_ procedures.  See "One word per meaning".
@@ -2161,14 +2228,13 @@ scroll = .not. compilation_scroll_output%is_off()
   solely at run time go through a specific subroutine with intrinsic
   arguments (`set_command_disabled(name, .false., status)`). `value_type`
   stays internal: the forwarding table in data_buffer_mod maps variable
-  names to the objects (keeping an exact Lisp value a Fortran type can't
-  hold), so name-based access (`set-variable`, C-h v, minor-mode maps and
+  names to the objects, so name-based access (`set-variable`, C-h v, minor-mode maps and
   lighters) sees the same values. API procedures that would need a Lisp
   value (raw prefix arguments, key vectors, completion tables) are not
   exported; their commands are reached as `commands%NAME`.
 
 - **Modes (2026-10-23).** A major mode is a `major_mode_type` whose
-  command brackets its body with `%begin`/`%finish` (the expansion of
+  command brackets its body with `%begin`/`%end` (the expansion of
   define-derived-mode done by hand; a parent of fundamental-mode is no
   parent, as in derived.el). A minor mode is a `minor_mode_type` with
   `%enable`, `%disable`, `%toggle` and `%command`; its own state is a
@@ -2184,7 +2250,8 @@ scroll = .not. compilation_scroll_output%is_off()
   the config API, named as their citations name them.
 
 - **Pure Fortran (2026-10-20).** Besides libc system calls bound in
-  src/sys, Fortmacs links no C libraries. Where upstream uses one (ncurses
+  src/sys, Fortmacs links no C libraries, except FreeType and HarfBuzz
+  for the GUI's fonts. Where upstream uses one (ncurses
   for terminfo, and later things like GnuTLS, libxml2 or image
   libraries), the needed part is reimplemented in Fortran or the feature
   waits.
@@ -2370,13 +2437,13 @@ scroll = .not. compilation_scroll_output%is_off()
     size (histories hold any number of strings of any length; savehist
     saves variables named at run time), and fixed-length strings lose
     trailing blanks.  A line break inside a character constant is kept.
-  - Values are strings, integers and logicals (nil is `.false.`); others
+  - Values are strings, integers and logicals (upstream's nil is `.false.`); others
     (symbols, nested lists) are not printable there and are not saved.
 
 - **Header lines as typed segments (2026-10-29).** A buffer's
   `header_line_format` is a `header_line_format_type`: an array of
   `header_line_segment_type` records (TEXT, a FACE, the column ALIGN_TO
-  it starts at), built one entry at a time with `%append` and made nil with
+  it starts at), built one entry at a time with `%append` and emptied with
   `%clear`, rather than upstream's mode-line-format list of strings with
   text properties.  Chosen with the user over a propertized string (Lisp
   data, kept out of the config API) and a mode-line-format interpreter
@@ -2390,7 +2457,7 @@ scroll = .not. compilation_scroll_output%is_off()
     are Deferred, as for the mode line, which is still built by fixed
     code.
   - A buffer's `mode_line_buffer_identification` (step 34a, for Info's
-    "*info* (emacs) Node") is a `header_line_format_type` too: its
+    "*info* (fortmacs) Node") is a `header_line_format_type` too: its
     segments replace the buffer name padded to 12 columns in the mode
     line, "%b" standing for the buffer name and "%%" for "%".
 
@@ -2439,9 +2506,10 @@ scroll = .not. compilation_scroll_output%is_off()
   events in the event queue (`store_event`, `kbd_store_bytes`), not in
   unread-command-events.  `command_loop_level` counts the recursive
   edits `recursive_edit` (Frecursive_edit) enters, minibuffers being
-  counted by `minibuf_level`, which moved to keyboard_mod.  A throw to
-  `top-level` is the status `FM_TOP_LEVEL`: not an error (no handler of
-  `error` catches it), passed on by each recursive edit until the
+  counted by `minibuf_level`, which moved to keyboard_mod.  A return to
+  top level (upstream's throw to `top-level`) is the status
+  `FM_TOP_LEVEL`: not an error (no check of the status for `error` takes
+  it), passed on by each recursive edit until the
   top-level command loop takes it without a message.  The top-level
   `command_loop` skips command_loop_1's initializations (callers run it
   again for more input, as one session); recursive edits do them.
@@ -2449,7 +2517,7 @@ scroll = .not. compilation_scroll_output%is_off()
 - **Windows, bidi and the display core (2026-10-31, step 42d).**
   window.c's DEFUNs take the window as an optional handle (the selected
   window when absent) and a status for upstream's wrong-type errors;
-  nil is the null handle.  A deleted window's handle stays a window
+  no window (upstream's nil) is the null handle.  A deleted window's handle stays a window
   (`is_window`) because handle_mod can tell a handle it gave out
   (`issued`) from one it never did.  With one frame, ALL-FRAMES
   arguments make no difference and are left out; MINIBUF is an
@@ -2513,7 +2581,8 @@ Decisions the porting work is waiting on, or defaults taken provisionally.
 Each lists the default being used meanwhile.
 
 1. **Merging.** *Decided:* one roadmap step per PR, based on main (never
-   stacked); the user reviews and merges.
+   stacked); the owner merges, or clears a PR by number for Claude to
+   merge once CI is green.
 2. **Value model.** *Decided (2026-10-20):* no Lisp; values are a plain
    Fortran `value_type` with value semantics (value_mod), interned symbols
    by id (names_mod), data.c/fns.c operations in data_mod/fns_mod. Values are

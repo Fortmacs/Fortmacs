@@ -4,3 +4,9 @@
 # Reference source fetched by tools/fetch-upstream.sh
 /upstream/
 /upstream
+
+# Generated from src/ by tools/build.sh (tools/gen-*.sh)
+/src/commands_mod.f90
+/src/docstrings_mod.f90
+/src/face_table_mod.f90
+/src/modes_mod.f90

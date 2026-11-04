@@ -965,7 +965,7 @@ END {
                 # cannot be compared with.
                 decl = vtype[i]
                 sub(/,[ \t]*public/, "", decl)
-                print "            entry%declarations = " q(decl " :: " vfort[i])
+                print "            entry%declarations = " lit(decl " :: " vfort[i], "                                 ")
                 print "            if (.not. associated(" vfort[i] ")) then"
                 print "                entry%value = \"null()\""
                 if (vtarget[i] != "") {

@@ -28,7 +28,7 @@ cd "$(dirname "$0")/.."
 root=$(pwd)/build/test-recompile
 rm -rf "$root"
 mkdir -p "$root"
-fpm install --profile release --prefix "$root/prefix" >"$root/install.log" 2>&1 ||
+tools/build.sh install --profile release --prefix "$root/prefix" >"$root/install.log" 2>&1 ||
     { cat "$root/install.log" >&2; exit 1; }
 
 XDG_CONFIG_HOME=$root/config
