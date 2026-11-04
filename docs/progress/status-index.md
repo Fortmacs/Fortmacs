@@ -126,6 +126,7 @@
 | [print_mod](../status/print_mod.md) | print.c | partial |
 | [process_mod](../status/process_mod.md) | process.c (+ subr.el `start-process`, `process-live-p`; gnulib nproc.c) | partial |
 | [prog_mode_mod](../status/prog_mode_mod.md) | progmodes/prog-mode.el | partial |
+| [project_mod](../status/project_mod.md) | progmodes/project.el (+ vc.el `vc-default-ignore-completion-table`) | partial |
 | [python_mod](../status/python_mod.md) | progmodes/python.el | partial |
 | [recentf_mod](../status/recentf_mod.md) | recentf.el | partial |
 | [rect_mod](../status/rect_mod.md) | rect.el | partial |
