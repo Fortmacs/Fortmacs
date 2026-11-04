@@ -39,8 +39,8 @@ module imenu_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_IMENU_UNAVAILABLE
     use handle_mod, only: handle_type
     use print_mod, only: fortran_string
-    use data_mod, only: logical_setting_type, string_setting_type, history_setting_type, forward_setting, &
-                        append_locals_clearer, number_to_string
+    use data_mod, only: logical_setting_type, string_setting_type, history_setting_type, forward_setting, choice_setting_type, &
+                        append_locals_clearer
     use value_mod, only: value_type, make_list
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
@@ -82,10 +82,9 @@ module imenu_mod
     !> `imenu_max_item_length' when entries are not truncated.
     integer, parameter, public :: IMENU_MAX_ITEM_LENGTH_UNLIMITED = -1
 
-    !> Values of `imenu_flatten': nested indexes (IMENU_FLATTEN_NO), or a
-    !> flat list with the section names prepended to the candidates
-    !> (IMENU_FLATTEN_PREFIX).
-    integer, parameter, public :: IMENU_FLATTEN_NO = 0, IMENU_FLATTEN_PREFIX = 1
+    !> The value of `imenu_flatten' besides .false. (nested indexes): a
+    !> flat list with the section names prepended to the candidates.
+    integer, parameter, public :: IMENU_FLATTEN_PREFIX = 1
 
     !> One entry of an Imenu index (an element of upstream's index alist):
     !> an item NAME at a buffer position, kept in `marker' when
@@ -342,7 +341,7 @@ module imenu_mod
     character(len=:), allocatable, public :: imenu_level_separator
 
     !> Whether to flatten the list of sections in an imenu or show it nested.
-    !> If `IMENU_FLATTEN_NO', use nested indexes.
+    !> If .false., use nested indexes.
     !> If the value is `IMENU_FLATTEN_PREFIX', pop up the completion buffer
     !> with a flattened menu where section names are prepended to completion
     !> candidates as prefixes.
@@ -351,7 +350,7 @@ module imenu_mod
     !> names from different flattened levels, such as section names, from the
     !> names of completion candidates.  Port of imenu.el imenu-flatten (the
     !> values `annotation' and `group' are not ported).
-    integer, public :: imenu_flatten = IMENU_FLATTEN_NO
+    type(choice_setting_type), public :: imenu_flatten = choice_setting_type(name="imenu_flatten")
 
     !> When true, ignore text inside comments and strings.
     !> Only affects `create_imenu_index' (and any
@@ -913,6 +912,7 @@ contains
         type(imenu_entry_type), allocatable :: found_items(:)
         type(imenu_entry_type) :: item
         character(len=:), allocatable :: name
+        character(len=20) :: digits
         integer(int64) :: pos, here, start_count, now, rate
         integer :: k, appended
         logical :: found
@@ -937,8 +937,9 @@ contains
                 if (real(now - start_count)/real(max(1_int64, rate)) >= imenu_max_index_time) exit
 
                 if (.not. point() < pos) then
+                    write (digits, "(i0)") pos
                     call set_error(status, FM_GENERIC_ERROR, "Infinite loop at "//buffers(current)%name//":"// &
-                                   number_to_string(pos)// &
+                                   trim(digits)// &
                                    ": imenu_prev_index_position_function does not move point")
                     return
                 end if
@@ -1482,7 +1483,7 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            if (imenu_flatten /= IMENU_FLATTEN_NO) alist = flatten_imenu_index(alist, .true.)
+            if (.not. imenu_flatten%is_off()) alist = flatten_imenu_index(alist, .true.)
 
             if (present(prompt)) then
                 call read_imenu_index_item(alist, 0, chosen, status, prompt)

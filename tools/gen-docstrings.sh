@@ -565,12 +565,17 @@ function wrapped(s, piece,    last) {
     return s piece
 }
 
-# A string literal for s, in pieces of at most 90 characters.
-function lit(s, ind,    out) {
+# A string literal for s, in pieces of at most 90 characters, each
+# ending after a character that cannot be part of a name, so no name is
+# split between two pieces (tools/fortran-names reads the pieces).
+function lit(s, ind,    out, n) {
     out = ""
     while (length(s) > 90) {
-        out = out q(substr(s, 1, 90)) "// &\n" ind
-        s = substr(s, 91)
+        for (n = 90; n > 1; n--)
+            if (substr(s, n, 1) !~ /[A-Za-z0-9_]/) break
+        if (n == 1) n = 90
+        out = out q(substr(s, 1, n)) "// &\n" ind
+        s = substr(s, n + 1)
     }
     return out q(s)
 }
