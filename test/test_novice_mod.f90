@@ -39,9 +39,11 @@ module test_novice_mod
     use keyboard_mod, only: unread_command_events, discard_input, command_loop
     use callint_mod, only: prefix_arg
     use bindings_mod, only: init_bindings
-    use novice_mod, only: enable_command, disable_command, disabled_command_function_variable
+    use novice_mod, only: enable_command, disable_command, disabled_command_function, init_novice
+    use help_fns_mod, only: describe_variable_text
+    use keyboard_mod, only: disabled_command_function_variable
     use names_mod, only: user_init_file
-    use fileio_mod, only: expand_file_name, create_directory_internal, delete_file_internal, emacs_wd, init_fileio
+    use fileio_mod, only: expand_file_name, create_directory_internal, delete_file_internal, fortmacs_wd, init_fileio
     use files_mod, only: find_file_noselect
     implicit none(type, external)
     private
@@ -57,7 +59,8 @@ contains
         testsuite = [ &
                     new_unittest("disabled-command-answers", test_answers), &
                     new_unittest("enable-and-disable-command", test_enable_disable), &
-                    new_unittest("disabled-message", test_disabled_message) &
+                    new_unittest("disabled-message", test_disabled_message), &
+                    new_unittest("describe-disabled-command-function", test_describe) &
                     ]
     end subroutine collect_novice_mod
 
@@ -68,7 +71,7 @@ contains
         call init_bindings()
         call discard_input()
         prefix_arg = prefix_arg_type()
-        disabled_command_function_variable = .true.
+        disabled_command_function_variable%procedure => disabled_command_function
         commands%upcase_region%disabled = .true.
         call get_or_make_buffer("novice-test", h, st)
         call set_buffer(h, st)
@@ -124,11 +127,11 @@ contains
         if (allocated(error)) return
         ! !: enable all disabled commands.
         call execute_keys("C-x C-u !")
-        call check(error, buffer_string() == "ABC" .and. .not. disabled_command_function_variable, buffer_string())
+        call check(error, buffer_string() == "ABC" .and. disabled_command_function_variable%is_off(), buffer_string())
         if (allocated(error)) return
         call execute_keys("C-x C-l")
         call check(error, buffer_string() == "abc", buffer_string())
-        disabled_command_function_variable = .true.
+        disabled_command_function_variable%procedure => disabled_command_function
         call disable_command("downcase_region", st)
         call discard_input()
         call close_buffer(h, st)
@@ -142,7 +145,7 @@ contains
         character(len=*), parameter :: LF = achar(10)
 
         call init_fileio()
-        call expand_file_name("build/test-novice", path, st, emacs_wd)
+        call expand_file_name("build/test-novice", path, st, fortmacs_wd)
         call create_directory_internal(path, st)
         path = path//"/init.f90"
         user_init_file = path
@@ -233,4 +236,25 @@ contains
         call discard_input()
         call close_buffer(h, st)
     end subroutine test_disabled_message
+
+    !> C-h v shows the standard procedure that init_novice sets as the
+    !> value, with no "Original value" line (upstream: "Its value is
+    !> disabled-command-function"); another procedure or .false. shows it.
+    subroutine test_describe(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: LF = achar(10)
+        character(len=:), allocatable :: text
+        logical :: found
+
+        call init_novice()
+        call describe_variable_text("disabled_command_function", text, found)
+        call check(error, found .and. index(text, LF//"Its value is disabled_command_function"//LF) > 0 .and. &
+                   index(text, "Original value") == 0, text)
+        if (allocated(error)) return
+        disabled_command_function_variable = .false.
+        call describe_variable_text("disabled_command_function", text, found)
+        call check(error, index(text, "Its value is .false."//LF//"Original value was "//LF// &
+                                "disabled_command_function"//LF) > 0, text)
+        disabled_command_function_variable%procedure => disabled_command_function
+    end subroutine test_describe
 end module test_novice_mod

@@ -96,11 +96,11 @@ module xdisp_mod
                             get_char_property_and_overlay, next_char_property_change, &
                             next_single_char_property_change, text_prop_means_invisible, propertized_substring
     use itree_mod, only: overlays_in, overlay_start, overlay_end, overlay_get
-    use buffer_mod, only: current, set_buffer_internal
+    use buffer_mod, only: current, set_buffer_internal, header_line_format_type
     use buffer_mod, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
                           buf_fetch_byte, buf_next_char_len, is_buffer_modified, transient_mark_mode
     use marker_mod, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
-    use character_mod, only: is_char_byte8, char_to_byte8, string_char_and_length, multibyte_length, &
+    use character_mod, only: glyph_width, is_char_byte8, char_to_byte8, string_char_and_length, multibyte_length, &
                              byte8_to_char, multibyte_chars_in_text
     use dispextern_mod, only: glyph_type, glyph_row_type, DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, &
                               HEADER_LINE_ACTIVE_FACE_ID, HEADER_LINE_INACTIVE_FACE_ID, &
@@ -108,18 +108,19 @@ module xdisp_mod
     use font_mod, only: font_type, font_metrics_type
     use xfaces_mod, only: face_at_buffer_position, face_at_string_position, merge_faces, realize_basic_faces, &
                           TEXT_PROP_DISTANCE_LIMIT
-    use frame_mod, only: frame_type, selected_frame, selected_window, frame_lines, frame_cols, window_pixel_left, &
+    use frame_mod, only: frame_type, selected_frame, ensure_frames, selected_window, frame_lines, frame_cols, window_pixel_left, &
                          window_pixel_top, window_pixel_width, window_pixel_height, window_body_pixel_width
+    use window_mod, only: execute_window_change_functions
     use window_mod, only: window_type, set_window_buffer, window_start, &
                           set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
                           is_window_valid, make_window, resize_window_tree, window_leaves, same_window, &
-                          set_window_point
+                          set_window_point, window_scroll_functions
     use dispnew_mod, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame, redisplaying
     use keyboard_mod, only: last_message, minibuffer_message_text, set_minibuffer_message_text
     use value_mod, only: value_type, xstring, list_elements, xfixnum, xhandle, string_intervals, vtag, V_INTEGER, &
                          V_STRING, V_ARRAY, V_WINDOW
     use intervals_mod, only: textget
-    use data_mod, only: buffer_local_value, integer_setting_type, append_locals_clearer, value_eq
+    use data_mod, only: buffer_local_value, integer_setting_type, append_locals_clearer, value_eq, choice_setting_type
     use coding_mod, only: is_coding_system, coding_system_mnemonic, coding_system_eol_type_mnemonic, init_coding, &
                           buffer_file_coding_system
     use buffer_mod, only: get_buffer, get_or_make_buffer, set_buffer, is_buffer_live, temp_set_point_both, BEGINNING, BEGINNING_BYTE
@@ -129,7 +130,8 @@ module xdisp_mod
     use value_mod, only: command_procedure, value_type
     use bidi_mod, only: bidi_it_type, bidi_init_it, bidi_paragraph_init, bidi_find_first_overridden, bidi_set_string, &
                         bidi_shelved_type, bidi_shelve_cache, bidi_unshelve_cache, NEUTRAL_DIR, L2R, R2L
-    use editfns_mod, only: validate_region
+    use editfns_mod, only: validate_region, reset_outermost_restrictions_begin, reset_outermost_restrictions_end, &
+                           styled_format, format_arguments_type
     use error_mod, only: set_error, FM_ARGS_OUT_OF_RANGE
     use search_mod, only: fast_looking_at, find_newline_no_quit
     implicit none(type, external)
@@ -138,11 +140,12 @@ module xdisp_mod
     public :: add_minor_mode_lighter, mode_line_modes, mode_line_modes_faces
     public :: set_mode_line_process, clear_mode_line_process, mode_line_process_text, append_mode_line_modes_entry, &
               mode_line_modes_prefix
+    public :: mode_line_misc_info_procedure, prepend_mode_line_misc_info, mode_line_misc_info_faces
     public :: redisplay_internal, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisibility
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline, current_message
-    public :: highlight_region_procedure, unhighlight_region_procedure
+    public :: highlight_region_procedure, unhighlight_region_procedure, pre_redisplay_procedure
     public :: bidi_find_overridden_directionality, current_bidi_paragraph_direction
 
     !> The window redisplay is displaying (it->w); the null handle
@@ -169,7 +172,24 @@ module xdisp_mod
             implicit none(type, external)
             type(handle_type), intent(in) :: window
         end subroutine unhighlight_region_procedure
+
+        !> A `pre_redisplay_function': ALL true for all windows (upstream's
+        !> t), else WINDOWS (none: only the selected window).  Not a port.
+        recursive subroutine pre_redisplay_procedure(all, windows)
+            import :: handle_type
+            implicit none(type, external)
+            logical, intent(in) :: all
+            type(handle_type), intent(in) :: windows(:)
+        end subroutine pre_redisplay_procedure
     end interface
+
+    !> Function run just before redisplay.
+    !> It is called with one argument, which is the set of windows that are to
+    !> be redisplayed.  This set can be empty (meaning, only the selected window),
+    !> or all windows (ALL true).  Port of xdisp.c pre-redisplay-function
+    !> (null for upstream's `ignore'; redisplay shows every window, so it
+    !> is called with ALL true).
+    procedure(pre_redisplay_procedure), pointer, public :: pre_redisplay_function => null()
 
     !> Function to move the region-highlight overlay.
     !> This function is called with the parameters START, END and WINDOW;
@@ -188,15 +208,24 @@ module xdisp_mod
     !> Values of `invisibility': hidden, and replaced by an ellipsis.
     integer, parameter, public :: INVISIBLE_HIDDEN = 1, INVISIBLE_ELLIPSIS = 2
 
-    !> Values of `message_log_max' other than a number of lines.
-    integer(int64), parameter, public :: MESSAGE_LOG_MAX_NO = -1, MESSAGE_LOG_MAX_UNLIMITED = -2
+    !> The setting `message_log_max': .false., .true. or a number of lines
+    !> (R6-39: `message_log_max%lines = 500'; negative when no number is
+    !> set).  Not a port.
+    type, extends(choice_setting_type), public :: message_log_max_choice_setting_type
+        integer(int64) :: lines = -1
+    contains
+        procedure :: clear_kinds => message_log_max_clear_kinds
+        procedure :: other_value => message_log_max_other_value
+        procedure :: kind_hint => message_log_max_kind_hint
+    end type message_log_max_choice_setting_type
 
-    !> Maximum number of lines to keep in the message log buffer.
-    !> If MESSAGE_LOG_MAX_NO, disable message logging.  If
-    !> MESSAGE_LOG_MAX_UNLIMITED, log messages but don't truncate the buffer
-    !> when it becomes large.  Port of xdisp.c message-log-max (named
-    !> constants for none and no limit).
-    integer(int64), public :: message_log_max = 1000
+    !> Maximum number of lines to keep in the message log buffer
+    !> (`message_log_max%lines').
+    !> If .false., disable message logging.  If .true., log messages but
+    !> don't truncate the buffer
+    !> when it becomes large.  Port of xdisp.c message-log-max.
+    type(message_log_max_choice_setting_type), public :: message_log_max = &
+                                                         message_log_max_choice_setting_type(name="message_log_max", lines=1000)
 
     !> The name of the buffer where messages are logged.  xdisp.c
     !> messages-buffer-name.
@@ -298,6 +327,27 @@ module xdisp_mod
 
     type(lighter_type), allocatable :: lighters(:)
     integer :: lighter_count = 0
+
+    abstract interface
+        !> An element of `mode_line_misc_info': SEGMENTS gets what it shows in
+        !> the mode line of WINDOW, whose buffer is current (nothing while
+        !> SEGMENTS has none).  Not a port.
+        recursive subroutine mode_line_misc_info_procedure(window, segments)
+            import :: handle_type, header_line_format_type
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+            type(header_line_format_type), intent(out) :: segments
+        end subroutine mode_line_misc_info_procedure
+    end interface
+
+    ! An element of `mode_line_misc_info'.
+    type :: misc_info_entry_type
+        procedure(mode_line_misc_info_procedure), pointer, nopass :: element => null()
+    end type misc_info_entry_type
+
+    ! Mode line information for miscellaneous purposes, shown after the
+    ! modes (bindings.el mode-line-misc-info: its elements in order).
+    type(misc_info_entry_type), allocatable :: misc_info_entries(:)
 
     !> One part of a `mode_line_process' construct: TEXT, in which "%s"
     !> stands for the status of the buffer's process (decode_mode_spec's
@@ -465,30 +515,6 @@ contains
     ! ------------------------------------------------------------------
     ! Producing glyphs
     ! ------------------------------------------------------------------
-
-    !> Columns character `c' takes: 2 for East Asian wide and fullwidth
-    !> characters and emoji, else 1.  An approximation of
-    !> character.c:char_width with characters.el's char-width-table.
-    !> Not a port.
-    elemental integer function glyph_width(c)
-        integer(int32), intent(in) :: c
-
-        glyph_width = 1
-        if ((c >= int(z'1100', int32) .and. c <= int(z'115F', int32)) .or. &
-            (c >= int(z'2E80', int32) .and. c <= int(z'303E', int32)) .or. &
-            (c >= int(z'3041', int32) .and. c <= int(z'33FF', int32)) .or. &
-            (c >= int(z'3400', int32) .and. c <= int(z'4DBF', int32)) .or. &
-            (c >= int(z'4E00', int32) .and. c <= int(z'9FFF', int32)) .or. &
-            (c >= int(z'A000', int32) .and. c <= int(z'A4CF', int32)) .or. &
-            (c >= int(z'AC00', int32) .and. c <= int(z'D7A3', int32)) .or. &
-            (c >= int(z'F900', int32) .and. c <= int(z'FAFF', int32)) .or. &
-            (c >= int(z'FE30', int32) .and. c <= int(z'FE4F', int32)) .or. &
-            (c >= int(z'FF00', int32) .and. c <= int(z'FF60', int32)) .or. &
-            (c >= int(z'FFE0', int32) .and. c <= int(z'FFE6', int32)) .or. &
-            (c >= int(z'1F300', int32) .and. c <= int(z'1F64F', int32)) .or. &
-            (c >= int(z'1F900', int32) .and. c <= int(z'1F9FF', int32)) .or. &
-            (c >= int(z'20000', int32) .and. c <= int(z'3FFFD', int32))) glyph_width = 2
-    end function glyph_width
 
     !> The cells that show character `c' at logical column `x' (the column
     !> counted from the start of the line, continuation lines included).
@@ -2032,7 +2058,7 @@ contains
     !> (xdisp.c:compute_line_metrics).  The core of xdisp.c:try_window
     !> with display_line.  Port of xdisp.c:try_window, in part.
     subroutine layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, &
-                             end_pos, reached_end, region_beginning, region_end, f, last_y, nrows, cursor_hpos)
+                             end_pos, reached_end, region_beginning, region_end, f, last_y, nrows, cursor_hpos, row_starts)
         integer(int64), intent(in) :: bi, start, pt
         integer, intent(in) :: width
         type(glyph_row_type), intent(inout) :: rows(:)
@@ -2046,6 +2072,9 @@ contains
         type(frame_type), intent(inout), optional :: f
         integer, intent(in), optional :: last_y
         integer, intent(out), optional :: nrows, cursor_hpos
+        !> Where each row starts (MATRIX_ROW_START_CHARPOS); a row below
+        !> the end of the text starts there.
+        integer(int64), intent(out), optional :: row_starts(:)
         type(row_start_type) :: s
         integer(int64) :: rb, regexp
         integer :: r, ends, col, used, last_x, y, ylimit, hpos, asc, desc, k
@@ -2092,6 +2121,7 @@ contains
             rows(r)%pixel_width = 0
             rows(r)%continued_p = .false.
             rows(r)%ends_at_zv_p = reached_end
+            if (present(row_starts)) row_starts(r) = s%pos
 
             if (gui) then
                 ! try_window: rows down to the bottom of the text area.
@@ -2252,10 +2282,13 @@ contains
         type(handle_type), intent(in) :: window
     end subroutine redisplay_unhighlight_overlay_function
 
-    !> Display window `w': from its start if that shows point (or the
-    !> start is forced), else recentered around point; then its mode line.
-    !> `pt' is the window's point; `selected' says whether it is the
-    !> selected window.  Port of the core of xdisp.c:redisplay_window.
+    !> Display window `w': from its start if that shows point, else
+    !> recentered around point; a forced start is kept and point moves to
+    !> the middle of the window when it does not show (on a terminal frame).
+    !> `window_scroll_functions' run for a forced or new start.  Then its
+    !> mode line.  `pt' is the window's point; `selected' says whether it
+    !> is the selected window.  Port of the core of
+    !> xdisp.c:redisplay_window.
     subroutine redisplay_window(f, w, pt, selected)
         type(frame_type), intent(inout) :: f
         type(window_type), intent(inout) :: w
@@ -2267,7 +2300,10 @@ contains
         integer(int64) :: rb, regexp, m, saved
         integer :: body, width, cursor_row, cursor_col, r, last_y, nrows, cursor_hpos, left, top, capacity
         integer(int32) :: mode_line_face
-        logical :: reached_end, gui
+        logical :: reached_end, gui, forced
+        integer(int64) :: cpt
+        integer(int64), allocatable :: row_starts(:)
+        integer :: hl
 
         call resolve_buffer(w%buffer, bi, status)
         if (.not. status%ok()) return
@@ -2342,7 +2378,7 @@ contains
                                reached_end, rb, regexp, f, last_y, nrows, cursor_hpos)
             ! (Recentering in pixels is Deferred: the start stays.)
             call set_window_start(w, start, status, noforce=.true.)
-            w%window_end_pos = end_pos
+            w%window_end_pos = buffers(bi)%text%z - end_pos
             w%window_end_valid = reached_end
             ! (w->cursor: the row and the glyph, 0-based.)
             w%cursor_vpos = cursor_row
@@ -2363,27 +2399,86 @@ contains
             return
         end if
 
-        call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
-                           reached_end, rb, regexp, f)
+        forced = w%force_start
 
-        if (cursor_row < 0 .and. .not. w%force_start) then
+        if (forced) then
+            ! The start was set explicitly: forget that, run
+            ! window_scroll_functions, which may move the start, and display
+            ! from it.
+            w%force_start = .false.
+            call execute_scroll_functions_for_start(w, bi, start)
+        end if
+
+        cpt = pt
+        allocate (row_starts(size(rows)))
+        call layout_window(bi, start, cpt, width, rows, cursor_row, cursor_col, end_pos, &
+                           reached_end, rb, regexp, f, row_starts=row_starts)
+
+        if (cursor_row < 0 .and. forced .and. size(rows) > 0) then
+            ! If point does not appear, move it to the middle of the window
+            ! (the first row whose bottom is at half the window's height, or
+            ! the row the text ends in).
+            hl = 0
+            if (window_wants_header_line(w)) hl = 1
+
+            do r = 1, size(rows) - 1
+                if (hl + r >= body/2) exit
+                if (rows(r)%ends_at_zv_p) exit
+            end do
+
+            cpt = row_starts(r)
+            if (selected) call temp_set_point_both(buffers(bi), cpt, buf_charpos_to_bytepos(bi, cpt))
+            call set_window_point(w, cpt, status)
+            call layout_window(bi, start, cpt, width, rows, cursor_row, cursor_col, end_pos, &
+                               reached_end, rb, regexp, f)
+        else if (cursor_row < 0) then
             ! Point is not visible: recenter (scroll-conservatively 0),
             ! the window start half the height of the window backward
-            ! from point.
+            ! from point, then window_scroll_functions.
             start = recenter_start(bi, pt, width - 1, body/2)
+            call execute_scroll_functions_for_start(w, bi, start)
             call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
                                reached_end, rb, regexp, f)
         end if
 
+        ! Keep the start (a function run before may have forced it again).
+        forced = w%force_start
         call set_window_start(w, start, status, noforce=.true.)
-        w%window_end_pos = end_pos
+        w%force_start = forced
+        w%window_end_pos = buffers(bi)%text%z - end_pos
         w%window_end_valid = reached_end
         w%cursor_vpos = cursor_row
         w%cursor_hpos = cursor_col
         if (window_wants_header_line(w)) call display_header_line(f, w, bi, selected)
         call put_rows(f, w%top_line + w%header_line_height, w%left_col, rows, w%divider .and. .not. w%mini)
-        if (.not. w%mini) call display_mode_line(f, w, bi, start, pt, selected)
+        if (.not. w%mini) call display_mode_line(f, w, bi, start, cpt, selected)
     end subroutine redisplay_window
+
+    !> Run window scroll functions, if any, for the window being displayed
+    !> (`displayed_window', W, showing buffer slot BI) with new window start
+    !> START, and set the window start to that position; START is then the
+    !> start they leave.  Port of xdisp.c:run_window_scroll_functions.
+    subroutine execute_scroll_functions_for_start(w, bi, start)
+        type(window_type), intent(inout) :: w
+        integer(int64), intent(in) :: bi
+        integer(int64), intent(inout) :: start
+        type(status_type) :: status
+        integer(int64) :: saved
+        logical :: forced
+
+        forced = w%force_start
+        call set_window_start(w, start, status, noforce=.true.)
+        w%force_start = forced
+        saved = current
+        call set_buffer_internal(bi)
+
+        if (.not. window_scroll_functions%empty()) then
+            call window_scroll_functions%execute(displayed_window, start, status, safe=.true.)
+            start = max(buffers(bi)%begv, min(window_start(w), buffers(bi)%zv))
+        end if
+
+        if (saved /= 0) call set_buffer_internal(saved)
+    end subroutine execute_scroll_functions_for_start
 
     !> 1 + the number of newlines before `pos' in buffer slot `bi' (the
     !> line number of `%l').  Port of xdisp.c:display_count_lines and
@@ -2465,13 +2560,15 @@ contains
         s = text(1:pos - 1)
     end function truncate_chars
 
-    !> What mode-line-mule-info shows for buffer BI: the "%z" construct
+    !> What mode-line-mule-info shows for buffer BI: the title of its input
+    !> method (`current_input_method_title'), then the "%z" construct
     !> (on a text terminal the keyboard's and the terminal's coding system
     !> mnemonics, UTF-8's "UU", then the mnemonic of the buffer's
     !> `buffer_file_coding_system', or "-" while undecided, " " in a
     !> unibyte buffer) and mode-line-eol-desc (its end-of-line mnemonic).
     !> Port of xdisp.c:decode_mode_spec_coding and bindings.el's
-    !> mode-line-mule-info and mode-line-eol-desc (no input method).
+    !> mode-line-mule-info and mode-line-eol-desc (the title's help-echo and
+    !> mouse bindings wait for the mouse).
     function mode_line_mule_info(bi, graphic) result(s)
         integer(int64), intent(in) :: bi
         logical, intent(in) :: graphic
@@ -2480,7 +2577,12 @@ contains
         type(status_type) :: st
 
         s = ""
-        if (.not. graphic) s = "UU"
+
+        if (allocated(buffers(bi)%current_input_method)) then
+            if (allocated(buffers(bi)%current_input_method_title)) s = buffers(bi)%current_input_method_title
+        end if
+
+        if (.not. graphic) s = s//"UU"
         call init_coding()
         cs = ""
         call buffer_local_value(value_type(name="buffer_file_coding_system"), bi, v, st)
@@ -2514,6 +2616,17 @@ contains
         if (allocated(buffers(bi)%vc_mode)) vc = buffers(bi)%vc_mode
     end function buffer_vc_mode
 
+    !> What the mode line's %F gives on a terminal: the selected frame's
+    !> name.  Port of xdisp.c:decode_mode_spec (its `F' case, a
+    !> terminal frame).
+    function get_frame_name() result(name)
+        character(len=:), allocatable :: name
+
+        call ensure_frames()
+        name = "F1"
+        if (allocated(selected_frame%name)) name = selected_frame%name
+    end function get_frame_name
+
     !> The default mode line of a buffer named NAME on a text terminal,
     !> before it is cut to the window: bindings.el's
     !> standard-mode-line-format as xdisp.c:display_mode_element and
@@ -2529,7 +2642,7 @@ contains
     !> default "Fundamental").  The dashes of %- are WIDTH long.
     !> MULE is what mode-line-mule-info gives (`mode_line_mule_info'; by
     !> default "UUU:", "U:" on a window-system frame).  Simplified: the
-    !> buffers are local (-) and the frame is F1.  On a
+    !> buffers are local (-); %F is the frame's name (`get_frame_name').  On a
     !> window-system frame (`graphic', display-graphic-p) the front space
     !> is " ", the frame identification "  " (mode-line-frame-control) and
     !> there are no end dashes.  PREFIX is what `mode_line_modes' shows
@@ -2537,7 +2650,7 @@ contains
     !> Port of xdisp.c:display_mode_element and xdisp.c:decode_mode_spec,
     !> in part.
     function mode_line_text(name, modified, read_only, position, line, width, modes, graphic, prefix, mule, vc, &
-                            identification) result(s)
+                            identification, misc) result(s)
         character(len=*), intent(in) :: name, position, line
         logical, intent(in) :: modified, read_only
         integer, intent(in) :: width
@@ -2551,6 +2664,9 @@ contains
         !> The buffer identification instead of NAME padded to 12 columns
         !> (`mode_line_identification').
         character(len=*), intent(in), optional :: identification
+        !> What mode-line-misc-info shows, after the modes
+        !> (`mode_line_misc_info_faces').
+        character(len=*), intent(in), optional :: misc
         character(len=:), allocatable :: s, coding
         character(len=1) :: star, plus
         logical :: gui
@@ -2583,7 +2699,7 @@ contains
         if (gui) then
             s = " "//coding//star//plus//"-"//"  "
         else
-            s = "-"//coding//star//plus//"-"//" F1  "
+            s = "-"//coding//star//plus//"-"//" "//get_frame_name()//"  "
         end if
 
         if (present(identification)) then
@@ -2605,6 +2721,7 @@ contains
         end if
 
         s = s//") "
+        if (present(misc)) s = s//misc
         if (.not. gui) s = s//repeat("-", max(0, width))
     end function mode_line_text
 
@@ -2660,22 +2777,32 @@ contains
 
     contains
 
-        !> TEXT with %b replaced by NAME and %% by %.
+        !> TEXT with %b replaced by NAME (padded to the width of %12b) and %%
+        !> by %.
         function expand_identification(text, name) result(t)
             character(len=*), intent(in) :: text, name
             character(len=:), allocatable :: t
-            integer :: i
+            integer :: i, digits, width
 
             t = ""
             i = 1
 
             do while (i <= len(text))
                 if (text(i:i) == "%" .and. i < len(text)) then
-                    if (text(i + 1:i + 1) == "b") then
-                        t = t//name
-                        i = i + 2
-                        cycle
-                    else if (text(i + 1:i + 1) == "%") then
+                    ! The field width's digits after the %, then the spec.
+                    digits = verify(text(i + 1:), "0123456789") - 1
+
+                    if (digits >= 0) then
+                        if (text(i + 1 + digits:i + 1 + digits) == "b") then
+                            width = 0
+                            if (digits > 0) read (text(i + 1:i + digits), *) width
+                            t = t//pad_chars(name, width)
+                            i = i + digits + 2
+                            cycle
+                        end if
+                    end if
+
+                    if (text(i + 1:i + 1) == "%") then
                         t = t//"%"
                         i = i + 2
                         cycle
@@ -3196,15 +3323,15 @@ contains
         type(window_type), intent(in) :: w
         integer(int64), intent(in) :: bi, start, pt
         logical, intent(in) :: selected
-        character(len=:), allocatable :: text, modes, mule, id
+        character(len=:), allocatable :: text, modes, mule, id, misc
         type(glyph_type), allocatable :: row(:)
         integer(int32), allocatable :: chars(:)
-        type(face_span_type), allocatable :: spans(:), id_spans(:)
-        character(len=64), allocatable :: faces(:), id_faces(:)
+        type(face_span_type), allocatable :: spans(:), id_spans(:), misc_spans(:)
+        character(len=64), allocatable :: faces(:), id_faces(:), misc_faces(:)
         type(status_type) :: status
         type(glyph_row_type) :: line
         logical :: modified, gui
-        integer :: width, nmodes, ntext, k, offset, name_at, asc, desc, height
+        integer :: width, nmodes, ntext, nmisc, k, offset, name_at, asc, desc, height
         integer(int32) :: face_id
 
         call is_buffer_modified(w%buffer, modified, status)
@@ -3213,22 +3340,32 @@ contains
         mule = mode_line_mule_info(bi, gui)
         call mode_line_modes_faces(bi, modes, spans, faces)
         call mode_line_identification(bi, id, id_spans, id_faces)
+        call mode_line_misc_info_faces(bi, misc, misc_spans, misc_faces)
         text = mode_line_text(buffers(bi)%name, modified, buffers(bi)%read_only, &
                               mode_line_percent(bi, start, w%window_end_valid), &
                               mode_line_line(bi, start, pt, w%total_lines), width, modes, gui, &
-                              mode_line_modes_prefix(), mule, buffer_vc_mode(bi), id)
+                              mode_line_modes_prefix(), mule, buffer_vc_mode(bi), id, misc)
         face_id = MODE_LINE_INACTIVE_FACE_ID
         if (selected) face_id = MODE_LINE_ACTIVE_FACE_ID
-        ! The lighters with faces: the text ends with MODES, ") " and the
-        ! dashes of %-.
+        ! The lighters with faces: the text ends with MODES, ") ", the
+        ! misc info and the dashes of %-.
         call decode_string(modes, chars, nmodes)
+        call decode_string(misc, chars, nmisc)
         call decode_string(text, chars, ntext)
 
         if (gui) then
-            offset = ntext - 2 - nmodes
+            offset = ntext - nmisc
         else
-            offset = ntext - max(0, width) - 2 - nmodes
+            offset = ntext - max(0, width) - nmisc
         end if
+
+        do k = 1, size(misc_spans)
+            misc_spans(k)%first = misc_spans(k)%first + offset
+            misc_spans(k)%last = misc_spans(k)%last + offset
+            misc_spans(k)%face_id = merge_faces(f, trim(misc_faces(k)), 0_int32, face_id)
+        end do
+
+        offset = offset - 2 - nmodes
 
         do k = 1, size(spans)
             spans(k)%first = spans(k)%first + offset
@@ -3236,12 +3373,12 @@ contains
             spans(k)%face_id = merge_faces(f, trim(faces(k)), 0_int32, face_id)
         end do
 
-        ! The buffer identification, after "-UUU:**- F1  " (" U:**-  " on a
+        ! The buffer identification, after "-UUU:**- F1  " (the frame's name) (" U:**-  " on a
         ! window-system frame).
         if (gui) then
             name_at = len(mule) + 7
         else
-            name_at = len(mule) + 10
+            name_at = len(mule) + 8 + len(get_frame_name())
         end if
 
         do k = 1, size(id_spans)
@@ -3250,7 +3387,18 @@ contains
             id_spans(k)%face_id = merge_faces(f, trim(id_faces(k)), 0_int32, face_id)
         end do
 
-        spans = [id_spans, spans]
+        spans = [id_spans, spans, misc_spans]
+
+        ! A buffer's own `mode_line_format' (a string).
+        if (allocated(buffers(bi)%mode_line_format%segments)) then
+            text = ""
+
+            do k = 1, size(buffers(bi)%mode_line_format%segments)
+                text = text//buffers(bi)%mode_line_format%segments(k)%text
+            end do
+
+            spans = spans(1:0)
+        end if
 
         if (gui) then
             ! A row spanning the whole window, the mode line's height off
@@ -3292,6 +3440,83 @@ contains
             m%glyphs(w%left_col + 1:w%left_col + w%total_cols) = row
         end associate
     end subroutine display_mode_line
+
+    !> Add ELEMENT at the front of `mode_line_misc_info' (once, however
+    !> often it is added), as add-to-list does.  Not a port.
+    subroutine prepend_mode_line_misc_info(element)
+        procedure(mode_line_misc_info_procedure) :: element
+        type(misc_info_entry_type) :: entry
+        integer :: k
+
+        if (.not. allocated(misc_info_entries)) allocate (misc_info_entries(0))
+
+        do k = 1, size(misc_info_entries)
+            if (associated(misc_info_entries(k)%element, element)) return
+        end do
+
+        entry%element => element
+        misc_info_entries = [entry, misc_info_entries]
+    end subroutine prepend_mode_line_misc_info
+
+    !> MISC, what mode-line-misc-info shows in the mode line of the window
+    !> being displayed (the selected window outside redisplay), showing buffer slot BI (its elements' segments with
+    !> BI current, as xdisp.c:display_mode_lines makes the window's buffer
+    !> current), with the characters SPANS(K)%FIRST to SPANS(K)%LAST of the
+    !> segments that have a face in face FACES(K).  Port of xdisp.c:display_mode_element
+    !> for bindings.el's mode-line-misc-info, in part.
+    subroutine mode_line_misc_info_faces(bi, misc, spans, faces)
+        integer(int64), intent(in) :: bi
+        character(len=:), allocatable, intent(out) :: misc
+        type(face_span_type), allocatable, intent(out) :: spans(:)
+        character(len=64), allocatable, intent(out) :: faces(:)
+        ! At most MAX_SPANS segments with a face are shown in theirs.
+        integer, parameter :: MAX_SPANS = 32
+        type(header_line_format_type) :: segments
+        type(face_span_type) :: all_spans(MAX_SPANS)
+        character(len=64) :: all_faces(MAX_SPANS)
+        type(handle_type) :: window
+        integer(int32), allocatable :: chars(:)
+        integer(int64) :: saved
+        integer :: k, i, n, before, nchars
+
+        misc = ""
+        allocate (spans(0))
+        allocate (faces(0))
+        n = 0
+        if (.not. allocated(misc_info_entries)) return
+        if (size(misc_info_entries) == 0) return
+        ! The window displayed, else (outside redisplay) the selected one.
+        window = displayed_window
+        if (window%index == 0) window = selected_window()
+        saved = current
+        if (bi /= current) call set_buffer_internal(bi)
+
+        do k = 1, size(misc_info_entries)
+            call misc_info_entries(k)%element(window, segments)
+            if (.not. allocated(segments%segments)) cycle
+
+            do i = 1, size(segments%segments)
+                call decode_string(misc, chars, before)
+                misc = misc//segments%segments(i)%text
+
+                if (len(segments%segments(i)%face) > 0 .and. n < MAX_SPANS) then
+                    call decode_string(misc, chars, nchars)
+                    n = n + 1
+                    all_spans(n) = face_span_type(first=before + 1, last=nchars)
+                    all_faces(n) = segments%segments(i)%face
+                end if
+            end do
+        end do
+
+        if (n > 0) then
+            spans = all_spans(1:n)
+            deallocate (faces)
+            allocate (faces(n))
+            faces(:) = all_faces(1:n)
+        end if
+
+        if (saved > 0 .and. saved /= current) call set_buffer_internal(saved)
+    end subroutine mode_line_misc_info_faces
 
     !> Draw the header line of window `w' (showing buffer slot `bi') at the
     !> top of the window: the segments of the buffer's
@@ -3785,24 +4010,50 @@ contains
         end subroutine put
     end subroutine display_minibuffer
 
-    !> Show `text' in the echo area; an empty `text' clears it.  While the
-    !> minibuffer is active the text goes after the minibuffer's contents
-    !> instead, enclosed in [...] unless it already is, until the next
-    !> input event.  The text also goes into the *Messages* buffer
-    !> (`message_dolog'), if `message_log_max' allows.  Port of
-    !> editfns.c:Fmessage (with a plain string) with xdisp.c:message3
-    !> (xdisp.c:message1 and xdisp.c:message3_frame: one frame; the C
-    !> printf forms xdisp.c:message, xdisp.c:vmessage and
+    !> Display a message at the bottom of the screen.
+    !> The message also goes into the `*Messages*' buffer, if `message_log_max'
+    !> allows.  (In keyboard macros, that's all it does.)
+    !>
+    !> With ARGUMENTS, TEXT is a format control string, and ARGUMENTS are
+    !> data to be formatted under control of the string.  Percent sign (%),
+    !> grave accent (`) and apostrophe (') are then special in the format;
+    !> see `format_text' and `format_message' for details.  Without them, TEXT
+    !> is displayed as it is.
+    !>
+    !> If TEXT is the empty string, the function clears any existing
+    !> message; this lets the minibuffer contents show.  See also
+    !> `current_message'.
+    !>
+    !> While the minibuffer is active the text goes after the
+    !> minibuffer's contents instead, enclosed in [...] unless it already
+    !> is, until the next input event.  STATUS reports an error of the
+    !> format (nothing is displayed then).  Port of editfns.c:Fmessage
+    !> with xdisp.c:message3 (xdisp.c:message1 and xdisp.c:message3_frame:
+    !> one frame; the C printf forms xdisp.c:message, xdisp.c:vmessage and
     !> xdisp.c:message_with_string are the callers' format_message),
     !> xdisp.c:set_message and xdisp.c:clear_message calling minibuffer.el's
     !> set-minibuffer-message and clear-minibuffer-message
-    !> (set-message-functions, clear-message-function).
-    recursive subroutine message(text)
+    !> (set-message-functions, clear-message-function); the message's text
+    !> properties, batch mode and `inhibit_message' are deferred.
+    recursive subroutine message(text, arguments, status)
         character(len=*), intent(in) :: text
+        type(format_arguments_type), intent(in), optional :: arguments
+        type(status_type), intent(out), optional :: status
+        character(len=:), allocatable :: formatted
+        type(status_type) :: st
+
+        if (present(arguments) .and. len(text) > 0) then
+            call styled_format(text, arguments, .true., formatted, st)
+            if (present(status)) status = st
+            if (.not. st%ok()) return
+        else
+            formatted = text
+            if (present(status)) status = status_type()
+        end if
 
         call message_log_maybe_newline()
-        if (len(text) > 0) call message_dolog(text, .true.)
-        call message_nolog(text)
+        if (len(formatted) > 0) call message_dolog(formatted, .true.)
+        call message_nolog(formatted)
     end subroutine message
 
     !> Return the string currently displayed in the echo area, or unallocated if none.
@@ -3838,7 +4089,7 @@ contains
 
     !> Like `message', without logging the text in *Messages*: as
     !> upstream's `message' with `message_log_max' bound to
-    !> MESSAGE_LOG_MAX_NO, or the echo-area prompts of read-key-sequence.
+    !> `%lines = 0', or the echo-area prompts of read-key-sequence.
     !> Port of xdisp.c:message3_nolog (with xdisp.c:message1_nolog and
     !> xdisp.c:message3_frame_nolog).
     subroutine message_nolog(text)
@@ -3877,7 +4128,7 @@ contains
         logical :: newbuffer, point_at_end, zv_at_end, old_inhibit
         character(len=24) :: dupstr
 
-        if (message_log_max == MESSAGE_LOG_MAX_NO) return
+        if (message_log_max%is_off()) return
         oldbuf = current_buffer()
         ! Ensure the Messages buffer exists, and switch to it.  If we
         ! created it, set the major-mode.
@@ -3940,9 +4191,9 @@ contains
 
             ! If we have more than the desired maximum number of lines in
             ! the *Messages* buffer now, delete the oldest ones.
-            if (message_log_max >= 0) then
+            if (message_log_max%lines >= 0) then
                 call scan_newline(buffers(current)%text%z, buffers(current)%text%z_byte, BEGINNING, BEGINNING_BYTE, &
-                                  -message_log_max - 1)
+                                  -message_log_max%lines - 1)
                 call del_range_both(BEGINNING, BEGINNING_BYTE, buffers(current)%pt, buffers(current)%pt_byte, .false., st)
             end if
 
@@ -4094,16 +4345,29 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: cb
         type(handle_type), allocatable :: leaves(:)
+        type(handle_type), allocatable :: restricted(:)
         integer(int64) :: bi, pt
         integer :: endcol, mini_col, k, r
         logical :: showing_message, mini_active, selected, gui
+        type(handle_type) :: none(0)
 
+        status = status_type()
+        ! No redisplay while one is running (a function run before it may
+        ! ask for one).
+        if (redisplaying) return
         redisplaying = .true.
         gui = associated(f%rif)
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
         if (.not. is_window_valid(f%root_window)) call init_frame_windows(f)
         if (windows(f%root_window%index)%total_lines == 0) call init_frame_windows(f)
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
+        call reset_outermost_restrictions_begin(restricted)
+        ! xdisp.c:prepare_menu_bars: `pre_redisplay_function', for all
+        ! windows.
+        if (associated(pre_redisplay_function)) call pre_redisplay_function(.true., none)
+        ! The window change hooks (an error stops them; redisplay goes on,
+        ! as the command loop does when upstream's error leaves redisplay).
+        call execute_window_change_functions(status)
 
         if (gui) then
             ! xdisp.c:clear_garbaged_frames; a window-system frame is drawn as it
@@ -4175,6 +4439,7 @@ contains
         end associate
 
         call update_frame(f, status)
+        call reset_outermost_restrictions_end(restricted)
         redisplaying = .false.
     end subroutine redisplay_internal
 
@@ -4342,4 +4607,37 @@ contains
         call bidi_unshelve_cache(itb_data, .false.)
         if (from_pos <= found .and. found < to_pos) pos = found
     end function bidi_find_overridden_directionality
+
+    !> Forget the lines of `message_log_max', as any assignment to it does.
+    !> Not a port.
+    subroutine message_log_max_clear_kinds(self)
+        class(message_log_max_choice_setting_type), intent(inout) :: self
+
+        self%lines = -1
+    end subroutine message_log_max_clear_kinds
+
+    !> The lines of `message_log_max' as help shows it (`%lines = N'); "" when
+    !> none is set.  Not a port.
+    function message_log_max_other_value(self) result(text)
+        class(message_log_max_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        character(len=32) :: component_text
+
+        text = ""
+
+        if (self%lines >= 0) then
+            write (component_text, '("%lines = ", i0)') self%lines
+            text = trim(component_text)
+        end if
+    end function message_log_max_other_value
+
+    !> The assignment that sets the number or procedure `message_log_max' takes, for the error of a rejected
+    !> value.  Not a port.
+    function message_log_max_kind_hint(self, number) result(text)
+        class(message_log_max_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of lines is `"//trim(self%name)//"%lines = "//number//"'"
+    end function message_log_max_kind_hint
 end module xdisp_mod

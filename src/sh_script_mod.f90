@@ -25,10 +25,11 @@
 !> The shell-dependent settings are feature tables (`sh_feature'): one
 !> entry per shell, an entry may append the value of another shell's
 !> (sh-append), and a shell without an entry uses its ancestor's
-!> (`sh_ancestors'), finally sh's.  The indentation variables take
-!> integers or the named constants SH_PLUS (+), SH_MINUS (-),
-!> SH_PLUS_PLUS (++), SH_MINUS_MINUS (--), SH_STAR (*) and SH_SLASH (/)
-!> that `sh_var_value' interprets.
+!> (`sh_ancestors'), finally sh's.  The indentation variables are choice
+!> settings: a number of columns in `%columns' (`sh_indent_for_fi%columns
+!> = 0') or the named constants SH_PLUS (+), SH_MINUS (-), SH_PLUS_PLUS
+!> (++), SH_MINUS_MINUS (--), SH_STAR (*) and SH_SLASH (/)
+!> (`sh_indent_after_if = SH_PLUS'), which `sh_var_value' interprets.
 !>
 !> The inferior shell commands (C-c C-z, C-c C-d, C-c C-n) find or start
 !> the shell with `sh_shell_process'; completion at point offers the
@@ -43,10 +44,7 @@
 !> skeleton per shell, chosen by `sh_skeleton_feature'.
 !>
 !> Deferred: `executable_interpret' (C-c C-x; needs `compilation_start' with a
-!> buffer name function and rule specifications), Imenu
-!> (`sh_imenu_generic_expression', and the Imenu candidates of
-!> completion), `add_log_current_subprogram_function' (`sh_current_function_name'
-!> is here), `outline_regexp', `escaped_string_quote' (with
+!> buffer name function and rule specifications), `outline_regexp', `escaped_string_quote' (with
 !> `paste_in_context'), the Flymake backend (`sh_shellcheck_flymake'), the
 !> `sh_shell' file-local variable (`hack_local_variables_hook'), the menu
 !> and `bash_ts_mode' (tree-sitter).
@@ -55,8 +53,10 @@ module sh_script_mod
     use callint_mod, only: PREFIX_NONE
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_ARITH_ERROR
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, xstring, list, list_elements, make_list, list_length, list_elt, vtag, V_STRING
-    use data_mod, only: integer_setting_type, string_setting_type, forward_setting, append_locals_clearer
+    use value_mod, only: value_type, xstring, list, list_elements, make_list, list_length, list_elt, vtag, V_STRING, &
+                         V_INTEGER, V_NAME, xfixnum, symbols, xsymbol, choice_type
+    use data_mod, only: integer_setting_type, string_setting_type, forward_setting, append_locals_clearer, choice_setting_type, &
+                        setting_type
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: this_command
@@ -64,6 +64,7 @@ module sh_script_mod
                           get_or_make_buffer
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key
     use syntax_mod, only: copy_syntax_table, make_syntax_table, modify_syntax_entry, is_syntax_table_live, destroy_syntax_table, &
                           set_syntax_table, syntax_descriptor_type, string_to_syntax, parse_state_type, syntax_ppss, &
@@ -89,7 +90,7 @@ module sh_script_mod
     use frame_mod, only: frame_selected_window_ref
     use files_mod, only: auto_mode_interpreter_regexp
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, font_lock_keywords_type, &
-                             font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_YES
+                             font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_flush, font_lock_set_defaults, &
                              font_lock_forget_defaults
     use regexp_opt_mod, only: regexp_opt, REGEXP_OPT_GROUP
@@ -99,8 +100,7 @@ module sh_script_mod
     use comint_mod, only: comint_prompt_regexp, comint_dynamic_complete_functions, comint_filename_completion, &
                           comint_completion_at_point, comint_send_string
     use shell_mod, only: shell_command_completion, shell_environment_variable_completion, shell, explicit_shell_file_name
-    use process_mod, only: is_process_live, process_list, process_command, process_buffer, get_buffer_process, &
-                           process_arg_type
+    use process_mod, only: is_process_live, process_list, process_command, process_buffer, get_buffer_process
     use window_mod, only: pop_to_buffer, display_buffer_overriding_action, display_action_type, DISPLAY_ACTION_SAME_WINDOW
     use hooks_mod, only: capf_hook_type, capf_entry_type
     use minibuf_table_mod, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL, COMPLETE_BOUNDARIES, completion_test_procedure
@@ -132,7 +132,7 @@ module sh_script_mod
                         smie_indent_functions, smie_set_is_hanging_eol_function, is_smie_default_hanging_eol, &
                         SMIE_ASSOC, SMIE_AFTER, SMIE_BEFORE, SMIE_ELEM, SMIE_LIST_INTRO, SMIE_LEVEL_NUMBER, SMIE_RULE_NONE, &
                         SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, SMIE_RULE_YES, SMIE_INDENT_COLUMN, SMIE_INDENT_NONE
-    use sysdep_mod, only: sys_string_type, emacs_environment
+    use sysdep_mod, only: fortmacs_environment
     use skeleton_mod, only: skeleton_element_type, skeleton_variants_type, skeleton_pairs_type, skeleton_state, skeleton_text, &
                             skeleton_literal, skeleton_delete, skeleton_prompt, skeleton_interactor, skeleton_action, &
                             skeleton_value, skeleton_variants_command, skeleton_next_element, skeleton_read_string, &
@@ -143,6 +143,9 @@ module sh_script_mod
     use callint_mod, only: prefix_arg_type
     use minibuf_mod, only: read_string
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
+    use imenu_mod, only: imenu_patterns, imenu_pattern_type, imenu_case_fold_search, imenu_index_type, &
+                         make_imenu_index
+    use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
 
@@ -162,20 +165,46 @@ module sh_script_mod
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
-    !> The names an indentation variable can hold, for `sh_var_value':
-    !> + - ++ -- * /.
-    integer, parameter, public :: SH_PLUS = -1000001, SH_MINUS = -1000002, SH_PLUS_PLUS = -1000003, &
-                                  SH_MINUS_MINUS = -1000004, SH_STAR = -1000005, SH_SLASH = -1000006
+    !> Values of `sh_indent_for_fi', `sh_indent_for_done',
+    !> `sh_indent_after_else', `sh_indent_after_if', `sh_indent_for_then',
+    !> `sh_indent_for_do', `sh_indent_after_do',
+    !> `sh_indent_after_loop_construct', `sh_indent_after_done',
+    !> `sh_indent_for_case_label', `sh_indent_for_case_alt',
+    !> `sh_indent_for_continuation', `sh_indent_after_open',
+    !> `sh_indent_after_function', `sh_indent_after_switch',
+    !> `sh_indent_after_case' besides a number of columns (`%columns'): + - ++
+    !> -- * /, which `sh_var_value' interprets.
+    integer, parameter, public :: SH_PLUS = 2, SH_MINUS = 3, SH_PLUS_PLUS = 4, SH_MINUS_MINUS = 5, SH_STAR = 6, SH_SLASH = 7
 
-    !> Values of `sh_indent_after_continuation': SH_INDENT_AFTER_CONTINUATION_NO, SH_INDENT_AFTER_CONTINUATION_DEEPER and
-    !> SH_INDENT_AFTER_CONTINUATION_ALWAYS.
-    integer, parameter, public :: SH_INDENT_AFTER_CONTINUATION_NO = 0, SH_INDENT_AFTER_CONTINUATION_DEEPER = 1, &
-                                  SH_INDENT_AFTER_CONTINUATION_ALWAYS = 2
+    ! The `%columns' of an indentation variable set to a named constant.
+    integer, parameter :: COLUMNS_UNSET = -huge(0)
 
-    !> A string of a list.
-    type, public :: sh_string_type
-        character(len=:), allocatable :: s
-    end type sh_string_type
+    !> An indentation variable (sh-script.el's sh-number-or-symbol-list
+    !> type): a choice setting whose value can also be a number of columns
+    !> (R6-39: `sh_indent_for_fi%columns = 0'; COLUMNS_UNSET, the most
+    !> negative integer, when no number is set, since a negative number
+    !> indents left), or one of SH_PLUS ... SH_SLASH by plain assignment
+    !> (`sh_indent_after_if = SH_PLUS').  Not a port.
+    type, extends(choice_setting_type), public :: sh_indent_choice_setting_type
+        integer :: columns = COLUMNS_UNSET
+    contains
+        procedure :: clear_kinds => sh_indent_clear_kinds
+        procedure :: other_value => sh_indent_other_value
+        procedure :: kind_hint => sh_indent_kind_hint
+        procedure :: get_kind_value => sh_indent_get_kind_value
+        procedure :: set_kind_value => sh_indent_set_kind_value
+    end type sh_indent_choice_setting_type
+
+    !> The value of an indentation variable in an `sh_style_type': a
+    !> number of COLUMNS, or the named constant CHOICE (SH_PLUS ...
+    !> SH_SLASH; 0 for a number of columns).  Not a port.
+    type, public :: sh_indent_type
+        integer :: columns = 0
+        integer :: choice = 0
+    end type sh_indent_type
+
+    !> Values of `sh_indent_after_continuation' besides .true. and .false.
+    integer, parameter, public :: SH_INDENT_AFTER_CONTINUATION_ALWAYS = 2
 
     !> A shell and its direct ancestor (an element of `sh_ancestors').
     type, public :: sh_ancestor_type
@@ -196,7 +225,7 @@ module sh_script_mod
     !> value follows them (`append').
     type, public :: sh_strings_entry_type
         character(len=:), allocatable :: shell, append
-        type(sh_string_type), allocatable :: strings(:)
+        type(string_type), allocatable :: strings(:)
     end type sh_strings_entry_type
 
     !> A feature table whose values are lists of strings (see `sh_feature').
@@ -242,6 +271,22 @@ module sh_script_mod
         procedure :: current => current_string_feature
     end type sh_string_feature_type
 
+    !> One shell's entry of `sh_imenu_patterns'.
+    type, public :: sh_imenu_entry_type
+        character(len=:), allocatable :: shell
+        type(imenu_pattern_type), allocatable :: patterns(:)
+    end type sh_imenu_entry_type
+
+    !> A feature table whose values are Imenu generic expressions.
+    type, public :: sh_imenu_feature_type
+        type(sh_imenu_entry_type), allocatable :: entries(:)
+    contains
+        !> Set SHELL's entry to MATCHERS.
+        procedure :: append => imenu_feature_append
+        !> The value for the current shell.
+        procedure :: current => current_imenu_feature
+    end type sh_imenu_feature_type
+
     !> A syntax modification: CHAR gets SYNTAX.
     type, public :: sh_syntax_change_type
         integer :: char = 0
@@ -267,7 +312,7 @@ module sh_script_mod
         integer(int64) :: serial = 0
         ! sh-shell-variables (setq-local in `sh_set_shell').
         logical :: has_variables = .false.
-        type(sh_string_type), allocatable :: variables(:)
+        type(string_type), allocatable :: variables(:)
         logical :: variables_initialized = .false.
         ! sh-indent-supported-here.
         logical :: has_indent_supported = .false.
@@ -294,10 +339,12 @@ module sh_script_mod
     character(len=*), parameter :: sh_completion_keywords(5) = [character(len=5) :: "if", "while", "until", "for", "then"]
 
     !> An indentation style of `sh_styles': its NAME and the VALUES of
-    !> the indentation variables in the order of `sh_vars'.
+    !> the indentation variables in the order of `sh_vars'
+    !> (`sh_style_type(name="mine", values=[sh_indent_type(columns=4),
+    !> sh_indent_type(choice=SH_PLUS), ...])').
     type, public :: sh_style_type
         character(len=64) :: name = ""
-        integer :: values(15) = 0
+        type(sh_indent_type) :: values(15)
     end type sh_style_type
 
     !> The indentation variables (sh-script.el sh-var-list), as their
@@ -321,7 +368,7 @@ module sh_script_mod
 
     ! The default values of sh-shell-variables and
     ! sh-shell-variables-initialized.
-    type(sh_string_type), allocatable :: default_variables(:)
+    type(string_type), allocatable :: default_variables(:)
     logical :: default_variables_initialized = .false.
 
     !> Table showing the direct ancestor of various shells.
@@ -364,6 +411,11 @@ module sh_script_mod
     !> The executable file name for the shell being programmed.  Port of
     !> sh-script.el sh-shell-file.
     type(string_setting_type), target, public :: sh_shell_file = string_setting_type(name="sh_shell_file")
+
+    !> Regular expressions for recognizing shell function definitions,
+    !> per shell.  See `sh_feature' and `imenu_patterns'.  Port
+    !> of sh-script.el sh-imenu-generic-expression.
+    type(sh_imenu_feature_type), public :: sh_imenu_patterns
 
     !> Single argument string for the magic number.  See `sh_feature'.
     !> Port of sh-script.el sh-shell-arg.
@@ -423,7 +475,7 @@ module sh_script_mod
     !> word (that is, "<<-" instead of "<<").  This is a feature
     !> used by some shells (for example Bash) to indicate that leading
     !> tabs inside the here document should be ignored.  In this case,
-    !> Emacs indents the initial body and end of the here document with
+    !> Fortmacs indents the initial body and end of the here document with
     !> tabs, to the same level as the start (note that apart from this
     !> there is no support for indentation of here documents).  This
     !> will only work correctly if `sh_basic_offset' is a multiple of
@@ -500,41 +552,45 @@ module sh_script_mod
 
     !> How much to indent a `fi' relative to its `if'.  Usually 0.  Port of
     !> sh-script.el sh-indent-for-fi.
-    type(integer_setting_type), target, public :: sh_indent_for_fi = integer_setting_type(name="sh_indent_for_fi", value=0)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_fi = &
+                          sh_indent_choice_setting_type(name="sh_indent_for_fi", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a `done' relative to its matching stmt.  Usually 0.
     !> Port of sh-script.el sh-indent-for-done.
-    type(integer_setting_type), target, public :: sh_indent_for_done = integer_setting_type(name="sh_indent_for_done", value=0)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_done = &
+                        sh_indent_choice_setting_type(name="sh_indent_for_done", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a statement after an `else' statement.  Port of
     !> sh-script.el sh-indent-after-else.
-    type(integer_setting_type), target, public :: sh_indent_after_else = &
-                                                  integer_setting_type(name="sh_indent_after_else", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_else = &
+                 sh_indent_choice_setting_type(name="sh_indent_after_else", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement after an `if' statement.
     !> This includes lines after `else' and `elif' statements, too, but
     !> does not affect the `else', `elif' or `fi' statements themselves.
     !> Port of sh-script.el sh-indent-after-if.
-    type(integer_setting_type), target, public :: sh_indent_after_if = integer_setting_type(name="sh_indent_after_if", &
-                                                                                            value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_if = &
+                   sh_indent_choice_setting_type(name="sh_indent_after_if", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a `then' relative to its `if'.  Port of
     !> sh-script.el sh-indent-for-then.
-    type(integer_setting_type), target, public :: sh_indent_for_then = integer_setting_type(name="sh_indent_for_then", value=0)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_then = &
+                        sh_indent_choice_setting_type(name="sh_indent_for_then", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a `do' statement.
     !> This is relative to the statement before the `do', typically a
     !> `while', `until', `for', `repeat' or `select' statement.  Port of
     !> sh-script.el sh-indent-for-do.
-    type(integer_setting_type), target, public :: sh_indent_for_do = integer_setting_type(name="sh_indent_for_do", value=0)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_do = &
+                          sh_indent_choice_setting_type(name="sh_indent_for_do", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a line after a `do' statement.
     !> This is used when the `do' is the first word of the line.
     !> This is relative to the statement before the `do', typically a
     !> `while', `until', `for', `repeat' or `select' statement.  Port of
     !> sh-script.el sh-indent-after-do.
-    type(integer_setting_type), target, public :: sh_indent_after_do = integer_setting_type(name="sh_indent_after_do", &
-                                                                                            value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_do = &
+                   sh_indent_choice_setting_type(name="sh_indent_after_do", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement after a loop construct.
     !>
@@ -542,8 +598,8 @@ module sh_script_mod
     !> loop statement (e.g., `until', `while' or `for').
     !> If the `do' is on a line by itself, then `sh_indent_after_do' is used instead.
     !> Port of sh-script.el sh-indent-after-loop-construct.
-    type(integer_setting_type), target, public :: sh_indent_after_loop_construct = &
-                                                  integer_setting_type(name="sh_indent_after_loop_construct", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_loop_construct = &
+       sh_indent_choice_setting_type(name="sh_indent_after_loop_construct", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement after a `done' keyword.
     !> Normally this is 0, which aligns the `done' to the matching
@@ -551,45 +607,46 @@ module sh_script_mod
     !> Setting it non-zero allows you to have the `do' statement on a line
     !> by itself and align the done under to do.  Port of sh-script.el
     !> sh-indent-after-done.
-    type(integer_setting_type), target, public :: sh_indent_after_done = integer_setting_type(name="sh_indent_after_done", value=0)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_done = &
+                      sh_indent_choice_setting_type(name="sh_indent_after_done", true_valid=.false., false_valid=.false., columns=0)
 
     !> How much to indent a case label statement.
     !> This is relative to the line containing the `case' statement.
     !> Port of sh-script.el sh-indent-for-case-label.
-    type(integer_setting_type), target, public :: sh_indent_for_case_label = &
-                                                  integer_setting_type(name="sh_indent_for_case_label", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_case_label = &
+             sh_indent_choice_setting_type(name="sh_indent_for_case_label", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent statements after the case label.
     !> This is relative to the line containing the `case' statement.
     !> Port of sh-script.el sh-indent-for-case-alt.
-    type(integer_setting_type), target, public :: sh_indent_for_case_alt = &
-                                                  integer_setting_type(name="sh_indent_for_case_alt", value=SH_PLUS_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_case_alt = &
+          sh_indent_choice_setting_type(name="sh_indent_for_case_alt", true_valid=.false., false_valid=.false., choice=SH_PLUS_PLUS)
 
     !> How much to indent for a continuation statement.  Port of
     !> sh-script.el sh-indent-for-continuation.
-    type(integer_setting_type), target, public :: sh_indent_for_continuation = &
-                                                  integer_setting_type(name="sh_indent_for_continuation", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_for_continuation = &
+           sh_indent_choice_setting_type(name="sh_indent_for_continuation", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent after a line with an opening parenthesis or brace.
     !> For an open paren after a function, `sh_indent_after_function' is used.
     !> Port of sh-script.el sh-indent-after-open.
-    type(integer_setting_type), target, public :: sh_indent_after_open = &
-                                                  integer_setting_type(name="sh_indent_after_open", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_open = &
+                 sh_indent_choice_setting_type(name="sh_indent_after_open", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent after a function line.  Port of sh-script.el
     !> sh-indent-after-function.
-    type(integer_setting_type), target, public :: sh_indent_after_function = &
-                                                  integer_setting_type(name="sh_indent_after_function", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_function = &
+             sh_indent_choice_setting_type(name="sh_indent_after_function", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a `case' statement relative to the `switch' statement.
     !> This is for the rc shell.  Port of sh-script.el sh-indent-after-switch.
-    type(integer_setting_type), target, public :: sh_indent_after_switch = &
-                                                  integer_setting_type(name="sh_indent_after_switch", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_switch = &
+               sh_indent_choice_setting_type(name="sh_indent_after_switch", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> How much to indent a statement relative to the `case' statement.
     !> This is for the rc shell.  Port of sh-script.el sh-indent-after-case.
-    type(integer_setting_type), target, public :: sh_indent_after_case = &
-                                                  integer_setting_type(name="sh_indent_after_case", value=SH_PLUS)
+    type(sh_indent_choice_setting_type), target, public :: sh_indent_after_case = &
+                 sh_indent_choice_setting_type(name="sh_indent_after_case", true_valid=.false., false_valid=.false., choice=SH_PLUS)
 
     !> Column in which `sh_backslash_region' inserts backslashes.  Port of
     !> sh-script.el sh-backslash-column.
@@ -607,7 +664,7 @@ module sh_script_mod
     !> If true, indentation variables are made local initially.
     !> If false, you can later make the variables local by invoking
     !> command `sh_make_vars_local'.
-    !> The default is true because I assume that in one Emacs session one is
+    !> The default is true because I assume that in one Fortmacs session one is
     !> frequently editing existing scripts with different styles.  Port of
     !> sh-script.el sh-make-vars-local.
     logical, public :: sh_make_vars_local = .true.
@@ -629,11 +686,12 @@ module sh_script_mod
     !>    done
     !>
     !> With `SH_INDENT_AFTER_CONTINUATION_ALWAYS' you get the former behavior whereas with
-    !> `SH_INDENT_AFTER_CONTINUATION_NO' you get the latter.  With `SH_INDENT_AFTER_CONTINUATION_DEEPER', you
+    !> .false. you get the latter.  With .true., you
     !> get the latter as long as that would indent the continuation line
     !> deeper than the initial line.  Port of sh-script.el
     !> sh-indent-after-continuation.
-    integer, public :: sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_DEEPER
+    type(choice_setting_type), public :: sh_indent_after_continuation = &
+                                         choice_setting_type(name="sh_indent_after_continuation", value=.true.)
 
     !> The SMIE grammar of sh.  Port of sh-script.el sh-smie-sh-grammar.
     type(smie_grammar_type), target, public :: sh_smie_sh_grammar
@@ -1037,7 +1095,73 @@ contains
                                          "READNULLCMD", "REPORTTIME", "RPROMPT", "RPS1", "SAVEHIST", "SPROMPT", &
                                          "STTY", "TIMEFMT", "TMOUT", "TMPPREFIX", "varcmds", "watch", "WATCH", &
                                          "WATCHFMT", "WORDCHARS", "ZDOTDIR"], "ksh88")
+        call init_imenu_feature()
     end subroutine init_features
+
+    ! The entries of `sh_imenu_patterns'.  Port of
+    ! sh-script.el sh-imenu-generic-expression (its value).
+    subroutine init_imenu_feature()
+        ! The characters a mksh function name has none of.
+        character(len=*), parameter :: MKSH_NAME = "\([^]"//achar(0)//TAB//LF//" ""$&'();<=>\`|#*?[/]+\)"
+        type(imenu_pattern_type) :: patterns(2)
+
+        ! function FOO
+        ! function FOO()
+        patterns(1) = imenu_pattern_type(menu_title="", regexp="^\s-*function\s-+\([[:alpha:]_][[:alnum:]_]*\)"// &
+                                         "\s-*\(?:()\)?", subexpression=1)
+        ! FOO()
+        patterns(2) = imenu_pattern_type(menu_title="", regexp="^\s-*\([[:alpha:]_][[:alnum:]_]*\)\s-*()", &
+                                         subexpression=1)
+        call sh_imenu_patterns%append("sh", patterns)
+        ! The difference between the Bash regular expression and the sh regular
+        ! expression is that Bash also allows hyphens (-) in function names.
+        patterns(1) = imenu_pattern_type(menu_title="", regexp="^\s-*function\s-+\([[:alpha:]_][[:alnum:]_-]*\)"// &
+                                         "\s-*\(?:()\)?", subexpression=1)
+        patterns(2) = imenu_pattern_type(menu_title="", regexp="^\s-*\([[:alpha:]_][[:alnum:]_-]*\)\s-*()", &
+                                         subexpression=1)
+        call sh_imenu_patterns%append("bash", patterns)
+        patterns(1) = imenu_pattern_type(menu_title="", regexp="^\s-*function\s-+"//MKSH_NAME//"\s-*\(?:()\)?", &
+                                         subexpression=1)
+        patterns(2) = imenu_pattern_type(menu_title="", regexp="^\s-*"//MKSH_NAME//"\s-*()", subexpression=1)
+        call sh_imenu_patterns%append("mksh", patterns)
+    end subroutine init_imenu_feature
+
+    ! Not a port.
+    subroutine imenu_feature_append(self, shell, patterns)
+        class(sh_imenu_feature_type), intent(inout) :: self
+        character(len=*), intent(in) :: shell
+        type(imenu_pattern_type), intent(in) :: patterns(:)
+        type(sh_imenu_entry_type) :: entry
+
+        if (.not. allocated(self%entries)) allocate (self%entries(0))
+        entry%shell = shell
+        allocate (entry%patterns(size(patterns)))
+        entry%patterns(:) = patterns(:)
+        self%entries = [self%entries, entry]
+    end subroutine imenu_feature_append
+
+    !> Index the table by the current shell.  Port of
+    !> sh-script.el:sh-feature.
+    function current_imenu_feature(self) result(patterns)
+        class(sh_imenu_feature_type), intent(in) :: self
+        type(imenu_pattern_type), allocatable :: patterns(:)
+        character(len=16), allocatable :: shells(:)
+        integer :: k, i
+
+        allocate (patterns(0))
+        if (.not. allocated(self%entries)) return
+        allocate (shells(size(self%entries)))
+
+        do i = 1, size(self%entries)
+            shells(i) = self%entries(i)%shell
+        end do
+
+        k = sh_feature_shell(shells, current_shell())
+        if (k == 0) return
+        deallocate (patterns)
+        allocate (patterns(size(self%entries(k)%patterns)))
+        patterns(:) = self%entries(k)%patterns(:)
+    end function current_imenu_feature
 
     ! `sh_mode_syntax_table', `sh_base_mode_syntax_table' and
     ! `sh_mode_syntax_table_input'.  Not a port.
@@ -1142,7 +1266,7 @@ contains
         k1(1) = font_lock_keyword("\$#?\([[:alpha:]_][[:alnum:]_]*\|[0-9]+\)", face=VA, subexp=1)
         call sh_font_lock_keywords_var%append("es", k1, "executable_font_lock_keywords")
         call sh_font_lock_keywords_var%append("rc", none, "es")
-        h1(1) = h(1, "sh_quoted_exec", FONT_LOCK_OVERRIDE_YES)
+        h1(1) = h(1, "sh_quoted_exec", FONT_LOCK_OVERRIDE_REPLACE)
         k1(1) = font_lock_keyword("\$(\([^)"//LF//"]+\)", highlights=h1)
         call sh_font_lock_keywords_var%append("bash", k1, "sh")
         ! Variable names.
@@ -1165,7 +1289,7 @@ contains
         k2(2) = font_lock_keyword("%{?\([!?]*[[:alpha:]_][[:alnum:]_]*\|[0-9]+\|[%*#]\*?\|!?-[[:alpha:]]\*?\)", &
                                   face=VA, subexp=1)
         call sh_font_lock_keywords_var%append("rpm", k2, "rpm2")
-        h1(1) = h(1, "font_lock_doc_face", FONT_LOCK_OVERRIDE_YES)
+        h1(1) = h(1, "font_lock_doc_face", FONT_LOCK_OVERRIDE_REPLACE)
         k2(1) = font_lock_keyword("^Summary:\(.*\)$", highlights=h1)
         h2(1) = h(1, VA)
         h2(2) = h(3, ST, lax=.true.)
@@ -1284,7 +1408,7 @@ contains
     function strings_of(feature) result(a)
         type(sh_strings_feature_type), intent(in) :: feature
         character(len=:), allocatable :: a(:)
-        type(sh_string_type), allocatable :: s(:)
+        type(string_type), allocatable :: s(:)
 
         call feature%current(s)
         a = to_chars(s)
@@ -1294,7 +1418,7 @@ contains
     ! Not a port.
     function leading_and_other() result(a)
         character(len=:), allocatable :: a(:)
-        type(sh_string_type), allocatable :: s1(:), s2(:), s(:)
+        type(string_type), allocatable :: s1(:), s2(:), s(:)
         integer :: i
 
         call sh_leading_keywords%current(s1)
@@ -1302,11 +1426,11 @@ contains
         allocate (s(size(s1) + size(s2)))
 
         do i = 1, size(s1)
-            s(i)%s = s1(i)%s
+            s(i)%text = s1(i)%text
         end do
 
         do i = 1, size(s2)
-            s(size(s1) + i)%s = s2(i)%s
+            s(size(s1) + i)%text = s2(i)%text
         end do
 
         a = to_chars(s)
@@ -1314,20 +1438,20 @@ contains
 
     ! STRINGS as a character array.  Not a port.
     function to_chars(strings) result(a)
-        type(sh_string_type), intent(in) :: strings(:)
+        type(string_type), intent(in) :: strings(:)
         character(len=:), allocatable :: a(:)
         integer :: i, n
 
         n = 1
 
         do i = 1, size(strings)
-            n = max(n, len(strings(i)%s))
+            n = max(n, len(strings(i)%text))
         end do
 
         allocate (character(len=n) :: a(size(strings)))
 
         do i = 1, size(strings)
-            a(i) = strings(i)%s
+            a(i) = strings(i)%text
         end do
     end function to_chars
 
@@ -1413,7 +1537,7 @@ contains
         allocate (entry%strings(size(strings)))
 
         do i = 1, size(strings)
-            entry%strings(i)%s = trim(strings(i))
+            entry%strings(i)%text = trim(strings(i))
         end do
 
         self%entries = [self%entries, entry]
@@ -1437,9 +1561,9 @@ contains
     !> names.  Port of sh-script.el:sh-feature.
     recursive subroutine current_strings_feature(self, strings, shell)
         class(sh_strings_feature_type), intent(in) :: self
-        type(sh_string_type), allocatable, intent(out) :: strings(:)
+        type(string_type), allocatable, intent(out) :: strings(:)
         character(len=*), intent(in), optional :: shell
-        type(sh_string_type), allocatable :: rest(:)
+        type(string_type), allocatable :: rest(:)
         integer :: k, i, n
 
         allocate (strings(0))
@@ -1464,11 +1588,11 @@ contains
         allocate (strings(n + size(rest)))
 
         do i = 1, n
-            strings(i)%s = self%entries(k)%strings(i)%s
+            strings(i)%text = self%entries(k)%strings(i)%text
         end do
 
         do i = 1, size(rest)
-            strings(n + i)%s = rest(i)%s
+            strings(n + i)%text = rest(i)%text
         end do
     end subroutine current_strings_feature
 
@@ -1668,7 +1792,7 @@ contains
     !> completion in addition to all the variables named in
     !> `process_environment'.  Port of sh-script.el sh-shell-variables.
     subroutine sh_shell_variables(names)
-        type(sh_string_type), allocatable, intent(out) :: names(:)
+        type(string_type), allocatable, intent(out) :: names(:)
         integer :: k
 
         k = local_index()
@@ -2691,7 +2815,7 @@ contains
         type(smie_indent_type), intent(out) :: indent
         type(status_type), intent(out) :: status
         integer(int64) :: here, moved, ci, max_ci
-        integer :: saved
+        type(choice_setting_type) :: saved
         logical :: continued
 
         status = status_type()
@@ -2699,7 +2823,7 @@ contains
         here = point()
         continued = .false.
 
-        if (sh_indent_after_continuation /= SH_INDENT_AFTER_CONTINUATION_NO) then
+        if (.not. sh_indent_after_continuation%is_off()) then
             moved = skip_chars_backward(" "//TAB, status)
             continued = is_sh_smie_looking_back_at_continuation()
             call goto_char(here)
@@ -2708,7 +2832,7 @@ contains
 
         if (.not. continued) return
 
-        if (sh_indent_after_continuation == SH_INDENT_AFTER_CONTINUATION_ALWAYS) then
+        if (sh_indent_after_continuation%choice == SH_INDENT_AFTER_CONTINUATION_ALWAYS) then
             moved = forward_line(-1_int64)
             indent%kind = SMIE_INDENT_COLUMN
 
@@ -2724,7 +2848,7 @@ contains
 
         ! Just make sure a line-continuation is indented deeper.
         saved = sh_indent_after_continuation
-        sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_NO
+        sh_indent_after_continuation = .false.
         indent = smie_indent_calculate(status)
         sh_indent_after_continuation = saved
         call goto_char(here)
@@ -3210,16 +3334,16 @@ contains
         n = 0
 
         do i = 1, size(sh_smie_sh_grammar%tokens)
-            if (is_operator(sh_smie_sh_grammar%tokens(i)%s)) n = n + 1
+            if (is_operator(sh_smie_sh_grammar%tokens(i)%text)) n = n + 1
         end do
 
         allocate (character(len=3) :: ops(n))
         n = 0
 
         do i = 1, size(sh_smie_sh_grammar%tokens)
-            if (is_operator(sh_smie_sh_grammar%tokens(i)%s)) then
+            if (is_operator(sh_smie_sh_grammar%tokens(i)%text)) then
                 n = n + 1
-                ops(n) = sh_smie_sh_grammar%tokens(i)%s
+                ops(n) = sh_smie_sh_grammar%tokens(i)%text
             end if
         end do
 
@@ -3374,6 +3498,7 @@ contains
                                                 "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
                                                 "]*\(([ "//TAB//"]*)\)?\)[ "//TAB//"]*")
         call completion_at_point_functions%prepend(sh_completion_at_point_function, local=.true.)
+        call add_log_current_subprogram_function%set_local(sh_current_function_name)
         call major_modes%sh_base_mode%end(saved, status)
     end subroutine sh_base_mode
 
@@ -3443,6 +3568,7 @@ contains
         syntax(1)%syntax = "w"
         call font_lock_defaults%set_local(levels=levels, keywords_only=.false., case_fold=.false., syntax_modifications=syntax, &
                                           syntactic_face_function=sh_font_lock_syntactic_face_function)
+        call imenu_case_fold_search%set_local(.false.)
         ! Parse or insert magic number for exec, and set all variables depending
         ! on the shell thus determined.
         call sh_set_shell(sh_guess_shell(), status, .false., .false.)
@@ -3473,7 +3599,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: no_query_flag, insert_flag
         character(len=:), allocatable :: shell, file, arg, supported
-        type(sh_string_type), allocatable :: vars(:)
+        type(string_type), allocatable :: vars(:)
         type(mode_line_part_type) :: parts(1)
         type(handle_type) :: table
         type(status_type) :: st
@@ -3513,6 +3639,7 @@ contains
         if (allocated(locals(k)%variables)) deallocate (locals(k)%variables)
         allocate (locals(k)%variables(0))
         locals(k)%variables_initialized = .false.
+        call imenu_patterns%set_local(sh_imenu_patterns%current())
         e = syntax_input_index()
 
         if (e > 0) then
@@ -3535,7 +3662,7 @@ contains
         call sh_variables%current(vars)
 
         do i = 1, size(vars)
-            call sh_remember_variable(vars(i)%s)
+            call sh_remember_variable(vars(i)%text)
         end do
 
         call string_feature_value(sh_indent_supported, supported)
@@ -3597,7 +3724,8 @@ contains
         call completing_read(format_prompt("Shell", sh_shell_file%value), table, shell, status, &
                              default=sh_shell_file%value)
         if (.not. status%ok()) return
-        call sh_set_shell(shell, status, executable_query == EXECUTABLE_QUERY_FUNCTION, current_prefix_arg%kind == PREFIX_NONE)
+        call sh_set_shell(shell, status, executable_query%choice == EXECUTABLE_QUERY_FUNCTION, &
+                          current_prefix_arg%kind == PREFIX_NONE)
     end subroutine cmd_sh_set_shell
 
     !> Convert a shell name SHELL to the one we should handle it as.
@@ -3641,12 +3769,17 @@ contains
     !> names SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR and
     !> SH_SLASH by `sh_basic_offset'.  Port of sh-script.el:sh-var-value.
     integer function sh_var_value(var) result(value)
-        type(integer_setting_type), intent(in) :: var
+        type(sh_indent_choice_setting_type), intent(in) :: var
         integer :: offset
 
         offset = int(sh_basic_offset%value)
 
-        select case (var%value)
+        if (var%columns /= COLUMNS_UNSET) then
+            value = var%columns
+            return
+        end if
+
+        select case (var%choice)
         case (SH_PLUS)
             value = offset
         case (SH_MINUS)
@@ -3660,7 +3793,8 @@ contains
         case (SH_SLASH)
             value = (-offset)/2
         case default
-            value = int(var%value)
+            ! .true. and .false. (upstream t and nil).
+            value = 0
         end select
     end function sh_var_value
 
@@ -3833,7 +3967,6 @@ contains
     !> Port of sh-script.el:sh-remember-variable.
     subroutine sh_remember_variable(var)
         character(len=*), intent(in) :: var
-        type(sh_string_type) :: variable
         character(len=:), allocatable :: value
         logical :: found
         integer :: k, i
@@ -3849,18 +3982,16 @@ contains
 
         if (k > 0) then
             do i = 1, size(locals(k)%variables)
-                if (locals(k)%variables(i)%s == var) return
+                if (locals(k)%variables(i)%text == var) return
             end do
 
-            variable%s = var
-            locals(k)%variables = [variable, locals(k)%variables]
+            call prepend_string(locals(k)%variables, var)
         else
             do i = 1, size(default_variables)
-                if (default_variables(i)%s == var) return
+                if (default_variables(i)%text == var) return
             end do
 
-            variable%s = var
-            default_variables = [variable, default_variables]
+            call prepend_string(default_variables, var)
         end if
     end subroutine sh_remember_variable
 
@@ -3900,7 +4031,7 @@ contains
     contains
 
         subroutine one(var)
-            type(integer_setting_type), intent(inout) :: var
+            class(setting_type), intent(inout) :: var
 
             if (kill) call var%clear_local()
             if (make) call var%make_local()
@@ -4016,8 +4147,8 @@ contains
     recursive subroutine cmd_sh_add(status)
         type(status_type), intent(out) :: status
         type(completion_table_type) :: table
-        type(sh_string_type), allocatable :: vars(:)
-        type(sys_string_type), allocatable :: env(:)
+        type(string_type), allocatable :: vars(:)
+        type(string_type), allocatable :: env(:)
         type(value_type), allocatable :: names(:)
         character(len=:), allocatable :: var
         integer :: i, n, eq
@@ -4025,23 +4156,23 @@ contains
         ! Do completion using `sh_shell_variables', but initialize it first
         ! (sh-add-completer).
         if (.not. variables_initialized()) call sh_shell_initialize_variables(status)
-        env = emacs_environment()
+        env = fortmacs_environment()
         call sh_shell_variables(vars)
         n = size(env)
         allocate (names(n + size(vars)))
 
         do i = 1, n
-            eq = index(env(i)%s, "=")
+            eq = index(env(i)%text, "=")
 
             if (eq > 0) then
-                names(i) = value_type(text=env(i)%s(1:eq - 1))
+                names(i) = value_type(text=env(i)%text(1:eq - 1))
             else
-                names(i) = value_type(text=env(i)%s)
+                names(i) = value_type(text=env(i)%text)
             end if
         end do
 
         do i = 1, size(vars)
-            names(n + i) = value_type(text=vars(i)%s)
+            names(n + i) = value_type(text=vars(i)%text)
         end do
 
         table%list = make_list(names)
@@ -4093,7 +4224,7 @@ contains
         type(parse_state_type) :: state
         character(len=:), allocatable :: tabs, delim
         integer(int64) :: here, n
-        integer :: i
+        integer :: i, k
         logical :: ok
 
         status = status_type()
@@ -4142,11 +4273,8 @@ contains
             if (delim(1:1) == "-") i = 2
         end if
 
-        do while (i <= len(delim))
-            if (delim(i:i) /= " " .and. delim(i:i) /= TAB) exit
-            i = i + 1
-        end do
-
+        k = verify(delim(i:), " "//TAB)
+        i = merge(len(delim) + 1, i + k - 1, k == 0)
         call insert(LF//tabs//delim(i:), status)
         call goto_char(here)
     end subroutine sh_maybe_here_document
@@ -4348,8 +4476,8 @@ contains
     !> Find the name of function or variable at point.
     !> For use in `add_log_current_subprogram_function' (unallocated for none).
     !> Port of sh-script.el:sh-current-defun-name.
-    function sh_current_function_name() result(name)
-        character(len=:), allocatable :: name
+    recursive subroutine sh_current_function_name(name)
+        character(len=:), allocatable, intent(out) :: name
         type(status_type) :: st
         integer(int64) :: here, found
         integer :: n
@@ -4375,7 +4503,7 @@ contains
         end if
 
         call goto_char(here)
-    end function sh_current_function_name
+    end subroutine sh_current_function_name
 
     !> Make a regexp which matches WORD as a word.
     !> This specifically excludes an occurrence of WORD followed by
@@ -4400,7 +4528,7 @@ contains
         type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: processes(:)
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         type(handle_type) :: saved_buffer, shell_buffer
         type(display_action_type) :: saved_action
         character(len=:), allocatable :: saved_file
@@ -4423,7 +4551,7 @@ contains
             call process_command(processes(i), command)
             if (size(command) == 0) exit
 
-            if (file_name_nondirectory(command(1)%s) == sh_shell%value) then
+            if (file_name_nondirectory(command(1)%text) == sh_shell%value) then
                 process = processes(i)
                 exit
             end if
@@ -4597,36 +4725,47 @@ contains
     end subroutine exec_path_dirs
 
     !> The candidates of `sh_completion_at_point_function' for STRING
-    !> before a keyword position: the variables assigned before point
-    !> (with "="), the executables and the keywords.  Port of
-    !> sh-script.el:sh--cmd-completion-table-gen (Imenu is not loaded).
+    !> before a keyword position: the top-level names of the Imenu index,
+    !> the variables assigned before point (with "="), the executables and
+    !> the keywords.  Port of sh-script.el:sh--cmd-completion-table-gen.
     recursive function sh_cmd_completion_table_gen(string) result(candidates)
         character(len=*), intent(in) :: string
         type(value_type) :: candidates
         type(value_type), allocatable :: items(:)
         type(value_type) :: vars, files
+        type(imenu_index_type) :: index
         character(len=:), allocatable :: dirs(:)
+        integer, allocatable :: top(:)
         type(status_type) :: st
-        integer(int64) :: k, nv, nf
+        integer(int64) :: k, nv, nf, ni
         integer :: j
 
+        ! The names of the Imenu index (none where it is unavailable).
+        call make_imenu_index(index, st)
+        allocate (top(0))
+        if (st%ok()) top = index%children(0)
+        ni = size(top)
         vars = sh_vars_before_point()
         call exec_path_dirs(dirs)
         call locate_file_completion_table(dirs, [""], string, COMPLETE_ALL, files, st)
         nv = list_length(vars)
         nf = list_length(files)
-        allocate (items(nv + nf + size(sh_completion_keywords)))
+        allocate (items(ni + nv + nf + size(sh_completion_keywords)))
+
+        do k = 1, ni
+            items(k) = value_type(text=index%entries(top(k))%name)
+        end do
 
         do k = 1, nv
-            items(k) = value_type(text=xstring(list_elt(vars, k))//"=")
+            items(ni + k) = value_type(text=xstring(list_elt(vars, k))//"=")
         end do
 
         do k = 1, nf
-            items(nv + k) = list_elt(files, k)
+            items(ni + nv + k) = list_elt(files, k)
         end do
 
         do j = 1, size(sh_completion_keywords)
-            items(nv + nf + j) = value_type(text=trim(sh_completion_keywords(j)))
+            items(ni + nv + nf + j) = value_type(text=trim(sh_completion_keywords(j)))
         end do
 
         candidates = make_list(items)
@@ -4706,14 +4845,37 @@ contains
     ! The values of the indentation variables (sh-var-list).
     ! Not a port.
     function current_style_values() result(values)
-        integer :: values(15)
+        type(sh_indent_type) :: values(15)
 
-        values = [int(sh_basic_offset%value), int(sh_indent_after_case%value), int(sh_indent_after_do%value), &
-                  int(sh_indent_after_done%value), int(sh_indent_after_else%value), int(sh_indent_after_if%value), &
-                  int(sh_indent_after_loop_construct%value), int(sh_indent_after_open%value), &
-                  int(sh_indent_for_case_alt%value), int(sh_indent_for_case_label%value), &
-                  int(sh_indent_for_continuation%value), int(sh_indent_for_do%value), int(sh_indent_for_done%value), &
-                  int(sh_indent_for_fi%value), int(sh_indent_for_then%value)]
+        values(1)%columns = int(sh_basic_offset%value)
+        values(2) = style_value(sh_indent_after_case)
+        values(3) = style_value(sh_indent_after_do)
+        values(4) = style_value(sh_indent_after_done)
+        values(5) = style_value(sh_indent_after_else)
+        values(6) = style_value(sh_indent_after_if)
+        values(7) = style_value(sh_indent_after_loop_construct)
+        values(8) = style_value(sh_indent_after_open)
+        values(9) = style_value(sh_indent_for_case_alt)
+        values(10) = style_value(sh_indent_for_case_label)
+        values(11) = style_value(sh_indent_for_continuation)
+        values(12) = style_value(sh_indent_for_do)
+        values(13) = style_value(sh_indent_for_done)
+        values(14) = style_value(sh_indent_for_fi)
+        values(15) = style_value(sh_indent_for_then)
+
+    contains
+
+        ! The value of indentation variable VAR in a style.
+        function style_value(var) result(v)
+            type(sh_indent_choice_setting_type), intent(in) :: var
+            type(sh_indent_type) :: v
+
+            if (var%columns /= COLUMNS_UNSET) then
+                v%columns = var%columns
+            else if (var%choice >= SH_PLUS .and. var%choice <= SH_SLASH) then
+                v%choice = var%choice
+            end if
+        end function style_value
     end function current_style_values
 
     ! The index of the style NAME in `sh_styles', 0 if none.
@@ -4796,22 +4958,38 @@ contains
         end if
 
         associate (v => sh_styles(k)%values)
-            sh_basic_offset = v(1)
-            sh_indent_after_case = v(2)
-            sh_indent_after_do = v(3)
-            sh_indent_after_done = v(4)
-            sh_indent_after_else = v(5)
-            sh_indent_after_if = v(6)
-            sh_indent_after_loop_construct = v(7)
-            sh_indent_after_open = v(8)
-            sh_indent_for_case_alt = v(9)
-            sh_indent_for_case_label = v(10)
-            sh_indent_for_continuation = v(11)
-            sh_indent_for_do = v(12)
-            sh_indent_for_done = v(13)
-            sh_indent_for_fi = v(14)
-            sh_indent_for_then = v(15)
+            sh_basic_offset = v(1)%columns
+            call load(sh_indent_after_case, v(2))
+            call load(sh_indent_after_do, v(3))
+            call load(sh_indent_after_done, v(4))
+            call load(sh_indent_after_else, v(5))
+            call load(sh_indent_after_if, v(6))
+            call load(sh_indent_after_loop_construct, v(7))
+            call load(sh_indent_after_open, v(8))
+            call load(sh_indent_for_case_alt, v(9))
+            call load(sh_indent_for_case_label, v(10))
+            call load(sh_indent_for_continuation, v(11))
+            call load(sh_indent_for_do, v(12))
+            call load(sh_indent_for_done, v(13))
+            call load(sh_indent_for_fi, v(14))
+            call load(sh_indent_for_then, v(15))
         end associate
+
+    contains
+
+        ! Set indentation variable VAR to the style's value V.
+        subroutine load(var, v)
+            type(sh_indent_choice_setting_type), intent(inout) :: var
+            type(sh_indent_type), intent(in) :: v
+
+            if (v%choice /= 0) then
+                var = v%choice
+            else
+                ! (A plain state first: the assignment clears the columns.)
+                var = choice_type()
+                var%columns = v%columns
+            end if
+        end subroutine load
     end subroutine sh_load_style
 
     !> Set shell indentation values for this buffer from those in a style
@@ -4862,7 +5040,7 @@ contains
                 text = text//"sh_style_type(name="""//trim(sh_styles(k)%name)//""", values=["
 
                 do j = 1, size(sh_styles(k)%values)
-                    if (j > 1) text = text//", "
+                    if (j > 1) text = text//", &"//LF//"                       "
                     text = text//value_text(sh_styles(k)%values(j))
                 end do
 
@@ -4878,28 +5056,28 @@ contains
 
     contains
 
-        ! An indentation value as Fortran: an integer or a named constant.
+        ! An indentation value as Fortran: its `sh_indent_type'.
         function value_text(v) result(t)
-            integer, intent(in) :: v
+            type(sh_indent_type), intent(in) :: v
             character(len=:), allocatable :: t
             character(len=16) :: digits
 
-            select case (v)
+            select case (v%choice)
             case (SH_PLUS)
-                t = "SH_PLUS"
+                t = "sh_indent_type(choice=SH_PLUS)"
             case (SH_MINUS)
-                t = "SH_MINUS"
+                t = "sh_indent_type(choice=SH_MINUS)"
             case (SH_PLUS_PLUS)
-                t = "SH_PLUS_PLUS"
+                t = "sh_indent_type(choice=SH_PLUS_PLUS)"
             case (SH_MINUS_MINUS)
-                t = "SH_MINUS_MINUS"
+                t = "sh_indent_type(choice=SH_MINUS_MINUS)"
             case (SH_STAR)
-                t = "SH_STAR"
+                t = "sh_indent_type(choice=SH_STAR)"
             case (SH_SLASH)
-                t = "SH_SLASH"
+                t = "sh_indent_type(choice=SH_SLASH)"
             case default
-                write (digits, "(i0)") v
-                t = trim(digits)
+                write (digits, "(i0)") v%columns
+                t = "sh_indent_type(columns="//trim(digits)//")"
             end select
         end function value_text
     end subroutine sh_save_styles_to_buffer
@@ -5694,4 +5872,84 @@ contains
         call barf_if_buffer_read_only(status)
         if (status%ok()) call sh_while_getopts(status, arg=current_prefix_arg)
     end subroutine cmd_sh_while_getopts
+
+    !> Forget the number of columns of an indentation variable, as any
+    !> assignment to it does.  Not a port.
+    subroutine sh_indent_clear_kinds(self)
+        class(sh_indent_choice_setting_type), intent(inout) :: self
+
+        self%columns = COLUMNS_UNSET
+    end subroutine sh_indent_clear_kinds
+
+    !> The number of columns of an indentation variable as help shows it
+    !> (`%columns = N'); "" when none is set.  Not a port.
+    function sh_indent_other_value(self) result(text)
+        class(sh_indent_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        character(len=16) :: digits
+
+        text = ""
+
+        if (self%columns /= COLUMNS_UNSET) then
+            write (digits, "(i0)") self%columns
+            text = "%columns = "//trim(digits)
+        end if
+    end function sh_indent_other_value
+
+    !> The value a buffer keeps of an indentation variable: the number of
+    !> columns, or the name of a named constant (upstream's + - ++ -- *
+    !> /); FOUND is false for .true. and .false..  Not a port.
+    subroutine sh_indent_get_kind_value(self, v, found)
+        class(sh_indent_choice_setting_type), intent(in) :: self
+        type(value_type), intent(out) :: v
+        logical, intent(out) :: found
+        character(len=2), parameter :: names(SH_PLUS:SH_SLASH) = [character(len=2) :: "+", "-", "++", "--", "*", "/"]
+
+        found = .true.
+
+        if (self%columns /= COLUMNS_UNSET) then
+            v = value_type(int(self%columns, int64))
+        else if (self%choice >= SH_PLUS .and. self%choice <= SH_SLASH) then
+            v = value_type(name=trim(names(self%choice)))
+        else
+            found = .false.
+            v = value_type()
+        end if
+    end subroutine sh_indent_get_kind_value
+
+    !> Set an indentation variable from V, a value a buffer kept (as
+    !> `sh_indent_get_kind_value' gives it); DONE is false when V is
+    !> .true. or .false..  Not a port.
+    subroutine sh_indent_set_kind_value(self, v, done)
+        class(sh_indent_choice_setting_type), intent(inout) :: self
+        type(value_type), intent(in) :: v
+        logical, intent(out) :: done
+        character(len=2), parameter :: names(SH_PLUS:SH_SLASH) = [character(len=2) :: "+", "-", "++", "--", "*", "/"]
+        integer :: k
+
+        done = .false.
+
+        if (vtag(v) == V_INTEGER) then
+            self = choice_type()
+            self%columns = int(xfixnum(v))
+            done = .true.
+        else if (vtag(v) == V_NAME) then
+            k = findloc(names, symbols(xsymbol(v))%name, dim=1)
+
+            if (k > 0) then
+                self = SH_PLUS + k - 1
+                done = .true.
+            end if
+        end if
+    end subroutine sh_indent_set_kind_value
+
+    !> The assignment that sets the number an indentation variable takes, for the error of a rejected
+    !> value.  Not a port.
+    function sh_indent_kind_hint(self, number) result(text)
+        class(sh_indent_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of columns is `"//trim(self%name)//"%columns = "//number//"'"
+    end function sh_indent_kind_hint
 end module sh_script_mod

@@ -45,8 +45,8 @@ module test_js_mod
     use expression_motion_mod, only: beginning_of_subprogram, end_of_subprogram
     use bindings_mod, only: init_bindings
     use js_mod, only: js_mode, js_indent_line, js_syntactic_context, js_indent_level, js_chain_indent, &
-                      js_indent_align_list_continuation, js_indent_first_init, JS_INDENT_FIRST_INIT_NO, &
-                      JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC, JS_CONTEXT_TOPLEVEL, JS_CONTEXT_FUNCTION
+                      js_indent_align_list_continuation, js_indent_first_init, &
+                      JS_INDENT_FIRST_INIT_DYNAMIC, JS_CONTEXT_TOPLEVEL, JS_CONTEXT_FUNCTION
     implicit none(type, external)
     private
 
@@ -470,7 +470,7 @@ contains
     subroutine set_locals(level, chain, align, first_init)
         integer, intent(in) :: level
         logical, intent(in) :: chain, align
-        integer, intent(in) :: first_init
+        logical, intent(in) :: first_init
 
         call indent_tabs_mode%set_local(.false.)
         call js_indent_level%set_local(level)
@@ -598,7 +598,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call temp_buffer(R_JS_CHAIN, .false.)
-        call set_locals(2, .true., .true., JS_INDENT_FIRST_INIT_NO)
+        call set_locals(2, .true., .true., .false.)
         call check_indent(error, R_JS_CHAIN)
     end subroutine test_indent_chain
 
@@ -606,7 +606,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call temp_buffer(R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION, .false.)
-        call set_locals(4, .false., .false., JS_INDENT_FIRST_INIT_NO)
+        call set_locals(4, .false., .false., .false.)
         call check_indent(error, R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION)
     end subroutine test_indent_align_nil
 
@@ -614,7 +614,8 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call temp_buffer(R_JS_INDENT_INIT_DYNAMIC, .false.)
-        call set_locals(2, .false., .true., JS_INDENT_FIRST_INIT_DYNAMIC)
+        call set_locals(2, .false., .true., .false.)
+        call js_indent_first_init%set_local(JS_INDENT_FIRST_INIT_DYNAMIC)
         call check_indent(error, R_JS_INDENT_INIT_DYNAMIC)
     end subroutine test_indent_init_dynamic
 
@@ -622,7 +623,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call temp_buffer(R_JS_INDENT_INIT_DONE, .false.)
-        call set_locals(2, .false., .true., JS_INDENT_FIRST_INIT_YES)
+        call set_locals(2, .false., .true., .true.)
         call check_indent(error, R_JS_INDENT_INIT_DONE)
     end subroutine test_indent_INIT_DONE
 
@@ -630,7 +631,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call temp_buffer(R_JS, .false.)
-        call set_locals(2, .false., .true., JS_INDENT_FIRST_INIT_NO)
+        call set_locals(2, .false., .true., .false.)
         call check_indent(error, R_JS)
     end subroutine test_indent_js
 

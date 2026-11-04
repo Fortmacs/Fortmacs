@@ -56,7 +56,8 @@ module callproc_mod
     use error_mod, only: status_type
     use value_mod, only: value_type
     use data_mod, only: string_setting_type
-    use sysdep_mod, only: sys_string_type, emacs_environment
+    use sysdep_mod, only: fortmacs_environment
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -79,11 +80,6 @@ module callproc_mod
     !> names the variable, which removes it for subprocesses (upstream's
     !> t).
     integer, parameter, public :: GETENV_REMOVED = 3
-
-    ! A string of any length: an entry of an environment list.  Not a port.
-    type :: string_type
-        character(len=:), allocatable :: text
-    end type string_type
 
     ! List of overridden environment variables for subprocesses to inherit.
     ! Each element should be a string of the form ENVVARNAME=VALUE.
@@ -228,15 +224,15 @@ contains
     !> `make_environment_block' does it).  Port of
     !> callproc.c:set_initial_environment.
     subroutine set_initial_environment()
-        type(sys_string_type), allocatable :: environ(:)
+        type(string_type), allocatable :: environ(:)
         integer :: n, k
 
-        environ = emacs_environment()
+        environ = fortmacs_environment()
         n = size(environ)
         allocate (process_environment(n))
 
         do k = 1, n
-            process_environment(k)%text = environ(n + 1 - k)%s
+            process_environment(k)%text = environ(n + 1 - k)%text
         end do
 
         ! A copy: `initial_environment' stays as it was when
@@ -398,9 +394,9 @@ contains
     !> add_env.
     subroutine make_environment_block(current_dir, block, overrides)
         character(len=*), intent(in) :: current_dir
-        type(sys_string_type), allocatable, intent(out) :: block(:)
-        type(sys_string_type), intent(in), optional :: overrides(:)
-        type(sys_string_type), allocatable :: kept(:)
+        type(string_type), allocatable, intent(out) :: block(:)
+        type(string_type), intent(in), optional :: overrides(:)
+        type(string_type), allocatable :: kept(:)
         type(string_type), allocatable :: env(:)
         character(len=:), allocatable :: pwd_var, display, value
         logical :: has_display, found
@@ -412,7 +408,7 @@ contains
             allocate (env(size(overrides) + size(process_environment)))
 
             do k = 1, size(overrides)
-                env(k)%text = overrides(k)%s
+                env(k)%text = overrides(k)%text
             end do
 
             env(size(overrides) + 1:) = process_environment
@@ -421,13 +417,8 @@ contains
         end if
 
         ! Strip trailing slashes for PWD, but leave "/" and "//" alone.
-        i = len(current_dir)
-
-        do while (i > 2)
-            if (current_dir(i:i) /= "/") exit
-            i = i - 1
-        end do
-
+        i = verify(current_dir, "/", back=.true.)
+        if (i < 2) i = min(2, len(current_dir))
         pwd_var = "PWD="//current_dir(1:i)
         has_display = .false.
 
@@ -456,7 +447,7 @@ contains
 
         if (found .and. allocated(value)) then
             n = 1
-            block(1)%s = pwd_var
+            block(1)%text = pwd_var
         end if
 
         if (has_display) call add_env("DISPLAY="//display)
@@ -467,13 +458,13 @@ contains
         end do
 
         ! Remove variable names without values.
-        allocate (kept(count([(index(block(k)%s, "=") > 0, k=1, n)])))
+        allocate (kept(count([(index(block(k)%text, "=") > 0, k=1, n)])))
         i = 0
 
         do k = 1, n
-            if (index(block(k)%s, "=") == 0) cycle
+            if (index(block(k)%text, "=") == 0) cycle
             i = i + 1
-            call move_alloc(block(k)%s, kept(i)%s)
+            call move_alloc(block(k)%text, kept(i)%text)
         end do
 
         call move_alloc(kept, block)
@@ -494,12 +485,12 @@ contains
 
             if (e > 0) then
                 do j = 1, n
-                    if (is_entry_for(block(j)%s, string(1:e - 1))) return
+                    if (is_entry_for(block(j)%text, string(1:e - 1))) return
                 end do
             end if
 
             n = n + 1
-            block(n)%s = string
+            block(n)%text = string
         end subroutine add_env
     end subroutine make_environment_block
 end module callproc_mod

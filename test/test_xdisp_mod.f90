@@ -1,4 +1,4 @@
-! test_xdisp_mod.f90 -- tests for xdisp_mod, window_mod and emacs_mod: how
+! test_xdisp_mod.f90 -- tests for xdisp_mod, window_mod and fortmacs_mod: how
 ! buffer text is laid out on the screen, and the editor's main loop on a
 ! pty.
 ! Own tests; upstream's xdisp-tests.el needs Lisp and GUI frames.
@@ -37,17 +37,19 @@ module test_xdisp_mod
     use term_mod, only: init_tty_entry
     use termchar_mod, only: tty_take_output
     use frame_mod, only: frame_type
-    use window_mod, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows
+    use window_mod, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows, &
+                          set_window_start, window_start, window_end, window_scroll_functions
     use xdisp_mod, only: layout_window, redisplay_internal, mode_line_text, glyph_width, mode_line_row, init_frame_windows, &
-                         mode_line_percent, recenter_start, message, mode_line_modes
+                         mode_line_percent, recenter_start, message, mode_line_modes, pre_redisplay_function
+    use buffer_mod, only: buffers
     use keyboard_mod, only: last_message, set_minibuffer_message_text
     use frame_mod, only: selected_frame, ensure_frame_windows
     use handle_mod, only: null_handle
     use editfns_mod, only: narrow_to_region, widen
     use sysdep_mod, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
-                          reset_sys_modes, emacs_write, emacs_read, input_available, &
-                          emacs_tty_type
-    use emacs_mod, only: emacs_main
+                          reset_sys_modes, fortmacs_write, fortmacs_read, input_available, &
+                          fortmacs_tty_type
+    use fortmacs_mod, only: fortmacs_main
     use value_mod, only: list, value_type, make_window_ref
     use textprop_mod, only: string_put_text_property
     use value_mod, only: value_type
@@ -58,6 +60,11 @@ module test_xdisp_mod
     private
 
     public :: collect_xdisp_mod
+
+    !> Calls of the test's `pre_redisplay_function' and
+    !> `window_scroll_functions' function, and the last start.
+    integer :: pre_redisplay_calls = 0, scroll_calls = 0
+    integer(int64) :: scroll_start = 0
 
 contains
 
@@ -80,6 +87,7 @@ contains
                     new_unittest("mode-line-text", test_mode_line), &
                     new_unittest("redisplay-recenters", test_redisplay), &
                     new_unittest("redisplay-split-windows", test_split_redisplay), &
+                    new_unittest("redisplay-forced-start", test_forced_start), &
                     new_unittest("overlay-strings", test_overlay_strings), &
                     new_unittest("overlay-string-properties", test_overlay_string_properties), &
                     new_unittest("invisible-ellipsis", test_invisible_ellipsis), &
@@ -88,7 +96,7 @@ contains
                     new_unittest("display-string", test_display_string), &
                     new_unittest("display-space-align-to", test_display_space), &
                     new_unittest("header-line", test_header_line), &
-                    new_unittest("emacs-main-on-a-pty", test_emacs_main) &
+                    new_unittest("emacs-main-on-a-pty", test_fortmacs_main) &
                     ]
     end subroutine collect_xdisp_mod
 
@@ -859,9 +867,9 @@ contains
     end subroutine test_minibuffer_message
 
     !> The whole editor on a pty: type, then C-x C-c.
-    subroutine test_emacs_main(error)
+    subroutine test_fortmacs_main(error)
         type(error_type), allocatable, intent(out) :: error
-        type(emacs_tty_type) :: old
+        type(fortmacs_tty_type) :: old
         type(status_type) :: st
         integer(int32) :: master, slave
         character(len=4096) :: buffer
@@ -874,14 +882,14 @@ contains
         call set_tty_size(slave, 40_int32, 8_int32, st)
         ! Raw mode first, so C-c is not taken as an interrupt.
         call init_sys_modes(slave, old, st)
-        call emacs_write(master, "hi"//achar(24)//achar(3), st)
-        call emacs_main("xterm-256color", slave, st)
-        call check(error, st%ok(), "emacs_main: "//format_error(st))
+        call fortmacs_write(master, "hi"//achar(24)//achar(3), st)
+        call fortmacs_main("xterm-256color", slave, st)
+        call check(error, st%ok(), "fortmacs_main: "//format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "hi")
         out = ""
 
         do while (input_available(master, 100_int32))
-            call emacs_read(master, buffer, n, st)
+            call fortmacs_read(master, buffer, n, st)
             if (n <= 0) exit
             out = out//buffer(1:n)
         end do
@@ -894,10 +902,78 @@ contains
         call reset_sys_modes(slave, old, st)
         call close_fd(slave)
         call close_fd(master)
-    end subroutine test_emacs_main
+    end subroutine test_fortmacs_main
 
     !> A frame split in three: two windows side by side above one, each
     !> with its mode line, a vertical border between the upper two.
+    !> A forced start is kept, point moving to the middle of the window;
+    !> `pre_redisplay_function' runs first and `window_scroll_functions'
+    !> for the forced start; the end is recorded for `window_end'.
+    subroutine test_forced_start(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(frame_type) :: f
+        type(terminfo_type) :: ti
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=:), allocatable :: text, out
+        character(len=12) :: line
+        integer(int64) :: bi
+        integer :: k
+
+        text = ""
+
+        do k = 1, 100
+            write (line, '("line ",i3.3)') k
+            text = text//trim(line)//achar(10)
+        end do
+
+        call buffer_with("*xdisp-forced*", text, h, bi)
+        call builtin_xterm(ti)
+        call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call init_frame_windows(f)
+        call set_window_buffer(f%selected_window, h, st)
+        call goto_char(1_int64)
+        pre_redisplay_calls = 0
+        scroll_calls = 0
+        pre_redisplay_function => count_pre_redisplay
+        call window_scroll_functions%append(count_scroll)
+        ! Lines of 9 characters: line 50 starts at 442.
+        call set_window_start(windows(f%selected_window%index), 442_int64, st)
+        call redisplay_internal(f, st)
+        out = tty_take_output(f%tty)
+        call check(error, pre_redisplay_calls == 1 .and. scroll_calls == 1 .and. scroll_start == 442, "hooks")
+        if (allocated(error)) return
+        ! 22 text lines: point on the 11th, line 60.
+        call check(error, window_start(windows(f%selected_window%index)) == 442 .and. &
+                   buffers(bi)%pt == 1 + 9*59 .and. f%cursor_vpos == 10, "point moved")
+        if (allocated(error)) return
+        call check(error, window_end(f%selected_window, st) == 1 + 9*71, "window_end")
+        pre_redisplay_function => null()
+        call window_scroll_functions%remove(count_scroll)
+        call delete_window_tree(f%root_window)
+        call delete_window_object(f%minibuffer_window)
+        call close_buffer(h, st)
+    end subroutine test_forced_start
+
+    !> A `pre_redisplay_function' that counts its calls.
+    subroutine count_pre_redisplay(all, list)
+        logical, intent(in) :: all
+        type(handle_type), intent(in) :: list(:)
+
+        if (all .or. size(list) == 0) pre_redisplay_calls = pre_redisplay_calls + 1
+    end subroutine count_pre_redisplay
+
+    !> A `window_scroll_functions' function that counts its calls.
+    subroutine count_scroll(window, pos, status)
+        type(handle_type), intent(in) :: window
+        integer(int64), intent(in) :: pos
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (window%index > 0) scroll_calls = scroll_calls + 1
+        scroll_start = pos
+    end subroutine count_scroll
+
     subroutine test_split_redisplay(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f

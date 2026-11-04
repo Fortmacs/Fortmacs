@@ -31,8 +31,8 @@
 !> keeps its point in `pointm'.  These need the frame (frame_mod), which
 !> depends on window_mod, so they live in a submodule.
 !>
-!> Deferred: window parameters, side and atomic windows, dedicated
-!> windows, `window_combination_resize', `split_window_keep_point' .false.,
+!> Deferred: window parameters other than those of side windows, atomic
+!> windows, dedicated windows, `window_combination_resize', `split_window_keep_point' .false.,
 !> `delete_window_choose_selected' other than `mru', other frames, the
 !> window commands while the minibuffer is selected, buffer menus
 !> (C-x C-b), `switch_to_buffer_preserve_window_point',
@@ -46,12 +46,14 @@ submodule(window_mod) window_cmds_mod
                           replace_buffer_in_windows_hook
     use editfns_mod, only: goto_char
     use marker_mod, only: marker_position
-    use frame_mod, only: selected_frame, ensure_frame_windows
+    use frame_mod, only: frame_type, selected_frame, ensure_frame_windows, window_frame, get_frame, select_frame
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use value_mod, only: list, value_type
     use minibuf_mod, only: completion_list_table
     use minibuffer_mod, only: read_buffer, completing_read, REQUIRE_MATCH_YES, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
     use files_mod, only: save_buffer
+    use keyboard_mod, only: is_executing_kbd_macro
+    use xdisp_mod, only: message
     implicit none(type, external)
 
 contains
@@ -76,16 +78,28 @@ contains
         end if
     end function in_minibuffer
 
-    module subroutine select_window(h, status, norecord)
+    recursive module subroutine select_window(h, status, norecord)
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: norecord
-        type(handle_type) :: old
+        type(handle_type) :: old, frame
+        type(frame_type), pointer :: f
         integer(int64) :: bi
         logical :: record
 
         if (.not. is_window_live(h)) then
             call not_live(status)
+            return
+        end if
+
+        ! A window on another frame becomes its frame's selected window,
+        ! and that frame is selected (which selects the window).
+        frame = window_frame(h)
+
+        if (frame%index /= 0 .and. .not. same_handle(frame, selected_frame%handle)) then
+            f => get_frame(frame)
+            if (.not. windows(h%index)%mini) f%selected_window = h
+            call select_frame(frame, status, norecord)
             return
         end if
 
@@ -167,15 +181,99 @@ contains
         end if
     end function window_min_size
 
-    module subroutine split_window(window, size, has_size, horizontal, new, status)
+    !> The number of lines (columns with HORIZONTAL) the windows of
+    !> combination PARENT can give a new window among them: their total
+    !> size divided by their number plus 1 (no window is fixed-size).
+    !> Port of window.el:window--combination-resizable.
+    integer function window_combination_resizable(parent, horizontal) result(n)
+        type(handle_type), intent(in) :: parent
+        logical, intent(in) :: horizontal
+        type(handle_type) :: sibling
+        integer :: number, total
+
+        number = 0
+        total = 0
+        sibling = windows(parent%index)%child
+
+        do while (is_window_valid(sibling))
+            number = number + 1
+
+            if (horizontal) then
+                total = total + windows(sibling%index)%total_cols
+            else
+                total = total + windows(sibling%index)%total_lines
+            end if
+
+            sibling = windows(sibling%index)%next
+        end do
+
+        n = total/(number + 1)
+    end function window_combination_resizable
+
+    !> Return largest number of windows vertically arranged within WINDOW.
+    !> If HORIZONTAL is true, return the largest number of windows
+    !> horizontally arranged within WINDOW.  Port of
+    !> window.el:window-combinations (no fixed-size windows).
+    recursive integer function window_combinations(window, horizontal) result(count)
+        type(handle_type), intent(in) :: window
+        logical, intent(in) :: horizontal
+        type(handle_type) :: child
+
+        child = windows(window%index)%child
+
+        if (.not. is_window_valid(child)) then
+            ! If WINDOW is live, return 1.
+            count = 1
+        else if (windows(window%index)%horizontal .eqv. horizontal) then
+            ! If WINDOW is iso-combined, return the sum of the values for
+            ! all child windows of WINDOW.
+            count = 0
+
+            do while (is_window_valid(child))
+                count = count + window_combinations(child, horizontal)
+                child = windows(child%index)%next
+            end do
+        else
+            ! If WINDOW is not iso-combined, return the maximum value of
+            ! any child window of WINDOW.
+            count = 1
+
+            do while (is_window_valid(child))
+                count = max(count, window_combinations(child, horizontal))
+                child = windows(child%index)%next
+            end do
+        end if
+    end function window_combinations
+
+    !> Whether the window before or after `h' among its siblings is a
+    !> side window.  Not a port.
+    logical function has_side_sibling(h)
+        type(handle_type), intent(in) :: h
+
+        has_side_sibling = .false.
+
+        associate (w => windows(h%index))
+            if (is_window_valid(w%prev)) then
+                if (windows(w%prev%index)%window_side /= WINDOW_SIDE_NONE) has_side_sibling = .true.
+            end if
+
+            if (is_window_valid(w%next)) then
+                if (windows(w%next%index)%window_side /= WINDOW_SIDE_NONE) has_side_sibling = .true.
+            end if
+        end associate
+    end function has_side_sibling
+
+    module subroutine split_window(window, size, has_size, horizontal, new, status, before, side_resize)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: size
         logical, intent(in) :: has_size, horizontal
         type(handle_type), intent(out) :: new
         type(status_type), intent(out) :: status
-        type(handle_type) :: refer, w, parent
-        integer :: old_size, new_size, safe_size, frame_cols, parent_size
-        logical :: too_small
+        logical, intent(in), optional :: before, side_resize
+        type(handle_type) :: refer, w, parent, sub
+        integer :: old_size, new_size, safe_size, frame_cols, parent_size, side
+        logical :: too_small, above, for_side, limit, resize, new_parent
+        real(real64) :: new_normal
         integer(int64) :: bi
 
         if (.not. is_window_valid(window)) then
@@ -183,18 +281,86 @@ contains
             return
         end if
 
+        above = .false.
+        if (present(before)) above = before
+        for_side = .false.
+        if (present(side_resize)) for_side = side_resize
+        call check_window_sides(status)
+        if (.not. status%ok()) return
+        ! (A copy: WINDOW may be the root window, which this updates.)
+        w = window
+        ! `window_combination_limit' t: make a new parent window.
+        limit = .false.
+
+        if (.not. ignore_window_parameters) then
+            ! If WINDOW's frame has a side window and WINDOW specifies the
+            ! frame's root window, split the frame's main window instead
+            ! (Bug#73627).
+            if (same_window(w, selected_frame%root_window)) then
+                if (is_window_valid(window_with_side(WINDOW_SIDE_NONE, .false.))) w = window_main_window()
+            end if
+
+            if (.not. for_side .and. windows(w%index)%window_side /= WINDOW_SIDE_NONE) then
+                ! If WINDOW is a side window or its first or last child is a
+                ! side window, an error condition occurs unless
+                ! `window_combination_resize' equals `side'.
+                call set_error(status, FM_GENERIC_ERROR, "Cannot split side window or parent of side window")
+                return
+            else if (.not. for_side .and. has_side_sibling(w)) then
+                ! If WINDOW has a side window sibling, make a new parent.
+                limit = .true.
+            end if
+        end if
+
+        side = windows(w%index)%window_side
+        parent = windows(w%index)%parent
+        ! Resizing the other windows of WINDOW's combination makes sense
+        ! in iso-combinations only.
+        resize = for_side .and. side /= WINDOW_SIDE_NONE .and. .not. limit
+
+        if (resize) then
+            resize = .false.
+            if (is_window_valid(parent)) resize = windows(parent%index)%horizontal .eqv. horizontal
+        end if
+
         if (horizontal) then
-            old_size = windows(window%index)%total_cols
+            old_size = windows(w%index)%total_cols
             safe_size = window_safe_min_width
         else
-            old_size = windows(window%index)%total_lines
+            old_size = windows(w%index)%total_lines
             safe_size = window_safe_min_height
         end if
 
+        parent_size = old_size
+
+        if (is_window_valid(parent)) then
+            if (horizontal) then
+                parent_size = windows(parent%index)%total_cols
+            else
+                parent_size = windows(parent%index)%total_lines
+            end if
+        end if
+
         if (.not. has_size) then
-            ! Give the new window half the size of WINDOW.
-            new_size = old_size/2
-            too_small = new_size + window_min_size(window, horizontal) > old_size
+            if (resize) then
+                ! When resizing try to give the new window the average size
+                ! of a window in its combination.
+                if (horizontal) then
+                    new_size = max(min(parent_size - window_min_size(parent, horizontal), &
+                                       window_combination_resizable(parent, horizontal)), &
+                                   max(window_min_width, window_safe_min_width))
+                else
+                    new_size = max(min(parent_size - window_min_size(parent, horizontal), &
+                                       window_combination_resizable(parent, horizontal)), &
+                                   max(window_min_height, window_safe_min_height))
+                end if
+
+                too_small = .not. is_window_sizable(parent, -new_size, horizontal, .false.)
+            else
+                ! Give the new window half the size of WINDOW.
+                new_size = old_size/2
+                too_small = new_size + window_min_size(w, horizontal) > old_size
+            end if
         else if (size >= 0) then
             ! SIZE non-negative specifies the new size of WINDOW.
             new_size = old_size - size
@@ -202,17 +368,26 @@ contains
         else
             ! SIZE negative specifies the size of the new window.
             new_size = -size
-            too_small = new_size < safe_size .or. old_size - new_size < safe_size
+            too_small = .false.
+            if (.not. resize) too_small = new_size < safe_size .or. old_size - new_size < safe_size
         end if
 
         if (too_small) then
-            call set_error(status, FM_GENERIC_ERROR, "Window "//window_description(window)//" too small for splitting")
+            call set_error(status, FM_GENERIC_ERROR, "Window "//window_description(w)//" too small for splitting")
             return
         end if
 
+        if (resize .and. has_size) then
+            ! If we cannot resize the parent give up.
+            if (.not. is_window_sizable(parent, -new_size, horizontal, .false.)) then
+                call set_error(status, FM_GENERIC_ERROR, "Window "//window_description(parent)//" too small for splitting")
+                return
+            end if
+        end if
+
         ! The reference window: WINDOW if live, else the selected one.
-        if (is_window_live(window)) then
-            refer = window
+        if (is_window_live(w)) then
+            refer = w
         else
             refer = selected_frame%selected_window
         end if
@@ -223,38 +398,83 @@ contains
             if (status%ok()) call set_window_point(windows(refer%index), buffers(bi)%pt, status)
         end if
 
-        ! (A copy: WINDOW may be the root window, which this updates.)
-        w = window
+        ! A new parent window is needed either because we want to nest or
+        ! because WINDOW is not iso-combined.
+        new_parent = limit .or. .not. is_window_valid(parent)
+        if (.not. new_parent) new_parent = .not. (windows(parent%index)%horizontal .eqv. horizontal)
 
-        if (has_size) then
-            ! Make the new window's normal size its share of WINDOW, or of
-            ! WINDOW's parent when WINDOW is in a combination of that kind.
-            parent = windows(window%index)%parent
-            parent_size = old_size
-
-            if (is_window_valid(parent)) then
-                if (windows(parent%index)%horizontal .eqv. horizontal) then
-                    parent_size = windows(parent%index)%total_lines
-                    if (horizontal) parent_size = windows(parent%index)%total_cols
-                end if
+        if (resize) then
+            ! Try to get space from WINDOW's siblings.
+            if (has_size) then
+                new_normal = real(new_size, real64)/parent_size
+            else
+                new_normal = 1.0_real64/(1 + window_combinations(parent, horizontal))
             end if
 
+            call window_resize_reset(selected_frame%root_window, horizontal)
+            call window_resize_child_windows(parent, -new_size, horizontal, .false.)
+            sub = windows(parent%index)%child
+
+            do while (is_window_valid(sub))
+                if (horizontal) then
+                    windows(sub%index)%normal_cols = windows(sub%index)%normal_cols*(1.0_real64 - new_normal)
+                else
+                    windows(sub%index)%normal_lines = windows(sub%index)%normal_lines*(1.0_real64 - new_normal)
+                end if
+
+                sub = windows(sub%index)%next
+            end do
+
             call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer, &
-                                       real(new_size, real64)/parent_size)
+                                       new_normal, before=above, resize=.true.)
+        else if (has_size) then
+            ! Make the new window's normal size its share of WINDOW, or of
+            ! WINDOW's parent when WINDOW is in a combination of that kind.
+            if (new_parent) parent_size = old_size
+            call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer, &
+                                       real(new_size, real64)/parent_size, before=above, new_parent=limit)
         else
-            call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer)
+            call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer, &
+                                       before=above, new_parent=limit)
         end if
 
         if (.not. status%ok()) return
 
-        if (is_window_valid(windows(window%index)%child)) then
+        if (for_side) then
+            ! We made a new side window.
+            if (side == WINDOW_SIDE_NONE) then
+                if (.not. horizontal .and. above) then
+                    side = WINDOW_SIDE_TOP
+                else if (.not. horizontal) then
+                    side = WINDOW_SIDE_BOTTOM
+                else if (above) then
+                    side = WINDOW_SIDE_LEFT
+                else
+                    side = WINDOW_SIDE_RIGHT
+                end if
+            end if
+
+            windows(new%index)%window_side = side
+
+            if (new_parent .and. windows(w%index)%window_side /= WINDOW_SIDE_NONE) then
+                ! We've been splitting a side root window.  Give the new
+                ! parent the same window_side parameter.
+                windows(windows(new%index)%parent%index)%window_side = side
+            end if
+        end if
+
+        if (is_window_valid(windows(w%index)%child)) then
             ! The windows of an internal WINDOW share what is left.
             frame_cols = windows(selected_frame%root_window%index)%total_cols
 
-            associate (w => windows(window%index))
-                call resize_window_tree(window, w%top_line, w%left_col, w%total_lines, w%total_cols, frame_cols)
+            associate (ww => windows(w%index))
+                call resize_window_tree(w, ww%top_line, ww%left_col, ww%total_lines, ww%total_cols, frame_cols)
             end associate
         end if
+
+        call execute_window_scroll_functions(new, status)
+        if (.not. status%ok()) return
+        call check_window_sides(status)
     end subroutine split_window
 
     !> Split WINDOW_TO_SPLIT into two windows, one above the other.
@@ -331,9 +551,19 @@ contains
             return
         end if
 
+        call check_window_sides(status)
+        if (.not. status%ok()) return
+
         if (same_window(window, selected_frame%root_window) .or. windows(window%index)%mini) then
             call set_error(status, FM_GENERIC_ERROR, "Attempt to delete minibuffer or sole ordinary window")
             return
+        end if
+
+        if (.not. ignore_window_parameters) then
+            if (same_window(window, window_main_window())) then
+                call set_error(status, FM_GENERIC_ERROR, "Attempt to delete main window of frame "//selected_frame%name)
+                return
+            end if
         end if
 
         was_selected = same_window(window, selected_frame%selected_window)
@@ -341,27 +571,62 @@ contains
         call remove_window_from_tree(window, selected_frame%root_window, heir, frame_cols)
         call unshow_leaves(window)
         call delete_window_tree(window)
-        if (.not. was_selected) return
-        ! delete-window-choose-selected `mru': the most recently used window.
-        call window_leaves(selected_frame%root_window, leaves)
-        mru = leaves(1)
 
-        do k = 2, size(leaves)
-            if (windows(leaves(k)%index)%use_time > windows(mru%index)%use_time) mru = leaves(k)
-        end do
+        if (was_selected) then
+            ! delete-window-choose-selected `mru': the most recently used
+            ! window that is neither dedicated nor an "other" window not to
+            ! use.
+            call window_leaves(selected_frame%root_window, leaves)
+            mru = null_handle()
 
-        selected_frame%selected_window = null_handle()
-        call select_window(mru, status)
+            do k = 1, size(leaves)
+                if (windows(leaves(k)%index)%dedicated /= DEDICATED_NONE) cycle
+                if (is_window_no_other(leaves(k))) cycle
+
+                if (mru%index == 0) then
+                    mru = leaves(k)
+                else if (windows(leaves(k)%index)%use_time > windows(mru%index)%use_time) then
+                    mru = leaves(k)
+                end if
+            end do
+
+            if (mru%index == 0) then
+                ! The frame's first window (delete-window-internal's
+                ! choice), unless it is an "other" window not to use and
+                ! another one is not.
+                mru = leaves(1)
+
+                if (is_window_no_other(mru)) then
+                    do k = 1, size(leaves)
+                        if (.not. is_window_no_other(leaves(k))) then
+                            mru = leaves(k)
+                            exit
+                        end if
+                    end do
+                end if
+            end if
+
+            selected_frame%selected_window = null_handle()
+            call select_window(mru, status)
+            if (.not. status%ok()) return
+        end if
+
+        call check_window_sides(status)
     end subroutine delete_window
 
     !> Delete specified WINDOW.
     !> WINDOW must be a valid window and defaults to the selected one.
     !>
-    !> An error condition occurs if WINDOW is the only window on its frame.
+    !> If the variable `ignore_window_parameters' is true, do not process
+    !> any parameters of WINDOW.  An error condition occurs if WINDOW is
+    !> either the only window on its frame or the last non-side window.
     !>
     !> If WINDOW is the selected window on its frame, choose some other
-    !> window as that frame's selected window: the most recently used one.
-    !> Port of window.el:delete-window (the command; no window parameters).
+    !> window as that frame's selected window: the most recently used one
+    !> (a window for which `is_window_no_other' returns true is chosen only
+    !> if all windows on that frame have their `no_other_window' parameter
+    !> set to true).
+    !> Port of window.el:delete-window (the command).
     subroutine cmd_delete_window(status)
         type(status_type), intent(out) :: status
 
@@ -369,22 +634,79 @@ contains
         call delete_window(selected_frame%selected_window, status)
     end subroutine cmd_delete_window
 
-    module subroutine delete_other_windows(window, status)
+    module subroutine delete_other_windows(window, status, interactive)
         type(handle_type), intent(in) :: window
         type(status_type), intent(out) :: status
-        type(handle_type) :: old_root, parent
-        integer :: top, left, lines, cols
+        logical, intent(in), optional :: interactive
+        type(handle_type) :: main, parent
+        type(handle_type), allocatable :: all(:), others(:)
+        type(status_type) :: ignored
+        integer :: top, left, lines, cols, k
+        logical :: keep_sides
 
         if (.not. is_window_valid(window)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
             return
         end if
 
-        status = status_type()
-        old_root = selected_frame%root_window
-        if (same_window(window, old_root)) return
+        call check_window_sides(status)
+        if (.not. status%ok()) return
 
-        associate (r => windows(old_root%index))
+        if (.not. ignore_window_parameters) then
+            if (windows(window%index)%window_side /= WINDOW_SIDE_NONE) then
+                call set_error(status, FM_GENERIC_ERROR, "Cannot make side window the only window")
+                return
+            end if
+        end if
+
+        main = selected_frame%root_window
+
+        if (.not. ignore_window_parameters) then
+            call walk_window_tree(selected_frame%root_window, .false., all)
+
+            if (any([(windows(all(k)%index)%no_delete_other_windows, k=1, size(all))])) then
+                ! Keep the side windows (and use the main window) if each
+                ! side window, and no other window, has a true
+                ! `no_delete_other_windows' parameter.
+                keep_sides = .true.
+
+                do k = 1, size(all)
+                    if ((windows(all(k)%index)%window_side /= WINDOW_SIDE_NONE) .neqv. &
+                        windows(all(k)%index)%no_delete_other_windows) keep_sides = .false.
+                end do
+
+                if (keep_sides) then
+                    main = window_main_window()
+                else
+                    ! Delete windows via `delete_window' because we found
+                    ! either a deletable side window or a non-deletable
+                    ! non-side-window.
+                    others = window_list(status=ignored)
+
+                    do k = 1, size(others)
+                        if (.not. is_window_live(others(k))) cycle
+                        if (same_window(others(k), window)) cycle
+                        if (windows(others(k)%index)%no_delete_other_windows) cycle
+                        call delete_window(others(k), ignored)
+                    end do
+
+                    return
+                end if
+            end if
+        end if
+
+        ! If WINDOW is the main window of its frame do nothing.
+        if (same_window(window, main)) then
+            ! Give a message to the user if this has been called as a
+            ! command.
+            if (present(interactive)) then
+                if (interactive .and. .not. is_executing_kbd_macro()) call message("No other windows to delete")
+            end if
+
+            return
+        end if
+
+        associate (r => windows(main%index))
             top = r%top_line
             left = r%left_col
             lines = r%total_lines
@@ -405,34 +727,52 @@ contains
             w%parent = null_handle()
             w%next = null_handle()
             w%prev = null_handle()
-            ! The root window's normal sizes (window.c:replace_window).
-            w%normal_lines = 1.0_real64
-            w%normal_cols = 1.0_real64
         end associate
 
-        call unshow_leaves(old_root)
-        call delete_window_tree(old_root)
-        selected_frame%root_window = window
-        call resize_window_tree(window, top, left, lines, cols, left + cols)
+        if (same_window(main, selected_frame%root_window)) then
+            ! The root window's normal sizes (window.c:replace_window).
+            windows(window%index)%normal_lines = 1.0_real64
+            windows(window%index)%normal_cols = 1.0_real64
+            selected_frame%root_window = window
+        else
+            ! WINDOW takes MAIN's place, and its normal sizes.
+            call replace_window(main, window)
+        end if
+
+        call unshow_leaves(main)
+        call delete_window_tree(main)
+
+        associate (r => windows(selected_frame%root_window%index))
+            call resize_window_tree(window, top, left, lines, cols, r%left_col + r%total_cols)
+        end associate
+
         if (is_window_live(window)) call select_window(window, status)
+        if (.not. status%ok()) return
+        call check_window_sides(status)
     end subroutine delete_other_windows
 
     !> Make WINDOW fill its frame.
     !> WINDOW must be a valid window and defaults to the selected one.
-    !> Port of window.el:delete-other-windows (the command; no window
-    !> parameters).
+    !>
+    !> If the variable `ignore_window_parameters' is true, do not pay
+    !> attention to the parameters of WINDOW.  Otherwise, an error
+    !> condition occurs if WINDOW is a side window.  Do not delete any
+    !> window whose `no_delete_other_windows' parameter is true.
+    !> Port of window.el:delete-other-windows (the command).
     subroutine cmd_delete_other_windows(status)
         type(status_type), intent(out) :: status
 
         if (in_minibuffer(status)) return
-        call delete_other_windows(selected_frame%selected_window, status)
+        call delete_other_windows(selected_frame%selected_window, status, interactive=.true.)
     end subroutine cmd_delete_other_windows
 
-    module subroutine other_window(count, status)
+    module subroutine other_window(count, status, interactive)
         integer(int64), intent(in) :: count
         type(status_type), intent(out) :: status
+        logical, intent(in), optional :: interactive
         type(handle_type), allocatable :: leaves(:)
-        integer :: k, n, at
+        integer(int64) :: left, old_count
+        integer :: k, n, at, original, old_window
 
         if (in_minibuffer(status)) return
         call window_leaves(selected_frame%root_window, leaves)
@@ -444,7 +784,44 @@ contains
             if (same_window(leaves(k), selected_frame%selected_window)) at = k
         end do
 
-        call select_window(leaves(int(modulo(at - 1 + count, int(n, int64))) + 1), status)
+        original = at
+        left = count
+        ! `next_window' and `previous_window' may return a window we are
+        ! not allowed to select.  Hence we need an exit strategy in case
+        ! all windows are non-selectable.
+        old_window = 0
+        old_count = 0
+
+        do while (left /= 0)
+            if (left > 0) then
+                at = modulo(at, n) + 1
+            else
+                at = modulo(at - 2, n) + 1
+            end if
+
+            if (at == old_window) then
+                ! Keep out of infinite loops.  When COUNT has not changed
+                ! since we last looked at `window' we're probably in one.
+                if (left == old_count) exit
+            else if (is_window_no_other(leaves(at))) then
+                if (old_window == 0) then
+                    ! The first non-selectable window `next_window' got us:
+                    ! remember it and the current value of COUNT.
+                    old_window = at
+                    old_count = left
+                end if
+            else if (left > 0) then
+                left = left - 1
+            else
+                left = left + 1
+            end if
+        end do
+
+        if (at == original .and. present(interactive)) then
+            if (interactive .and. .not. is_executing_kbd_macro()) call message("No other window to select")
+        end if
+
+        call select_window(leaves(at), status)
     end subroutine other_window
 
     !> Select another window in cyclic ordering of windows.
@@ -454,11 +831,13 @@ contains
     !> skip -COUNT windows backwards.  COUNT zero means do not skip any
     !> window, so select the selected window.  In an interactive call,
     !> COUNT is the numeric prefix argument.
+    !>
+    !> Do not select a window for which `is_window_no_other' returns true.
     !> Port of window.el:other-window (the command; one frame).
     subroutine cmd_other_window(status)
         type(status_type), intent(out) :: status
 
-        call other_window(prefix_numeric_value(current_prefix_arg), status)
+        call other_window(prefix_numeric_value(current_prefix_arg), status, interactive=.true.)
     end subroutine cmd_other_window
 
     !> Select another window in the reverse cyclic ordering of windows.
@@ -469,7 +848,7 @@ contains
     subroutine cmd_other_window_backward(status)
         type(status_type), intent(out) :: status
 
-        call other_window(-prefix_numeric_value(current_prefix_arg), status)
+        call other_window(-prefix_numeric_value(current_prefix_arg), status, interactive=.true.)
     end subroutine cmd_other_window_backward
 
     !> Whether buffer `b' is shown in a window of the frame.  Not a port.
@@ -691,6 +1070,76 @@ contains
         call switch_to_buffer(name, status, force_same_window=force_same_window)
     end subroutine cmd_switch_to_buffer
 
+    !> Switch to buffer BUFFER_OR_NAME in another frame.
+    !> BUFFER_OR_NAME may be a buffer, a string (a buffer name), or
+    !> empty.  Return the buffer switched to.
+    !>
+    !> This uses the function `display_buffer' as a subroutine to display
+    !> the buffer; see its documentation for additional customization
+    !> information.  By default, if the buffer is already displayed (even
+    !> in the current frame), that window is selected.  If the buffer
+    !> isn't displayed in any frame, a new frame is popped up and the
+    !> buffer is displayed there.
+    !>
+    !> If called interactively, read the buffer name using `read_buffer'.
+    !> The variable `confirm_nonexistent_file_or_buffer' determines
+    !> whether to request confirmation before creating a new buffer.
+    !> See `read_buffer' for features related to input and completion of
+    !> buffer names.
+    !>
+    !> If BUFFER_OR_NAME is a string and does not identify an existing
+    !> buffer, create a new buffer with that name.  If BUFFER_OR_NAME is
+    !> empty, switch to the buffer returned by `other_buffer'.
+    !> Port of window.el:switch-to-buffer-other-frame (the command, with
+    !> window.el:read-buffer-to-switch and
+    !> window.el:window-normalize-buffer-to-switch-to).
+    recursive subroutine cmd_switch_to_buffer_other_frame(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        type(handle_type) :: other, buffer
+        integer(int64) :: bi
+
+        other = other_buffer(current_buffer())
+        call resolve_buffer(other, bi, status)
+        if (.not. status%ok()) return
+        call read_buffer("Switch to buffer in other frame: ", name, status, def=buffers(bi)%name, &
+                         require_match=REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION, except=current_buffer())
+        if (.not. status%ok()) return
+        if (len(name) == 0) name = buffers(bi)%name
+        buffer = get_buffer(name)
+
+        if (.not. is_buffer_live(buffer)) then
+            call get_or_make_buffer(name, buffer, status)
+            if (.not. status%ok()) return
+        end if
+
+        call switch_to_buffer_other_frame(buffer, status)
+    end subroutine cmd_switch_to_buffer_other_frame
+
+    !> Display buffer BUFFER preferably in another frame.
+    !> This function attempts to look for a window displaying BUFFER,
+    !> on all the frames on the current terminal, skipping the selected
+    !> window; if that fails, it pops up a new frame.
+    !> This uses the function `display_buffer' as a subroutine; see its
+    !> documentation for additional customization information.
+    !> Port of window.el:display-buffer-other-frame (the command; callint.c
+    !> `b': an existing buffer, the current one by default).
+    recursive subroutine cmd_display_buffer_other_frame(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        type(handle_type) :: buffer, window
+        integer(int64) :: bi
+
+        call resolve_buffer(current_buffer(), bi, status)
+        if (.not. status%ok()) return
+        call read_buffer("Display buffer in other frame: ", name, status, def=buffers(bi)%name, &
+                         require_match=REQUIRE_MATCH_YES)
+        if (.not. status%ok()) return
+        if (len(name) == 0) name = buffers(bi)%name
+        buffer = get_buffer(name)
+        call display_buffer_other_frame(buffer, window, status)
+    end subroutine cmd_display_buffer_other_frame
+
     !> Ask the user to confirm closing of a modified BUFFER.
     !> If the user confirms, optionally save BUFFER that is about to be
     !> closed.  `ok' is false if the user says no.  Port of
@@ -768,6 +1217,8 @@ contains
         commands%other_window%execute => cmd_other_window
         commands%other_window_backward%execute => cmd_other_window_backward
         commands%switch_to_buffer%execute => cmd_switch_to_buffer
+        commands%switch_to_buffer_other_frame%execute => cmd_switch_to_buffer_other_frame
+        commands%display_buffer_other_frame%execute => cmd_display_buffer_other_frame
         commands%close_buffer%execute => cmd_close_buffer
     end subroutine init_window_cmds
 end submodule window_cmds_mod

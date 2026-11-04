@@ -104,8 +104,44 @@ module value_mod
         type(atom_type), allocatable :: a(:)
     end type value_type
 
-    !> Values of a command property that is unset (nil), t, or `no'.
-    integer, parameter, public :: REPEAT_CHECK_KEY_DEFAULT = 0, REPEAT_CHECK_KEY_YES = 1, REPEAT_CHECK_KEY_NO = 2
+    !> The `%choice' of a choice in its plain on or off state (`%value'
+    !> says which); a named constant is any other number.  Internal.
+    integer, parameter :: CHOICE_PLAIN = 0
+
+    !> A value with more than two states and no setting name (R6-38): the
+    !> state of a command property such as `repeat_check_key'.  `='
+    !> takes .true. and .false. for its on and off states and named
+    !> constants for the others.  Fortran code reads on and off as
+    !> `%value' and the other states as `%choice == X_CONSTANT'; a named
+    !> constant is a state of its own, with `%value' .false.; any state
+    !> but off (upstream's "non-nil") is `.not. x%is_off()'.
+    !> `choice_setting_type' (data_mod) is the setting with these two words.
+    !> Not a port.
+    type, public :: choice_type
+        !> On (.true.) or off (.false.); .false. in a named state.
+        logical :: value = .false.
+        !> The named constant of the state, or CHOICE_PLAIN for on and off.
+        integer :: choice = CHOICE_PLAIN
+    contains
+        !> Whether the state is off: neither on nor a named constant.
+        procedure :: is_off => is_choice_type_off
+    end type choice_type
+
+    !> `=' of a `choice_type': .true., .false. or a named constant.  A
+    !> module generic, not a type-bound one: gfortran 13 fails to link a
+    !> structure constructor, in a submodule of another module, of a type
+    !> with a component whose type has a type-bound assignment
+    !> (undefined `_F.DAn'; PORTING.md, "Hazards").
+    interface assignment(=)
+        module procedure choice_assign_choice, choice_assign_logical
+    end interface
+
+    public :: assignment(=), set_choice_state, is_named_choice, is_choice_off
+
+    !> The value of the `repeat_check_key' command property that follows the
+    !> option `repeat_check_key' (upstream nil; .true. and .false. are its
+    !> t and `no').
+    integer, parameter, public :: REPEAT_CHECK_KEY_DEFAULT = -2
     !> The lengths of a command's text components and the size of its
     !> `repeat_continue': fixed, so that `command_type' has no allocatable
     !> component (an allocatable component makes gfortran compile the
@@ -154,9 +190,9 @@ module value_mod
         logical :: repeat_continue_all = .false.
         type(handle_type) :: repeat_continue(REPEAT_CONTINUE_MAX)
         !> Whether Repeat mode checks that the last key is in the repeat
-        !> map (the `repeat-check-key' property): REPEAT_CHECK_KEY_DEFAULT to use
-        !> `repeat_check_key', REPEAT_CHECK_KEY_YES, or REPEAT_CHECK_KEY_NO.
-        integer :: repeat_check_key = REPEAT_CHECK_KEY_DEFAULT
+        !> map (the `repeat-check-key' property): .true., .false., or
+        !> REPEAT_CHECK_KEY_DEFAULT to follow the option `repeat_check_key'.
+        type(choice_type) :: repeat_check_key = choice_type(choice=REPEAT_CHECK_KEY_DEFAULT)
         !> The idle time after which the repeating sequence ends (the
         !> `repeat-exit-timeout' property; negative to use
         !> `repeat_exit_timeout'), or no timeout (`repeat_exit_timeout_no',
@@ -172,8 +208,12 @@ module value_mod
         !> starts with "project-", or it has the `project-aware' property).
         logical :: project_aware = .false.
         !> The Info manual that documents the command (the `info-file'
-        !> property, for `info_goto_emacs_command_node'); "" for none.
+        !> property, for `info_goto_fortmacs_command_node'); "" for none.
         character(len=INFO_FILE_MAX) :: info_file = ""
+        !> The command changes neither the buffer text nor the selected
+        !> window or current buffer, so Follow mode can keep the window
+        !> positions it computed (the `follow-mode-use-cache' property).
+        logical :: follow_mode_use_cache = .false.
         !> For a keyboard macro held as a command (`this_command' after
         !> C-x e, so that C-x z repeats it): the handle of its key events
         !> in keyboard_mod's registry of macros; 0 for any other command.
@@ -252,6 +292,68 @@ module value_mod
               list_elements, list_tail, string_intervals, set_string_intervals
 
 contains
+
+    ! ------------------------------------------------------------------
+    ! Choices
+    ! ------------------------------------------------------------------
+
+    !> Set the state words VALUE and CHOICE of a choice (a `choice_type'
+    !> or a `choice_setting_type') to ON (.true. or .false.), or to the
+    !> named constant NAMED (`%value' is then .false.).  Not a port.
+    subroutine set_choice_state(value, choice, on, named)
+        logical, intent(out) :: value
+        integer, intent(out) :: choice
+        logical, intent(in), optional :: on
+        integer, intent(in), optional :: named
+
+        if (present(named)) then
+            choice = named
+            value = .false.
+        else
+            value = on
+            choice = CHOICE_PLAIN
+        end if
+    end subroutine set_choice_state
+
+    !> Whether CHOICE is a named constant (not the on or the off state).
+    !> Not a port.
+    elemental logical function is_named_choice(choice)
+        integer, intent(in) :: choice
+
+        is_named_choice = choice /= CHOICE_PLAIN
+    end function is_named_choice
+
+    !> Whether the state words VALUE and CHOICE say off: neither on nor a
+    !> named constant (upstream nil).  Not a port.
+    elemental logical function is_choice_off(value, choice)
+        logical, intent(in) :: value
+        integer, intent(in) :: choice
+
+        is_choice_off = .not. value .and. choice == CHOICE_PLAIN
+    end function is_choice_off
+
+    ! Not a port.
+    logical function is_choice_type_off(self)
+        class(choice_type), intent(in) :: self
+
+        is_choice_type_off = is_choice_off(self%value, self%choice)
+    end function is_choice_type_off
+
+    ! Not a port.
+    subroutine choice_assign_choice(self, named)
+        type(choice_type), intent(inout) :: self
+        integer, intent(in) :: named
+
+        call set_choice_state(self%value, self%choice, named=named)
+    end subroutine choice_assign_choice
+
+    ! Not a port.
+    subroutine choice_assign_logical(self, on)
+        type(choice_type), intent(inout) :: self
+        logical, intent(in) :: on
+
+        call set_choice_state(self%value, self%choice, on=on)
+    end subroutine choice_assign_logical
 
     ! ------------------------------------------------------------------
     ! Constructors
@@ -519,7 +621,7 @@ contains
     end function xhandle
 
     !> Number of elements of list `v' (0 for nil and non-lists).
-    !> Not a port.
+    !> Port of fns.c:Flength (lists).
     elemental integer(int64) function list_length(v)
         type(value_type), intent(in) :: v
 
@@ -541,7 +643,8 @@ contains
         end do
     end function elt_start
 
-    !> Element `k' (1-based) of list `v'; nil if out of range.  Not a port.
+    !> Element `k' (1-based) of list `v'; nil if out of range.  Port of
+    !> fns.c:Fnth (a 1-based K; with K 1, data.c:Fcar).
     pure function list_elt(v, k) result(e)
         type(value_type), intent(in) :: v
         integer(int64), intent(in) :: k

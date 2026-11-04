@@ -40,7 +40,7 @@ module test_dabbrev_mod
     use insdel_mod, only: insert
     use editfns_mod, only: goto_char, buffer_string, buffer_substring, point, point_min, point_max, pos_bol, pos_eol, &
                            narrow_to_region, region_beginning, region_end, delete_region
-    use fileio_mod, only: expand_file_name, emacs_wd, init_fileio, insert_file_contents
+    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, insert_file_contents
     use files_mod, only: find_file_noselect
     use window_mod, only: switch_to_buffer
     use keymap_mod, only: key_parse
@@ -48,8 +48,9 @@ module test_dabbrev_mod
     use callint_mod, only: prefix_arg, current_prefix_arg
     use bindings_mod, only: init_bindings
     use simple_mod, only: fundamental_mode
-    use dabbrev_mod, only: dabbrev_reset_global_variables, dabbrev_case_fold_search, DABBREV_NO, &
-                           DABBREV_LIKE_CASE_FOLD_SEARCH
+    use dabbrev_mod, only: dabbrev_reset_global_variables, dabbrev_case_fold_search, &
+                           DABBREV_LIKE_CASE_FOLD_SEARCH, dabbrev_case_distinction, dabbrev_case_replace, &
+                           DABBREV_LIKE_CASE_REPLACE
     implicit none(type, external)
     private
 
@@ -77,7 +78,8 @@ contains
                     new_unittest("dabbrev-expand-after-killing-buffer", test_after_closing_buffer), &
                     new_unittest("cycling", test_cycling), &
                     new_unittest("case-replace", test_case_replace), &
-                    new_unittest("case-fold-off", test_case_fold_off) &
+                    new_unittest("case-fold-off", test_case_fold_off), &
+                    new_unittest("case-distinction", test_case_distinction) &
                     ]
     end subroutine collect_dabbrev_mod
 
@@ -185,7 +187,7 @@ contains
         type(status_type) :: st
 
         call init_fileio()
-        call expand_file_name("test/dabbrev-resources/"//name, path, st, emacs_wd)
+        call expand_file_name("test/dabbrev-resources/"//name, path, st, fortmacs_wd)
     end function resource
 
     !> Visit the resource file NAME in the selected window (find-file).
@@ -495,7 +497,7 @@ contains
 
         call fresh("*dabbrev-test*", h)
         call insert("Abc"//LF, st)
-        dabbrev_case_fold_search = DABBREV_NO
+        dabbrev_case_fold_search = .false.
         call execute_keys("ab M-/")
         dabbrev_case_fold_search = DABBREV_LIKE_CASE_FOLD_SEARCH
         call check(error, buffer_string(), "Abc"//LF//"ab")
@@ -504,4 +506,38 @@ contains
                    "ab"//char(226)//char(128)//char(153)//" found")
         call close_buffer(h, st)
     end subroutine test_case_fold_off
+
+    !> `dabbrev_case_distinction': .true. offers expansions that differ only
+    !> in case as different ones, .false. as the same one.
+    subroutine test_case_distinction(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+
+        call fresh("*dabbrev-test*", h)
+        dabbrev_case_replace = .false.
+
+        checks: block
+            dabbrev_case_distinction = .true.
+            call insert("abcdef Abcdef ", st)
+            call execute_keys("ab M-/")
+            call check(error, buffer_string(), "abcdef Abcdef Abcdef")
+            if (allocated(error)) exit checks
+            call execute_keys("M-/")
+            call check(error, buffer_string(), "abcdef Abcdef abcdef")
+            if (allocated(error)) exit checks
+            dabbrev_case_distinction = .false.
+            call delete_region(point_min(), point_max(), st)
+            call insert("abcdef Abcdef ", st)
+            call execute_keys("SPC ab M-/")
+            call check(error, buffer_string(), "abcdef Abcdef  Abcdef")
+            if (allocated(error)) exit checks
+            call execute_keys("M-/")
+            call check(error, buffer_string(), "abcdef Abcdef  ab")
+        end block checks
+
+        dabbrev_case_distinction = DABBREV_LIKE_CASE_REPLACE
+        dabbrev_case_replace = DABBREV_LIKE_CASE_REPLACE
+        call close_buffer(h, st)
+    end subroutine test_case_distinction
 end module test_dabbrev_mod

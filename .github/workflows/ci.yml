@@ -100,6 +100,9 @@ jobs:
           pipx install "fprettify==${FPRETTIFY_VERSION}"
           pipx install "fortitude-lint==${FORTITUDE_VERSION}"
 
+      # tools/check.sh first generates the modules made from src/, which
+      # git does not track (tools/build.sh --generate), then checks style,
+      # builds and tests.
       - name: Format, lint, build, test, and test under valgrind
         shell: bash
         run: |

@@ -34,7 +34,6 @@
 !> xterm-alternatives-map (needs terminfo function keys).
 module term_xterm_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list
@@ -143,6 +142,7 @@ contains
         integer, parameter :: tilde_codes(12) = [2, 3, 4, 5, 6, 15, 17, 18, 19, 20, 21, 11]
         character(len=5), parameter :: arrows(4) = [character(len=5) :: "up", "down", "right", "left"]
         character(len=4), parameter :: arrow_finals = "ABCD"
+        character(len=8) :: sequence
         integer :: k
 
         if (is_keymap_live(rxvt_map)) then
@@ -153,7 +153,8 @@ contains
         call make_sparse_keymap(map)
 
         do k = 1, size(tilde_codes)
-            call defkey(map, ESC//"["//number_to_string(tilde_codes(k))//"~", 0_int64, trim(tilde_names(k)))
+            write (sequence, '("[", i0, "~")') tilde_codes(k)
+            call defkey(map, ESC//trim(sequence), 0_int64, trim(tilde_names(k)))
         end do
 
         call defkey(map, ESC//"[12~", 0_int64, "f2")
@@ -181,13 +182,14 @@ contains
         character(len=6), parameter :: edit_names(4) = &
                                        [character(len=6) :: "insert", "delete", "prior", "next"]
         character(len=16), parameter :: kp_finals = "jklmopqrstuvwxyX"
-        character(len=11), parameter :: kp_names(16) = &
-                                        [character(len=11) :: "kp-multiply", "kp-add", "kp-separator", &
+        character(len=12), parameter :: kp_names(16) = &
+                                        [character(len=12) :: "kp-multiply", "kp-add", "kp-separator", &
                                                                "kp-subtract", "kp-divide", "kp-0", "kp-1", "kp-2", "kp-3", "kp-4", &
                                                                "kp-5", "kp-6", "kp-7", "kp-8", "kp-9", "kp-equal"]
         integer, parameter :: fkey_mods(5) = [2, 5, 6, 3, 4]
         integer :: k, j, m
         character(len=3) :: file_name
+        character(len=8) :: sequence
 
         if (is_keymap_live(xterm_map)) then
             map = xterm_map
@@ -205,7 +207,8 @@ contains
 
             do j = 1, size(fkey_mods)
                 m = fkey_mods(j)
-                call defkey(map, ESC//"O"//number_to_string(m)//pf_finals(k:k), xterm_modifiers(m), trim(file_name))
+                write (sequence, '("O", i0, a)') m, pf_finals(k:k)
+                call defkey(map, ESC//trim(sequence), xterm_modifiers(m), trim(file_name))
             end do
         end do
 
@@ -217,8 +220,8 @@ contains
 
             do j = 1, size(fkey_mods)
                 m = fkey_mods(j)
-                call defkey(map, ESC//"["//number_to_string(fkey_codes(k))//";"//number_to_string(m)//"~", &
-                            xterm_modifiers(m), trim(file_name))
+                write (sequence, '("[", i0, ";", i0, "~")') fkey_codes(k), m
+                call defkey(map, ESC//trim(sequence), xterm_modifiers(m), trim(file_name))
             end do
         end do
 
@@ -227,8 +230,8 @@ contains
             call defkey(map, ESC//"O"//cursor_finals(k:k), 0_int64, trim(cursor_names(k)))
 
             do m = 2, 8
-                call defkey(map, ESC//"[1;"//number_to_string(m)//cursor_finals(k:k), &
-                            xterm_modifiers(m), trim(cursor_names(k)))
+                write (sequence, '("[1;", i0, a)') m, cursor_finals(k:k)
+                call defkey(map, ESC//trim(sequence), xterm_modifiers(m), trim(cursor_names(k)))
             end do
 
             call defkey(map, ESC//"O2"//cursor_finals(k:k), M_SHIFT, trim(cursor_names(k)))
@@ -238,8 +241,8 @@ contains
         ! Insert, Delete, PageUp, PageDown with modifiers.
         do k = 1, 4
             do m = 2, 8
-                call defkey(map, ESC//"["//number_to_string(edit_codes(k))//";"//number_to_string(m)//"~", &
-                            xterm_modifiers(m), trim(edit_names(k)))
+                write (sequence, '("[", i0, ";", i0, "~")') edit_codes(k), m
+                call defkey(map, ESC//trim(sequence), xterm_modifiers(m), trim(edit_names(k)))
             end do
         end do
 
@@ -252,8 +255,8 @@ contains
             if (k == 16) cycle
 
             do m = 2, 8, 2
-                call defkey(map, ESC//"O"//number_to_string(m)//kp_finals(k:k), xterm_modifiers(m), &
-                            trim(kp_names(k)))
+                write (sequence, '("O", i0, a)') m, kp_finals(k:k)
+                call defkey(map, ESC//trim(sequence), xterm_modifiers(m), trim(kp_names(k)))
             end do
         end do
 
@@ -276,6 +279,7 @@ contains
         integer, parameter :: shift_mods(3) = [6, 14, 8], tab_mods(5) = [5, 6, 13, 7, 2]
         integer :: k, j, m
         integer(int64) :: bits
+        character(len=16) :: sequence
 
         do k = 1, size(ctl_chars)
             call other_key(5, ctl_chars(k), value_type(M_CTL + ctl_chars(k)))
@@ -317,8 +321,10 @@ contains
             integer, intent(in) :: m, c
             type(value_type), intent(in) :: ev
 
-            call def(map, ESC//"[27;"//number_to_string(m)//";"//number_to_string(c)//"~", ev)
-            call def(map, ESC//"["//number_to_string(c)//";"//number_to_string(m)//"u", ev)
+            write (sequence, '("[27;", i0, ";", i0, "~")') m, c
+            call def(map, ESC//trim(sequence), ev)
+            write (sequence, '("[", i0, ";", i0, "u")') c, m
+            call def(map, ESC//trim(sequence), ev)
         end subroutine other_key
     end subroutine define_modify_other_keys
 
@@ -365,6 +371,7 @@ contains
         type(status_type), intent(out) :: status
         integer, parameter :: levels(0:3) = [0, 139, 205, 255]
         integer :: ncolors, i, index, r, g, b, color
+        character(len=48) :: name
 
         ncolors = tty_display_color_cells
         ! Clear the 8 default tty colors registered by startup.el
@@ -404,7 +411,8 @@ contains
                 do while (ncolors > 24)
                     ! This and other formulas taken from 256colres.pl and
                     ! 88colres.pl in the xterm distribution.
-                    call tty_color_define("color-"//number_to_string(256 - ncolors), 256 - ncolors, status, &
+                    write (name, '("color-", i0)') 256 - ncolors
+                    call tty_color_define(trim(name), 256 - ncolors, status, &
                                           xterm_rgb_convert_to_16bit([cube_level(r), cube_level(g), cube_level(b)]))
                     if (.not. status%ok()) return
                     b = b + 1
@@ -425,7 +433,8 @@ contains
                 ! Now the 24 gray colors
                 do while (ncolors > 0)
                     color = xterm_rgb_convert_to_16bit(8 + (24 - ncolors)*10)
-                    call tty_color_define("color-"//number_to_string(256 - ncolors), 256 - ncolors, status, [color, color, color])
+                    write (name, '("color-", i0)') 256 - ncolors
+                    call tty_color_define(trim(name), 256 - ncolors, status, [color, color, color])
                     if (.not. status%ok()) return
                     ncolors = ncolors - 1
                 end do
@@ -436,7 +445,8 @@ contains
                 b = 0
 
                 do while (ncolors > 8)
-                    call tty_color_define("color-"//number_to_string(88 - ncolors), 88 - ncolors, status, &
+                    write (name, '("color-", i0)') 88 - ncolors
+                    call tty_color_define(trim(name), 88 - ncolors, status, &
                                           xterm_rgb_convert_to_16bit([levels(r), levels(g), levels(b)]))
                     if (.not. status%ok()) return
                     b = b + 1
@@ -463,13 +473,14 @@ contains
                                                                  + 69.54545454_real64))
                     end if
 
-                    call tty_color_define("color-"//number_to_string(88 - ncolors), 88 - ncolors, status, [color, color, color])
+                    write (name, '("color-", i0)') 88 - ncolors
+                    call tty_color_define(trim(name), 88 - ncolors, status, [color, color, color])
                     if (.not. status%ok()) return
                     ncolors = ncolors - 1
                 end do
             case default
-                call set_error(status, FM_GENERIC_ERROR, &
-                               "Unsupported number of xterm colors ("//number_to_string(16 + ncolors)//")")
+                write (name, '("Unsupported number of xterm colors (", i0, ")")') 16 + ncolors
+                call set_error(status, FM_GENERIC_ERROR, trim(name))
                 return
             end select
         end if

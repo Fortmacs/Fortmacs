@@ -31,9 +31,9 @@ module test_help_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
-    use print_mod, only: fortran_repr
+    use print_mod, only: fortran_text
     use callint_mod, only: current_prefix_arg
-    use files_mod, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NO
+    use files_mod, only: require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT
     use buffer_mod, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, current_buffer, is_buffer_modified, &
                           auto_fill_function, is_buffer_live
     use frame_mod, only: selected_frame, ensure_frame_windows
@@ -44,8 +44,9 @@ module test_help_mod
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop, store_event
     use bindings_mod, only: init_bindings
     use xdisp_mod, only: tab_width
-    use isearch_mod, only: search_upper_case, SEARCH_UPPER_CASE_YES, SEARCH_UPPER_CASE_NOT_PASTED
+    use isearch_mod, only: search_upper_case, SEARCH_UPPER_CASE_NOT_PASTED
     use simple_mod, only: fill_prefix, do_auto_fill, copy_region_blink_test_function, is_region_indistinguishable
+    use help_mode_mod, only: help_xref_stack, help_xref_forward_stack, help_xref_stack_item
     use help_mod, only: substitute_command_keys, with_help_window, describe_map_tree, lossage_comment_indent, &
                         make_separator_line, register_keymap_name
     use xdisp_mod, only: message, message_nolog
@@ -81,7 +82,7 @@ contains
                     new_unittest("describe-variable", test_describe_variable), &
                     new_unittest("describe-variable-fortran-values", test_variable_values), &
                     new_unittest("describe-function-fortran-file", test_function_file), &
-                    new_unittest("fortran-repr", test_fortran_repr), &
+                    new_unittest("fortran-text", test_fortran_text), &
                     new_unittest("help-empty-input", test_empty_input), &
                     new_unittest("help-window-and-quit", test_help_window), &
                     new_unittest("describe-key", test_describe_key), &
@@ -128,6 +129,10 @@ contains
         call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
         call switch_to_buffer("*scratch*", st)
         last_message = ""
+        ! No pages to go back or forward to.
+        if (allocated(help_xref_stack)) deallocate (help_xref_stack)
+        if (allocated(help_xref_forward_stack)) deallocate (help_xref_forward_stack)
+        help_xref_stack_item%describe => null()
     end subroutine fresh_scratch
 
     !> The text of *Help*.
@@ -402,10 +407,10 @@ contains
         if (allocated(error)) return
         ! An original value of 20 characters or more starts on the next
         ! line.
-        search_upper_case = SEARCH_UPPER_CASE_YES
+        search_upper_case = .true.
         call describe_variable_text("search_upper_case", text, found)
         search_upper_case = SEARCH_UPPER_CASE_NOT_PASTED
-        call check(error, index(text, "Its value is SEARCH_UPPER_CASE_YES"//LF// &
+        call check(error, index(text, "Its value is .true."//LF// &
                                 "Original value was "//LF//"SEARCH_UPPER_CASE_NOT_PASTED"//LF) > 0, text)
         if (allocated(error)) return
         ! A value fits on the "Its value is" line when it is shorter than
@@ -445,11 +450,11 @@ contains
         if (allocated(error)) return
         ! An enumerated integer setting: its named constant, and the one
         ! it started with.
-        require_final_newline = FINAL_NEWLINE_VISIT
+        require_final_newline = REQUIRE_FINAL_NEWLINE_VISIT
         call describe_variable_text("require_final_newline", text, found)
-        require_final_newline = FINAL_NEWLINE_NO
-        call check(error, index(text, "Its value is FINAL_NEWLINE_VISIT"//LF// &
-                                "Original value was FINAL_NEWLINE_NO"//LF) > 0, text)
+        require_final_newline = .false.
+        call check(error, index(text, "Its value is REQUIRE_FINAL_NEWLINE_VISIT"//LF// &
+                                "Original value was .false."//LF) > 0, text)
         if (allocated(error)) return
         call describe_variable_text("fill_prefix", text, found)
         call check(error, index(text, "Its value is unallocated"//LF) > 0, text)
@@ -521,23 +526,23 @@ contains
     end subroutine test_function_file
 
     !> Values written as Fortran.
-    subroutine test_fortran_repr(error)
+    subroutine test_fortran_text(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: elems(3)
 
-        call check(error, fortran_repr(value_type()) == ".false." .and. fortran_repr(value_type(.true.)) == ".true.")
+        call check(error, fortran_text(value_type()) == ".false." .and. fortran_text(value_type(.true.)) == ".true.")
         if (allocated(error)) return
-        call check(error, fortran_repr(value_type(-12_int64)) == "-12", fortran_repr(value_type(-12_int64)))
+        call check(error, fortran_text(value_type(-12_int64)) == "-12", fortran_text(value_type(-12_int64)))
         if (allocated(error)) return
-        call check(error, fortran_repr(value_type(text='say "hi"')) == '"say ""hi"""', fortran_repr(value_type(text='say "hi"')))
+        call check(error, fortran_text(value_type(text='say "hi"')) == '"say ""hi"""', fortran_text(value_type(text='say "hi"')))
         if (allocated(error)) return
-        call check(error, fortran_repr(value_type(name="SEARCH_UPPER_CASE_YES")) == "SEARCH_UPPER_CASE_YES")
+        call check(error, fortran_text(value_type(name="SEARCH_UPPER_CASE_NOT_PASTED")) == "SEARCH_UPPER_CASE_NOT_PASTED")
         if (allocated(error)) return
         elems(1) = value_type(1_int64)
         elems(2) = value_type(text="a")
         elems(3) = value_type()
-        call check(error, fortran_repr(make_list(elems)) == '[1, "a", .false.]', fortran_repr(make_list(elems)))
-    end subroutine test_fortran_repr
+        call check(error, fortran_text(make_list(elems)) == '[1, "a", .false.]', fortran_text(make_list(elems)))
+    end subroutine test_fortran_text
 
     !> Empty input to C-h f, C-h v and C-h w is an error.
     subroutine test_empty_input(error)
@@ -1113,10 +1118,15 @@ contains
         call check(error, index(text, "   l "//TAB//"Show last 300 input keystrokes (lossage)") > 0, text)
         if (allocated(error)) return
         ! Commands not ported yet are listed under their upstream keys.
-        call check(error, index(text, LF//LF//"Manuals"//LF//LF//"   r "//TAB//"Show Emacs manual"//LF) > 0 .and. &
+        call check(error, index(text, LF//LF//"Manuals"//LF//LF//"   r "//TAB//"Show Fortmacs manual"//LF) > 0 .and. &
                    index(text, LF//"   C-n "//TAB//"News of recent changes"//LF) > 0 .and. &
                    index(text, "   4 s "//TAB//"Show the source for what"//RQ//"s being described in *Help*") > 0 .and. &
                    index(text, "   h "//TAB//"Display the HELLO file illustrating various scripts"//LF) > 0, text)
+        if (allocated(error)) return
+        ! This program's lines say Fortmacs (R6-25).
+        call check(error, index(text, LF//"   C-a "//TAB//"About Fortmacs"//LF) > 0 .and. &
+                   index(text, LF//"   t "//TAB//"Start the Fortmacs tutorial"//LF) > 0 .and. &
+                   index(text, LF//"   C-t "//TAB//"Fortmacs TODO"//LF) > 0, text)
         if (allocated(error)) return
         ! k ran describe-key, in the previous window configuration.
         call check(error, index(help_text(), "C-f runs the command forward_char") == 1, help_text())

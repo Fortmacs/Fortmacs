@@ -51,10 +51,15 @@
 #   implicit-none       `implicit none' without `(type, external)'.
 #   stop                `stop' outside a main program.
 #   obsolete            `common', `equivalence' or `goto'.
+#   continuation-limit  a statement of more than 255 continuation lines.
+#   truncated-literal   a string longer than the length its array
+#                       constructor's type specification gives
+#                       (`[character(len=N) :: ...]` truncates it).
 
 # CODE: LINE without its comment and with the text of its strings
 # removed (quotes kept); `cont': whether it continues; `quote' carries a
-# string continued across lines.
+# string continued across lines.  The length of the statement's string
+# number K goes to litlen[K] (`nlit' strings so far).
 function scan(line,    i, c, n, out) {
     out = ""
     if (quote != "") sub(/^[ \t]*&/, "", line)
@@ -65,17 +70,23 @@ function scan(line,    i, c, n, out) {
         if (quote != "") {
             if (c == quote) {
                 if (substr(line, i + 1, 1) == quote) {
+                    litlen[nlit]++
                     i += 2
                     continue
                 }
                 quote = ""
                 out = out c
+            } else if (!(c == "&" && i == n)) {
+                litlen[nlit]++
             }
             i++
             continue
         }
         if (c == "!") break
-        if (c == "\"" || c == "'") quote = c
+        if (c == "\"" || c == "'") {
+            quote = c
+            litlen[++nlit] = 0
+        }
         out = out c
         i++
     }
@@ -318,6 +329,42 @@ function check_constructor(s, code,    rest, inner, depth, i, c, start, call, na
     }
 }
 
+# Report a string longer than the length its array constructor's type
+# specification gives (`[character(len=N) :: ...]`), which the constructor
+# silently truncates, in the statement S whose code is CODE (slits[S]
+# holds the lengths of its strings).
+function check_truncated(s, code,    rest, before, width, start, i, c, depth, k, first, n, prefix, lens) {
+    split(slits[s], lens, " ")
+    rest = code
+    before = 0
+    while (match(rest, /\[[ \t]*character[ \t]*\([ \t]*(len[ \t]*=[ \t]*)?[0-9]+[ \t]*\)[ \t]*::/)) {
+        start = RSTART
+        width = substr(rest, RSTART, RLENGTH)
+        gsub(/[^0-9]/, "", width)
+        width += 0
+        prefix = substr(rest, 1, start - 1)
+        before += gsub(/["']/, "&", prefix) / 2
+        depth = 0
+        n = 0
+        for (i = start; i <= length(rest); i++) {
+            c = substr(rest, i, 1)
+            if (c == "[") depth++
+            if (c == "]") depth--
+            if (c == "\"" || c == "'") n++
+            if (depth == 0) break
+        }
+        first = before + 1
+        before += n / 2
+        for (k = first; k <= before; k++) {
+            if (lens[k] + 0 > width) {
+                report(s, "truncated-literal", "a string of " lens[k] " characters in an array constructor of character(len=" width "): size the length from the longest string")
+                return
+            }
+        }
+        rest = substr(rest, i + 1)
+    }
+}
+
 {
     if (FNR == 1) {
         nf++
@@ -344,15 +391,24 @@ END {
             ns++
             sfile[ns] = f
             sline[ns] = i
+            nlit = 0
             code = scan(line)
+            ncont = 0
             while ((cont || quote != "") && i < nlines[f]) {
                 i++
                 if (raw[f, i] ~ /^[ \t]*!/ || raw[f, i] ~ /^[ \t]*$/) continue
                 code = code " " scan(raw[f, i])
+                ncont++
             }
             quote = ""
             eline[ns] = i
             scode[ns] = trim(code)
+            scont[ns] = ncont
+            # The lengths of the strings, for check_truncated.
+            if (scode[ns] ~ /\[[ \t]*character[ \t]*\(/) {
+                slits[ns] = ""
+                for (k = 1; k <= nlit; k++) slits[ns] = slits[ns] " " litlen[k]
+            }
             if (scode[ns] ~ /^program[ \t]/) ismain[f] = 1
             i++
         }
@@ -512,6 +568,9 @@ END {
 
         if (code ~ /\.(and|or)\./) check_short_circuit(s, code)
         if (index(code, "[") > 0) check_constructor(s, code)
+        if (scont[s] > 255)
+            report(s, "continuation-limit", scont[s] " continuation lines: the standard allows 255 (gfortran warns with -std=f2018); split the statement")
+        if (s in slits) check_truncated(s, code)
     }
     exit hits > 0
 }

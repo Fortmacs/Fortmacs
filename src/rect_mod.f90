@@ -22,7 +22,7 @@
 !> The operations on rectangles: the text between two columns on each
 !> line from the line of one corner to the line of the other.  A
 !> rectangle as data (upstream's list of strings) is an array of
-!> `rectangle_line_type'; `last_cut_rectangle' holds the last one killed.
+!> `string_type' (one line each); `last_cut_rectangle' holds the last one killed.
 !> `apply_on_rectangle' runs a `rectangle_line_action_type' (upstream's
 !> FUNCTION and its ARGS) on each line.
 !>
@@ -58,7 +58,7 @@ module rect_mod
                          FM_BEGINNING_OF_BUFFER
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements, make_window_ref
-    use data_mod, only: number_to_string, history_setting_type, forward_setting
+    use data_mod, only: history_setting_type, forward_setting
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
     use textprop_mod, only: string_put_text_property
@@ -79,23 +79,23 @@ module rect_mod
     use xdisp_mod, only: redisplay_highlight_region_function, redisplay_unhighlight_region_function, &
                          highlight_region_procedure, unhighlight_region_procedure
     use data_mod, only: symbol_value
-    use character_mod, only: string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH, MAX_CHAR
     use buffer_mod, only: buffers, current, barf_if_buffer_read_only, deactivate_mark_variable, undo_entry_type, UE_POINT
     use marker_mod, only: copy_marker_at, destroy_marker, marker_position, char_to_byte
     use undo_mod, only: append_undo_entry
     use insdel_mod, only: insert
     use editfns_mod, only: point, goto_char, line_beginning_position, line_end_position, is_bol, buffer_substring, &
                            delete_region, delete_and_extract_region, region_beginning, region_end, char_after, &
-                           interactive_region, char_before
+                           interactive_region, char_before, styled_format, format_arguments_type
     use cmds_mod, only: forward_line
     use indent_mod, only: current_column, move_to_column, indent_to, indent_tabs_mode
     use syntax_mod, only: skip_syntax_forward
-    use xdisp_mod, only: message, glyph_width
+    use xdisp_mod, only: message
     use simple_mod, only: push_mark, insert_for_paste, cut_read_only_ok, indicate_copied_region, count_lines, &
                           line_number_at_pos
     use minibuf_mod, only: read_string
     use subr_mod, only: read_number
     use callint_mod, only: current_prefix_arg, this_command, prefix_numeric_value
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -103,19 +103,14 @@ module rect_mod
               delete_rectangle, delete_extract_rectangle, extract_rectangle, extract_rectangle_bounds, &
               cut_rectangle, copy_rectangle, paste_rectangle, insert_rectangle, open_rectangle, &
               delete_whitespace_rectangle, string_rectangle, string_insert_rectangle, clear_rectangle, &
-              rectangle_number_lines, spaces_string, init_rect, format_integer
+              rectangle_number_lines, spaces_string, init_rect
     public :: rectangle_mark_mode, rectangle_exchange_point_and_mark, rectangle_right_char, rectangle_left_char, &
               rectangle_forward_char, rectangle_backward_char, rectangle_next_line, rectangle_previous_line, &
               rectangle_pos_cols
 
-    !> One line of a rectangle (a string of upstream's list of strings).
-    type, public :: rectangle_line_type
-        character(len=:), allocatable :: text
-    end type rectangle_line_type
-
     !> Rectangle for `paste_rectangle' to insert.  Unallocated (or empty)
     !> for none.  Port of rect.el kill-rectangle.
-    type(rectangle_line_type), allocatable, public :: last_cut_rectangle(:)
+    type(string_type), allocatable, public :: last_cut_rectangle(:)
 
     !> A corner's crutch: the column COL to use for position POS where
     !> point can't be (in the middle of a TAB, or past the EOL), of a
@@ -191,14 +186,14 @@ module rect_mod
     !> rect.el:delete-extract-rectangle-line, collecting the lines.
     type, extends(rectangle_line_action_type) :: delete_extract_line_action_type
         logical :: fill = .false.
-        type(rectangle_line_type), allocatable :: lines(:)
+        type(string_type), allocatable :: lines(:)
     contains
         procedure :: line => delete_extract_line
     end type delete_extract_line_action_type
 
     !> rect.el:extract-rectangle-line, collecting the lines.
     type, extends(rectangle_line_action_type) :: extract_line_action_type
-        type(rectangle_line_type), allocatable :: lines(:)
+        type(string_type), allocatable :: lines(:)
     contains
         procedure :: line => extract_line
     end type extract_line_action_type
@@ -352,17 +347,6 @@ contains
         call goto_char(saved)
     end subroutine rectangle_dimensions
 
-    !> Append TEXT to LINES.  Not a port.
-    subroutine append_line(lines, text)
-        type(rectangle_line_type), allocatable, intent(inout) :: lines(:)
-        character(len=*), intent(in) :: text
-        type(rectangle_line_type) :: line
-
-        if (.not. allocated(lines)) allocate (lines(0))
-        line%text = text
-        lines = [lines, line]
-    end subroutine append_line
-
     !> (move-to-column COLUMN (if FILL t 'coerce)): the column reached.
     !> Not a port.
     recursive integer(int64) function move_to_column_fill(column, fill, status) result(reached)
@@ -412,7 +396,7 @@ contains
 
         if (move_to_column_fill(startcol, self%fill, status) < startcol) then
             if (.not. status%ok()) return
-            call append_line(self%lines, spaces_string(endcol - startcol))
+            call append_string(self%lines, spaces_string(endcol - startcol))
         else
             if (.not. status%ok()) return
             pt = point()
@@ -421,7 +405,7 @@ contains
             ! (filter-buffer-substring pt (point) t)
             call delete_and_extract_region(pt, point(), text, status)
             if (.not. status%ok()) return
-            call append_line(self%lines, text)
+            call append_string(self%lines, text)
         end if
     end subroutine delete_extract_line
 
@@ -472,7 +456,7 @@ contains
         end do
 
         if (begextra > 0 .or. endextra > 0) line = spaces_string(begextra)//line//spaces_string(endextra)
-        call append_line(self%lines, line)
+        call append_string(self%lines, line)
     end subroutine extract_line
 
     !> The function of rect.el:extract-rectangle-bounds.  Port of the procedure
@@ -531,7 +515,7 @@ contains
     !> deleted.  Port of rect.el:delete-extract-rectangle.
     recursive subroutine delete_extract_rectangle(start, end, rectangle, status, fill)
         integer(int64), intent(in) :: start, end
-        type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)
+        type(string_type), allocatable, intent(out) :: rectangle(:)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: fill
         type(delete_extract_line_action_type) :: action
@@ -547,7 +531,7 @@ contains
     !> Port of rect.el:extract-rectangle.
     recursive subroutine extract_rectangle(start, end, rectangle, status)
         integer(int64), intent(in) :: start, end
-        type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)
+        type(string_type), allocatable, intent(out) :: rectangle(:)
         type(status_type), intent(out) :: status
         type(extract_line_action_type) :: action
 
@@ -579,7 +563,7 @@ contains
     !> With a prefix (or a FILL) argument, also fill lines where nothing has to be
     !> deleted.
     !>
-    !> If the buffer is read-only, Emacs will beep and refrain from deleting
+    !> If the buffer is read-only, Fortmacs will beep and refrain from deleting
     !> the rectangle, but put it in `last_cut_rectangle' anyway.  This means that
     !> you can use this command to copy text from a read-only buffer.
     !> (If the variable `cut_read_only_ok' is true, then this won't
@@ -588,7 +572,7 @@ contains
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: fill
-        type(rectangle_line_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rect(:)
         type(status_type) :: st
         logical :: saved
 
@@ -625,7 +609,7 @@ contains
     recursive subroutine copy_rectangle(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
-        type(rectangle_line_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rect(:)
 
         call extract_rectangle(start, end, rect, status)
         call move_alloc(rect, last_cut_rectangle)
@@ -636,7 +620,7 @@ contains
     !> Port of rect.el:yank-rectangle.
     recursive subroutine paste_rectangle(status)
         type(status_type), intent(out) :: status
-        type(rectangle_line_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rect(:)
 
         if (allocated(last_cut_rectangle)) then
             rect = last_cut_rectangle
@@ -655,7 +639,7 @@ contains
     !> and point is at the lower right corner.  Port of
     !> rect.el:insert-rectangle.
     recursive subroutine insert_rectangle(rectangle, status)
-        type(rectangle_line_type), intent(in) :: rectangle(:)
+        type(string_type), intent(in) :: rectangle(:)
         type(status_type), intent(out) :: status
         integer(int64) :: insertcolumn, col, shortage
         integer :: k
@@ -873,10 +857,12 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: col
         character(len=:), allocatable :: text
+        type(format_arguments_type) :: arguments
 
         call move_to_column(startcol, col, force=.true., status=status)
         if (.not. status%ok()) return
-        call format_integer(self%format, self%counter, text, status)
+        call arguments%append(self%counter)
+        call styled_format(self%format, arguments, .false., text, status)
         if (.not. status%ok()) return
         call insert(text, status)
         if (.not. status%ok()) return
@@ -887,15 +873,19 @@ contains
     function default_line_number_format(start, end, start_at) result(format)
         integer(int64), intent(in) :: start, end, start_at
         character(len=:), allocatable :: format
+        character(len=20) :: digits
+        character(len=8) :: text
 
-        format = "%"//number_to_string(len(number_to_string(count_lines(start, end) + start_at), kind=int64))//"d "
+        write (digits, "(i0)") count_lines(start, end) + start_at
+        write (text, '("%", i0, "d")') len_trim(digits)
+        format = trim(text)//" "
     end function default_line_number_format
 
     !> Insert numbers in front of the region-rectangle.
     !>
     !> START_AT, if present, should be a number from which to begin
     !> counting.  FORMAT, if present, should be a format string to pass
-    !> to `format' along with the line count.  When called interactively
+    !> to `format_text' along with the line count.  When called interactively
     !> with a prefix argument, prompt for START_AT and FORMAT.  Port of
     !> rect.el:rectangle-number-lines.
     recursive subroutine rectangle_number_lines(start, end, start_at, status, format)
@@ -913,294 +903,6 @@ contains
         action%counter = start_at
         call apply_on_rectangle(action, start, end, status)
     end subroutine rectangle_number_lines
-
-    ! ------------------------------------------------------------------
-    ! `format' with one integer argument
-    ! ------------------------------------------------------------------
-
-    !> Format the integer ARG by the format string STRING, as (format
-    !> STRING ARG) does.  The part of editfns.c:styled_format that
-    !> `rectangle_number_lines' needs: %%, field numbers, the flags - + SPC
-    !> # 0, widths, precisions and the conversions d, i, o, x, X, b, B, c, s
-    !> and S of a fixnum.  The floating-point conversions are deferred (an
-    !> error); a field number 0 (the format string as argument) is an
-    !> error as for a missing argument.  Port of part of
-    !> editfns.c:styled_format.
-    subroutine format_integer(string, arg, result, status)
-        character(len=*), intent(in) :: string
-        integer(int64), intent(in) :: arg
-        character(len=:), allocatable, intent(out) :: result
-        type(status_type), intent(out) :: status
-        integer(int64) :: i, n, num, field_width, precision, j, nchars, wsum, lim
-        logical :: minus_flag, plus_flag, space_flag, sharp_flag, zero_flag, precision_given, num_given
-        character :: conversion
-        character(len=:), allocatable :: item, sign, prefix, digits
-        integer(int32) :: c, clen, nbytes
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
-
-        result = ""
-        n = 0
-        i = 1
-
-        do while (i <= len(string, kind=int64))
-            if (string(i:i) /= "%") then
-                result = result//string(i:i)
-                i = i + 1
-                cycle
-            end if
-
-            i = i + 1
-            ! [field-number] [flags] [field-width] [precision] format
-            call parse_number(string, i, num, j, num_given)
-
-            if (num_given .and. j <= len(string, kind=int64)) then
-                if (string(j:j) == "$") then
-                    n = num - 1
-                    i = j + 1
-                end if
-            end if
-
-            minus_flag = .false.
-            plus_flag = .false.
-            space_flag = .false.
-            sharp_flag = .false.
-            zero_flag = .false.
-
-            do while (i <= len(string, kind=int64))
-                select case (string(i:i))
-                case ("-")
-                    minus_flag = .true.
-                case ("+")
-                    plus_flag = .true.
-                case (" ")
-                    space_flag = .true.
-                case ("#")
-                    sharp_flag = .true.
-                case ("0")
-                    zero_flag = .true.
-                case default
-                    exit
-                end select
-
-                i = i + 1
-            end do
-
-            ! Ignore flags when sprintf ignores them.
-            space_flag = space_flag .and. .not. plus_flag
-            zero_flag = zero_flag .and. .not. minus_flag
-            call parse_number(string, i, field_width, j, num_given)
-            i = j
-            precision_given = .false.
-            precision = huge(0_int64)
-
-            if (i <= len(string, kind=int64)) then
-                if (string(i:i) == ".") then
-                    precision_given = .true.
-                    call parse_number(string, i + 1, precision, j, num_given)
-                    i = j
-                end if
-            end if
-
-            if (i > len(string, kind=int64)) then
-                call set_error(status, FM_GENERIC_ERROR, "Format string ends in middle of format specifier")
-                return
-            end if
-
-            conversion = string(i:i)
-            i = i + 1
-
-            if (conversion == "%") then
-                result = result//"%"
-                cycle
-            end if
-
-            n = n + 1
-
-            if (n /= 1) then
-                call set_error(status, FM_GENERIC_ERROR, "Not enough arguments for format string")
-                return
-            end if
-
-            if (conversion == "S" .or. conversion == "s") then
-                item = number_to_string(arg)
-                conversion = "s"
-            else if (conversion == "c") then
-                if (arg < 0 .or. arg > MAX_CHAR) then
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
-                                   "expected integer (a character code), got "//number_to_string(arg))
-                    return
-                end if
-
-                call char_string(int(arg, int32), buffer, nbytes, status)
-                if (.not. status%ok()) return
-                item = buffer(1:nbytes)
-                if (arg > 127) conversion = "s"
-                zero_flag = .false.
-                if (precision_given .and. precision == 0) item = ""
-            else if (scan(conversion, "efg") > 0) then
-                call set_error(status, FM_GENERIC_ERROR, "Floating-point format directives are not ported yet")
-                return
-            else if (scan(conversion, "dioxXbB") == 0) then
-                call set_error(status, FM_GENERIC_ERROR, "Invalid format operation %"//conversion)
-                return
-            end if
-
-            if (conversion == "s") then
-                ! Truncate to PRECISION columns, then pad to FIELD_WIDTH
-                ! columns (lisp_string_width).
-                lim = huge(0_int64)
-                if (precision_given) lim = precision
-                j = 1
-                wsum = 0
-                nchars = 0
-
-                do while (j <= len(item, kind=int64))
-                    call string_char_and_length(item, j, c, clen)
-                    if (wsum + glyph_width(c) > lim) exit
-                    wsum = wsum + glyph_width(c)
-                    j = j + clen
-                    nchars = nchars + 1
-                end do
-
-                item = item(1:j - 1)
-
-                if (wsum < field_width) then
-                    if (minus_flag) then
-                        item = item//spaces_string(field_width - wsum)
-                    else
-                        item = spaces_string(field_width - wsum)//item
-                    end if
-                end if
-
-                result = result//item
-                cycle
-            end if
-
-            if (conversion == "c") then
-                if (len(item) < field_width) then
-                    if (minus_flag) then
-                        item = item//spaces_string(field_width - len(item, kind=int64))
-                    else
-                        item = spaces_string(field_width - len(item, kind=int64))//item
-                    end if
-                end if
-
-                result = result//item
-                cycle
-            end if
-
-            ! An integer conversion: sign, prefix, digits (sprintf with
-            ! the precision), then padding or leading zeros.
-            if (conversion == "d" .or. conversion == "i") sharp_flag = .false.
-            zero_flag = zero_flag .and. .not. precision_given
-
-            if (arg < 0) then
-                sign = "-"
-            else if (plus_flag) then
-                sign = "+"
-            else if (space_flag) then
-                sign = " "
-            else
-                sign = ""
-            end if
-
-            select case (conversion)
-            case ("o")
-                digits = magnitude_digits(arg, 8_int64, .false.)
-            case ("x")
-                digits = magnitude_digits(arg, 16_int64, .false.)
-            case ("X")
-                digits = magnitude_digits(arg, 16_int64, .true.)
-            case ("b", "B")
-                digits = magnitude_digits(arg, 2_int64, .false.)
-            case default
-                digits = magnitude_digits(arg, 10_int64, .false.)
-            end select
-
-            if (precision_given) then
-                if (precision == 0 .and. arg == 0) digits = ""
-                if (len(digits, kind=int64) < precision) digits = repeat("0", int(precision - len(digits)))//digits
-            end if
-
-            prefix = ""
-
-            if (sharp_flag) then
-                select case (conversion)
-                case ("o")
-                    if (len(digits) == 0) then
-                        digits = "0"
-                    else if (digits(1:1) /= "0") then
-                        digits = "0"//digits
-                    end if
-                case ("x", "X", "b", "B")
-                    if (arg /= 0) prefix = "0"//conversion
-                case default
-                    continue
-                end select
-            end if
-
-            item = sign//prefix//digits
-
-            if (len(item, kind=int64) < field_width) then
-                if (zero_flag .and. len(digits) > 0) then
-                    item = sign//prefix//repeat("0", int(field_width - len(item)))//digits
-                else if (minus_flag) then
-                    item = item//spaces_string(field_width - len(item, kind=int64))
-                else
-                    item = spaces_string(field_width - len(item, kind=int64))//item
-                end if
-            end if
-
-            result = result//item
-        end do
-
-        status = status_type()
-    end subroutine format_integer
-
-    !> The digits [0-9]* of STRING from I on: their value NUM (0 if none),
-    !> the index after them NEXT and whether there were any.  Not a port.
-    pure subroutine parse_number(string, i, num, next, given)
-        character(len=*), intent(in) :: string
-        integer(int64), intent(in) :: i
-        integer(int64), intent(out) :: num, next
-        logical, intent(out) :: given
-
-        num = 0
-        next = i
-        given = .false.
-
-        do while (next <= len(string, kind=int64))
-            if (verify(string(next:next), "0123456789") /= 0) exit
-            if (num < 100000000000000000_int64) num = num*10 + (iachar(string(next:next)) - iachar("0"))
-            next = next + 1
-            given = .true.
-        end do
-    end subroutine parse_number
-
-    !> The digits of |N| in BASE.  Not a port.
-    pure function magnitude_digits(n, base, upper) result(s)
-        integer(int64), intent(in) :: n, base
-        logical, intent(in) :: upper
-        character(len=:), allocatable :: s
-        character(len=*), parameter :: lower_digits = "0123456789abcdef", upper_digits = "0123456789ABCDEF"
-        integer(int64) :: m, d
-
-        s = ""
-        m = abs(n)
-
-        do
-            d = mod(m, base)
-
-            if (upper) then
-                s = upper_digits(d + 1:d + 1)//s
-            else
-                s = lower_digits(d + 1:d + 1)//s
-            end if
-
-            m = m/base
-            if (m == 0) exit
-        end do
-    end function magnitude_digits
 
     ! ------------------------------------------------------------------
     ! Crutches to let rectangle's corners be where point can't be
@@ -1778,7 +1480,7 @@ contains
         type(value_type), intent(out) :: string
         integer(int64), allocatable, intent(out) :: starts(:), ends(:)
         type(status_type), intent(out) :: status
-        type(rectangle_line_type), allocatable :: lines(:)
+        type(string_type), allocatable :: lines(:)
         type(value_type) :: strs
         type(value_type), allocatable :: elems(:)
         character(len=:), allocatable :: text
@@ -1852,7 +1554,7 @@ contains
     !> The strings of the list STRS as a rectangle.  Not a port.
     function rectangle_of(strs) result(rect)
         type(value_type), intent(in) :: strs
-        type(rectangle_line_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rect(:)
         type(value_type), allocatable :: elems(:)
         integer :: k
 

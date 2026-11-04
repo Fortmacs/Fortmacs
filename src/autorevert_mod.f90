@@ -96,7 +96,7 @@ module autorevert_mod
     !> (until the next run of the timer) if user input is available.
     !> When false, Auto-Revert Mode checks files and reverts buffers,
     !> with quitting disabled, without paying attention to user input.
-    !> Thus, with this setting, Emacs might be non-responsive at times.
+    !> Thus, with this setting, Fortmacs might be non-responsive at times.
     !> Port of autorevert.el auto-revert-stop-on-user-input.
     logical, public :: auto_revert_stop_on_user_input = .true.
 
@@ -150,7 +150,7 @@ module autorevert_mod
     !> them manually.
     !>
     !> Use this option with care since it could lead to excessive auto-reverts.
-    !> For more information, see Info node `(emacs)Auto Revert'.  Port of
+    !> For more information, see Info node `(fortmacs)Auto Revert'.  Port of
     !> autorevert.el global-auto-revert-non-file-buffers.
     logical, public :: global_auto_revert_non_file_buffers = .false.
 
@@ -163,9 +163,9 @@ module autorevert_mod
     !> Auto-Revert Mode updates version control info whenever the buffer
     !> needs reverting, regardless of the value of this variable.
     !> However, the version control state can change without changes to
-    !> the work file.  If the change is made from the current Emacs
+    !> the work file.  If the change is made from the current Fortmacs
     !> session, all info is updated.  But if, for instance, a new
-    !> version is checked in from outside the current Emacs session, the
+    !> version is checked in from outside the current Fortmacs session, the
     !> version control number in the mode line, as well as other version
     !> control related information, may not be properly updated.  If you
     !> are worried about this, set this variable to true.
@@ -423,26 +423,6 @@ contains
     ! Lists of buffers
     ! ------------------------------------------------------------------
 
-    !> (delq BUFFER LIST)  Not a port.
-    subroutine delq(buffer, list)
-        type(handle_type), intent(in) :: buffer
-        type(handle_type), allocatable, intent(inout) :: list(:)
-        type(handle_type), allocatable :: kept(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) return
-        allocate (kept(size(list)))
-        n = 0
-
-        do k = 1, size(list)
-            if (same_handle(list(k), buffer)) cycle
-            n = n + 1
-            kept(n) = list(k)
-        end do
-
-        list = kept(1:n)
-    end subroutine delq
-
     !> (push BUFFER LIST)  Not a port.
     subroutine prepend(buffer, list)
         type(handle_type), intent(in) :: buffer
@@ -477,10 +457,12 @@ contains
     subroutine auto_revert_remove_current_buffer(buffer)
         type(handle_type), intent(in), optional :: buffer
 
+        if (.not. allocated(auto_revert_mode_buffers)) return
+
         if (present(buffer)) then
-            call delq(buffer, auto_revert_mode_buffers)
+            auto_revert_mode_buffers = pack(auto_revert_mode_buffers,.not. same_handle(auto_revert_mode_buffers, buffer))
         else
-            call delq(current_buffer(), auto_revert_mode_buffers)
+            auto_revert_mode_buffers = pack(auto_revert_mode_buffers,.not. same_handle(auto_revert_mode_buffers, current_buffer()))
         end if
     end subroutine auto_revert_remove_current_buffer
 
@@ -1177,7 +1159,9 @@ contains
             list = inhibit_auto_revert_buffers
 
             do k = 1, size(list)
-                if (.not. is_buffer_live(list(k))) call delq(list(k), inhibit_auto_revert_buffers)
+                if (is_buffer_live(list(k))) cycle
+                inhibit_auto_revert_buffers = &
+                    pack(inhibit_auto_revert_buffers,.not. same_handle(inhibit_auto_revert_buffers, list(k)))
             end do
         end if
 
@@ -1185,7 +1169,10 @@ contains
         added = .not. has_handle(inhibit_auto_revert_buffers, buffer)
         if (added) call prepend(buffer, inhibit_auto_revert_buffers)
         call body(status)
-        if (added) call delq(buffer, inhibit_auto_revert_buffers)
+
+        if (added) then
+            inhibit_auto_revert_buffers = pack(inhibit_auto_revert_buffers,.not. same_handle(inhibit_auto_revert_buffers, buffer))
+        end if
     end subroutine inhibit_auto_revert
 
     !> Check if auto-revert is active in current buffer.  Port of

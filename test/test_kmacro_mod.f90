@@ -39,7 +39,6 @@ module test_kmacro_mod
                             kbd_macro_termination_hook, last_command, store_event
     use bindings_mod, only: init_bindings
     use register_mod, only: set_register, get_register, register_contents_type, REGISTER_NUMBER
-    use rect_mod, only: rectangle_line_type
     use xdisp_mod, only: mode_line_modes_faces, face_span_type
     use edmacro_mod, only: format_kbd_macro
     use kmacro_mod, only: kmacro_insert_counter, kmacro_set_counter, kmacro_set_format, kmacro_start_macro, &
@@ -49,8 +48,8 @@ module test_kmacro_mod
                           kmacro_ring, kmacro_counter, kmacro_ring_max, kmacro_execute_repeat_key, kmacro_execute_repeat_with_arg, &
                           kmacro_initial_counter_value, kmacro_counter_format, kmacro_default_counter_format, &
                           kmacro_counter_format_start, kmacro_counter_value_start, kmacro_last_counter, &
-                          kmacro_execute_before_append, kmacro_repeat_no_prefix, KMACRO_EXECUTE_REPEAT_KEY_NO, &
-                          KMACRO_EXECUTE_REPEAT_KEY_LAST, KMACRO_REPEAT_NO
+                          kmacro_execute_before_append, kmacro_repeat_no_prefix, KMACRO_REPEAT_NO
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -118,7 +117,7 @@ contains
         kmacro_execute_before_append = .true.
         kmacro_ring_max = 8
         kmacro_repeat_no_prefix = .true.
-        kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_NO
+        kmacro_execute_repeat_key = .false.
         kmacro_execute_repeat_with_arg = .false.
         if (allocated(last_kbd_macro)) deallocate (last_kbd_macro)
         if (allocated(kmacro_ring)) deallocate (kmacro_ring)
@@ -462,7 +461,7 @@ contains
         logical, intent(in) :: set
         type(handle_type) :: h
         type(status_type) :: st
-        type(rectangle_line_type) :: none(0)
+        type(string_type) :: none(0)
 
         call fresh(h)
 
@@ -568,7 +567,7 @@ contains
 
         call fresh(h)
         call define_macro(chars("m"))
-        kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_LAST
+        kmacro_execute_repeat_key = .true.
         kmacro_execute_repeat_with_arg = .true.
         last_input_event = value_type(int(iachar("e"), int64))
         this_command_keys = kbd("C-x e")
@@ -697,7 +696,7 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_LAST
+        kmacro_execute_repeat_key = .true.
         call define_macro(chars("a"))
         call define_macro(chars("b"))
         call define_macro(chars("c"))
@@ -741,7 +740,7 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_LAST
+        kmacro_execute_repeat_key = .true.
         call type_events(kbd("C-x ( a b C-x )"))
         call check(error, last_macro_is(chars("ab")), "macro recorded")
         if (allocated(error)) return
@@ -840,7 +839,7 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_LAST
+        kmacro_execute_repeat_key = .true.
         call type_events(kbd("M-5 <f3> x M-2 <f3> y <f4> <f4> <f4> <f4>"))
         call check(error, text(), "x5yx7yx9yx11y")
         if (allocated(error)) return

@@ -28,8 +28,8 @@ module test_sh_script_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_mod, only: status_type
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
-    use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
+    use value_mod, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY, choice_type
+    use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, is_buffer_live
     use insdel_mod, only: insert
     use editfns_mod, only: point, point_min, point_max, goto_char, buffer_string
     use cmds_mod, only: forward_line, forward_char
@@ -40,14 +40,16 @@ module test_sh_script_mod
     use indent_mod, only: indent_region, indent_for_tab_command
     use font_lock_mod, only: font_lock_ensure
     use syntax_mod, only: parse_state_type, syntax_ppss, ST_STRING_STYLE
+    use data_mod, only: choice_state, setting_errors
     use sh_script_mod, only: sh_mode, sh_indent_supported_here, sh_indent_for_continuation, &
                              sh_indent_after_continuation, sh_smie_default_backward_token, sh_set_shell, &
-                             sh_builtins, sh_string_type, sh_canonicalize_shell, sh_shell, &
-                             SH_PLUS_PLUS, SH_INDENT_AFTER_CONTINUATION_NO, SH_INDENT_AFTER_CONTINUATION_DEEPER, &
+                             sh_builtins, sh_canonicalize_shell, sh_shell, &
+                             SH_PLUS_PLUS, &
                              SH_INDENT_AFTER_CONTINUATION_ALWAYS, &
                              sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
                              sh_styles, sh_basic_offset, sh_indent_for_do, SH_PLUS, sh_if, sh_for, sh_case, &
-                             sh_while_getopts, sh_while, sh_function, sh_indexed_loop, sh_modify
+                             sh_while_getopts, sh_while, sh_function, sh_indexed_loop, sh_modify, sh_var_value, &
+                             sh_indent_for_fi, sh_indent_choice_setting_type, SH_MINUS, SH_STAR
     use skeleton_mod, only: skeleton_element_type, skeleton_prompt, skeleton_text, SKELETON_END
     use smie_mod, only: smie_config_show_indent, smie_config_guess
     use keyboard_mod, only: kbd_store_bytes, discard_input, last_message
@@ -58,6 +60,7 @@ module test_sh_script_mod
                           get_buffer_window, delete_other_windows
     use frame_mod, only: selected_window
     use buffer_mod, only: get_buffer
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -84,6 +87,7 @@ contains
                     new_unittest("sh-completion-at-point-function", test_completion), &
                     new_unittest("sh-defun-prompt-regexp", test_subprogram), &
                     new_unittest("sh-styles", test_styles), &
+                    new_unittest("sh-var-value", test_var_value), &
                     new_unittest("sh-skeletons", test_skeletons), &
                     new_unittest("sh-modify", test_sh_modify), &
                     new_unittest("smie-config", test_smie_config), &
@@ -213,9 +217,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer :: saved
+        type(choice_type) :: saved
 
-        saved = sh_indent_after_continuation
+        saved = choice_state(sh_indent_after_continuation)
         call script("for f \"//LF//"in a; do \"//LF//"toto; \"//LF//"done"//LF, h)
 
         checks: block
@@ -225,7 +229,7 @@ contains
             end if
 
             sh_indent_for_continuation = SH_PLUS_PLUS
-            sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_DEEPER
+            sh_indent_after_continuation = .true.
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//"    toto; \"//LF//"    done"//LF)
             if (allocated(error)) exit checks
@@ -233,7 +237,7 @@ contains
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//TAB//"toto; \"//LF//TAB//"done"//LF)
             if (allocated(error)) exit checks
-            sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_NO
+            sh_indent_after_continuation = .false.
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//"in a; do \"//LF//"    toto; \"//LF//"done"//LF)
         end block checks
@@ -320,23 +324,23 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(sh_string_type), allocatable :: b(:)
+        type(string_type), allocatable :: b(:)
 
         call script("", h)
 
         checks: block
             call sh_set_shell("bash", st)
             call sh_builtins%current(b)
-            call check(error, b(1)%s, ".")
+            call check(error, b(1)%text, ".")
             if (allocated(error)) exit checks
-            call check(error, b(size(b))%s, "wait")
+            call check(error, b(size(b))%text, "wait")
             if (allocated(error)) exit checks
             call check(error, any_is(b, "command"), "posix's command")
             if (allocated(error)) exit checks
             ! dash has no entry: ash, then sh.
             call sh_set_shell("dash", st)
             call sh_builtins%current(b)
-            call check(error, b(1)%s, "hash")
+            call check(error, b(1)%text, "hash")
             if (allocated(error)) exit checks
             call check(error,.not. any_is(b, "command"), "no command in dash")
         end block checks
@@ -346,14 +350,14 @@ contains
     contains
 
         logical function any_is(strings, s)
-            type(sh_string_type), intent(in) :: strings(:)
+            type(string_type), intent(in) :: strings(:)
             character(len=*), intent(in) :: s
             integer :: i
 
             any_is = .false.
 
             do i = 1, size(strings)
-                if (strings(i)%s == s) any_is = .true.
+                if (strings(i)%text == s) any_is = .true.
             end do
         end function any_is
     end subroutine test_feature
@@ -561,13 +565,14 @@ contains
     subroutine test_styles(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, out
-        integer(int64) :: saved_offset, saved_do
+        integer(int64) :: saved_offset
+        type(sh_indent_choice_setting_type) :: saved_do
         character(len=:), allocatable :: text
         type(status_type) :: st
 
         call script("", h)
         saved_offset = sh_basic_offset%value
-        saved_do = sh_indent_for_do%value
+        saved_do = sh_indent_for_do
 
         checks: block
             sh_basic_offset = 2
@@ -580,6 +585,8 @@ contains
             call sh_load_style("two", st)
             call check(error, sh_basic_offset%value == 2, "style loaded")
             if (allocated(error)) exit checks
+            call check(error, sh_indent_for_do%columns == 0, "columns loaded")
+            if (allocated(error)) exit checks
             call sh_load_style("nonesuch", st)
             call check(error,.not. st%ok(), "unknown style")
             if (allocated(error)) exit checks
@@ -589,10 +596,13 @@ contains
             out = get_buffer(" *sh-styles*")
             call set_buffer(out, st)
             text = buffer_string()
-            call check(error, index(text, LF//"sh_styles = [sh_style_type(name=""two"", values=[2, ") == 1, &
-                       "saved styles")
+            call check(error, index(text, LF//"sh_styles = [sh_style_type(name=""two"", values=[sh_indent_type(columns=2), ") &
+                       == 1, "saved styles")
             if (allocated(error)) exit checks
-            call check(error, index(text, "SH_PLUS") > 0, "named constant")
+            call check(error, index(text, "sh_indent_type(choice=SH_PLUS)") > 0, "named constant")
+            if (allocated(error)) exit checks
+            call sh_load_style("two", st)
+            call check(error, sh_indent_for_do%choice == SH_PLUS .and. sh_indent_for_do%columns < 0, "named constant loaded")
             call close_buffer(out, st)
         end block checks
 
@@ -603,6 +613,66 @@ contains
         call set_buffer(h, st)
         call leave(h)
     end subroutine test_styles
+
+    ! Own: the indentation variables' numbers and named constants, and their
+    ! buffer-local values.
+    subroutine test_var_value(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, other
+        type(sh_indent_choice_setting_type) :: saved
+        integer(int64) :: saved_offset
+        type(status_type) :: st
+
+        call temp_buffer("", h)
+        saved = sh_indent_for_fi
+        saved_offset = sh_basic_offset%value
+
+        checks: block
+            sh_basic_offset = 4
+            sh_indent_for_fi%columns = 3
+            call check(error, sh_var_value(sh_indent_for_fi), 3)
+            if (allocated(error)) exit checks
+            sh_indent_for_fi%columns = -2
+            call check(error, sh_var_value(sh_indent_for_fi), -2)
+            if (allocated(error)) exit checks
+            sh_indent_for_fi = SH_MINUS
+            call check(error, sh_var_value(sh_indent_for_fi), -4)
+            if (allocated(error)) exit checks
+            call check(error, sh_indent_for_fi%other_value(), "")
+            if (allocated(error)) exit checks
+            sh_indent_for_fi = SH_STAR
+            call check(error, sh_var_value(sh_indent_for_fi), 2)
+            if (allocated(error)) exit checks
+            ! A buffer-local number survives switching buffers.
+            call sh_indent_for_fi%make_local()
+            sh_indent_for_fi%columns = 5
+            call get_or_make_buffer(" *sh-test-other*", other, st)
+            call set_buffer(other, st)
+            call check(error, sh_indent_for_fi%choice == SH_STAR .and. sh_indent_for_fi%columns < 0, "default value")
+            if (allocated(error)) exit checks
+            call set_buffer(h, st)
+            call check(error, sh_indent_for_fi%other_value(), "%columns = 5")
+            if (allocated(error)) exit checks
+            call sh_indent_for_fi%clear_local()
+            call check(error, sh_indent_for_fi%choice == SH_STAR, "local value cleared")
+            if (allocated(error)) exit checks
+            ! A plain number is not a value (panel 2026-11-04).
+            if (allocated(setting_errors)) deallocate (setting_errors)
+            sh_indent_for_fi%choices_declared = .true.
+            sh_indent_for_fi = 0
+            call check(error, sh_indent_for_fi%choice == SH_STAR .and. size(setting_errors) == 1, "rejected")
+            if (allocated(error)) exit checks
+            call check(error, setting_errors(1)%text, "sh_indent_for_fi: 0 is not a value of this option; "// &
+                       "a number of columns is `sh_indent_for_fi%columns = 0'")
+            deallocate (setting_errors)
+        end block checks
+
+        if (sh_indent_for_fi%local_p()) call sh_indent_for_fi%clear_local()
+        sh_indent_for_fi = saved
+        sh_basic_offset = saved_offset
+        if (is_buffer_live(other)) call close_buffer(other, st)
+        call leave(h)
+    end subroutine test_var_value
 
     subroutine test_overriding_action(error)
         type(error_type), allocatable, intent(out) :: error

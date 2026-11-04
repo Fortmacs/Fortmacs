@@ -58,10 +58,10 @@ module register_mod
                          FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xsymbol, symbols, xstring, vtag, V_NULL, V_INTEGER, V_NAME
-    use data_mod, only: number_to_string, clear_all_local_variables
+    use data_mod, only: clear_all_local_variables, string_to_number
     use character_mod, only: MAX_CHAR, string_char_and_length
     use keymap_mod, only: single_key_description
-    use print_mod, only: fortran_string, marker_repr
+    use print_mod, only: fortran_string, marker_text
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_live, get_file_buffer, get_or_make_buffer, &
                           set_buffer, set_buffer_read_only, erase_buffer, close_buffer, barf_if_buffer_read_only, &
                           deactivate_mark_variable, get_buffer
@@ -85,7 +85,8 @@ module register_mod
     use minibuffer_mod, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use help_mod, only: with_output_to_temp_buffer
     use xdisp_mod, only: message
-    use rect_mod, only: rectangle_line_type, extract_rectangle, delete_extract_rectangle, insert_rectangle
+    use rect_mod, only: extract_rectangle, delete_extract_rectangle, insert_rectangle
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -113,7 +114,7 @@ module register_mod
         !> The text, or the file name of a file or file-query reference.
         character(len=:), allocatable :: text
         !> The rectangle.
-        type(rectangle_line_type), allocatable :: rectangle(:)
+        type(string_type), allocatable :: rectangle(:)
         !> The number, or the position of a file-query reference.
         integer(int64) :: number = 0
         !> The buffer position, or the position kept with a window
@@ -131,7 +132,7 @@ module register_mod
         type(register_contents_type) :: value
     end type register_type
 
-    !> The registers, one element for each Emacs register, the most
+    !> The registers, one element for each Fortmacs register, the most
     !> recently made first.  NAME is a character (a number).  The value
     !> is text, a number, a buffer position, a rectangle (an array of
     !> strings), a file name, a position in a file to visit again (a
@@ -149,7 +150,7 @@ module register_mod
     !> for none).
     integer(int64), public :: register_separator = -1
 
-    !> Set contents of Emacs register named REGISTER to VALUE (text, a
+    !> Set contents of Fortmacs register named REGISTER to VALUE (text, a
     !> number or a rectangle).
     !> See the documentation of the variable `registers' for possible
     !> VALUEs.  Port of register.el:set-register.
@@ -190,7 +191,7 @@ contains
         if (allocated(registers)) k = findloc(registers%name, register, dim=1)
     end function register_index
 
-    !> Return contents of Emacs register named REGISTER in VALUE (of kind
+    !> Return contents of Fortmacs register named REGISTER in VALUE (of kind
     !> `REGISTER_EMPTY' if none).  The markers and the window configuration
     !> in VALUE belong to the register.  Port of register.el:get-register.
     subroutine get_register(register, value)
@@ -281,7 +282,7 @@ contains
     !> as no value does).  Port of register.el:set-register (a rectangle).
     subroutine set_register_rectangle(register, value)
         integer(int64), intent(in) :: register
-        type(rectangle_line_type), intent(in) :: value(:)
+        type(string_type), intent(in) :: value(:)
         type(register_contents_type) :: v
 
         if (size(value) > 0) then
@@ -341,7 +342,7 @@ contains
 
     !> "#<buffer NAME>" or "#<closed buffer>" (prin1 of a buffer).
     !> Not a port.
-    function buffer_repr(b) result(s)
+    function buffer_text(b) result(s)
         type(handle_type), intent(in) :: b
         character(len=:), allocatable :: s
 
@@ -350,7 +351,7 @@ contains
         else
             s = "#<closed buffer>"
         end if
-    end function buffer_repr
+    end function buffer_text
 
     !> The width of the selected window (window-width).  Not a port.
     integer function selected_window_width() result(width)
@@ -409,12 +410,14 @@ contains
         character(len=:), allocatable :: s
         type(handle_type) :: b
         type(status_type) :: st
+        character(len=40) :: text
         integer(int64) :: pos
         integer :: k
 
         select case (val%kind)
         case (REGISTER_NUMBER)
-            s = number_to_string(val%number)
+            write (text, "(i0)") val%number
+            s = trim(text)
         case (REGISTER_MARKER)
             call marker_buffer(val%marker, b, st)
 
@@ -422,17 +425,18 @@ contains
                 s = "a marker in no buffer"
             else
                 call marker_position(val%marker, pos, st)
-                s = "a buffer position:"//char(10)//"    buffer "//buffers(b%index)%name//", position "//number_to_string(pos)
+                write (text, '(", position ", i0)') pos
+                s = "a buffer position:"//char(10)//"    buffer "//buffers(b%index)%name//trim(text)
             end if
         case (REGISTER_WINDOW_CONFIGURATION)
             s = "a window configuration: "//configuration_buffers(val%configuration)//"."
         case (REGISTER_FILE)
             s = "the file "//fortran_string(val%text)//"."
         case (REGISTER_BUFFER)
-            s = "the buffer "//buffer_repr(val%buffer)//"."
+            s = "the buffer "//buffer_text(val%buffer)//"."
         case (REGISTER_FILE_QUERY)
-            s = "a file-query reference:"//char(10)//"    file "//fortran_string(val%text)//","//char(10)// &
-                "    position "//number_to_string(val%number)//"."
+            write (text, '("    position ", i0, ".")') val%number
+            s = "a file-query reference:"//char(10)//"    file "//fortran_string(val%text)//","//char(10)//trim(text)
         case (REGISTER_RECTANGLE)
             if (verbose) then
                 s = "the rectangle:"//char(10)
@@ -485,12 +489,8 @@ contains
         do while (i <= len(full))
             if (full(i:i) == char(10)) then
                 d = d//" "
-                i = i + 1
-
-                do while (i <= len(full))
-                    if (full(i:i) /= " " .and. full(i:i) /= char(9)) exit
-                    i = i + 1
-                end do
+                k = verify(full(i + 1:), " "//char(9))
+                i = merge(len(full) + 1, i + k, k == 0)
             else
                 d = d//full(i:i)
                 i = i + 1
@@ -602,7 +602,7 @@ contains
 
         if (is_buffer_live(old)) call set_buffer(old, st)
         if (.not. status%ok()) return
-        table%window_height => fit_preview_window
+        table%window_height%procedure => fit_preview_window
         call temp_buffer_window_show(buffer_handle, window, status, [DISPLAY_ACTION_AT_BOTTOM], table)
     end subroutine register_preview
 
@@ -897,41 +897,6 @@ contains
     ! Numbers
     ! ------------------------------------------------------------------
 
-    !> The integer at the start of TEXT, after spaces and tabs
-    !> (string-to-number in base 10, integers only).  Not a port.
-    pure integer(int64) function string_to_number(text) result(n)
-        character(len=*), intent(in) :: text
-        integer :: i
-        logical :: negative
-
-        n = 0
-        i = 1
-
-        do while (i <= len(text))
-            if (text(i:i) /= " " .and. text(i:i) /= char(9)) exit
-            i = i + 1
-        end do
-
-        negative = .false.
-
-        if (i <= len(text)) then
-            if (text(i:i) == "-") then
-                negative = .true.
-                i = i + 1
-            else if (text(i:i) == "+") then
-                i = i + 1
-            end if
-        end if
-
-        do while (i <= len(text))
-            if (verify(text(i:i), "0123456789") /= 0) exit
-            if (n < 100000000000000000_int64) n = n*10 + (iachar(text(i:i)) - iachar("0"))
-            i = i + 1
-        end do
-
-        if (negative) n = -n
-    end function string_to_number
-
     !> Store NUMBER in REGISTER.
     !> REGISTER is a character, the name of the register.
     !> If NUMBER is absent, a decimal number is read from the buffer
@@ -945,7 +910,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: number
         character(len=:), allocatable :: text
-        integer(int64) :: b, e
+        integer(int64) :: b, e, n
 
         if (present(number)) then
             status = status_type()
@@ -959,7 +924,8 @@ contains
             call goto_char(e)
             call buffer_substring(b, e, text, status)
             if (.not. status%ok()) return
-            call set_register(register, string_to_number(text))
+            call string_to_number(text, n)
+            call set_register(register, n)
         else if (status%ok()) then
             call set_register(register, 0_int64)
         end if
@@ -1078,6 +1044,7 @@ contains
         logical, intent(in), optional :: arg
         type(register_contents_type) :: val
         type(status_type) :: st
+        character(len=20) :: digits
         integer(int64) :: pos
         logical :: after
 
@@ -1091,12 +1058,14 @@ contains
         case (REGISTER_TEXT)
             call insert_for_paste(val%text, status)
         case (REGISTER_NUMBER)
-            call insert(number_to_string(val%number), status)
+            write (digits, "(i0)") val%number
+            call insert(trim(digits), status)
         case (REGISTER_MARKER)
             call marker_position(val%marker, pos, st)
 
             if (st%ok()) then
-                call insert(number_to_string(pos), status)
+                write (digits, "(i0)") pos
+                call insert(trim(digits), status)
             else
                 call set_error(status, FM_USER_ERROR, "Register does not contain text")
             end if
@@ -1170,6 +1139,7 @@ contains
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
         type(register_contents_type) :: sep
+        character(len=64) :: message_text
 
         status = status_type()
         text = ""
@@ -1180,9 +1150,10 @@ contains
         case (REGISTER_TEXT)
             text = sep%text
         case (REGISTER_NUMBER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//number_to_string(sep%number))
+            write (message_text, '("expected array or character(len=*), got ", i0)') sep%number
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, trim(message_text))
         case (REGISTER_MARKER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//marker_repr(sep%marker))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//marker_text(sep%marker))
         case (REGISTER_RECTANGLE)
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
                            "expected integer (a character code), got "//fortran_string(sep%rectangle(1)%text))
@@ -1289,7 +1260,7 @@ contains
         integer(int64), intent(in) :: register, start, end
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: delete_flag
-        type(rectangle_line_type), allocatable :: rectangle(:)
+        type(string_type), allocatable :: rectangle(:)
         logical :: del
 
         del = .false.

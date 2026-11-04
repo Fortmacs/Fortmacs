@@ -2,6 +2,9 @@ sample.f90:13: intrinsics: constant: SCROLL_NIL
 sample.f90:13: intrinsics: constant: SCROLL_T
 sample.f90:14: intrinsics: constant: CHECK_TRUE
 sample.f90:14: intrinsics: constant: CHECK_FALSE
+sample.f90:14: intrinsics: yes-no: CHECK_NO
+sample.f90:15: intrinsics: yes-no: COMPILATION_SCROLL_NO
+sample.f90:15: intrinsics: yes-no: COMPILATION_SCROLL_YES
 sample.f90:18: intrinsics: vector: colors_vector
 sample.f90:22: intrinsics: interactive: command_type%interactive
 sample.f90:27: intrinsics: command-state: this_command
@@ -13,6 +16,7 @@ sample.f90:48: intrinsics: constant: DABBREV_ON
 sample.f90:48: intrinsics: constant: SAVE_ABBREVS_NEVER
 sample.f90:49: intrinsics: constant: KMACRO_REPEAT_DISABLED
 sample.f90:49: intrinsics: constant: RECENTF_NO_LIMIT
+sample.f90:50: intrinsics: yes-no: DABBREV_NO
 sample.f90:54: intrinsics: interface: filter_proc
 sample.f90:54: intrinsics: abbreviation: filter_proc
 sample.f90:58: intrinsics: interface: completion_predicate
@@ -25,13 +29,26 @@ sample.f90:80: intrinsics: abbreviation: proc
 sample.f90:81: intrinsics: test: pred
 sample.f90:86: intrinsics: wrapper: is_null (only `allocated')
 sample.f90:93: intrinsics: wrapper: count_of (only `size')
-sample.f90:121: intrinsics: lisp-helper: is_integer
-sample.f90:121: intrinsics: wrapper: is_integer (only a value's tag or component)
-sample.f90:128: intrinsics: wrapper: value_integer (only a value's tag or component)
-sample.f90:135: intrinsics: wrapper: memq (only `any')
-sample.f90:142: intrinsics: lisp-helper: car
-sample.f90:150: intrinsics: predicate: region_active_p
-sample.f90:156: intrinsics: predicate: processp
-sample.f90:176: intrinsics: verb: run_with_timer
-sample.f90:182: intrinsics: verb: call_indent_line_function
+sample.f90:128: intrinsics: lisp-helper: is_integer
+sample.f90:128: intrinsics: wrapper: is_integer (only a value's tag or component)
+sample.f90:135: intrinsics: wrapper: value_integer (only a value's tag or component)
+sample.f90:142: intrinsics: wrapper: memq (only `any')
+sample.f90:149: intrinsics: lisp-helper: car
+sample.f90:157: intrinsics: predicate: region_active_p
+sample.f90:163: intrinsics: predicate: processp
+sample.f90:183: intrinsics: verb: run_with_timer
+sample.f90:189: intrinsics: verb: call_indent_line_function
+sample.f90:209: intrinsics: write-wrapper: number_text (write the number where it is used)
+sample.f90:218: intrinsics: write-wrapper: digits_of (write the number where it is used)
+sample.f90:237: intrinsics: number-text: number_to_string
+sample.f90:237: intrinsics: number-text: integer_text
+sample.f90:246: intrinsics: char-loop: is_name_less (use fns_mod's is_string_less)
+sample.f90:278: intrinsics: blank-skip: skip_blanks (use `verify')
+sample.f90:285: intrinsics: blank-skip: skip_blanks (use `verify')
+sample.f90:292: intrinsics: blank-skip: skip_blanks (use `verify')
+sample.f90:307: intrinsics: constructor-wrapper: make_string (write the constructor where it is used)
+sample.f90:327: intrinsics: duplicate-helper: string_to_number (the one port is in data_mod.f90)
+sample.f90:334: intrinsics: duplicate-helper: version_le (the one port is in subr_mod.f90)
+sample.f90:341: intrinsics: duplicate-helper: list_delq (no port: use the intrinsics)
+sample.f90:341: intrinsics: wrapper: list_delq (only `pack')
 baseline: intrinsics: baseline entry no longer occurs: sample.f90:gone:wrapper (remove it)

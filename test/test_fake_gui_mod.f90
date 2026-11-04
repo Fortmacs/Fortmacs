@@ -38,7 +38,8 @@ module test_fake_gui_mod
     use term_mod, only: init_tty_entry
     use termchar_mod, only: tty_take_output
     use frame_mod, only: frame_type
-    use window_mod, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows
+    use window_mod, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows, &
+                          window_end
     use xdisp_mod, only: redisplay_internal, init_frame_windows, mode_line_text, mode_line_modes
     use keyboard_mod, only: last_message
     use fake_gui_mod, only: fake_device_type, fake_font_driver_type, make_fake_frame, FAKE_COLUMN_WIDTH, &
@@ -263,7 +264,7 @@ contains
         if (allocated(error)) return
         call check(error, index(device%text_at(128), " U:") == 1, device%text_at(128))
         if (allocated(error)) return
-        call check(error, windows(f%selected_window%index)%window_end_pos == 18_int64, "window end")
+        call check(error, window_end(f%selected_window, st) == 18_int64, "window end")
         call delete_frame_windows(f)
         call close_buffer(h, st)
     end subroutine test_tall_face

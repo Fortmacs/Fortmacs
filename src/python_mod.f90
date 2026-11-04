@@ -39,11 +39,10 @@
 !> commands and variables, `inferior_python_mode', shell completion,
 !> PDB tracking, `python_interpreter' and `python_interpreter_args'),
 !> symbol completion (`python_completion_at_point'), the skeletons
-!> (skeleton.el), FFAP, `python_check', ElDoc, Hideshow, Imenu and
-!> `which_function', Outline mode's variables, `prettify_symbols',
+!> (skeleton.el), FFAP, `python_check', ElDoc, Hideshow,
+!> `python_imenu_create_flat_index', Outline mode's variables, `prettify_symbols',
 !> Flymake, the import management commands (C-c C-i), tree-sitter
-!> (`python_ts_mode'), `add_log_current_subprogram_function'
-!> (`python_info_current_definition' is here), the menu,
+!> (`python_ts_mode'), the menu,
 !> `python_util_clone_local_variables' and the other utilities the shell
 !> uses, the `delete_selection' property of
 !> `python_indent_dedent_line_backspace', and the obsolete
@@ -63,6 +62,7 @@ module python_mod
                           transient_mark_mode
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key, make_sparse_keymap, set_repeat_map
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
                           forward_comment, scan_groups, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
@@ -85,7 +85,7 @@ module python_mod
     use textprop_mod, only: put_text_property
     use xdisp_mod, only: message, tab_width
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, font_lock_keywords_type, &
-                             font_lock_keywords_level, FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_PREPEND
+                             font_lock_keywords_level, FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     use expression_motion_mod, only: forward_expression_function, forward_expression_default_function, &
                                      up_group, mark_subprogram, beginning_of_subprogram_function, &
@@ -98,9 +98,14 @@ module python_mod
     use prog_mode_mod, only: prog_first_column
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use grep_mod, only: grep_files_aliases, grep_files_alias_type, grep_find_ignored_directories, grep_ignore_type
+    use imenu_mod, only: imenu_create_index_function, imenu_index_type
+    use which_func_mod, only: which_func_functions
+    use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
 
+    public :: create_python_imenu_index, format_python_imenu_item_label, format_python_imenu_parent_item_label, &
+              format_python_imenu_parent_item_jump_label, python_imenu_label_procedure
     public :: init_python, python_base_mode, python_mode, python_syntax_context, python_syntax_context_type, &
               is_python_syntax_comment_or_string, is_python_syntax_closing_paren, python_font_lock_syntactic_face_function, &
               python_syntax_count_quotes, python_syntax_stringify, python_indent_guess_indent_offset, &
@@ -160,7 +165,7 @@ module python_mod
     !> If true, enable Python 2 support.
     !> Currently only affects highlighting.
     !>
-    !> After customizing this variable, you must restart Emacs for it to take
+    !> After customizing this variable, you must restart Fortmacs for it to take
     !> effect.  Port of python.el python-2-support.
     type(logical_setting_type), target, public :: python_2_support = logical_setting_type(name="python_2_support", value=.false.)
 
@@ -377,6 +382,41 @@ module python_mod
     type(handle_type), public :: python_base_mode_map
     !> Keymap for `python_mode'.  Port of python.el python-mode-map.
     type(handle_type), public :: python_mode_map
+
+    abstract interface
+        !> A function formatting an Imenu label: LABEL gets the label of the
+        !> subprogram of type TYPE named NAME.  Not a port.
+        subroutine python_imenu_label_procedure(type, name, label)
+            implicit none(type, external)
+            character(len=*), intent(in) :: type, name
+            character(len=:), allocatable, intent(out) :: label
+        end subroutine python_imenu_label_procedure
+    end interface
+
+    !> Imenu function used to format an item label.
+    !> It must be a function with two arguments: TYPE and NAME.  Port of
+    !> python.el python-imenu-format-item-label-function.
+    procedure(python_imenu_label_procedure), pointer, public :: python_imenu_format_item_label_function => null()
+
+    !> Imenu function used to format a parent item label.
+    !> It must be a function with two arguments: TYPE and NAME.  Port of
+    !> python.el python-imenu-format-parent-item-label-function.
+    procedure(python_imenu_label_procedure), pointer, public :: python_imenu_format_parent_item_label_function => null()
+
+    !> Imenu function used to format a parent jump item label.
+    !> It must be a function with two arguments: TYPE and NAME.  Port of
+    !> python.el python-imenu-format-parent-item-jump-label-function.
+    procedure(python_imenu_label_procedure), pointer, public :: python_imenu_format_parent_item_jump_label_function => null()
+
+    ! A node of the tree `create_python_imenu_index' builds: an item
+    ! LABEL at POS, or (PARENT) a submenu LABEL holding its jump item
+    ! JUMP_LABEL at POS and the nodes CHILDREN.
+    type :: imenu_node_type
+        character(len=:), allocatable :: label, jump_label
+        integer(int64) :: pos = 0
+        logical :: parent = .false.
+        integer, allocatable :: children(:)
+    end type imenu_node_type
     !> Keymap to repeat Python indentation commands.
     !> Used in `repeat_mode'.  Port of python.el python-indent-repeat-map.
     type(handle_type), public :: python_indent_repeat_map
@@ -424,11 +464,6 @@ module python_mod
     end interface
 
     integer, parameter :: NAV_BEGINNING_OF_BLOCK = 1, NAV_END_OF_BLOCK = 2
-
-    ! A string of a list.
-    type :: string_list_type
-        character(len=:), allocatable :: s
-    end type string_list_type
 
     character(len=*), parameter :: DEF_REGEXP = &
                                    "\_<def[[:space:]]+\([_[:alpha:]][_[:word:]]*\)"
@@ -593,6 +628,19 @@ contains
 
         if (is_syntax_table_live(python_mode_syntax_table)) return
         call forward_setting(python_2_support)
+
+        if (.not. associated(python_imenu_format_item_label_function)) then
+            python_imenu_format_item_label_function => format_python_imenu_item_label
+        end if
+
+        if (.not. associated(python_imenu_format_parent_item_label_function)) then
+            python_imenu_format_parent_item_label_function => format_python_imenu_parent_item_label
+        end if
+
+        if (.not. associated(python_imenu_format_parent_item_jump_label_function)) then
+            python_imenu_format_parent_item_jump_label_function => format_python_imenu_parent_item_jump_label
+        end if
+
         call forward_setting(python_indent_offset)
         call forward_setting(python_indent_guess_indent_offset_variable)
         call forward_setting(python_indent_guess_indent_offset_verbose)
@@ -636,6 +684,7 @@ contains
         call keymap_set(python_base_mode_map, "<backtab>", "python_indent_dedent_line", st)
         call keymap_set(python_base_mode_map, "C-c <", "python_indent_shift_left", st)
         call keymap_set(python_base_mode_map, "C-c >", "python_indent_shift_right", st)
+        call keymap_set(python_base_mode_map, "C-c C-j", "imenu", st)
         ! Utilities
         call bind_remap("complete_name", "completion_at_point")
         call make_sparse_keymap(python_indent_repeat_map)
@@ -800,7 +849,7 @@ contains
         !   "\\" "\'" "\a" "\b" "\f" "\n" "\r" "\t" "\v"
         !   "\ooo" character with octal value ooo
         !   "\xhh" character with hex value hh
-        h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_YES)
+        h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_REPLACE)
         call append(font_lock_keyword(matcher=bytes_escape_matcher, highlights=h1))
         ! escape sequences within string literals, the same as appear in bytes
         ! literals in addition to:
@@ -2474,7 +2523,7 @@ contains
     recursive subroutine python_info_current_definition(name, include_type)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(in), optional :: include_type
-        type(string_list_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         character(len=:), allocatable :: type, matched, first, second
         integer(int64) :: opoint, begv, zv_from_end, starting_indentation, starting_pos, last_indent, min_indent, &
                           ending, p
@@ -2553,12 +2602,12 @@ contains
                 has_last = .true.
 
                 if (.not. incl .or. allocated(type)) then
-                    call append_name(match_string_no_properties(1))
+                    call prepend_string(names, match_string_no_properties(1))
                 else
                     matched = match_string_no_properties(0)
                     call split2(matched, first, second)
                     type = first
-                    call append_name(second)
+                    call prepend_string(names, second)
                 end if
             end if
 
@@ -2572,7 +2621,7 @@ contains
 
             do k = 1, size(names)
                 if (k > 1) name = name//"."
-                name = name//names(k)%s
+                name = name//names(k)%text
             end do
         end if
 
@@ -2581,51 +2630,38 @@ contains
 
     contains
 
-        subroutine append_name(n)
-            character(len=*), intent(in) :: n
-            type(string_list_type) :: name
-
-            name%s = n
-            names = [name, names]
-        end subroutine append_name
-
         ! The first two words of S (split-string at whitespace).
         subroutine split2(s, w1, w2)
             character(len=*), intent(in) :: s
             character(len=:), allocatable, intent(out) :: w1, w2
-            integer :: i, b
+            character(len=*), parameter :: blanks = " "//TAB//LF
+            integer :: i, b, e
 
-            i = 1
-
-            do while (i <= len(s))
-                if (s(i:i) /= " " .and. s(i:i) /= TAB .and. s(i:i) /= LF) exit
-                i = i + 1
-            end do
-
-            b = i
-
-            do while (i <= len(s))
-                if (s(i:i) == " " .or. s(i:i) == TAB .or. s(i:i) == LF) exit
-                i = i + 1
-            end do
-
+            w1 = ""
+            w2 = ""
+            b = verify(s, blanks)
+            if (b == 0) return
+            e = scan(s(b:), blanks)
+            i = merge(len(s) + 1, b + e - 1, e == 0)
             w1 = s(b:i - 1)
-
-            do while (i <= len(s))
-                if (s(i:i) /= " " .and. s(i:i) /= TAB .and. s(i:i) /= LF) exit
-                i = i + 1
-            end do
-
-            b = i
-
-            do while (i <= len(s))
-                if (s(i:i) == " " .or. s(i:i) == TAB .or. s(i:i) == LF) exit
-                i = i + 1
-            end do
-
+            if (i > len(s)) return
+            b = verify(s(i:), blanks)
+            if (b == 0) return
+            b = i + b - 1
+            e = scan(s(b:), blanks)
+            i = merge(len(s) + 1, b + e - 1, e == 0)
             w2 = s(b:i - 1)
         end subroutine split2
     end subroutine python_info_current_definition
+
+    !> `python_info_current_definition' without the type of the subprogram:
+    !> Python mode's `add_log_current_subprogram_function'.  Not a port:
+    !> python.el gives that variable python-info-current-defun.
+    recursive subroutine get_python_current_definition(name)
+        character(len=:), allocatable, intent(out) :: name
+
+        call python_info_current_definition(name)
+    end subroutine get_python_current_definition
 
     !> Return true if current statement opens a block.  Port of
     !> python.el:python-info-statement-starts-block-p.
@@ -4577,6 +4613,7 @@ contains
         call normal_auto_fill_function%set_local(python_do_auto_fill)
         call beginning_of_subprogram_function%set_local(python_nav_beginning_of_definition)
         call end_of_subprogram_function%set_local(python_nav_end_of_definition_function)
+        call add_log_current_subprogram_function%set_local(get_python_current_definition)
         call post_self_insert_hook%append(python_indent_post_self_insert_function, local=.true.)
         if (.not. installed_grep_hook) call install_grep_settings()
         call major_modes%python_base_mode%end(saved, status)
@@ -4642,9 +4679,224 @@ contains
         levels(4) = font_lock_keywords_level(python_font_lock_keywords_maximum_decoration)
         call font_lock_defaults%set_local(levels=levels, syntactic_face_function=python_font_lock_syntactic_face_function)
         call syntax_propertize_function%set_local(python_syntax_propertize_function)
+        call imenu_create_index_function%set_local(create_python_imenu_index)
+        call which_func_functions%prepend(python_which_func_adapter, local=.true.)
         if (python_indent_guess_indent_offset_variable%value) call python_indent_guess_indent_offset()
         call major_modes%python_mode%end(saved, status)
     end subroutine python_mode
+
+    !> `python_info_current_definition' as a function of
+    !> `which_func_functions'.  Not a port.
+    recursive subroutine python_which_func_adapter(string, status)
+        character(len=:), allocatable, intent(out) :: string
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call python_info_current_definition(string)
+    end subroutine python_which_func_adapter
+
+    ! ------------------------------------------------------------------
+    ! Imenu
+    ! ------------------------------------------------------------------
+
+    !> Return Imenu label for single node using TYPE and NAME.  Port of
+    !> python.el:python-imenu-format-item-label.
+    subroutine format_python_imenu_item_label(type, name, label)
+        character(len=*), intent(in) :: type, name
+        character(len=:), allocatable, intent(out) :: label
+
+        label = name//" ("//type//")"
+    end subroutine format_python_imenu_item_label
+
+    !> Return Imenu label for parent node using TYPE and NAME.  Port of
+    !> python.el:python-imenu-format-parent-item-label.
+    subroutine format_python_imenu_parent_item_label(type, name, label)
+        character(len=*), intent(in) :: type, name
+        character(len=:), allocatable, intent(out) :: label
+
+        call format_python_imenu_item_label(type, name, label)
+        label = label//"..."
+    end subroutine format_python_imenu_parent_item_label
+
+    !> Return Imenu label for parent node jump using TYPE and NAME.  Port of
+    !> python.el:python-imenu-format-parent-item-jump-label.
+    subroutine format_python_imenu_parent_item_jump_label(type, name, label)
+        character(len=*), intent(in) :: type, name
+        character(len=:), allocatable, intent(out) :: label
+
+        if (len(name) > 0) continue
+
+        if (type == "class") then
+            label = "*class definition*"
+        else
+            label = "*function definition*"
+        end if
+    end subroutine format_python_imenu_parent_item_jump_label
+
+    !> Return tree Imenu index for the current Python buffer.
+    !> Change `python_imenu_format_item_label_function',
+    !> `python_imenu_format_parent_item_label_function',
+    !> `python_imenu_format_parent_item_jump_label_function' to
+    !> customize how labels are formatted.  Port of
+    !> python.el:python-imenu-create-index.
+    recursive subroutine create_python_imenu_index(index, status)
+        type(imenu_index_type), intent(out) :: index
+        type(status_type), intent(out) :: status
+        type(imenu_node_type), allocatable :: nodes(:)
+        integer, allocatable :: top(:), none(:)
+        integer :: tree, i
+
+        status = status_type()
+        allocate (index%entries(0), nodes(0), top(0), none(0))
+        call goto_char(point_max())
+
+        do
+            tree = build_tree(0_int64, python_indent_offset%value, none)
+            if (tree == 0) exit
+            top = [tree, top]
+        end do
+
+        do i = 1, size(top)
+            call append_node(top(i), 0)
+        end do
+
+    contains
+
+        ! Make a node; K gets its index in NODES.
+        subroutine make_node(k, label, pos, parent, jump_label, children)
+            integer, intent(out) :: k
+            character(len=*), intent(in) :: label
+            integer(int64), intent(in) :: pos
+            logical, intent(in) :: parent
+            character(len=*), intent(in) :: jump_label
+            integer, intent(in) :: children(:)
+            type(imenu_node_type) :: node
+
+            node%label = label
+            node%jump_label = jump_label
+            node%pos = pos
+            node%parent = parent
+            allocate (node%children(size(children)))
+            node%children(:) = children(:)
+            nodes = [nodes, node]
+            k = size(nodes)
+        end subroutine make_node
+
+        ! Recursively build the tree of nested definitions of a node: the
+        ! node, 0 for none.  Arguments MIN_INDENT, PREV_INDENT and TREE are
+        ! internal.  Port of python.el:python-imenu--build-tree.
+        recursive integer function build_tree(min_indent, prev_indent, tree) result(k)
+            integer(int64), intent(in) :: min_indent, prev_indent
+            integer, intent(in) :: tree(:)
+            character(len=:), allocatable :: type, name, label, jump_label
+            integer(int64) :: pos, indent, children_indent_limit
+            integer :: leaf, sub
+
+            k = 0
+            pos = python_nav_backward_definition(1_int64)
+            ! Nothing found, probably near to is_bob.
+            if (pos == 0) return
+            call get_definition_type_name(type, name)
+            call python_imenu_format_item_label_function(type, name, label)
+            indent = current_indentation()
+            children_indent_limit = python_indent_offset%value + min_indent
+
+            if (indent <= min_indent) then
+                ! The current indentation points that this is a parent
+                ! node, add it to the tree and stop recursing
+                ! (python-imenu--put-parent).
+                if (size(tree) == 0) then
+                    call make_node(k, label, pos, .false., "", tree)
+                else
+                    call python_imenu_format_parent_item_jump_label_function(type, name, jump_label)
+                    call make_node(k, label, pos, .true., jump_label, tree)
+                end if
+            else if (indent <= children_indent_limit) then
+                ! This lies within the children indent offset range, so
+                ! it's a normal child of its parent (i.e., not a child of
+                ! a child).
+                call make_node(leaf, label, pos, .false., "", tree(1:0))
+                k = build_tree(min_indent, indent, [leaf, tree])
+            else
+                ! A child of a child: parse it recursively by swapping
+                ! prev-indent and min-indent plus adding this newly found
+                ! item to a fresh subtree.
+                call make_node(leaf, label, pos, .false., "", tree(1:0))
+                sub = build_tree(prev_indent, indent, [leaf])
+
+                if (sub == 0) then
+                    k = build_tree(min_indent, indent, tree)
+                else
+                    k = build_tree(min_indent, indent, [sub, tree])
+                end if
+            end if
+        end function build_tree
+
+        ! TYPE and NAME of the subprogram at point.  Port of
+        ! python.el:python-imenu--get-defun-type-name.
+        subroutine get_definition_type_name(type, name)
+            character(len=:), allocatable, intent(out) :: type, name
+            character(len=*), parameter :: WS = " "//TAB//LF//achar(13)//achar(12)//achar(11)
+            character(len=:), allocatable :: text, first, second, last
+            type(status_type) :: st
+            integer :: b, e, k, n, rest
+
+            type = ""
+            name = ""
+            if (.not. looking_at(python_nav_beginning_of_definition_regexp, st)) return
+            text = match_string_no_properties(0)
+            ! split-string: the words between whitespace.
+            n = 0
+            rest = 1
+            first = ""
+            second = ""
+            last = ""
+
+            do
+                k = verify(text(rest:), WS)
+                if (k == 0) exit
+                b = rest + k - 1
+                k = scan(text(b:), WS)
+
+                if (k == 0) then
+                    e = len(text)
+                else
+                    e = b + k - 2
+                end if
+
+                n = n + 1
+                if (n == 1) first = text(b:e)
+                if (n == 2) second = text(b:e)
+                last = text(b:e)
+                rest = e + 1
+            end do
+
+            if (n == 2) then
+                type = first
+                name = second
+            else if (n > 2) then
+                type = first//" "//second
+                name = last
+            end if
+        end subroutine get_definition_type_name
+
+        ! Append node K to INDEX in submenu PARENT.
+        recursive subroutine append_node(k, parent)
+            integer, intent(in) :: k, parent
+            integer :: entry, jump, i
+
+            if (nodes(k)%parent) then
+                call index%append(nodes(k)%label, entry, parent=parent, submenu=.true.)
+                call index%append(nodes(k)%jump_label, jump, position=nodes(k)%pos, parent=entry)
+
+                do i = 1, size(nodes(k)%children)
+                    call append_node(nodes(k)%children(i), entry)
+                end do
+            else
+                call index%append(nodes(k)%label, entry, position=nodes(k)%pos, parent=parent)
+            end if
+        end subroutine append_node
+    end subroutine create_python_imenu_index
 
     ! ------------------------------------------------------------------
     ! Commands

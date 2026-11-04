@@ -36,8 +36,8 @@
 !>
 !> Deferred: the completion at point of `html_tags' (html-mode--complete-at-point),
 !> `sgml_tags_invisible' (cursor sensors), `sgml_electric_tag_pair_mode'
-!> (text clones), `sgml_show_context', facemenu, tildify, Imenu,
-!> outline and add-log variables, `sgml_comment_indent_new_line',
+!> (text clones), `sgml_show_context', facemenu, tildify,
+!> outline variables, `sgml_comment_indent_new_line',
 !> the buffer-local `adaptive_fill_regexp', `fill_nobreak_functions' and
 !> `sentence_end_base', the classes and IDs of HTML buffers (libxml),
 !> yank-media handlers, `html_autoview_mode' and `browse_url_of_buffer'.
@@ -53,6 +53,7 @@ module sgml_mode_mod
     use buffer_mod, only: buffers, current, buffer_serial_live
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set
     use keyboard_mod, only: last_command_event, this_command, sit_for
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
@@ -61,7 +62,7 @@ module sgml_mode_mod
                           syntax_descriptor_type, string_to_syntax, syntax_descriptor_value
     use editfns_mod, only: point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, char_before, &
                            line_beginning_position, line_end_position, narrow_to_region, widen, buffer_substring, &
-                           delete_region, following_char, preceding_char
+                           delete_region, following_char, preceding_char, char_to_string
     use cmds_mod, only: forward_line, forward_char, self_insert_command, delete_char
     use insdel_mod, only: insert
     use indent_mod, only: current_column, current_indentation, indent_line_to, indent_line_function, &
@@ -113,6 +114,9 @@ module sgml_mode_mod
     use print_mod, only: fortran_string
     use data_mod, only: history_setting_type
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
+    use imenu_mod, only: imenu_patterns, imenu_pattern_type, imenu_create_index_function, imenu_index_type
+    use string_type_mod, only: string_type, append_string
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -332,6 +336,13 @@ module sgml_mode_mod
                                    "[ "//TAB//"]*$\|[ "//TAB//"]*</?\([_:[:alpha:]][-_.:[:alnum:]]*\(?" &
                                    //":[^_.:""'/><[:alnum:]-]\(?:[^""'/><]\|""[^""]*""\|'[^']" &
                                    //"*'\)*\)?\)?>"
+    !> A regular expression matching a head line to be added to the menu.
+    !> The first `match_string' should be a number from 1-9.
+    !> The second `match_string' matches extra tags and is ignored.
+    !> The third `match_string' will be the used in the menu.  Port of
+    !> sgml-mode.el html-imenu-regexp.
+    character(len=:), allocatable, public :: html_imenu_regexp
+
     character(len=*), parameter :: HTML_SUBPROGRAM_REGEXP = &
                                    "<[ "//TAB//achar(13)//LF//"]*\(?:[hH][0-6]\|title\|TITLE\|Title\)[^>]*>" &
                                    //"[ "//TAB//achar(13)//LF//"]*\([^<"//achar(13)//LF//"]*[^ <"//TAB//achar(13)//LF//"]+\)"
@@ -347,18 +358,19 @@ module sgml_mode_mod
     integer, parameter, public :: SGML_END_TAG_NONE = 0, SGML_END_TAG_DEFAULT = 1, SGML_END_TAG_NO = 2, &
                                   SGML_END_TAG_NEWLINES = 3, SGML_END_TAG_SKELETON = 4
 
-    !> Values of `sgml_quick_keys' and `html_quick_keys': disabled
-    !> (QUICK_KEYS_NO), enabled (QUICK_KEYS_YES), enabled and indent when
-    !> closing tags (QUICK_KEYS_INDENT), closing the tag at `/'
-    !> (QUICK_KEYS_CLOSE); QUICK_KEYS_DEFAULT, for `html_quick_keys' only,
-    !> takes the value of `sgml_quick_keys'.
-    integer, parameter, public :: QUICK_KEYS_NO = 0, QUICK_KEYS_YES = 1, QUICK_KEYS_INDENT = 2, QUICK_KEYS_CLOSE = 3, &
-                                  QUICK_KEYS_DEFAULT = -1
+    !> Values of `sgml_quick_keys' besides disabled (.false.) and enabled
+    !> (.true.): enabled and indent when closing tags
+    !> (SGML_QUICK_KEYS_INDENT), closing the tag at `/'
+    !> (SGML_QUICK_KEYS_CLOSE).
+    integer, parameter, public :: SGML_QUICK_KEYS_INDENT = 2, SGML_QUICK_KEYS_CLOSE = 3
 
-    !> A string of a list.
-    type, public :: sgml_string_type
-        character(len=:), allocatable :: s
-    end type sgml_string_type
+    !> Values of `html_quick_keys' besides disabled (.false.) and enabled
+    !> (.true.): HTML_QUICK_KEYS_INDENT and HTML_QUICK_KEYS_CLOSE, taken
+    !> from SGML_QUICK_KEYS_INDENT and SGML_QUICK_KEYS_CLOSE (in HTML mode
+    !> they are enabled); HTML_QUICK_KEYS_DEFAULT takes the value of
+    !> SGML mode's option when SGML mode first runs.
+    integer, parameter, public :: HTML_QUICK_KEYS_INDENT = 2, HTML_QUICK_KEYS_CLOSE = 3, &
+                                  HTML_QUICK_KEYS_DEFAULT = -1
 
     !> An entry of a tag's attribute list in `sgml_tags': an attribute NAME
     !> and its ATTRIBUTERULE (a fixed VALUE, OPTIONAL with possible VALUES:
@@ -369,7 +381,7 @@ module sgml_mode_mod
         logical :: bare = .false.
         character(len=:), allocatable :: value
         logical :: optional = .false.
-        type(sgml_string_type), allocatable :: values(:)
+        type(string_type), allocatable :: values(:)
     end type sgml_attribute_rule_type
 
     !> A tag of `sgml_tags': its NAME, what follows it (END_TAG, see
@@ -429,17 +441,19 @@ module sgml_mode_mod
     !> sgml-mode.el html-tag-help.
     type(sgml_tag_help_type), allocatable, public :: html_tag_help(:)
 
-    !> Use <, >, &, /, SPC and `sgml_specials' keys "electrically" when not
-    !> QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Emacs will
+    !> Use <, >, &, /, SPC and `sgml_specials' keys "electrically" when
+    !> true.  By setting the option to SGML_QUICK_KEYS_INDENT, Fortmacs will
     !> eagerly reindent the current line when you manually close a tag.
     !> Port of sgml-mode.el sgml-quick-keys (its key bindings are made when
     !> SGML mode first runs, as loading sgml-mode.el makes them).
-    integer, public :: sgml_quick_keys = QUICK_KEYS_NO
+    type(choice_setting_type), public :: sgml_quick_keys = &
+                                         choice_setting_type(name="sgml_quick_keys")
 
-    !> Use C-c X combinations for quick insertion of frequent tags when not
-    !> QUICK_KEYS_NO.  This defaults to `sgml_quick_keys', which see.  Port
+    !> Use C-c X combinations for quick insertion of frequent tags when
+    !> true.  This defaults to `sgml_quick_keys', which see.  Port
     !> of sgml-mode.el html-quick-keys.
-    integer, public :: html_quick_keys = QUICK_KEYS_DEFAULT
+    type(choice_setting_type), public :: html_quick_keys = &
+                                         choice_setting_type(name="html_quick_keys", choice=HTML_QUICK_KEYS_DEFAULT)
 
     !> Default value for `skeleton_transformation_function' in SGML mode.
     !> Port of sgml-mode.el sgml-transformation-function (null for identity;
@@ -456,7 +470,7 @@ module sgml_mode_mod
 
     ! The prompt and candidates of `read_from_names'.
     character(len=:), allocatable :: reading_prompt
-    type(sgml_string_type), allocatable :: reading_names(:)
+    type(string_type), allocatable :: reading_names(:)
 
     ! The v2 of `sgml_tag': its tag's end tag kind, rule, and whether a
     ! skeleton rule has \n in place of its interactor.
@@ -1047,7 +1061,7 @@ contains
     end subroutine sgml_comment_indent
 
     !> Insert ARG slash characters.
-    !> Behaves electrically if `sgml_quick_keys' is not QUICK_KEYS_NO.  Port of
+    !> Behaves electrically if `sgml_quick_keys' is true.  Port of
     !> sgml-mode.el:sgml-slash.
     recursive subroutine sgml_slash(arg, status)
         integer(int64), intent(in) :: arg
@@ -1058,10 +1072,10 @@ contains
 
         if (.not. (before_char_at(point()) == iachar("<") .and. arg == 1)) then
             call sgml_slash_matching(arg, status)
-        else if (sgml_quick_keys == QUICK_KEYS_INDENT) then
+        else if (sgml_quick_keys%choice == SGML_QUICK_KEYS_INDENT) then
             call insert("/", status)
             call indent_according_to_mode(status)
-        else if (sgml_quick_keys == QUICK_KEYS_CLOSE) then
+        else if (sgml_quick_keys%choice == SGML_QUICK_KEYS_CLOSE) then
             call delete_char(-1_int64, status)
             if (status%ok()) call sgml_close_tag(status)
         else
@@ -1142,6 +1156,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: char
         integer(int64) :: c
+        character(len=:), allocatable :: text
 
         call insert("&", status)
         if (.not. status%ok()) return
@@ -1154,27 +1169,12 @@ contains
         end if
 
         call delete_char(-1_int64, status)
-        call insert(char_string(int(c)), status)
+        call char_to_string(int(c, int32), text, status)
+        if (.not. status%ok()) return
+        call insert(text, status)
         call undo_boundary()
         call sgml_namify_char(status)
     end subroutine sgml_name_char
-
-    ! The UTF-8 text of the character C.
-    ! Not a port.
-    function char_string(c) result(s)
-        integer, intent(in) :: c
-        character(len=:), allocatable :: s
-
-        if (c < 128) then
-            s = achar(c)
-        else if (c < 2048) then
-            s = achar(192 + c/64)//achar(128 + mod(c, 64))
-        else if (c < 65536) then
-            s = achar(224 + c/4096)//achar(128 + mod(c/64, 64))//achar(128 + mod(c, 64))
-        else
-            s = achar(240 + c/262144)//achar(128 + mod(c/4096, 64))//achar(128 + mod(c/64, 64))//achar(128 + mod(c, 64))
-        end if
-    end function char_string
 
     !> Change the char before point into its `&name;' equivalent.
     !> Uses `sgml_char_names'.  Port of sgml-mode.el:sgml-namify-char
@@ -1770,7 +1770,10 @@ contains
                     if (ios /= 0) code = 0
                 end select
 
-                replacement = char_string(int(code))
+                ! A code out of range is an invalid character.
+                call char_to_string(int(merge(code, -1_int64, code >= 0 .and. code <= huge(0_int32)), int32), &
+                                    replacement, status)
+                if (.not. status%ok()) exit
                 subexp = 1
                 if (before_char_at(me(0)) == iachar(";")) subexp = 0
                 call replace_match(replacement, status, fixedcase=.true., literal=.true., subexp=subexp)
@@ -2610,19 +2613,16 @@ contains
         end do
     end subroutine sort_strings
 
-    !> Return the name of the last HTML title or heading (`found' false for
+    !> Return the name of the last HTML title or heading (unallocated for
     !> none).  Port of sgml-mode.el:html-current-defun-name.
-    recursive subroutine html_current_heading_name(name, found)
+    recursive subroutine html_current_heading_name(name)
         character(len=:), allocatable, intent(out) :: name
-        logical, intent(out) :: found
         type(status_type) :: st
         integer(int64) :: opoint, pos
 
-        name = ""
         opoint = point()
         call re_search_backward(HTML_SUBPROGRAM_REGEXP, pos, st, noerror=SEARCH_NOERROR)
-        found = pos > 0
-        if (found) name = match_string_no_properties(1)
+        if (st%ok() .and. pos > 0) name = match_string_no_properties(1)
         call goto_char(opoint)
     end subroutine html_current_heading_name
 
@@ -2800,6 +2800,8 @@ contains
 ! Port of sgml-mode.el:sgml-mode (in part: its body).
     ! The body of `sgml_mode'.
     recursive subroutine setup()
+        type(imenu_pattern_type), allocatable :: patterns(:)
+        character(len=:), allocatable :: q
         integer :: k
 
         call make_local_entry(k)
@@ -2819,6 +2821,17 @@ contains
         ! recognized.
         call comment_start_skip%set_local("<!--[ "//TAB//"]*")
         call comment_end_skip%set_local("[ "//TAB//"]*--[ "//TAB//LF//"]*>")
+        ! This definition has an HTML leaning but probably fits well for other modes.
+        q = "?"
+        if (sgml_xml_mode%value) q = ""
+        allocate (patterns(3))
+        patterns(1) = imenu_pattern_type(menu_title="", regexp="<!\(element\|entity\)[ "//TAB//LF//"]+%?[ "//TAB//LF// &
+                                         "]*\("//SGML_NAME_REGEXP//"\)", subexpression=2)
+        patterns(2) = imenu_pattern_type(menu_title="Id", regexp="<[^>]+[ "//TAB//LF//"]+[Ii][Dd]=\(['""]"//q// &
+                                         "\)\("//SGML_NAME_REGEXP//"\)\1", subexpression=2)
+        patterns(3) = imenu_pattern_type(menu_title="Name", regexp="<[^>]+[ "//TAB//LF//"]+[Nn][Aa][Mm][Ee]=\(['""]"// &
+                                         q//"\)\("//SGML_NAME_REGEXP//"\)\1", subexpression=2)
+        call imenu_patterns%set_local(patterns)
         call skeleton_further_elements_set_local(sgml_further_elements)
         call skeleton_end_newline%set_local(.false.)
         call skeleton_end_hook%prepend(sgml_skeleton_end, local=.true.)
@@ -2848,8 +2861,39 @@ contains
         ! sgml-empty-tags and sgml-unclosed-tags.
         call make_local_entry(k)
         locals(k)%html = .true.
+        call add_log_current_subprogram_function%set_local(html_current_heading_name)
+        call imenu_create_index_function%set_local(html_imenu_index)
         call major_modes%html_mode%end(saved, status)
     end subroutine html_mode
+
+    !> Return a table of contents for an HTML buffer for use with Imenu.
+    !> Port of sgml-mode.el:html-imenu-index.
+    recursive subroutine html_imenu_index(index, status)
+        type(imenu_index_type), intent(out) :: index
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: digit
+        integer(int64) :: here, pos
+        integer :: k, level
+
+        status = status_type()
+        allocate (index%entries(0))
+        here = point()
+        call goto_char(point_min())
+
+        if (.not. allocated(html_imenu_regexp)) then
+            html_imenu_regexp = "\s-*<h\([1-9]\)[^"//LF//"<>]*>\(<[^"//LF//"<>]*>\)*\s-*\([^"//LF//"<>]*\)"
+        end if
+
+        do
+            call re_search_forward(html_imenu_regexp, pos, status, noerror=SEARCH_NOERROR)
+            if (.not. status%ok() .or. pos == 0) exit
+            digit = match_string(1)
+            level = ichar(digit(1:1)) - ichar("0")
+            call index%append(repeat(" ", max(0, 2*(level - 1)))//match_string(3), k, position=line_beginning_position())
+        end do
+
+        call goto_char(here)
+    end subroutine html_imenu_index
 
     ! Not a port.
     !> Define SGML mode and HTML mode: their variables, tables, keymaps and
@@ -2857,6 +2901,7 @@ contains
     recursive subroutine init_sgml_mode()
         type(status_type) :: st
         type(named_face_type), pointer :: f
+        character(len=:), allocatable :: key
         integer :: c
 
         if (is_syntax_table_live(sgml_mode_syntax_table)) return
@@ -2923,7 +2968,8 @@ contains
         call keymap_set(html_mode_map, "C-c C-c i", "html_image", st)
 
         do c = 128, 255
-            call keymap_set(sgml_mode_map, char_string(c), "sgml_maybe_name_self", st)
+            call char_to_string(int(c, int32), key, st)
+            call keymap_set(sgml_mode_map, key, "sgml_maybe_name_self", st)
         end do
 
         commands%sgml_mode%execute => sgml_mode
@@ -3090,7 +3136,7 @@ contains
             allocate (rule%values(size(values)))
 
             do i = 1, size(values)
-                rule%values(i)%s = trim(values(i))
+                rule%values(i)%text = trim(values(i))
             end do
         end if
 
@@ -3140,7 +3186,7 @@ contains
 
     ! A completion table of NAMES.  Not a port.
     function table_of(names) result(table)
-        type(sgml_string_type), intent(in) :: names(:)
+        type(string_type), intent(in) :: names(:)
         type(completion_table_type) :: table
         type(value_type), allocatable :: items(:)
         integer :: i
@@ -3148,7 +3194,7 @@ contains
         allocate (items(size(names)))
 
         do i = 1, size(names)
-            items(i) = value_type(text=names(i)%s)
+            items(i) = value_type(text=names(i)%text)
         end do
 
         table%list = make_list(items)
@@ -3156,7 +3202,7 @@ contains
 
     ! The names of the tags of the current table.  Not a port.
     function tag_names() result(names)
-        type(sgml_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(sgml_tags_type), pointer :: tags
         integer :: i
 
@@ -3167,7 +3213,7 @@ contains
         allocate (names(size(tags%entries)))
 
         do i = 1, size(names)
-            names(i)%s = tags%entries(i)%name
+            names(i)%text = tags%entries(i)%name
         end do
     end function tag_names
 
@@ -3226,10 +3272,10 @@ contains
                 if (rule%optional) then
                     if (allocated(reading_names)) deallocate (reading_names)
                     allocate (reading_names(n))
-                    reading_names(1)%s = "t"
+                    reading_names(1)%text = "t"
 
                     do i = 1, size(rule%values)
-                        reading_names(i + 1)%s = rule%values(i)%s
+                        reading_names(i + 1)%text = rule%values(i)%text
                     end do
                 else
                     reading_names = rule%values
@@ -3341,7 +3387,7 @@ contains
                         do j = 2, size(alist)
                             if (alist(j)%bare) cycle
                             i = i + 1
-                            always%values(i)%s = alist(j)%name
+                            always%values(i)%text = alist(j)%name
                         end do
                     end if
                 end if
@@ -3357,7 +3403,7 @@ contains
                     allocate (reading_names(size(alist)))
 
                     do j = 1, size(alist)
-                        reading_names(j)%s = alist(j)%name
+                        reading_names(j)%text = alist(j)%name
                     end do
 
                     call skeleton_read(attribute, status, reader=read_from_names)
@@ -3750,7 +3796,7 @@ contains
                                                                                         "html_id_anchor", "html_image", "html_span"]
         integer :: i
 
-        if (sgml_quick_keys /= QUICK_KEYS_NO) then
+        if (.not. sgml_quick_keys%is_off()) then
             call keymap_set(sgml_mode_map, "&", "sgml_name_char", st)
             call keymap_set(sgml_mode_map, "<", "sgml_tag", st)
             call keymap_set(sgml_mode_map, "SPC", "sgml_auto_attributes", st)
@@ -3759,11 +3805,19 @@ contains
             if (any(sgml_specials == iachar("'"))) call keymap_set(sgml_mode_map, "'", "sgml_name_self", st)
         end if
 
-        html_quick_keys_default: if (html_quick_keys == QUICK_KEYS_DEFAULT) then
-            html_quick_keys = sgml_quick_keys
-        end if html_quick_keys_default
+        ! Each option has its own named constants.
+        follow_sgml_quick_keys: if (html_quick_keys%choice == HTML_QUICK_KEYS_DEFAULT) then
+            select case (sgml_quick_keys%choice)
+            case (SGML_QUICK_KEYS_INDENT)
+                html_quick_keys = HTML_QUICK_KEYS_INDENT
+            case (SGML_QUICK_KEYS_CLOSE)
+                html_quick_keys = HTML_QUICK_KEYS_CLOSE
+            case default
+                html_quick_keys = sgml_quick_keys%value
+            end select
+        end if follow_sgml_quick_keys
 
-        if (html_quick_keys /= QUICK_KEYS_NO) then
+        if (.not. html_quick_keys%is_off()) then
             do i = 1, size(html_keys)
                 call keymap_set(html_mode_map, trim(html_keys(i)), trim(html_commands(i)), st)
             end do
@@ -3902,10 +3956,9 @@ contains
     recursive subroutine cell_kind_interactor(string, status)
         character(len=:), allocatable, intent(out) :: string
         type(status_type), intent(out) :: status
-        type(sgml_string_type) :: kinds(2)
+        type(string_type), allocatable :: kinds(:)
 
-        kinds(1)%s = "td"
-        kinds(2)%s = "th"
+        call append_string(kinds, "td", "th")
         call completing_read("Cell kind: ", table_of(kinds), string, status, require_match=REQUIRE_MATCH_YES, initial_input="t")
     end subroutine cell_kind_interactor
 

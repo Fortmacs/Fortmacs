@@ -37,7 +37,7 @@ module fill_mod
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
-    use data_mod, only: value_eq, symbol_name, logical_setting_type, append_locals_clearer
+    use data_mod, only: value_eq, symbol_name, logical_setting_type, append_locals_clearer, choice_setting_type
     use buffer_mod, only: buffers, current, fill_column, FILL_COLUMN_NONE, transient_mark_mode, barf_if_buffer_read_only, &
                           is_buffer_modified, restore_buffer_modified, current_buffer, buffer_serial_live
     use character_mod, only: string_char_and_length
@@ -47,7 +47,7 @@ module fill_mod
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, buffer_substring, &
                            delete_region, char_after, char_before, line_beginning_position, line_end_position, &
                            subst_char_in_region, region_beginning, region_end, narrow_to_region, widen, &
-                           point_marker
+                           point_marker, char_to_string
     use insdel_mod, only: insert, insert_before_markers
     use cmds_mod, only: forward_line, beginning_of_line, end_of_line, forward_char, delete_char
     use textprop_mod, only: get_text_property, put_text_property, text_property_not_all
@@ -79,9 +79,9 @@ module fill_mod
 
     !> Justification styles: the values of `default_justification' (and
     !> `none'), and t for "as `current_justification' says".
-    integer, parameter, public :: DEFAULT_JUSTIFICATION_NONE = 0, DEFAULT_JUSTIFICATION_LEFT = 1, &
-                                  DEFAULT_JUSTIFICATION_RIGHT = 2, DEFAULT_JUSTIFICATION_FULL = 3, &
-                                  DEFAULT_JUSTIFICATION_CENTER = 4, DEFAULT_JUSTIFICATION_CURRENT = 5
+    integer, parameter, public :: DEFAULT_JUSTIFICATION_NONE = 2, DEFAULT_JUSTIFICATION_LEFT = 3, &
+                                  DEFAULT_JUSTIFICATION_RIGHT = 4, DEFAULT_JUSTIFICATION_FULL = 5, &
+                                  DEFAULT_JUSTIFICATION_CENTER = 6, DEFAULT_JUSTIFICATION_CURRENT = 7
 
     !> True means put two spaces after a colon when filling.  Port of
     !> fill.el colon-double-space.
@@ -137,7 +137,8 @@ module fill_mod
     !> The requested kind of justification is done whenever lines are filled.
     !> The `justification' text-property can locally override this variable.
     !> Port of fill.el default-justification (a JUSTIFY_ constant).
-    integer, public :: default_justification = DEFAULT_JUSTIFICATION_LEFT
+    type(choice_setting_type), public :: default_justification = &
+       choice_setting_type(name="default_justification", true_valid=.false., false_valid=.false., choice=DEFAULT_JUSTIFICATION_LEFT)
 
     abstract interface
         !> A test of `fill_nobreak_functions': true forbids breaking
@@ -844,7 +845,7 @@ contains
         logical, intent(in) :: nosqueeze
         integer(int64), intent(in) :: squeeze_after
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: eol_double_space_regexp, se
+        character(len=:), allocatable :: eol_double_space_regexp, se, text
         type(value_type) :: fill_space
         type(status_type) :: st
         type(handle_type) :: to_marker
@@ -882,7 +883,8 @@ contains
             call char_after(c, found, match_beginning(0, st))
 
             if (allocated(sentence_end_without_space) .and. found) then
-                if (index(sentence_end_without_space, char_of(c)) > 0) cycle
+                call char_to_string(c, text, st)
+                if (index(sentence_end_without_space, text) > 0) cycle
             end if
 
             call insert(" ", status)
@@ -953,22 +955,6 @@ contains
         call goto_char(from)
         call destroy_marker(to_marker, st)
     end subroutine fill_delete_newlines
-
-    ! The UTF-8 of character C.  Not a port.
-    function char_of(c) result(s)
-        integer(int32), intent(in) :: c
-        character(len=:), allocatable :: s
-
-        if (c < 128) then
-            s = achar(c)
-        else if (c < 2048) then
-            s = char(192 + c/64)//char(128 + mod(c, 64))
-        else if (c < 65536) then
-            s = char(224 + c/4096)//char(128 + mod(c/64, 64))//char(128 + mod(c, 64))
-        else
-            s = char(240 + c/262144)//char(128 + mod(c/4096, 64))//char(128 + mod(c/64, 64))//char(128 + mod(c, 64))
-        end if
-    end function char_of
 
     !> Move to the position where the line should be broken.
     !> The break position will be always after LINEBEG and generally before point.
@@ -1656,7 +1642,7 @@ contains
         if (is_eob() .and. .not. is_bob()) pos = pos - 1
         call goto_char(opoint)
         call get_text_property(pos, value_type(name="justification"), v, st)
-        j = default_justification
+        j = default_justification%choice
 
         if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL) .and. allocated(v%a)) then
             call symbol_name(v, name, st)

@@ -68,7 +68,7 @@ module bookmark_mod
                          FM_FILE_ERROR, FM_BOOKMARK_ERROR_NO_FILENAME, format_message
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
-    use data_mod, only: append_locals_clearer, history_setting_type, forward_setting
+    use data_mod, only: append_locals_clearer, history_setting_type, forward_setting, choice_setting_type
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
     use commands_mod, only: commands
@@ -86,7 +86,7 @@ module bookmark_mod
     use search_mod, only: search_forward, search_backward, match_beginning, match_end
     use fileio_mod, only: is_file_readable, expand_file_name, file_name_nondirectory, file_name_directory, &
                           directory_file_name, file_attributes
-    use sysdep_mod, only: file_stat_type, emacs_clock_realtime
+    use sysdep_mod, only: file_stat_type, fortmacs_clock_realtime
     use files_mod, only: find_file_noselect, abbreviate_file_name, write_file, revert_buffer_function
     use frame_mod, only: selected_frame, selected_window
     use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
@@ -99,12 +99,12 @@ module bookmark_mod
     use coding_mod, only: coding_system_for_write, buffer_file_coding_system, coding_system_base
     use itree_mod, only: make_overlay, overlay_put, overlay_get, overlays_in, destroy_overlay
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, is_keymap_live, destroy_keymap, keymap_set
-    use keyboard_mod, only: exit_emacs_hook
+    use keyboard_mod, only: exit_fortmacs_hook
     use callint_mod, only: current_prefix_arg
-    use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, minibuffer_string_type, completion_ignore_case
+    use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, completion_ignore_case
     use minibuf_table_mod, only: completion_table_type, TABLE_LIST
     use minibuffer_mod, only: completing_read, read_file_name, REQUIRE_MATCH_OTHER, REQUIRE_MATCH_CONFIRM
-    use fns_mod, only: read_yes_or_no
+    use fns_mod, only: read_yes_or_no, is_string_collate_less, is_string_less
     use subr_mod, only: add_to_history, read_y_or_n, make_progress_reporter, progress_reporter_done, &
                         progress_reporter_type
     use dispnew_mod, only: ding
@@ -117,6 +117,7 @@ module bookmark_mod
     use xdisp_mod, only: message
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, &
                             NAMELIST_STRING, NAMELIST_INTEGER
+    use string_type_mod, only: string_type, append_string, prepend_string
     implicit none(type, external)
     private
 
@@ -168,7 +169,7 @@ module bookmark_mod
         character(len=:), allocatable :: front_context_string, rear_context_string
         character(len=:), allocatable :: annotation
         integer(int64), allocatable :: last_modified(:)
-        type(minibuffer_string_type), allocatable :: defaults(:)
+        type(string_type), allocatable :: defaults(:)
     end type bookmark_type
 
     !> A function of `bookmark_inhibit_context_functions': whether not to
@@ -225,38 +226,46 @@ module bookmark_mod
     !> Port of bookmark.el bookmark-use-annotations.
     logical, public :: bookmark_use_annotations = .false.
 
-    !> Values of `bookmark_save_flag' other than a number.
-    integer, parameter, public :: BOOKMARK_SAVE_FLAG_NO = -1, BOOKMARK_SAVE_FLAG_ON_EXIT = -2
+    !> The setting `bookmark_save_flag': .false., .true. or a number of
+    !> modifications (R6-39: `bookmark_save_flag%modifications = 5';
+    !> negative when no number is set).  Not a port.
+    type, extends(choice_setting_type), public :: bookmark_save_flag_choice_setting_type
+        integer :: modifications = -1
+    contains
+        procedure :: clear_kinds => bookmark_save_flag_clear_kinds
+        procedure :: other_value => bookmark_save_flag_other_value
+        procedure :: kind_hint => bookmark_save_flag_kind_hint
+    end type bookmark_save_flag_choice_setting_type
 
     !> Controls when Fortmacs saves bookmarks to a file.
-    !> --> BOOKMARK_SAVE_FLAG_NO means never save bookmarks, except when
+    !> --> .false. means never save bookmarks, except when
     !>     `bookmark_save' is explicitly called (\[bookmark_save]).
-    !> --> BOOKMARK_SAVE_FLAG_ON_EXIT means save bookmarks when Fortmacs is
+    !> --> .true. means save bookmarks when Fortmacs is
     !>     killed.
-    !> --> Otherwise, it should be a number that is the frequency with which
+    !> --> Otherwise, `bookmark_save_flag%modifications' is the frequency with which
     !>     the bookmark list is saved (i.e.: the number of times which
     !>     Fortmacs's bookmark list may be modified before it is
     !>     automatically saved.).  If it is a number, Fortmacs will also
     !>     automatically save bookmarks when it is killed.
     !>
     !> Therefore, the way to get it to save every time you make or delete a
-    !> bookmark is to set this variable to 1 (or 0, which produces the same
+    !> bookmark is to set its modifications to 1 (or 0, which produces the same
     !> behavior.)
     !>
     !> To specify the file in which to save them, modify the variable
     !> `bookmark_default_file'.  Port of bookmark.el bookmark-save-flag.
-    integer, public :: bookmark_save_flag = BOOKMARK_SAVE_FLAG_ON_EXIT
+    type(bookmark_save_flag_choice_setting_type), public :: bookmark_save_flag = &
+                                                     bookmark_save_flag_choice_setting_type(name="bookmark_save_flag", value=.true.)
 
     !> File in which to save bookmarks by default.  Port of bookmark.el
     !> bookmark-default-file (in the state directory,
     !> `~/.local/state/fortmacs/bookmarks').
     character(len=:), allocatable, public :: bookmark_default_file
 
-    !> Values of `bookmark_watch_bookmark_file'.
-    integer, parameter, public :: BOOKMARK_WATCH_BOOKMARK_FILE_NO = 0, BOOKMARK_WATCH_BOOKMARK_FILE_ASK = 1, &
-                                  BOOKMARK_WATCH_BOOKMARK_FILE_SILENT = 2
+    !> Values of `bookmark_watch_bookmark_file' besides .true. and .false.
+    integer, parameter, public :: BOOKMARK_WATCH_BOOKMARK_FILE_SILENT = 2
 
-    !> If BOOKMARK_WATCH_BOOKMARK_FILE_ASK, reload the default bookmark file
+    !> If true, reload the default bookmark file
     !> if it was changed.  If this file has changed on disk since it was
     !> last loaded, query the user whether to load it again.  If the value
     !> is BOOKMARK_WATCH_BOOKMARK_FILE_SILENT reload without querying.
@@ -264,32 +273,32 @@ module bookmark_mod
     !> Fortmacs session, `bookmark_load' and `bookmark_save' can redefine
     !> the current default file.  Port of bookmark.el
     !> bookmark-watch-bookmark-file.
-    integer, public :: bookmark_watch_bookmark_file = BOOKMARK_WATCH_BOOKMARK_FILE_ASK
+    type(choice_setting_type), public :: bookmark_watch_bookmark_file = &
+                                         choice_setting_type(name="bookmark_watch_bookmark_file", value=.true.)
 
-    !> Values of `bookmark_version_control': BOOKMARK_VERSION_CONTROL_NUMBERED, BOOKMARK_VERSION_CONTROL_EXISTING,
-    !> BOOKMARK_VERSION_CONTROL_NO and BOOKMARK_VERSION_CONTROL_NOSPECIAL.
-    integer, parameter, public :: BOOKMARK_VERSION_CONTROL_NUMBERED = 1, BOOKMARK_VERSION_CONTROL_EXISTING = 0, &
-                                  BOOKMARK_VERSION_CONTROL_NO = 2, BOOKMARK_VERSION_CONTROL_NOSPECIAL = 3
+    !> Values of `bookmark_version_control' besides .true. and .false.
+    integer, parameter, public :: BOOKMARK_VERSION_CONTROL_IF_EXISTING = 2, BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL = 3
 
     !> Whether or not to make numbered backups of the bookmark file.
-    !> It can have four values: BOOKMARK_VERSION_CONTROL_NUMBERED, _NIL, _NEVER,
-    !> or _NOSPECIAL.  The first three have the same meaning that they do
-    !> for the variable `version_control'; the value _NOSPECIAL (the
-    !> default) means just use the value of `version_control'.  Port of
+    !> If .true., always make numbered backups; if .false., never.
+    !> BOOKMARK_VERSION_CONTROL_IF_EXISTING makes them only when numbered
+    !> backups of the file already exist, and
+    !> BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL (the default) follows the
+    !> option `version_control'.  Port of
     !> bookmark.el bookmark-version-control (numbered backups are not
     !> ported: saving makes a single backup, as with `version_control' .false.).
-    integer, public :: bookmark_version_control = BOOKMARK_VERSION_CONTROL_NOSPECIAL
+    type(choice_setting_type), public :: bookmark_version_control = &
+                            choice_setting_type(name="bookmark_version_control", choice=BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL)
 
     !> True means bookmark functions ignore case in completion.  Port of
     !> bookmark.el bookmark-completion-ignore-case.
     logical, public :: bookmark_completion_ignore_case = .true.
 
-    !> Values of `bookmark_sort_flag'.
-    integer, parameter, public :: BOOKMARK_SORT_FLAG_CREATED = 0, BOOKMARK_SORT_FLAG_ALPHABETICAL = 1, &
-                                  BOOKMARK_SORT_FLAG_LAST_MODIFIED = 2
+    !> Values of `bookmark_sort_flag' besides .true. and .false.
+    integer, parameter, public :: BOOKMARK_SORT_FLAG_LAST_MODIFIED = 2
 
     !> This controls the bookmark display sorting.
-    !> BOOKMARK_SORT_FLAG_CREATED means they will be displayed in LIFO order
+    !> .false. means they will be displayed in LIFO order
     !> (that is, most recently created ones come first, oldest ones come
     !> last).
     !>
@@ -297,9 +306,9 @@ module bookmark_mod
     !> displayed sorted from most recently modified to least recently
     !> modified.
     !>
-    !> Other values means that bookmarks will be displayed sorted by
+    !> .true. means that bookmarks will be displayed sorted by
     !> bookmark name.  Port of bookmark.el bookmark-sort-flag.
-    integer, public :: bookmark_sort_flag = BOOKMARK_SORT_FLAG_ALPHABETICAL
+    type(choice_setting_type), public :: bookmark_sort_flag = choice_setting_type(name="bookmark_sort_flag", value=.true.)
 
     !> True means confirm before deleting bookmarks in a bookmark menu
     !> buffer.  False means don't prompt for confirmation.  Port of
@@ -606,7 +615,7 @@ contains
     !> Return a list of all current bookmark names.  Port of
     !> bookmark.el:bookmark-all-names.
     recursive function bookmark_all_names() result(names)
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(status_type) :: st
         integer :: k
 
@@ -614,7 +623,7 @@ contains
         allocate (names(size(bookmarks)))
 
         do k = 1, size(bookmarks)
-            names(k)%s = bookmark_name_from_full_record(bookmarks(k))
+            names(k)%text = bookmark_name_from_full_record(bookmarks(k))
         end do
     end function bookmark_all_names
 
@@ -801,7 +810,7 @@ contains
         integer(int64) :: sec
         integer(int32) :: nsec
 
-        call emacs_clock_realtime(sec, nsec)
+        call fortmacs_clock_realtime(sec, nsec)
         allocate (time(2))
         time(1) = sec
         time(2) = int(nsec, int64)
@@ -881,22 +890,6 @@ contains
         end if
     end function is_time_less
 
-    ! Whether name A sorts before name B (string-lessp: by character code,
-    ! which is the order of the UTF-8 bytes).  Not a port.
-    pure logical function is_name_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k
-
-        do k = 1, min(len(a), len(b))
-            if (a(k:k) /= b(k:k)) then
-                is_name_less = iachar(a(k:k)) < iachar(b(k:k))
-                return
-            end if
-        end do
-
-        is_name_less = len(a) < len(b)
-    end function is_name_less
-
     !> Return `bookmarks' for display.
     !> If `bookmark_sort_flag' is BOOKMARK_SORT_FLAG_ALPHABETICAL, then return a
     !> sorted by name copy of the table.  If `bookmark_sort_flag' is
@@ -917,7 +910,7 @@ contains
             copy(i) = bookmarks(i)
         end do
 
-        if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_CREATED) return
+        if (bookmark_sort_flag%is_off()) return
 
         ! A stable insertion sort (`sort' is stable).
         do i = 2, size(copy)
@@ -938,7 +931,7 @@ contains
         logical function before(x, y)
             type(bookmark_type), intent(in) :: x, y
 
-            if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_LAST_MODIFIED) then
+            if (bookmark_sort_flag%choice == BOOKMARK_SORT_FLAG_LAST_MODIFIED) then
                 if (.not. allocated(x%last_modified)) then
                     before = .false.
                 else if (.not. allocated(y%last_modified)) then
@@ -947,7 +940,7 @@ contains
                     before = is_time_less(y%last_modified, x%last_modified)
                 end if
             else
-                before = is_name_less(bookmark_name_from_full_record(x), bookmark_name_from_full_record(y))
+                before = is_string_less(bookmark_name_from_full_record(x), bookmark_name_from_full_record(y))
             end if
         end function before
     end function bookmark_maybe_sort_bookmarks
@@ -1031,7 +1024,7 @@ contains
     recursive subroutine bookmark_make_record(record, status)
         type(bookmark_type), intent(out) :: record
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), allocatable :: defaults(:)
+        type(string_type), allocatable :: defaults(:)
         integer :: saved_size, k
         logical :: inhibit
 
@@ -1083,7 +1076,7 @@ contains
 
         if (allocated(record%defaults)) then
             do k = 1, size(record%defaults)
-                call append_default(record%defaults(k)%s)
+                call append_default(record%defaults(k)%text)
             end do
         end if
 
@@ -1097,15 +1090,13 @@ contains
         ! (delete-dups (append ...)): keep the first of equal strings.
         subroutine append_default(s)
             character(len=*), intent(in) :: s
-            type(minibuffer_string_type) :: item
             integer :: j
 
             do j = 1, size(defaults)
-                if (same(defaults(j)%s, s)) return
+                if (same(defaults(j)%text, s)) return
             end do
 
-            item%s = s
-            defaults = [defaults, item]
+            call append_string(defaults, s)
         end subroutine append_default
     end subroutine bookmark_make_record
 
@@ -1328,12 +1319,12 @@ contains
 
         do k = 1, size(bookmarks)
             associate (b => bookmarks(k))
-                call append_string("name", bookmark_name_from_full_record(b))
-                if (allocated(b%filename)) call append_string("filename", b%filename)
-                if (allocated(b%front_context_string)) call append_string("front_context_string", b%front_context_string)
-                if (allocated(b%rear_context_string)) call append_string("rear_context_string", b%rear_context_string)
+                call append_string_component("name", bookmark_name_from_full_record(b))
+                if (allocated(b%filename)) call append_string_component("filename", b%filename)
+                if (allocated(b%front_context_string)) call append_string_component("front_context_string", b%front_context_string)
+                if (allocated(b%rear_context_string)) call append_string_component("rear_context_string", b%rear_context_string)
                 if (b%position /= 0) call add_integers("position", [b%position])
-                if (allocated(b%annotation)) call append_string("annotation", b%annotation)
+                if (allocated(b%annotation)) call append_string_component("annotation", b%annotation)
                 if (allocated(b%last_modified)) call add_integers("last_modified", b%last_modified)
             end associate
         end do
@@ -1344,14 +1335,14 @@ contains
 
     contains
 
-        subroutine append_string(component, value)
+        subroutine append_string_component(component, value)
             character(len=*), intent(in) :: component, value
             type(namelist_item_type) :: item
 
             item = namelist_item_type(name="bookmark", component=component, subscripted=.true., lower=k, upper=k)
             call item%append_string(value)
             call group%append(item)
-        end subroutine append_string
+        end subroutine append_string_component
 
         subroutine add_integers(component, values)
             character(len=*), intent(in) :: component
@@ -1397,7 +1388,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: name
         type(bookmark_type) :: record
-        type(minibuffer_string_type), allocatable :: defaults(:)
+        type(string_type), allocatable :: defaults(:)
         character(len=:), allocatable :: default, string
         type(status_type) :: st
 
@@ -1419,18 +1410,16 @@ contains
             default = ""
 
             if (allocated(defaults)) then
-                if (size(defaults) > 0) default = defaults(1)%s
+                if (size(defaults) > 0) default = defaults(1)%text
             end if
 
             if (.not. allocated(defaults)) then
                 ! When no defaults in the record, use its name.
-                allocate (defaults(1))
-                defaults(1)%s = record%name
+                call append_string(defaults, record%name)
                 default = record%name
             else if (size(defaults) == 0) then
                 deallocate (defaults)
-                allocate (defaults(1))
-                defaults(1)%s = record%name
+                call append_string(defaults, record%name)
                 default = record%name
             end if
 
@@ -1899,7 +1888,7 @@ contains
             return
         end if
 
-        if (bookmark_watch_bookmark_file == BOOKMARK_WATCH_BOOKMARK_FILE_NO) return
+        if (bookmark_watch_bookmark_file%is_off()) return
         found = .false.
 
         if (allocated(bookmark_bookmarks_timestamp%file)) then
@@ -1916,7 +1905,7 @@ contains
 
         if (is_watch_file_already_queried(found, stat%mtime_sec, stat%mtime_nsec)) return
 
-        if (bookmark_watch_bookmark_file /= BOOKMARK_WATCH_BOOKMARK_FILE_SILENT) then
+        if (bookmark_watch_bookmark_file%choice /= BOOKMARK_WATCH_BOOKMARK_FILE_SILENT) then
             call read_yes_or_no("Bookmarks "//bookmark_bookmarks_timestamp%file//" changed on disk.  Reload? ", &
                                 ok, status)
             if (.not. status%ok() .or. .not. ok) return
@@ -2452,9 +2441,9 @@ contains
         if (present(final_time)) final = final_time
 
         if (final) then
-            save = bookmarks_modification_count > 0 .and. bookmark_save_flag /= BOOKMARK_SAVE_FLAG_NO
-        else if (bookmark_save_flag >= 0) then
-            save = bookmarks_modification_count >= bookmark_save_flag
+            save = bookmarks_modification_count > 0 .and. .not. bookmark_save_flag%is_off()
+        else if (bookmark_save_flag%modifications >= 0) then
+            save = bookmarks_modification_count >= bookmark_save_flag%modifications
         else
             save = .false.
         end if
@@ -2621,8 +2610,7 @@ contains
     !> bookmark.el:bookmark-import-new-list.
     recursive subroutine bookmark_import_new_list(new_bookmarks)
         type(bookmark_type), intent(inout) :: new_bookmarks(:)
-        type(minibuffer_string_type), allocatable :: names(:)
-        type(minibuffer_string_type) :: name
+        type(string_type), allocatable :: names(:)
         integer :: k
 
         names = bookmark_all_names()
@@ -2630,8 +2618,7 @@ contains
         do k = 1, size(new_bookmarks)
             call bookmark_maybe_rename(new_bookmarks(k), names)
             call append_record(new_bookmarks(k))
-            name%s = bookmark_name_from_full_record(new_bookmarks(k))
-            names = [name, names]
+            call prepend_string(names, bookmark_name_from_full_record(new_bookmarks(k)))
         end do
     end subroutine bookmark_import_new_list
 
@@ -2640,7 +2627,7 @@ contains
     !> bookmark.el:bookmark-maybe-rename.
     subroutine bookmark_maybe_rename(full_record, names)
         type(bookmark_type), intent(inout) :: full_record
-        type(minibuffer_string_type), intent(in) :: names(:)
+        type(string_type), intent(in) :: names(:)
         character(len=:), allocatable :: found_name, new_name
         character(len=24) :: buffer
         integer :: count
@@ -2668,7 +2655,7 @@ contains
             is_name_taken = .false.
 
             do k = 1, size(names)
-                if (same(names(k)%s, s)) then
+                if (same(names(k)%text, s)) then
                     is_name_taken = .true.
                     return
                 end if
@@ -2946,7 +2933,7 @@ contains
 
         ! The value of `bookmark_sort_flag' might have changed since the
         ! last time the buffer contents were generated, so re-check it.
-        if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_ALPHABETICAL) then
+        if (bookmark_sort_flag%value) then
             call set_tabulated_list_sort_key("Bookmark Name")
             call set_tabulated_list_entries(entries)
         else
@@ -3131,21 +3118,12 @@ contains
 
         call set_tabulated_list_format(format)
         call set_tabulated_list_padding(BOOKMARK_BMENU_MARKS_WIDTH)
-        if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_ALPHABETICAL) call set_tabulated_list_sort_key("Bookmark Name")
+        if (bookmark_sort_flag%value) call set_tabulated_list_sort_key("Bookmark Name")
         call tabulated_list_revert_hook%prepend(bmenu_revert_hook, local=.true.)
         call revert_buffer_function%set_local(bmenu_revert_function)
         call tabulated_list_init_header()
         call major_modes%bookmark_bmenu_mode%end(saved, status)
     end subroutine bookmark_bmenu_mode
-
-    ! string-collate-lessp with IGNORE-CASE: case-insensitive, in the
-    ! POSIX locale's order (by character code).  Not a port.
-    logical function is_collate_less(a, b)
-        use fns_mod, only: compare_strings
-        character(len=*), intent(in) :: a, b
-
-        is_collate_less = compare_strings(a, b, ignore_case=.true.) < 0
-    end function is_collate_less
 
     !> Test to sort "*Bookmark List*" buffer by the name column.
     !> This is used for `tabulated_list_format' in `bookmark_bmenu_mode'.
@@ -3153,7 +3131,7 @@ contains
     logical function bookmark_bmenu_name_test(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_name_test = is_collate_less(a%id, b%id)
+        bookmark_bmenu_name_test = is_string_collate_less(a%id, b%id, ignore_case=.true.)
     end function bookmark_bmenu_name_test
 
     !> Test to sort "*Bookmark List*" buffer by the type column.
@@ -3162,7 +3140,7 @@ contains
     logical function bookmark_bmenu_type_test(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_type_test = is_collate_less(a%cols(3)%text, b%cols(3)%text)
+        bookmark_bmenu_type_test = is_string_collate_less(a%cols(3)%text, b%cols(3)%text, ignore_case=.true.)
     end function bookmark_bmenu_type_test
 
     !> Test to sort "*Bookmark List*" buffer by the file column.
@@ -3171,7 +3149,7 @@ contains
     logical function bookmark_bmenu_file_test(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_file_test = is_collate_less(bookmark_location(a%id), bookmark_location(b%id))
+        bookmark_bmenu_file_test = is_string_collate_less(bookmark_location(a%id), bookmark_location(b%id), ignore_case=.true.)
     end function bookmark_bmenu_file_test
 
     !> Toggle whether filenames are shown in the bookmark list.
@@ -3280,8 +3258,7 @@ contains
         use window_mod, only: delete_other_windows, split_window, other_window, bury_buffer
         use frame_mod, only: frame_lines
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), allocatable :: others(:)
-        type(minibuffer_string_type) :: item
+        type(string_type), allocatable :: others(:)
         type(handle_type) :: menu, new
         character(len=:), allocatable :: bmrk, tem
         integer(int64) :: found
@@ -3307,12 +3284,11 @@ contains
             dup = same(tem, bmrk)
 
             do k = 1, size(others)
-                if (same(others(k)%s, tem)) dup = .true.
+                if (same(others(k)%text, tem)) dup = .true.
             end do
 
             if (.not. dup) then
-                item%s = tem
-                others = [others, item]
+                call append_string(others, tem)
             end if
         end do
 
@@ -3329,7 +3305,7 @@ contains
                 if (.not. status%ok()) return
                 call other_window(1_int64, status)
                 if (.not. status%ok()) return
-                call bookmark_jump(others(k)%s, status)
+                call bookmark_jump(others(k)%text, status)
                 if (.not. status%ok()) return
             end do
         else
@@ -4092,6 +4068,39 @@ contains
         call keymap_set(bookmark_bmenu_mode_map, "e", "bookmark_bmenu_edit_annotation", st)
         call keymap_set(bookmark_bmenu_mode_map, "J", "bookmark_jump", st)
         call keymap_set(bookmark_bmenu_mode_map, "/", "bookmark_bmenu_search", st)
-        call exit_emacs_hook%prepend(bookmark_exit_hook_internal)
+        call exit_fortmacs_hook%prepend(bookmark_exit_hook_internal)
     end subroutine init_bookmark
+
+    !> Forget the modifications of `bookmark_save_flag', as any assignment to it does.
+    !> Not a port.
+    subroutine bookmark_save_flag_clear_kinds(self)
+        class(bookmark_save_flag_choice_setting_type), intent(inout) :: self
+
+        self%modifications = -1
+    end subroutine bookmark_save_flag_clear_kinds
+
+    !> The modifications of `bookmark_save_flag' as help shows it (`%modifications = N'); "" when
+    !> none is set.  Not a port.
+    function bookmark_save_flag_other_value(self) result(text)
+        class(bookmark_save_flag_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        character(len=32) :: component_text
+
+        text = ""
+
+        if (self%modifications >= 0) then
+            write (component_text, '("%modifications = ", i0)') self%modifications
+            text = trim(component_text)
+        end if
+    end function bookmark_save_flag_other_value
+
+    !> The assignment that sets the number or procedure `bookmark_save_flag' takes, for the error of a rejected
+    !> value.  Not a port.
+    function bookmark_save_flag_kind_hint(self, number) result(text)
+        class(bookmark_save_flag_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of modifications is `"//trim(self%name)//"%modifications = "//number//"'"
+    end function bookmark_save_flag_kind_hint
 end module bookmark_mod

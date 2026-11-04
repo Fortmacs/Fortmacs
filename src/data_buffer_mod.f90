@@ -46,7 +46,7 @@ submodule(data_mod) data_buffer_mod
     use indent_mod, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_procedure, &
                           indent_line_setting_type, indent_line_function_name, indent_line_function_named
     use callint_mod, only: find_command, command_name_of
-    use value_mod, only: command_procedure, value_type
+    use value_mod, only: command_procedure, value_type, is_named_choice
     use search_mod, only: case_fold_search
     use minibuf_mod, only: completion_ignore_case
     use paragraphs_mod, only: paragraph_start, paragraph_separate, sentence_end, &
@@ -62,8 +62,10 @@ submodule(data_mod) data_buffer_mod
     use casefiddle_mod, only: case_identifiers_as_words
     use insdel_mod, only: inhibit_modification_hooks
     use electric_mod, only: electric_indent_inhibit
-    use files_mod, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NO, &
-                         FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
+    use files_mod, only: require_final_newline, mode_require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT, &
+                         REQUIRE_FINAL_NEWLINE_VISIT_SAVE, REQUIRE_FINAL_NEWLINE_ASK, MODE_REQUIRE_FINAL_NEWLINE_VISIT, &
+                         MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, MODE_REQUIRE_FINAL_NEWLINE_ASK
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
     !> Kinds of forwarded variable.
@@ -363,7 +365,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: elems(:)
-        type(history_item_type), allocatable :: items(:)
+        type(string_type), allocatable :: items(:)
         integer :: k
 
         status = status_type()
@@ -393,13 +395,16 @@ contains
 
     !> The value of forwarded variable K in buffer B (B matters only for
     !> slot variables; the others read the current value); BOUND is false
-    !> when it is void.  Not a port.
+    !> when it is void.  Port of data.c:do_symval_forwarding (by the
+    !> variable's number in the table of Fortran variables).
     subroutine fwd_get(k, b, v, bound)
         integer, intent(in) :: k
         integer(int64), intent(in) :: b
         type(value_type), intent(out) :: v
         logical, intent(out) :: bound
         type(minor_mode_type), pointer :: m
+        type(value_type) :: kept
+        logical :: found
 
         bound = .true.
 
@@ -415,6 +420,10 @@ contains
                 call setting_value(p, auto_fill_value(p%value), v, bound)
             type is (history_setting_type)
                 call setting_value(p, history_value(p), v, bound)
+            class is (choice_setting_type)
+                call p%get_kind_value(kept, found)
+                if (.not. found) kept = choice_value(p)
+                call setting_value(p, kept, v, bound)
             class default
                 v = value_type()
             end select
@@ -498,10 +507,13 @@ contains
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(inhibit_modification_hooks%value)
         case ("require_final_newline")
-            call setting_value(require_final_newline, final_newline_value(require_final_newline%value), v, bound)
+            call setting_value(require_final_newline, &
+                               final_newline_value(require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT, &
+                                                   REQUIRE_FINAL_NEWLINE_VISIT_SAVE), v, bound)
         case ("mode_require_final_newline")
-            call setting_value(mode_require_final_newline, final_newline_value(mode_require_final_newline%value), &
-                               v, bound)
+            call setting_value(mode_require_final_newline, &
+                               final_newline_value(mode_require_final_newline, MODE_REQUIRE_FINAL_NEWLINE_VISIT, &
+                                                   MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE), v, bound)
         case default
             v = value_type()
         end select
@@ -526,6 +538,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
         type(minor_mode_type), pointer :: m
+        logical :: done
 
         status = status_type()
 
@@ -541,6 +554,9 @@ contains
                 call set_auto_fill(p, v, status)
             type is (history_setting_type)
                 call set_history(p, v, status)
+            class is (choice_setting_type)
+                call p%set_kind_value(v, done)
+                if (.not. done) call set_choice(p, v, status)
             class default
             end select
 
@@ -621,9 +637,11 @@ contains
         case ("inhibit_modification_hooks")
             inhibit_modification_hooks = allocated(v%a)
         case ("require_final_newline")
-            call set_final_newline(require_final_newline, v)
+            call set_final_newline(require_final_newline, v, REQUIRE_FINAL_NEWLINE_VISIT, &
+                                   REQUIRE_FINAL_NEWLINE_VISIT_SAVE, REQUIRE_FINAL_NEWLINE_ASK)
         case ("mode_require_final_newline")
-            call set_final_newline(mode_require_final_newline, v)
+            call set_final_newline(mode_require_final_newline, v, MODE_REQUIRE_FINAL_NEWLINE_VISIT, &
+                                   MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, MODE_REQUIRE_FINAL_NEWLINE_ASK)
         case default
             ! Not a forwarded variable (resolve gives no such K).
         end select
@@ -700,43 +718,92 @@ contains
         call settle(s)
     end subroutine set_indent_line
 
-    !> The value of a require-final-newline setting N: nil, t, `visit',
-    !> `visit_save' or (for any other value) `ask'.  Not a port.
-    function final_newline_value(n) result(v)
-        integer(int64), intent(in) :: n
+    !> The value of a require-final-newline setting S: nil, t, `visit',
+    !> `visit_save' or (for any other value) `ask'; VISIT and VISIT_SAVE
+    !> are the setting's named constants for the two named states.
+    !> Not a port.
+    function final_newline_value(s, visit, visit_save) result(v)
+        type(choice_setting_type), intent(in) :: s
+        integer, intent(in) :: visit, visit_save
         type(value_type) :: v
 
-        select case (n)
-        case (FINAL_NEWLINE_NO)
+        if (s%is_off()) then
             v = value_type()
-        case (FINAL_NEWLINE_SAVE)
+        else if (s%value) then
             v = value_type(.true.)
-        case (FINAL_NEWLINE_VISIT)
+        else if (s%choice == visit) then
             v = value_type(name="visit")
-        case (FINAL_NEWLINE_VISIT_SAVE)
+        else if (s%choice == visit_save) then
             v = value_type(name="visit_save")
-        case default
+        else
             v = value_type(name="ask")
-        end select
+        end if
     end function final_newline_value
 
-    !> Set require-final-newline setting S to V.  Not a port.
-    subroutine set_final_newline(s, v)
-        type(integer_setting_type), intent(inout) :: s
+    !> Set require-final-newline setting S to V; VISIT, VISIT_SAVE and ASK
+    !> are the setting's named constants.  Not a port.
+    subroutine set_final_newline(s, v, visit, visit_save, ask)
+        type(choice_setting_type), intent(inout) :: s
         type(value_type), intent(in) :: v
+        integer, intent(in) :: visit, visit_save, ask
 
         if (.not. allocated(v%a)) then
-            s = FINAL_NEWLINE_NO
+            s = .false.
         else if (value_eq(v, value_type(.true.))) then
-            s = FINAL_NEWLINE_SAVE
+            s = .true.
         else if (value_eq(v, value_type(name="visit"))) then
-            s = FINAL_NEWLINE_VISIT
+            s = visit
         else if (value_eq(v, value_type(name="visit_save"))) then
-            s = FINAL_NEWLINE_VISIT_SAVE
+            s = visit_save
         else
-            s = FINAL_NEWLINE_ASK
+            s = ask
         end if
     end subroutine set_final_newline
+
+    !> The value of choice setting S: nil, t, or the integer of its named
+    !> constant.  Not a port.
+    function choice_value(s) result(v)
+        class(choice_setting_type), intent(in) :: s
+        type(value_type) :: v
+
+        if (is_named_choice(s%choice)) then
+            v = value_type(int(s%choice, int64))
+        else
+            v = bool_value(s%value)
+        end if
+    end function choice_value
+
+    !> Set choice setting S to V: nil, t, or the integer of one of its
+    !> named constants (a `wrong-type-argument' error condition occurs
+    !> otherwise).  Not a port.
+    subroutine set_choice(s, v, status)
+        class(choice_setting_type), intent(inout) :: s
+        type(value_type), intent(in) :: v
+        type(status_type), intent(out) :: status
+        integer :: errors
+
+        status = status_type()
+        errors = 0
+        if (allocated(setting_errors)) errors = size(setting_errors)
+
+        if (.not. allocated(v%a)) then
+            s = .false.
+        else if (value_eq(v, value_type(.true.))) then
+            s = .true.
+        else if (vtag(v) == V_INTEGER) then
+            s = int(xfixnum(v))
+        else
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected .true., .false. or a named constant")
+        end if
+
+        ! A value S does not accept (panel 2026-11-04).
+        if (allocated(setting_errors)) then
+            if (size(setting_errors) > errors) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, setting_errors(size(setting_errors))%text)
+                setting_errors = setting_errors(1:errors)
+            end if
+        end if
+    end subroutine set_choice
 
     !> Forget S's voidness.  Not a port.
     subroutine settle(s)
@@ -873,7 +940,8 @@ contains
     ! Current values and the swap
     ! ------------------------------------------------------------------
 
-    !> The current value of symbol ID.  Not a port.
+    !> The current value of symbol ID.  Port of data.c:find_symbol_value
+    !> (by symbol id; no aliases).
     subroutine get_current(id, v, bound)
         integer(int64), intent(in) :: id
         type(value_type), intent(out) :: v
@@ -1068,7 +1136,9 @@ contains
     end subroutine swap_locals
 
     !> Restore the default value of symbol ID, local in the current
-    !> buffer at index I, and forget the local value.  Not a port.
+    !> buffer at index I, and forget the local value.  Port of
+    !> data.c:swap_in_global_binding (with Fkill_local_variable's removal
+    !> of the local binding).
     subroutine clear_local(i)
         integer, intent(in) :: i
         integer(int64) :: id
@@ -1220,6 +1290,7 @@ contains
     buffers(current)%bidi_paragraph_direction = 0
     buffers(current)%read_only_mode_state_set = .false.
     if (allocated(buffers(current)%invisibility_spec)) deallocate (buffers(current)%invisibility_spec)
+    call buffers(current)%mode_line_format%clear()
 
     do i = buffers(current)%nlocal, 1, -1
         if (.not. all) then
@@ -1274,7 +1345,8 @@ contains
     end if
     end procedure is_local_variable_if_set
 
-    !> The default value of symbol ID.  Not a port.
+    !> The default value of symbol ID.  Port of data.c:default_value (by
+    !> symbol id; no aliases).
     subroutine get_default(id, v, bound)
         integer(int64), intent(in) :: id
         type(value_type), intent(out) :: v

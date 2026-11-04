@@ -284,7 +284,7 @@ contains
     end subroutine view_file
 
     !> View FILE in View mode, returning to previous buffer when done.
-    !> Emacs commands editing the buffer contents are not available; instead, a
+    !> Fortmacs commands editing the buffer contents are not available; instead, a
     !> special set of commands (mostly letters and punctuation) are defined for
     !> moving around in the buffer.
     !> Space scrolls forward, Delete scrolls backward.
@@ -335,7 +335,7 @@ contains
     !> When done, return that window to its previous buffer, and kill the
     !> buffer visiting FILE if unmodified and if it wasn't visited before.
     !>
-    !> Emacs commands editing the buffer contents are not available; instead,
+    !> Fortmacs commands editing the buffer contents are not available; instead,
     !> a special set of commands (mostly letters and punctuation)
     !> are defined for moving around in the buffer.
     !> Space scrolls forward, Delete scrolls backward.
@@ -383,7 +383,7 @@ contains
     end subroutine view_buffer
 
     !> View BUFFER in View mode, returning to previous buffer when done.
-    !> Emacs commands editing the buffer contents are not available; instead, a
+    !> Fortmacs commands editing the buffer contents are not available; instead, a
     !> special set of commands (mostly letters and punctuation) are defined for
     !> moving around in the buffer.
     !> Space scrolls forward, Delete scrolls backward.
@@ -457,7 +457,7 @@ contains
     end subroutine view_buffer_other_window
 
     !> View BUFFER in View mode in another window.
-    !> Emacs commands editing the buffer contents are not available;
+    !> Fortmacs commands editing the buffer contents are not available;
     !> instead, a special set of commands (mostly letters and
     !> punctuation) are defined for moving around in the buffer.
     !> Space scrolls forward, Delete scrolls backward.

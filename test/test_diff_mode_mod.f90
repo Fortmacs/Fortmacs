@@ -42,7 +42,7 @@ module test_diff_mode_mod
     use editfns_mod, only: goto_char, point, point_min, point_max, buffer_string, narrow_to_region, widen
     use search_mod, only: re_search_forward, re_search_backward, match_beginning
     use textprop_mod, only: get_text_property
-    use fileio_mod, only: init_fileio, emacs_wd, expand_file_name, file_name_as_directory, is_file_directory, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, expand_file_name, file_name_as_directory, is_file_directory, &
                           create_directory_internal, write_region
     use files_mod, only: find_file_noselect, delete_directory
     use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop
@@ -52,9 +52,10 @@ module test_diff_mode_mod
     use bindings_mod, only: init_bindings
     use dired_mode_mod, only: dired, dired_goto_file, dired_buffers_for_dir
     use diff_mode_mod, only: diff_mode, diff_hunk_text, diff_text_type, diff_fixup_modifs, diff_hunk_file_names, &
-                             diff_name_type, diff_apply_hunk, diff_hunk_next, diff_beginning_of_hunk, diff_end_of_hunk, &
+                             diff_apply_hunk, diff_hunk_next, diff_beginning_of_hunk, diff_end_of_hunk, &
                              diff_buffer_type, DIFF_BUFFER_PLAIN, DIFF_BUFFER_GIT, DIFF_BUFFER_HG
     use diff_mod, only: diff_no_select, diff_operand_type
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -207,7 +208,7 @@ contains
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     !> A fresh, empty test directory; *scratch* current and shown alone.
@@ -246,7 +247,7 @@ contains
 
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         call show_alone()
         call set_buffer(buffer, st)
     end subroutine scratch
@@ -595,7 +596,7 @@ contains
         integer(int64) :: e
         character(len=:), allocatable :: dir
 
-        call expand_file_name("test/diff-mode-resources/", dir, status, emacs_wd)
+        call expand_file_name("test/diff-mode-resources/", dir, status, fortmacs_wd)
         if (.not. status%ok()) return
         old_buf = current_buffer()
         buffers(current)%directory = dir
@@ -604,7 +605,7 @@ contains
         n%file = new
         call diff_no_select(o, n, res, status, "-u", .true., h)
         call set_buffer(old_buf, status)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         if (.not. status%ok()) return
         call set_buffer(h, status)
         call minor_modes%font_lock_mode%enable(status)
@@ -697,16 +698,16 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(diff_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
 
         call temp_buffer("*diff-test*", "diff -c /tmp/ange-ftp13518wvE.el /tmp/ange-ftp1351895K.el"//LF, h, "/tmp/")
         call goto_char(point_min())
         call diff_hunk_file_names(names)
         call check(error, size(names) == 2, "two names")
         if (allocated(error)) return
-        call check(error, names(1)%s, "/tmp/ange-ftp1351895K.el")
+        call check(error, names(1)%text, "/tmp/ange-ftp1351895K.el")
         if (allocated(error)) return
-        call check(error, names(2)%s, "/tmp/ange-ftp13518wvE.el")
+        call check(error, names(2)%text, "/tmp/ange-ftp13518wvE.el")
         if (allocated(error)) return
         call temp_buffer("*diff-test*", "diff -c -L /ftp:slbhao:/home/albinus/src/tramp/lisp/tramp.el -L "// &
                          "/ftp:slbhao:/home/albinus/src/emacs/lisp/net/tramp.el /tmp/ange-ftp13518wvE.el "// &
@@ -715,9 +716,9 @@ contains
         call diff_hunk_file_names(names)
         call check(error, size(names) == 2, "two names with labels")
         if (allocated(error)) return
-        call check(error, names(1)%s, "/tmp/ange-ftp1351895K.el")
+        call check(error, names(1)%text, "/tmp/ange-ftp1351895K.el")
         if (allocated(error)) return
-        call check(error, names(2)%s, "/tmp/ange-ftp13518wvE.el")
+        call check(error, names(2)%text, "/tmp/ange-ftp13518wvE.el")
         call close_buffer(h, st)
     end subroutine test_hunk_file_names
 

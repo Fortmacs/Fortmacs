@@ -24,8 +24,6 @@
 !> submodule because minibuf_mod uses subr_mod.
 submodule(subr_mod) subr_read_mod
     use commands_mod, only: commands
-    use callint_mod, only: command_type
-    use minibuf_mod, only: minibuffer_string_type
     use character_mod, only: string_char_and_length
     use, intrinsic :: iso_fortran_env, only: int32
     use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, is_minibuffer
@@ -33,7 +31,7 @@ submodule(subr_mod) subr_read_mod
     use keyboard_mod, only: sit_for, this_command, real_this_command, abort_recursive_edit, exit_recursive_edit, &
                             recursive_edit, top_level, lossage_size
     use keymap_mod, only: set_keymap_parent, define_key_range, destroy_keymap
-    use data_mod, only: number_to_string, value_eq
+    use data_mod, only: value_eq
     use character_mod, only: MAX_CHAR
     use value_mod, only: value_type, vtag, V_INTEGER
     use insdel_mod, only: insert
@@ -47,6 +45,7 @@ submodule(subr_mod) subr_read_mod
     use help_mod, only: with_output_to_temp_buffer, substitute_command_keys
     use rmc_mod, only: read_char_choice_use_read_key
     use error_mod, only: format_message, FM_GENERIC_ERROR
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
     !> y-or-n-p-map, made by `init_read_y_or_n_map'.
@@ -68,7 +67,8 @@ contains
 
     module procedure read_number
     character(len=:), allocatable :: full, string, histvar, def1
-    type(minibuffer_string_type), allocatable :: defs(:)
+    character(len=20) :: digits
+    type(string_type), allocatable :: defs(:)
     integer :: k, ndefs
     logical :: have, first_nil
 
@@ -91,23 +91,20 @@ contains
 
     do k = 1, ndefs
         if (present(defaults)) then
-            defs(k)%s = number_to_string(defaults(k))
+            write (digits, "(i0)") defaults(k)
         else
-            defs(k)%s = number_to_string(default)
+            write (digits, "(i0)") default
         end if
+
+        defs(k)%text = trim(digits)
     end do
 
     if (ndefs > 0 .and. .not. first_nil) then
-        def1 = defs(1)%s
+        def1 = defs(1)%text
         ! (string-match "\\(\\):[ \t]*\\'" prompt): before the last colon
         ! followed only by whitespace, else in place of the trailing
         ! whitespace.
-        k = len(full)
-
-        do while (k >= 1)
-            if (full(k:k) /= " " .and. full(k:k) /= achar(9)) exit
-            k = k - 1
-        end do
+        k = verify(full, " "//achar(9), back=.true.)
 
         if (k >= 1) then
             if (full(k:k) == ":") then

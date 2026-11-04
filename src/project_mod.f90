@@ -54,7 +54,8 @@ module project_mod
     use editfns_mod, only: buffer_string
     use fns_mod, only: count_characters, read_yes_or_no
     use search_mod, only: string_match, re_search_forward, SEARCH_NOERROR, match_beginning, match_end
-    use subr_mod, only: shell_quote_argument, match_string
+    use subr_mod, only: shell_quote_argument, match_string, is_version_less_or_equal
+    use string_type_mod, only: string_type, append_string
     use fileio_mod, only: expand_file_name, file_name_as_directory, directory_file_name, file_name_directory, &
                           file_name_nondirectory, is_file_directory, file_exists, is_file_name_absolute, &
                           is_directory_name, insert_file_contents, write_region, is_file_regular
@@ -62,14 +63,14 @@ module project_mod
                          wildcard_to_regexp, find_file, create_directory, locate_dominating_file, &
                          locate_dominating_stop_dir_regexp, save_some_buffers
     use config_mod, only: state_directory
-    use sysdep_mod, only: sys_string_type, emacs_directory_entries
+    use sysdep_mod, only: fortmacs_directory_entries
     use keymap_mod, only: make_sparse_keymap, keymap_set, define_key, set_keymap_parent, lookup_key, &
                           key_description, current_global_map, where_is_internal, overriding_terminal_local_map
     use keyboard_mod, only: read_key_sequence
     use callint_mod, only: execute_interactively, current_prefix_arg, prefix_numeric_value, command_of, PREFIX_NONE, &
                            PREFIX_NUMBER
     use minibuf_table_mod, only: completion_table_type, completion_list_table
-    use minibuf_mod, only: try_completion, minibuffer_default, minibuffer_string_type, completion_ignore_case, &
+    use minibuf_mod, only: try_completion, minibuffer_default, completion_ignore_case, &
                            minibuffer_setup_function
     use minibuffer_mod, only: completing_read, read_directory_name, read_file_name, read_file_name_completion_ignore_case, &
                               REQUIRE_MATCH_YES, REQUIRE_MATCH_CONFIRM, read_buffer_completion_ignore_case
@@ -78,10 +79,10 @@ module project_mod
     use window_mod, only: switch_to_buffer, display_buffer, pop_to_buffer_same_window, other_buffer
     use derived_mod, only: provided_mode_derived_p
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, NAMELIST_STRING
-    use vc_hooks_mod, only: vc_handled_backends, vc_directory_exclusions, vc_ignore_dir_regexp, vc_string_type, &
+    use vc_hooks_mod, only: vc_handled_backends, vc_directory_exclusions, vc_ignore_dir_regexp, &
                             vc_backends, vc_backend_named
     use vc_mod, only: vc_responsible_backend
-    use vc_git_mod, only: vc_git_command, vc_git_program_version, vc_git_root, vc_git_use_literal_pathspecs, version_le
+    use vc_git_mod, only: vc_git_command, vc_git_program_version, vc_git_root, vc_git_use_literal_pathspecs
     use vc_dir_mod, only: vc_dir
     use dired_mode_mod, only: dired
     use shell_mod, only: shell
@@ -108,14 +109,6 @@ module project_mod
               is_project_buffer_matching, project_buffers_to_close
     public :: project_and, project_or, project_not, project_major_mode, project_derived_mode, &
               project_buffer_name_regexp, project_buffer_test
-
-    !> A string in a list of strings of different lengths (file names,
-    !> directories, glob patterns): the element type of the lists the
-    !> project procedures take and give.  (Fortran-lang stdlib's name; it
-    !> moves to a shared module when one exists.)
-    type, public :: string_type
-        character(len=:), allocatable :: text
-    end type string_type
 
     !> A project: what the procedures of `project_find_functions' give.  A
     !> backend extends it and overrides `root' (required) and any of the
@@ -625,7 +618,7 @@ module project_mod
     character(len=:), allocatable :: save_root
 
     ! The defaults `completing_read_strict' gives M-n.
-    type(minibuffer_string_type), allocatable :: pending_defaults(:)
+    type(string_type), allocatable :: pending_defaults(:)
 
     ! The "Select a directory" choice of the prompters.
     character(len=*), parameter :: DIR_CHOICE = "... (choose a dir)"
@@ -635,17 +628,6 @@ contains
     ! ------------------------------------------------------------------
     ! Strings
     ! ------------------------------------------------------------------
-
-    !> Append TEXT to LIST.  Not a port.
-    subroutine append_string(list, text)
-        type(string_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: text
-        type(string_type) :: item
-
-        if (.not. allocated(list)) allocate (list(0))
-        item%text = text
-        list = [list, item]
-    end subroutine append_string
 
     !> Append the elements of MORE to LIST.  Not a port.
     subroutine append_strings(list, more)
@@ -1445,19 +1427,19 @@ contains
     !> the matches kept in `last_matches'.  Not a port.
     logical function has_marker(d)
         character(len=*), intent(in) :: d
-        type(sys_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(status_type) :: st
         integer :: i, j
 
         has_marker = .false.
         if (allocated(last_matches)) deallocate (last_matches)
         allocate (last_matches(0))
-        if (emacs_directory_entries(directory_file_name(expanded(d)), names) /= 0) return
+        if (fortmacs_directory_entries(directory_file_name(expanded(d)), names) /= 0) return
 
         do i = 1, size(names)
             do j = 1, size(marker_regexps)
-                if (string_match(marker_regexps(j)%text, names(i)%s, st) > 0) then
-                    call append_string(last_matches, names(i)%s)
+                if (string_match(marker_regexps(j)%text, names(i)%text, st) > 0) then
+                    call append_string(last_matches, names(i)%text)
                     exit
                 end if
             end do
@@ -1690,32 +1672,38 @@ contains
         type(string_type), intent(in) :: extra_ignores(:)
         type(string_type), allocatable, intent(out) :: files(:)
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: args(:)
-        type(vc_string_type) :: none(0)
+        type(string_type), allocatable :: args(:)
+        type(string_type) :: none(0)
         type(string_type), allocatable :: submodules(:), sub_files(:), kept(:)
         type(handle_type) :: old, tmp
         character(len=:), allocatable :: directory, gitver, text, i, module
-        logical :: dedup, saved_literal
+        logical :: dedup, saved_literal, new_enough, sparse
         integer :: k, j, pt, nul
 
         allocate (files(0))
         status = status_type()
 
-        if (size(extra_ignores) > 0 .and. .not. version_le("2.13", vc_git_program_version())) then
+        gitver = vc_git_program_version()
+        new_enough = is_version_less_or_equal("2.13", gitver, status)
+        if (.not. status%ok()) return
+
+        if (size(extra_ignores) > 0 .and. .not. new_enough) then
             ! Need newer Git to use negative pathspec like we do.
             call project_files_in_directory(dir, project_vc_ignores_of(dir, "Git", extra_ignores), files, status)
             return
         end if
 
         directory = expanded(file_name_as_directory(dir))
-        gitver = vc_git_program_version()
-        dedup = version_le("2.31", gitver)
+        dedup = is_version_less_or_equal("2.31", gitver, status)
+        if (.not. status%ok()) return
+        sparse = is_version_less_or_equal("2.35", gitver, status)
+        if (.not. status%ok()) return
         allocate (args(0))
         call append_arg("ls-files")
         call append_arg("-z")
         call append_arg("-c")
         call append_arg("--exclude-standard")
-        if (version_le("2.35", gitver)) call append_arg("--sparse")
+        if (sparse) call append_arg("--sparse")
         if (project_vc_include_untracked) call append_arg("-o")
         if (dedup) call append_arg("--deduplicate")
 
@@ -1817,9 +1805,9 @@ contains
 
         subroutine append_arg(arg)
             character(len=*), intent(in) :: arg
-            type(vc_string_type) :: item
+            type(string_type) :: item
 
-            item%s = arg
+            item%text = arg
             args = [args, item]
         end subroutine append_arg
     end subroutine vc_git_project_list_files
@@ -2657,16 +2645,16 @@ contains
         character(len=*), intent(in) :: dir
         logical, intent(in) :: recurse
         type(string_type), allocatable, intent(inout) :: files(:)
-        type(sys_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(string_type), allocatable :: entries(:)
         integer :: k
 
-        if (emacs_directory_entries(directory_file_name(dir), names) /= 0) return
+        if (fortmacs_directory_entries(directory_file_name(dir), names) /= 0) return
         allocate (entries(0))
 
         do k = 1, size(names)
-            if (names(k)%s == "." .or. names(k)%s == "..") cycle
-            call append_string(entries, dir//names(k)%s)
+            if (names(k)%text == "." .or. names(k)%text == "..") cycle
+            call append_string(entries, dir//names(k)%text)
         end do
 
         call sort_strings(entries)
@@ -3356,7 +3344,7 @@ contains
         type(history_setting_type), pointer :: hist
         type(history_item_type), allocatable :: saved(:), kept(:)
         type(history_item_type) :: item
-        type(minibuffer_string_type), allocatable :: defaults(:)
+        type(string_type), allocatable :: defaults(:)
         character(len=:), allocatable :: abs_cpd, s, histname
         logical :: saved_non_essential
         integer :: k
@@ -3364,11 +3352,11 @@ contains
         allocate (defaults(size(mb_default)))
 
         do k = 1, size(mb_default)
-            defaults(k)%s = mb_default(k)%text
+            defaults(k)%text = mb_default(k)%text
 
             if (present(common_parent_directory)) then
                 if (is_file_name_absolute(mb_default(k)%text)) then
-                    defaults(k)%s = file_relative_name(mb_default(k)%text, common_parent_directory)
+                    defaults(k)%text = file_relative_name(mb_default(k)%text, common_parent_directory)
                 end if
             end if
         end do

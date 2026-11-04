@@ -37,7 +37,6 @@
 !> Not a port: upstream loads its init file at startup instead.
 module config_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xfixnum, xstring, list_elements, vtag, V_INTEGER
@@ -52,7 +51,7 @@ module config_mod
     use dired_mod, only: directory_files
     use files_mod, only: create_directory
     use callproc_mod, only: execute_process
-    use sysdep_mod, only: emacs_readlink, ENOENT
+    use sysdep_mod, only: fortmacs_readlink, ENOENT
     use timefns_mod, only: format_time_string, time_type
     implicit none(type, external)
     private
@@ -139,7 +138,7 @@ contains
     function running_executable() result(name)
         character(len=:), allocatable :: name
 
-        if (emacs_readlink("/proc/self/exe", name) /= 0) name = ""
+        if (fortmacs_readlink("/proc/self/exe", name) /= 0) name = ""
     end function running_executable
 
     !> The installation `executable' belongs to: PREFIX when it is
@@ -168,7 +167,7 @@ contains
 
         text = "! Written by fortmacs --recompile."//nl// &
                "program fortmacs_user"//nl// &
-               "    use emacs_mod, only: execute_editor"//nl// &
+               "    use fortmacs_mod, only: execute_editor"//nl// &
                "    use user_config, only: configure"//nl// &
                "    implicit none(type, external)"//nl// &
                nl// &
@@ -225,6 +224,7 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(out), optional :: generation
         character(len=:), allocatable :: init, cache, built, driver, library, gen
+        character(len=12) :: number
         integer, allocatable :: numbers(:)
         integer :: n
         type(value_type) :: args(14), result
@@ -255,7 +255,8 @@ contains
         if (.not. status%ok()) return
         n = 1
         if (size(numbers) > 0) n = maxval(numbers) + 1
-        gen = generations_directory()//number_to_string(n)//"/"
+        write (number, '(i0, "/")') n
+        gen = generations_directory()//trim(number)
         call create_directory(gen, status, parents=.true.)
         if (.not. status%ok()) return
         driver = cache//"main.f90"
@@ -379,7 +380,7 @@ contains
         character(len=:), allocatable :: target
 
         n = 0
-        if (emacs_readlink(generations_directory()//"current", target) /= 0) return
+        if (fortmacs_readlink(generations_directory()//"current", target) /= 0) return
         n = number_of(file_name_nondirectory(directory_file_name(target)))
     end function current_generation
 
@@ -400,16 +401,19 @@ contains
         integer, intent(in) :: n
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: dir
+        character(len=11) :: number
+        character(len=40) :: text
 
         dir = generations_directory()
+        write (number, "(i0)") n
 
-        ! hazard-ok(short-circuit): number_to_string is a function, not an array.
-        if (n <= 0 .or. .not. is_file_executable(dir//number_to_string(n)//"/fortmacs")) then
-            call set_error(status, FM_GENERIC_ERROR, "There is no generation "//number_to_string(n))
+        if (n <= 0 .or. .not. is_file_executable(dir//trim(number)//"/fortmacs")) then
+            write (text, '("There is no generation ", i0)') n
+            call set_error(status, FM_GENERIC_ERROR, trim(text))
             return
         end if
 
-        call create_symbolic_link(number_to_string(n), dir//"current.new", status, ok_if_already_exists=.true.)
+        call create_symbolic_link(trim(number), dir//"current.new", status, ok_if_already_exists=.true.)
         if (.not. status%ok()) return
         call rename_file(dir//"current.new", dir//"current", status, ok_if_already_exists=.true.)
     end subroutine switch_generation
@@ -421,6 +425,7 @@ contains
         type(status_type), intent(out) :: status
         integer, allocatable :: numbers(:)
         integer :: k
+        character(len=64) :: text
 
         to = 0
         from = current_generation()
@@ -438,7 +443,8 @@ contains
         end do
 
         if (to == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "There is no generation before generation "//number_to_string(from))
+            write (text, '("There is no generation before generation ", i0)') from
+            call set_error(status, FM_GENERIC_ERROR, trim(text))
             return
         end if
 
@@ -453,6 +459,7 @@ contains
         integer, allocatable :: numbers(:)
         type(file_stat_type) :: st
         character(len=20) :: when
+        character(len=11) :: number
         integer :: k, current
         logical :: found
 
@@ -462,14 +469,15 @@ contains
         current = current_generation()
 
         do k = 1, size(numbers)
-            call file_attributes(generations_directory()//number_to_string(numbers(k))//"/fortmacs", st, found)
+            write (number, "(i0)") numbers(k)
+            call file_attributes(generations_directory()//trim(number)//"/fortmacs", st, found)
             when = ""
 
             if (found) then
                 when = format_time_string("%b %d %Y %H:%M:%S", time_type(st%mtime_sec))
             end if
 
-            text = text//"Generation "//number_to_string(numbers(k))//achar(9)//trim(when)
+            text = text//"Generation "//trim(number)//achar(9)//trim(when)
             if (numbers(k) == current) text = text//achar(9)//"(current)"
             text = text//new_line("a")
         end do

@@ -32,7 +32,8 @@ module regexp_opt_mod
     use error_mod, only: status_type
     use search_mod, only: regexp_quote, string_match, match_beginning, match_end, match_data, set_match_data
     use subr_mod, only: is_subregexp_context
-    use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
+    use editfns_mod, only: char_to_string
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -46,11 +47,6 @@ module regexp_opt_mod
     !> A regexp that never matches anything.  Port of subr.el
     !> regexp-unmatchable.
     character(len=*), parameter, public :: regexp_unmatchable = "\`a\`"
-
-    !> One string of a list.
-    type :: string_type
-        character(len=:), allocatable :: s
-    end type string_type
 
 contains
 
@@ -196,32 +192,32 @@ contains
         allocate (list(size(strings)))
 
         do i = 1, size(strings)
-            list(i)%s = trim(strings(i))
+            list(i)%text = trim(strings(i))
         end do
 
         ! Insertion sort (the lists are short).
         do i = 2, size(list)
-            call move_alloc(list(i)%s, tmp%s)
+            call move_alloc(list(i)%text, tmp%text)
             j = i - 1
 
             do while (j >= 1)
-                if (.not. llt(tmp%s, list(j)%s)) exit
-                call move_alloc(list(j)%s, list(j + 1)%s)
+                if (.not. llt(tmp%text, list(j)%text)) exit
+                call move_alloc(list(j)%text, list(j + 1)%text)
                 j = j - 1
             end do
 
-            call move_alloc(tmp%s, list(j + 1)%s)
+            call move_alloc(tmp%text, list(j + 1)%text)
         end do
 
         n = 0
 
         do i = 1, size(list)
             if (n > 0) then
-                if (list(i)%s == list(n)%s .and. len(list(i)%s) == len(list(n)%s)) cycle
+                if (list(i)%text == list(n)%text .and. len(list(i)%text) == len(list(n)%text)) cycle
             end if
 
             n = n + 1
-            if (n /= i) list(n)%s = list(i)%s
+            if (n /= i) list(n)%text = list(i)%text
         end do
 
         list = list(1:n)
@@ -246,13 +242,13 @@ contains
         type(string_type), intent(in) :: list(:)
         integer :: i, k
 
-        n = len(list(1)%s)
+        n = len(list(1)%text)
 
         do i = 2, size(list)
-            n = min(n, len(list(i)%s))
+            n = min(n, len(list(i)%text))
 
             do k = 1, n
-                if (list(i)%s(k:k) /= list(1)%s(k:k)) then
+                if (list(i)%text(k:k) /= list(1)%text(k:k)) then
                     n = k - 1
                     exit
                 end if
@@ -261,8 +257,8 @@ contains
 
         ! Back off to a character boundary.
         do while (n > 0)
-            if (n == len(list(1)%s)) exit
-            if (iand(iachar(list(1)%s(n + 1:n + 1)), 192) /= 128) exit
+            if (n == len(list(1)%text)) exit
+            if (iand(iachar(list(1)%text(n + 1:n + 1)), 192) /= 128) exit
             n = n - 1
         end do
     end function common_prefix
@@ -273,15 +269,15 @@ contains
         type(string_type), intent(in) :: list(:)
         integer :: i, k, l1, li
 
-        l1 = len(list(1)%s)
+        l1 = len(list(1)%text)
         n = l1
 
         do i = 2, size(list)
-            li = len(list(i)%s)
+            li = len(list(i)%text)
             n = min(n, li)
 
             do k = 1, n
-                if (list(i)%s(li - k + 1:li - k + 1) /= list(1)%s(l1 - k + 1:l1 - k + 1)) then
+                if (list(i)%text(li - k + 1:li - k + 1) /= list(1)%text(l1 - k + 1:l1 - k + 1)) then
                     n = k - 1
                     exit
                 end if
@@ -290,7 +286,7 @@ contains
 
         ! The suffix must start at a character boundary.
         do while (n > 0)
-            if (iand(iachar(list(1)%s(l1 - n + 1:l1 - n + 1)), 192) /= 128) exit
+            if (iand(iachar(list(1)%text(l1 - n + 1:l1 - n + 1)), 192) /= 128) exit
             n = n - 1
         end do
     end function common_suffix
@@ -298,7 +294,7 @@ contains
     !> Return a regexp to match a string in the sorted list STRINGS.
     !> If PAREN, output regexp parentheses around returned regexp (OPEN,
     !> or a shy group).  If LAX, don't output parentheses if it doesn't
-    !> require them.  Merges keywords to avoid backtracking in Emacs's
+    !> require them.  Merges keywords to avoid backtracking in Fortmacs's
     !> regexp matcher.  Port of regexp-opt.el:regexp-opt-group.
     recursive function opt_group(strings, paren, lax, open) result(regexp)
         type(string_type), intent(in) :: strings(:)
@@ -338,16 +334,16 @@ contains
         end if
 
         if (size(strings) == 1) then
-            if (nchars(strings(1)%s) == 1) then
-                regexp = open_charset//regexp_quote(strings(1)%s)//close_charset
+            if (nchars(strings(1)%text) == 1) then
+                regexp = open_charset//regexp_quote(strings(1)%text)//close_charset
             else
-                regexp = open_group//regexp_quote(strings(1)%s)//close_group
+                regexp = open_group//regexp_quote(strings(1)%text)//close_group
             end if
 
             return
         end if
 
-        if (len(strings(1)%s) == 0) then
+        if (len(strings(1)%text) == 0) then
             sub1 = opt_group(strings(2:), .true., .true.)
             regexp = open_charset//sub1//"?"//close_charset
             return
@@ -355,9 +351,9 @@ contains
 
         any_one = .false.
 
-        if (nchars(strings(1)%s) == 1) then
+        if (nchars(strings(1)%text) == 1) then
             do i = 2, size(strings)
-                if (nchars(strings(i)%s) == 1) any_one = .true.
+                if (nchars(strings(i)%text) == 1) any_one = .true.
             end do
         end if
 
@@ -368,8 +364,8 @@ contains
             nr = 0
 
             do i = 1, size(strings)
-                if (nchars(strings(i)%s) == 1) then
-                    letters = [letters, first_char(strings(i)%s)]
+                if (nchars(strings(i)%text) == 1) then
+                    letters = [letters, first_char(strings(i)%text)]
                 else
                     rest = [rest, strings(i)]
                 end if
@@ -392,11 +388,11 @@ contains
 
         if (n > 0) then
             ! common prefix: take it and recurse on the suffixes.
-            prefix = strings(1)%s(1:n)
+            prefix = strings(1)%text(1:n)
             allocate (parts(size(strings)))
 
             do i = 1, size(strings)
-                parts(i)%s = strings(i)%s(n + 1:)
+                parts(i)%text = strings(i)%text(n + 1:)
             end do
 
             sub1 = opt_group(parts, .true., .true.)
@@ -408,11 +404,11 @@ contains
 
         if (n > 0) then
             ! common suffix: take it and recurse on the prefixes.
-            xiffus = strings(1)%s(len(strings(1)%s) - n + 1:)
+            xiffus = strings(1)%text(len(strings(1)%text) - n + 1:)
             allocate (parts(size(strings)))
 
             do i = 1, size(strings)
-                parts(i)%s = strings(i)%s(1:len(strings(i)%s) - n)
+                parts(i)%text = strings(i)%text(1:len(strings(i)%text) - n)
             end do
 
             ! Sorting is necessary in cases such as ("ad" "d").
@@ -424,12 +420,12 @@ contains
 
         ! Otherwise, divide the list into those that start with a
         ! particular letter and those that do not, and recurse on them.
-        first = char_prefix(strings(1)%s)
+        first = char_prefix(strings(1)%text)
         k = 0
 
         do i = 1, size(strings)
-            if (len(strings(i)%s) < len(first)) exit
-            if (strings(i)%s(1:len(first)) /= first) exit
+            if (len(strings(i)%text) < len(first)) exit
+            if (strings(i)%text(1:len(first)) /= first) exit
             k = i
         end do
 
@@ -445,16 +441,16 @@ contains
         integer :: i, j
 
         do i = 2, size(list)
-            call move_alloc(list(i)%s, tmp%s)
+            call move_alloc(list(i)%text, tmp%text)
             j = i - 1
 
             do while (j >= 1)
-                if (.not. llt(tmp%s, list(j)%s)) exit
-                call move_alloc(list(j)%s, list(j + 1)%s)
+                if (.not. llt(tmp%text, list(j)%text)) exit
+                call move_alloc(list(j)%text, list(j + 1)%text)
                 j = j - 1
             end do
 
-            call move_alloc(tmp%s, list(j + 1)%s)
+            call move_alloc(tmp%text, list(j + 1)%text)
         end do
     end subroutine sort_list
 
@@ -500,18 +496,6 @@ contains
             c = ior(ishft(c, 6), iand(iachar(s(k + 1:k + 1)), 63))
         end do
     end function first_char
-
-    !> The UTF-8 string of character C.  Not a port.
-    function utf8(c) result(s)
-        integer(int32), intent(in) :: c
-        character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
-        integer(int32) :: nbytes
-        type(status_type) :: st
-
-        call char_string(c, buffer, nbytes, st)
-        s = buffer(1:nbytes)
-    end function utf8
 
     !> Return a regexp to match a character in CHARS.
     !> CHARS should be a list of characters.
@@ -590,11 +574,17 @@ contains
     contains
 
         subroutine flush ()
+            character(len=:), allocatable :: first, last
+            type(status_type) :: st
+
             if (end > start + 2) then
-                charset = charset//utf8(start)//"-"//utf8(end)
+                call char_to_string(start, first, st)
+                call char_to_string(end, last, st)
+                charset = charset//first//"-"//last
             else
                 do while (end >= start)
-                    charset = charset//utf8(start)
+                    call char_to_string(start, first, st)
+                    charset = charset//first
                     start = start + 1
                 end do
             end if

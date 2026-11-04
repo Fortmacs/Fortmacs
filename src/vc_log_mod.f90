@@ -22,20 +22,18 @@
 !> `vc_print_log' (C-x v l), `vc_print_root_log' (C-x v L) and
 !> `vc_print_log_internal': a submodule because they use log_view_mod,
 !> which uses vc_mod.
+!> The branch logs (C-x v b l, C-x v b L) and the incoming and outgoing
+!> logs (C-x v I, C-x v O) are here too.
 !>
-!> Deferred: the buttons `vc_print_log_setup_buttons' inserts at the end
-!> of a log ("Show 4X entries", "Show unlimited entries" and the renamed
-!> file buttons, needing button.el and the backend's
-!> `file-name-changes'), `log-view-vc-prev-fileset', the
-!> `region-history-mode' of logs with diffs, `vc_print_change_log',
-!> `vc_print_root_change_log' and the branch logs.
+!> Deferred: see the vc_mod row of PORTING.md.
 submodule(vc_mod) vc_log_mod
-    use log_view_mod, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset
+    use log_view_mod, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset, log_view_goto_rev
     use callint_mod, only: PREFIX_NUMBER
     use vc_dispatcher_mod, only: vc_exec_after, vc_action_type, vc_parent_buffer, set_vc_parent_buffer, vc_sentinel_movepoint
     use value_mod, only: value_type
     use callint_mod, only: current_prefix_arg
     use fileio_mod, only: is_file_directory
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
 contains
@@ -54,7 +52,7 @@ contains
     dir_present = .false.
 
     do k = 1, size(files)
-        if (is_file_directory(files(k)%s)) dir_present = .true.
+        if (is_file_directory(files(k)%text)) dir_present = .true.
     end do
 
     if (dir_present) then
@@ -80,18 +78,24 @@ contains
     ! `vc_log_finish_functions'.  Port of vc.el:vc-log-internal-common
     ! with the BACKEND-FUNC, SETUP-BUTTONS-FUNC, GOTO-LOCATION-FUNC and
     ! REV-BUFF-FUNC of `vc-print-log-internal'.
+    !> With UPSTREAM_LOCATION, the log is an incoming or outgoing one
+    !> (TYPE VC_LOG_VIEW_LOG_INCOMING or VC_LOG_VIEW_LOG_OUTGOING), made
+    !> by the backend's `log_incoming' or `log_outgoing' with the
+    !> SETUP-BUTTONS-FUNC, GOTO-LOCATION-FUNC and REV-BUFF-FUNC of
+    !> vc.el:vc-incoming-outgoing-internal.
     recursive subroutine vc_log_internal_common(backend, buffer_name, files, type, shortlog, working_revision, &
-                                                is_start_revision, limit, status)
+                                                is_start_revision, limit, status, upstream_location)
         use window_mod, only: pop_to_buffer
         use files_mod, only: revert_buffer_function
         integer, intent(in) :: backend
         character(len=*), intent(in) :: buffer_name
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         integer, intent(in) :: type
         logical, intent(in) :: shortlog, is_start_revision
         character(len=*), intent(in) :: working_revision
         type(vc_log_limit_type), intent(in) :: limit
         type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: upstream_location
         type(handle_type) :: buffer, old
         type(value_type) :: saved
         type(vc_action_type) :: action
@@ -106,16 +110,21 @@ contains
         call make_log_buffer_entry(k)
         log_buffers(k)%view_type = type
         ! (lambda (bk buffer _type-arg files-arg) ...): the backend function.
-        log_buffers(k)%shortlog = shortlog
+        if (.not. present(upstream_location)) log_buffers(k)%shortlog = shortlog
         call set_buffer(old, st)
         limit_unsupported = .false.
 
-        if (.not. associated(vc_backends(backend)%print_log)) then
+        if (present(upstream_location)) then
+            ! (vc-call-backend bk type-arg buffer upstream-location)
+            if (type == VC_LOG_VIEW_LOG_INCOMING) then
+                call vc_default_log_incoming(backend, buffer, upstream_location, status)
+            else
+                call vc_default_log_outgoing(backend, buffer, upstream_location, status)
+            end if
+        else if (.not. associated(vc_backends(backend)%print_log)) then
             call set_error(status, FM_VC_NOT_SUPPORTED, "No print-log function for "//vc_backends(backend)%name)
             return
-        end if
-
-        if (is_start_revision) then
+        else if (is_start_revision) then
             call vc_backends(backend)%print_log(files, buffer, shortlog, working_revision, limit, status, &
                                                 limit_unsupported)
         else
@@ -149,6 +158,7 @@ contains
             log_buffers(k)%is_start_revision = is_start_revision
             log_buffers(k)%limit = limit
             log_buffers(k)%type = type
+            if (present(upstream_location)) log_buffers(k)%upstream_location = upstream_location
             call revert_buffer_function%set_local(log_revert)
         end if
 
@@ -169,13 +179,15 @@ contains
     ! (vc-run-delayed ...) of `vc-log-internal-common': set up the buttons
     ! (deferred), go to the working revision, and run
     ! `vc_log_finish_functions'.  Port of the delayed part of
-    ! vc.el:vc-log-internal-common.
+    ! vc.el:vc-log-internal-common, with vc.el:vc-default-show-log-entry
+    ! for the backends without a `show_log_entry'.
     recursive subroutine log_finish(action, status)
         type(vc_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(value_type) :: saved
         type(status_type) :: st
+        logical :: found
 
         status = status_type()
         if (.not. is_buffer_live(action%buffer)) return
@@ -188,6 +200,9 @@ contains
         if (len(action%s1) > 0) then
             if (associated(vc_backends(action%n)%show_log_entry)) then
                 call vc_backends(action%n)%show_log_entry(action%s1)
+            else
+                ! vc-default-show-log-entry.
+                call log_view_goto_rev(action%s1, found)
             end if
 
             vc_sentinel_movepoint = point()
@@ -214,8 +229,14 @@ contains
         if (k == 0) return
         if (.not. log_buffers(k)%has_args) return
         args = log_buffers(k)
-        call vc_print_log_internal(args%backend, args%files, args%working_revision, status, &
-                                   args%is_start_revision, args%limit, args%type)
+
+        if (allocated(args%upstream_location)) then
+            call incoming_outgoing_internal(args%backend, args%upstream_location, buffers(current)%name, args%type, &
+                                            status)
+        else
+            call vc_print_log_internal(args%backend, args%files, args%working_revision, status, &
+                                       args%is_start_revision, args%limit, args%type)
+        end if
     end subroutine log_revert
 
     module procedure vc_print_log
@@ -364,4 +385,261 @@ contains
         if (point() > beginning) call buffer_substring(beginning, point(), word, st)
         call goto_char(opoint)
     end function word_at_point
+
+    ! ------------------------------------------------------------------
+    ! Branch logs
+    ! ------------------------------------------------------------------
+
+    !> Read the name of a branch to log.
+    !> FILESET, if true, means to pass the current VC fileset to
+    !> `vc_read_revision'.  Port of vc.el:vc--read-branch-to-log.
+    recursive subroutine read_branch_to_log(branch, status, fileset)
+        character(len=:), allocatable, intent(out) :: branch
+        type(status_type), intent(out) :: status
+        logical, intent(in) :: fileset
+        type(vc_fileset_type) :: fs
+        type(string_type) :: none(0)
+
+        if (fileset) then
+            call vc_deduce_fileset(fs, status, .true.)
+            if (.not. status%ok()) return
+            call vc_read_revision("Branch to log: ", branch, status, fs%files, fs%backend)
+        else
+            call vc_read_revision("Branch to log: ", branch, status, none)
+        end if
+
+        if (.not. status%ok()) return
+        if (len(branch) == 0) call set_error(status, FM_USER_ERROR, "No branch specified")
+    end subroutine read_branch_to_log
+
+    !> `vc_log_show_limit' as a log's LIMIT (none when not positive).
+    !> Not a port.
+    function show_limit() result(lim)
+        type(vc_log_limit_type) :: lim
+
+        if (vc_log_show_limit > 0) then
+            lim%kind = VC_LIMIT_NUMBER
+            lim%n = vc_log_show_limit
+        end if
+    end function show_limit
+
+    module procedure vc_print_fileset_branch_log
+    type(vc_fileset_type) :: fs
+
+    ! Currently the prefix argument is conserved.  Possibly it could be
+    ! used to prompt for a LIMIT argument like C-x v l has.  Though
+    ! now we have "Show 4X entries" and "Show unlimited entries" that
+    ! might be a waste of the prefix argument to this command.  --spwhitton
+    call vc_deduce_fileset(fs, status, .true.)
+    if (.not. status%ok()) return
+    call vc_print_log_internal(fs%backend, fs%files, branch, status, .true., show_limit())
+    end procedure vc_print_fileset_branch_log
+
+    module procedure vc_print_root_branch_log
+    type(vc_fileset_type) :: fs
+    character(len=:), allocatable :: saved_dir
+    type(handle_type) :: old
+    type(status_type) :: st
+
+    ! Prefix argument conserved; see previous command.  --spwhitton
+    call with_backend_in_rootdir("VC branch log", fs, saved_dir, status)
+
+    if (.not. status%ok()) then
+        buffers(current)%directory = saved_dir
+        return
+    end if
+
+    old = current_buffer()
+    call vc_print_log_internal(fs%backend, fs%files, branch, status, .true., show_limit())
+
+    if (is_buffer_live(old)) then
+        call set_buffer(old, st)
+        buffers(current)%directory = saved_dir
+        call set_buffer(get_buffer("*vc-change-log*"), st)
+    end if
+    end procedure vc_print_root_branch_log
+
+    module procedure cmd_vc_print_fileset_branch_log
+    character(len=:), allocatable :: branch
+
+    call read_branch_to_log(branch, status, .true.)
+    if (.not. status%ok()) return
+    call vc_print_fileset_branch_log(branch, status)
+    end procedure cmd_vc_print_fileset_branch_log
+
+    module procedure cmd_vc_print_root_branch_log
+    character(len=:), allocatable :: branch
+
+    call read_branch_to_log(branch, status, .false.)
+    if (.not. status%ok()) return
+    call vc_print_root_branch_log(branch, status)
+    end procedure cmd_vc_print_root_branch_log
+
+    ! ------------------------------------------------------------------
+    ! Incoming and outgoing logs
+    ! ------------------------------------------------------------------
+
+    !> Show the incoming or outgoing log (TYPE) of BACKEND's repository for
+    !> UPSTREAM_LOCATION in the buffer BUFFER_NAME.  Port of
+    !> vc.el:vc-incoming-outgoing-internal.
+    recursive subroutine incoming_outgoing_internal(backend, upstream_location, buffer_name, type, status)
+        integer, intent(in) :: backend
+        character(len=*), intent(in) :: upstream_location, buffer_name
+        integer, intent(in) :: type
+        type(status_type), intent(out) :: status
+        type(string_type), allocatable :: files(:)
+        type(vc_log_limit_type) :: none
+        character(len=:), allocatable :: root
+        logical :: found
+
+        call vc_root_dir(root, found, status)
+        if (.not. status%ok()) return
+        call append_string(files, root)
+        call vc_log_internal_common(backend, buffer_name, files, type, .false., "", .false., none, status, &
+                                    upstream_location)
+    end subroutine incoming_outgoing_internal
+
+    !> Read the upstream location if there is a prefix argument, else
+    !> give "" (none; also for an empty answer).  Port of
+    !> vc.el:vc--maybe-read-upstream-location.
+    recursive subroutine maybe_read_upstream_location(location, status)
+        use minibuf_mod, only: read_string
+        character(len=:), allocatable, intent(out) :: location
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        location = ""
+        if (current_prefix_arg%kind == PREFIX_NONE) return
+        call read_string("Upstream location/branch (empty for default): ", location, status, &
+                         history="vc_remote_location_history")
+    end subroutine maybe_read_upstream_location
+
+    !> Show the incoming or outgoing log (TYPE) in BUFFER_NAME of the
+    !> current VC tree.  The body of vc.el:vc-root-log-incoming and
+    !> vc.el:vc-root-log-outgoing.  Not a port.
+    recursive subroutine root_log_incoming_outgoing(upstream_location, buffer_name, type, status)
+        character(len=*), intent(in) :: upstream_location, buffer_name
+        integer, intent(in) :: type
+        type(status_type), intent(out) :: status
+        type(vc_fileset_type) :: fs
+        character(len=:), allocatable :: saved_dir
+        type(handle_type) :: old
+        type(status_type) :: st
+
+        call with_backend_in_rootdir("VC root-log", fs, saved_dir, status)
+
+        if (.not. status%ok()) then
+            buffers(current)%directory = saved_dir
+            return
+        end if
+
+        old = current_buffer()
+        call incoming_outgoing_internal(fs%backend, upstream_location, buffer_name, type, status)
+
+        if (is_buffer_live(old)) then
+            call set_buffer(old, st)
+            buffers(current)%directory = saved_dir
+            if (status%ok()) call set_buffer(get_buffer(buffer_name), st)
+        end if
+    end subroutine root_log_incoming_outgoing
+
+    module procedure vc_root_log_incoming
+    if (present(upstream_location)) then
+        call root_log_incoming_outgoing(upstream_location, "*vc-incoming*", VC_LOG_VIEW_LOG_INCOMING, status)
+    else
+        call root_log_incoming_outgoing("", "*vc-incoming*", VC_LOG_VIEW_LOG_INCOMING, status)
+    end if
+    end procedure vc_root_log_incoming
+
+    module procedure vc_root_log_outgoing
+    if (present(upstream_location)) then
+        call root_log_incoming_outgoing(upstream_location, "*vc-outgoing*", VC_LOG_VIEW_LOG_OUTGOING, status)
+    else
+        call root_log_incoming_outgoing("", "*vc-outgoing*", VC_LOG_VIEW_LOG_OUTGOING, status)
+    end if
+    end procedure vc_root_log_outgoing
+
+    module procedure cmd_vc_root_log_incoming
+    character(len=:), allocatable :: location
+
+    call maybe_read_upstream_location(location, status)
+    if (.not. status%ok()) return
+    call vc_root_log_incoming(status, location)
+    end procedure cmd_vc_root_log_incoming
+
+    module procedure cmd_vc_root_log_outgoing
+    character(len=:), allocatable :: location
+
+    call maybe_read_upstream_location(location, status)
+    if (.not. status%ok()) return
+    call vc_root_log_outgoing(status, location)
+    end procedure cmd_vc_root_log_outgoing
+
+    !> Insert in BUFFER the log of the changes that will be received when
+    !> pulling from UPSTREAM_LOCATION: from the merge base with the
+    !> incoming revision (fetched again) to that revision.  Port of
+    !> vc.el:vc-default-log-incoming.
+    recursive subroutine vc_default_log_incoming(backend, buffer, upstream_location, status)
+        integer, intent(in) :: backend
+        type(handle_type), intent(in) :: buffer
+        character(len=*), intent(in) :: upstream_location
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: incoming
+
+        call vc_incoming_revision(backend, upstream_location, incoming, status, .true.)
+        if (.not. status%ok()) return
+        call print_log_from_mergebase(backend, buffer, incoming, incoming, status)
+    end subroutine vc_default_log_incoming
+
+    !> Insert in BUFFER the log of the changes that will be sent when
+    !> pushing to UPSTREAM_LOCATION: from the merge base with the incoming
+    !> revision to the working revision.  Port of
+    !> vc.el:vc-default-log-outgoing.
+    recursive subroutine vc_default_log_outgoing(backend, buffer, upstream_location, status)
+        integer, intent(in) :: backend
+        type(handle_type), intent(in) :: buffer
+        character(len=*), intent(in) :: upstream_location
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: incoming
+
+        call vc_incoming_revision(backend, upstream_location, incoming, status)
+        if (.not. status%ok()) return
+        call print_log_from_mergebase(backend, buffer, "", incoming, status)
+    end subroutine vc_default_log_outgoing
+
+    !> Insert in BUFFER the short log of BACKEND's repository root from
+    !> START_REVISION ("" for the working revision) back to the merge base
+    !> with INCOMING.  The common part of vc.el:vc-default-log-incoming and
+    !> vc.el:vc-default-log-outgoing.  Not a port.
+    recursive subroutine print_log_from_mergebase(backend, buffer, start_revision, incoming, status)
+        integer, intent(in) :: backend
+        type(handle_type), intent(in) :: buffer
+        character(len=*), intent(in) :: start_revision, incoming
+        type(status_type), intent(out) :: status
+        type(string_type), allocatable :: files(:)
+        type(vc_log_limit_type) :: limit
+        character(len=:), allocatable :: root, saved_dir
+        logical :: found, limit_unsupported
+
+        call vc_root_dir(root, found, status, backend)
+        if (.not. status%ok()) return
+        saved_dir = buffers(current)%directory
+        buffers(current)%directory = root
+
+        if (.not. associated(vc_backends(backend)%mergebase)) then
+            call vc_not_supported(status, "mergebase", backend)
+        else if (.not. associated(vc_backends(backend)%print_log)) then
+            call vc_not_supported(status, "print-log", backend)
+        else
+            limit%kind = VC_LIMIT_REVISION
+            call vc_backends(backend)%mergebase(incoming, "", limit%revision, status)
+        end if
+
+        if (status%ok()) then
+            call append_string(files, root)
+            call vc_backends(backend)%print_log(files, buffer, .true., start_revision, limit, status, limit_unsupported)
+        end if
+
+        buffers(current)%directory = saved_dir
+    end subroutine print_log_from_mergebase
 end submodule vc_log_mod

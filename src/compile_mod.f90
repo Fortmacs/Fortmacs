@@ -51,7 +51,8 @@
 !> the `first-error' value of `compilation_scroll_output' beyond scrolling
 !> (need timers), highlighting the locus (`next_error_highlight',
 !> `compilation_highlight_regexp': need overlays), the overlay arrow and
-!> margins (`compilation_context_lines' true, the fringe), the `keymap'
+!> margins (`compilation_context' COMPILATION_CONTEXT_NO_SCROLL, the
+!> fringe), the `keymap'
 !> text property (`compilation_button_map'), the mouse, menus and tool
 !> bar, `compilation_goto_in_progress_buffer'; a global
 !> `compilation_error_regexp_names' with rule specifications rather than
@@ -92,8 +93,8 @@ module compile_mod
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING
-    use data_mod, only: number_to_string, string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
-                        append_locals_clearer, forward_setting
+    use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
+                        append_locals_clearer, forward_setting, choice_setting_type, string_to_number
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           buffer_list, erase_buffer, restore_buffer_modified
     use marker_mod, only: copy_marker_at, destroy_marker, marker_position, set_marker, marker_buffer, make_marker
@@ -114,7 +115,7 @@ module compile_mod
     use fileio_mod, only: expand_file_name, file_name_as_directory, is_file_name_absolute, is_file_directory, &
                           file_exists, is_file_accessible_directory, file_name_directory, file_name_nondirectory
     use files_mod, only: abbreviate_file_name, save_some_buffers, find_file_noselect, file_truename
-    use print_mod, only: readable_repr
+    use print_mod, only: readable_text
     use fns_mod, only: read_yes_or_no
     use hooks_mod, only: hook_type, change_major_mode_hook
     use keyboard_mod, only: sit_for
@@ -129,7 +130,7 @@ module compile_mod
     use simple_mod, only: special_mode_map, read_shell_command, shell_command_switch, next_error_last_buffer, &
                           set_next_error_function, next_error_find_buffer, next_error_internal, next_error, push_mark
     use callproc_mod, only: shell_file_name, init_callproc
-    use process_mod, only: process_arg_type, make_process, get_buffer_process, process_status, &
+    use process_mod, only: make_process, get_buffer_process, process_status, &
                            process_query_on_exit_flag, interrupt_process, delete_process, process_buffer, &
                            process_exit_status, set_process_buffer, set_process_query_on_exit_flag, process_mark, &
                            process_send_eof, num_processors
@@ -138,8 +139,9 @@ module compile_mod
     use comint_mod, only: comint_carriage_motion, comint_inhibit_carriage_motion, comint_mode, comint_exec
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             FONT_LOCK_OVERRIDE_YES
+                             FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_append_text_property, font_lock_add_keywords, font_lock_flush
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -190,9 +192,9 @@ module compile_mod
         !> function may add to it (as `setenv' does inside the binding of
         !> `process_environment' in compilation-start).  Not a port.
         recursive subroutine compilation_process_setup_procedure(environment, status)
-            import :: process_arg_type, status_type
+            import :: string_type, status_type
             implicit none(type, external)
-            type(process_arg_type), allocatable, intent(inout) :: environment(:)
+            type(string_type), allocatable, intent(inout) :: environment(:)
             type(status_type), intent(out) :: status
         end subroutine compilation_process_setup_procedure
 
@@ -323,9 +325,8 @@ module compile_mod
     type(logical_setting_type), public :: compilation_disable_input = &
                                           logical_setting_type(name="compilation_disable_input", value=.false.)
 
-    !> Values of `compilation_scroll_output'.
-    integer, parameter, public :: COMPILATION_SCROLL_OUTPUT_NO = 0, COMPILATION_SCROLL_OUTPUT_YES = 1, &
-                                  COMPILATION_SCROLL_OUTPUT_FIRST_ERROR = 2
+    !> Values of `compilation_scroll_output' besides .true. and .false.
+    integer, parameter, public :: COMPILATION_SCROLL_OUTPUT_FIRST_ERROR = 2
 
     !> True to scroll the *compilation* buffer window as output appears.
     !>
@@ -335,17 +336,16 @@ module compile_mod
     !>
     !> COMPILATION_SCROLL_OUTPUT_FIRST_ERROR stops scrolling at the first error,
     !> and leaves point on its location in the *compilation* buffer.  Port of
-    !> compile.el compilation-scroll-output (COMPILATION_SCROLL_OUTPUT_NO,
-    !> COMPILATION_SCROLL_OUTPUT_YES and COMPILATION_SCROLL_OUTPUT_FIRST_ERROR).
-    type(integer_setting_type), public :: compilation_scroll_output = &
-                                          integer_setting_type(name="compilation_scroll_output", value=COMPILATION_SCROLL_OUTPUT_NO)
+    !> compile.el compilation-scroll-output.
+    type(choice_setting_type), public :: compilation_scroll_output = &
+                                         choice_setting_type(name="compilation_scroll_output")
 
     !> Hook run after `compilation_filter' has inserted a string into the
     !> buffer.  It is called with the variable `compilation_filter_start'
     !> bound to the position of the start of the inserted text, and point at
     !> its end.
     !>
-    !> If Emacs lacks asynchronous process support, this hook is run
+    !> If Fortmacs lacks asynchronous process support, this hook is run
     !> after `execute_process' inserts the grep output into the buffer.  Port
     !> of compile.el compilation-filter-hook.
     type(hook_type), target, public :: compilation_filter_hook = hook_type(name="compilation_filter_hook")
@@ -486,9 +486,9 @@ module compile_mod
     !> Otherwise they are interpreted as character positions, with
     !> each character occupying one column.
     !> The default is to use screen columns, which requires that the
-    !> compilation program and Emacs agree about the display width of the
+    !> compilation program and Fortmacs agree about the display width of the
     !> characters, especially the TAB character.
-    !> If this is buffer-local in the destination buffer, Emacs obeys
+    !> If this is buffer-local in the destination buffer, Fortmacs obeys
     !> that value, otherwise it uses the value in the *compilation*
     !> buffer.  This enables a major mode to specify its own value.  Port
     !> of compile.el compilation-error-screen-columns.
@@ -496,7 +496,7 @@ module compile_mod
                                           logical_setting_type(name="compilation_error_screen_columns", value=.true.)
 
     !> This is how compilers number the first column, usually 1 or 0.
-    !> If this is buffer-local in the destination buffer, Emacs obeys
+    !> If this is buffer-local in the destination buffer, Fortmacs obeys
     !> that value, otherwise it uses the value in the *compilation*
     !> buffer.  This enables a major mode to specify its own value.  Port
     !> of compile.el compilation-first-column.
@@ -531,20 +531,34 @@ module compile_mod
     type(logical_setting_type), public :: compilation_search_all_directories = &
                                           logical_setting_type(name="compilation_search_all_directories", value=.true.)
 
-    !> Values of `compilation_context_lines' other than a number of lines.
-    integer, parameter, public :: COMPILATION_CONTEXT_TOP = -1, COMPILATION_CONTEXT_LINES_NO_SCROLL = -2
+    !> Values of `compilation_context' besides a number of lines
+    !> (`%lines'); it takes no .true. or .false..
+    integer, parameter, public :: COMPILATION_CONTEXT_TOP = 2, COMPILATION_CONTEXT_NO_SCROLL = 3
+
+    !> The setting `compilation_context': a number of lines (R6-39:
+    !> `compilation_context%lines = 3'; negative when no number is set) or
+    !> one of its named constants.  Not a port.
+    type, extends(choice_setting_type), public :: compilation_context_choice_setting_type
+        integer(int64) :: lines = -1
+    contains
+        procedure :: clear_kinds => compilation_context_clear_kinds
+        procedure :: other_value => compilation_context_other_value
+        procedure :: kind_hint => compilation_context_kind_hint
+    end type compilation_context_choice_setting_type
 
     !> Display this many lines of leading context before the current
-    !> message.  If COMPILATION_CONTEXT_TOP or COMPILATION_CONTEXT_LINES_NO_SCROLL, and
-    !> the left fringe is displayed, don't scroll the compilation output
-    !> window; an arrow in the left fringe points to the current message.
-    !> With no left fringe, if COMPILATION_CONTEXT_TOP, the message scrolls
-    !> to the top of the window; there is no arrow.  If
-    !> COMPILATION_CONTEXT_LINES_NO_SCROLL, don't scroll the compilation output window at
-    !> all; an arrow before column zero points to the current message.
-    !> Port of compile.el compilation-context-lines.
-    type(integer_setting_type), public :: compilation_context_lines = &
-                                          integer_setting_type(name="compilation_context_lines", value=COMPILATION_CONTEXT_TOP)
+    !> message (`compilation_context%lines').  If COMPILATION_CONTEXT_TOP or
+    !> COMPILATION_CONTEXT_NO_SCROLL, and the left fringe is displayed,
+    !> don't scroll the compilation output window; an arrow in the left
+    !> fringe points to the current message.  With no left fringe, if
+    !> COMPILATION_CONTEXT_TOP, the message scrolls to the top of the
+    !> window; there is no arrow.  If COMPILATION_CONTEXT_NO_SCROLL, don't
+    !> scroll the compilation output window at all; an arrow before column
+    !> zero points to the current message.  Port of compile.el
+    !> compilation-context-lines.
+    type(compilation_context_choice_setting_type), public :: compilation_context = &
+                                                             compilation_context_choice_setting_type(name="compilation_context", &
+                                                            true_valid=.false., false_valid=.false., choice=COMPILATION_CONTEXT_TOP)
 
     !> Face name to use for whole messages.
     !> Faces `compilation_error_face', `compilation_warning_face',
@@ -1172,7 +1186,7 @@ contains
     !> Give the current buffer its own values of the compilation variables,
     !> as the body of a mode made by define-compilation-mode does with
     !> `set_local' (after `compilation_mode' has run as its parent):
-    !> `compilation_error_regexp_names' as the rules ERROR_REGEXP_TABLE,
+    !> `compilation_error_regexp_names' as the rules ERROR_REGEXPS,
     !> `compilation_directory_matcher', `compilation_transform_file_matches',
     !> `compilation_error' (the word for a message, "error" by default),
     !> `compilation_mode_font_lock_keywords' (MODE_FONT_LOCK_KEYWORDS: what
@@ -1182,10 +1196,10 @@ contains
     !> (`compilation_error_face', `compilation_scroll_output',
     !> `compilation_first_column' and so on) take `set_local' directly.
     !> Cf. compile.el:define-compilation-mode.  Not a port.
-    subroutine compilation_set_mode_locals(error_regexp_table, directory_matcher, transform_file_match_table, &
+    subroutine compilation_set_mode_locals(error_regexps, directory_matcher, transform_file_match_table, &
                                            error, mode_font_lock_keywords, mode_line_errors, process_setup_function, &
                                            exit_message_function)
-        type(compilation_rule_type), intent(in), optional :: error_regexp_table(:)
+        type(compilation_rule_type), intent(in), optional :: error_regexps(:)
         type(compilation_directory_matcher_type), intent(in), optional :: directory_matcher
         type(compilation_transform_type), intent(in), optional :: transform_file_match_table(:)
         character(len=*), intent(in), optional :: error
@@ -1198,12 +1212,12 @@ contains
 
         call make_current_entry(k)
 
-        if (present(error_regexp_table)) then
+        if (present(error_regexps)) then
             compilation_buffers(k)%has_rules = .true.
-            allocate (compilation_buffers(k)%rules(size(error_regexp_table)))
+            allocate (compilation_buffers(k)%rules(size(error_regexps)))
 
-            do i = 1, size(error_regexp_table)
-                compilation_buffers(k)%rules(i) = error_regexp_table(i)
+            do i = 1, size(error_regexps)
+                compilation_buffers(k)%rules(i) = error_regexps(i)
             end do
         end if
 
@@ -1815,13 +1829,8 @@ contains
 
         do while (k < len(file))
             if (file(k:k) == "/" .and. file(k + 1:k + 1) == "/") then
-                j = k + 1
-
-                do while (j <= len(file))
-                    if (file(j:j) /= "/") exit
-                    j = j + 1
-                end do
-
+                j = verify(file(k + 1:), "/")
+                j = merge(len(file) + 1, k + j, j == 0)
                 file = file(1:k)//file(j:)
             end if
 
@@ -1913,40 +1922,6 @@ contains
             pos = md(2*g + 1)
         end if
     end function md_pos
-
-    !> The number at the start of S (0 if none), as string-to-number reads
-    !> it.  Not a port.
-    integer(int64) function string_to_number(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: k, sign
-
-        n = 0
-        k = 1
-
-        do while (k <= len(s))
-            if (s(k:k) /= " " .and. s(k:k) /= TB) exit
-            k = k + 1
-        end do
-
-        sign = 1
-
-        if (k <= len(s)) then
-            if (s(k:k) == "-") then
-                sign = -1
-                k = k + 1
-            else if (s(k:k) == "+") then
-                k = k + 1
-            end if
-        end if
-
-        do while (k <= len(s))
-            if (s(k:k) < "0" .or. s(k:k) > "9") exit
-            if (n < 900000000000000000_int64) n = 10*n + (iachar(s(k:k)) - iachar("0"))
-            k = k + 1
-        end do
-
-        n = sign*n
-    end function string_to_number
 
     !> The text of subexpression G of the match data MD.  Not a port.
     function md_string(md, g) result(s)
@@ -2429,7 +2404,7 @@ contains
                 call fn(value, has)
             else if (group /= 0) then
                 if (md_pos(md, group, .false.) /= 0) then
-                    value = string_to_number(md_string(md, group))
+                    call string_to_number(md_string(md, group), value)
                     has = .true.
                 end if
             end if
@@ -2938,7 +2913,7 @@ contains
             compilation_buffers(k)%messages_start_pos = pos
         end if
 
-        compilation_buffers(k)%auto_jump_to_next = compilation_scroll_output%value == COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
+        compilation_buffers(k)%auto_jump_to_next = compilation_scroll_output%choice == COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
     end subroutine compilation_forget_errors
 
     !> What the `compilation_message' property at POS of the current
@@ -3654,12 +3629,12 @@ contains
         call marker_position(mk, pos, st)
         opoint = point()
 
-        if (compilation_context_lines%value >= 0) then
+        if (compilation_context%lines >= 0) then
             call goto_char(pos)
-            call compilation_beginning_of_line(1 - compilation_context_lines%value)
+            call compilation_beginning_of_line(1 - compilation_context%lines)
             call set_window_start(windows(w%index), point(), st)
             call goto_char(opoint)
-        else if (compilation_context_lines%value == COMPILATION_CONTEXT_TOP) then
+        else if (compilation_context%choice == COMPILATION_CONTEXT_TOP) then
             ! There is no left fringe.
             call goto_char(pos)
             moved = forward_line(0_int64)
@@ -4069,7 +4044,7 @@ contains
 
         if (present(override)) then
             if (override) then
-                h%match%override = FONT_LOCK_OVERRIDE_YES
+                h%match%override = FONT_LOCK_OVERRIDE_REPLACE
                 h%match%laxmatch = .true.
             end if
         end if
@@ -4340,7 +4315,7 @@ contains
 
     !> Insert TEXT at point, adding the `compilation_annotation' text
     !> property.  This property is used to distinguish output of the
-    !> compilation process from additional information inserted by Emacs.
+    !> compilation process from additional information inserted by Fortmacs.
     !> Port of compile.el:compilation-insert-annotation.
     subroutine compilation_insert_annotation(text)
         character(len=*), intent(in) :: text
@@ -4395,8 +4370,7 @@ contains
         type(major_mode_type), intent(in), target, optional :: mode
         character(len=:), allocatable :: thisdir, cd_dir, origdir, name_of_mode
         type(handle_type) :: outbuf, comp_process, outwin, old, process
-        type(process_arg_type) :: args(3), switches(2)
-        type(process_arg_type), allocatable :: env(:)
+        type(string_type), allocatable :: args(:), switches(:), env(:)
         type(value_type) :: inhibit
         type(status_type) :: st
         logical :: answer, scroll, use_comint
@@ -4505,7 +4479,7 @@ contains
             ! Output a mode setter, for saving and later reloading this
             ! buffer.
             call compilation_insert_annotation("-*- mode: "//name_of_mode//"; default-directory: "// &
-                                               readable_repr(value_type(text=abbreviate_file_name(origdir)))// &
+                                               readable_text(value_type(text=abbreviate_file_name(origdir)))// &
                                                " -*-"//NL)
         end if
 
@@ -4519,7 +4493,7 @@ contains
         call restore_buffer_modified(.false.)
         ! Pop up the compilation buffer.
         call display_buffer(outbuf, outwin, st)
-        scroll = compilation_scroll_output%value /= COMPILATION_SCROLL_OUTPUT_NO
+        scroll = .not. compilation_scroll_output%is_off()
         call make_current_entry(k)
         compilation_buffers(k)%has_arguments = .true.
         compilation_buffers(k)%command = command
@@ -4541,10 +4515,8 @@ contains
             call set_window_point(windows(outwin%index), desired, st)
         end if
 
-        allocate (env(2))
-        env(1)%s = "INSIDE_EMACS="//upstream_version//",compile"
         ! Some external programs (like "git grep") use a pager; defeat that.
-        env(2)%s = "PAGER="
+        call append_string(env, "INSIDE_EMACS="//upstream_version//",compile", "PAGER=")
         ! The setup function is called before compilation-set-window-height
         ! so it can set the compilation-window-height buffer locally.
         call make_current_entry(k)
@@ -4562,15 +4534,12 @@ contains
         if (.not. allocated(shell_file_name%value)) call init_callproc()
 
         if (use_comint) then
-            switches(1)%s = shell_command_switch%value
-            switches(2)%s = command
+            call append_string(switches, shell_command_switch%value, command)
             call comint_exec(outbuf, downcase_name(buffers(current)%mode_name), shell_file_name%value, switches, status, &
                              environment=env)
             if (status%ok()) process = get_buffer_process(outbuf)
         else
-            args(1)%s = shell_file_name%value
-            args(2)%s = shell_command_switch%value
-            args(3)%s = command
+            call append_string(args, shell_file_name%value, shell_command_switch%value, command)
             call make_process(downcase_name(buffers(current)%mode_name), args, process, status, buffer=outbuf, &
                               environment=env)
         end if
@@ -4666,19 +4635,23 @@ contains
     subroutine compilation_mode_line_errors(k, parts)
         integer, intent(in) :: k
         type(mode_line_part_type), allocatable, intent(out) :: parts(:)
+        character(len=20) :: count_text
 
         allocate (parts(7))
         parts(1)%text = " ["
         parts(1)%face = ""
-        parts(2)%text = number_to_string(compilation_buffers(k)%error_count)
+        write (count_text, "(i0)") compilation_buffers(k)%error_count
+        parts(2)%text = trim(count_text)
         parts(2)%face = "compilation_error"
         parts(3)%text = " "
         parts(3)%face = ""
-        parts(4)%text = number_to_string(compilation_buffers(k)%warning_count)
+        write (count_text, "(i0)") compilation_buffers(k)%warning_count
+        parts(4)%text = trim(count_text)
         parts(4)%face = "compilation_warning"
         parts(5)%text = " "
         parts(5)%face = ""
-        parts(6)%text = number_to_string(compilation_buffers(k)%info_count)
+        write (count_text, "(i0)") compilation_buffers(k)%info_count
+        parts(6)%text = trim(count_text)
         parts(6)%face = "compilation_info"
         parts(7)%text = "]"
         parts(7)%face = ""
@@ -4929,6 +4902,7 @@ contains
         integer :: k
         real :: elapsed
         character(len=32) :: duration
+        character(len=16) :: code_text
         character(len=:), allocatable :: line, text, code
 
         k = entry_of(current_buffer())
@@ -4938,11 +4912,13 @@ contains
                 call compilation_buffers(k)%exit_message(process_status_name, exit_status, msg, text, code)
             else
                 text = msg
-                code = trim(code_string())
+                write (code_text, "(i0)") exit_status
+                code = trim(code_text)
             end if
         else
             text = msg
-            code = trim(code_string())
+            write (code_text, "(i0)") exit_status
+            code = trim(code_text)
         end if
 
         call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
@@ -4995,14 +4971,6 @@ contains
         call message(buffers(current)%mode_name//" "//line)
         if (opoint < omax) call goto_char(opoint)
         call set(value_type(name="inhibit_read_only"), inhibit, st)
-
-    contains
-
-        function code_string() result(c)
-            character(len=16) :: c
-
-            write (c, "(i0)") exit_status
-        end function code_string
     end subroutine compilation_handle_exit
 
     !> Stop the process made by the \[compile] or \[grep] commands.  Port of
@@ -5165,4 +5133,37 @@ contains
             compilation_leave_directory_face = "font_lock_builtin_face"
         end if
     end subroutine init_compile
+
+    !> Forget the lines of `compilation_context', as any assignment to it
+    !> does.  Not a port.
+    subroutine compilation_context_clear_kinds(self)
+        class(compilation_context_choice_setting_type), intent(inout) :: self
+
+        self%lines = -1
+    end subroutine compilation_context_clear_kinds
+
+    !> The lines of `compilation_context' as help shows it (`%lines = N');
+    !> "" when none is set.  Not a port.
+    function compilation_context_other_value(self) result(text)
+        class(compilation_context_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        character(len=40) :: digits
+
+        text = ""
+
+        if (self%lines >= 0) then
+            write (digits, "(i0)") self%lines
+            text = "%lines = "//trim(digits)
+        end if
+    end function compilation_context_other_value
+
+    !> The assignment that sets the number or procedure `compilation_context' takes, for the error of a rejected
+    !> value.  Not a port.
+    function compilation_context_kind_hint(self, number) result(text)
+        class(compilation_context_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of lines is `"//trim(self%name)//"%lines = "//number//"'"
+    end function compilation_context_kind_hint
 end module compile_mod

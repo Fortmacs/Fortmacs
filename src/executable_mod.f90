@@ -41,18 +41,19 @@ module executable_mod
     use subr_mod, only: read_y_or_n
     use minibuf_mod, only: read_string
     use xdisp_mod, only: message
-    use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_YES
+    use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use commands_mod, only: commands
     use keyboard_mod, only: this_command
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
     public :: executable_find, executable_chmod_function, executable_set_magic, executable_self_display_command, &
               executable_make_buffer_file_executable_if_script, init_executable
 
-    !> Values of `executable_query'.
-    integer, parameter, public :: EXECUTABLE_QUERY_NO = 0, EXECUTABLE_QUERY_FUNCTION = 1, EXECUTABLE_QUERY_ALWAYS = 2
+    !> Values of `executable_query' besides .true. and .false.
+    integer, parameter, public :: EXECUTABLE_QUERY_FUNCTION = 2
 
     !> The value of `executable_chmod' that means not to change the modes.
     integer, parameter, public :: EXECUTABLE_CHMOD_NONE = -huge(0)
@@ -64,11 +65,12 @@ module executable_mod
     !> update the magic number.  Port of executable.el executable-insert.
     logical, public :: executable_insert = .true.
 
-    !> If true (not `EXECUTABLE_QUERY_NO'), ask user before changing an
+    !> If true, ask user before changing an
     !> existing magic number.  When this is `EXECUTABLE_QUERY_FUNCTION',
     !> only ask when called non-interactively.  Port of executable.el
     !> executable-query.
-    integer, public :: executable_query = EXECUTABLE_QUERY_FUNCTION
+    type(choice_setting_type), public :: executable_query = &
+                                         choice_setting_type(name="executable_query", choice=EXECUTABLE_QUERY_FUNCTION)
 
     !> On files with this kind of name no magic is inserted or changed.
     !> Port of executable.el executable-magicless-file-regexp.
@@ -95,7 +97,7 @@ module executable_mod
     integer, public :: executable_chmod = 73
 
     !> Command you use with argument `-n+2' to make text files self-display.
-    !> Note that the like of `more' doesn't work too well under Emacs \[shell].
+    !> Note that the like of `more' doesn't work too well under Fortmacs \[shell].
     !> Port of executable.el executable-self-display (obsolete since 25.1).
     character(len=:), allocatable, public :: executable_self_display
 
@@ -229,7 +231,7 @@ contains
             end if
 
             if (ok) then
-                if (executable_query /= EXECUTABLE_QUERY_NO .and. .not. noquery) then
+                if (.not. executable_query%is_off() .and. .not. noquery) then
                     ! (save-match-data (save-window-excursion ...)): make
                     ! buffer visible before question.
                     saved = match_data()
@@ -265,7 +267,7 @@ contains
         if (.not. status%ok()) return
         call read_string("Argument for "//name//": ", arg, status)
         if (.not. status%ok()) return
-        call executable_set_magic(name, result, status, arg, executable_query == EXECUTABLE_QUERY_FUNCTION, .true.)
+        call executable_set_magic(name, result, status, arg, executable_query%choice == EXECUTABLE_QUERY_FUNCTION, .true.)
     end subroutine cmd_executable_set_magic
 
     !> Turn a text file into a self-displaying Un*x command.
@@ -332,7 +334,7 @@ contains
 
         if (.not. allocated(executable_font_lock_keywords)) then
             allocate (executable_font_lock_keywords(1))
-            h(1) = font_lock_highlight(1, "font_lock_keyword_face", override=FONT_LOCK_OVERRIDE_YES)
+            h(1) = font_lock_highlight(1, "font_lock_keyword_face", override=FONT_LOCK_OVERRIDE_REPLACE)
             executable_font_lock_keywords(1) = font_lock_keyword("\`#!.*/\([^ "//achar(9)//achar(10)//"]+\)", &
                                                                  highlights=h)
         end if

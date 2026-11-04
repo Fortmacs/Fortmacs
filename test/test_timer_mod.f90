@@ -34,7 +34,7 @@ module test_timer_mod
                          timer_check, timer_start_idle, timer_stop_idle, is_timer_active, is_timer_triggered, &
                          cancel_function_timers, current_idle_time
     use keyboard_mod, only: read_event, set_input_fd, sit_for, discard_input, last_message
-    use sysdep_mod, only: emacs_tty_type, open_pty, close_fd, init_sys_modes, reset_sys_modes, emacs_write
+    use sysdep_mod, only: fortmacs_tty_type, open_pty, close_fd, init_sys_modes, reset_sys_modes, fortmacs_write
     implicit none(type, external)
     private
 
@@ -64,19 +64,19 @@ contains
     subroutine write_x(status)
         type(status_type), intent(out) :: status
 
-        call emacs_write(master, "x", status)
+        call fortmacs_write(master, "x", status)
     end subroutine write_x
 
     subroutine write_y(status)
         type(status_type), intent(out) :: status
 
-        call emacs_write(master, "y", status)
+        call fortmacs_write(master, "y", status)
     end subroutine write_y
 
     subroutine write_z(status)
         type(status_type), intent(out) :: status
 
-        call emacs_write(master, "z", status)
+        call fortmacs_write(master, "z", status)
     end subroutine write_z
 
     subroutine count_call(status)
@@ -90,7 +90,7 @@ contains
         type(status_type), intent(out) :: status
         type(status_type) :: st
 
-        call emacs_write(master, "x", st)
+        call fortmacs_write(master, "x", st)
         call set_error(status, FM_GENERIC_ERROR, "boom")
     end subroutine fail_call
 
@@ -114,7 +114,7 @@ contains
 
     !> Set up a raw pty as the terminal.
     subroutine pty_open(old, ok)
-        type(emacs_tty_type), intent(out) :: old
+        type(fortmacs_tty_type), intent(out) :: old
         logical, intent(out) :: ok
         integer(int32) :: slave
         type(status_type) :: st
@@ -131,7 +131,7 @@ contains
     end subroutine pty_open
 
     subroutine pty_close(old)
-        type(emacs_tty_type), intent(in) :: old
+        type(fortmacs_tty_type), intent(in) :: old
         type(status_type) :: st
 
         call reset_sys_modes(slave_fd, old, st)
@@ -158,7 +158,7 @@ contains
     !> waiting: the wait's timeout is the time to the timer).
     subroutine test_idle_fires(error)
         type(error_type), allocatable, intent(out) :: error
-        type(emacs_tty_type) :: old
+        type(fortmacs_tty_type) :: old
         type(handle_type) :: idle, fallback
         type(status_type) :: st
         integer(int32) :: ms
@@ -195,7 +195,7 @@ contains
     !> A repeated idle timer runs once in each idle period.
     subroutine test_idle_repeat(error)
         type(error_type), allocatable, intent(out) :: error
-        type(emacs_tty_type) :: old
+        type(fortmacs_tty_type) :: old
         type(handle_type) :: idle, ordinary, fallback
         type(status_type) :: st
         logical :: ok
@@ -226,7 +226,7 @@ contains
     !> (Emacs is not idle during a command).
     subroutine test_sit_for(error)
         type(error_type), allocatable, intent(out) :: error
-        type(emacs_tty_type) :: old
+        type(fortmacs_tty_type) :: old
         type(handle_type) :: ordinary, idle
         type(status_type) :: st
         logical :: ok
@@ -275,7 +275,7 @@ contains
     !> (timer-event-handler's message) and the command loop goes on.
     subroutine test_error(error)
         type(error_type), allocatable, intent(out) :: error
-        type(emacs_tty_type) :: old
+        type(fortmacs_tty_type) :: old
         type(handle_type) :: a, fallback
         type(status_type) :: st
         logical :: ok

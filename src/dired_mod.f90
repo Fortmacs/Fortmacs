@@ -33,9 +33,10 @@ module dired_mod
     use fileio_mod, only: expand_file_name, directory_file_name, file_name_as_directory, report_file_errno, &
                           is_file_directory, file_attributes, file_stat_type
     use minibuf_mod, only: completion_ignore_case, completion_test_procedure
-    use fns_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring
-    use sysdep_mod, only: sys_string_type, emacs_directory_entries, system_user_names, system_group_names, &
+    use fns_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring, is_string_less
+    use sysdep_mod, only: fortmacs_directory_entries, system_user_names, system_group_names, &
                           passwd_name_of_user, user_name_of_uid, group_name_of_gid
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -80,7 +81,7 @@ contains
         logical, intent(in), optional :: full, nosort
         integer(int64), intent(in), optional :: count
         character(len=:), allocatable :: dir, dirfilename
-        type(sys_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(value_type), allocatable :: elems(:)
         integer, allocatable :: order(:)
         integer(int32) :: err
@@ -103,7 +104,7 @@ contains
         call expand_file_name(directory, dir, status)
         if (.not. status%ok()) return
         dirfilename = directory_file_name(dir)
-        err = emacs_directory_entries(dirfilename, names)
+        err = fortmacs_directory_entries(dirfilename, names)
 
         if (err /= 0) then
             call report_file_errno("Opening directory", dirfilename, err, status)
@@ -125,7 +126,7 @@ contains
                 j = k - 1
 
                 do while (j >= 1)
-                    if (.not. is_less(names(key)%s, names(order(j))%s)) exit
+                    if (.not. is_string_less(names(key)%text, names(order(j))%text)) exit
                     order(j + 1) = order(j)
                     j = j - 1
                 end do
@@ -138,31 +139,14 @@ contains
 
         do k = 1, n
             if (absolute) then
-                elems(k) = value_type(text=file_name_as_directory(dirfilename)//names(order(k))%s)
+                elems(k) = value_type(text=file_name_as_directory(dirfilename)//names(order(k))%text)
             else
-                elems(k) = value_type(text=names(order(k))%s)
+                elems(k) = value_type(text=names(order(k))%text)
             end if
         end do
 
         files = make_list(elems)
     end subroutine directory_files
-
-    !> Whether `a' sorts before `b', comparing bytes (UTF-8 sorts as its
-    !> code points do) with a prefix first.  As fns.c:Fstring_lessp.
-    !> Not a port.
-    pure logical function is_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k
-
-        do k = 1, min(len(a), len(b))
-            if (a(k:k) /= b(k:k)) then
-                is_less = iachar(a(k:k)) < iachar(b(k:k))
-                return
-            end if
-        end do
-
-        is_less = len(a) < len(b)
-    end function is_less
 
     !> Complete file name FILE in directory DIRECTORY.
     !> Returns the longest string common to all file names in DIRECTORY
@@ -237,7 +221,7 @@ contains
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
-        type(sys_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(value_type), allocatable :: all(:)
         character(len=:), allocatable :: dir, dirfilename, name, bestmatch
         integer(int64) :: bestmatchsize, nfile, compare, cmp, matchsize, nname
@@ -250,7 +234,7 @@ contains
         if (.not. status%ok()) return
         dir = file_name_as_directory(dir)
         dirfilename = directory_file_name(dir)
-        err = emacs_directory_entries(dirfilename, names)
+        err = fortmacs_directory_entries(dirfilename, names)
 
         if (err /= 0) then
             call report_file_errno("Opening directory", dirfilename, err, status)
@@ -269,7 +253,7 @@ contains
         nall = 0
 
         do k = 1, size(names)
-            name = names(k)%s
+            name = names(k)%text
             if (count_characters(name) < nfile) cycle
             if (compare_strings(name, file, completion_ignore_case%value, end1=nfile) /= COMPARE_EQUAL) cycle
             directoryp = is_file_directory(dir//name)
@@ -374,7 +358,7 @@ contains
     !> Port of dired.c:Fsystem_users.
     subroutine system_users(users)
         type(value_type), intent(out) :: users
-        type(sys_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(value_type), allocatable :: elems(:)
         character(len=:), allocatable :: me
         logical :: found
@@ -396,7 +380,7 @@ contains
 
         ! Consed: the last entry first.
         do k = 1, n
-            elems(k) = value_type(text=names(n + 1 - k)%s)
+            elems(k) = value_type(text=names(n + 1 - k)%text)
         end do
 
         users = make_list(elems)
@@ -407,7 +391,7 @@ contains
     !> dired.c:Fsystem_groups.
     subroutine system_groups(groups)
         type(value_type), intent(out) :: groups
-        type(sys_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(value_type), allocatable :: elems(:)
         integer :: k, n
 
@@ -416,7 +400,7 @@ contains
         allocate (elems(n))
 
         do k = 1, n
-            elems(k) = value_type(text=names(n + 1 - k)%s)
+            elems(k) = value_type(text=names(n + 1 - k)%text)
         end do
 
         groups = make_list(elems)

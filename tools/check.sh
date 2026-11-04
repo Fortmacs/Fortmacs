@@ -54,6 +54,19 @@ done
 
 cd "$(dirname "$0")/.."
 
+# The modules generated from src/ (git does not track them):
+# src/commands_mod.f90 from the `commands%NAME%execute =>` assignments,
+# src/modes_mod.f90 from the `major_modes%NAME%define(` and
+# `minor_modes%NAME%define(` calls, src/face_table_mod.f90 from the face
+# declarations, src/docstrings_mod.f90 from the docstrings (help).  They
+# are made before the style checks, which read them too; --fix makes them
+# even when tools/build.sh finds nothing changed.
+if $fix; then
+    tools/build.sh --generate --force
+else
+    tools/build.sh --generate
+fi
+
 if $style; then
     # Lint: Fortitude's default rules, configured in fpm.toml.  Fixes go
     # first so the formatter tidies what they change.
@@ -61,41 +74,6 @@ if $style; then
         echo "fortitude $FORTITUDE_VERSION not found" >&2
         exit 1
     fi
-    # src/commands_mod.f90 is generated from the `commands%NAME%execute =>`
-    # assignments, src/modes_mod.f90 from the `major_modes%NAME%define(`
-    # and `minor_modes%NAME%define(` calls, src/face_table_mod.f90 from the
-    # face declarations, src/docstrings_mod.f90 from the docstrings (help).
-    if $fix; then
-        tools/gen-commands.sh
-        tools/gen-modes.sh
-        tools/gen-faces.sh
-        tools/gen-docstrings.sh
-    else
-        for pair in commands:commands_mod modes:modes_mod faces:face_table_mod; do
-            gen=${pair%%:*}
-            file=${pair#*:}
-            fresh=${TMPDIR:-/tmp}/${file}.$$.f90
-            tools/gen-$gen.sh "$fresh"
-            if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
-                src/${file}.f90 "$fresh"; then
-                rm -f "$fresh"
-                echo "src/${file}.f90 is out of date: run tools/gen-$gen.sh" >&2
-                exit 1
-            fi
-            rm -f "$fresh"
-        done
-        fresh=${TMPDIR:-/tmp}/docstrings_mod.$$.f90
-        tools/gen-docstrings.sh "$fresh"
-        # (awk, not cmp or diff: the distro containers lack diffutils)
-        if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
-            src/docstrings_mod.f90 "$fresh"; then
-            rm -f "$fresh"
-            echo "src/docstrings_mod.f90 is out of date: run tools/gen-docstrings.sh" >&2
-            exit 1
-        fi
-        rm -f "$fresh"
-    fi
-
     # tools/unported-commands, the Deferred list for commands (CLAUDE.md), is
     # regenerated (--fix) or compared when upstream/emacs is present.
     if [ -d upstream/emacs/lisp ]; then
@@ -173,6 +151,14 @@ if $style; then
         exit 1
     fi
     tools/test-fortran-names.sh
+    # A union merge of tools/fortran-names (.gitattributes) can leave the same
+    # entry twice when two branches add it: an exact duplicate line is an error.
+    dups=$(awk '($1 == "name" || $1 == "keep") { if ($0 in seen) print NR ": " $0; seen[$0] = 1 }' tools/fortran-names)
+    if [ -n "$dups" ]; then
+        echo "tools/fortran-names: duplicate entries:" >&2
+        echo "$dups" >&2
+        exit 1
+    fi
 
     # The wording of docstrings and messages (PORTING.md, "Fortran names
     # for Lisp terms", "Wording"): tools/fortran-prose.awk, and its test.

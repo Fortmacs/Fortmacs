@@ -27,7 +27,7 @@
 !> processor clock (`system_clock'): absolute for ordinary timers,
 !> relative to the start of the idle period for idle timers.
 !>
-!> keyboard.c runs them: it records when Emacs becomes idle
+!> keyboard.c runs them: it records when Fortmacs becomes idle
 !> (`timer_start_idle', `timer_stop_idle', `timer_resume_idle') and,
 !> while waiting for input, `timer_check' runs every ripe timer and says
 !> how long to wait for the next one.  Those are here too, so that the
@@ -61,7 +61,7 @@ module timer_mod
               is_timer_triggered, is_timer_active, is_timer_idle
 
     !> Maximum number of times to repeat a timer, if many repeats are delayed.
-    !> Timer invocations can be delayed because Emacs is suspended or busy,
+    !> Timer invocations can be delayed because Fortmacs is suspended or busy,
     !> or because the system's time changes.  If such an occurrence makes it
     !> appear that many invocations are overdue, this variable controls
     !> how many will really happen.  Port of timer.el timer-max-repeats.
@@ -246,7 +246,7 @@ contains
     !> SECS may be an integer, floating point number, or a value in
     !> the internal time format returned by, e.g., `current_idle_time'.
     !> If optional third argument REPEAT is true, make the timer
-    !> fire each time Emacs is idle for that many seconds.  Port of
+    !> fire each time Fortmacs is idle for that many seconds.  Port of
     !> timer.el:timer-set-idle-time (SECS is a number of seconds).
     subroutine timer_set_idle_time(timer, secs, status, repeat)
         type(handle_type), intent(in) :: timer
@@ -382,9 +382,9 @@ contains
     end subroutine timer_activate
 
     !> Insert TIMER into `active_idle_timers'.
-    !> This arranges to activate TIMER whenever Emacs is next idle.
+    !> This arranges to activate TIMER whenever Fortmacs is next idle.
     !> If optional argument DONT_WAIT is true, set TIMER to activate
-    !> immediately (see below), or at the right time, if Emacs is
+    !> immediately (see below), or at the right time, if Fortmacs is
     !> already idle.
     !>
     !> Using true DONT_WAIT is not recommended when activating an
@@ -600,17 +600,17 @@ contains
         call execute_at_time(timer, secs, function, status, repeat)
     end subroutine execute_with_timer
 
-    !> Perform an action the next time Emacs is idle for SECS seconds.
+    !> Perform an action the next time Fortmacs is idle for SECS seconds.
     !> The action is to call FUNCTION.
     !> SECS may be an integer, a floating point number, or the internal
     !> time format returned by, e.g., `current_idle_time'.
-    !> If Emacs is currently idle, and has been idle for N seconds (N < SECS),
+    !> If Fortmacs is currently idle, and has been idle for N seconds (N < SECS),
     !> then it will call FUNCTION in SECS - N seconds from now.  Using
     !> SECS <= N is not recommended if this function is invoked from an idle
     !> timer, because FUNCTION will then be called immediately.
     !>
-    !> If REPEAT is true, do the action each time Emacs has been idle for
-    !> exactly SECS seconds (that is, only once for each time Emacs becomes idle).
+    !> If REPEAT is true, do the action each time Fortmacs has been idle for
+    !> exactly SECS seconds (that is, only once for each time Fortmacs becomes idle).
     !>
     !> This function returns a timer object which you can use in
     !> `cancel_timer'.  Port of timer.el:run-with-idle-timer (no ARGS;
@@ -644,7 +644,7 @@ contains
     ! keyboard.c
     ! ------------------------------------------------------------------
 
-    !> Record the start of when Emacs is idle, for the sake of running
+    !> Record the start of when Fortmacs is idle, for the sake of running
     !> idle-time timers.  Port of keyboard.c:timer_start_idle.
     subroutine timer_start_idle()
         ! If we are already in the idle state, do nothing.
@@ -656,7 +656,7 @@ contains
         call internal_timer_start_idle()
     end subroutine timer_start_idle
 
-    !> Record that Emacs is no longer idle, so stop running idle-time
+    !> Record that Fortmacs is no longer idle, so stop running idle-time
     !> timers.  Port of keyboard.c:timer_stop_idle.
     subroutine timer_stop_idle()
         idle = .false.
@@ -670,8 +670,8 @@ contains
         idleness_start = last_idleness_start
     end subroutine timer_resume_idle
 
-    !> Return the current length of Emacs idleness in seconds in SECS,
-    !> with IDLE_P .false. when Emacs is not idle.  Port of
+    !> Return the current length of Fortmacs idleness in seconds in SECS,
+    !> with IDLE_P .false. when Fortmacs is not idle.  Port of
     !> keyboard.c:Fcurrent_idle_time.
     subroutine current_idle_time(idle_p, secs)
         logical, intent(out) :: idle_p

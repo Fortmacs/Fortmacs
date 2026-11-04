@@ -26,8 +26,10 @@
 !> (C-c C-n), finding the source of a hunk and jumping there (RET, o,
 !> C-c C-c), applying, testing and reverting hunks (C-c C-a, C-c C-t,
 !> C-c M-u, C-c RET a), fixing up hunk headers, `next_error' through the
-!> hunks, the faces and font-lock keywords of the diff text, and the
-!> short keys of read-only Diff buffers (`diff_mode_read_only').  The
+!> hunks, the faces and font-lock keywords of the diff text, the
+!> short keys of read-only Diff buffers (`diff_mode_read_only'), and the
+!> change log support (`diff_add_log_current_subprograms', C-x 4 A, in the
+!> submodule diff_mode_add_log_mod).  The
 !> hunk text and source-location parts are in the submodule
 !> diff_mode_apply_mod.
 !>
@@ -35,10 +37,10 @@
 !> and prettifying in hunks, converting between unified and context
 !> diffs and reversing them (C-c C-u, C-c C-d, C-c C-r), keeping hunk
 !> headers up to date on the fly (`diff_update_on_the_fly' and the
-!> write-contents hook), `diff_minor_mode', Ediff (C-c C-e, A), the
-!> add-log support (C-x 4 A), ignoring whitespace in and refreshing hunks
+!> write-contents hook), `diff_minor_mode', Ediff (C-c C-e, A),
+!> ignoring whitespace in and refreshing hunks
 !> (C-c C-w, C-c C-l), `diff_copy_region' (w), Whitespace mode's
-!> settings (`diff_setup_whitespace'), outline and imenu support, the
+!> settings (`diff_setup_whitespace'), outline support, the
 !> menu, mouse bindings, `undo_ignore_read_only', VC revisions of the old
 !> file, `diff_wiggle', `next_error_follow_minor_mode' (C-c C-f) and
 !> `vc_next_action' (v).  `diff_read_only_map' is
@@ -53,7 +55,7 @@ module diff_mode_mod
     use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer
-    use data_mod, only: symbol_value, set, number_to_string
+    use data_mod, only: symbol_value, set
     use value_mod, only: make_keymap_ref, value_type, xfixnum
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
                            line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
@@ -74,7 +76,11 @@ module diff_mode_mod
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use modes_mod, only: major_modes
+    use add_log_mod, only: change_log_entry_type, add_log_current_subprogram_function, add_log_buffer_file_name_function
     use easy_mmode_mod, only: easy_mmode_next, easy_mmode_prev
+    use imenu_mod, only: imenu_patterns, imenu_pattern_type
+    use string_type_mod, only: string_type, append_string
+    use data_mod, only: string_to_number
     implicit none(type, external)
     private
 
@@ -86,7 +92,8 @@ module diff_mode_mod
               diff_goto_source, diff_apply_buffer, diff_revert_and_cut_hunk, diff_sanity_check_hunk, &
               diff_beginning_of_file_and_junk, diff_delete_other_hunks, diff_delete_junk, diff_next_error, &
               diff_merge_strings, set_diff_default_directory, diff_source_location_type, diff_text_type, &
-              diff_buffer_type, diff_name_type, set_diff_vc_backend, diff_vc_backend
+              diff_buffer_type, set_diff_vc_backend, diff_vc_backend, diff_add_log_current_subprograms, &
+              diff_current_subprogram, add_diff_change_log_entries_other_window
 
     !> If true, `diff_mode' buffers default to being read-only.  Port of
     !> diff-mode.el diff-default-read-only.
@@ -110,6 +117,13 @@ module diff_mode_mod
     !> format with empty lines.  This makes the format less robust, but is
     !> tolerated.  Port of diff-mode.el diff-valid-unified-empty-line.
     logical, public :: diff_valid_unified_empty_line = .true.
+
+    !> Use relative file names when generating ChangeLog skeletons.
+    !> The files will be relative to the root directory of the VC
+    !> repository.  This option affects the behavior of
+    !> `diff_add_log_current_subprograms'.  Port of diff-mode.el
+    !> diff-add-log-use-relative-names.
+    logical, public :: diff_add_log_use_relative_names = .false.
 
     !> Run after setting up the `diff_mode' major mode.  Port of
     !> diff-mode.el diff-mode-hook.
@@ -180,6 +194,11 @@ module diff_mode_mod
 
     character(len=*), parameter :: LF = achar(10), TAB = achar(9)
 
+    !> Imenu generic expression for Diff mode (it prefers the second name,
+    !> as the first is most likely to be a backup or version-control name).
+    !> Port of diff-mode.el diff-imenu-generic-expression.
+    type(imenu_pattern_type), allocatable, public :: diff_imenu_patterns(:)
+
     !> Port of diff-mode.el diff-hunk-header-re-unified.
     character(len=*), parameter, public :: diff_hunk_header_regexp_unified = &
                                            "^@@ -\([0-9]+\)\(?:,\([0-9]+\)\)? \+\([0-9]+\)\(?:,\([0-9]+\)\)? @@"
@@ -200,15 +219,10 @@ module diff_mode_mod
     character(len=*), parameter :: diff_file_junk_regexp = "Index: \|Prereq: \|=\{20,\}\|"// &
                                    "diff \|index \|\(?:deleted file\|new\(?: file\)?\|old\) mode\|=== modified file"
 
-    !> A string in an array.
-    type, public :: diff_name_type
-        character(len=:), allocatable :: s
-    end type diff_name_type
-
     !> An entry of diff-remembered-files-alist: the file names a hunk
     !> mentions and the file to use for them.
     type :: remembered_type
-        type(diff_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         character(len=:), allocatable :: file
     end type remembered_type
 
@@ -310,13 +324,6 @@ module diff_mode_mod
             implicit none(type, external)
         end function char_at_point
 
-        !> The value of the decimal number S (0 if none: string-to-number).
-        !> Not a port.
-        module integer(int64) function string_to_number(s) result(n)
-            implicit none(type, external)
-            character(len=*), intent(in) :: s
-        end function string_to_number
-
         !> Return the literal source text from HUNK as TEXT with OFFSET.
         !> If DESTP is false, TEXT is the source, otherwise the destination
         !> text.  CHAR_OFFSET is a char-offset in HUNK (negative for none),
@@ -340,6 +347,45 @@ module diff_mode_mod
             logical, intent(in), optional :: other_file, reverse, noprompt
             integer(int64), intent(in), optional :: other_arg
         end subroutine diff_find_source_location
+
+        !> Return the subprogram names for the current diff, one entry per file:
+        !> the FILE and the SUBPROGRAMS, a list of function names found in
+        !> FILE.  If `diff_add_log_use_relative_names' is true, file names in
+        !> the entries are relative to the root directory of the VC
+        !> repository.  Port of diff-mode.el:diff-add-log-current-defuns.
+        !> (In diff_mode_add_log_mod.)
+        recursive module subroutine diff_add_log_current_subprograms(entries, status)
+            implicit none(type, external)
+            type(change_log_entry_type), allocatable, intent(out) :: entries(:)
+            type(status_type), intent(out) :: status
+        end subroutine diff_add_log_current_subprograms
+
+        !> Find the name of function at point (NAME unallocated for none).
+        !> For use in `add_log_current_subprogram_function'.  Port of
+        !> diff-mode.el:diff-current-defun.  (In diff_mode_add_log_mod.)
+        recursive module subroutine diff_current_subprogram(name)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: name
+        end subroutine diff_current_subprogram
+
+        !> The file of the hunk at point, without prompting (NAME
+        !> unallocated for none): Diff mode's
+        !> `add_log_buffer_file_name_function'.  Not a port: the procedure
+        !> diff-mode.el:diff-mode gives that variable.  (In
+        !> diff_mode_add_log_mod.)
+        recursive module subroutine get_diff_buffer_file_name(name)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: name
+        end subroutine get_diff_buffer_file_name
+
+        !> Iterate through the current diff and create ChangeLog entries.
+        !> I.e. like `add_change_log_entry_other_window' but applied to all hunks.
+        !> Port of diff-mode.el:diff-add-change-log-entries-other-window.
+        !> (In diff_mode_add_log_mod.)
+        recursive module subroutine add_diff_change_log_entries_other_window(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine add_diff_change_log_entries_other_window
 
         !> Apply the current hunk to its source file and go to the next
         !> hunk.  Port of diff-mode.el:diff-apply-hunk.  (In
@@ -500,8 +546,8 @@ contains
             if (trust .and. me(2) > 0) then
                 nold = 1
                 nnew = 1
-                if (len(match_string(2)) > 0) nold = string_to_number(match_string(2))
-                if (len(match_string(4)) > 0) nnew = string_to_number(match_string(4))
+                if (len(match_string(2)) > 0) call string_to_number(match_string(2), nold)
+                if (len(match_string(4)) > 0) call string_to_number(match_string(4), nnew)
                 saved = point()
 
                 if (diff_valid_unified_empty_line) then
@@ -1144,6 +1190,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: pos, start, start1, start2, newstart1, newstart2, shortage
         type(value_type) :: saved
+        character(len=64) :: header
 
         call beginning_of_line()
         pos = point()
@@ -1155,14 +1202,15 @@ contains
             return
         end if
 
-        start1 = string_to_number(match_string(1))
-        start2 = string_to_number(match_string(3))
+        call string_to_number(match_string(1), start1)
+        call string_to_number(match_string(3), start2)
         shortage = forward_line(1_int64)
         newstart1 = start1 + diff_count_matches("^[- "//TAB//"]", point(), pos)
         newstart2 = start2 + diff_count_matches("^[+ "//TAB//"]", point(), pos)
         call bind_inhibit_read_only(saved)
         call goto_char(pos)
-        call insert("@@ -"//number_to_string(newstart1)//",1 +"//number_to_string(newstart2)//",1 @@"//LF, status)
+        write (header, '("@@ -", i0, ",1 +", i0, ",1 @@")') newstart1, newstart2
+        call insert(trim(header)//LF, status)
         if (status%ok()) call diff_fixup_modifs(start, pos, status)
         call restore_inhibit_read_only(saved)
     end subroutine diff_split_hunk
@@ -1174,10 +1222,11 @@ contains
     recursive subroutine diff_fixup_modifs(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
-        integer(int64) :: plus, minus, space, bang, saved, x
+        integer(int64) :: plus, minus, space, bang, saved, x, number
         integer(int32) :: c
         type(value_type) :: saved_inhibit
         character(len=:), allocatable :: old1, old2, new1, new2, new, old
+        character(len=20) :: digits
 
         status = status_type()
         saved = point()
@@ -1222,8 +1271,10 @@ contains
                 if (at(diff_hunk_header_regexp_unified)) then
                     old1 = match_string(2)
                     old2 = match_string(4)
-                    new1 = number_to_string(space + minus)
-                    new2 = number_to_string(space + plus)
+                    write (digits, "(i0)") space + minus
+                    new1 = trim(digits)
+                    write (digits, "(i0)") space + plus
+                    new2 = trim(digits)
 
                     if (me(4) > 0) then
                         if (new2 /= old2 .or. len(new2) /= len(old2)) then
@@ -1251,7 +1302,9 @@ contains
                     if (space + bang + plus > 0) then
                         old1 = match_string(1)
                         old2 = match_string(2)
-                        new = number_to_string(space + bang + plus - 1 + string_to_number(old1))
+                        call string_to_number(old1, number)
+                        write (digits, "(i0)") space + bang + plus - 1 + number
+                        new = trim(digits)
 
                         if (new /= old2 .or. len(new) /= len(old2)) then
                             call replace_match(new, status, fixedcase=.true., literal=.true., subexp=2)
@@ -1260,7 +1313,8 @@ contains
                 else if (at("\*\*\* \([0-9]+\),\(-?[0-9]*\) \*\*\*\*$")) then
                     if (space + bang + minus > 0) then
                         old = match_string(1)
-                        new = zero_padded(space + bang + minus - 1 + string_to_number(old), len(old))
+                        call string_to_number(old, number)
+                        new = zero_padded(space + bang + minus - 1 + number, len(old))
 
                         if (new /= old .or. len(new) /= len(old)) then
                             call replace_match(new, status, fixedcase=.true., literal=.true., subexp=2)
@@ -1289,8 +1343,10 @@ contains
             integer(int64), intent(in) :: n
             integer, intent(in) :: width
             character(len=:), allocatable :: s
+            character(len=20) :: digits
 
-            s = number_to_string(n)
+            write (digits, "(i0)") n
+            s = trim(digits)
             if (len(s) < width .and. n >= 0) s = repeat("0", width - len(s))//s
         end function zero_padded
     end subroutine diff_fixup_modifs
@@ -1478,11 +1534,11 @@ contains
     !> Give the list of file names textually mentioned for the current
     !> hunk.  Port of diff-mode.el:diff-hunk-file-names.
     recursive subroutine diff_hunk_file_names(names, old)
-        type(diff_name_type), allocatable, intent(out) :: names(:)
+        type(string_type), allocatable, intent(out) :: names(:)
         logical, intent(in), optional :: old
         integer(int64) :: orig, saved, limit, found, shortage
         type(status_type) :: st
-        type(diff_name_type), allocatable :: header_files(:)
+        type(string_type), allocatable :: header_files(:)
         logical :: o
         integer :: k
 
@@ -1516,11 +1572,11 @@ contains
 
         if (at("[-*][-*][-*] \([^"//TAB//LF//"]+\).*"//LF//"[-+][-+][-+] \([^"//TAB//LF//"]+\)")) then
             if (o) then
-                call append(header_files, match_string(1))
-                call append(header_files, match_string(2))
+                call append_string(header_files, match_string(1))
+                call append_string(header_files, match_string(2))
             else
-                call append(header_files, match_string(2))
-                call append(header_files, match_string(1))
+                call append_string(header_files, match_string(2))
+                call append_string(header_files, match_string(1))
             end if
         else
             shortage = forward_line(1_int64)
@@ -1528,50 +1584,39 @@ contains
 
         if (.not. o) then
             saved = point()
-            if (search_bwd("^Index: \(.+\)", bound=limit) /= 0) call append(names, match_string(1))
+            if (search_bwd("^Index: \(.+\)", bound=limit) /= 0) call append_string(names, match_string(1))
             call goto_char(saved)
         end if
 
         do k = 1, size(header_files)
-            call append(names, header_files(k)%s)
+            call append_string(names, header_files(k)%text)
         end do
 
         if (search_bwd("^diff ") /= 0) then
             if (at("^diff \(-[^ "//TAB//LF//"L]+ +\)*\(-L +\S-+ +\)*\(\S-+\)\( +\(\S-+\)\)?")) then
                 if (o) then
-                    if (mb(3) > 0) call append(names, match_string(3))
-                    if (mb(4) > 0) call append(names, match_string(4))
+                    if (mb(3) > 0) call append_string(names, match_string(3))
+                    if (mb(4) > 0) call append_string(names, match_string(4))
                 else
-                    if (mb(5) > 0) call append(names, match_string(5))
-                    if (mb(3) > 0) call append(names, match_string(3))
+                    if (mb(5) > 0) call append_string(names, match_string(5))
+                    if (mb(3) > 0) call append_string(names, match_string(3))
                 end if
             end if
         end if
 
         call goto_char(orig)
-
-    contains
-
-        subroutine append(list, s)
-            type(diff_name_type), allocatable, intent(inout) :: list(:)
-            character(len=*), intent(in) :: s
-            type(diff_name_type) :: name
-
-            name%s = s
-            list = [list, name]
-        end subroutine append
     end subroutine diff_hunk_file_names
 
     !> Whether the lists of names A and B are `equal'.  Not a port.
     logical function same_names(a, b)
-        type(diff_name_type), intent(in) :: a(:), b(:)
+        type(string_type), intent(in) :: a(:), b(:)
         integer :: k
 
         same_names = size(a) == size(b)
         if (.not. same_names) return
 
         do k = 1, size(a)
-            if (a(k)%s /= b(k)%s .or. len(a(k)%s) /= len(b(k)%s)) then
+            if (a(k)%text /= b(k)%text .or. len(a(k)%text) /= len(b(k)%text)) then
                 same_names = .false.
                 return
             end if
@@ -1588,7 +1633,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: old, noprompt
-        type(diff_name_type), allocatable :: fs(:), files(:), other(:)
+        type(string_type), allocatable :: fs(:), files(:), other(:)
         character(len=:), allocatable :: dir, newfile, rest, prompt_file, answer
         integer(int64) :: saved, savedb, savedz, x
         integer :: k, j, ent
@@ -1627,8 +1672,8 @@ contains
 
         if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_HG) then
             do k = 1, size(fs)
-                if (len(fs(k)%s) >= 2) then
-                    if (index("icoawib", fs(k)%s(1:1)) > 0 .and. fs(k)%s(2:2) == "/") fs(k)%s = fs(k)%s(3:)
+                if (len(fs(k)%text) >= 2) then
+                    if (index("icoawib", fs(k)%text(1:1)) > 0 .and. fs(k)%text(2:2) == "/") fs(k)%text = fs(k)%text(3:)
                 end if
             end do
         end if
@@ -1646,7 +1691,7 @@ contains
         do k = 1, size(diff_buffers(ent)%remembered)
             associate (rf => diff_buffers(ent)%remembered(k))
                 if (size(rf%names) == 0 .or. size(fs) == 0) cycle
-                call diff_merge_strings(rf%names(1)%s, fs(1)%s, rf%file, newfile, ok)
+                call diff_merge_strings(rf%names(1)%text, fs(1)%text, rf%file, newfile, ok)
 
                 if (ok) then
                     if (file_exists(newfile)) then
@@ -1664,8 +1709,8 @@ contains
 
         do while (size(files) > 0)
             do k = 1, size(files)
-                if (is_file_regular(files(k)%s)) then
-                    file = files(k)%s
+                if (is_file_regular(files(k)%text)) then
+                    file = files(k)%text
                     found = .true.
                     call done()
                     return
@@ -1674,7 +1719,7 @@ contains
 
             if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_HG) then
                 if (.not. o .and. size(files) >= 2) then
-                    if (files(2)%s == "/dev/null") exit
+                    if (files(2)%text == "/dev/null") exit
                 end if
             end if
 
@@ -1682,11 +1727,11 @@ contains
             j = 0
 
             do k = 1, size(files)
-                call diff_filename_drop_dir(files(k)%s, rest)
+                call diff_filename_drop_dir(files(k)%text, rest)
 
                 if (allocated(rest)) then
                     j = j + 1
-                    call move_alloc(rest, other(j)%s)
+                    call move_alloc(rest, other(j)%text)
                 end if
             end do
 
@@ -1712,10 +1757,10 @@ contains
 
         if (.not. quiet) then
             prompt_file = ""
-            if (size(fs) > 0) prompt_file = fs(1)%s
+            if (size(fs) > 0) prompt_file = fs(1)%text
             call diff_hunk_file_names(other,.not. o)
             creation = .false.
-            if (size(other) > 0) creation = other(1)%s == "/dev/null"
+            if (size(other) > 0) creation = other(1)%text == "/dev/null"
             call expand_file_name(prompt_file, newfile, st)
             call done()
             call read_file_name("Use file "//newfile//": ", answer, status, dir=file_name_directory(newfile), &
@@ -1741,7 +1786,7 @@ contains
         !> (diff-remembered-files-alist).
         subroutine remember(k, names, file)
             integer, intent(in) :: k
-            type(diff_name_type), intent(in) :: names(:)
+            type(string_type), intent(in) :: names(:)
             character(len=*), intent(in) :: file
             type(remembered_type) :: entry
 
@@ -1869,10 +1914,14 @@ contains
         if (.not. status%ok()) return
         call diff_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
+        call imenu_patterns%set_local(diff_imenu_patterns)
         call set_next_error_function(diff_next_error)
         if (diff_default_read_only) buffers(current)%read_only = .true.
         if (buffers(current)%read_only) call diff_mode_read_only%set_local(.true.)
         call read_only_mode_hook%prepend(track_read_only, local=.true.)
+        ! add-log support
+        call add_log_current_subprogram_function%set_local(diff_current_subprogram)
+        call add_log_buffer_file_name_function%set_local(get_diff_buffer_file_name)
         call diff_setup_buffer_type()
         call major_modes%diff_mode%end(saved, status)
     end subroutine diff_mode
@@ -2354,6 +2403,17 @@ contains
         type(status_type) :: st
 
         call define_faces()
+
+        if (.not. allocated(diff_imenu_patterns)) then
+            allocate (diff_imenu_patterns(2))
+            ! unidiffs
+            diff_imenu_patterns(1) = imenu_pattern_type(menu_title="", regexp="\+\+\+ \([^"//TAB//LF//"]+\)["// &
+                                                        TAB//LF//"]", subexpression=1)
+            ! context diffs
+            diff_imenu_patterns(2) = imenu_pattern_type(menu_title="", regexp="^--- \([^"//TAB//LF//"]+\)"// &
+                                                        TAB//".*"//LF//"\*", subexpression=1)
+        end if
+
         call major_modes%diff_mode%define("diff_mode", "Diff", diff_mode, diff_mode_hook)
         major_modes%diff_mode%special = .true.
         diff_mode_map = major_modes%diff_mode%map
@@ -2375,6 +2435,7 @@ contains
         commands%diff_test_hunk%execute => cmd_diff_test_hunk
         commands%diff_revert_and_cut_hunk%execute => cmd_diff_revert_and_cut_hunk
         commands%diff_apply_buffer%execute => cmd_diff_apply_buffer
+        commands%add_diff_change_log_entries_other_window%execute => add_diff_change_log_entries_other_window
         ! diff-mode-shared-map.
         if (is_keymap_live(diff_mode_shared_map)) call destroy_keymap(diff_mode_shared_map, st)
         call make_sparse_keymap(diff_mode_shared_map)
@@ -2407,6 +2468,7 @@ contains
         call keymap_set(diff_mode_map, "C-c C-a", "diff_apply_hunk", st)
         call keymap_set(diff_mode_map, "C-c M-u", "diff_revert_and_cut_hunk", st)
         call keymap_set(diff_mode_map, "C-c C-m a", "diff_apply_buffer", st)
+        call keymap_set(diff_mode_map, "C-x 4 A", "add_diff_change_log_entries_other_window", st)
         call keymap_set(diff_mode_map, "C-c C-m n", "diff_delete_other_hunks", st)
         call keymap_set(diff_mode_map, "C-c C-n", "diff_restrict_view", st)
         call keymap_set(diff_mode_map, "C-c C-s", "diff_split_hunk", st)

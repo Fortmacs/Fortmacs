@@ -35,7 +35,7 @@ module test_info_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, close_buffer, get_buffer, header_line_format_type
     use editfns_mod, only: buffer_string, point, point_min, point_max, goto_char, line_beginning_position
     use search_mod, only: search_forward, SEARCH_NOERROR
-    use fileio_mod, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory, file_exists, &
+    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, file_exists, &
                           file_name_directory, file_name_nondirectory
     use files_mod, only: create_temp_file, delete_file
     use callproc_mod, only: execute_process
@@ -56,10 +56,6 @@ module test_info_mod
     private
 
     public :: collect_info_mod
-
-    type :: string_type
-        character(len=:), allocatable :: s
-    end type string_type
 
 contains
 
@@ -107,7 +103,7 @@ contains
         type(status_type) :: st
 
         call init_fileio()
-        call expand_file_name("test/info-resources", dir, st, emacs_wd)
+        call expand_file_name("test/info-resources", dir, st, fortmacs_wd)
         dir = file_name_as_directory(dir)
         if (present(sub)) dir = file_name_as_directory(dir//sub)
     end function resource_dir
@@ -227,6 +223,8 @@ contains
         call check(error, info_url_for_node("(tramp)Top", st), &
                    "https://www.gnu.org/software/emacs/manual/html_node/tramp/")
         if (allocated(error)) return
+        ! (emacs) names upstream's manual on the web, which `info_url_table'
+        ! lists, not the installed manual (fortmacs, R6-32).
         call check(error, info_url_for_node("(emacs)Minibuffer", st), &
                    "https://www.gnu.org/software/emacs/manual/html_node/emacs/Minibuffer.html")
         if (allocated(error)) return

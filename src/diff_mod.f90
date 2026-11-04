@@ -37,7 +37,7 @@ module diff_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, xfixnum, list, vtag, V_INTEGER
-    use data_mod, only: symbol_value, set
+    use data_mod, only: symbol_value, set, choice_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           resolve_buffer, erase_buffer
     use editfns_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region
@@ -53,11 +53,12 @@ module diff_mod
     use files_mod, only: create_temp_file, file_newest_backup, is_backup_file_name, file_name_sans_versions, &
                          delete_file, revert_buffer_function, temporary_file_directory
     use callproc_mod, only: execute_process, shell_file_name, init_callproc
-    use process_mod, only: make_process, process_arg_type, process_buffer, process_mark, process_exit_status, &
+    use process_mod, only: make_process, process_buffer, process_mark, process_exit_status, &
                            set_process_filter, set_process_sentinel
     use simple_mod, only: shell_command_switch
     use window_mod, only: display_buffer, other_buffer
     use diff_mode_mod, only: diff_mode, set_diff_default_directory
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -80,16 +81,17 @@ module diff_mod
     !> diff.el diff-entire-buffers.
     logical, public :: diff_entire_buffers = .true.
 
-    !> Values of `diff_use_labels'.
-    integer, parameter, public :: DIFF_USE_LABELS_NO = 0, DIFF_USE_LABELS_YES = 1, DIFF_USE_LABELS_CHECK = 2
+    !> Values of `diff_use_labels' besides .true. and .false.
+    integer, parameter, public :: DIFF_USE_LABELS_CHECK = 2
 
     !> Whether `diff_command' understands the "--label" option.
     !> Possible values are:
-    !>   DIFF_USE_LABELS_YES   -- yes, it does
-    !>   DIFF_USE_LABELS_NO    -- no, it does not
+    !>   .true.                -- yes, it does
+    !>   .false.               -- no, it does not
     !>   DIFF_USE_LABELS_CHECK -- try to probe whether it does
     !> Port of diff.el diff-use-labels.
-    integer, public :: diff_use_labels = DIFF_USE_LABELS_CHECK
+    type(choice_setting_type), public :: diff_use_labels = &
+                                         choice_setting_type(name="diff_use_labels", choice=DIFF_USE_LABELS_CHECK)
 
     !> What `diff' compares: a file (by name) or a buffer.
     type, public :: diff_operand_type
@@ -246,8 +248,8 @@ contains
 
         again = .false.
         if (present(force)) again = force
-        if (.not. again .and. diff_use_labels /= DIFF_USE_LABELS_CHECK) return
-        diff_use_labels = DIFF_USE_LABELS_NO
+        if (.not. again .and. diff_use_labels%choice /= DIFF_USE_LABELS_CHECK) return
+        diff_use_labels = .false.
         old = current_buffer()
         call get_or_make_buffer(" *diff-check-labels*", tmp, st)
         call set_buffer(tmp, st)
@@ -256,7 +258,7 @@ contains
 
         if (st%ok()) then
             call search_backward("--label", found, st, noerror=SEARCH_NOERROR)
-            if (found /= 0) diff_use_labels = DIFF_USE_LABELS_YES
+            if (found /= 0) diff_use_labels = .true.
         end if
 
         call set_buffer(old, st)
@@ -308,7 +310,7 @@ contains
         type(handle_type), intent(in), optional :: buffer
         type(diff_operand_type) :: old, new
         character(len=:), allocatable :: sw, old_alt, new_alt, command, thisdir, olddir
-        type(process_arg_type) :: args(3)
+        type(string_type), allocatable :: args(:)
         type(handle_type) :: obuf, process
         type(value_type) :: saved, code
         type(status_type) :: st
@@ -349,7 +351,7 @@ contains
         command = diff_command
         if (len(sw) > 0) command = command//" "//sw
 
-        if ((allocated(old_alt) .or. allocated(new_alt)) .and. diff_use_labels == DIFF_USE_LABELS_YES) then
+        if ((allocated(old_alt) .or. allocated(new_alt)) .and. diff_use_labels%value) then
             command = command//" "//shell_quote_argument("--label")//" "//shell_quote_argument(operand_label(old))// &
                       " "//shell_quote_argument("--label")//" "//shell_quote_argument(operand_label(new))
         end if
@@ -395,9 +397,7 @@ contains
         buffers(current)%directory = temporary_file_directory()
 
         if (.not. sync) then
-            args(1)%s = shell_file_name%value
-            args(2)%s = shell_command_switch%value
-            args(3)%s = command
+            call append_string(args, shell_file_name%value, shell_command_switch%value, command)
             call make_process("Diff", args, process, status, buffer=result)
             buffers(current)%directory = olddir
 

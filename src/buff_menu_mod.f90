@@ -46,6 +46,7 @@ module buff_menu_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
+    use data_mod, only: integer_setting_type, string_to_number
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
     use commands_mod, only: commands
@@ -89,7 +90,7 @@ module buff_menu_mod
               tabulated_list_entry_size_greater, init_buff_menu
 
     abstract interface
-        !> A `buffer_menu_name_width_function': the width of the name column
+        !> A `buffer_menu_name_width%procedure': the width of the name column
         !> for the BUFFERS listed.  Not a port.
         integer function buffer_menu_name_width_procedure(bufs)
             import :: handle_type
@@ -132,17 +133,24 @@ module buff_menu_mod
     !> buffer-menu-buffer (the face `buffer_menu_buffer').
     type(named_face_type), target, public :: buffer_menu_buffer_face
 
-    !> Width of buffer name column in the Buffer Menu, used while
-    !> `buffer_menu_name_width_function' is null.  Port of buff-menu.el
-    !> Buffer-menu-name-width (a number).
-    integer, public :: buffer_menu_name_width = 19
+    !> The setting `buffer_menu_name_width': a number, set with `=', or
+    !> a procedure of the listed buffers (R6-37), set with `=>'.  Not a
+    !> port.
+    type, extends(integer_setting_type), public :: buffer_menu_name_width_integer_setting_type
+        procedure(buffer_menu_name_width_procedure), pointer, nopass :: procedure => null()
+    contains
+        procedure :: clear_kinds => buffer_menu_name_width_clear_kinds
+        procedure :: other_value => buffer_menu_name_width_other_value
+    end type buffer_menu_name_width_integer_setting_type
 
-    !> Function returning the width of the buffer name column in the
-    !> Buffer Menu: it is called with the list of buffers and should
-    !> return a number.  When it is null, `buffer_menu_name_width' is used
-    !> directly.  Port of buff-menu.el Buffer-menu-name-width (a function;
-    !> the default `buffer_menu_dynamic_name_width').
-    procedure(buffer_menu_name_width_procedure), pointer, public :: buffer_menu_name_width_function => null()
+    !> Width of buffer name column in the Buffer Menu.
+    !> This can either be a number (used directly) or a procedure
+    !> (buffer_menu_name_width%procedure => mine) that is called with the
+    !> list of buffers and should return a number; the default is
+    !> `buffer_menu_dynamic_name_width'.  Port of buff-menu.el
+    !> Buffer-menu-name-width.
+    type(buffer_menu_name_width_integer_setting_type), public :: buffer_menu_name_width = &
+                                                buffer_menu_name_width_integer_setting_type(name="buffer_menu_name_width", value=19)
 
     !> Width of buffer size column in the Buffer Menu.  Port of
     !> buff-menu.el Buffer-menu-size-width.
@@ -215,16 +223,6 @@ contains
         if (k > size(locals)) locals = [locals, entry]
         locals(k) = local_type(serial=buffers(current)%serial)
     end subroutine make_local_entry
-
-    ! The ID of buffer slot BI's entries: its serial number.  Not a port.
-    function buffer_id(bi) result(id)
-        integer(int64), intent(in) :: bi
-        character(len=:), allocatable :: id
-        character(len=24) :: s
-
-        write (s, "(i0)") buffers(bi)%serial
-        id = trim(s)
-    end function buffer_id
 
     ! The live buffer an entry ID names (the null handle for none).
     ! Not a port.
@@ -1279,7 +1277,9 @@ contains
                 listed(n) = candidates(j)
 
                 associate (e => entries(n))
-                    e%id = buffer_id(bi)
+                    ! The entry's ID: the buffer's serial number.
+                    write (s, "(i0)") buffers(bi)%serial
+                    e%id = trim(s)
                     allocate (e%cols(7))
 
                     do k = 1, 7
@@ -1323,10 +1323,10 @@ contains
         call set_buffer(menu, status)
         if (.not. status%ok()) return
 
-        if (associated(buffer_menu_name_width_function)) then
-            name_width = buffer_menu_name_width_function(listed(1:n))
+        if (associated(buffer_menu_name_width%procedure)) then
+            name_width = buffer_menu_name_width%procedure(listed(1:n))
         else
-            name_width = buffer_menu_name_width
+            name_width = buffer_menu_name_width%value
         end if
 
         format(1) = column("C", 1, 0)
@@ -1362,38 +1362,12 @@ contains
     !> buff-menu.el:tabulated-list-entry-size->.
     logical function tabulated_list_entry_size_greater(a, b) result(greater)
         type(tabulated_list_entry_type), intent(in) :: a, b
+        real(real64) :: size_a, size_b
 
-        greater = string_to_number(a%cols(5)%text) > string_to_number(b%cols(5)%text)
+        call string_to_number(a%cols(5)%text, size_a)
+        call string_to_number(b%cols(5)%text, size_b)
+        greater = size_a > size_b
     end function tabulated_list_entry_size_greater
-
-    ! string-to-number: the number at the start of TEXT (after spaces and
-    ! tabs; 0 if there is none).  Not a port.
-    real(real64) function string_to_number(text) result(x)
-        character(len=*), intent(in) :: text
-        integer :: k, e, ios
-
-        x = 0
-        k = 1
-
-        do while (k <= len(text))
-            if (text(k:k) /= " " .and. text(k:k) /= char(9)) exit
-            k = k + 1
-        end do
-
-        e = k
-
-        if (e <= len(text)) then
-            if (text(e:e) == "-" .or. text(e:e) == "+") e = e + 1
-        end if
-
-        do while (e <= len(text))
-            if (index("0123456789.", text(e:e)) == 0) exit
-            e = e + 1
-        end do
-
-        if (e > k) read (text(k:e - 1), *, iostat=ios) x
-        if (e > k .and. ios /= 0) x = 0
-    end function string_to_number
 
     ! Port of buff-menu.el:Buffer-menu--pretty-file-name, in the current
     ! buffer.
@@ -1448,8 +1422,8 @@ contains
     subroutine init_buff_menu()
         type(status_type) :: st
 
-        if (.not. associated(buffer_menu_name_width_function)) then
-            buffer_menu_name_width_function => buffer_menu_dynamic_name_width
+        if (.not. associated(buffer_menu_name_width%procedure)) then
+            buffer_menu_name_width%procedure => buffer_menu_dynamic_name_width
         end if
 
         call buffer_menu_buffer_face%define("buffer_menu_buffer", "Face for buffer names in the Buffer Menu.")
@@ -1513,4 +1487,21 @@ contains
         call keymap_set(buffer_menu_mode_map, "I", "buffer_menu_toggle_internal", st)
         call keymap_set(buffer_menu_mode_map, "M-s a C-o", "buffer_menu_multi_occur", st)
     end subroutine init_buff_menu
+
+    !> Forget the procedure of `buffer_menu_name_width', as any assignment to it does.
+    !> Not a port.
+    subroutine buffer_menu_name_width_clear_kinds(self)
+        class(buffer_menu_name_width_integer_setting_type), intent(inout) :: self
+
+        nullify (self%procedure)
+    end subroutine buffer_menu_name_width_clear_kinds
+
+    !> The procedure of `buffer_menu_name_width' as help shows it.  Not a port.
+    function buffer_menu_name_width_other_value(self) result(text)
+        class(buffer_menu_name_width_integer_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (associated(self%procedure)) text = "a procedure set by the configuration"
+    end function buffer_menu_name_width_other_value
 end module buff_menu_mod

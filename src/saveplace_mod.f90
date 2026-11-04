@@ -43,7 +43,7 @@ module saveplace_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use error_mod, only: status_type
     use handle_mod, only: handle_type
-    use data_mod, only: symbol_value, set, make_variable_buffer_local
+    use data_mod, only: symbol_value, set, make_variable_buffer_local, choice_setting_type
     use value_mod, only: value_type
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
@@ -59,19 +59,20 @@ module saveplace_mod
     use coding_mod, only: coding_system_for_write
     use derived_mod, only: is_derived_mode
     use dired_mode_mod, only: dired_initial_position_hook, dired_current_directory, dired_get_filename, &
-                              dired_goto_file, dired_subdir_dirs, dired_string_type
+                              dired_goto_file, dired_subdir_dirs
     use search_mod, only: string_match
-    use keyboard_mod, only: exit_emacs_hook
+    use keyboard_mod, only: exit_fortmacs_hook
     use easy_mmode_mod, only: mode_called_interactively
     use xdisp_mod, only: message
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, &
                             NAMELIST_STRING, NAMELIST_INTEGER
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
     public :: save_place_mode, save_place_local_mode, save_place_store, save_place_forget_unreadable_files, &
               save_places_to_file, save_places_store, save_place_find_file_hook, save_place_dired_hook, &
-              save_place_load_places_from_file, save_place_exit_emacs_hook, init_saveplace
+              save_place_load_places_from_file, save_place_exit_fortmacs_hook, init_saveplace
 
     !> An element of `save_places': FILE with the POSITION to go back
     !> to (upstream's (FILENAME . POSITION)), or a directory FILE ending
@@ -103,20 +104,19 @@ module saveplace_mod
     !> `~/.local/state/fortmacs/places').
     character(len=:), allocatable, public :: save_place_file
 
-    !> Values of `save_place_version_control': SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING,
-    !> SAVE_PLACE_VERSION_CONTROL_NO and SAVE_PLACE_VERSION_CONTROL_NOSPECIAL.
-    integer, parameter, public :: SAVE_PLACE_VERSION_CONTROL_NUMBERED = 1, SAVE_PLACE_VERSION_CONTROL_EXISTING = 0, &
-                                  SAVE_PLACE_VERSION_CONTROL_NO = 2, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL = 3
+    !> Values of `save_place_version_control' besides .true. and .false.
+    integer, parameter, public :: SAVE_PLACE_VERSION_CONTROL_IF_EXISTING = 2, SAVE_PLACE_VERSION_CONTROL_AS_VERSION_CONTROL = 3
 
     !> Controls whether to make numbered backups of master `save_place'
-    !> file.  It can have four values: SAVE_PLACE_VERSION_CONTROL_NUMBERED,
-    !> _NIL, _NEVER, and _NOSPECIAL.  The first three have the same
-    !> meaning that they do for the variable `version_control', and the
-    !> final value _NOSPECIAL means just use the value of
+    !> file.  If .true., always make numbered backups; if .false., never.
+    !> SAVE_PLACE_VERSION_CONTROL_IF_EXISTING (the default) makes them only
+    !> when numbered backups of the file already exist, and
+    !> SAVE_PLACE_VERSION_CONTROL_AS_VERSION_CONTROL follows the option
     !> `version_control'.  Port of saveplace.el save-place-version-control
     !> (as upstream, writing the file with `write_region' makes no
     !> backups).
-    integer, public :: save_place_version_control = SAVE_PLACE_VERSION_CONTROL_EXISTING
+    type(choice_setting_type), public :: save_place_version_control = &
+                               choice_setting_type(name="save_place_version_control", choice=SAVE_PLACE_VERSION_CONTROL_IF_EXISTING)
 
     !> True means that the `save_place_file' has been loaded.  Port of
     !> saveplace.el save-place-loaded.
@@ -475,7 +475,7 @@ contains
         if (.not. add) return
         call find_file_hook%append(save_place_find_file_hook_adapter)
         call dired_initial_position_hook%prepend(save_place_dired_hook_adapter)
-        call exit_emacs_hook%prepend(save_place_exit_emacs_hook_adapter)
+        call exit_fortmacs_hook%prepend(save_place_exit_fortmacs_hook_adapter)
         call close_buffer_hook%prepend(save_place_store_adapter)
     end subroutine save_place_setup_hooks
 
@@ -540,7 +540,7 @@ contains
     !> The current Dired directory of a Dired buffer, else "".  Not a port.
     function dired_directory() result(dir)
         character(len=:), allocatable :: dir
-        type(dired_string_type), allocatable :: dirs(:)
+        type(string_type), allocatable :: dirs(:)
         type(status_type) :: st
 
         dir = ""
@@ -798,18 +798,18 @@ contains
     end subroutine save_place_dired_hook_adapter
 
     !> Port of saveplace.el:save-place-kill-emacs-hook.
-    recursive subroutine save_place_exit_emacs_hook()
+    recursive subroutine save_place_exit_fortmacs_hook()
         call save_places_store()
         if (save_place_loaded) call save_places_to_file()
-    end subroutine save_place_exit_emacs_hook
+    end subroutine save_place_exit_fortmacs_hook
 
-    ! `save_place_exit_emacs_hook' as a hook function.  Not a port.
-    recursive subroutine save_place_exit_emacs_hook_adapter(status)
+    ! `save_place_exit_fortmacs_hook' as a hook function.  Not a port.
+    recursive subroutine save_place_exit_fortmacs_hook_adapter(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call save_place_exit_emacs_hook()
-    end subroutine save_place_exit_emacs_hook_adapter
+        call save_place_exit_fortmacs_hook()
+    end subroutine save_place_exit_fortmacs_hook_adapter
 
     !> Define the modes, the command and the options' defaults.  Not a port.
     subroutine init_saveplace()

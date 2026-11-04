@@ -236,11 +236,16 @@ module faces_mod
     !> The defined faces, in order of definition (face-list).
     type(face_ref_type), allocatable :: registry(:)
 
-    !> The frame's display (frame parameters `display_type' and
-    !> `background_mode', display-color-cells, window-system type).
-    integer :: frame_class = FACE_CLASS_MONO
-    integer :: frame_background = FACE_BACKGROUND_DARK
-    integer :: frame_colors = 0
+    !> The frame's display class (FACE_CLASS_*, the frame parameter
+    !> `display_type'), set with `set_frame_display'.
+    integer, protected, public :: frame_class = FACE_CLASS_MONO
+    !> The frame's background mode (FACE_BACKGROUND_*, the frame parameter
+    !> `background_mode'), set with `set_frame_display'.
+    integer, protected, public :: frame_background = FACE_BACKGROUND_DARK
+    !> The number of colors of the frame's display (display-color-cells),
+    !> set with `set_frame_display'.
+    integer, protected, public :: frame_colors = 0
+    ! The window system type of the frame (window-system).
     character(len=16) :: frame_type = "tty"
 
     !> Basic default face.  Port of faces.el:default.
@@ -397,7 +402,7 @@ module faces_mod
     !> internal border of non-child frames see `internal_border'.  Port
     !> of faces.el:child-frame-border.
     type(named_face_type), target, public :: child_frame_border
-    !> Face for minibuffer prompts.  By default, Emacs automatically adds
+    !> Face for minibuffer prompts.  By default, Fortmacs automatically adds
     !> this face to the value of `minibuffer_prompt_properties', which is
     !> a list of text properties used to display the prompt text.  Port
     !> of faces.el:minibuffer-prompt.
