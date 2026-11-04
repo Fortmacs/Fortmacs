@@ -2561,3 +2561,7 @@ name	follow_avoid_tail_recenter	avoid_follow_tail_recenter
 name	follow_adjust_window	adjust_follow_window
 name	follow_maximize_region	maximize_follow_region
 name	follow_get_scrolled_point	get_follow_scrolled_point
+# R2-Q19, R6-40 (owner, 2026-11-04): no _function suffix on a procedure; the
+# two follow.el redisplay procedures are named for what they do.
+name	follow_advised_pre_redisplay_function	adjust_follow_windows_then_redisplay
+name	follow_pre_redisplay_function	adjust_follow_windows

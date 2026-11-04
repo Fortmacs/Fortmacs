@@ -60,7 +60,7 @@ module follow_mod
               follow_switch_to_buffer, follow_switch_to_buffer_all, follow_switch_to_current_buffer_all, &
               next_follow_window, previous_follow_window, follow_first_window, follow_last_window, recenter_follow, &
               redraw_follow, follow_end_of_buffer, follow_all_followers, redisplay_follow, follow_post_command_hook, &
-              adjust_follow_window, avoid_follow_tail_recenter, follow_pre_redisplay_function, init_follow
+              adjust_follow_window, avoid_follow_tail_recenter, adjust_follow_windows, init_follow
 
     !> Normal hook run by `follow_mode'.  Port of follow.el follow-mode-hook.
     type(hook_type), target, public :: follow_mode_hook = hook_type(name="follow_mode_hook")
@@ -206,7 +206,7 @@ contains
         if (enable) then
             if (.not. advised) then
                 orig_pre_redisplay_function => pre_redisplay_function
-                pre_redisplay_function => follow_advised_pre_redisplay_function
+                pre_redisplay_function => adjust_follow_windows_then_redisplay
                 advised = .true.
             end if
 
@@ -237,13 +237,13 @@ contains
 
     !> Follow mode's function before the original `pre_redisplay_function'
     !> (add-function :before).  Not a port.
-    recursive subroutine follow_advised_pre_redisplay_function(all, windows)
+    recursive subroutine adjust_follow_windows_then_redisplay(all, windows)
         logical, intent(in) :: all
         type(handle_type), intent(in) :: windows(:)
 
-        call follow_pre_redisplay_function(all, windows)
+        call adjust_follow_windows(all, windows)
         if (associated(orig_pre_redisplay_function)) call orig_pre_redisplay_function(all, windows)
-    end subroutine follow_advised_pre_redisplay_function
+    end subroutine adjust_follow_windows_then_redisplay
 
     ! ------------------------------------------------------------------
     ! Windows: points, starts and the chain
@@ -912,7 +912,7 @@ contains
     !> Follow mode's `pre_redisplay_function': `follow_post_command_hook'
     !> when the selected window is redisplayed.  Port of
     !> follow.el:follow-pre-redisplay-function.
-    recursive subroutine follow_pre_redisplay_function(all, list)
+    recursive subroutine adjust_follow_windows(all, list)
         logical, intent(in) :: all
         type(handle_type), intent(in) :: list(:)
         type(handle_type) :: sw
@@ -927,7 +927,7 @@ contains
         end do
 
         if (found) call follow_post_command_hook()
-    end subroutine follow_pre_redisplay_function
+    end subroutine adjust_follow_windows
 
     !> Ensure that the windows in Follow mode are adjacent after each
     !> command.  Port of follow.el:follow-post-command-hook.
