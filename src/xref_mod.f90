@@ -37,7 +37,7 @@ module xref_mod
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_mod, only: status_type, set_error, format_error, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
-    use string_type_mod, only: string_type
+    use string_type_mod, only: string_type, append_string
     use value_mod, only: value_type, vtag, V_INTEGER, V_NULL, xfixnum, list, make_list, choice_type
     use data_mod, only: history_setting_type, forward_setting, append_locals_clearer, choice_setting_type, choice_state
     use hooks_mod, only: hook_type
@@ -82,6 +82,7 @@ module xref_mod
     use grep_mod, only: grep_compute_defaults, grep_expand_template, grep_find_template, grep_highlight_matches, &
                         grep_regexps, find_name_arg
     use callproc_mod, only: execute_process, execute_process_region, shell_file_name
+    use project_mod, only: project_type, transient_project_type, get_current_project, combine_project_directories
     use xdisp_mod, only: message, mode_line_part_type, set_mode_line_process
     use faces_mod, only: named_face_type, display_when, face_attrs
     use help_mod, only: substitute_command_keys
@@ -563,7 +564,7 @@ module xref_mod
     !> XREF_AUTO_JUMP_MOVE means to only move point to the first result.
     !> This variable also affects commands similar to
     !> `find_xref_references', such as `find_xref_apropos', and
-    !> `project_find_regexp'.  Port of xref.el xref-auto-jump-to-first-xref.
+    !> `find_project_regexp'.  Port of xref.el xref-auto-jump-to-first-xref.
     type(choice_setting_type), public :: xref_auto_jump_to_first_xref = choice_setting_type(name="xref_auto_jump_to_first_xref")
 
     !> Special hook to find the xref backend for the current context.
@@ -639,7 +640,7 @@ module xref_mod
     !> This must reference a corresponding entry in `xref_search_programs'.
     !>
     !> This variable is used in `xref_matches_in_files', which is the
-    !> utility function used by commands like `project_find_regexp'.
+    !> utility function used by commands like `find_project_regexp'.
     !> Port of xref.el xref-search-program.
     integer, public :: xref_search_program = XREF_SEARCH_PROGRAM_GREP
 
@@ -951,16 +952,42 @@ contains
     end subroutine xref_backend_references
 
     !> The directories the default `references' searches: the current
-    !> project's root and external roots.  project.el is not ported: an
-    !> error condition occurs.  Not a port.
-    subroutine xref_project_directories(dirs, status)
+    !> project's root and external roots, combined (the current project
+    !> is asked for when there is none).  Port of the directories of
+    !> xref.el:xref-backend-references (with xref--project-root).
+    recursive subroutine xref_project_directories(dirs, status)
         character(len=:), allocatable, intent(out) :: dirs(:)
         type(status_type), intent(out) :: status
+        class(project_type), allocatable :: project
+        type(string_type), allocatable :: roots(:), external(:), combined(:)
+        integer :: k, width
 
         allocate (character(len=1) :: dirs(0))
-        status = status_type()
-        call set_error(status, FM_GENERIC_ERROR, "Finding references without a backend method needs the current "// &
-                       "project (project.el), which is not supported yet")
+        call get_current_project(project, status, maybe_prompt=.true.)
+        if (.not. status%ok()) return
+        allocate (roots(0))
+        call append_string(roots, project%root())
+        external = project%external_roots(status)
+        if (.not. status%ok()) return
+
+        do k = 1, size(external)
+            call append_string(roots, external(k)%text)
+        end do
+
+        combined = combine_project_directories(roots, status)
+        if (.not. status%ok()) return
+        width = 1
+
+        do k = 1, size(combined)
+            width = max(width, len(combined(k)%text))
+        end do
+
+        deallocate (dirs)
+        allocate (character(len=width) :: dirs(size(combined)))
+
+        do k = 1, size(combined)
+            dirs(k) = combined(k)%text
+        end do
     end subroutine xref_project_directories
 
     !> The default apropos: no backend.  Port of
@@ -2188,17 +2215,32 @@ contains
     end function xref_group_name_for_display
 
     !> Find common groups in ITEMS (by their location's group, in order)
-    !> and format the group names.  Port of xref.el:xref--analyze (the
-    !> project's root, project.el, is not ported: none).
-    subroutine analyze_xrefs(items, groups)
+    !> and format the group names, relative to the current project's root
+    !> with XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE.  Port of
+    !> xref.el:xref--analyze.
+    recursive subroutine analyze_xrefs(items, groups, status)
         type(xref_item_type), intent(in) :: items(:)
         type(xref_group_type), allocatable, intent(out) :: groups(:)
+        type(status_type), intent(out) :: status
         type(xref_group_type), allocatable :: grown(:)
-        character(len=:), allocatable :: key
+        character(len=:), allocatable :: key, root
+        class(project_type), allocatable :: project
         integer :: i, i2, g, n
         logical, allocatable :: done(:)
 
         allocate (groups(0))
+        root = ""
+
+        if (xref_file_name_display == XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE) then
+            call get_current_project(project, status)
+            if (.not. status%ok()) return
+
+            if (allocated(project)) then
+                call expand_file_name(project%root(), root, status)
+                if (.not. status%ok()) return
+            end if
+        end if
+
         n = size(items)
         allocate (done(n))
         done = .false.
@@ -2209,7 +2251,7 @@ contains
             allocate (grown(size(groups) + 1))
             if (size(groups) > 0) grown(1:size(groups)) = groups
             g = size(grown)
-            grown(g)%name = xref_group_name_for_display(key, "")
+            grown(g)%name = xref_group_name_for_display(key, root)
             allocate (grown(g)%items(0))
 
             do i2 = i, n
@@ -2307,7 +2349,8 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call analyze_xrefs(items, groups)
+        call analyze_xrefs(items, groups, status)
+        if (.not. status%ok()) return
         dd = ""
         if (allocated(buffers(current)%directory)) dd = buffers(current)%directory
         call get_or_make_buffer(XREF_BUFFER_NAME, buffer, status)
@@ -2359,9 +2402,12 @@ contains
             k = xref_buffer_index()
             deallocate (xref_buffers(k)%fetcher)
             allocate (xref_buffers(k)%fetcher, source=fetcher)
-            call analyze_xrefs(items, groups)
-            call erase_buffer(st)
-            call insert_xrefs(groups, status)
+            call analyze_xrefs(items, groups, status)
+
+            if (status%ok()) then
+                call erase_buffer(st)
+                call insert_xrefs(groups, status)
+            end if
         else if (status%code == FM_USER_ERROR) then
             call erase_buffer(st)
             start = point()
@@ -2456,7 +2502,8 @@ contains
         buffer = null_handle()
         call fetcher%fetch(items, status)
         if (.not. status%ok()) return
-        call analyze_xrefs(items, groups)
+        call analyze_xrefs(items, groups, status)
+        if (.not. status%ok()) return
         allocate (ordered(0), texts(0))
         ! FIXME: Groups are not always file names, but they often are.
         prefix = common_prefix(groups)
@@ -3239,13 +3286,39 @@ contains
 
     !> Find all references to IDENTIFIER in directory DIRECTORY using find and grep.
     !> Gives an array of xref items.  Port of
-    !> xref.el:xref-references-in-directory-grep (the project's ignores,
-    !> project.el, are not ported: none).
+    !> The files in DIRECTORY are filtered according to its project's list
+    !> of ignore patterns (as `ignores' gives them), or the default ignores
+    !> if there is no project.  Port of
+    !> xref.el:xref-references-in-directory-grep.
     recursive subroutine xref_references_in_directory_grep(identifier, directory, items, status)
         character(len=*), intent(in) :: identifier, directory
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
-        character(len=1) :: ignores(0)
+        class(project_type), allocatable :: project
+        type(string_type), allocatable :: patterns(:)
+        character(len=:), allocatable :: ignores(:)
+        integer :: k, width
+
+        allocate (items(0))
+        call get_current_project(project, status, directory=directory)
+        if (.not. status%ok()) return
+
+        if (.not. allocated(project)) then
+            allocate (project, source=transient_project_type(directory=directory))
+        end if
+
+        patterns = project%ignores(directory)
+        width = 1
+
+        do k = 1, size(patterns)
+            width = max(width, len(patterns(k)%text))
+        end do
+
+        allocate (character(len=width) :: ignores(size(patterns)))
+
+        do k = 1, size(patterns)
+            ignores(k) = patterns(k)%text
+        end do
 
         call xref_matches_in_directory(regexp_quote(identifier), "*", directory, ignores, items, status, delimited=.true.)
     end subroutine xref_references_in_directory_grep

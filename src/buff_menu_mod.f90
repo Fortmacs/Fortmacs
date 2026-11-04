@@ -108,10 +108,11 @@ module buff_menu_mod
 
         !> A `Buffer-menu-buffer-list' function: the buffers to list.
         !> Not a port.
-        subroutine buffer_menu_buffer_list_procedure(bufs)
-            import :: handle_type
+        subroutine buffer_menu_buffer_list_procedure(bufs, status)
+            import :: handle_type, status_type
             implicit none(type, external)
             type(handle_type), allocatable, intent(out) :: bufs(:)
+            type(status_type), intent(out) :: status
         end subroutine buffer_menu_buffer_list_procedure
     end interface
 
@@ -1231,7 +1232,8 @@ contains
         explicit = .true.
 
         if (associated(locals(k)%list_function)) then
-            call locals(k)%list_function(candidates)
+            call locals(k)%list_function(candidates, status)
+            if (.not. status%ok()) return
         else if (locals(k)%has_list) then
             candidates = locals(k)%list
         else

@@ -110,6 +110,10 @@ jobs:
         shell: bash
         run: |
           export PATH="$HOME/.local/bin:$PATH"
+          # In the containers the checkout belongs to another user than root,
+          # and Git refuses to work in it ("dubious ownership"); the tests run
+          # Git in the checkout (project_mod).
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           fpm --version | sed -n 1p
           # (sed, not head, for version lines: pipefail would turn head's early
           # exit into a SIGPIPE failure.)
