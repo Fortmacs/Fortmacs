@@ -839,15 +839,17 @@ module docstrings_mod
                                                                "dired_unmark", "dired_unmark_all_files", "dired_unmark_all_marks", &
                                                  "dired_unmark_backward", "dired_up_directory", "dired_upcase", "dired_view_file", &
                                                                     "dired_why", "disable_command", "display_buffer_other_frame", &
-                                         "display_message_or_buffer", "do_auto_fill", "down_group", "downcase", "downcase_region", &
-                                                "downcase_word", "edit_abbrevs", "edit_bookmarks", "electric_indent_just_newline", &
-                                                                    "electric_indent_local_mode", "electric_indent_mode", &
-                                                        "electric_newline_and_maybe_indent", "electric_pair_conservative_inhibit", &
-                                                               "electric_pair_default_inhibit", "electric_pair_default_skip_self", &
-                                                    "electric_pair_delete_pair", "electric_pair_local_mode", "electric_pair_mode", &
-                                                  "enable_command", "encode_char", "encode_coding_region", "encode_coding_string", &
-                                              "encode_time", "end_kbd_macro", "end_of_buffer", "end_of_line", "end_of_subprogram", &
-                                                    "event_convert_list", "event_name_parse_modifiers", "exchange_point_and_mark", &
+                                                                    "display_message_or_buffer", "display_vc_annotate_autoscale", &
+                                                      "display_vc_annotate_default", "display_vc_annotate_select", "do_auto_fill", &
+                                                     "down_group", "downcase", "downcase_region", "downcase_word", "edit_abbrevs", &
+                                                   "edit_bookmarks", "electric_indent_just_newline", "electric_indent_local_mode", &
+                                                                    "electric_indent_mode", "electric_newline_and_maybe_indent", &
+                                                            "electric_pair_conservative_inhibit", "electric_pair_default_inhibit", &
+                                                                   "electric_pair_default_skip_self", "electric_pair_delete_pair", &
+                                                "electric_pair_local_mode", "electric_pair_mode", "enable_command", "encode_char", &
+                                                   "encode_coding_region", "encode_coding_string", "encode_time", "end_kbd_macro", &
+                                                        "end_of_buffer", "end_of_line", "end_of_subprogram", "event_convert_list", &
+                                                                    "event_name_parse_modifiers", "exchange_point_and_mark", &
                                                     "executable_make_buffer_file_executable_if_script", "executable_self_display", &
                                                             "executable_set_magic", "execute_at_time", "execute_extended_command", &
                                                         "execute_last_kbd_macro", "execute_mode_hooks", "execute_with_idle_timer", &
@@ -869,10 +871,10 @@ module docstrings_mod
                                                     "fill_region", "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
                                             "find_file", "find_file_other_frame", "find_file_other_window", "find_file_read_only", &
                                                "find_file_read_only_other_frame", "find_file_read_only_other_window", "find_grep", &
-                                                       "first_error", "fixup_whitespace", "flush_lines", "font_lock_add_keywords", &
-                                                         "font_lock_anchored", "font_lock_change_mode", "font_lock_debug_fontify", &
-                                                     "font_lock_defontify", "font_lock_fontify_block", "font_lock_fontify_buffer", &
-                                                                    "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
+                                            "find_vc_annotate_revision_at_line", "first_error", "fixup_whitespace", "flush_lines", &
+                                                          "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
+                                                      "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
+                                         "font_lock_fontify_buffer", "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
                                                 "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
                                                            "format_error", "format_time_string", "forward_button", "forward_char", &
                                          "forward_comment", "forward_expression", "forward_group", "forward_line", "forward_page", &
@@ -880,24 +882,25 @@ module docstrings_mod
                                                         "get_buffer_process", "get_or_make_buffer", "get_process", "get_register", &
                                                         "get_unused_category", "global_auto_revert_mode", "global_font_lock_mode", &
                                              "global_font_lock_mode_enable_in_buffer", "global_set_key", "goto_char", "goto_line", &
-                                              "goto_line_relative", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
-                                                 "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
-                                                "grep_find_toggle_abbreviation", "grep_mode", "help_follow_name", "help_for_help", &
-                                              "help_go_back", "help_go_forward", "help_goto_next_page", "help_goto_previous_page", &
-                                                   "help_mode", "help_procedure_show", "help_quit", "how_many", "html_checkboxes", &
-                                           "html_div", "html_headline_1", "html_headline_2", "html_headline_3", "html_headline_4", &
-                                                 "html_headline_5", "html_headline_6", "html_horizontal_rule", "html_href_anchor", &
-                                                   "html_href_anchor_file", "html_html5_template", "html_id_anchor", "html_image", &
-                                                                   "html_line", "html_list_item", "html_mode", "html_name_anchor", &
-                                           "html_navigational_links", "html_ordered_list", "html_paragraph", "html_radio_buttons", &
-                                                       "html_span", "html_unordered_list", "ibuffer", "ibuffer_add_saved_filters", &
-                                                              "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", "ibuffer_and", &
-                                                       "ibuffer_and_filter", "ibuffer_auto_mode", "ibuffer_backward_filter_group", &
-                                                     "ibuffer_backward_line", "ibuffer_backwards_next_marked", "ibuffer_basename", &
-                                                                "ibuffer_bs_show", "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", &
-                                                         "ibuffer_change_marks", "ibuffer_clear_filter_groups", "ibuffer_content", &
-                                                   "ibuffer_copy_buffername", "ibuffer_copy_filename", "ibuffer_cut_filter_group", &
-                                                 "ibuffer_cut_line", "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
+                                                      "goto_line_relative", "goto_vc_annotate_line", "grep", "grep_apply_setting", &
+                                                       "grep_change_to_grep_edit_mode", "grep_compute_defaults", "grep_edit_mode", &
+                                              "grep_edit_save_changes", "grep_find", "grep_find_toggle_abbreviation", "grep_mode", &
+                                                           "help_follow_name", "help_for_help", "help_go_back", "help_go_forward", &
+                                             "help_goto_next_page", "help_goto_previous_page", "help_mode", "help_procedure_show", &
+                                                        "help_quit", "how_many", "html_checkboxes", "html_div", "html_headline_1", &
+                                                       "html_headline_2", "html_headline_3", "html_headline_4", "html_headline_5", &
+                                           "html_headline_6", "html_horizontal_rule", "html_href_anchor", "html_href_anchor_file", &
+                                             "html_html5_template", "html_id_anchor", "html_image", "html_line", "html_list_item", &
+                                                  "html_mode", "html_name_anchor", "html_navigational_links", "html_ordered_list", &
+                                            "html_paragraph", "html_radio_buttons", "html_span", "html_unordered_list", "ibuffer", &
+                                                "ibuffer_add_saved_filters", "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", &
+                                                                    "ibuffer_and", "ibuffer_and_filter", "ibuffer_auto_mode", &
+                                                                    "ibuffer_backward_filter_group", "ibuffer_backward_line", &
+                                                           "ibuffer_backwards_next_marked", "ibuffer_basename", "ibuffer_bs_show", &
+                                                           "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", "ibuffer_change_marks", &
+                                                      "ibuffer_clear_filter_groups", "ibuffer_content", "ibuffer_copy_buffername", &
+                                                          "ibuffer_copy_filename", "ibuffer_cut_filter_group", "ibuffer_cut_line", &
+                                                                    "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
                                                              "ibuffer_delete_saved_filter_groups", "ibuffer_delete_saved_filters", &
                                                             "ibuffer_derived_mode", "ibuffer_diff_with_file", "ibuffer_directory", &
                                                     "ibuffer_do_close_on_deletion_marks", "ibuffer_do_delete", "ibuffer_do_occur", &
@@ -1040,24 +1043,24 @@ module docstrings_mod
                                            "multi_occur", "multi_occur_in_matching_buffers", "narrow_to_page", "narrow_to_region", &
                                                      "narrow_to_subprogram", "negative_argument", "newline", "newline_and_indent", &
                                          "next_buffer", "next_error", "next_error_no_select", "next_history_element", "next_line", &
-                                            "next_line_or_history_element", "normal_mode", "num_processors", "number_to_register", &
-                                                  "occur", "occur_cease_edit", "occur_edit_mode", "occur_in_region", "occur_mode", &
-                                                                    "occur_mode_display_occurrence", "occur_mode_goto_occurrence", &
-                                                 "occur_mode_goto_occurrence_other_window", "occur_mode_mouse_goto", "occur_next", &
-                                          "occur_prev", "occur_rename_buffer", "open_dribble_file", "open_line", "open_rectangle", &
-                                                             "optimize_char_table", "other_buffer", "other_frame", "other_window", &
-                                                   "other_window_backward", "parse_partial_expression", "paste", "paste_previous", &
-                                                        "paste_rectangle", "point", "point_max", "point_min", "point_to_register", &
-                                                               "pop_to_mark_command", "posix_looking_at", "posix_search_backward", &
-                                                             "posix_search_forward", "posix_string_match", "prefer_coding_system", &
-                                                  "prepend_auto_mode", "prepend_to_register", "previous_buffer", "previous_error", &
-                                                          "previous_error_no_select", "previous_history_element", "previous_line", &
-                                                    "previous_line_or_history_element", "process_buffer", "process_coding_system", &
-                                           "process_command", "process_exit_status", "process_id", "process_list", "process_mark", &
-                                                               "process_menu_delete_process", "process_menu_mode", "process_name", &
-                                                          "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
-                                                         "process_send_string", "process_status", "process_tty_name", "prog_mode", &
-                                                        "provided_mode_derived_p", "push_button", "push_mark", "python_base_mode", &
+                                                       "next_line_or_history_element", "next_vc_annotate_revision", "normal_mode", &
+                                           "num_processors", "number_to_register", "occur", "occur_cease_edit", "occur_edit_mode", &
+                                                                 "occur_in_region", "occur_mode", "occur_mode_display_occurrence", &
+                                                          "occur_mode_goto_occurrence", "occur_mode_goto_occurrence_other_window", &
+                                                       "occur_mode_mouse_goto", "occur_next", "occur_prev", "occur_rename_buffer", &
+                                                        "open_dribble_file", "open_line", "open_rectangle", "optimize_char_table", &
+                                                           "other_buffer", "other_frame", "other_window", "other_window_backward", &
+                                                "parse_partial_expression", "paste", "paste_previous", "paste_rectangle", "point", &
+                                         "point_max", "point_min", "point_to_register", "pop_to_mark_command", "posix_looking_at", &
+                                                            "posix_search_backward", "posix_search_forward", "posix_string_match", &
+                                            "prefer_coding_system", "prepend_auto_mode", "prepend_to_register", "previous_buffer", &
+                                                         "previous_error", "previous_error_no_select", "previous_history_element", &
+                                             "previous_line", "previous_line_or_history_element", "previous_vc_annotate_revision", &
+                                              "process_buffer", "process_coding_system", "process_command", "process_exit_status", &
+                                                      "process_id", "process_list", "process_mark", "process_menu_delete_process", &
+                                            "process_menu_mode", "process_name", "process_query_on_exit_flag", "process_send_eof", &
+                                               "process_send_region", "process_send_string", "process_status", "process_tty_name", &
+                                           "prog_mode", "provided_mode_derived_p", "push_button", "push_mark", "python_base_mode", &
                                                                     "python_fill_paragraph", "python_indent_dedent_line", &
                                                        "python_indent_dedent_line_backspace", "python_indent_guess_indent_offset", &
                                                 "python_indent_shift_left", "python_indent_shift_right", "python_mark_definition", &
@@ -1124,6 +1127,8 @@ module docstrings_mod
                                                                   "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", &
                                                 "shell_replace_by_expanded_directory", "shell_script_mode", "show_paren__default", &
                                                             "show_paren_default_test", "show_paren_local_mode", "show_paren_mode", &
+                                                                    "show_vc_annotate_changeset_diff_revision_at_line", &
+                                                "show_vc_annotate_diff_revision_at_line", "show_vc_annotate_log_revision_at_line", &
                                                         "skeleton_pair_insert_maybe", "skip_chars_backward", "skip_chars_forward", &
                                                 "skip_syntax_backward", "skip_syntax_forward", "smie_backward_expression_command", &
                                             "smie_close_block", "smie_config_guess", "smie_config_save", "smie_config_set_indent", &
@@ -1139,23 +1144,18 @@ module docstrings_mod
                                                  "tabulated_list_previous_column", "tabulated_list_revert", "tabulated_list_sort", &
                                                     "tabulated_list_widen_current_column", "text_mode", "this_command_key_events", &
                                            "this_single_command_keys", "this_single_command_raw_keys", "time_add", "time_convert", &
-                                            "time_equal_p", "time_subtract", "time_zone_rule", "toggle_input_method", "top_level", &
-                                              "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
-                                              "transpose_regions", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
-                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
-                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
-                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
-                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
-                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                    "vc_annotate", "vc_annotate_display_autoscale", "vc_annotate_display_default", &
-                                                                "vc_annotate_display_select", "vc_annotate_find_revision_at_line", &
-                                                         "vc_annotate_goto_line", "vc_annotate_mode", "vc_annotate_next_revision", &
-                                                                    "vc_annotate_prev_revision", "vc_annotate_revision_at_line", &
-                                                                    "vc_annotate_revision_previous_to_line", &
-                                                                    "vc_annotate_show_changeset_diff_revision_at_line", &
-                                                "vc_annotate_show_diff_revision_at_line", "vc_annotate_show_log_revision_at_line", &
-                                                       "vc_annotate_toggle_annotation_visibility", "vc_annotate_working_revision", &
+                                                         "time_equal_p", "time_subtract", "time_zone_rule", "toggle_input_method", &
+                                                   "toggle_vc_annotate_annotation_visibility", "top_level", "transient_mark_mode", &
+                                                "transpose_chars", "transpose_lines", "transpose_paragraphs", "transpose_regions", &
+                                              "transpose_sentences", "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", &
+                                                 "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", "turn_on_font_lock", &
+                                         "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
+                                                 "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "unify_charset", &
+                                                      "universal_argument", "universal_argument_minus", "universal_argument_more", &
+                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
+                                                          "upcase_initials_region", "upcase_region", "upcase_word", "vc_annotate", &
+                                                                    "vc_annotate_mode", "vc_annotate_revision_at_line", &
+                                                          "vc_annotate_revision_previous_to_line", "vc_annotate_working_revision", &
                                                         "vc_clear_context", "vc_create_branch", "vc_create_repo", "vc_create_tag", &
                                                "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", "vc_dir_display_file", &
                                                     "vc_dir_find_file", "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", &
@@ -6897,6 +6897,26 @@ contains
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Display the contents of BUFFER in the echo area if possible,"//LF// &
                         "otherwise in a pop-up window."
+        case ("display_vc_annotate_autoscale")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Highlight the output of \[vc_annotate] using an autoscaled color map."//LF// &
+                        "Autoscaling means that the map is scaled from the current time to the"//LF// &
+                        "oldest annotation in the buffer, or, with prefix argument FULL, to"//LF// &
+                        "cover the range from the oldest annotation to the newest."
+        case ("display_vc_annotate_default")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the output of \[vc_annotate] using the default color range."//LF// &
+                        "The color range is given by `vc_annotate_color_map', scaled by RATIO."//LF// &
+                        "The current time is used as the offset."
+        case ("display_vc_annotate_select")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Highlight the output of \[vc_annotate]."//LF// &
+                        "By default, the current buffer is highlighted, unless overridden by"//LF// &
+                        "BUFFER.  `vc_annotate_display_mode' specifies the highlighting mode to"//LF// &
+                        "use; you may override this using the second optional arg MODE."
         case ("do_auto_fill")
             entry%file = "simple_mod.f90"
             entry%fortran = "call do_auto_fill(status)"
@@ -7873,6 +7893,10 @@ contains
                         "command of grep.el:grep-find."//LF// &
                         ""//LF// &
                         "Run grep via find, with user-specified args."
+        case ("find_vc_annotate_revision_at_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the revision identified in the current line."
         case ("first_error")
             entry%file = "simple_next_error_mod.f90"
             entry%command = .true.
@@ -8407,6 +8431,10 @@ contains
             entry%file = "simple_goto_mod.f90"
             entry%command = .true.
             entry%doc = "Go to LINE, counting from line at (point-min) (the command)."
+        case ("goto_vc_annotate_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the line corresponding to the current VC Annotate line."
         case ("grep")
             entry%file = "grep_mod.f90"
             entry%fortran = "call grep(command_args, status)"
@@ -12789,6 +12817,13 @@ contains
             entry%doc = "Move cursor vertically down ARG lines, or to the next history element."//LF// &
                         "When point moves over the bottom line of multi-line minibuffer, puts ARGth"//LF// &
                         "next element of the minibuffer history in the minibuffer."
+        case ("next_vc_annotate_revision")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the annotation of the revision after this one."//LF// &
+                        ""//LF// &
+                        "With a numeric prefix argument, annotate the revision that many"//LF// &
+                        "revisions after."
         case ("normal_mode")
             entry%file = "files_mod.f90"
             entry%fortran = "call normal_mode(status, find_file)"
@@ -13256,6 +13291,13 @@ contains
             entry%doc = "Move cursor vertically up ARG lines, or to the previous history element."//LF// &
                         "When point moves over the top line of multi-line minibuffer, puts ARGth"//LF// &
                         "previous element of the minibuffer history in the minibuffer."
+        case ("previous_vc_annotate_revision")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the annotation of the revision previous to this one."//LF// &
+                        ""//LF// &
+                        "With a numeric prefix argument, annotate the revision that many"//LF// &
+                        "revisions previous."
         case ("process_buffer")
             entry%file = "process_mod.f90"
             entry%fortran = "process_buffer(process)"
@@ -16147,6 +16189,22 @@ contains
                         ""//LF// &
                         "This is a global minor mode.  To toggle the mode in a single buffer,"//LF// &
                         "use `show_paren_local_mode'."
+        case ("show_vc_annotate_changeset_diff_revision_at_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show the diffs of revision at current line relative to previous revision."//LF// &
+                        "This is done for all files in changeset."
+        case ("show_vc_annotate_diff_revision_at_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the diff of the revision at line from its previous revision."
+        case ("show_vc_annotate_log_revision_at_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the log of the revision at line."//LF// &
+                        "If the VC backend supports it, only show the log entry for the revision."//LF// &
+                        "If a *vc-change-log* buffer exists and already shows a log for"//LF// &
+                        "the file in question, search for the log entry required and move point."
         case ("skeleton_pair_insert_maybe")
             entry%file = "skeleton_mod.f90"
             entry%command = .true.
@@ -16717,6 +16775,10 @@ contains
             entry%file = "mule_mod.f90"
             entry%command = .true.
             entry%doc = "C-\: toggle the input method, reading it with a prefix argument."
+        case ("toggle_vc_annotate_annotation_visibility")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Toggle whether or not the annotation is visible."
         case ("top_level")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "call top_level(status)"
@@ -17063,34 +17125,6 @@ contains
                         "`vc_annotate_background' specifies the background color."//LF// &
                         "`vc_annotate_background_mode' specifies whether the color map"//LF// &
                         "should be applied to the background or to the foreground."
-        case ("vc_annotate_display_autoscale")
-            entry%file = "vc_annotate_mod.f90"
-            entry%command = .true.
-            entry%doc = "Highlight the output of \[vc_annotate] using an autoscaled color map."//LF// &
-                        "Autoscaling means that the map is scaled from the current time to the"//LF// &
-                        "oldest annotation in the buffer, or, with prefix argument FULL, to"//LF// &
-                        "cover the range from the oldest annotation to the newest."
-        case ("vc_annotate_display_default")
-            entry%file = "vc_annotate_mod.f90"
-            entry%command = .true.
-            entry%doc = "Display the output of \[vc_annotate] using the default color range."//LF// &
-                        "The color range is given by `vc_annotate_color_map', scaled by RATIO."//LF// &
-                        "The current time is used as the offset."
-        case ("vc_annotate_display_select")
-            entry%file = "vc_annotate_mod.f90"
-            entry%command = .true.
-            entry%doc = "Highlight the output of \[vc_annotate]."//LF// &
-                        "By default, the current buffer is highlighted, unless overridden by"//LF// &
-                        "BUFFER.  `vc_annotate_display_mode' specifies the highlighting mode to"//LF// &
-                        "use; you may override this using the second optional arg MODE."
-        case ("vc_annotate_find_revision_at_line")
-            entry%file = "vc_annotate_mod.f90"
-            entry%command = .true.
-            entry%doc = "Visit the revision identified in the current line."
-        case ("vc_annotate_goto_line")
-            entry%file = "vc_annotate_mod.f90"
-            entry%command = .true.
-            entry%doc = "Go to the line corresponding to the current VC Annotate line."
         case ("vc_annotate_mode")
             entry%file = "vc_annotate_mod.f90"
             entry%command = .true.
@@ -17099,20 +17133,6 @@ contains
                         "You can use the mode-specific menu to alter the time-span of the used"//LF// &
                         "colors.  See variable `vc_annotate_menu_elements' for customizing the"//LF// &
                         "menu items."
-        case ("vc_annotate_next_revision")
-            entry%file = "vc_annotate_mod.f90"
-            entry%command = .true.
-            entry%doc = "Visit the annotation of the revision after this one."//LF// &
-                        ""//LF// &
-                        "With a numeric prefix argument, annotate the revision that many"//LF// &
-                        "revisions after."
-        case ("vc_annotate_prev_revision")
-            entry%file = "vc_annotate_mod.f90"
-            entry%command = .true.
-            entry%doc = "Visit the annotation of the revision previous to this one."//LF// &
-                        ""//LF// &
-                        "With a numeric prefix argument, annotate the revision that many"//LF// &
-                        "revisions previous."
         case ("vc_annotate_revision_at_line")
             entry%file = "vc_annotate_mod.f90"
             entry%command = .true.
@@ -17121,26 +17141,6 @@ contains
             entry%file = "vc_annotate_mod.f90"
             entry%command = .true.
             entry%doc = "Visit the annotation of the revision before the revision at line."
-        case ("vc_annotate_show_changeset_diff_revision_at_line")
-            entry%file = "vc_annotate_mod.f90"
-            entry%command = .true.
-            entry%doc = "Show the diffs of revision at current line relative to previous revision."//LF// &
-                        "This is done for all files in changeset."
-        case ("vc_annotate_show_diff_revision_at_line")
-            entry%file = "vc_annotate_mod.f90"
-            entry%command = .true.
-            entry%doc = "Visit the diff of the revision at line from its previous revision."
-        case ("vc_annotate_show_log_revision_at_line")
-            entry%file = "vc_annotate_mod.f90"
-            entry%command = .true.
-            entry%doc = "Visit the log of the revision at line."//LF// &
-                        "If the VC backend supports it, only show the log entry for the revision."//LF// &
-                        "If a *vc-change-log* buffer exists and already shows a log for"//LF// &
-                        "the file in question, search for the log entry required and move point."
-        case ("vc_annotate_toggle_annotation_visibility")
-            entry%file = "vc_annotate_mod.f90"
-            entry%command = .true.
-            entry%doc = "Toggle whether or not the annotation is visible."
         case ("vc_annotate_working_revision")
             entry%file = "vc_annotate_mod.f90"
             entry%command = .true.
@@ -32773,7 +32773,7 @@ contains
             entry%fortran = "vc_annotate_ratio"
             entry%original = "1.0_real64"
             entry%value = repr(vc_annotate_ratio)
-            entry%doc = "Global variable.  The ratio `vc_annotate_display_select' scales"//LF// &
+            entry%doc = "Global variable.  The ratio `display_vc_annotate_select' scales"//LF// &
                         "`vc_annotate_color_map' with in VC_ANNOTATE_DISPLAY_MODE_COLOR_MAP"//LF// &
                         "(1.0 when upstream has no ratio)."
         case ("vc_annotate_switches")

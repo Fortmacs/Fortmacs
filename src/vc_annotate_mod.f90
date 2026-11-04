@@ -73,15 +73,15 @@ module vc_annotate_mod
     implicit none(type, external)
     private
 
-    public :: init_vc_annotate, vc_annotate, vc_annotate_mode, vc_annotate_toggle_annotation_visibility, &
-              vc_annotate_display_default, vc_annotate_oldest_in_map, vc_annotate_display_autoscale, &
-              vc_annotate_display_select, vc_annotate_prev_revision, vc_annotate_next_revision, &
-              vc_annotate_working_revision, vc_annotate_extract_revision_at_line, vc_annotate_revision_at_line, &
-              vc_annotate_find_revision_at_line, vc_annotate_revision_previous_to_line, &
-              vc_annotate_show_log_revision_at_line, vc_annotate_show_diff_revision_at_line, &
-              vc_annotate_show_changeset_diff_revision_at_line, vc_annotate_warp_revision, vc_annotate_color_index, &
-              vc_annotate_convert_time, vc_annotate_difference, vc_annotate_display, vc_annotate_lines, &
-              vc_annotate_goto_line, vc_annotate_file_name_change, vc_annotate_current_color_map, &
+    public :: init_vc_annotate, vc_annotate, vc_annotate_mode, toggle_vc_annotate_annotation_visibility, &
+              display_vc_annotate_default, vc_annotate_oldest_in_map, display_vc_annotate_autoscale, &
+              display_vc_annotate_select, previous_vc_annotate_revision, next_vc_annotate_revision, &
+              vc_annotate_working_revision, extract_vc_annotate_revision_at_line, vc_annotate_revision_at_line, &
+              find_vc_annotate_revision_at_line, vc_annotate_revision_previous_to_line, &
+              show_vc_annotate_log_revision_at_line, show_vc_annotate_diff_revision_at_line, &
+              show_vc_annotate_changeset_diff_revision_at_line, warp_vc_annotate_revision, &
+              convert_vc_annotate_time, vc_annotate_difference, display_vc_annotate, vc_annotate_lines, &
+              goto_vc_annotate_line, vc_annotate_file_name_change, vc_annotate_current_color_map, &
               set_vc_annotate_defaults
 
     ! ------------------------------------------------------------------
@@ -152,7 +152,7 @@ module vc_annotate_mod
     !> Port of vc-annotate.el vc-annotate-use-short-revision.
     logical, public :: vc_annotate_use_short_revision = .true.
 
-    !> Global variable.  The ratio `vc_annotate_display_select' scales
+    !> Global variable.  The ratio `display_vc_annotate_select' scales
     !> `vc_annotate_color_map' with in VC_ANNOTATE_DISPLAY_MODE_COLOR_MAP
     !> (1.0 when upstream has no ratio).  Port of
     !> vc-annotate.el vc-annotate-ratio.
@@ -171,7 +171,7 @@ module vc_annotate_mod
 
     ! A VC-Annotate buffer's own values, by serial number: vc-annotate-backend,
     ! vc-annotate-parent-display-mode, vc-annotate-color-map (when made
-    ! buffer-local by `vc_annotate_display') and vc-annotate-offset.
+    ! buffer-local by `display_vc_annotate') and vc-annotate-offset.
     type :: local_type
         integer(int64) :: serial = 0
         integer :: backend = 0
@@ -256,7 +256,7 @@ contains
     end function annotated_file
 
     !> The current buffer's `vc_annotate_color_map': its own (set by
-    !> `vc_annotate_display'), else the global one.  Not a port.
+    !> `display_vc_annotate'), else the global one.  Not a port.
     subroutine vc_annotate_current_color_map(map)
         type(vc_annotate_color_type), allocatable, intent(out) :: map(:)
         integer :: k
@@ -462,7 +462,7 @@ contains
 
     !> Toggle whether or not the annotation is visible.  Port of
     !> vc-annotate.el:vc-annotate-toggle-annotation-visibility.
-    recursive subroutine vc_annotate_toggle_annotation_visibility(status)
+    recursive subroutine toggle_vc_annotate_annotation_visibility(status)
         type(status_type), intent(out) :: status
         logical :: visible
         integer :: k
@@ -485,7 +485,7 @@ contains
         else
             call remove_from_invisibility_spec(ANNOTATION)
         end if
-    end subroutine vc_annotate_toggle_annotation_visibility
+    end subroutine toggle_vc_annotate_annotation_visibility
 
     ! ------------------------------------------------------------------
     ! Display modes
@@ -495,15 +495,15 @@ contains
     !> The color range is given by `vc_annotate_color_map', scaled by RATIO.
     !> The current time is used as the offset.  Port of
     !> vc-annotate.el:vc-annotate-display-default.
-    recursive subroutine vc_annotate_display_default(ratio, status)
+    recursive subroutine display_vc_annotate_default(ratio, status)
         real(real64), intent(in) :: ratio
         type(status_type), intent(out) :: status
 
         call message("Redisplaying annotation...")
-        call vc_annotate_display(ratio, status)
+        call display_vc_annotate(ratio, status)
         if (.not. status%ok()) return
         call message("Redisplaying annotation...done")
-    end subroutine vc_annotate_display_default
+    end subroutine display_vc_annotate_default
 
     !> Return the oldest time in the COLOR_MAP.  Port of
     !> vc-annotate.el:vc-annotate-oldest-in-map.
@@ -546,7 +546,7 @@ contains
     !> oldest annotation in the buffer, or, with prefix argument FULL, to
     !> cover the range from the oldest annotation to the newest.  Port of
     !> vc-annotate.el:vc-annotate-display-autoscale.
-    recursive subroutine vc_annotate_display_autoscale(status, full)
+    recursive subroutine display_vc_annotate_autoscale(status, full)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: full
         type(vc_annotate_color_type), allocatable :: map(:)
@@ -559,7 +559,7 @@ contains
         newest = 0
         ! Any CVS users at the founding of Rome?
         oldest = 999999
-        now = vc_annotate_convert_time()
+        now = convert_vc_annotate_time()
         call message("Redisplaying annotation...")
         ! Run through this file and find the oldest and newest dates annotated.
         opoint = point()
@@ -580,9 +580,9 @@ contains
         call vc_annotate_current_color_map(map)
 
         if (is_full) then
-            call vc_annotate_display((newest - oldest)/vc_annotate_oldest_in_map(map), status, newest)
+            call display_vc_annotate((newest - oldest)/vc_annotate_oldest_in_map(map), status, newest)
         else
-            call vc_annotate_display((now - oldest)/vc_annotate_oldest_in_map(map), status)
+            call display_vc_annotate((now - oldest)/vc_annotate_oldest_in_map(map), status)
         end if
 
         if (.not. status%ok()) return
@@ -593,7 +593,7 @@ contains
         else
             call message("Redisplaying annotation...done (Spanned to "//days_string(now - oldest)//" days old)")
         end if
-    end subroutine vc_annotate_display_autoscale
+    end subroutine display_vc_annotate_autoscale
 
     ! DAYS formatted with %.1f.  Not a port.
     function days_string(days) result(s)
@@ -615,7 +615,7 @@ contains
     !> BUFFER.  `vc_annotate_display_mode' specifies the highlighting mode to
     !> use; you may override this using the second optional arg MODE.
     !> Port of vc-annotate.el:vc-annotate-display-select.
-    recursive subroutine vc_annotate_display_select(status, buffer, mode)
+    recursive subroutine display_vc_annotate_select(status, buffer, mode)
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
         type(vc_annotate_display_mode_type), intent(in), optional :: mode
@@ -635,7 +635,7 @@ contains
         case (VC_ANNOTATE_DISPLAY_MODE_COLOR_MAP)
             ! The ratio is global, thus relative to the global color-map.
             call clear_local_color_map()
-            call vc_annotate_display_default(vc_annotate_ratio, status)
+            call display_vc_annotate_default(vc_annotate_ratio, status)
         case (VC_ANNOTATE_DISPLAY_MODE_SCALE, VC_ANNOTATE_DISPLAY_MODE_FULLSCALE)
             ! One of the auto-scaling modes
             action%execute => autoscale_action
@@ -645,14 +645,14 @@ contains
         case (VC_ANNOTATE_DISPLAY_MODE_DAYS)
             ! A fixed number of days lookback
             call vc_annotate_current_color_map(map)
-            call vc_annotate_display_default(vc_annotate_display_mode%days/vc_annotate_oldest_in_map(map), status)
+            call display_vc_annotate_default(vc_annotate_display_mode%days/vc_annotate_oldest_in_map(map), status)
         case default
             call set_error(status, FM_GENERIC_ERROR, "No such display mode")
         end select
-    end subroutine vc_annotate_display_select
+    end subroutine display_vc_annotate_select
 
     ! (vc-run-delayed (vc-annotate-display-autoscale FULL)) of
-    ! `vc_annotate_display_select'.  Port of the delayed part of
+    ! `display_vc_annotate_select'.  Port of the delayed part of
     ! vc-annotate.el:vc-annotate-display-select.
     recursive subroutine autoscale_action(action, status)
         type(vc_action_type), intent(in) :: action
@@ -662,7 +662,7 @@ contains
         status = status_type()
         if (.not. is_buffer_live(action%buffer)) return
         call set_buffer(action%buffer, st)
-        call vc_annotate_display_autoscale(status, action%flag)
+        call display_vc_annotate_autoscale(status, action%flag)
     end subroutine autoscale_action
 
     ! ------------------------------------------------------------------
@@ -815,12 +815,12 @@ contains
         call set_vc_buffer_overriding_fileset(fs)
         call set_vc_buffer_revision(rev)
         ! (internal-temp-output-buffer-show buffer): unmodified, at its
-        ! beginning, then `vc_annotate_display_select' as
+        ! beginning, then `display_vc_annotate_select' as
         ! `temp_buffer_show_function'.
         buffers(current)%text%save_modiff = buffers(current)%text%modiff
         call widen()
         call goto_char(point_min())
-        call vc_annotate_display_select(status, out)
+        call display_vc_annotate_select(status, out)
         if (.not. status%ok()) return
         call set_buffer(out, st)
         action%execute => annotate_finish
@@ -871,23 +871,23 @@ contains
     !>
     !> With a numeric prefix argument, annotate the revision that many
     !> revisions previous.  Port of vc-annotate.el:vc-annotate-prev-revision.
-    recursive subroutine vc_annotate_prev_revision(prefix, status)
+    recursive subroutine previous_vc_annotate_revision(prefix, status)
         integer(int64), intent(in) :: prefix
         type(status_type), intent(out) :: status
 
-        call vc_annotate_warp_revision(status, count=-prefix)
-    end subroutine vc_annotate_prev_revision
+        call warp_vc_annotate_revision(status, count=-prefix)
+    end subroutine previous_vc_annotate_revision
 
     !> Visit the annotation of the revision after this one.
     !>
     !> With a numeric prefix argument, annotate the revision that many
     !> revisions after.  Port of vc-annotate.el:vc-annotate-next-revision.
-    recursive subroutine vc_annotate_next_revision(prefix, status)
+    recursive subroutine next_vc_annotate_revision(prefix, status)
         integer(int64), intent(in) :: prefix
         type(status_type), intent(out) :: status
 
-        call vc_annotate_warp_revision(status, count=prefix)
-    end subroutine vc_annotate_next_revision
+        call warp_vc_annotate_revision(status, count=prefix)
+    end subroutine next_vc_annotate_revision
 
     !> Visit the annotation of the working revision of this file.  Port of
     !> vc-annotate.el:vc-annotate-working-revision.
@@ -906,7 +906,7 @@ contains
             if (warp_rev == vc_buffer_revision()) then
                 call message("Already at revision "//warp_rev)
             else
-                call vc_annotate_warp_revision(status, revision=warp_rev)
+                call warp_vc_annotate_revision(status, revision=warp_rev)
             end if
         end if
     end subroutine vc_annotate_working_revision
@@ -914,7 +914,7 @@ contains
     !> Extract the revision number of the current line: REVISION and the
     !> FILE it had (FOUND false if the line has none).  Port of
     !> vc-annotate.el:vc-annotate-extract-revision-at-line.
-    recursive subroutine vc_annotate_extract_revision_at_line(revision, file, found)
+    recursive subroutine extract_vc_annotate_revision_at_line(revision, file, found)
         character(len=:), allocatable, intent(out) :: revision, file
         logical, intent(out) :: found
         integer :: b
@@ -928,7 +928,7 @@ contains
         if (.not. associated(vc_backends(b)%annotate_extract_revision_at_line)) return
         call vc_backends(b)%annotate_extract_revision_at_line(revision, file, found)
         if (found .and. len(file) == 0) file = annotated_file()
-    end subroutine vc_annotate_extract_revision_at_line
+    end subroutine extract_vc_annotate_revision_at_line
 
     !> Visit the annotation of the revision identified in the current line.
     !> Port of vc-annotate.el:vc-annotate-revision-at-line.
@@ -944,20 +944,20 @@ contains
             return
         end if
 
-        call vc_annotate_extract_revision_at_line(revision, file, found)
+        call extract_vc_annotate_revision_at_line(revision, file, found)
 
         if (.not. found) then
             call message("Cannot extract revision number from the current line")
         else if (revision == vc_buffer_revision() .and. file == annotated_file()) then
-            call message("Already at revision "//revision)
+            call message("Already at revision "//revision//" of "//file)
         else
-            call vc_annotate_warp_revision(status, revision=revision, file=file)
+            call warp_vc_annotate_revision(status, revision=revision, file=file)
         end if
     end subroutine vc_annotate_revision_at_line
 
     !> Visit the revision identified in the current line.  Port of
     !> vc-annotate.el:vc-annotate-find-revision-at-line.
-    recursive subroutine vc_annotate_find_revision_at_line(status)
+    recursive subroutine find_vc_annotate_revision_at_line(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: revision, file
         type(handle_type) :: buffer
@@ -970,7 +970,7 @@ contains
             return
         end if
 
-        call vc_annotate_extract_revision_at_line(revision, file, found)
+        call extract_vc_annotate_revision_at_line(revision, file, found)
 
         if (.not. found) then
             call message("Cannot extract revision number from the current line")
@@ -979,7 +979,7 @@ contains
             if (.not. status%ok()) return
             call switch_to_buffer_other_window(buffer, status)
         end if
-    end subroutine vc_annotate_find_revision_at_line
+    end subroutine find_vc_annotate_revision_at_line
 
     ! The backend's `previous_revision' of REV for FILE ("" for none),
     ! with `vc_use_short_revision' bound to `vc_annotate_use_short_revision'
@@ -1021,7 +1021,7 @@ contains
             return
         end if
 
-        call vc_annotate_extract_revision_at_line(revision, file_name, found)
+        call extract_vc_annotate_revision_at_line(revision, file_name, found)
 
         if (.not. found) then
             call message("Cannot extract revision number from the current line")
@@ -1034,7 +1034,7 @@ contains
         if (.not. found) then
             call message("No previous revisions")
         else
-            call vc_annotate_warp_revision(status, revision=prev_rev, file=file_name)
+            call warp_vc_annotate_revision(status, revision=prev_rev, file=file_name)
         end if
     end subroutine vc_annotate_revision_previous_to_line
 
@@ -1043,7 +1043,7 @@ contains
     !> If a *vc-change-log* buffer exists and already shows a log for
     !> the file in question, search for the log entry required and move point.
     !> Port of vc-annotate.el:vc-annotate-show-log-revision-at-line.
-    recursive subroutine vc_annotate_show_log_revision_at_line(status)
+    recursive subroutine show_vc_annotate_log_revision_at_line(status)
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: fileset(:), files(:)
         type(vc_log_limit_type) :: limit
@@ -1061,7 +1061,7 @@ contains
             return
         end if
 
-        call vc_annotate_extract_revision_at_line(revision, file, found)
+        call extract_vc_annotate_revision_at_line(revision, file, found)
 
         if (.not. found) then
             call message("Cannot extract revision number from the current line")
@@ -1108,7 +1108,7 @@ contains
         end if
 
         vc_git_print_log_follow = saved_follow
-    end subroutine vc_annotate_show_log_revision_at_line
+    end subroutine show_vc_annotate_log_revision_at_line
 
     ! The diff of the revision at line with its previous revision, of the
     ! file (FILEDIFF) or of the whole changeset.  Port of
@@ -1127,7 +1127,7 @@ contains
             return
         end if
 
-        call vc_annotate_extract_revision_at_line(revision, file_name, found)
+        call extract_vc_annotate_revision_at_line(revision, file_name, found)
 
         if (.not. found) then
             call message("Cannot extract revision number from the current line")
@@ -1161,16 +1161,16 @@ contains
 
     !> Visit the diff of the revision at line from its previous revision.
     !> Port of vc-annotate.el:vc-annotate-show-diff-revision-at-line.
-    recursive subroutine vc_annotate_show_diff_revision_at_line(status)
+    recursive subroutine show_vc_annotate_diff_revision_at_line(status)
         type(status_type), intent(out) :: status
 
         call show_diff_revision_at_line_internal(.true., status)
-    end subroutine vc_annotate_show_diff_revision_at_line
+    end subroutine show_vc_annotate_diff_revision_at_line
 
     !> Show the diffs of revision at current line relative to previous revision.
     !> This is done for all files in changeset.  Port of
     !> vc-annotate.el:vc-annotate-show-changeset-diff-revision-at-line.
-    recursive subroutine vc_annotate_show_changeset_diff_revision_at_line(status)
+    recursive subroutine show_vc_annotate_changeset_diff_revision_at_line(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: saved_dir, root
         logical :: found
@@ -1196,7 +1196,7 @@ contains
         if (found) buffers(current)%directory = root
         call show_diff_revision_at_line_internal(.false., status)
         if (current /= 0) buffers(current)%directory = saved_dir
-    end subroutine vc_annotate_show_changeset_diff_revision_at_line
+    end subroutine show_vc_annotate_changeset_diff_revision_at_line
 
     !> Annotate the revision described by COUNT or REVISION (of FILE, if
     !> given).
@@ -1208,7 +1208,7 @@ contains
     !> describes a revision number, so warp to that revision.  Port of
     !> vc-annotate.el:vc-annotate-warp-revision (REVSPEC as COUNT or
     !> REVISION).
-    recursive subroutine vc_annotate_warp_revision(status, count, revision, file)
+    recursive subroutine warp_vc_annotate_revision(status, count, revision, file)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
         character(len=*), intent(in), optional :: revision, file
@@ -1305,7 +1305,7 @@ contains
             if (k > 0) parent_mode = locals(k)%parent_display_mode
             call vc_annotate(the_file, newrev, status, parent_mode, buffer, min(oldline, lastline), b)
         end if
-    end subroutine vc_annotate_warp_revision
+    end subroutine warp_vc_annotate_revision
 
     ! N as a decimal string.  Not a port.
     function integer_string(n) result(s)
@@ -1358,24 +1358,10 @@ contains
     ! Coloring the lines
     ! ------------------------------------------------------------------
 
-    !> The index of the first entry of COLOR_MAP whose age is not less than
-    !> THRESHOLD, 0 if no such entry exists.  Port of
-    !> vc-annotate.el:vc-annotate-compcar.
-    integer function vc_annotate_color_index(threshold, color_map) result(k)
-        real(real64), intent(in) :: threshold
-        type(vc_annotate_color_type), intent(in) :: color_map(:)
-
-        do k = 1, size(color_map)
-            if (.not. color_map(k)%age < threshold) return
-        end do
-
-        k = 0
-    end function vc_annotate_color_index
-
     !> Convert the time value TIME (the current time if absent) to a
     !> floating-point number of days.  Port of
     !> vc-annotate.el:vc-annotate-convert-time.
-    real(real64) function vc_annotate_convert_time(time) result(days)
+    real(real64) function convert_vc_annotate_time(time) result(days)
         type(time_type), intent(in), optional :: time
 
         if (present(time)) then
@@ -1383,7 +1369,7 @@ contains
         else
             days = real(current_time())/86400.0_real64
         end if
-    end function vc_annotate_convert_time
+    end function convert_vc_annotate_time
 
     !> Return the time span in days to the next annotation (FOUND false if
     !> the line has none).
@@ -1405,7 +1391,7 @@ contains
         if (present(offset)) then
             difference = offset - next_time
         else
-            difference = vc_annotate_convert_time() - next_time
+            difference = convert_vc_annotate_time() - next_time
         end if
     end subroutine vc_annotate_difference
 
@@ -1413,7 +1399,7 @@ contains
     !> RATIO is the expansion that should be applied to `vc_annotate_color_map'.
     !> The annotations are relative to the current time, unless overridden by
     !> OFFSET.  Port of vc-annotate.el:vc-annotate-display.
-    recursive subroutine vc_annotate_display(ratio, status, offset)
+    recursive subroutine display_vc_annotate(ratio, status, offset)
         real(real64), intent(in) :: ratio
         type(status_type), intent(out) :: status
         real(real64), intent(in), optional :: offset
@@ -1432,7 +1418,7 @@ contains
         locals(k)%has_offset = present(offset)
         if (present(offset)) locals(k)%offset = offset
         call minor_modes%font_lock_mode%enable(status)
-    end subroutine vc_annotate_display
+    end subroutine display_vc_annotate
 
     !> The font-lock matcher of VC-Annotate mode: color the lines from point
     !> to LIMIT by their age; FOUND is always false (there were no matches
@@ -1471,7 +1457,7 @@ contains
             end = point()
 
             if (has_difference) then
-                j = vc_annotate_color_index(difference, map)
+                j = findloc(map%age >= difference, .true., dim=1)
 
                 if (j > 0) then
                     color = trim(map(j)%color)
@@ -1533,7 +1519,7 @@ contains
 
     !> Go to the line corresponding to the current VC Annotate line.  Port of
     !> vc-annotate.el:vc-annotate-goto-line.
-    recursive subroutine vc_annotate_goto_line(status)
+    recursive subroutine goto_vc_annotate_line(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: rev, file, working
         type(handle_type) :: parent, target
@@ -1586,7 +1572,7 @@ contains
             call vc_working_revision(buffer_file_name(), working, found)
             if (working /= rev) call message("Annotations were for revision "//rev//"; line numbers may be incorrect")
         end if
-    end subroutine vc_annotate_goto_line
+    end subroutine goto_vc_annotate_line
 
     ! The current buffer's visited file ("" for none).  Not a port.
     function buffer_file_name() result(file)
@@ -1673,39 +1659,39 @@ contains
     end subroutine cmd_vc_annotate
 
     ! (interactive (progn (kill-local-variable 'vc-annotate-color-map) '(1.0))).
-    recursive subroutine cmd_vc_annotate_display_default(status)
+    recursive subroutine cmd_display_vc_annotate_default(status)
         type(status_type), intent(out) :: status
 
         call clear_local_color_map()
-        call vc_annotate_display_default(1.0_real64, status)
-    end subroutine cmd_vc_annotate_display_default
+        call display_vc_annotate_default(1.0_real64, status)
+    end subroutine cmd_display_vc_annotate_default
 
     ! (interactive "P").
-    recursive subroutine cmd_vc_annotate_display_autoscale(status)
+    recursive subroutine cmd_display_vc_annotate_autoscale(status)
         type(status_type), intent(out) :: status
 
-        call vc_annotate_display_autoscale(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_vc_annotate_display_autoscale
+        call display_vc_annotate_autoscale(status, current_prefix_arg%kind /= PREFIX_NONE)
+    end subroutine cmd_display_vc_annotate_autoscale
 
-    recursive subroutine cmd_vc_annotate_display_select(status)
+    recursive subroutine cmd_display_vc_annotate_select(status)
         type(status_type), intent(out) :: status
 
-        call vc_annotate_display_select(status)
-    end subroutine cmd_vc_annotate_display_select
+        call display_vc_annotate_select(status)
+    end subroutine cmd_display_vc_annotate_select
 
     ! (interactive "p").
-    recursive subroutine cmd_vc_annotate_prev_revision(status)
+    recursive subroutine cmd_previous_vc_annotate_revision(status)
         type(status_type), intent(out) :: status
 
-        call vc_annotate_prev_revision(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_vc_annotate_prev_revision
+        call previous_vc_annotate_revision(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_previous_vc_annotate_revision
 
     ! (interactive "p").
-    recursive subroutine cmd_vc_annotate_next_revision(status)
+    recursive subroutine cmd_next_vc_annotate_revision(status)
         type(status_type), intent(out) :: status
 
-        call vc_annotate_next_revision(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_vc_annotate_next_revision
+        call next_vc_annotate_revision(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_next_vc_annotate_revision
 
     ! `log_view_vc_annotate' of log-view.el's `log_view_annotate_version':
     ! annotate revision REV of FILE with BACKEND.  Not a port.
@@ -1733,33 +1719,33 @@ contains
         vc_annotate_mode_map = major_modes%vc_annotate_mode%map
         commands%vc_annotate%execute => cmd_vc_annotate
         commands%vc_annotate_mode%execute => vc_annotate_mode
-        commands%vc_annotate_toggle_annotation_visibility%execute => vc_annotate_toggle_annotation_visibility
-        commands%vc_annotate_display_default%execute => cmd_vc_annotate_display_default
-        commands%vc_annotate_display_autoscale%execute => cmd_vc_annotate_display_autoscale
-        commands%vc_annotate_display_select%execute => cmd_vc_annotate_display_select
-        commands%vc_annotate_prev_revision%execute => cmd_vc_annotate_prev_revision
-        commands%vc_annotate_next_revision%execute => cmd_vc_annotate_next_revision
+        commands%toggle_vc_annotate_annotation_visibility%execute => toggle_vc_annotate_annotation_visibility
+        commands%display_vc_annotate_default%execute => cmd_display_vc_annotate_default
+        commands%display_vc_annotate_autoscale%execute => cmd_display_vc_annotate_autoscale
+        commands%display_vc_annotate_select%execute => cmd_display_vc_annotate_select
+        commands%previous_vc_annotate_revision%execute => cmd_previous_vc_annotate_revision
+        commands%next_vc_annotate_revision%execute => cmd_next_vc_annotate_revision
         commands%vc_annotate_working_revision%execute => vc_annotate_working_revision
         commands%vc_annotate_revision_at_line%execute => vc_annotate_revision_at_line
-        commands%vc_annotate_find_revision_at_line%execute => vc_annotate_find_revision_at_line
+        commands%find_vc_annotate_revision_at_line%execute => find_vc_annotate_revision_at_line
         commands%vc_annotate_revision_previous_to_line%execute => vc_annotate_revision_previous_to_line
-        commands%vc_annotate_show_log_revision_at_line%execute => vc_annotate_show_log_revision_at_line
-        commands%vc_annotate_show_diff_revision_at_line%execute => vc_annotate_show_diff_revision_at_line
-        commands%vc_annotate_show_changeset_diff_revision_at_line%execute => &
-            vc_annotate_show_changeset_diff_revision_at_line
-        commands%vc_annotate_goto_line%execute => vc_annotate_goto_line
+        commands%show_vc_annotate_log_revision_at_line%execute => show_vc_annotate_log_revision_at_line
+        commands%show_vc_annotate_diff_revision_at_line%execute => show_vc_annotate_diff_revision_at_line
+        commands%show_vc_annotate_changeset_diff_revision_at_line%execute => &
+            show_vc_annotate_changeset_diff_revision_at_line
+        commands%goto_vc_annotate_line%execute => goto_vc_annotate_line
         call keymap_set(vc_annotate_mode_map, "a", "vc_annotate_revision_previous_to_line", st)
-        call keymap_set(vc_annotate_mode_map, "d", "vc_annotate_show_diff_revision_at_line", st)
-        call keymap_set(vc_annotate_mode_map, "=", "vc_annotate_show_diff_revision_at_line", st)
-        call keymap_set(vc_annotate_mode_map, "D", "vc_annotate_show_changeset_diff_revision_at_line", st)
-        call keymap_set(vc_annotate_mode_map, "f", "vc_annotate_find_revision_at_line", st)
+        call keymap_set(vc_annotate_mode_map, "d", "show_vc_annotate_diff_revision_at_line", st)
+        call keymap_set(vc_annotate_mode_map, "=", "show_vc_annotate_diff_revision_at_line", st)
+        call keymap_set(vc_annotate_mode_map, "D", "show_vc_annotate_changeset_diff_revision_at_line", st)
+        call keymap_set(vc_annotate_mode_map, "f", "find_vc_annotate_revision_at_line", st)
         call keymap_set(vc_annotate_mode_map, "j", "vc_annotate_revision_at_line", st)
-        call keymap_set(vc_annotate_mode_map, "l", "vc_annotate_show_log_revision_at_line", st)
-        call keymap_set(vc_annotate_mode_map, "n", "vc_annotate_next_revision", st)
-        call keymap_set(vc_annotate_mode_map, "p", "vc_annotate_prev_revision", st)
+        call keymap_set(vc_annotate_mode_map, "l", "show_vc_annotate_log_revision_at_line", st)
+        call keymap_set(vc_annotate_mode_map, "n", "next_vc_annotate_revision", st)
+        call keymap_set(vc_annotate_mode_map, "p", "previous_vc_annotate_revision", st)
         call keymap_set(vc_annotate_mode_map, "w", "vc_annotate_working_revision", st)
-        call keymap_set(vc_annotate_mode_map, "v", "vc_annotate_toggle_annotation_visibility", st)
-        call keymap_set(vc_annotate_mode_map, "RET", "vc_annotate_goto_line", st)
+        call keymap_set(vc_annotate_mode_map, "v", "toggle_vc_annotate_annotation_visibility", st)
+        call keymap_set(vc_annotate_mode_map, "RET", "goto_vc_annotate_line", st)
         ! vc-hooks.el's vc-prefix-map: "g" #'vc-annotate.
         call keymap_set(vc_prefix_map, "g", "vc_annotate", st)
         log_view_vc_annotate => annotate_from_log_view

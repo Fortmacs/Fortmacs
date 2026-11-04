@@ -89,7 +89,7 @@ module vc_git_mod
     public :: init_vc_git, vc_git_registered, vc_git_state, vc_git_working_revision, vc_git_mode_line_string, &
               vc_git_root, vc_git_command, vc_git_previous_revision, vc_git_revision_table, vc_git_symbolic_commit, &
               vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version
-    public :: vc_git_annotate_command, vc_git_annotate_time, vc_git_annotate_extract_revision_at_line, vc_git_next_revision, &
+    public :: vc_git_annotate_command, vc_git_annotate_time, extract_vc_git_annotate_revision_at_line, vc_git_next_revision, &
               vc_git_file_name_changes
     public :: vc_git_branches, vc_git_branch_remotes, vc_git_create_tag, vc_git_retrieve_tag, vc_git_pull, vc_git_push, &
               vc_git_incoming_revision, vc_git_mergebase
@@ -1692,7 +1692,7 @@ contains
     !> or BRANCH^ (where "^" can be repeated).  FOUND, when present, tells
     !> whether the entry was found.  Port of
     !> vc-git.el:vc-git-show-log-entry.
-    recursive subroutine vc_git_show_log_entry(revision, found)
+    recursive subroutine show_vc_git_log_entry(revision, found)
         use search_mod, only: search_forward, string_match, match_end_in_string => match_end, &
                               match_beginning_in_string => match_beginning
         use cmds_mod, only: beginning_of_line
@@ -1722,7 +1722,7 @@ contains
 
         if (present(found)) found = pos > 0
         call beginning_of_line()
-    end subroutine vc_git_show_log_entry
+    end subroutine show_vc_git_log_entry
 
     !> The expanded log entry of REVISION: its full log message.  Port of
     !> vc-git.el:vc-git-expanded-log-entry.
@@ -2714,7 +2714,7 @@ contains
     !> there when `git blame' names one ("" otherwise); FOUND false if the
     !> line has none.  Port of
     !> vc-git.el:vc-git-annotate-extract-revision-at-line.
-    recursive subroutine vc_git_annotate_extract_revision_at_line(revision, file, found)
+    recursive subroutine extract_vc_git_annotate_revision_at_line(revision, file, found)
         use cmds_mod, only: beginning_of_line
         character(len=:), allocatable, intent(out) :: revision, file
         logical, intent(out) :: found
@@ -2743,7 +2743,7 @@ contains
         end if
 
         call goto_char(opoint)
-    end subroutine vc_git_annotate_extract_revision_at_line
+    end subroutine extract_vc_git_annotate_revision_at_line
 
     !> Git-specific version of `vc_next_revision'.  Port of
     !> vc-git.el:vc-git-next-revision.
@@ -3353,13 +3353,13 @@ contains
             b%diff_switches => vc_git_diff_switches
             b%print_log => vc_git_print_log
             b%log_view_mode => vc_git_log_view_mode
-            b%show_log_entry => vc_git_show_log_entry
+            b%show_log_entry => show_vc_git_log_entry
             b%dir_status_files => vc_git_dir_status_files
             b%dir_extra_headers => vc_git_dir_extra_headers
             b%dir_printer => vc_git_dir_printer
             b%annotate_command => vc_git_annotate_command
             b%annotate_time => vc_git_annotate_time
-            b%annotate_extract_revision_at_line => vc_git_annotate_extract_revision_at_line
+            b%annotate_extract_revision_at_line => extract_vc_git_annotate_revision_at_line
             b%next_revision => vc_git_next_revision
             b%file_name_changes => vc_git_file_name_changes
             b%annotate_switches => vc_git_annotate_switches

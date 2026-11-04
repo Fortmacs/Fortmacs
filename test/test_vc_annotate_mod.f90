@@ -45,9 +45,9 @@ module test_vc_annotate_mod
     use vc_hooks_mod, only: vc_handled_backends, vc_clear_context, vc_backend_named, vc_short_revision
     use vc_mod, only: vc_create_repo, vc_buffer_revision
     use font_lock_mod, only: font_lock_ensure
-    use vc_annotate_mod, only: vc_annotate, vc_annotate_prev_revision, vc_annotate_next_revision, &
-                               vc_annotate_show_diff_revision_at_line, vc_annotate_show_log_revision_at_line, &
-                               vc_annotate_color_index, vc_annotate_current_color_map, vc_annotate_color_type, &
+    use vc_annotate_mod, only: vc_annotate, previous_vc_annotate_revision, next_vc_annotate_revision, &
+                               show_vc_annotate_diff_revision_at_line, show_vc_annotate_log_revision_at_line, &
+                               vc_annotate_current_color_map, vc_annotate_color_type, &
                                vc_annotate_display_mode_type, vc_annotate_very_old_color, VC_ANNOTATE_DISPLAY_MODE_FULLSCALE
     implicit none(type, external)
     private
@@ -66,7 +66,6 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
-                    new_unittest("vc-annotate-compcar", test_color_index), &
                     new_unittest("vc-annotate-git", test_annotate), &
                     new_unittest("vc-annotate-git-prev-next", test_prev_next), &
                     new_unittest("vc-git-annotate-time", test_annotate_time), &
@@ -280,26 +279,6 @@ contains
     ! Tests
     ! ------------------------------------------------------------------
 
-    !> `vc_annotate_color_index' finds the first entry not younger than
-    !> the threshold, 0 past the end.
-    subroutine test_color_index(error)
-        type(error_type), allocatable, intent(out) :: error
-        type(vc_annotate_color_type) :: map(3)
-
-        map(1) = vc_annotate_color_type(age=10.0d0, color="red")
-        map(2) = vc_annotate_color_type(age=20.0d0, color="green")
-        map(3) = vc_annotate_color_type(age=30.0d0, color="blue")
-        call check(error, vc_annotate_color_index(0.0d0, map) == 1, "0 days")
-        if (allocated(error)) return
-        call check(error, vc_annotate_color_index(10.0d0, map) == 1, "10 days")
-        if (allocated(error)) return
-        call check(error, vc_annotate_color_index(10.5d0, map) == 2, "10.5 days")
-        if (allocated(error)) return
-        call check(error, vc_annotate_color_index(30.0d0, map) == 3, "30 days")
-        if (allocated(error)) return
-        call check(error, vc_annotate_color_index(31.0d0, map) == 0, "31 days")
-    end subroutine test_color_index
-
     !> C-x v g shows `git blame' in *Annotate a.txt (rev REV)*, in
     !> VC-Annotate mode, with the annotations invisible-able and each line
     !> colored by its age: the newest in the first color of the map, the
@@ -371,7 +350,7 @@ contains
             call check(error, st%ok() .and. is_buffer_live(annotate), "vc-annotate: "//format_error(st))
             if (allocated(error)) exit body
             head = vc_buffer_revision()
-            call vc_annotate_prev_revision(1_int64, st)
+            call previous_vc_annotate_revision(1_int64, st)
             call check(error, st%ok(), "p: "//format_error(st))
             if (allocated(error)) exit body
             call wait_buffer_process(annotate)
@@ -384,7 +363,7 @@ contains
             text = buffer_string()
             call check(error, index(text, ") two"//LF) > 0 .and. index(text, "three") == 0, text)
             if (allocated(error)) exit body
-            call vc_annotate_next_revision(1_int64, st)
+            call next_vc_annotate_revision(1_int64, st)
             call check(error, st%ok(), "n: "//format_error(st))
             if (allocated(error)) exit body
             call wait_buffer_process(annotate)
@@ -420,7 +399,7 @@ contains
             ! Line 2, changed by "second".
             call goto_char(point_min())
             shortage = forward_line(1_int64)
-            call vc_annotate_show_diff_revision_at_line(st)
+            call show_vc_annotate_diff_revision_at_line(st)
             call check(error, st%ok(), "d: "//format_error(st))
             if (allocated(error)) exit body
             d = get_buffer("*vc-diff*")
@@ -434,7 +413,7 @@ contains
             call set_buffer(annotate, st)
             call goto_char(point_min())
             shortage = forward_line(1_int64)
-            call vc_annotate_show_log_revision_at_line(st)
+            call show_vc_annotate_log_revision_at_line(st)
             call check(error, st%ok(), "l: "//format_error(st))
             if (allocated(error)) exit body
             log = get_buffer("*vc-change-log*")
@@ -454,7 +433,7 @@ contains
     !> time and zone when it has them, and moves past the annotation; the
     !> revision and file name of a line are extracted.
     subroutine test_annotate_time(error)
-        use vc_git_mod, only: vc_git_annotate_time, vc_git_annotate_extract_revision_at_line
+        use vc_git_mod, only: vc_git_annotate_time, extract_vc_git_annotate_revision_at_line
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -473,7 +452,7 @@ contains
         call check(error, point() == point_min() + len("^abc1234 (t 2026-11-03 12:00:00 +0100 1) "), "point")
         if (allocated(error)) return
         call goto_char(point_min())
-        call vc_git_annotate_extract_revision_at_line(revision, file, found)
+        call extract_vc_git_annotate_revision_at_line(revision, file, found)
         call check(error, found .and. revision == "abc1234" .and. len(file) == 0, "revision: "//revision)
         if (allocated(error)) return
         call goto_char(pos_eol() + 1)

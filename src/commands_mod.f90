@@ -450,6 +450,9 @@ module commands_mod
         type(command_type) :: dired_why
         type(command_type) :: disable_command
         type(command_type) :: display_buffer_other_frame
+        type(command_type) :: display_vc_annotate_autoscale
+        type(command_type) :: display_vc_annotate_default
+        type(command_type) :: display_vc_annotate_select
         type(command_type) :: do_auto_fill
         type(command_type) :: down_group
         type(command_type) :: downcase_region
@@ -524,6 +527,7 @@ module commands_mod
         type(command_type) :: find_file_read_only_other_frame
         type(command_type) :: find_file_read_only_other_window
         type(command_type) :: find_grep
+        type(command_type) :: find_vc_annotate_revision_at_line
         type(command_type) :: first_error
         type(command_type) :: fixup_whitespace
         type(command_type) :: flush_lines
@@ -552,6 +556,7 @@ module commands_mod
         type(command_type) :: goto_char
         type(command_type) :: goto_line
         type(command_type) :: goto_line_relative
+        type(command_type) :: goto_vc_annotate_line
         type(command_type) :: grep
         type(command_type) :: grep_change_to_grep_edit_mode
         type(command_type) :: grep_edit_mode
@@ -973,6 +978,7 @@ module commands_mod
         type(command_type) :: next_history_element
         type(command_type) :: next_line
         type(command_type) :: next_line_or_history_element
+        type(command_type) :: next_vc_annotate_revision
         type(command_type) :: normal_mode
         type(command_type) :: number_to_register
         type(command_type) :: occur
@@ -1007,6 +1013,7 @@ module commands_mod
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
         type(command_type) :: previous_line_or_history_element
+        type(command_type) :: previous_vc_annotate_revision
         type(command_type) :: process_menu_delete_process
         type(command_type) :: process_menu_mode
         type(command_type) :: prog_mode
@@ -1186,6 +1193,9 @@ module commands_mod
         type(command_type) :: shell_script_mode
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
+        type(command_type) :: show_vc_annotate_changeset_diff_revision_at_line
+        type(command_type) :: show_vc_annotate_diff_revision_at_line
+        type(command_type) :: show_vc_annotate_log_revision_at_line
         type(command_type) :: skeleton_pair_insert_maybe
         type(command_type) :: smie_backward_expression_command
         type(command_type) :: smie_close_block
@@ -1218,6 +1228,7 @@ module commands_mod
         type(command_type) :: tabulated_list_widen_current_column
         type(command_type) :: text_mode
         type(command_type) :: toggle_input_method
+        type(command_type) :: toggle_vc_annotate_annotation_visibility
         type(command_type) :: top_level
         type(command_type) :: transient_mark_mode
         type(command_type) :: transpose_chars
@@ -1247,20 +1258,9 @@ module commands_mod
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
         type(command_type) :: vc_annotate
-        type(command_type) :: vc_annotate_display_autoscale
-        type(command_type) :: vc_annotate_display_default
-        type(command_type) :: vc_annotate_display_select
-        type(command_type) :: vc_annotate_find_revision_at_line
-        type(command_type) :: vc_annotate_goto_line
         type(command_type) :: vc_annotate_mode
-        type(command_type) :: vc_annotate_next_revision
-        type(command_type) :: vc_annotate_prev_revision
         type(command_type) :: vc_annotate_revision_at_line
         type(command_type) :: vc_annotate_revision_previous_to_line
-        type(command_type) :: vc_annotate_show_changeset_diff_revision_at_line
-        type(command_type) :: vc_annotate_show_diff_revision_at_line
-        type(command_type) :: vc_annotate_show_log_revision_at_line
-        type(command_type) :: vc_annotate_toggle_annotation_visibility
         type(command_type) :: vc_annotate_working_revision
         type(command_type) :: vc_clear_context
         type(command_type) :: vc_create_branch
@@ -1787,6 +1787,9 @@ module commands_mod
                                                                   "dired_why", &
                                                                   "disable_command", &
                                                                   "display_buffer_other_frame", &
+                                                                  "display_vc_annotate_autoscale", &
+                                                                  "display_vc_annotate_default", &
+                                                                  "display_vc_annotate_select", &
                                                                   "do_auto_fill", &
                                                                   "down_group", &
                                                                   "downcase_region", &
@@ -1861,6 +1864,7 @@ module commands_mod
                                                                   "find_file_read_only_other_frame", &
                                                                   "find_file_read_only_other_window", &
                                                                   "find_grep", &
+                                                                  "find_vc_annotate_revision_at_line", &
                                                                   "first_error", &
                                                                   "fixup_whitespace", &
                                                                   "flush_lines", &
@@ -1889,6 +1893,7 @@ module commands_mod
                                                                   "goto_char", &
                                                                   "goto_line", &
                                                                   "goto_line_relative", &
+                                                                  "goto_vc_annotate_line", &
                                                                   "grep", &
                                                                   "grep_change_to_grep_edit_mode", &
                                                                   "grep_edit_mode", &
@@ -2310,6 +2315,7 @@ module commands_mod
                                                                   "next_history_element", &
                                                                   "next_line", &
                                                                   "next_line_or_history_element", &
+                                                                  "next_vc_annotate_revision", &
                                                                   "normal_mode", &
                                                                   "number_to_register", &
                                                                   "occur", &
@@ -2344,6 +2350,7 @@ module commands_mod
                                                                   "previous_history_element", &
                                                                   "previous_line", &
                                                                   "previous_line_or_history_element", &
+                                                                  "previous_vc_annotate_revision", &
                                                                   "process_menu_delete_process", &
                                                                   "process_menu_mode", &
                                                                   "prog_mode", &
@@ -2523,6 +2530,9 @@ module commands_mod
                                                                   "shell_script_mode", &
                                                                   "show_paren_local_mode", &
                                                                   "show_paren_mode", &
+                                                                  "show_vc_annotate_changeset_diff_revision_at_line", &
+                                                                  "show_vc_annotate_diff_revision_at_line", &
+                                                                  "show_vc_annotate_log_revision_at_line", &
                                                                   "skeleton_pair_insert_maybe", &
                                                                   "smie_backward_expression_command", &
                                                                   "smie_close_block", &
@@ -2555,6 +2565,7 @@ module commands_mod
                                                                   "tabulated_list_widen_current_column", &
                                                                   "text_mode", &
                                                                   "toggle_input_method", &
+                                                                  "toggle_vc_annotate_annotation_visibility", &
                                                                   "top_level", &
                                                                   "transient_mark_mode", &
                                                                   "transpose_chars", &
@@ -2584,20 +2595,9 @@ module commands_mod
                                                                   "upcase_region", &
                                                                   "upcase_word", &
                                                                   "vc_annotate", &
-                                                                  "vc_annotate_display_autoscale", &
-                                                                  "vc_annotate_display_default", &
-                                                                  "vc_annotate_display_select", &
-                                                                  "vc_annotate_find_revision_at_line", &
-                                                                  "vc_annotate_goto_line", &
                                                                   "vc_annotate_mode", &
-                                                                  "vc_annotate_next_revision", &
-                                                                  "vc_annotate_prev_revision", &
                                                                   "vc_annotate_revision_at_line", &
                                                                   "vc_annotate_revision_previous_to_line", &
-                                                                  "vc_annotate_show_changeset_diff_revision_at_line", &
-                                                                  "vc_annotate_show_diff_revision_at_line", &
-                                                                  "vc_annotate_show_log_revision_at_line", &
-                                                                  "vc_annotate_toggle_annotation_visibility", &
                                                                   "vc_annotate_working_revision", &
                                                                   "vc_clear_context", &
                                                                   "vc_create_branch", &
@@ -3546,6 +3546,12 @@ contains
             p => commands%disable_command
         case ("display_buffer_other_frame")
             p => commands%display_buffer_other_frame
+        case ("display_vc_annotate_autoscale")
+            p => commands%display_vc_annotate_autoscale
+        case ("display_vc_annotate_default")
+            p => commands%display_vc_annotate_default
+        case ("display_vc_annotate_select")
+            p => commands%display_vc_annotate_select
         case ("do_auto_fill")
             p => commands%do_auto_fill
         case ("down_group")
@@ -3694,6 +3700,8 @@ contains
             p => commands%find_file_read_only_other_window
         case ("find_grep")
             p => commands%find_grep
+        case ("find_vc_annotate_revision_at_line")
+            p => commands%find_vc_annotate_revision_at_line
         case ("first_error")
             p => commands%first_error
         case ("fixup_whitespace")
@@ -3750,6 +3758,8 @@ contains
             p => commands%goto_line
         case ("goto_line_relative")
             p => commands%goto_line_relative
+        case ("goto_vc_annotate_line")
+            p => commands%goto_vc_annotate_line
         case ("grep")
             p => commands%grep
         case ("grep_change_to_grep_edit_mode")
@@ -4592,6 +4602,8 @@ contains
             p => commands%next_line
         case ("next_line_or_history_element")
             p => commands%next_line_or_history_element
+        case ("next_vc_annotate_revision")
+            p => commands%next_vc_annotate_revision
         case ("normal_mode")
             p => commands%normal_mode
         case ("number_to_register")
@@ -4660,6 +4672,8 @@ contains
             p => commands%previous_line
         case ("previous_line_or_history_element")
             p => commands%previous_line_or_history_element
+        case ("previous_vc_annotate_revision")
+            p => commands%previous_vc_annotate_revision
         case ("process_menu_delete_process")
             p => commands%process_menu_delete_process
         case ("process_menu_mode")
@@ -5018,6 +5032,12 @@ contains
             p => commands%show_paren_local_mode
         case ("show_paren_mode")
             p => commands%show_paren_mode
+        case ("show_vc_annotate_changeset_diff_revision_at_line")
+            p => commands%show_vc_annotate_changeset_diff_revision_at_line
+        case ("show_vc_annotate_diff_revision_at_line")
+            p => commands%show_vc_annotate_diff_revision_at_line
+        case ("show_vc_annotate_log_revision_at_line")
+            p => commands%show_vc_annotate_log_revision_at_line
         case ("skeleton_pair_insert_maybe")
             p => commands%skeleton_pair_insert_maybe
         case ("smie_backward_expression_command")
@@ -5082,6 +5102,8 @@ contains
             p => commands%text_mode
         case ("toggle_input_method")
             p => commands%toggle_input_method
+        case ("toggle_vc_annotate_annotation_visibility")
+            p => commands%toggle_vc_annotate_annotation_visibility
         case ("top_level")
             p => commands%top_level
         case ("transient_mark_mode")
@@ -5140,34 +5162,12 @@ contains
             p => commands%upcase_word
         case ("vc_annotate")
             p => commands%vc_annotate
-        case ("vc_annotate_display_autoscale")
-            p => commands%vc_annotate_display_autoscale
-        case ("vc_annotate_display_default")
-            p => commands%vc_annotate_display_default
-        case ("vc_annotate_display_select")
-            p => commands%vc_annotate_display_select
-        case ("vc_annotate_find_revision_at_line")
-            p => commands%vc_annotate_find_revision_at_line
-        case ("vc_annotate_goto_line")
-            p => commands%vc_annotate_goto_line
         case ("vc_annotate_mode")
             p => commands%vc_annotate_mode
-        case ("vc_annotate_next_revision")
-            p => commands%vc_annotate_next_revision
-        case ("vc_annotate_prev_revision")
-            p => commands%vc_annotate_prev_revision
         case ("vc_annotate_revision_at_line")
             p => commands%vc_annotate_revision_at_line
         case ("vc_annotate_revision_previous_to_line")
             p => commands%vc_annotate_revision_previous_to_line
-        case ("vc_annotate_show_changeset_diff_revision_at_line")
-            p => commands%vc_annotate_show_changeset_diff_revision_at_line
-        case ("vc_annotate_show_diff_revision_at_line")
-            p => commands%vc_annotate_show_diff_revision_at_line
-        case ("vc_annotate_show_log_revision_at_line")
-            p => commands%vc_annotate_show_log_revision_at_line
-        case ("vc_annotate_toggle_annotation_visibility")
-            p => commands%vc_annotate_toggle_annotation_visibility
         case ("vc_annotate_working_revision")
             p => commands%vc_annotate_working_revision
         case ("vc_clear_context")
