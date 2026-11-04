@@ -68,6 +68,7 @@ module bindings_mod
     use vc_mod, only: init_vc
     use vc_svn_mod, only: init_vc_svn
     use vc_git_mod, only: init_vc_git
+    use vc_hg_mod, only: init_vc_hg
     use log_view_mod, only: init_log_view
     use vc_dir_mod, only: init_vc_dir
     use vc_annotate_mod, only: init_vc_annotate
@@ -760,6 +761,7 @@ contains
         call init_vc_svn()
         call init_smerge_mode()
         call init_vc_git()
+        call init_vc_hg()
         call init_vc_annotate()
         call init_view()
         call init_follow()
