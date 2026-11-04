@@ -98,7 +98,8 @@ contains
     fetcher%directory = pr%root()
     allocate (roots(0))
     call append_string(roots, pr%root())
-    external = pr%external_roots()
+    external = pr%external_roots(status)
+    if (.not. status%ok()) return
 
     do k = 1, size(external)
         call append_string(roots, external(k)%text)

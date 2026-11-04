@@ -412,8 +412,7 @@ module project_mod
     procedure(project_prompter_procedure), pointer, public :: project_prompter => null()
 
     !> List of patterns to add to the ignores of a VC-aware project.
-    !> Port of project.el project-vc-ignores (only the global value:
-    !> directory-local values are Deferred).
+    !> Port of project.el project-vc-ignores.
     character(len=:), allocatable, public :: project_vc_ignores(:)
 
     !> True to consider submodules part of the parent project.  Port of
@@ -468,8 +467,7 @@ module project_mod
 
     !> Number of seconds to cache a value in VC-aware project methods
     !> (PROJECT_VC_CACHE_TIMEOUT_UNLIMITED disables time-based expiration).
-    !> Port of project.el project-vc-cache-timeout (the timeouts by a test
-    !> of the directory are Deferred).
+    !> Port of project.el project-vc-cache-timeout.
     real, public :: project_vc_cache_timeout = 2.0
 
     !> Number of seconds to cache non-essential information.
@@ -604,6 +602,9 @@ module project_mod
     ! at by `try_vc_search'.
     type(string_type), allocatable :: marker_regexps(:)
     type(string_type), allocatable :: last_matches(:)
+    ! The status of the last expansion in `has_marker', checked by
+    ! `try_vc_search' after the search.
+    type(status_type) :: marker_status
 
     ! The project of each Buffer Menu listing project buffers (the
     ! closure of upstream's buffer-list function): by buffer serial.
@@ -789,17 +790,6 @@ contains
         if (current == 0) return
         buffers(current)%directory = dir
     end subroutine set_default_directory
-
-    !> FILE expanded (FILE itself when it can't be).  Not a port.
-    function expanded(file, dir) result(name)
-        character(len=*), intent(in) :: file
-        character(len=*), intent(in), optional :: dir
-        character(len=:), allocatable :: name
-        type(status_type) :: st
-
-        call expand_file_name(file, name, st, dir)
-        if (.not. st%ok()) name = file
-    end function expanded
 
     !> Whether STRING starts with PREFIX.  Not a port.
     pure logical function starts_with(string, prefix)
@@ -1040,10 +1030,12 @@ contains
 
     !> The external roots of PROJECT: none by default.  Port of
     !> project.el:project-external-roots.
-    function project_external_roots(self) result(roots)
+    function project_external_roots(self, status) result(roots)
         class(project_type), intent(in) :: self
+        type(status_type), intent(out) :: status
         type(string_type), allocatable :: roots(:)
 
+        status = status_type()
         allocate (roots(0))
     end function project_external_roots
 
@@ -1155,20 +1147,24 @@ contains
 
     !> The live buffers whose `default_directory' is under the root of
     !> PROJECT.  Port of project.el:project-buffers.
-    function project_buffers(self) result(bufs)
+    function project_buffers(self, status) result(bufs)
         class(project_type), intent(in) :: self
+        type(status_type), intent(out) :: status
         type(handle_type), allocatable :: bufs(:)
         type(handle_type), allocatable :: all(:)
-        character(len=:), allocatable :: root
+        character(len=:), allocatable :: root, dd
         integer :: k
 
-        root = expanded(file_name_as_directory(self%root()))
-        all = buffer_list()
         allocate (bufs(0))
+        call expand_file_name(file_name_as_directory(self%root()), root, status)
+        if (.not. status%ok()) return
+        all = buffer_list()
 
         do k = 1, size(all)
             if (.not. allocated(buffers(all(k)%index)%directory)) cycle
-            if (starts_with(expanded(buffers(all(k)%index)%directory), root)) bufs = [bufs, all(k)]
+            call expand_file_name(buffers(all(k)%index)%directory, dd, status)
+            if (.not. status%ok()) return
+            if (starts_with(dd, root)) bufs = [bufs, all(k)]
         end do
     end function project_buffers
 
@@ -1437,13 +1433,17 @@ contains
     logical function has_marker(d)
         character(len=*), intent(in) :: d
         type(string_type), allocatable :: names(:)
+        character(len=:), allocatable :: expanded_d
         type(status_type) :: st
         integer :: i, j
 
+        marker_status = status_type()
         has_marker = .false.
         if (allocated(last_matches)) deallocate (last_matches)
         allocate (last_matches(0))
-        if (fortmacs_directory_entries(directory_file_name(expanded(d)), names) /= 0) return
+        call expand_file_name(d, expanded_d, marker_status)
+        if (.not. marker_status%ok()) return
+        if (fortmacs_directory_entries(directory_file_name(expanded_d), names) /= 0) return
 
         do i = 1, size(names)
             do j = 1, size(marker_regexps)
@@ -1499,6 +1499,7 @@ contains
 
         stop = locate_dominating_stop_dir_regexp
         if (allocated(vc_ignore_dir_regexp)) stop = vc_ignore_dir_regexp
+        marker_status = status_type()
         call locate_dominating_file(dir, "", root, has_root, stop, has_marker)
         backend = ""
 
@@ -1517,10 +1518,13 @@ contains
 
         if (allocated(saved_regexps)) call move_alloc(saved_regexps, marker_regexps)
         if (allocated(saved_matches)) call move_alloc(saved_matches, last_matches)
+        status = marker_status
+        if (.not. status%ok()) return
 
         do while (has_root .and. backend == "Git")
             if (.not. project_vc_merge_submodules) exit
-            if (.not. is_submodule(root)) exit
+            if (.not. is_submodule(root, status)) exit
+            if (.not. status%ok()) return
             up = file_name_directory(directory_file_name(root))
             call vc_git_root(up, root, has_root)
         end do
@@ -1555,14 +1559,16 @@ contains
     !> Whether ROOT is a Git submodule (its .git a file pointing into the
     !> modules of another repository).  Port of
     !> project.el:project--submodule-p.
-    logical function is_submodule(root)
+    logical function is_submodule(root, status)
         character(len=*), intent(in) :: root
+        type(status_type), intent(out) :: status
         character(len=:), allocatable :: gitfile, text
         type(status_type) :: st
         logical :: found
 
         is_submodule = .false.
-        gitfile = expanded(".git", root)
+        call expand_file_name(".git", gitfile, status, root)
+        if (.not. status%ok()) return
         if (is_file_directory(gitfile)) return
         call file_text(gitfile, text, found)
         if (.not. found) return
@@ -1584,12 +1590,14 @@ contains
     !> The directories of `project_vc_external_roots_function' outside of
     !> the root.  Port of project.el:project-external-roots (the method
     !> for a VC-aware project).
-    function vc_project_external_roots(self) result(roots)
+    function vc_project_external_roots(self, status) result(roots)
         class(vc_project_type), intent(in) :: self
+        type(status_type), intent(out) :: status
         type(string_type), allocatable :: roots(:)
-        type(string_type), allocatable :: given(:), root(:)
+        type(string_type), allocatable :: given(:), root(:), combined(:)
         integer :: k
 
+        allocate (roots(0))
         allocate (given(0))
 
         if (associated(project_vc_external_roots_function)) then
@@ -1602,7 +1610,9 @@ contains
 
         allocate (root(1))
         root(1)%text = self%root()
-        roots = subtract_project_directories(combine_project_directories(given), root)
+        combined = combine_project_directories(given, status)
+        if (.not. status%ok()) return
+        roots = subtract_project_directories(combined, root)
     end function vc_project_external_roots
 
     !> The VC backend of DIR in PROJECT: the project's own under its root,
@@ -1956,36 +1966,45 @@ contains
     !> The live buffers under the root of a VC-aware project, except those
     !> of submodules when they are not merged.  Port of
     !> project.el:project-buffers (the method for a VC-aware project).
-    function vc_project_buffers(self) result(bufs)
+    function vc_project_buffers(self, status) result(bufs)
         class(vc_project_type), intent(in) :: self
+        type(status_type), intent(out) :: status
         type(handle_type), allocatable :: bufs(:)
         type(handle_type), allocatable :: all(:)
         type(string_type), allocatable :: modules(:), paths(:)
         type(handle_type) :: old, tmp
-        character(len=:), allocatable :: root, dd
-        logical :: inside
+        character(len=:), allocatable :: root, dd, dd_expanded
+        logical :: inside, root_is_submodule
         integer :: k, j
 
-        root = expanded(file_name_as_directory(self%root()))
+        allocate (bufs(0))
+        call expand_file_name(file_name_as_directory(self%root()), root, status)
+        if (.not. status%ok()) return
         allocate (modules(0))
 
-        if (.not. project_vc_merge_submodules .and. .not. is_submodule(root)) then
-            call temp_begin(old, tmp, root)
-            call git_submodules(paths)
-            call temp_end(old, tmp)
+        if (.not. project_vc_merge_submodules) then
+            root_is_submodule = is_submodule(root, status)
+            if (.not. status%ok()) return
 
-            do k = 1, size(paths)
-                call append_string(modules, root//paths(k)%text//"/")
-            end do
+            if (.not. root_is_submodule) then
+                call temp_begin(old, tmp, root)
+                call git_submodules(paths)
+                call temp_end(old, tmp)
+
+                do k = 1, size(paths)
+                    call append_string(modules, root//paths(k)%text//"/")
+                end do
+            end if
         end if
 
         all = buffer_list()
-        allocate (bufs(0))
 
         do k = 1, size(all)
             dd = "./"
             if (allocated(buffers(all(k)%index)%directory)) dd = buffers(all(k)%index)%directory
-            dd = expanded(dd)
+            call expand_file_name(dd, dd_expanded, status)
+            if (.not. status%ok()) return
+            dd = dd_expanded
             if (.not. starts_with(dd, root)) cycle
             inside = .false.
 
@@ -2018,20 +2037,24 @@ contains
     !> DIRS, without non-existing directories and directories a parent
     !> of whose is already in the list.  Port of
     !> project.el:project-combine-directories.
-    function combine_project_directories(dirs) result(combined)
+    function combine_project_directories(dirs, status) result(combined)
         type(string_type), intent(in) :: dirs(:)
+        type(status_type), intent(out) :: status
         type(string_type), allocatable :: combined(:)
         type(string_type), allocatable :: sorted(:)
+        character(len=:), allocatable :: dir
         integer :: k
 
+        allocate (combined(0))
         allocate (sorted(size(dirs)))
 
         do k = 1, size(dirs)
-            sorted(k)%text = file_name_as_directory(expanded(dirs(k)%text))
+            call expand_file_name(dirs(k)%text, dir, status)
+            if (.not. status%ok()) return
+            sorted(k)%text = file_name_as_directory(dir)
         end do
 
         call sort_strings(sorted)
-        allocate (combined(0))
 
         ! Delete subdirectories from the list.
         do k = 1, size(sorted)
@@ -3035,8 +3058,7 @@ contains
     !> If INCLUDE_ALL is .true., or with prefix argument when called
     !> interactively, include all files under the project root, except for
     !> VCS directories listed in `vc_directory_exclusions'.  Port of
-    !> project.el:project-find-file (the file name at point,
-    !> `thing_at_point' filename, is Deferred).
+    !> project.el:project-find-file.
     recursive subroutine find_project_file(status, include_all)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: include_all
@@ -3084,19 +3106,20 @@ contains
     !> If INCLUDE_ALL is .true., or with prefix argument when called
     !> interactively, include all files under the project root, except for
     !> VCS directories listed in `vc_directory_exclusions'.  Port of
-    !> project.el:project-or-external-find-file (the file name at point is
-    !> Deferred).
+    !> project.el:project-or-external-find-file.
     recursive subroutine find_project_or_external_file(status, include_all)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: include_all
         class(project_type), allocatable :: pr
-        type(string_type), allocatable :: dirs(:), defaults(:)
+        type(string_type), allocatable :: dirs(:), defaults(:), external(:)
 
         call get_current_project(pr, status, maybe_prompt=.true.)
         if (.not. status%ok()) return
         allocate (dirs(0))
         call append_string(dirs, pr%root())
-        call append_strings(dirs, pr%external_roots())
+        external = pr%external_roots(status)
+        if (.not. status%ok()) return
+        call append_strings(dirs, external)
         call suggested_names(pr, defaults)
         call find_file_in_project(defaults, dirs, pr, status, include_all)
     end subroutine find_project_or_external_file
@@ -3238,8 +3261,7 @@ contains
 
     !> Call `project_read_file_name_function' with appropriate history.
     !> An error condition occurs for no files.  Port of
-    !> project.el:project--read-file-name (the relativizing of
-    !> `project_file_history_behavior' is Deferred).
+    !> project.el:project--read-file-name.
     recursive subroutine read_project_file_name(project, prompt, all_files, file, status, history, mb_default)
         class(project_type), intent(in) :: project
         character(len=*), intent(in) :: prompt
@@ -3271,8 +3293,6 @@ contains
         if (allocated(hist%items)) deallocate (hist%items)
         if (allocated(saved)) call move_alloc(saved, hist%items)
         if (.not. status%ok()) return
-        ! (The `project' text property of the entry, for relativizing, is
-        ! Deferred.)
         call hist%append(file)
     end subroutine read_project_file_name
 
@@ -3477,8 +3497,7 @@ contains
 
     !> The minibuffer setup of `completing_read_strict': the defaults M-n
     !> offers.  Port of project.el:project--completing-read-strict (its
-    !> setup function; the completions of
-    !> `minibuffer_default_add_completions' are Deferred).
+    !> setup function).
     subroutine set_pending_defaults()
         if (.not. allocated(pending_defaults)) return
         if (size(pending_defaults) > 0) minibuffer_default = pending_defaults
@@ -3675,8 +3694,7 @@ contains
     end function project_prefixed_buffer_name
 
     !> Run `compile' in the project root.  Port of
-    !> project.el:project-compile (`project_compilation_buffer_name_function'
-    !> is Deferred with `compilation_buffer_name_function').
+    !> project.el:project-compile.
     recursive subroutine compile_in_project(status)
         type(status_type), intent(out) :: status
 
@@ -3724,8 +3742,7 @@ contains
 
     !> Read a buffer of the current project, offering the other buffer
     !> as the default; a new name makes a buffer in the project root.
-    !> Port of project.el:project--read-project-buffer (uniquify's names
-    !> are Deferred).
+    !> Port of project.el:project--read-project-buffer.
     recursive subroutine read_project_buffer(buffer, status)
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
@@ -3741,7 +3758,8 @@ contains
         call get_current_project(pr, status, maybe_prompt=.true.)
         if (.not. status%ok()) return
         other = other_buffer(current_buffer())
-        bufs = pr%buffers()
+        bufs = pr%buffers(status)
+        if (.not. status%ok()) return
         allocate (names(0))
         other_name = ""
 
@@ -3758,8 +3776,7 @@ contains
         completion_ignore_case = read_buffer_completion_ignore_case
 
         ! Forgo the use of `read_buffer_function' in favor of showing
-        ! shorter buffer names.  (Hiding the internal buffers from the
-        ! completions of an empty input is Deferred.)
+        ! shorter buffer names.
         if (len(other_name) > 0) then
             call completing_read(format_prompt("Switch to buffer", other_name), &
                                  completion_list_table(string_list(names), category="project-buffer"), result, status, &
@@ -3902,16 +3919,19 @@ contains
     !> the buffers of its project but the menu itself.  Port of
     !> project.el:project-list-buffers-buffer-menu (its buffer-list
     !> function; the menu filters the internal and non-file buffers).
-    subroutine menu_project_buffers(bufs)
+    subroutine menu_project_buffers(bufs, status)
         type(handle_type), allocatable, intent(out) :: bufs(:)
+        type(status_type), intent(out) :: status
         type(handle_type), allocatable :: all(:)
         integer :: k, m
 
+        status = status_type()
         allocate (bufs(0))
         if (.not. allocated(buffer_menu_projects)) return
         m = findloc(buffer_menu_projects%serial, buffers(current)%serial, dim=1)
         if (m == 0) return
-        all = buffer_menu_projects(m)%project%buffers()
+        all = buffer_menu_projects(m)%project%buffers(status)
+        if (.not. status%ok()) return
 
         do k = 1, size(all)
             if (all(k)%index /= current) bufs = [bufs, all(k)]
@@ -3921,14 +3941,16 @@ contains
     !> The buffers of project PR to close: those matching
     !> `project_close_buffer_conditions'.  Port of
     !> project.el:project--buffers-to-kill.
-    function project_buffers_to_close(pr) result(bufs)
+    function project_buffers_to_close(pr, status) result(bufs)
         class(project_type), intent(in) :: pr
+        type(status_type), intent(out) :: status
         type(handle_type), allocatable :: bufs(:)
         type(handle_type), allocatable :: all(:)
         integer :: k
 
-        all = pr%buffers()
         allocate (bufs(0))
+        all = pr%buffers(status)
+        if (.not. status%ok()) return
 
         do k = 1, size(all)
             if (is_project_buffer_matching(all(k), project_close_buffer_conditions)) bufs = [all(k), bufs]
@@ -3963,8 +3985,8 @@ contains
             if (.not. status%ok()) return
         end if
 
-        status = status_type()
-        bufs = project_buffers_to_close(pr)
+        bufs = project_buffers_to_close(pr, status)
+        if (.not. status%ok()) return
         quiet = .false.
         if (present(no_confirm)) quiet = no_confirm
 
@@ -4150,8 +4172,7 @@ contains
 
     !> The dispatch menu of `project_switch_commands' as a prompt for
     !> switching projects: each entry's key and label.  Port of
-    !> project.el:project--menu-prompt (the faces of
-    !> `project_key_prompt_style' are Deferred).
+    !> project.el:project--menu-prompt.
     function menu_prompt() result(prompt)
         character(len=:), allocatable :: prompt
         integer :: k

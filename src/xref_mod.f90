@@ -967,13 +967,15 @@ contains
         if (.not. status%ok()) return
         allocate (roots(0))
         call append_string(roots, project%root())
-        external = project%external_roots()
+        external = project%external_roots(status)
+        if (.not. status%ok()) return
 
         do k = 1, size(external)
             call append_string(roots, external(k)%text)
         end do
 
-        combined = combine_project_directories(roots)
+        combined = combine_project_directories(roots, status)
+        if (.not. status%ok()) return
         width = 1
 
         do k = 1, size(combined)

@@ -733,7 +733,11 @@ contains
             project%directory = temp_dir()
             buffers(plain%index)%directory = project%directory
             buffers(internal%index)%directory = project%directory
-            bufs = project_buffers_to_close(project)
+            bufs = project_buffers_to_close(project, st)
+            call check(error, st%ok(), "buffers to close: status")
+        end if
+
+        if (.not. allocated(error)) then
             has_plain = .false.
             has_internal = .false.
 
@@ -768,7 +772,9 @@ contains
         dirs(2)%text = dir//"b"
         dirs(3)%text = dir//"missing"
         dirs(4)%text = dir//"a"
-        combined = combine_project_directories(dirs)
+        combined = combine_project_directories(dirs, st)
+        call check(error, st%ok(), "combine: status")
+        if (allocated(error)) return
         call check(error, size(combined), 2)
         if (allocated(error)) return
         call check(error, combined(1)%text, dir//"a/")
@@ -779,6 +785,11 @@ contains
         call check(error, size(outside), 1)
         if (allocated(error)) return
         call check(error, outside(1)%text, dir//"a/")
+        if (allocated(error)) return
+        ! A NUL byte in a name is reported, not passed over.
+        dirs(4)%text = dir//"a"//achar(0)
+        combined = combine_project_directories(dirs, st)
+        call check(error,.not. st%ok(), "combine: NUL byte")
     end subroutine test_combine_directories
 
     !> The ignores of a VC-aware project without a backend: the extra

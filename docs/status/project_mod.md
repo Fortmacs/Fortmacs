@@ -78,11 +78,12 @@ the other-place commands and maps (`project-other-window-command` C-x 4 p, `proj
 directory-local variables (`project-customize-dirlocals`, `project--read-dir-locals`, `project--value-in-dir`: `project-vc-ignores`, `project-vc-name` and the rest have only their global values; the project-name-<vc> tests);
 the mode line (`project-mode-line`, `project-mode-line-face`, `project-mode-line-format`, `project-mode-line-map`);
 `project-compilation-buffer-name-function`;
-`project-file-history-behavior` (relativizing the history);
+`project-file-history-behavior` (relativizing the history, with the `project` text property of its entries);
 `project-key-prompt-style` (the faces of the dispatch menu);
 `project-kill-buffers-display-buffer-list`;
 `project-list-buffers-ibuffer`;
-`project-uniquify-dirname-transform` (uniquify.el);
+`project-uniquify-dirname-transform` and uniquify's buffer names in `project--read-project-buffer` (uniquify.el);
+hiding the internal buffers from the completions of an empty input in `project--read-project-buffer`;
 the file name at point as the default of the find-file commands (`thing-at-point` filename);
 `project-vc-cache-timeout` by directory test;
 `minibuffer-default-add-completions` in the file prompts;
