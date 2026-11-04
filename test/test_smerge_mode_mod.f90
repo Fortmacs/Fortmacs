@@ -48,7 +48,8 @@ module test_smerge_mode_mod
     use vc_hooks_mod, only: vc_clear_context, vc_handled_backends, vc_backend_named, vc_state, vc_file_clearprops, &
                             VC_CONFLICT
     use vc_mod, only: vc_create_repo
-    use smerge_mode_mod, only: match_smerge_conflict, smerge_next, smerge_prev, keep_smerge_upper, keep_smerge_lower, &
+    use smerge_mode_mod, only: match_smerge_conflict, next_smerge_conflict, previous_smerge_conflict, keep_smerge_upper, &
+                               keep_smerge_lower, &
                                keep_smerge_base, keep_smerge_all, keep_smerge_current, delete_smerge_current, &
                                combine_smerge_with_next, swap_smerge, start_smerge_session, resolve_smerge, &
                                diff_smerge_upper_lower, smerge_conflict_style, smerge_repeat_map, smerge_parsep_regexp, &
@@ -300,26 +301,26 @@ contains
         second = len(two_way) + 3
 
         body: block
-            call smerge_next(st)
+            call next_smerge_conflict(st)
             call check(error, point(), 3_int64)
             if (allocated(error)) exit body
-            call smerge_next(st)
+            call next_smerge_conflict(st)
             call check(error, point(), second)
             if (allocated(error)) exit body
             ! At the last conflict: to its end (point-max).
-            call smerge_next(st)
+            call next_smerge_conflict(st)
             call check(error, point(), point_max())
             if (allocated(error)) exit body
-            call smerge_next(st)
+            call next_smerge_conflict(st)
             call check(error, format_error(st), "No next conflict")
             if (allocated(error)) exit body
-            call smerge_prev(st)
+            call previous_smerge_conflict(st)
             call check(error, point(), second)
             if (allocated(error)) exit body
-            call smerge_prev(st)
+            call previous_smerge_conflict(st)
             call check(error, point(), 3_int64)
             if (allocated(error)) exit body
-            call smerge_prev(st)
+            call previous_smerge_conflict(st)
             call check(error, format_error(st), "No previous conflict")
         end block body
 
@@ -340,7 +341,7 @@ contains
             call keep_smerge_upper(st)
             call check(error, minor_modes%smerge_mode%enabled(), "still on with a conflict left")
             if (allocated(error)) exit body
-            call smerge_next(st)
+            call next_smerge_conflict(st)
             call keep_smerge_lower(st)
             call check(error,.not. minor_modes%smerge_mode%enabled(), "off with no conflict left")
             if (allocated(error)) exit body
@@ -410,7 +411,7 @@ contains
         body: block
             call check(error, buffer_string(), "a"//LF//"UUU"//LF//"z"//LF)
             if (allocated(error)) exit body
-            call check(error, commands%smerge_next%repeat_map%index == smerge_repeat_map%index, "repeat map")
+            call check(error, commands%next_smerge_conflict%repeat_map%index == smerge_repeat_map%index, "repeat map")
         end block body
 
         call done(h)

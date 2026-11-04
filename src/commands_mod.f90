@@ -984,6 +984,7 @@ module commands_mod
         type(command_type) :: next_history_element
         type(command_type) :: next_line
         type(command_type) :: next_line_or_history_element
+        type(command_type) :: next_smerge_conflict
         type(command_type) :: normal_mode
         type(command_type) :: number_to_register
         type(command_type) :: occur
@@ -1018,6 +1019,7 @@ module commands_mod
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
         type(command_type) :: previous_line_or_history_element
+        type(command_type) :: previous_smerge_conflict
         type(command_type) :: process_menu_delete_process
         type(command_type) :: process_menu_mode
         type(command_type) :: prog_mode
@@ -1201,8 +1203,6 @@ module commands_mod
         type(command_type) :: show_paren_mode
         type(command_type) :: skeleton_pair_insert_maybe
         type(command_type) :: smerge_mode
-        type(command_type) :: smerge_next
-        type(command_type) :: smerge_prev
         type(command_type) :: smie_backward_expression_command
         type(command_type) :: smie_close_block
         type(command_type) :: smie_config_guess
@@ -2323,6 +2323,7 @@ module commands_mod
                                                                   "next_history_element", &
                                                                   "next_line", &
                                                                   "next_line_or_history_element", &
+                                                                  "next_smerge_conflict", &
                                                                   "normal_mode", &
                                                                   "number_to_register", &
                                                                   "occur", &
@@ -2357,6 +2358,7 @@ module commands_mod
                                                                   "previous_history_element", &
                                                                   "previous_line", &
                                                                   "previous_line_or_history_element", &
+                                                                  "previous_smerge_conflict", &
                                                                   "process_menu_delete_process", &
                                                                   "process_menu_mode", &
                                                                   "prog_mode", &
@@ -2540,8 +2542,6 @@ module commands_mod
                                                                   "show_paren_mode", &
                                                                   "skeleton_pair_insert_maybe", &
                                                                   "smerge_mode", &
-                                                                  "smerge_next", &
-                                                                  "smerge_prev", &
                                                                   "smie_backward_expression_command", &
                                                                   "smie_close_block", &
                                                                   "smie_config_guess", &
@@ -4618,6 +4618,8 @@ contains
             p => commands%next_line
         case ("next_line_or_history_element")
             p => commands%next_line_or_history_element
+        case ("next_smerge_conflict")
+            p => commands%next_smerge_conflict
         case ("normal_mode")
             p => commands%normal_mode
         case ("number_to_register")
@@ -4686,6 +4688,8 @@ contains
             p => commands%previous_line
         case ("previous_line_or_history_element")
             p => commands%previous_line_or_history_element
+        case ("previous_smerge_conflict")
+            p => commands%previous_smerge_conflict
         case ("process_menu_delete_process")
             p => commands%process_menu_delete_process
         case ("process_menu_mode")
@@ -5052,10 +5056,6 @@ contains
             p => commands%skeleton_pair_insert_maybe
         case ("smerge_mode")
             p => commands%smerge_mode
-        case ("smerge_next")
-            p => commands%smerge_next
-        case ("smerge_prev")
-            p => commands%smerge_prev
         case ("smie_backward_expression_command")
             p => commands%smie_backward_expression_command
         case ("smie_close_block")

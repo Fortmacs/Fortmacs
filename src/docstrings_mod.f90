@@ -1045,9 +1045,9 @@ module docstrings_mod
                                            "multi_occur", "multi_occur_in_matching_buffers", "narrow_to_page", "narrow_to_region", &
                                                      "narrow_to_subprogram", "negative_argument", "newline", "newline_and_indent", &
                                          "next_buffer", "next_error", "next_error_no_select", "next_history_element", "next_line", &
-                                            "next_line_or_history_element", "normal_mode", "num_processors", "number_to_register", &
-                                                  "occur", "occur_cease_edit", "occur_edit_mode", "occur_in_region", "occur_mode", &
-                                                                    "occur_mode_display_occurrence", "occur_mode_goto_occurrence", &
+                                          "next_line_or_history_element", "next_smerge_conflict", "normal_mode", "num_processors", &
+                                          "number_to_register", "occur", "occur_cease_edit", "occur_edit_mode", "occur_in_region", &
+                                                      "occur_mode", "occur_mode_display_occurrence", "occur_mode_goto_occurrence", &
                                                  "occur_mode_goto_occurrence_other_window", "occur_mode_mouse_goto", "occur_next", &
                                           "occur_prev", "occur_rename_buffer", "open_dribble_file", "open_line", "open_rectangle", &
                                                              "optimize_char_table", "other_buffer", "other_frame", "other_window", &
@@ -1057,10 +1057,10 @@ module docstrings_mod
                                                              "posix_search_forward", "posix_string_match", "prefer_coding_system", &
                                                   "prepend_auto_mode", "prepend_to_register", "previous_buffer", "previous_error", &
                                                           "previous_error_no_select", "previous_history_element", "previous_line", &
-                                                    "previous_line_or_history_element", "process_buffer", "process_coding_system", &
-                                           "process_command", "process_exit_status", "process_id", "process_list", "process_mark", &
-                                                               "process_menu_delete_process", "process_menu_mode", "process_name", &
-                                                          "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
+                                                 "previous_line_or_history_element", "previous_smerge_conflict", "process_buffer", &
+                                                  "process_coding_system", "process_command", "process_exit_status", "process_id", &
+                                               "process_list", "process_mark", "process_menu_delete_process", "process_menu_mode", &
+                                          "process_name", "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
                                                          "process_send_string", "process_status", "process_tty_name", "prog_mode", &
                                                         "provided_mode_derived_p", "push_button", "push_mark", "python_base_mode", &
                                                                     "python_fill_paragraph", "python_indent_dedent_line", &
@@ -1130,18 +1130,18 @@ module docstrings_mod
                                                 "shell_replace_by_expanded_directory", "shell_script_mode", "show_paren__default", &
                                                             "show_paren_default_test", "show_paren_local_mode", "show_paren_mode", &
                                                         "skeleton_pair_insert_maybe", "skip_chars_backward", "skip_chars_forward", &
-                                                      "skip_syntax_backward", "skip_syntax_forward", "smerge_mode", "smerge_next", &
-                                                            "smerge_prev", "smie_backward_expression_command", "smie_close_block", &
-                                                                "smie_config_guess", "smie_config_save", "smie_config_set_indent", &
-                                                  "smie_config_show_indent", "smie_down_group", "smie_forward_expression_command", &
-                                         "smie_next_indent_change", "spaces_string", "special_mode", "split_char", "split_window", &
-                                                                "split_window_below", "split_window_right", "standard_case_table", &
-                                           "standard_category_table", "standard_syntax_table", "start_kbd_macro", "start_process", &
-                                                          "start_smerge_session", "stop_compilation", "stop_grep", "stop_process", &
-                                                  "string_insert_rectangle", "string_match", "string_matches", "string_rectangle", &
-                                                    "substitute_command_keys", "suspend_fortmacs", "suspend_frame", "swap_smerge", &
-                                             "switch_to_buffer", "switch_to_buffer_other_frame", "syntax_table", "syntax_table_p", &
-                                                 "tab_to_tab_stop", "tabulated_list_mode", "tabulated_list_narrow_current_column", &
+                                                                    "skip_syntax_backward", "skip_syntax_forward", "smerge_mode", &
+                                                      "smie_backward_expression_command", "smie_close_block", "smie_config_guess", &
+                                                          "smie_config_save", "smie_config_set_indent", "smie_config_show_indent", &
+                                                  "smie_down_group", "smie_forward_expression_command", "smie_next_indent_change", &
+                                              "spaces_string", "special_mode", "split_char", "split_window", "split_window_below", &
+                                                           "split_window_right", "standard_case_table", "standard_category_table", &
+                                              "standard_syntax_table", "start_kbd_macro", "start_process", "start_smerge_session", &
+                                                       "stop_compilation", "stop_grep", "stop_process", "string_insert_rectangle", &
+                                                  "string_match", "string_matches", "string_rectangle", "substitute_command_keys", &
+                                                           "suspend_fortmacs", "suspend_frame", "swap_smerge", "switch_to_buffer", &
+                                              "switch_to_buffer_other_frame", "syntax_table", "syntax_table_p", "tab_to_tab_stop", &
+                                                                    "tabulated_list_mode", "tabulated_list_narrow_current_column", &
                                           "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
                                                         "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
                                             "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
@@ -12851,6 +12851,11 @@ contains
             entry%doc = "Move cursor vertically down ARG lines, or to the next history element."//LF// &
                         "When point moves over the bottom line of multi-line minibuffer, puts ARGth"//LF// &
                         "next element of the minibuffer history in the minibuffer."
+        case ("next_smerge_conflict")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the next COUNT'th conflict."//LF// &
+                        "Interactively, COUNT is the prefix numeric argument, and defaults to 1."
         case ("normal_mode")
             entry%file = "files_mod.f90"
             entry%fortran = "call normal_mode(status, find_file)"
@@ -13318,6 +13323,11 @@ contains
             entry%doc = "Move cursor vertically up ARG lines, or to the previous history element."//LF// &
                         "When point moves over the top line of multi-line minibuffer, puts ARGth"//LF// &
                         "previous element of the minibuffer history in the minibuffer."
+        case ("previous_smerge_conflict")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the previous COUNT'th conflict."//LF// &
+                        "Interactively, COUNT is the prefix numeric argument, and defaults to 1."
         case ("process_buffer")
             entry%file = "process_mod.f90"
             entry%fortran = "process_buffer(process)"
@@ -16291,16 +16301,6 @@ contains
             entry%doc = "Minor mode to simplify editing output from the diff3 program."//LF// &
                         ""//LF// &
                         "\{smerge_mode_map}"
-        case ("smerge_next")
-            entry%file = "smerge_mode_mod.f90"
-            entry%command = .true.
-            entry%doc = "Go to the next COUNT'th conflict."//LF// &
-                        "Interactively, COUNT is the prefix numeric argument, and defaults to 1."
-        case ("smerge_prev")
-            entry%file = "smerge_mode_mod.f90"
-            entry%command = .true.
-            entry%doc = "Go to the previous COUNT'th conflict."//LF// &
-                        "Interactively, COUNT is the prefix numeric argument, and defaults to 1."
         case ("smie_backward_expression_command")
             entry%file = "smie_mod.f90"
             entry%command = .true.

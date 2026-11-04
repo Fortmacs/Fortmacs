@@ -2418,6 +2418,10 @@ name	smerge_diff_base_upper	diff_smerge_base_upper
 name	smerge_diff_base_lower	diff_smerge_base_lower
 name	smerge_diff_upper_lower	diff_smerge_upper_lower
 name	smerge_start_session	start_smerge_session
+# R6-40 (owner, 2026-11-04): a package command without a verb takes the
+# verb from what it does; n and p move to the next or previous conflict.
+name	smerge_next	next_smerge_conflict
+name	smerge_prev	previous_smerge_conflict
 # smerge-resolve-function (a variable) and its interface keep the
 # package prefix: the rename above is for the command.
 keep	smerge_resolve_function

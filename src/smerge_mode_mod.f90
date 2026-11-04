@@ -21,7 +21,7 @@
 
 !> Smerge mode: a lightweight alternative to emerge/ediff for the
 !> conflict markers diff3 (and Git, Mercurial, ...) leave in a file:
-!> moving between conflicts (`smerge_next', `smerge_prev'), keeping one
+!> moving between conflicts (`next_smerge_conflict', `previous_smerge_conflict'), keeping one
 !> or all versions, removing one, combining, swapping and extending
 !> conflicts, resolving them automatically (`resolve_smerge', with diff
 !> and patch), comparing two versions in a Diff buffer, the faces and
@@ -81,7 +81,7 @@ module smerge_mode_mod
     private
 
     public :: init_smerge_mode, smerge_mode, start_smerge_session, match_smerge_conflict, find_smerge_conflict, &
-              check_smerge, smerge_next, smerge_prev, keep_smerge_all, keep_smerge_base, keep_smerge_lower, &
+              check_smerge, next_smerge_conflict, previous_smerge_conflict, keep_smerge_all, keep_smerge_base, keep_smerge_lower, &
               keep_smerge_upper, keep_smerge_current, delete_smerge_current, combine_smerge_with_next, &
               auto_combine_smerge, resolve_smerge, resolve_smerge_all, swap_smerge, extend_smerge, &
               diff_smerge_base_upper, diff_smerge_base_lower, diff_smerge_upper_lower, auto_leave_smerge, &
@@ -1923,7 +1923,7 @@ contains
     !> Port of smerge-mode.el:smerge-next (easy-mmode-define-navigation's
     !> command; refining the conflict afterwards, as `diff_refine' asks, is
     !> deferred with `smerge_refine').
-    recursive subroutine smerge_next(status, count, interactive)
+    recursive subroutine next_smerge_conflict(status, count, interactive)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
         logical, intent(in), optional :: interactive
@@ -1932,13 +1932,13 @@ contains
         n = 1
         if (present(count)) n = count
         call easy_mmode_next(smerge_begin_regexp, "conflict", n, status, interactive=interactive)
-    end subroutine smerge_next
+    end subroutine next_smerge_conflict
 
     !> Go to the previous COUNT'th conflict.
     !> Interactively, COUNT is the prefix numeric argument, and defaults to 1.
     !> Port of smerge-mode.el:smerge-prev (easy-mmode-define-navigation's
     !> command).
-    recursive subroutine smerge_prev(status, count)
+    recursive subroutine previous_smerge_conflict(status, count)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
         integer(int64) :: n
@@ -1946,7 +1946,7 @@ contains
         n = 1
         if (present(count)) n = count
         call easy_mmode_prev(smerge_begin_regexp, "conflict", n, status)
-    end subroutine smerge_prev
+    end subroutine previous_smerge_conflict
 
     ! ------------------------------------------------------------------
     ! The minor mode
@@ -2056,7 +2056,7 @@ contains
         if (.not. status%ok()) return
 
         if (.not. looking_at(smerge_begin_regexp, st)) then
-            if (st%ok()) call smerge_next(st)
+            if (st%ok()) call next_smerge_conflict(st)
         end if
 
         if (.not. st%ok()) call auto_leave_smerge(status)
@@ -2082,17 +2082,17 @@ contains
         p_arg = prefix_numeric_value(current_prefix_arg)
     end function p_arg
 
-    recursive subroutine cmd_smerge_next(status)
+    recursive subroutine cmd_next_smerge_conflict(status)
         type(status_type), intent(out) :: status
 
-        call smerge_next(status, p_arg(), interactive=.true.)
-    end subroutine cmd_smerge_next
+        call next_smerge_conflict(status, p_arg(), interactive=.true.)
+    end subroutine cmd_next_smerge_conflict
 
-    recursive subroutine cmd_smerge_prev(status)
+    recursive subroutine cmd_previous_smerge_conflict(status)
         type(status_type), intent(out) :: status
 
-        call smerge_prev(status, p_arg())
-    end subroutine cmd_smerge_prev
+        call previous_smerge_conflict(status, p_arg())
+    end subroutine cmd_previous_smerge_conflict
 
     recursive subroutine cmd_resolve_smerge(status)
         type(status_type), intent(out) :: status
@@ -2195,8 +2195,8 @@ contains
         call register_keymap_name("smerge_mode_map", smerge_mode_map)
         call append_locals_clearer(clear_smerge_locals)
         commands%smerge_mode%execute => smerge_mode
-        commands%smerge_next%execute => cmd_smerge_next
-        commands%smerge_prev%execute => cmd_smerge_prev
+        commands%next_smerge_conflict%execute => cmd_next_smerge_conflict
+        commands%previous_smerge_conflict%execute => cmd_previous_smerge_conflict
         commands%keep_smerge_all%execute => keep_smerge_all
         commands%keep_smerge_base%execute => keep_smerge_base
         commands%keep_smerge_lower%execute => keep_smerge_lower
@@ -2215,8 +2215,8 @@ contains
         commands%start_smerge_session%execute => cmd_start_smerge_session
         ! smerge-basic-map.
         call make_sparse_keymap(smerge_basic_map)
-        call keymap_set(smerge_basic_map, "n", "smerge_next", st)
-        call keymap_set(smerge_basic_map, "p", "smerge_prev", st)
+        call keymap_set(smerge_basic_map, "n", "next_smerge_conflict", st)
+        call keymap_set(smerge_basic_map, "p", "previous_smerge_conflict", st)
         call keymap_set(smerge_basic_map, "r", "resolve_smerge", st)
         call keymap_set(smerge_basic_map, "a", "keep_smerge_all", st)
         call keymap_set(smerge_basic_map, "b", "keep_smerge_base", st)
@@ -2236,8 +2236,8 @@ contains
         call register_keymap_name("smerge_basic_map", smerge_basic_map)
         ! smerge-repeat-map.
         call make_sparse_keymap(smerge_repeat_map)
-        call keymap_set(smerge_repeat_map, "n", "smerge_next", st)
-        call keymap_set(smerge_repeat_map, "p", "smerge_prev", st)
+        call keymap_set(smerge_repeat_map, "n", "next_smerge_conflict", st)
+        call keymap_set(smerge_repeat_map, "p", "previous_smerge_conflict", st)
         call keymap_set(smerge_repeat_map, "r", "resolve_smerge", st)
         call keymap_set(smerge_repeat_map, "a", "keep_smerge_all", st)
         call keymap_set(smerge_repeat_map, "b", "keep_smerge_base", st)
