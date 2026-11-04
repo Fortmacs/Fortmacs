@@ -293,6 +293,11 @@ module hooks_mod
         procedure :: remove => hook_remove
         !> Run the hook's functions (run-hooks).
         procedure :: execute => hook_execute
+        !> Run the current buffer's own functions only, or the default
+        !> functions only (window.c's run_funs on the buffer-local or the
+        !> default value).
+        procedure :: execute_local => hook_execute_local
+        procedure :: execute_default => hook_execute_default
         !> Whether FN is one of the functions run in the current buffer.
         procedure :: member => hook_member
         !> Run the hook's functions, reporting and removing the ones that
@@ -1125,6 +1130,50 @@ contains
 
         call self%execute_entries(0_int64, 0_int64, 0_int64, status)
     end subroutine hook_execute
+
+    !> Execute the current buffer's own functions of the hook, in order,
+    !> stopping at the first error; `t' (run the default functions) is
+    !> skipped.  Nothing runs in a buffer without functions of its own.
+    !> Not a port (window.c's run_funs on a buffer-local value).
+    recursive subroutine hook_execute_local(self, status)
+        class(hook_type), intent(in) :: self
+        type(status_type), intent(out) :: status
+        type(hook_entry_type), allocatable :: entries(:)
+        integer :: i, k
+
+        status = status_type()
+        k = local_index(self)
+        if (k == 0) return
+        ! A copy, in case a function changes the hook.
+        entries = self%locals(k)%entries
+
+        do i = 1, size(entries)
+            if (entries(i)%is_t) cycle
+            call execute_entry(entries(i), 0_int64, 0_int64, 0_int64, status)
+            if (.not. status%ok()) return
+        end do
+    end subroutine hook_execute_local
+
+    !> Execute the default functions of the hook, in order, stopping at the
+    !> first error, whatever the current buffer's own functions.
+    !> Not a port (window.c's run_funs on the default value).
+    recursive subroutine hook_execute_default(self, status)
+        class(hook_type), intent(in) :: self
+        type(status_type), intent(out) :: status
+        type(hook_entry_type), allocatable :: entries(:)
+        integer :: i
+
+        status = status_type()
+        if (.not. allocated(self%entries)) return
+        ! A copy, in case a function changes the hook.
+        entries = self%entries
+
+        do i = 1, size(entries)
+            if (entries(i)%is_t) cycle
+            call execute_entry(entries(i), 0_int64, 0_int64, 0_int64, status)
+            if (.not. status%ok()) return
+        end do
+    end subroutine hook_execute_default
 
     !> Execute each function of the hook as `hook_execute' does, but an error in
     !> one doesn't stop the others: REPORT is told of it, and the function

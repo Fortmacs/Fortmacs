@@ -667,8 +667,17 @@ view_mode_hook
 view_read_only
 view_scroll_auto_exit
 visible_bell
+windmove_allow_all_windows
+windmove_create_window
+windmove_create_window_function
+windmove_wrap_around
 window_min_height
 window_min_width
+winner_boring_buffers
+winner_boring_buffers_regexp
+winner_dont_bind_my_keys
+winner_mode_hook
+winner_ring_size
 window_sides_reversed
 window_sides_slots
 window_sides_vertical

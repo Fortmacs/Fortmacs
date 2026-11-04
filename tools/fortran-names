@@ -2596,6 +2596,28 @@ name	follow_get_scrolled_point	get_follow_scrolled_point
 # two follow.el redisplay procedures are named for what they do.
 name	follow_advised_pre_redisplay_function	adjust_follow_windows_then_redisplay
 name	follow_pre_redisplay_function	adjust_follow_windows
+# from what it does (step 45a, winner.el and windmove.el); R6-17: verb first
+# in the new helpers too.  The names without an obvious verb-first form wait
+# for the owner (listed in PR #243).
+name	winner_undo	undo_window_change
+name	winner_redo	redo_window_change
+name	winner_save_old_configurations	save_winner_old_configurations
+name	winner_save_unconditionally	save_winner_unconditionally
+name	winner_save_conditionally	save_winner_conditionally
+name	winner_set_conf	set_winner_conf
+name	winner_set	set_winner
+name	winner_get_point	get_winner_point
+name	winner_insert_if_new	insert_winner_if_new
+name	winner_make_point_alist	make_winner_point_alist
+name	windmove_left	select_window_left
+name	windmove_right	select_window_right
+name	windmove_up	select_window_up
+name	windmove_down	select_window_down
+name	windmove_delete_left	delete_window_left
+name	windmove_delete_right	delete_window_right
+name	windmove_delete_up	delete_window_up
+name	windmove_delete_down	delete_window_down
+name	windmove_install_defaults	install_windmove_defaults
 # R6-17 (owner, 2026-11-03): verb first in every new procedure name; the
 # window-- helpers of step 45b (side windows) drop their package prefix as
 # window_display_mod's do (try_to_split_window).  window_sides_check_failed

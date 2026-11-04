@@ -1881,7 +1881,7 @@ contains
         type(handle_type) :: window, sw
 
         status = status_type()
-        window = window_in_direction_below()
+        window = window_in_direction(DIRECTION_BELOW)
 
         if (is_window_live(window)) then
             if (same_handle(buffer, windows(window%index)%buffer)) then
@@ -1909,7 +1909,7 @@ contains
             if (window%index /= 0 .or. .not. status%ok()) return
         end if
 
-        window = window_in_direction_below()
+        window = window_in_direction(DIRECTION_BELOW)
 
         if (is_window_live(window)) then
             if (windows(window%index)%dedicated == DEDICATED_NONE) then
@@ -1921,15 +1921,24 @@ contains
         window = null_handle()
     end function display_buffer_below_selected
 
-    module function window_in_direction_below(window) result(best)
+    module function window_in_direction(direction, window, sign, wrap, minibuf) result(best)
+        integer, intent(in) :: direction
         type(handle_type), intent(in), optional :: window
-        type(handle_type) :: best, w, best_2, old
+        integer(int64), intent(in), optional :: sign
+        logical, intent(in), optional :: wrap
+        integer, intent(in), optional :: minibuf
+        type(handle_type) :: best, w, best_2, old, root, mini
         type(handle_type), allocatable :: list(:)
         type(status_type) :: st
-        integer :: first, last, posn, best_edge, best_edge_2, best_diff_2, diff, k, w_top, w_left
+        integer :: first, last, posn, best_edge, best_edge_2, best_diff_2, diff, k, w_top, w_left, w_height, w_width, mb
+        logical :: hor, wrapping, covers, mini_active, from_point
 
         best = null_handle()
         best_2 = null_handle()
+        wrapping = .false.
+        if (present(wrap)) wrapping = wrap
+        mb = MINIBUF_ACTIVE
+        if (present(minibuf)) mb = minibuf
 
         if (present(window)) then
             w = window
@@ -1938,44 +1947,158 @@ contains
         end if
 
         if (.not. is_window_live(w)) return
-        first = windows(w%index)%top_line
-        last = first + windows(w%index)%total_lines
-        ! The column of `posn_at_point' of WINDOW's point.
-        old = current_buffer()
-        call set_buffer(windows(w%index)%buffer, st)
-        posn = screen_column_at(w) + windows(w%index)%left_col
-        call set_buffer(old, st)
+        root = selected_frame%root_window
+        mini = selected_frame%minibuffer_window
+        mini_active = minibuf_level > 0
+        hor = direction == DIRECTION_LEFT .or. direction == DIRECTION_RIGHT
 
-        associate (r => windows(selected_frame%root_window%index), m => windows(selected_frame%minibuffer_window%index))
-            best_edge = r%total_lines + m%total_lines
-            best_diff_2 = r%total_cols
+        associate (x => windows(w%index))
+            if (hor) then
+                first = x%left_col
+                last = first + x%total_cols
+            else
+                first = x%top_line
+                last = first + x%total_lines
+            end if
+
+            posn = 0
+            from_point = .true.
+
+            if (present(sign)) then
+                from_point = sign == 0
+
+                if (sign < 0) then
+                    if (hor) then
+                        posn = x%top_line + x%total_lines - 1
+                    else
+                        posn = x%left_col + x%total_cols - 1
+                    end if
+                else if (sign > 0) then
+                    if (hor) then
+                        posn = x%top_line
+                    else
+                        posn = x%left_col
+                    end if
+                end if
+            end if
+
+            if (from_point) then
+                ! The column or row of `posn_at_point' of WINDOW's point.
+                old = current_buffer()
+                call set_buffer(x%buffer, st)
+
+                if (hor) then
+                    posn = screen_row_at(w) + x%top_line
+                else
+                    posn = screen_column_at(w) + x%left_col
+                end if
+
+                call set_buffer(old, st)
+            end if
+        end associate
+
+        associate (r => windows(root%index), m => windows(mini%index))
+            select case (direction)
+            case (DIRECTION_BELOW)
+                best_edge = r%total_lines + m%total_lines
+            case (DIRECTION_RIGHT)
+                best_edge = r%total_cols
+            case default
+                best_edge = -1
+            end select
+
+            if (hor) then
+                best_diff_2 = r%total_lines + m%total_lines
+            else
+                best_diff_2 = r%total_cols
+            end if
         end associate
 
         best_edge_2 = best_edge
-        call window_leaves(selected_frame%root_window, list)
-        if (minibuf_level > 0) list = [list, selected_frame%minibuffer_window]
+        call window_leaves(root, list)
+        if (is_window_live(mini) .and. (mb == MINIBUF_YES .or. (mb == MINIBUF_ACTIVE .and. mini_active))) list = [list, mini]
 
         do k = 1, size(list)
+            ! Ignore ourselves.
             if (same_handle(list(k), w)) cycle
             w_top = windows(list(k)%index)%top_line
             w_left = windows(list(k)%index)%left_col
+            w_height = windows(list(k)%index)%total_lines
+            w_width = windows(list(k)%index)%total_cols
 
-            if (w_left <= posn .and. posn < w_left + windows(list(k)%index)%total_cols) then
-                ! W is below WINDOW and covers POSN.
-                if (w_top >= first .and. w_top < best_edge) then
+            if (hor) then
+                if (w_top <= posn .and. posn < w_top + w_height) then
+                    ! W is to the left or right of WINDOW and covers POSN.
+                    covers = .false.
+
+                    if (direction == DIRECTION_LEFT) then
+                        covers = w_left <= first .and. w_left > best_edge
+                        if (.not. covers .and. wrapping) covers = is_at_side(w, 1) .and. is_at_side(list(k), 3)
+                    else
+                        covers = w_left >= last .and. w_left < best_edge
+                        if (.not. covers .and. wrapping) covers = is_at_side(w, 3) .and. is_at_side(list(k), 1)
+                    end if
+
+                    if (covers) then
+                        best_edge = w_left
+                        best = list(k)
+                    end if
+                else if ((direction == DIRECTION_LEFT .and. w_left + w_width <= first) .or. &
+                         (direction == DIRECTION_RIGHT .and. last <= w_left)) then
+                    ! W is to the left or right of WINDOW but does not
+                    ! cover POSN.
+                    diff = in_direction_2(w_top, w_height)
+
+                    if (diff < best_diff_2 .or. (diff == best_diff_2 .and. &
+                                                 ((direction == DIRECTION_LEFT .and. w_left > best_edge_2) .or. &
+                                                  (direction == DIRECTION_RIGHT .and. w_left < best_edge_2)))) then
+                        best_edge_2 = w_left
+                        best_diff_2 = diff
+                        best_2 = list(k)
+                    end if
+                end if
+            else if (w_left <= posn .and. posn < w_left + w_width) then
+                ! W is above or below WINDOW and covers POSN.
+                covers = .false.
+
+                if (direction == DIRECTION_ABOVE) then
+                    covers = w_top <= first .and. w_top > best_edge
+
+                    if (.not. covers .and. wrapping) then
+                        if (is_at_side(w, 2)) then
+                            if (mini_active) then
+                                covers = same_handle(list(k), mini)
+                            else
+                                covers = is_at_side(list(k), 4)
+                            end if
+                        end if
+                    end if
+                else
+                    covers = w_top >= first .and. w_top < best_edge
+
+                    if (.not. covers .and. wrapping) then
+                        if (is_at_side(list(k), 2)) then
+                            if (mini_active) then
+                                covers = same_handle(w, mini)
+                            else
+                                covers = is_at_side(w, 4)
+                            end if
+                        end if
+                    end if
+                end if
+
+                if (covers) then
                     best_edge = w_top
                     best = list(k)
                 end if
-            else if (last <= w_top) then
-                ! W is below WINDOW but does not cover POSN
-                ! (window--in-direction-2).
-                if (w_left > posn) then
-                    diff = w_left - posn
-                else
-                    diff = posn - w_left - windows(list(k)%index)%total_cols
-                end if
+            else if ((direction == DIRECTION_ABOVE .and. w_top + w_height <= first) .or. &
+                     (direction == DIRECTION_BELOW .and. last <= w_top)) then
+                ! W is above or below WINDOW but does not cover POSN.
+                diff = in_direction_2(w_left, w_width)
 
-                if (diff < best_diff_2 .or. (diff == best_diff_2 .and. w_top < best_edge_2)) then
+                if (diff < best_diff_2 .or. (diff == best_diff_2 .and. &
+                                             ((direction == DIRECTION_ABOVE .and. w_top > best_edge_2) .or. &
+                                              (direction == DIRECTION_BELOW .and. w_top < best_edge_2)))) then
                     best_edge_2 = w_top
                     best_diff_2 = diff
                     best_2 = list(k)
@@ -1986,6 +2109,39 @@ contains
         if (best%index == 0) best = best_2
 
     contains
+
+        !> How far POSN is from the window starting at EDGE with SIZE lines
+        !> or columns across the direction.  Port of
+        !> window.el:window--in-direction-2.
+        integer function in_direction_2(edge, size) result(d)
+            integer, intent(in) :: edge, size
+
+            if (edge > posn) then
+                d = edge - posn
+            else
+                d = posn - edge - size
+            end if
+        end function in_direction_2
+
+        !> Whether window H is at SIDE of the frame: 1 left, 2 top, 3
+        !> right, 4 bottom.  Port of window.el:window-at-side-p.
+        logical function is_at_side(h, side) result(at)
+            type(handle_type), intent(in) :: h
+            integer, intent(in) :: side
+
+            associate (x => windows(h%index), r => windows(root%index))
+                select case (side)
+                case (1)
+                    at = x%left_col == r%left_col
+                case (2)
+                    at = x%top_line == r%top_line
+                case (3)
+                    at = x%left_col + x%total_cols == r%left_col + r%total_cols
+                case default
+                    at = x%top_line + x%total_lines == r%top_line + r%total_lines
+                end select
+            end associate
+        end function is_at_side
 
         !> Point's column in window H (the current buffer's point if H is
         !> selected, else its own point).
@@ -1998,7 +2154,33 @@ contains
             x = screen_column()
             call goto_char(opoint)
         end function screen_column_at
-    end function window_in_direction_below
+
+        !> The screen line of point in window H, counted from 0 at its start
+        !> (the row of `posn_at_point'), or 1 when point is not visible in H.
+        integer function screen_row_at(h) result(y)
+            type(handle_type), intent(in) :: h
+            integer(int64) :: opoint, pt, moved
+            integer :: lines
+
+            y = 1
+            opoint = buffers(current)%pt
+            pt = point_of(h)
+            lines = window_body_lines(windows(h%index))
+            if (pt < window_start(windows(h%index)) .or. lines <= 0) return
+            call goto_char(window_start(windows(h%index)))
+            y = 0
+
+            do
+                call vertical_motion(1_int64, moved)
+                if (moved < 1 .or. buffers(current)%pt > pt) exit
+                y = y + 1
+                if (y >= lines) exit
+            end do
+
+            if (y >= lines) y = 1
+            call goto_char(opoint)
+        end function screen_row_at
+    end function window_in_direction
 
     module subroutine switch_to_buffer_other_window(buffer, status, norecord)
         type(handle_type), intent(in) :: buffer

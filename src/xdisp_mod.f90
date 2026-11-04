@@ -110,6 +110,7 @@ module xdisp_mod
                           TEXT_PROP_DISTANCE_LIMIT
     use frame_mod, only: frame_type, selected_frame, ensure_frames, selected_window, frame_lines, frame_cols, window_pixel_left, &
                          window_pixel_top, window_pixel_width, window_pixel_height, window_body_pixel_width
+    use window_mod, only: execute_window_change_functions
     use window_mod, only: window_type, set_window_buffer, window_start, &
                           set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
                           is_window_valid, make_window, resize_window_tree, window_leaves, same_window, &
@@ -4242,6 +4243,9 @@ contains
         ! xdisp.c:prepare_menu_bars: `pre_redisplay_function', for all
         ! windows.
         if (associated(pre_redisplay_function)) call pre_redisplay_function(.true., none)
+        ! The window change hooks (an error stops them; redisplay goes on,
+        ! as the command loop does when upstream's error leaves redisplay).
+        call execute_window_change_functions(status)
 
         if (gui) then
             ! xdisp.c:clear_garbaged_frames; a window-system frame is drawn as it
