@@ -654,6 +654,15 @@ prog-mode.el	prog-context-menu	prog_context_menu
 prog-mode.el	prog-fill-reindent-defun	prog_fill_reindent_subprogram
 prog-mode.el	prog-fill-reindent-defun-default	prog_fill_reindent_subprogram_default
 prog-mode.el	prog-indent-sexp	prog_indent_expression
+project.el	project-customize-dirlocals	project_customize_dirlocals
+project.el	project-display-buffer-other-frame	display_project_buffer_other_frame
+project.el	project-eshell	project_eshell
+project.el	project-find-matching-buffer	project_find_matching_buffer
+project.el	project-other-frame-command	project_other_frame_command
+project.el	project-other-tab-command	project_other_tab_command
+project.el	project-other-window-command	project_other_window_command
+project.el	project-query-replace-regexp	project_query_replace_regexp
+project.el	project-search	project_search
 python.el	python-add-import	python_add_import
 python.el	python-check	python_check
 python.el	python-describe-at-point	python_describe_at_point

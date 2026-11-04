@@ -300,7 +300,8 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        then revisions (ediff-vers.el) and patches (ediff-ptch.el).
    49. Projects and cross-references: project.el (C-x p), xref.el and
        etags.el (M-., M-?, M-,) — 49a partial (docs/status/xref_mod.md and
-       etags_mod.md), Imenu and `which-function-mode`.
+       etags_mod.md), 49b partial (docs/status/project_mod.md), Imenu and
+       `which-function-mode`.
    50. Change logs, the rest: `add-change-log-entry` (C-x 4 a),
        `log-edit-generate-changelog-from-diff`, `diff-add-log-current-defuns`
        — done (Change Log mode's filling, indentation and goto-source,

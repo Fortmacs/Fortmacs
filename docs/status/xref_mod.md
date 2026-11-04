@@ -66,6 +66,10 @@ the search: `xref-matches-in-directory`,
 `xref--convert-hits`,
 `xref--collect-matches`,
 `xref--collect-matches-1` (`syntax-propertize` for the match's identifier bounds);
+the current project (project_mod, step 49b): `xref--project-root`,
+the default `xref-backend-references` searching the project root and external roots,
+`xref--analyze` relative to the project root,
+the project's ignores in `xref-references-in-directory-grep`;
 `init_xref` binds the keys in `esc_map` and `ctl_x_4_map`
 
 ## Deferred
@@ -81,7 +85,7 @@ the mouse: `xref-find-definitions-at-mouse`,
 `xref-history-storage` with `xref-window-local-history` (the global history only; `xref--get-history`, `xref--make-xref-history`);
 `xref-show-definitions-buffer-at-bottom` (`xref--show-defs-buffer-at-bottom`: `display-buffer-in-direction`);
 the `group-function` of the completion table's metadata (`xref--completing-read-group`);
-`xref--project-root` and `xref--ensure-default-directory` (project.el, step 49b: the directory is `default-directory`);
+`xref--ensure-default-directory` (the directory is `default-directory`);
 remote files (`xref--hits-remote-id`, `xref--with-connection-local-variables`, `xref--process-file-region`: process-file);
 Imenu in the *xref* buffer (`xref--imenu-prev-index-position`, `xref--imenu-extract-index-name`, step 49c) and `xref--add-log-current-defun`;
 Semantic and EDE (`xref-references-in-directory-semantic`, `ede-minor-mode`);
