@@ -48,7 +48,6 @@ module test_ibuf_ext_mod
     use sh_script_mod, only: sh_mode
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input
-    use minibuf_mod, only: minibuffer_string_type
     use minibuf_table_mod, only: completion_table_type, TABLE_LIST
     use crm_mod, only: completing_read_multiple
     use bindings_mod, only: init_bindings
@@ -65,6 +64,7 @@ module test_ibuf_ext_mod
                              ibuffer_filename, ibuffer_basename, ibuffer_file_extension, ibuffer_directory, ibuffer_size_gt, &
                              ibuffer_size_lt, ibuffer_modified, ibuffer_visiting_file, ibuffer_content, ibuffer_test, &
                              ibuffer_filter_equal
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -78,7 +78,7 @@ module test_ibuf_ext_mod
     ! Accumulated buffers and files to clean up.
     type(handle_type) :: test_buffers(16)
     integer :: ntest_buffers = 0
-    type(minibuffer_string_type) :: test_files(16)
+    type(string_type) :: test_files(16)
     integer :: ntest_files = 0
 
     ! The status of the last `incl'.
@@ -202,7 +202,7 @@ contains
 
         call create_temp_file(prefix, file, st)
         ntest_files = ntest_files + 1
-        test_files(ntest_files)%s = file
+        test_files(ntest_files)%text = file
         call find_file_noselect(file//suffix, buffer, st)
         ntest_buffers = ntest_buffers + 1
         test_buffers(ntest_buffers) = buffer
@@ -236,7 +236,7 @@ contains
         integer :: k
 
         do k = 1, ntest_files
-            call delete_file(test_files(k)%s, st)
+            call delete_file(test_files(k)%text, st)
         end do
 
         ntest_files = 0
@@ -1041,7 +1041,7 @@ contains
     subroutine test_crm(error)
         type(error_type), allocatable, intent(out) :: error
         type(completion_table_type) :: table
-        type(minibuffer_string_type), allocatable :: results(:)
+        type(string_type), allocatable :: results(:)
         type(value_type), allocatable :: evs(:)
         type(value_type) :: items(3)
         type(status_type) :: st
@@ -1060,6 +1060,6 @@ contains
         if (allocated(error)) return
         call check(error, size(results) == 2, "two elements")
         if (allocated(error)) return
-        call check(error, results(1)%s == "foo" .and. results(2)%s == "bar", results(1)%s//"|"//results(2)%s)
+        call check(error, results(1)%text == "foo" .and. results(2)%text == "bar", results(1)%text//"|"//results(2)%text)
     end subroutine test_crm
 end module test_ibuf_ext_mod

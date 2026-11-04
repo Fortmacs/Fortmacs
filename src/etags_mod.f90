@@ -34,6 +34,7 @@ module etags_mod
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_mod, only: status_type, set_error, FM_USER_ERROR, FM_GENERIC_ERROR, FM_FILE_MISSING
     use handle_mod, only: handle_type, null_handle
+    use string_type_mod, only: string_type
     use value_mod, only: value_type, make_list, list, list_elements, vtag, V_STRING, xstring
     use data_mod, only: string_setting_type, history_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type, capf_hook_type
@@ -74,7 +75,7 @@ module etags_mod
     use coding_mod, only: coding_system_eol_type, buffer_file_coding_system, EOL_DOS
     use xref_mod, only: xref_backend_type, xref_location_type, xref_item_type, make_xref, append_xref_item, &
                         xref_backend_functions, xref_apropos_regexp, push_xref_marker_stack, clear_xref_marker_stack, &
-                        go_back_xref
+                        go_back_in_xref_history
     implicit none(type, external)
     private
 
@@ -195,11 +196,6 @@ module etags_mod
         !> (etags).
         procedure :: identifier_completion_ignore_case => etags_backend_identifier_completion_ignore_case
     end type etags_backend_type
-
-    ! A string, as an element of an array of strings of any lengths.
-    type :: string_type
-        character(len=:), allocatable :: text
-    end type string_type
 
     ! An element of `tags_table_computed_list': a table FILE, or a
     ! placeholder (upstream's t) saying the table before it has not been
@@ -673,17 +669,17 @@ contains
     ! The command: read the file, then `visit_tags_table'.  Not a port.
     recursive subroutine cmd_visit_tags_table(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dir, file, default_tag_dir, default_file
+        character(len=:), allocatable :: directory, file, default_tag_directory, default_file
         type(status_type) :: st
         logical :: found
 
-        dir = "./"
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
-        call locate_dominating_file(dir, "TAGS", default_tag_dir, found)
-        if (.not. found) default_tag_dir = dir
-        call expand_file_name("TAGS", default_file, st, default_tag_dir)
+        directory = "./"
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
+        call locate_dominating_file(directory, "TAGS", default_tag_directory, found)
+        if (.not. found) default_tag_directory = directory
+        call expand_file_name("TAGS", default_file, st, default_tag_directory)
         ! default to TAGS from default-directory up to root.
-        call read_file_name(format_prompt("Visit tags table", "TAGS"), file, status, dir=default_tag_dir, &
+        call read_file_name(format_prompt("Visit tags table", "TAGS"), file, status, dir=default_tag_directory, &
                             default_filename=default_file, mustmatch=1)
         if (.not. status%ok()) return
         call visit_tags_table(file, status, current_prefix_arg%kind /= PREFIX_NONE)
@@ -1421,7 +1417,7 @@ contains
         logical, intent(in) :: relative
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: section_file, truename, dir
+        character(len=:), allocatable :: section_file, truename, directory
         type(status_type) :: st
         integer(int64) :: opoint, found
 
@@ -1442,10 +1438,10 @@ contains
         if (relative) then
             file = section_file
         else
-            dir = "./"
-            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
-            call file_truename(dir, truename, st)
-            if (.not. st%ok()) truename = dir
+            directory = "./"
+            if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
+            call file_truename(directory, truename, st)
+            if (.not. st%ok()) truename = directory
             call expand_file_name(section_file, file, st, file_name_as_directory(truename))
         end if
     end subroutine file_of_tag
@@ -1583,8 +1579,10 @@ contains
         end if
 
         ! No cached value for this buffer.
+        ! (A buffer with no file is named by its buffer name, not
+        ! upstream's printed nil: R6-42.)
         call buffer_file_name(file, found, st)
-        if (.not. found) file = "nil"
+        if (.not. found) file = buffers(current)%name
         call message("Making tags completion table for "//file//"...")
         allocate (all(0))
         cont = VISIT_FIRST
@@ -1811,7 +1809,7 @@ contains
 
     !> Read a tag name, with defaulting and completion.  Port of
     !> etags.el:find-tag-tag.
-    recursive subroutine find_tag_tag(prompt, tag, status)
+    recursive subroutine read_tag(prompt, tag, status)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: tag
         type(status_type), intent(out) :: status
@@ -1839,7 +1837,7 @@ contains
                 call set_error(status, FM_USER_ERROR, "There is no default tag")
             end if
         end if
-    end subroutine find_tag_tag
+    end subroutine read_tag
 
     ! Whether case is ignored in completing tags: `tags_case_fold_search'
     ! or else `case_fold_search'.  Port of
@@ -1888,7 +1886,7 @@ contains
         else if (no_default) then
             call read_string(prompt, tagname, status)
         else
-            call find_tag_tag(prompt, tagname, status)
+            call read_tag(prompt, tagname, status)
         end if
     end subroutine read_find_tag_arguments
 
@@ -2818,7 +2816,7 @@ contains
 
     !> Whether current tag line matches REGEXP.  Port of
     !> etags.el:tag-re-match-p.
-    logical function is_tag_re_match(regexp) result(match)
+    logical function is_tag_regexp_match(regexp) result(match)
         character(len=*), intent(in) :: regexp
         type(status_type) :: st
         integer(int64) :: opoint, bol, found
@@ -2831,7 +2829,7 @@ contains
         if (match) call re_search_backward(regexp, found, st, bound=bol, noerror=SEARCH_NOERROR)
         if (match) match = found /= 0
         call goto_char(opoint)
-    end function is_tag_re_match
+    end function is_tag_regexp_match
 
     ! ------------------------------------------------------------------
     ! Listing and completing
@@ -2842,7 +2840,7 @@ contains
     ! etags.el:tags--get-current-buffer-name-in-tags-file.
     recursive function get_current_buffer_name_in_tags_file() result(name)
         character(len=:), allocatable :: name
-        character(len=:), allocatable :: filename, tag_dir
+        character(len=:), allocatable :: filename, tag_directory
         type(handle_type) :: old
         type(status_type) :: st
         logical :: visited
@@ -2852,11 +2850,11 @@ contains
         filename = buffers(current)%filename
         old = current_buffer()
         call visit_tags_table_buffer(visited, st)
-        tag_dir = ""
-        if (allocated(buffers(current)%directory)) tag_dir = buffers(current)%directory
+        tag_directory = ""
+        if (allocated(buffers(current)%directory)) tag_directory = buffers(current)%directory
         call set_buffer(old, st)
         if (.not. st%ok()) return
-        name = file_relative_name(filename, tag_dir)
+        name = file_relative_name(filename, tag_directory)
     end function get_current_buffer_name_in_tags_file
 
     ! Complete STRING from file names in the current tags table.  Port of
@@ -3353,7 +3351,7 @@ contains
         find_tag_tag_order(6)%test => is_tag_word_match
         find_tag_tag_order(7)%test => is_tag_partial_file_name_match
         find_tag_tag_order(8)%test => is_tag_any_match
-        find_tag_regexp_tag_order(1)%test => is_tag_re_match
+        find_tag_regexp_tag_order(1)%test => is_tag_regexp_match
 
         if (.not. allocated(etags_find_xref_definitions_tag_order)) then
             allocate (etags_find_xref_definitions_tag_order(2))
@@ -3377,7 +3375,7 @@ contains
         commands%find_tag%execute => cmd_find_tag
         commands%find_tag_other_window%execute => cmd_find_tag_other_window
         commands%find_tag_regexp%execute => cmd_find_tag_regexp
-        commands%pop_tag_mark%execute => go_back_xref
+        commands%pop_tag_mark%execute => go_back_in_xref_history
         commands%list_tags%execute => cmd_list_tags
         commands%tags_apropos%execute => cmd_tags_apropos
         commands%complete_tag%execute => complete_tag

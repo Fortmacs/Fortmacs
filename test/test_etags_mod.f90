@@ -36,7 +36,7 @@ module test_etags_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, buffers, current, &
                           get_buffer
     use editfns_mod, only: buffer_string, point, line_beginning_position
-    use fileio_mod, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory, file_name_nondirectory
+    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, file_name_nondirectory
     use bindings_mod, only: init_bindings
     use simple_mod, only: fundamental_mode
     use xref_mod, only: xref_item_type, find_xref_definitions, find_xref_apropos, xref_items_at
@@ -75,7 +75,7 @@ contains
         type(status_type) :: st
 
         call init_fileio()
-        call expand_file_name("test/etags-resources/"//name, path, st, emacs_wd)
+        call expand_file_name("test/etags-resources/"//name, path, st, fortmacs_wd)
     end function resource
 
     ! A fresh buffer NAME in the resource directory, shown alone, with the
@@ -244,7 +244,7 @@ contains
         b = current_buffer()
         if (allocated(buffers(current)%filename)) name = file_name_nondirectory(buffers(current)%filename)
         ! The most recent tag location: popping does not go back to where
-        ! the search started (that is `go_back_xref').
+        ! the search started (that is `go_back_in_xref_history').
         call check(error, name, "a2.c")
         call close_buffer(h, st)
     end subroutine test_find_tag

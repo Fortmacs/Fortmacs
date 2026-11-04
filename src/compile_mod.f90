@@ -129,7 +129,7 @@ module compile_mod
     use simple_mod, only: special_mode_map, read_shell_command, shell_command_switch, next_error_last_buffer, &
                           set_next_error_function, next_error_find_buffer, next_error_internal, next_error, push_mark
     use callproc_mod, only: shell_file_name, init_callproc
-    use process_mod, only: process_arg_type, make_process, get_buffer_process, process_status, &
+    use process_mod, only: make_process, get_buffer_process, process_status, &
                            process_query_on_exit_flag, interrupt_process, delete_process, process_buffer, &
                            process_exit_status, set_process_buffer, set_process_query_on_exit_flag, process_mark, &
                            process_send_eof, num_processors
@@ -140,6 +140,7 @@ module compile_mod
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              FONT_LOCK_OVERRIDE_YES
     use font_lock_mod, only: font_lock_append_text_property, font_lock_add_keywords, font_lock_flush
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -190,9 +191,9 @@ module compile_mod
         !> function may add to it (as `setenv' does inside the binding of
         !> `process_environment' in compilation-start).  Not a port.
         recursive subroutine compilation_process_setup_procedure(environment, status)
-            import :: process_arg_type, status_type
+            import :: string_type, status_type
             implicit none(type, external)
-            type(process_arg_type), allocatable, intent(inout) :: environment(:)
+            type(string_type), allocatable, intent(inout) :: environment(:)
             type(status_type), intent(out) :: status
         end subroutine compilation_process_setup_procedure
 
@@ -345,7 +346,7 @@ module compile_mod
     !> bound to the position of the start of the inserted text, and point at
     !> its end.
     !>
-    !> If Emacs lacks asynchronous process support, this hook is run
+    !> If Fortmacs lacks asynchronous process support, this hook is run
     !> after `execute_process' inserts the grep output into the buffer.  Port
     !> of compile.el compilation-filter-hook.
     type(hook_type), target, public :: compilation_filter_hook = hook_type(name="compilation_filter_hook")
@@ -486,9 +487,9 @@ module compile_mod
     !> Otherwise they are interpreted as character positions, with
     !> each character occupying one column.
     !> The default is to use screen columns, which requires that the
-    !> compilation program and Emacs agree about the display width of the
+    !> compilation program and Fortmacs agree about the display width of the
     !> characters, especially the TAB character.
-    !> If this is buffer-local in the destination buffer, Emacs obeys
+    !> If this is buffer-local in the destination buffer, Fortmacs obeys
     !> that value, otherwise it uses the value in the *compilation*
     !> buffer.  This enables a major mode to specify its own value.  Port
     !> of compile.el compilation-error-screen-columns.
@@ -496,7 +497,7 @@ module compile_mod
                                           logical_setting_type(name="compilation_error_screen_columns", value=.true.)
 
     !> This is how compilers number the first column, usually 1 or 0.
-    !> If this is buffer-local in the destination buffer, Emacs obeys
+    !> If this is buffer-local in the destination buffer, Fortmacs obeys
     !> that value, otherwise it uses the value in the *compilation*
     !> buffer.  This enables a major mode to specify its own value.  Port
     !> of compile.el compilation-first-column.
@@ -4340,7 +4341,7 @@ contains
 
     !> Insert TEXT at point, adding the `compilation_annotation' text
     !> property.  This property is used to distinguish output of the
-    !> compilation process from additional information inserted by Emacs.
+    !> compilation process from additional information inserted by Fortmacs.
     !> Port of compile.el:compilation-insert-annotation.
     subroutine compilation_insert_annotation(text)
         character(len=*), intent(in) :: text
@@ -4395,8 +4396,7 @@ contains
         type(major_mode_type), intent(in), target, optional :: mode
         character(len=:), allocatable :: thisdir, cd_dir, origdir, name_of_mode
         type(handle_type) :: outbuf, comp_process, outwin, old, process
-        type(process_arg_type) :: args(3), switches(2)
-        type(process_arg_type), allocatable :: env(:)
+        type(string_type), allocatable :: args(:), switches(:), env(:)
         type(value_type) :: inhibit
         type(status_type) :: st
         logical :: answer, scroll, use_comint
@@ -4541,10 +4541,8 @@ contains
             call set_window_point(windows(outwin%index), desired, st)
         end if
 
-        allocate (env(2))
-        env(1)%s = "INSIDE_EMACS="//upstream_version//",compile"
         ! Some external programs (like "git grep") use a pager; defeat that.
-        env(2)%s = "PAGER="
+        call append_string(env, "INSIDE_EMACS="//upstream_version//",compile", "PAGER=")
         ! The setup function is called before compilation-set-window-height
         ! so it can set the compilation-window-height buffer locally.
         call make_current_entry(k)
@@ -4562,15 +4560,12 @@ contains
         if (.not. allocated(shell_file_name%value)) call init_callproc()
 
         if (use_comint) then
-            switches(1)%s = shell_command_switch%value
-            switches(2)%s = command
+            call append_string(switches, shell_command_switch%value, command)
             call comint_exec(outbuf, downcase_name(buffers(current)%mode_name), shell_file_name%value, switches, status, &
                              environment=env)
             if (status%ok()) process = get_buffer_process(outbuf)
         else
-            args(1)%s = shell_file_name%value
-            args(2)%s = shell_command_switch%value
-            args(3)%s = command
+            call append_string(args, shell_file_name%value, shell_command_switch%value, command)
             call make_process(downcase_name(buffers(current)%mode_name), args, process, status, buffer=outbuf, &
                               environment=env)
         end if

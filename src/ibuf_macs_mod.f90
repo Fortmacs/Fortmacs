@@ -1288,6 +1288,6 @@ contains
         character(len=*), intent(in) :: filter
 
         k = 0
-        if (allocated(self%entries)) k = findloc(self%entries%filter, filter, dim=1)
+        if (allocated(self%entries)) k = findloc(self%entries%filter == filter, .true., dim=1)
     end function filter_formats_find
 end module ibuf_macs_mod

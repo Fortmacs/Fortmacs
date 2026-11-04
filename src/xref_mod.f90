@@ -25,7 +25,7 @@
 !> a location, `xref_location_type'); `find_xref_definitions' (M-.) goes to
 !> the definition or lists the candidates in the *xref* buffer,
 !> `find_xref_references' (M-?) and `find_xref_apropos' (C-M-.) list what
-!> they find there, and `go_back_xref' (M-,) and `go_forward_xref' (C-M-,)
+!> they find there, and `go_back_in_xref_history' (M-,) and `go_forward_in_xref_history' (C-M-,)
 !> move through the history of the places jumped from.
 !>
 !> `xref_matches_in_files' and `xref_matches_in_directory' search files
@@ -38,6 +38,7 @@ module xref_mod
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_mod, only: status_type, set_error, format_error, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
+    use string_type_mod, only: string_type
     use value_mod, only: value_type, vtag, V_INTEGER, V_NULL, xfixnum, list, make_list
     use data_mod, only: history_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
@@ -78,7 +79,7 @@ module xref_mod
     use minibuffer_mod, only: completing_read
     use minibuf_table_mod, only: completion_table_type, completion_list_table
     use replace_mod, only: format_prompt, read_regexp, occur_add_target, occur_after_change_function
-    use apropos_mod, only: apropos_parse_pattern, apropos_word_type, apropos_regexp
+    use apropos_mod, only: apropos_parse_pattern, apropos_regexp
     use grep_mod, only: grep_compute_defaults, grep_expand_template, grep_find_template, grep_highlight_matches, &
                         grep_regexps, find_name_arg, GREP_HIGHLIGHT_MATCHES_NO
     use callproc_mod, only: execute_process, execute_process_region, shell_file_name
@@ -91,8 +92,8 @@ module xref_mod
 
     public :: make_xref, make_xref_match, make_xref_file_location, make_xref_buffer_location, &
               make_xref_bogus_location, append_xref_item, find_xref_backend, push_xref_marker_stack, &
-              clear_xref_marker_stack, is_xref_marker_stack_empty, is_xref_forward_history_empty, go_back_xref, &
-              go_forward_xref, pop_to_xref_location, show_xrefs, show_xref_buffer, show_xref_definitions_buffer, &
+              clear_xref_marker_stack, is_xref_marker_stack_empty, is_xref_forward_history_empty, go_back_in_xref_history, &
+              go_forward_in_xref_history, pop_to_xref_location, show_xrefs, show_xref_buffer, show_xref_definitions_buffer, &
               show_xref_definitions_completing_read, find_xref_definitions, find_xref_definitions_other_window, &
               find_xref_references, find_xref_apropos, xref_apropos_regexp, xref_references_in_directory, &
               xref_references_in_directory_grep, xref_matches_in_directory, xref_matches_in_files, &
@@ -433,11 +434,11 @@ module xref_mod
         end subroutine xref_show_procedure
 
         !> A function of `xref_references_in_directory_function': all
-        !> references to IDENTIFIER in files under directory DIR.  Not a port.
-        recursive subroutine xref_references_in_directory_procedure(identifier, dir, items, status)
+        !> references to IDENTIFIER in files under directory DIRECTORY.  Not a port.
+        recursive subroutine xref_references_in_directory_procedure(identifier, directory, items, status)
             import :: xref_item_type, status_type
             implicit none(type, external)
-            character(len=*), intent(in) :: identifier, dir
+            character(len=*), intent(in) :: identifier, directory
             type(xref_item_type), allocatable, intent(out) :: items(:)
             type(status_type), intent(out) :: status
         end subroutine xref_references_in_directory_procedure
@@ -465,11 +466,6 @@ module xref_mod
         character(len=:), allocatable :: name
         type(xref_item_type), allocatable :: items(:)
     end type xref_group_type
-
-    ! A string, as an element of an array of strings of any lengths.
-    type :: string_type
-        character(len=:), allocatable :: text
-    end type string_type
 
     ! A hit of a search program: the LINE in FILE, and the TEXT of the line.
     type :: xref_hit_type
@@ -622,9 +618,9 @@ module xref_mod
     procedure(xref_show_procedure), pointer, public :: xref_show_definitions_function => null()
 
     !> Function to find all references to a identifier in a directory.
-    !> It should take two string arguments: IDENTIFIER and DIR.
+    !> It should take two string arguments: IDENTIFIER and DIRECTORY.
     !> And give an array of xref items representing all code references to
-    !> IDENTIFIER in files under DIR.  Port of xref.el
+    !> IDENTIFIER in files under DIRECTORY.  Port of xref.el
     !> xref-references-in-directory-function (the default is
     !> `xref_references_in_directory_grep': Semantic is not ported).
     procedure(xref_references_in_directory_procedure), pointer, public :: xref_references_in_directory_function &
@@ -1400,22 +1396,22 @@ contains
     end subroutine go_through_history
 
     !> Go back to the previous position in xref history.
-    !> To undo, use \[go_forward_xref].  Port of xref.el:xref-go-back.
-    recursive subroutine go_back_xref(status)
+    !> To undo, use \[go_forward_in_xref_history].  Port of xref.el:xref-go-back.
+    recursive subroutine go_back_in_xref_history(status)
         type(status_type), intent(out) :: status
 
         if (.not. allocated(xref_history%forward)) allocate (xref_history%forward(0))
         call go_through_history(xref_history%backward, xref_history%forward, "At start of xref history", status)
-    end subroutine go_back_xref
+    end subroutine go_back_in_xref_history
 
-    !> Go to the point where a previous \[go_back_xref] was invoked.
+    !> Go to the point where a previous \[go_back_in_xref_history] was invoked.
     !> Port of xref.el:xref-go-forward.
-    recursive subroutine go_forward_xref(status)
+    recursive subroutine go_forward_in_xref_history(status)
         type(status_type), intent(out) :: status
 
         if (.not. allocated(xref_history%backward)) allocate (xref_history%backward(0))
         call go_through_history(xref_history%forward, xref_history%backward, "At end of xref history", status)
-    end subroutine go_forward_xref
+    end subroutine go_forward_in_xref_history
 
     ! Go to POS, widening when it is outside the accessible part of the
     ! buffer and `widen_automatically' is true.  Port of
@@ -1650,7 +1646,7 @@ contains
 
     !> Go to POS of TARGET_BUFFER, displayed in a window, honoring the *xref*
     !> buffer's original window intent; run `xref_after_jump_hook' and
-    !> give the WINDOW.  Port of xref.el:xref--show-pos-in-target_buffer (the `frame'
+    !> give the WINDOW.  Port of xref.el:xref--show-pos-in-buf (the `frame'
     !> intent is not ported).
     recursive subroutine show_xref_position_in_buffer(pos, target_buffer, item, window, status)
         integer(int64), intent(in) :: pos
@@ -1915,7 +1911,7 @@ contains
         type(status_type), intent(out) :: status
 
         call quit_window(.false., status)
-        if (status%ok()) call go_back_xref(status)
+        if (status%ok()) call go_back_in_xref_history(status)
     end subroutine quit_and_pop_xref_marker_stack
 
     !> Move by N xrefs (back for a negative N) and show the location;
@@ -3036,7 +3032,7 @@ contains
     !> Otherwise, display the list of the possible definitions in a
     !> buffer where the user can select from the list.
     !>
-    !> Use \[go_back_xref] to return back to where you invoked this command.
+    !> Use \[go_back_in_xref_history] to return back to where you invoked this command.
     !> BUFFER is the buffer listing the definitions (the null handle when
     !> there is none).  Port of xref.el:xref-find-definitions.
     recursive subroutine find_xref_definitions(identifier, buffer, status)
@@ -3152,8 +3148,8 @@ contains
         character(len=*), intent(in) :: pattern
         character(len=:), allocatable, intent(out) :: regexp
         type(status_type), intent(out) :: status
-        type(apropos_word_type), allocatable :: words(:)
-        type(apropos_word_type) :: word
+        type(string_type), allocatable :: words(:)
+        type(string_type) :: word
         integer :: i, j
 
         status = status_type()
@@ -3177,7 +3173,7 @@ contains
                     j = j + 1
                 end do
 
-                word%s = pattern(i:j)
+                word%text = pattern(i:j)
                 words = [words, word]
                 i = j + 1
             end do
@@ -3236,40 +3232,40 @@ contains
     ! Searching files
     ! ------------------------------------------------------------------
 
-    !> Find all references to IDENTIFIER in directory DIR.
+    !> Find all references to IDENTIFIER in directory DIRECTORY.
     !> See `xref_references_in_directory_function' for the implementation.
     !> Gives an array of xref items.  Port of
     !> xref.el:xref-references-in-directory.
-    recursive subroutine xref_references_in_directory(identifier, dir, items, status)
-        character(len=*), intent(in) :: identifier, dir
+    recursive subroutine xref_references_in_directory(identifier, directory, items, status)
+        character(len=*), intent(in) :: identifier, directory
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
 
-        call xref_references_in_directory_function(identifier, file_name_as_directory(dir), items, status)
+        call xref_references_in_directory_function(identifier, file_name_as_directory(directory), items, status)
     end subroutine xref_references_in_directory
 
-    !> Find all references to IDENTIFIER in directory DIR using find and grep.
+    !> Find all references to IDENTIFIER in directory DIRECTORY using find and grep.
     !> Gives an array of xref items.  Port of
     !> xref.el:xref-references-in-directory-grep (the project's ignores,
     !> project.el, are not ported: none).
-    recursive subroutine xref_references_in_directory_grep(identifier, dir, items, status)
-        character(len=*), intent(in) :: identifier, dir
+    recursive subroutine xref_references_in_directory_grep(identifier, directory, items, status)
+        character(len=*), intent(in) :: identifier, directory
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         character(len=1) :: ignores(0)
 
-        call xref_matches_in_directory(regexp_quote(identifier), "*", dir, ignores, items, status, delimited=.true.)
+        call xref_matches_in_directory(regexp_quote(identifier), "*", directory, ignores, items, status, delimited=.true.)
     end subroutine xref_references_in_directory_grep
 
-    !> Find all matches for REGEXP in directory DIR.
+    !> Find all matches for REGEXP in directory DIRECTORY.
     !> Gives an array of xref items.
     !> Only files matching some of FILES and none of IGNORES are searched.
     !> FILES is a string with glob patterns separated by spaces.
     !> IGNORES is an array of glob patterns for files to ignore.
     !> If DELIMITED is true (upstream's `symbol'), only select matches that
     !> span full identifiers.  Port of xref.el:xref-matches-in-directory.
-    recursive subroutine xref_matches_in_directory(regexp, files, dir, ignores, items, status, delimited)
-        character(len=*), intent(in) :: regexp, files, dir
+    recursive subroutine xref_matches_in_directory(regexp, files, directory, ignores, items, status, delimited)
+        character(len=*), intent(in) :: regexp, files, directory
         character(len=*), intent(in) :: ignores(:)
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
@@ -3278,12 +3274,12 @@ contains
         type(handle_type) :: target_buffer, old
         type(value_type) :: result
         type(status_type) :: st
-        character(len=:), allocatable :: template, command, local_dir, hits_regexp, expanded
+        character(len=:), allocatable :: template, command, local_directory, hits_regexp, expanded
         integer :: saved_highlight, at
         logical :: delimit
 
         allocate (items(0))
-        ! DIR can also be a regular file for now; let's not advertise that.
+        ! DIRECTORY can also be a regular file for now; let's not advertise that.
         call grep_compute_defaults(status)
         if (.not. status%ok()) return
         template = grep_find_template
@@ -3293,8 +3289,8 @@ contains
         grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_NO
         command = xref_rgrep_command(template, xref_regexp_to_extended(regexp), files, ".", ignores)
         grep_highlight_matches = saved_highlight
-        call expand_file_name(dir, expanded, st)
-        local_dir = directory_file_name(expanded)
+        call expand_file_name(directory, expanded, st)
+        local_directory = directory_file_name(expanded)
         delimit = .false.
         if (present(delimited)) delimit = delimited
         hits_regexp = regexp
@@ -3304,13 +3300,13 @@ contains
         if (.not. status%ok()) return
         call set_buffer(target_buffer, st)
         call erase_buffer(st)
-        buffers(current)%directory = file_name_as_directory(dir)
+        buffers(current)%directory = file_name_as_directory(directory)
         call execute_process(shell_file_name%value, result, status, destination=value_type(.true.), &
                              args=list(value_type(text=shell_command_switch%value), value_type(text=command)))
 
         if (status%ok()) then
             call parse_xref_hits(grep_regexps(1)%regexp, grep_regexps(1)%line, grep_regexps(1)%file, result, hits, &
-                                 status, local_dir)
+                                 status, local_directory)
         end if
 
         call set_buffer(old, st)
@@ -3335,7 +3331,7 @@ contains
         type(handle_type) :: output, temp, old
         type(value_type) :: result
         type(status_type) :: st
-        character(len=:), allocatable :: dir, command, template, joined
+        character(len=:), allocatable :: directory, command, template, joined
         integer :: saved_highlight, k, i
 
         allocate (items(0))
@@ -3348,10 +3344,10 @@ contains
         ! Support for remote files (not ported): if the first file is
         ! remote, they all are, and on the same host.
         if (is_file_name_absolute(trim(files(1)))) then
-            dir = file_name_directory(trim(files(1)))
+            directory = file_name_directory(trim(files(1)))
         else
-            dir = ""
-            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+            directory = ""
+            if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
         end if
 
         k = 0
@@ -3387,7 +3383,7 @@ contains
             call set_buffer(temp, st)
             call erase_buffer(st)
             call insert(joined, st)
-            if (len(dir) > 0) buffers(current)%directory = file_name_as_directory(dir)
+            if (len(directory) > 0) buffers(current)%directory = file_name_as_directory(directory)
             call execute_process_region(shell_file_name%value, result, status, start=point_min(), end=point_max(), &
                                         destination=value_type(text=" *project grep output*"), &
                                         args=list(value_type(text=shell_command_switch%value), value_type(text=command)))
@@ -3426,14 +3422,14 @@ contains
     ! The hits of the search output in the current buffer: GREP_REGEXP with
     ! the line and file in groups LINE_GROUP and FILE_GROUP; RESULT is the
     ! exit status.  A file name starting with "." is relative to
-    ! PARENT_DIR when given.  Port of xref.el:xref--parse-hits.
-    recursive subroutine parse_xref_hits(grep_regexp, line_group, file_group, result, hits, status, parent_dir)
+    ! PARENT_DIRECTORY when given.  Port of xref.el:xref--parse-hits.
+    recursive subroutine parse_xref_hits(grep_regexp, line_group, file_group, result, hits, status, parent_directory)
         character(len=*), intent(in) :: grep_regexp
         integer, intent(in) :: line_group, file_group
         type(value_type), intent(in) :: result
         type(xref_hit_type), allocatable, intent(out) :: hits(:)
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: parent_dir
+        character(len=*), intent(in), optional :: parent_directory
         type(xref_hit_type) :: hit
         type(status_type) :: st
         character(len=:), allocatable :: first_line, file, digits
@@ -3470,8 +3466,8 @@ contains
             if (ios /= 0) hit%line = 0
             file = substring_of_match(file_group)
 
-            if (present(parent_dir)) then
-                hit%file = parent_dir//file(2:)
+            if (present(parent_directory)) then
+                hit%file = parent_directory//file(2:)
             else
                 hit%file = file
             end if
@@ -3519,10 +3515,10 @@ contains
 
     !> The command of `xref_matches_in_directory': GREP_FIND_TEMPLATE
     !> expanded for REGEXP in the FILES (glob patterns separated by spaces)
-    !> of directory DIR, without IGNORES.  Port of
+    !> of directory DIRECTORY, without IGNORES.  Port of
     !> xref.el:xref--rgrep-command.
-    function xref_rgrep_command(grep_find_template, regexp, files, dir, ignores) result(command)
-        character(len=*), intent(in) :: grep_find_template, regexp, files, dir
+    function xref_rgrep_command(grep_find_template, regexp, files, directory, ignores) result(command)
+        character(len=*), intent(in) :: grep_find_template, regexp, files, directory
         character(len=*), intent(in) :: ignores(:)
         character(len=:), allocatable :: command, names
         integer :: i, j
@@ -3554,21 +3550,21 @@ contains
         command = grep_expand_template(grep_find_template, regexp, &
                                        shell_quote_argument("(")//" "//find_name_arg//" "//names//" "// &
                                        shell_quote_argument(")"), &
-                                       shell_quote_argument(dir), xref_find_ignores_arguments(ignores, dir))
+                                       shell_quote_argument(directory), xref_find_ignores_arguments(ignores, directory))
     end function xref_rgrep_command
 
-    !> Convert IGNORES and DIR to a string of arguments for `find'.
-    !> IGNORES is an array of glob patterns.  DIR is an absolute
+    !> Convert IGNORES and DIRECTORY to a string of arguments for `find'.
+    !> IGNORES is an array of glob patterns.  DIRECTORY is an absolute
     !> directory, used as the root of the ignore globs.  Port of
     !> xref.el:xref--find-ignores-arguments.
-    function xref_find_ignores_arguments(ignores, dir) result(arguments)
-        character(len=*), intent(in) :: ignores(:), dir
+    function xref_find_ignores_arguments(ignores, directory) result(arguments)
+        character(len=*), intent(in) :: ignores(:), directory
         character(len=:), allocatable :: arguments, ignore, root
         integer :: i
 
         arguments = ""
         if (size(ignores) == 0) return
-        root = file_name_as_directory(dir)
+        root = file_name_as_directory(directory)
         arguments = shell_quote_argument("(")//" -path "
 
         do i = 1, size(ignores)
@@ -3674,7 +3670,7 @@ contains
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         type(xref_item_type), allocatable :: matches(:)
-        type(handle_type) :: tmp_buffer
+        type(handle_type) :: temporary_buffer
         type(status_type) :: st
         character(len=:), allocatable :: name
         logical :: syntax_needed
@@ -3686,7 +3682,7 @@ contains
         last_file_buffer = null_handle()
         if (allocated(temp_buffer_file_name)) deallocate (temp_buffer_file_name)
         name = " *xref-temp*"
-        call get_or_make_buffer(name, tmp_buffer, status)
+        call get_or_make_buffer(name, temporary_buffer, status)
         if (.not. status%ok()) return
         hits_file_prefix = ""
 
@@ -3700,21 +3696,21 @@ contains
         syntax_needed = is_xref_regexp_syntax_dependent(regexp)
 
         do i = 1, size(hits)
-            call collect_xref_matches(hits(i), regexp, tmp_buffer, syntax_needed, matches, status)
+            call collect_xref_matches(hits(i), regexp, temporary_buffer, syntax_needed, matches, status)
             if (.not. status%ok()) exit
             call append_xref_items(items, matches)
         end do
 
-        call close_buffer(tmp_buffer, st)
+        call close_buffer(temporary_buffer, st)
     end subroutine convert_xref_hits
 
     ! The match items of HIT for REGEXP, from the line in the buffer
     ! visiting its file (when it is up to date) or else from the hit's text
-    ! in TMP_BUFFER.  Port of xref.el:xref--collect-matches.
-    recursive subroutine collect_xref_matches(hit, regexp, tmp_buffer, syntax_needed, matches, status)
+    ! in TEMPORARY_BUFFER.  Port of xref.el:xref--collect-matches.
+    recursive subroutine collect_xref_matches(hit, regexp, temporary_buffer, syntax_needed, matches, status)
         type(xref_hit_type), intent(in) :: hit
         character(len=*), intent(in) :: regexp
-        type(handle_type), intent(in) :: tmp_buffer
+        type(handle_type), intent(in) :: temporary_buffer
         logical, intent(in) :: syntax_needed
         type(xref_item_type), allocatable, intent(out) :: matches(:)
         type(status_type), intent(out) :: status
@@ -3745,7 +3741,7 @@ contains
         else
             ! Using the temporary buffer is both a performance and a buffer
             ! management optimization.
-            call set_buffer(tmp_buffer, st)
+            call set_buffer(temporary_buffer, st)
             call erase_buffer(st)
 
             if (syntax_needed) then
@@ -3958,8 +3954,8 @@ contains
         call forward_setting(xref_read_pattern_history)
         ! The key bindings (xref.el's autoloads).
         call keymap_set(esc_map, ".", "find_xref_definitions", st)
-        call keymap_set(esc_map, ",", "go_back_xref", st)
-        call keymap_set(esc_map, "C-,", "go_forward_xref", st)
+        call keymap_set(esc_map, ",", "go_back_in_xref_history", st)
+        call keymap_set(esc_map, "C-,", "go_forward_in_xref_history", st)
         call keymap_set(esc_map, "?", "find_xref_references", st)
         call keymap_set(esc_map, "C-.", "find_xref_apropos", st)
         call keymap_set(ctl_x_4_map, ".", "find_xref_definitions_other_window", st)
@@ -3971,9 +3967,9 @@ contains
         commands%find_xref_definitions_other_window%execute => cmd_find_xref_definitions_other_window
         commands%find_xref_references%execute => cmd_find_xref_references
         commands%find_xref_apropos%execute => cmd_find_xref_apropos
-        commands%go_back_xref%execute => go_back_xref
-        commands%pop_xref_marker_stack%execute => go_back_xref
-        commands%go_forward_xref%execute => go_forward_xref
+        commands%go_back_in_xref_history%execute => go_back_in_xref_history
+        commands%pop_xref_marker_stack%execute => go_back_in_xref_history
+        commands%go_forward_in_xref_history%execute => go_forward_in_xref_history
         commands%next_xref_line%execute => next_xref_line
         commands%next_xref_line_no_show%execute => next_xref_line_no_show
         commands%previous_xref_line%execute => previous_xref_line

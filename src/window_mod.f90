@@ -37,14 +37,16 @@ module window_mod
     public :: set_window_buffer, set_window_buffer_internal, window_discard_buffer_from_window, record_window_buffer, &
               switch_to_prev_buffer, switch_to_next_buffer, quit_restore_window, bury_buffer, &
               display_buffer_record_window, display_buffer, pop_to_buffer, pop_to_buffer_same_window, fit_window_to_buffer, &
-              shrink_window_if_larger_than_buffer, &
-              switch_to_buffer_other_window, window_in_direction_below, &
+              shrink_window_if_larger_than_buffer, display_buffer_no_window, &
+              switch_to_buffer_other_window, switch_to_buffer_other_frame, display_buffer_other_frame, &
+              window_in_direction_below, &
               temp_buffer_window_show, scroll_window, get_buffer_window, get_lru_window, get_mru_window, get_largest_window, &
-              split_window_and_copy, copy_quit_restore, window_resize, init_window_display, &
+              split_window_and_copy, is_window_combined, is_window_full_height, is_window_splittable, &
+              copy_quit_restore, window_resize, init_window_display, &
               current_window_configuration, set_window_configuration, destroy_window_configuration
     public :: window_start, set_window_start, window_point, &
               set_window_point, window_body_lines, window_wants_header_line, destroy_window, destroy_previous_buffer, &
-              destroy_quit_restore
+              destroy_quit_restore, unshow_buffer
     public :: make_window, delete_window_object, window_ref, is_window_live, is_window_valid, same_window, same_handle, &
               window_leaves, resize_window_tree, window_text_cols, split_window_internal, &
               remove_window_from_tree, replace_window, delete_window_tree
@@ -118,12 +120,19 @@ module window_mod
     !> display-buffer-reuse-window, display-buffer-pop-up-window,
     !> display-buffer--maybe-pop-up-window, display-buffer-in-previous-window,
     !> display-buffer-use-some-window, display-buffer-at-bottom and
-    !> display-buffer-below-selected).
+    !> display-buffer-below-selected and display-buffer-pop-up-frame).
     integer, parameter, public :: DISPLAY_ACTION_SAME_WINDOW = 1, DISPLAY_ACTION_MAYBE_SAME_WINDOW = 2, &
                                   DISPLAY_ACTION_REUSE_WINDOW = 3, DISPLAY_ACTION_POP_UP_WINDOW = 4, &
                                   DISPLAY_ACTION_MAYBE_POP_UP_WINDOW = 5, DISPLAY_ACTION_IN_PREVIOUS_WINDOW = 6, &
                                   DISPLAY_ACTION_USE_SOME_WINDOW = 7, DISPLAY_ACTION_AT_BOTTOM = 8, &
-                                  DISPLAY_ACTION_BELOW_SELECTED = 9
+                                  DISPLAY_ACTION_BELOW_SELECTED = 9, DISPLAY_ACTION_POP_UP_FRAME = 10
+
+    !> Which frames `display_buffer_reuse_window' searches (an action
+    !> table's `reusable_frames' entry): the selected frame, all frames,
+    !> the visible frames, or the visible and iconified frames; on a
+    !> terminal every frame is visible.
+    integer, parameter, public :: REUSABLE_FRAMES_SELECTED = 0, REUSABLE_FRAMES_ALL = 1, REUSABLE_FRAMES_VISIBLE = 2, &
+                                  REUSABLE_FRAMES_VISIBLE_OR_ICONIFIED = 3
 
     !> A function that sets the height of a window `display_buffer' made
     !> (the `window_height' entry of an action table).
@@ -137,11 +146,17 @@ module window_mod
     end interface
 
     !> A buffer display action table: the entries ported.  Port of the
-    !> `inhibit_same_window', `window_height' (a function) and
-    !> `body_function' entries.
+    !> `inhibit_same_window', `allow_no_window', `reusable_frames', `window_height' (a
+    !> function) and `body_function' entries.
     type, public :: display_action_parameters_type
         !> Don't use the selected window.
         logical :: inhibit_same_window = .false.
+        !> The caller can cope with no window: `display_buffer_no_window'
+        !> displays none.
+        logical :: allow_no_window = .false.
+        !> The frames to search for a window showing the buffer
+        !> (REUSABLE_FRAMES_*).
+        integer :: reusable_frames = REUSABLE_FRAMES_SELECTED
         !> Called with a window made to display the buffer, to set its
         !> height.
         procedure(window_height_procedure), pointer, nopass :: window_height => null()
@@ -151,13 +166,34 @@ module window_mod
         procedure(window_height_procedure), pointer, nopass :: body_function => null()
     end type display_action_parameters_type
 
+    !> An action function of a caller's own: display BUFFER with TABLE and
+    !> give the WINDOW (the null handle to let the next action try);
+    !> FAILED true makes `display_buffer' give up and display no window.
+    abstract interface
+        ! Not a port.
+        recursive subroutine display_action_function_procedure(buffer, table, window, failed, status)
+            import :: handle_type, display_action_parameters_type, status_type
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(display_action_parameters_type), intent(in) :: table
+            type(handle_type), intent(out) :: window
+            logical, intent(out) :: failed
+            type(status_type), intent(out) :: status
+        end subroutine display_action_function_procedure
+    end interface
+
     !> A buffer display action given in full: action functions
-    !> (DISPLAY_ACTION_*) and the table entries it sets (here
-    !> `inhibit_same_window', when `has_inhibit_same_window').
+    !> (DISPLAY_ACTION_*, and `action_function', tried first, when not
+    !> null) and the table entries it sets (`inhibit_same_window' when
+    !> `has_inhibit_same_window', `allow_no_window' when
+    !> `has_allow_no_window').
     type, public :: display_action_type
         integer, allocatable :: actions(:)
         logical :: has_inhibit_same_window = .false.
         logical :: inhibit_same_window = .false.
+        logical :: has_allow_no_window = .false.
+        logical :: allow_no_window = .false.
+        procedure(display_action_function_procedure), pointer, nopass :: action_function => null()
     end type display_action_type
 
     !> A buffer display action that overrides all others.
@@ -211,7 +247,7 @@ module window_mod
     !> window.el split-width-threshold.
     integer, public :: split_width_threshold = 150
 
-    !> The first direction tried when Emacs needs to split a window.
+    !> The first direction tried when Fortmacs needs to split a window.
     !> This variable controls in which order `split_window_sensibly' will
     !> try to split the window.  If set to `vertical' (SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL),
     !> `split_window_sensibly' tries to split vertically first and then
@@ -560,7 +596,7 @@ module window_mod
         !> most recently selected.  Port of window.c:Fselect_window, with
         !> window.c:select_window, window.c:select_window_1 and, for
         !> NORECORD, window.c:select_window_norecord.
-        module subroutine select_window(h, status, norecord)
+        recursive module subroutine select_window(h, status, norecord)
             implicit none(type, external)
             type(handle_type), intent(in) :: h
             type(status_type), intent(out) :: status
@@ -590,15 +626,18 @@ module window_mod
         !> or columns.  The new window shows the buffer, start and point of
         !> WINDOW if it is live, else of the selected window.  WINDOW may
         !> be internal (the root window, say): its windows share what is
-        !> left.  Port of window.el:split-window (no SIDE above or left,
-        !> `window_combination_resize' .false., no REFER).
-        module subroutine split_window(window, size, has_size, horizontal, new, status)
+        !> left.  With BEFORE the new window goes above WINDOW (with
+        !> HORIZONTAL to its left): upstream's SIDE `above' or `left'.
+        !> Port of window.el:split-window (`window_combination_resize'
+        !> .false., no REFER).
+        module subroutine split_window(window, size, has_size, horizontal, new, status, before)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
             integer, intent(in) :: size
             logical, intent(in) :: has_size, horizontal
             type(handle_type), intent(out) :: new
             type(status_type), intent(out) :: status
+            logical, intent(in), optional :: before
         end subroutine split_window
 
         !> Delete WINDOW: its space goes to a neighbor, and if it was
@@ -787,6 +826,27 @@ module window_mod
             type(display_action_parameters_type), intent(in), optional :: table
         end subroutine display_buffer
 
+        !> Display BUFFER in no window.
+        !> If TABLE contains a true `allow_no_window' entry, do nothing
+        !> and give FAILED true.  This allows `display_buffer' to override the
+        !> default action and avoid displaying the buffer.  It is assumed
+        !> that when the caller specifies a true `allow_no_window' table
+        !> entry, it can handle a null window given by `display_buffer'.
+        !>
+        !> This is an action function for buffer display (a
+        !> `display_action_type''s `action_function').  It should be
+        !> called only by `display_buffer' or a procedure directly or
+        !> indirectly called by the latter.  WINDOW is always the null
+        !> handle.  Port of window.el:display-buffer-no-window.
+        recursive module subroutine display_buffer_no_window(buffer, table, window, failed, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(display_action_parameters_type), intent(in) :: table
+            type(handle_type), intent(out) :: window
+            logical, intent(out) :: failed
+            type(status_type), intent(out) :: status
+        end subroutine display_buffer_no_window
+
         !> Display BUFFER and select its window.  Port of
         !> window.el:pop-to-buffer.
         module subroutine pop_to_buffer(buffer, status, actions, table, norecord)
@@ -816,6 +876,40 @@ module window_mod
             logical, intent(in), optional :: norecord
         end subroutine switch_to_buffer_other_window
 
+        !> Switch to buffer BUFFER in another frame.  Return the buffer
+        !> switched to.
+        !>
+        !> This uses the function `display_buffer' as a subroutine to
+        !> display the buffer; see its documentation for additional
+        !> customization information.  By default, if the buffer is
+        !> already displayed (even in the current frame), that window is
+        !> selected.  If the buffer isn't displayed in any frame, a new
+        !> frame is popped up and the buffer is displayed there.
+        !>
+        !> Unless NORECORD, BUFFER becomes the most recently selected
+        !> buffer.  Port of window.el:switch-to-buffer-other-frame (a
+        !> buffer, not a name).
+        module subroutine switch_to_buffer_other_frame(buffer, status, norecord)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: norecord
+        end subroutine switch_to_buffer_other_frame
+
+        !> Display buffer BUFFER preferably in another frame.
+        !> This function attempts to look for a window displaying BUFFER,
+        !> on all the frames on the current terminal, skipping the selected
+        !> window; if that fails, it pops up a new frame.
+        !> This uses the function `display_buffer' as a subroutine; see
+        !> its documentation for additional customization information.
+        !> Port of window.el:display-buffer-other-frame.
+        module subroutine display_buffer_other_frame(buffer, window, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(handle_type), intent(out) :: window
+            type(status_type), intent(out) :: status
+        end subroutine display_buffer_other_frame
+
         !> The window below WINDOW (the selected one by default), as seen
         !> from the position of its point: the nearest window below that
         !> covers point's column, else the nearest one below.  The
@@ -838,14 +932,15 @@ module window_mod
 
         !> Adjust the height of WINDOW to display its buffer's contents
         !> exactly, but at most MAX_HEIGHT lines (by default as many as
-        !> the other windows can give) and at least `window_min_height'.
+        !> the other windows can give) and at least MIN_HEIGHT lines (by
+        !> default `window_min_height').
         !> Only a window in a vertical combination is resized.  Port of
-        !> window.el:fit-window-to-buffer (vertically; MIN-HEIGHT,
-        !> PRESERVE-SIZE and the width arguments are deferred).
-        module subroutine fit_window_to_buffer(window, max_height)
+        !> window.el:fit-window-to-buffer (vertically; PRESERVE-SIZE and
+        !> the width arguments are deferred).
+        module subroutine fit_window_to_buffer(window, max_height, min_height)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
-            integer, intent(in), optional :: max_height
+            integer, intent(in), optional :: max_height, min_height
         end subroutine fit_window_to_buffer
 
         !> Shrink height of WINDOW if its buffer doesn't need so many lines.
@@ -919,6 +1014,36 @@ module window_mod
             logical, intent(in) :: dedicated, not_selected
             type(handle_type) :: window
         end function get_largest_window
+
+        !> Whether `h' is combined with siblings above and below (or with
+        !> HORIZONTAL, side by side).  Port of window.el:window-combined-p.
+        logical module function is_window_combined(h, horizontal)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h
+            logical, intent(in) :: horizontal
+        end function is_window_combined
+
+        !> Return true if WINDOW is as high as its containing frame.
+        !> More precisely, return true if and only if the total height of
+        !> WINDOW equals the total height of the root window of WINDOW's
+        !> frame.  Port of window.el:window-full-height-p.
+        logical module function is_window_full_height(h)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h
+        end function is_window_full_height
+
+        !> Return true if `split_window_sensibly' may split WINDOW: one at
+        !> least `split_height_threshold' lines high and twice
+        !> `window_min_height' (or 2), or with HORIZONTAL at least
+        !> `split_width_threshold' columns wide and twice `window_min_width'
+        !> (or 2).  THRESHOLD_ZERO stands for `split_height_threshold' bound
+        !> to 0.  Port of window.el:window-splittable-p.
+        logical module function is_window_splittable(h, horizontal, threshold_zero)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h
+            logical, intent(in) :: horizontal
+            logical, intent(in), optional :: threshold_zero
+        end function is_window_splittable
 
         !> Split a window as split-window-below or split-window-right do.
         !> Port of window.el:split-window-below and
@@ -1418,7 +1543,7 @@ module window_mod
         !> WINDOW, return ON_TEXT and the coordinates relative to the window
         !> in REL_X and REL_Y.  If they are in the mode line of WINDOW, return
         !> ON_MODE_LINE; in the header line, ON_HEADER_LINE; on the border
-        !> between WINDOW and its right sibling, ON_VERTICAL_BORDER (Emacs's
+        !> between WINDOW and its right sibling, ON_VERTICAL_BORDER (Fortmacs's
         !> `vertical-line'); elsewhere, ON_NOTHING.  Port of
         !> window.c:Fcoordinates_in_window_p (a terminal frame).
         module function window_part_at(x, y, window, rel_x, rel_y, status) result(part)
@@ -2350,7 +2475,10 @@ contains
     !> window.c:Fsplit_window_internal (the sizes are worked out by the
     !> caller, window.el:split-window, which also gives `old' its new
     !> normal size and the default NORMAL-SIZE when SIZE is omitted).
-    subroutine split_window_internal(old, horizontal, new_size, root, new, status, refer, normal_size)
+    !> With `before' the new window goes above `old' (to its left with
+    !> `horizontal'): window.c:Fsplit_window_internal's SIDE `above' or
+    !> `left'.
+    subroutine split_window_internal(old, horizontal, new_size, root, new, status, refer, normal_size, before)
         type(handle_type), intent(in) :: old
         logical, intent(in) :: horizontal
         integer, intent(in) :: new_size
@@ -2359,9 +2487,10 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: refer
         real(real64), intent(in), optional :: normal_size
-        type(handle_type) :: parent, nxt, r
+        logical, intent(in), optional :: before
+        type(handle_type) :: parent, nxt, prv, r
         integer :: old_size
-        logical :: combine
+        logical :: combine, first
         real(real64) :: new_normal, old_normal
 
         status = status_type()
@@ -2393,14 +2522,31 @@ contains
         end if
 
         call make_window(new)
+        first = .false.
+        if (present(before)) first = before
 
         associate (o => windows(old%index), n => windows(new%index))
             n%parent = parent
-            nxt = o%next
-            n%next = nxt
-            n%prev = old
-            o%next = new
-            if (wtable%is_live(nxt)) windows(nxt%index)%prev = new
+
+            if (first) then
+                prv = o%prev
+                n%prev = prv
+                n%next = old
+                o%prev = new
+
+                if (wtable%is_live(prv)) then
+                    windows(prv%index)%next = new
+                else
+                    windows(parent%index)%child = new
+                end if
+            else
+                nxt = o%next
+                n%next = nxt
+                n%prev = old
+                o%next = new
+                if (wtable%is_live(nxt)) windows(nxt%index)%prev = new
+            end if
+
             n%top_line = o%top_line
             n%left_col = o%left_col
             n%total_lines = o%total_lines
@@ -2410,18 +2556,29 @@ contains
             if (horizontal) then
                 old_size = o%total_cols - new_size
                 o%total_cols = old_size
-                n%left_col = o%left_col + old_size
                 n%total_cols = new_size
-                o%divider = .true.
                 o%normal_cols = old_normal - new_normal
                 n%normal_cols = new_normal
+
+                if (first) then
+                    o%left_col = o%left_col + new_size
+                    n%divider = .true.
+                else
+                    n%left_col = o%left_col + old_size
+                    o%divider = .true.
+                end if
             else
                 old_size = o%total_lines - new_size
                 o%total_lines = old_size
-                n%top_line = o%top_line + old_size
                 n%total_lines = new_size
                 o%normal_lines = old_normal - new_normal
                 n%normal_lines = new_normal
+
+                if (first) then
+                    o%top_line = o%top_line + new_size
+                else
+                    n%top_line = o%top_line + old_size
+                end if
             end if
         end associate
 

@@ -42,8 +42,7 @@
 !> (skeleton.el), FFAP, `python_check', ElDoc, Hideshow, Imenu and
 !> `which_function', Outline mode's variables, `prettify_symbols',
 !> Flymake, the import management commands (C-c C-i), tree-sitter
-!> (`python_ts_mode'), `add_log_current_subprogram_function'
-!> (`python_info_current_definition' is here), the menu,
+!> (`python_ts_mode'), the menu,
 !> `python_util_clone_local_variables' and the other utilities the shell
 !> uses, the `delete_selection' property of
 !> `python_indent_dedent_line_backspace', and the obsolete
@@ -63,6 +62,7 @@ module python_mod
                           transient_mark_mode
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key, make_sparse_keymap, set_repeat_map
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
                           forward_comment, scan_groups, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
@@ -98,6 +98,7 @@ module python_mod
     use prog_mode_mod, only: prog_first_column
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use grep_mod, only: grep_files_aliases, grep_files_alias_type, grep_find_ignored_directories, grep_ignore_type
+    use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
 
@@ -160,7 +161,7 @@ module python_mod
     !> If true, enable Python 2 support.
     !> Currently only affects highlighting.
     !>
-    !> After customizing this variable, you must restart Emacs for it to take
+    !> After customizing this variable, you must restart Fortmacs for it to take
     !> effect.  Port of python.el python-2-support.
     type(logical_setting_type), target, public :: python_2_support = logical_setting_type(name="python_2_support", value=.false.)
 
@@ -424,11 +425,6 @@ module python_mod
     end interface
 
     integer, parameter :: NAV_BEGINNING_OF_BLOCK = 1, NAV_END_OF_BLOCK = 2
-
-    ! A string of a list.
-    type :: string_list_type
-        character(len=:), allocatable :: s
-    end type string_list_type
 
     character(len=*), parameter :: DEF_REGEXP = &
                                    "\_<def[[:space:]]+\([_[:alpha:]][_[:word:]]*\)"
@@ -2474,7 +2470,7 @@ contains
     recursive subroutine python_info_current_definition(name, include_type)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(in), optional :: include_type
-        type(string_list_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         character(len=:), allocatable :: type, matched, first, second
         integer(int64) :: opoint, begv, zv_from_end, starting_indentation, starting_pos, last_indent, min_indent, &
                           ending, p
@@ -2553,12 +2549,12 @@ contains
                 has_last = .true.
 
                 if (.not. incl .or. allocated(type)) then
-                    call append_name(match_string_no_properties(1))
+                    call prepend_string(names, match_string_no_properties(1))
                 else
                     matched = match_string_no_properties(0)
                     call split2(matched, first, second)
                     type = first
-                    call append_name(second)
+                    call prepend_string(names, second)
                 end if
             end if
 
@@ -2572,7 +2568,7 @@ contains
 
             do k = 1, size(names)
                 if (k > 1) name = name//"."
-                name = name//names(k)%s
+                name = name//names(k)%text
             end do
         end if
 
@@ -2580,14 +2576,6 @@ contains
         call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
 
     contains
-
-        subroutine append_name(n)
-            character(len=*), intent(in) :: n
-            type(string_list_type) :: name
-
-            name%s = n
-            names = [name, names]
-        end subroutine append_name
 
         ! The first two words of S (split-string at whitespace).
         subroutine split2(s, w1, w2)
@@ -2626,6 +2614,15 @@ contains
             w2 = s(b:i - 1)
         end subroutine split2
     end subroutine python_info_current_definition
+
+    !> `python_info_current_definition' without the type of the subprogram:
+    !> Python mode's `add_log_current_subprogram_function'.  Not a port:
+    !> python.el gives that variable python-info-current-defun.
+    recursive subroutine get_python_current_definition(name)
+        character(len=:), allocatable, intent(out) :: name
+
+        call python_info_current_definition(name)
+    end subroutine get_python_current_definition
 
     !> Return true if current statement opens a block.  Port of
     !> python.el:python-info-statement-starts-block-p.
@@ -4577,6 +4574,7 @@ contains
         call normal_auto_fill_function%set_local(python_do_auto_fill)
         call beginning_of_subprogram_function%set_local(python_nav_beginning_of_definition)
         call end_of_subprogram_function%set_local(python_nav_end_of_definition_function)
+        call add_log_current_subprogram_function%set_local(get_python_current_definition)
         call post_self_insert_hook%append(python_indent_post_self_insert_function, local=.true.)
         if (.not. installed_grep_hook) call install_grep_settings()
         call major_modes%python_base_mode%end(saved, status)

@@ -34,19 +34,15 @@
 !> `ring_remove+insert+extend', `ring_convert_sequence_to_ring'.
 module ring_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
-
-    !> One slot of a ring's vector.
-    type :: ring_item_type
-        character(len=:), allocatable :: s
-    end type ring_item_type
 
     !> A ring: HEAD is the index (0-based) of the oldest item in VEC,
     !> LENGTH the number of items.  Port of ring.el's (HEAD LENGTH . VECTOR).
     type, public :: ring_type
         integer :: head = 0, length = 0
-        type(ring_item_type), allocatable :: vec(:)
+        type(string_type), allocatable :: vec(:)
     contains
         !> Make the ring empty, able to contain SIZE elements.
         procedure :: make => ring_make
@@ -157,7 +153,7 @@ contains
         if (veclen == 0) return
         self%length = min(veclen, self%length + 1)
         self%head = ring_minus1(self%head, veclen)
-        self%vec(self%head)%s = item
+        self%vec(self%head)%text = item
     end subroutine ring_insert_at_beginning
 
     !> Insert onto ring RING the item ITEM, as the newest (last) item.
@@ -171,7 +167,7 @@ contains
         veclen = self%size()
         ! (A ring of size 0 holds nothing; upstream divides by zero.)
         if (veclen == 0) return
-        self%vec(modulo(self%head + self%length, veclen))%s = item
+        self%vec(modulo(self%head + self%length, veclen))%text = item
 
         if (self%length == veclen) then
             self%head = ring_plus1(self%head, veclen)
@@ -207,20 +203,20 @@ contains
         k = ring_index(k, self%head, self%length, veclen)
 
         if (present(item)) then
-            if (allocated(self%vec(k)%s)) item = self%vec(k)%s
+            if (allocated(self%vec(k)%text)) item = self%vec(k)%text
         end if
 
         do while (k /= tl)
-            if (allocated(self%vec(ring_plus1(k, veclen))%s)) then
-                self%vec(k)%s = self%vec(ring_plus1(k, veclen))%s
-            else if (allocated(self%vec(k)%s)) then
-                deallocate (self%vec(k)%s)
+            if (allocated(self%vec(ring_plus1(k, veclen))%text)) then
+                self%vec(k)%text = self%vec(ring_plus1(k, veclen))%text
+            else if (allocated(self%vec(k)%text)) then
+                deallocate (self%vec(k)%text)
             end if
 
             k = ring_plus1(k, veclen)
         end do
 
-        if (allocated(self%vec(tl)%s)) deallocate (self%vec(tl)%s)
+        if (allocated(self%vec(tl)%text)) deallocate (self%vec(tl)%text)
         self%length = self%length - 1
     end subroutine ring_remove
 
@@ -245,8 +241,8 @@ contains
 
         k = ring_index(index, self%head, self%length, self%size())
 
-        if (allocated(self%vec(k)%s)) then
-            item = self%vec(k)%s
+        if (allocated(self%vec(k)%text)) then
+            item = self%vec(k)%text
         else
             item = ""
         end if
@@ -263,9 +259,9 @@ contains
         do ind = 0, self%length - 1
             k = ring_index(ind, self%head, self%length, self%size())
 
-            if (allocated(self%vec(k)%s)) then
-                if (len(self%vec(k)%s) == len(item)) then
-                    if (self%vec(k)%s == item) return
+            if (allocated(self%vec(k)%text)) then
+                if (len(self%vec(k)%text) == len(item)) then
+                    if (self%vec(k)%text == item) return
                 end if
             end if
         end do
@@ -287,7 +283,7 @@ contains
     subroutine ring_resize(self, size)
         class(ring_type), intent(inout) :: self
         integer, intent(in) :: size
-        type(ring_item_type), allocatable :: new_vec(:)
+        type(string_type), allocatable :: new_vec(:)
         integer :: copy_length, copy_hd, old_size, j, k
 
         allocate (new_vec(0:max(size, 0) - 1))
@@ -306,7 +302,7 @@ contains
         ! out in the right order.
         do j = 0, copy_length - 1
             k = modulo(copy_hd + j, old_size)
-            if (allocated(self%vec(k)%s)) call move_alloc(self%vec(k)%s, new_vec(j)%s)
+            if (allocated(self%vec(k)%text)) call move_alloc(self%vec(k)%text, new_vec(j)%text)
         end do
 
         call move_alloc(new_vec, self%vec)

@@ -33,13 +33,13 @@ module test_xref_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, buffers, current
     use insdel_mod, only: insert
     use editfns_mod, only: buffer_string, point, goto_char, point_min
-    use fileio_mod, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory, directory_file_name, &
+    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, directory_file_name, &
                           file_name_directory
     use bindings_mod, only: init_bindings
     use xref_mod, only: xref_item_type, xref_file_location_type, xref_items_fetcher_type, make_xref, &
                         make_xref_buffer_location, append_xref_item, xref_matches_in_directory, xref_matches_in_files, &
                         xref_group_name_for_display, xref_file_name_display, show_xrefs, xref_items_at, &
-                        next_xref_line_no_show, goto_xref, go_back_xref, go_forward_xref, clear_xref_marker_stack, &
+                  next_xref_line_no_show, goto_xref, go_back_in_xref_history, go_forward_in_xref_history, clear_xref_marker_stack, &
                         is_xref_marker_stack_empty, xref_regexp_to_extended, XREF_FILE_NAME_DISPLAY_ABSOLUTE, &
                         XREF_FILE_NAME_DISPLAY_NONDIRECTORY, XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE, &
                         XREF_DISPLAY_ACTION_NONE
@@ -74,22 +74,22 @@ contains
     end subroutine collect_xref_mod
 
     !> Port of xref-tests.el xref-tests--data-dir: the resource directory.
-    function data_dir() result(dir)
-        character(len=:), allocatable :: dir
+    function data_directory() result(directory)
+        character(len=:), allocatable :: directory
         type(status_type) :: st
         type(handle_type) :: h
 
         call init_fileio()
         call init_bindings()
-        call expand_file_name("test/xref-resources/", dir, st, emacs_wd)
-        dir = file_name_as_directory(dir)
+        call expand_file_name("test/xref-resources/", directory, st, fortmacs_wd)
+        directory = file_name_as_directory(directory)
 
         if (current == 0) then
             call get_or_make_buffer("xref-tests", h, st)
             call set_buffer(h, st)
-            buffers(current)%directory = file_name_as_directory(emacs_wd)
+            buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         end if
-    end function data_dir
+    end function data_directory
 
     !> Port of xref-tests.el xref-tests--matches-in-data-dir.
     subroutine matches_in_data_dir(regexp, items, status)
@@ -98,7 +98,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=1) :: none(0)
 
-        call xref_matches_in_directory(regexp, "*", data_dir(), none, items, status)
+        call xref_matches_in_directory(regexp, "*", data_directory(), none, items, status)
     end subroutine matches_in_data_dir
 
     !> Port of xref-tests.el xref-tests--locations-in-data-dir: the items
@@ -169,7 +169,7 @@ contains
         type(xref_item_type), allocatable :: items(:)
         type(status_type) :: st
 
-        call xref_matches_in_directory("bar", "*", data_dir(), [character(len=9) :: "./file1.*"], items, st)
+        call xref_matches_in_directory("bar", "*", data_directory(), [character(len=9) :: "./file1.*"], items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 1)
@@ -241,13 +241,13 @@ contains
     ! "\\`[^.]").  Not a port.
     function data_files() result(files)
         character(len=:), allocatable :: files(:)
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
-        dir = data_dir()
-        allocate (character(len=len(dir) + 9) :: files(3))
-        files(1) = dir//"file1.txt"
-        files(2) = dir//"file2.txt"
-        files(3) = dir//"file3.txt"
+        directory = data_directory()
+        allocate (character(len=len(directory) + 9) :: files(3))
+        files(1) = directory//"file1.txt"
+        files(2) = directory//"file2.txt"
+        files(3) = directory//"file3.txt"
     end function data_files
 
     !> Port of xref-tests.el
@@ -319,14 +319,14 @@ contains
     !> Port of xref-tests.el xref--xref-file-name-display-is-abs.
     subroutine test_display_abs(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: names, dir
+        character(len=:), allocatable :: names, directory
 
-        dir = data_dir()
+        directory = data_directory()
         xref_file_name_display = XREF_FILE_NAME_DISPLAY_ABSOLUTE
         call display_names("", names, error)
         xref_file_name_display = XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE
         if (allocated(error)) return
-        call check(error, names, dir//"file1.txt"//LF//dir//"file2.txt"//LF)
+        call check(error, names, directory//"file1.txt"//LF//directory//"file2.txt"//LF)
     end subroutine test_display_abs
 
     !> Port of xref-tests.el xref--xref-file-name-display-is-nondirectory.
@@ -347,7 +347,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: names, parent
 
-        parent = file_name_directory(directory_file_name(data_dir()))
+        parent = file_name_directory(directory_file_name(data_directory()))
         xref_file_name_display = XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE
         call display_names(parent, names, error)
         if (allocated(error)) return
@@ -408,8 +408,8 @@ contains
         call close_buffer(source, st)
     end subroutine test_xref_buffer
 
-    !> The history: `go_back_xref' returns to where `show_xrefs' was
-    !> called, `go_forward_xref' goes again where it came back from, and
+    !> The history: `go_back_in_xref_history' returns to where `show_xrefs' was
+    !> called, `go_forward_in_xref_history' goes again where it came back from, and
     !> the ends of the history are user errors.  Not a port.
     subroutine test_history(error)
         type(error_type), allocatable, intent(out) :: error
@@ -429,20 +429,20 @@ contains
         call goto_xref(.false., st)
         call check(error, point() == 12_int64, "at the second line")
         if (allocated(error)) return
-        call go_back_xref(st)
+        call go_back_in_xref_history(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, point() == 5_int64, "back where it started")
         if (allocated(error)) return
-        call go_back_xref(st)
+        call go_back_in_xref_history(st)
         call check(error, st%code == FM_USER_ERROR .and. format_error(st) == "At start of xref history", format_error(st))
         if (allocated(error)) return
-        call go_forward_xref(st)
+        call go_forward_in_xref_history(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, point() == 12_int64, "forward to the second line")
         if (allocated(error)) return
-        call go_forward_xref(st)
+        call go_forward_in_xref_history(st)
         call check(error, format_error(st), "At end of xref history")
         call clear_xref_marker_stack()
         call close_buffer(xref_buffer, st)

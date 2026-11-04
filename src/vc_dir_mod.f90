@@ -68,13 +68,15 @@ module vc_dir_mod
                         ewoc_enter_before, ewoc_next, ewoc_prev, ewoc_nth, ewoc_map, ewoc_delete, ewoc_filter, &
                         ewoc_locate, ewoc_invalidate, ewoc_goto_prev, ewoc_goto_next, ewoc_goto_node, ewoc_collect, &
                         ewoc_set_hf_parts
-    use vc_hooks_mod, only: vc_string_type, append_vc_string, vc_backends, vc_dir_entry_type, vc_dir_fileinfo_type, &
+    use vc_hooks_mod, only: vc_backends, vc_dir_entry_type, vc_dir_fileinfo_type, &
                             vc_dir_buffers, vc_dir_resynch_file, vc_state, vc_state_name, vc_backend_name, vc_file_set_backend, &
                             VC_STATE_UNKNOWN, VC_UP_TO_DATE, VC_IGNORED, VC_UNREGISTERED, VC_EDITED, VC_ADDED, VC_REMOVED, &
                             VC_MISSING, VC_CONFLICT, VC_NEEDS_UPDATE, VC_UNLOCKED_CHANGES, VC_BACKEND_NONE
     use vc_dispatcher_mod, only: vc_setup_buffer, set_vc_parent_buffer, vc_parent_buffer, vc_set_mode_line_busy_indicator
+    use vc_dispatcher_mod, only: vc_dir_refresh_function
     use vc_mod, only: vc_fileset_type, vc_responsible_backend, vc_root_dir, vc_only_files_state_and_model, vc_ignore, &
                       vc_ignore_base_dir, vc_delete_file, vc_buffer_sync_fileset, vc_next_action, set_vc_buffer_overriding_fileset
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -192,7 +194,7 @@ module vc_dir_mod
     integer :: map_state = 0
     logical :: map_unmark = .false.
     character(len=:), allocatable :: map_regexp
-    type(vc_string_type), allocatable :: map_files(:)
+    type(string_type), allocatable :: map_files(:)
     integer, allocatable :: map_states(:)
 
     character(len=*), parameter :: LF = achar(10)
@@ -570,7 +572,7 @@ contains
         type(handle_type), intent(in) :: buffer
         logical, intent(in), optional :: noinsert
         type(vc_dir_entry_type), allocatable :: entries(:)
-        type(vc_string_type), allocatable :: dirs(:)
+        type(string_type), allocatable :: dirs(:)
         integer, allocatable :: order(:), to_remove(:)
         character(len=:), allocatable :: dotname, entryfile, entrydir, nodedir, nodefile, rd, prev_dir, lastdir
         type(handle_type) :: old
@@ -599,7 +601,7 @@ contains
         allocate (dirs(n), order(n))
 
         do k = 1, n
-            dirs(k)%s = entry_directory(entries_in(k)%name)
+            dirs(k)%text = entry_directory(entries_in(k)%name)
             order(k) = k
         end do
 
@@ -769,9 +771,9 @@ contains
         logical function before(a, b)
             integer, intent(in) :: a, b
 
-            if (is_string_less(dirs(a)%s, dirs(b)%s)) then
+            if (is_string_less(dirs(a)%text, dirs(b)%text)) then
                 before = .true.
-            else if (dirs(a)%s /= dirs(b)%s) then
+            else if (dirs(a)%text /= dirs(b)%text) then
                 before = .false.
             else
                 before = is_string_less(entries_in(a)%name, entries_in(b)%name)
@@ -1207,7 +1209,7 @@ contains
         name = expand(infos(data)%entry%name)
 
         do k = 1, size(map_files)
-            if (map_files(k)%s == name) then
+            if (map_files(k)%text == name) then
                 infos(data)%marked = .true.
                 mark_listed_file = .true.
                 return
@@ -1220,9 +1222,9 @@ contains
     !> Directories must have trailing slashes.  Port of
     !> vc-dir.el:vc-dir-mark-files.
     recursive subroutine vc_dir_mark_files(mark_files)
-        type(vc_string_type), intent(in) :: mark_files(:)
-        type(vc_string_type), allocatable :: sorted(:)
-        type(vc_string_type) :: tmp
+        type(string_type), intent(in) :: mark_files(:)
+        type(string_type), allocatable :: sorted(:)
+        type(string_type) :: tmp
         integer :: k, j, n
 
         ! Filter out subitems that would be implicitly marked.
@@ -1233,7 +1235,7 @@ contains
             j = k - 1
 
             do while (j >= 1)
-                if (.not. is_string_less(tmp%s, sorted(j)%s)) exit
+                if (.not. is_string_less(tmp%text, sorted(j)%text)) exit
                 sorted(j + 1) = sorted(j)
                 j = j - 1
             end do
@@ -1251,10 +1253,10 @@ contains
             map_files(n) = sorted(k)
             j = k + 1
 
-            if (len(sorted(k)%s) > 0) then
-                if (sorted(k)%s(len(sorted(k)%s):) == "/") then
+            if (len(sorted(k)%text) > 0) then
+                if (sorted(k)%text(len(sorted(k)%text):) == "/") then
                     do while (j <= size(sorted))
-                        if (.not. is_string_prefix(sorted(k)%s, sorted(j)%s)) exit
+                        if (.not. is_string_prefix(sorted(k)%text, sorted(j)%text)) exit
                         j = j + 1
                     end do
                 end if
@@ -1494,7 +1496,7 @@ contains
     !> Port of vc-dir.el:vc-dir-root-next-action.
     recursive subroutine vc_dir_root_next_action(status)
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         integer, allocatable :: states(:)
         type(vc_fileset_type) :: fs
         integer :: crt
@@ -1514,8 +1516,7 @@ contains
         end do
 
         fs%backend = vc_dir_backend()
-        allocate (fs%files(1))
-        fs%files(1)%s = buffers(current)%directory
+        call append_string(fs%files, buffers(current)%directory)
         call vc_dir_only_files_state_and_model(files, states, fs, status)
         if (.not. status%ok()) return
         call set_vc_buffer_overriding_fileset(fs)
@@ -1664,7 +1665,7 @@ contains
 
     !> Return the list of marked files.  Port of vc-dir.el:vc-dir-marked-files.
     subroutine vc_dir_marked_files(files)
-        type(vc_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         integer(int64), allocatable :: ids(:)
         integer :: k
 
@@ -1672,7 +1673,7 @@ contains
         allocate (files(size(ids)))
 
         do k = 1, size(ids)
-            files(k)%s = expand(infos(ids(k))%entry%name)
+            files(k)%text = expand(infos(ids(k))%entry%name)
         end do
     end subroutine vc_dir_marked_files
 
@@ -1680,7 +1681,7 @@ contains
     !> For marked directories return the FILE and STATE of the
     !> child files.  Port of vc-dir.el:vc-dir-marked-only-files-and-states.
     subroutine vc_dir_marked_only_files_and_states(files, states)
-        type(vc_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         integer, allocatable, intent(out) :: states(:)
         character(len=:), allocatable :: dir
         integer(int64) :: id, data
@@ -1719,12 +1720,12 @@ contains
 
     ! Append (FILE . STATE).  Not a port.
     subroutine append_file_state(files, states, file, state)
-        type(vc_string_type), allocatable, intent(inout) :: files(:)
+        type(string_type), allocatable, intent(inout) :: files(:)
         integer, allocatable, intent(inout) :: states(:)
         character(len=*), intent(in) :: file
         integer, intent(in) :: state
 
-        call append_vc_string(files, file)
+        call append_string(files, file)
         states = [states, state]
     end subroutine append_file_state
 
@@ -1734,7 +1735,7 @@ contains
     !> If the entry is a file, return its FILE and STATE for
     !> that file.  Port of vc-dir.el:vc-dir-child-files-and-states.
     subroutine vc_dir_child_files_and_states(files, states)
-        type(vc_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         integer, allocatable, intent(out) :: states(:)
         character(len=:), allocatable :: dir
         integer(int64) :: id, data
@@ -1797,7 +1798,7 @@ contains
     ! vc-dir.el:vc-dir-find-child-files.
     subroutine vc_dir_find_child_files(dirname, children)
         character(len=*), intent(in) :: dirname
-        type(vc_string_type), allocatable, intent(out) :: children(:)
+        type(string_type), allocatable, intent(out) :: children(:)
         integer, allocatable :: states(:)
         integer :: crt
 
@@ -1829,7 +1830,7 @@ contains
     ! vc-dir.el:vc-dir-resync-directory-files.
     recursive subroutine vc_dir_resync_directory_files(dirname)
         character(len=*), intent(in) :: dirname
-        type(vc_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         type(vc_dir_entry_type), allocatable :: fileentries(:)
         integer :: k, n
 
@@ -1840,7 +1841,7 @@ contains
 
         do k = 1, n
             ! (push ...): the last first.
-            call vc_dir_recompute_file_state(files(k)%s, buffers(current)%directory, fileentries(n + 1 - k))
+            call vc_dir_recompute_file_state(files(k)%text, buffers(current)%directory, fileentries(n + 1 - k))
         end do
 
         call vc_dir_update(fileentries, current_buffer())
@@ -2087,7 +2088,7 @@ contains
     !> Refresh some FILES in the *VC-Dir* buffer.  Port of
     !> vc-dir.el:vc-dir-refresh-files.
     recursive subroutine vc_dir_refresh_files(files, status)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: def_dir
         type(handle_type) :: buffer, pbuf
@@ -2133,7 +2134,7 @@ contains
         type(vc_dir_entry_type), intent(in) :: entries(:)
         type(handle_type), intent(in) :: buffer
         logical, intent(in) :: more_to_come
-        type(vc_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         integer(int64), allocatable :: remaining(:)
         type(handle_type) :: old
         type(status_type) :: st
@@ -2150,7 +2151,7 @@ contains
                 allocate (names(size(remaining)))
 
                 do k = 1, size(remaining)
-                    names(k)%s = infos(remaining(k))%entry%name
+                    names(k)%text = infos(remaining(k))%entry%name
                 end do
 
                 call vc_dir_refresh_files(names, st)
@@ -2180,7 +2181,7 @@ contains
         type(ewoc_part_type), allocatable :: header(:)
         type(ewoc_part_type) :: none(0)
         type(vc_fileset_type) :: fs
-        type(vc_string_type) :: nofiles(0)
+        type(string_type) :: nofiles(0)
         type(handle_type) :: buffer, pbuf
         type(status_type) :: st
         integer :: backend
@@ -2197,8 +2198,7 @@ contains
 
         if (vc_dir_save_some_buffers_on_revert) then
             fs%backend = backend
-            allocate (fs%files(1))
-            fs%files(1)%s = def_dir
+            call append_string(fs%files, def_dir)
             call vc_buffer_sync_fileset(fs, status, .true.)
             if (.not. status%ok()) return
         end if
@@ -2346,11 +2346,11 @@ contains
     ! for `up-to-date' and/or `ignored' files at some point).  Port of
     ! vc-dir.el:vc-dir--only-files-state-and-model.
     recursive subroutine vc_dir_only_files_state_and_model(files, states, fs, status)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         integer, intent(in) :: states(:)
         type(vc_fileset_type), intent(inout) :: fs
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: other(:)
+        type(string_type), allocatable :: other(:)
         integer, allocatable :: other_states(:)
         integer :: k, up_to_date_count
         logical :: yes
@@ -2363,7 +2363,7 @@ contains
             if (up_to_date_state(states(k))) then
                 up_to_date_count = up_to_date_count + 1
             else
-                call append_file_state(other, other_states, files(k)%s, states(k))
+                call append_file_state(other, other_states, files(k)%text, states(k))
             end if
         end do
 
@@ -2389,7 +2389,7 @@ contains
         type(vc_fileset_type), intent(out) :: fs
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: state_model_only_files
-        type(vc_string_type), allocatable :: marked(:), only_files(:)
+        type(string_type), allocatable :: marked(:), only_files(:)
         integer, allocatable :: states(:)
         character(len=:), allocatable :: file
         logical :: smo
@@ -2405,8 +2405,7 @@ contains
         else
             call vc_dir_current_file(file, status)
             if (.not. status%ok()) return
-            allocate (fs%files(1))
-            fs%files(1)%s = file
+            call append_string(fs%files, file)
             if (smo) call vc_dir_child_files_and_states(only_files, states)
         end if
 
@@ -2758,6 +2757,7 @@ contains
         type(status_type) :: st
 
         vc_dir_resynch_file => vc_dir_resynch_file_impl
+        vc_dir_refresh_function => vc_dir_refresh
         commands%vc_dir%execute => cmd_vc_dir
         commands%vc_dir_root%execute => vc_dir_root
         if (associated(major_modes%vc_dir_mode%execute)) return
@@ -2795,8 +2795,12 @@ contains
         call keymap_set(vc_dir_mode_map, "=", "vc_diff", st)           ! C-x v =
         call keymap_set(vc_dir_mode_map, "D", "vc_root_diff", st)      ! C-x v D
         call keymap_set(vc_dir_mode_map, "i", "vc_register", st)       ! C-x v i
+        call keymap_set(vc_dir_mode_map, "+", "vc_pull", st)           ! C-x v +
+        call keymap_set(vc_dir_mode_map, "P", "vc_push", st)           ! C-x v P
         call keymap_set(vc_dir_mode_map, "l", "vc_print_log", st)      ! C-x v l
         call keymap_set(vc_dir_mode_map, "L", "vc_print_root_log", st) ! C-x v L
+        call keymap_set(vc_dir_mode_map, "I", "vc_root_log_incoming", st) ! C-x v I
+        call keymap_set(vc_dir_mode_map, "O", "vc_root_log_outgoing", st) ! C-x v O
         ! Marking.
         call keymap_set(vc_dir_mode_map, "m", "vc_dir_mark", st)
         call keymap_set(vc_dir_mode_map, "d", "vc_dir_delete_file", st)
@@ -2828,7 +2832,12 @@ contains
         call keymap_set(vc_dir_mode_map, "C-k", "vc_dir_remove_line", st)
         call keymap_set(vc_dir_mode_map, "G", "vc_dir_ignore", st)
         call keymap_set(vc_dir_mode_map, "@", "vc_revert", st)
+        call keymap_set(vc_dir_mode_map, "E L", "vc_root_log_outgoing", st)
         call keymap_set(vc_dir_mode_map, "V", "vc_dir_root_next_action", st)
+        call keymap_set(vc_dir_mode_map, "b c", "vc_create_branch", st)
+        call keymap_set(vc_dir_mode_map, "b l", "vc_print_fileset_branch_log", st)
+        call keymap_set(vc_dir_mode_map, "b L", "vc_print_root_branch_log", st)
+        call keymap_set(vc_dir_mode_map, "b s", "vc_switch_branch", st)
         call make_sparse_keymap(regexp_map)
         call keymap_set(vc_dir_mode_map, "%", make_keymap_ref(regexp_map), st)
         call keymap_set(regexp_map, "m", "vc_dir_mark_by_regexp", st)

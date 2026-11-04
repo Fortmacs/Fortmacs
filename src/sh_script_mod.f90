@@ -45,8 +45,7 @@
 !> Deferred: `executable_interpret' (C-c C-x; needs `compilation_start' with a
 !> buffer name function and rule specifications), Imenu
 !> (`sh_imenu_generic_expression', and the Imenu candidates of
-!> completion), `add_log_current_subprogram_function' (`sh_current_function_name'
-!> is here), `outline_regexp', `escaped_string_quote' (with
+!> completion), `outline_regexp', `escaped_string_quote' (with
 !> `paste_in_context'), the Flymake backend (`sh_shellcheck_flymake'), the
 !> `sh_shell' file-local variable (`hack_local_variables_hook'), the menu
 !> and `bash_ts_mode' (tree-sitter).
@@ -64,6 +63,7 @@ module sh_script_mod
                           get_or_make_buffer
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key
     use syntax_mod, only: copy_syntax_table, make_syntax_table, modify_syntax_entry, is_syntax_table_live, destroy_syntax_table, &
                           set_syntax_table, syntax_descriptor_type, string_to_syntax, parse_state_type, syntax_ppss, &
@@ -99,8 +99,7 @@ module sh_script_mod
     use comint_mod, only: comint_prompt_regexp, comint_dynamic_complete_functions, comint_filename_completion, &
                           comint_completion_at_point, comint_send_string
     use shell_mod, only: shell_command_completion, shell_environment_variable_completion, shell, explicit_shell_file_name
-    use process_mod, only: is_process_live, process_list, process_command, process_buffer, get_buffer_process, &
-                           process_arg_type
+    use process_mod, only: is_process_live, process_list, process_command, process_buffer, get_buffer_process
     use window_mod, only: pop_to_buffer, display_buffer_overriding_action, display_action_type, DISPLAY_ACTION_SAME_WINDOW
     use hooks_mod, only: capf_hook_type, capf_entry_type
     use minibuf_table_mod, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL, COMPLETE_BOUNDARIES, completion_test_procedure
@@ -132,7 +131,7 @@ module sh_script_mod
                         smie_indent_functions, smie_set_is_hanging_eol_function, is_smie_default_hanging_eol, &
                         SMIE_ASSOC, SMIE_AFTER, SMIE_BEFORE, SMIE_ELEM, SMIE_LIST_INTRO, SMIE_LEVEL_NUMBER, SMIE_RULE_NONE, &
                         SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, SMIE_RULE_YES, SMIE_INDENT_COLUMN, SMIE_INDENT_NONE
-    use sysdep_mod, only: sys_string_type, emacs_environment
+    use sysdep_mod, only: fortmacs_environment
     use skeleton_mod, only: skeleton_element_type, skeleton_variants_type, skeleton_pairs_type, skeleton_state, skeleton_text, &
                             skeleton_literal, skeleton_delete, skeleton_prompt, skeleton_interactor, skeleton_action, &
                             skeleton_value, skeleton_variants_command, skeleton_next_element, skeleton_read_string, &
@@ -143,6 +142,7 @@ module sh_script_mod
     use callint_mod, only: prefix_arg_type
     use minibuf_mod, only: read_string
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
+    use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
 
@@ -172,11 +172,6 @@ module sh_script_mod
     integer, parameter, public :: SH_INDENT_AFTER_CONTINUATION_NO = 0, SH_INDENT_AFTER_CONTINUATION_DEEPER = 1, &
                                   SH_INDENT_AFTER_CONTINUATION_ALWAYS = 2
 
-    !> A string of a list.
-    type, public :: sh_string_type
-        character(len=:), allocatable :: s
-    end type sh_string_type
-
     !> A shell and its direct ancestor (an element of `sh_ancestors').
     type, public :: sh_ancestor_type
         character(len=:), allocatable :: shell, ancestor
@@ -196,7 +191,7 @@ module sh_script_mod
     !> value follows them (`append').
     type, public :: sh_strings_entry_type
         character(len=:), allocatable :: shell, append
-        type(sh_string_type), allocatable :: strings(:)
+        type(string_type), allocatable :: strings(:)
     end type sh_strings_entry_type
 
     !> A feature table whose values are lists of strings (see `sh_feature').
@@ -267,7 +262,7 @@ module sh_script_mod
         integer(int64) :: serial = 0
         ! sh-shell-variables (setq-local in `sh_set_shell').
         logical :: has_variables = .false.
-        type(sh_string_type), allocatable :: variables(:)
+        type(string_type), allocatable :: variables(:)
         logical :: variables_initialized = .false.
         ! sh-indent-supported-here.
         logical :: has_indent_supported = .false.
@@ -321,7 +316,7 @@ module sh_script_mod
 
     ! The default values of sh-shell-variables and
     ! sh-shell-variables-initialized.
-    type(sh_string_type), allocatable :: default_variables(:)
+    type(string_type), allocatable :: default_variables(:)
     logical :: default_variables_initialized = .false.
 
     !> Table showing the direct ancestor of various shells.
@@ -423,7 +418,7 @@ module sh_script_mod
     !> word (that is, "<<-" instead of "<<").  This is a feature
     !> used by some shells (for example Bash) to indicate that leading
     !> tabs inside the here document should be ignored.  In this case,
-    !> Emacs indents the initial body and end of the here document with
+    !> Fortmacs indents the initial body and end of the here document with
     !> tabs, to the same level as the start (note that apart from this
     !> there is no support for indentation of here documents).  This
     !> will only work correctly if `sh_basic_offset' is a multiple of
@@ -607,7 +602,7 @@ module sh_script_mod
     !> If true, indentation variables are made local initially.
     !> If false, you can later make the variables local by invoking
     !> command `sh_make_vars_local'.
-    !> The default is true because I assume that in one Emacs session one is
+    !> The default is true because I assume that in one Fortmacs session one is
     !> frequently editing existing scripts with different styles.  Port of
     !> sh-script.el sh-make-vars-local.
     logical, public :: sh_make_vars_local = .true.
@@ -1284,7 +1279,7 @@ contains
     function strings_of(feature) result(a)
         type(sh_strings_feature_type), intent(in) :: feature
         character(len=:), allocatable :: a(:)
-        type(sh_string_type), allocatable :: s(:)
+        type(string_type), allocatable :: s(:)
 
         call feature%current(s)
         a = to_chars(s)
@@ -1294,7 +1289,7 @@ contains
     ! Not a port.
     function leading_and_other() result(a)
         character(len=:), allocatable :: a(:)
-        type(sh_string_type), allocatable :: s1(:), s2(:), s(:)
+        type(string_type), allocatable :: s1(:), s2(:), s(:)
         integer :: i
 
         call sh_leading_keywords%current(s1)
@@ -1302,11 +1297,11 @@ contains
         allocate (s(size(s1) + size(s2)))
 
         do i = 1, size(s1)
-            s(i)%s = s1(i)%s
+            s(i)%text = s1(i)%text
         end do
 
         do i = 1, size(s2)
-            s(size(s1) + i)%s = s2(i)%s
+            s(size(s1) + i)%text = s2(i)%text
         end do
 
         a = to_chars(s)
@@ -1314,20 +1309,20 @@ contains
 
     ! STRINGS as a character array.  Not a port.
     function to_chars(strings) result(a)
-        type(sh_string_type), intent(in) :: strings(:)
+        type(string_type), intent(in) :: strings(:)
         character(len=:), allocatable :: a(:)
         integer :: i, n
 
         n = 1
 
         do i = 1, size(strings)
-            n = max(n, len(strings(i)%s))
+            n = max(n, len(strings(i)%text))
         end do
 
         allocate (character(len=n) :: a(size(strings)))
 
         do i = 1, size(strings)
-            a(i) = strings(i)%s
+            a(i) = strings(i)%text
         end do
     end function to_chars
 
@@ -1413,7 +1408,7 @@ contains
         allocate (entry%strings(size(strings)))
 
         do i = 1, size(strings)
-            entry%strings(i)%s = trim(strings(i))
+            entry%strings(i)%text = trim(strings(i))
         end do
 
         self%entries = [self%entries, entry]
@@ -1437,9 +1432,9 @@ contains
     !> names.  Port of sh-script.el:sh-feature.
     recursive subroutine current_strings_feature(self, strings, shell)
         class(sh_strings_feature_type), intent(in) :: self
-        type(sh_string_type), allocatable, intent(out) :: strings(:)
+        type(string_type), allocatable, intent(out) :: strings(:)
         character(len=*), intent(in), optional :: shell
-        type(sh_string_type), allocatable :: rest(:)
+        type(string_type), allocatable :: rest(:)
         integer :: k, i, n
 
         allocate (strings(0))
@@ -1464,11 +1459,11 @@ contains
         allocate (strings(n + size(rest)))
 
         do i = 1, n
-            strings(i)%s = self%entries(k)%strings(i)%s
+            strings(i)%text = self%entries(k)%strings(i)%text
         end do
 
         do i = 1, size(rest)
-            strings(n + i)%s = rest(i)%s
+            strings(n + i)%text = rest(i)%text
         end do
     end subroutine current_strings_feature
 
@@ -1668,7 +1663,7 @@ contains
     !> completion in addition to all the variables named in
     !> `process_environment'.  Port of sh-script.el sh-shell-variables.
     subroutine sh_shell_variables(names)
-        type(sh_string_type), allocatable, intent(out) :: names(:)
+        type(string_type), allocatable, intent(out) :: names(:)
         integer :: k
 
         k = local_index()
@@ -3210,16 +3205,16 @@ contains
         n = 0
 
         do i = 1, size(sh_smie_sh_grammar%tokens)
-            if (is_operator(sh_smie_sh_grammar%tokens(i)%s)) n = n + 1
+            if (is_operator(sh_smie_sh_grammar%tokens(i)%text)) n = n + 1
         end do
 
         allocate (character(len=3) :: ops(n))
         n = 0
 
         do i = 1, size(sh_smie_sh_grammar%tokens)
-            if (is_operator(sh_smie_sh_grammar%tokens(i)%s)) then
+            if (is_operator(sh_smie_sh_grammar%tokens(i)%text)) then
                 n = n + 1
-                ops(n) = sh_smie_sh_grammar%tokens(i)%s
+                ops(n) = sh_smie_sh_grammar%tokens(i)%text
             end if
         end do
 
@@ -3374,6 +3369,7 @@ contains
                                                 "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
                                                 "]*\(([ "//TAB//"]*)\)?\)[ "//TAB//"]*")
         call completion_at_point_functions%prepend(sh_completion_at_point_function, local=.true.)
+        call add_log_current_subprogram_function%set_local(sh_current_function_name)
         call major_modes%sh_base_mode%end(saved, status)
     end subroutine sh_base_mode
 
@@ -3473,7 +3469,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: no_query_flag, insert_flag
         character(len=:), allocatable :: shell, file, arg, supported
-        type(sh_string_type), allocatable :: vars(:)
+        type(string_type), allocatable :: vars(:)
         type(mode_line_part_type) :: parts(1)
         type(handle_type) :: table
         type(status_type) :: st
@@ -3535,7 +3531,7 @@ contains
         call sh_variables%current(vars)
 
         do i = 1, size(vars)
-            call sh_remember_variable(vars(i)%s)
+            call sh_remember_variable(vars(i)%text)
         end do
 
         call string_feature_value(sh_indent_supported, supported)
@@ -3833,7 +3829,6 @@ contains
     !> Port of sh-script.el:sh-remember-variable.
     subroutine sh_remember_variable(var)
         character(len=*), intent(in) :: var
-        type(sh_string_type) :: variable
         character(len=:), allocatable :: value
         logical :: found
         integer :: k, i
@@ -3849,18 +3844,16 @@ contains
 
         if (k > 0) then
             do i = 1, size(locals(k)%variables)
-                if (locals(k)%variables(i)%s == var) return
+                if (locals(k)%variables(i)%text == var) return
             end do
 
-            variable%s = var
-            locals(k)%variables = [variable, locals(k)%variables]
+            call prepend_string(locals(k)%variables, var)
         else
             do i = 1, size(default_variables)
-                if (default_variables(i)%s == var) return
+                if (default_variables(i)%text == var) return
             end do
 
-            variable%s = var
-            default_variables = [variable, default_variables]
+            call prepend_string(default_variables, var)
         end if
     end subroutine sh_remember_variable
 
@@ -4016,8 +4009,8 @@ contains
     recursive subroutine cmd_sh_add(status)
         type(status_type), intent(out) :: status
         type(completion_table_type) :: table
-        type(sh_string_type), allocatable :: vars(:)
-        type(sys_string_type), allocatable :: env(:)
+        type(string_type), allocatable :: vars(:)
+        type(string_type), allocatable :: env(:)
         type(value_type), allocatable :: names(:)
         character(len=:), allocatable :: var
         integer :: i, n, eq
@@ -4025,23 +4018,23 @@ contains
         ! Do completion using `sh_shell_variables', but initialize it first
         ! (sh-add-completer).
         if (.not. variables_initialized()) call sh_shell_initialize_variables(status)
-        env = emacs_environment()
+        env = fortmacs_environment()
         call sh_shell_variables(vars)
         n = size(env)
         allocate (names(n + size(vars)))
 
         do i = 1, n
-            eq = index(env(i)%s, "=")
+            eq = index(env(i)%text, "=")
 
             if (eq > 0) then
-                names(i) = value_type(text=env(i)%s(1:eq - 1))
+                names(i) = value_type(text=env(i)%text(1:eq - 1))
             else
-                names(i) = value_type(text=env(i)%s)
+                names(i) = value_type(text=env(i)%text)
             end if
         end do
 
         do i = 1, size(vars)
-            names(n + i) = value_type(text=vars(i)%s)
+            names(n + i) = value_type(text=vars(i)%text)
         end do
 
         table%list = make_list(names)
@@ -4348,8 +4341,8 @@ contains
     !> Find the name of function or variable at point.
     !> For use in `add_log_current_subprogram_function' (unallocated for none).
     !> Port of sh-script.el:sh-current-defun-name.
-    function sh_current_function_name() result(name)
-        character(len=:), allocatable :: name
+    recursive subroutine sh_current_function_name(name)
+        character(len=:), allocatable, intent(out) :: name
         type(status_type) :: st
         integer(int64) :: here, found
         integer :: n
@@ -4375,7 +4368,7 @@ contains
         end if
 
         call goto_char(here)
-    end function sh_current_function_name
+    end subroutine sh_current_function_name
 
     !> Make a regexp which matches WORD as a word.
     !> This specifically excludes an occurrence of WORD followed by
@@ -4400,7 +4393,7 @@ contains
         type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: processes(:)
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         type(handle_type) :: saved_buffer, shell_buffer
         type(display_action_type) :: saved_action
         character(len=:), allocatable :: saved_file
@@ -4423,7 +4416,7 @@ contains
             call process_command(processes(i), command)
             if (size(command) == 0) exit
 
-            if (file_name_nondirectory(command(1)%s) == sh_shell%value) then
+            if (file_name_nondirectory(command(1)%text) == sh_shell%value) then
                 process = processes(i)
                 exit
             end if

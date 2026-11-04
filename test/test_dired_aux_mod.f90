@@ -33,18 +33,19 @@ module test_dired_aux_mod
     use insdel_mod, only: insert
     use editfns_mod, only: point, buffer_string, line_beginning_position, line_end_position, buffer_substring, goto_char
     use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop, last_message
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, write_region, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, write_region, &
                           create_directory_internal, file_modes, set_file_modes, file_symlink_target, file_attributes, &
                           file_stat_type, is_file_executable
     use files_mod, only: find_file_noselect, delete_directory
     use timefns_mod, only: format_time_string, time_type
-    use dired_mode_mod, only: dired, dired_goto_file, dired_buffers_for_dir, dired_get_marked_files, dired_string_type, &
+    use dired_mode_mod, only: dired, dired_goto_file, dired_buffers_for_dir, dired_get_marked_files, &
                               dired_deletion_confirmer, dired_auto_revert_buffer, dired_mark_files_regexp, &
                               dired_copy_file_recursive, dired_rename_file, dired_do_create_files, dired_copy_file, &
                               dired_create_empty_file, dired_unmark_all_files, dired_create_destination_dirs, &
                               DIRED_CREATE_DESTINATION_DIRS_NO, DIRED_CREATE_DESTINATION_DIRS_YES, &
                               DIRED_CREATE_DESTINATION_DIRS_ASK, DIRED_CREATOR_COPY, DIRED_ARG_NONE, DIRED_LOCALP_NO_DIR, &
                               dired_file_creator_procedure
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -85,7 +86,7 @@ contains
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     !> A fresh test directory with a.txt, b.txt and sub/; *scratch*
@@ -99,7 +100,7 @@ contains
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         call show_alone()
         call close_dired_buffers()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
@@ -611,7 +612,7 @@ contains
     subroutine test_unmark_query(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(dired_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
 
         call setup()
 
@@ -628,7 +629,7 @@ contains
             call dired_get_marked_files(files, st, DIRED_LOCALP_NO_DIR)
             call check(error, size(files) == 1, "one marked: "//buffer_string())
             if (allocated(error)) exit body
-            call check(error, files(1)%s, "a.txt")
+            call check(error, files(1)%text, "a.txt")
         end block body
 
         call teardown()
