@@ -60,24 +60,24 @@ dir=$root/docs/status
 # the files written under the variable dir.
 from_row_awk='
 # Split a row at the bars that are not escaped; the cells are trimmed.
-function split_row(line, cell,    n, i, c, cur) {
+function split_row(line, cell,    n, i, c, current) {
     n = 0
-    cur = ""
+    current = ""
     sub(/^\|/, "", line)
     sub(/\|[ \t]*$/, "", line)
     for (i = 1; i <= length(line); i++) {
         c = substr(line, i, 1)
         if (c == "\\" && substr(line, i + 1, 1) == "|") {
-            cur = cur "\\|"
+            current = current "\\|"
             i++
         } else if (c == "|") {
-            cell[++n] = trim(cur)
-            cur = ""
+            cell[++n] = trim(current)
+            current = ""
         } else {
-            cur = cur c
+            current = current c
         }
     }
-    cell[++n] = trim(cur)
+    cell[++n] = trim(current)
     return n
 }
 
@@ -168,7 +168,7 @@ function flush() {
     if (check) {
         if (!("Module" in v) || !("Upstream" in v) || !("State" in v))
             report(1, "the bullets Module, Upstream and State are needed")
-        if (nsec != 3)
+        if (nsections != 3)
             report(FNR, "the sections Ported, Deferred and Tests are needed, in that order")
     } else {
         printf "%s", stem
@@ -199,7 +199,7 @@ FNR == 1 {
     sub(/.*\//, "", stem)
     sub(/\.md$/, "", stem)
     section = ""
-    nsec = 0
+    nsections = 0
     if (check && $0 != "# " stem)
         report(1, "the first line must be \"# " stem "\"")
     next
@@ -208,23 +208,23 @@ FNR == 1 {
 /^- (Module|Upstream|State): / && section == "" {
     key = $2
     sub(/:$/, "", key)
-    val = $0
-    sub(/^- [A-Za-z]+: /, "", val)
+    text = $0
+    sub(/^- [A-Za-z]+: /, "", text)
     if (check && key in v)
         report(FNR, key " given twice")
-    v[key] = val
-    if (check && key == "Module" && val !~ "^" stem "([^a-z0-9_]|$)")
+    v[key] = text
+    if (check && key == "Module" && text !~ "^" stem "([^a-z0-9_]|$)")
         report(FNR, "the Module cell must start with " stem)
-    if (check && key == "State" && val !~ /^(done|partial|complete)$/)
+    if (check && key == "State" && text !~ /^(done|partial|complete)$/)
         report(FNR, "the state must be done, partial or complete")
     next
 }
 
 /^## / {
     section = substr($0, 4)
-    nsec++
-    if (check && section != expect[nsec])
-        report(FNR, "expected the section \"" expect[nsec] "\"")
+    nsections++
+    if (check && section != expect[nsections])
+        report(FNR, "expected the section \"" expect[nsections] "\"")
     v[section] = ""
     next
 }
