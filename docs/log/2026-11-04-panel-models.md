@@ -5,7 +5,7 @@ Owner decisions on the decision panel (CLAUDE.md):
   answers do not all come from one model.
 - A fresh agent writes each question neutrally from the facts, with no
   recommendation; each panelist sees the options in its own shuffled order.
-- Claude chooses its own answer only after the panel has answered. A
+- Claude seals its own answer in the decision log, with the time, before reading any panelist's answer; the panelists never see it, and each post on #261 shows it beside their votes.
   unanimous panel decides; otherwise the question goes to the owner on
   issue #261 with each agent's pick and Claude's recommendation.
 
