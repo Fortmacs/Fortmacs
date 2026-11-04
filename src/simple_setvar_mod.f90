@@ -30,8 +30,9 @@
 !> (optional sign and digits) for an integer one, a real literal for a
 !> real one, a character literal in double or single quotes (the quote
 !> doubled inside) for a string one, and one of the option's named
-!> constants for an enumerated one (as C-h v shows them; Fortran names
-!> are case-insensitive).  No expressions, other variables or function
+!> constants for an enumerated one, or `.true.', `.false.' or one of its
+!> named constants for a choice setting (as C-h v shows them; Fortran
+!> names are case-insensitive).  No expressions, other variables or function
 !> references are evaluated: this is not an expression evaluator, as
 !> Fortmacs has no run-time Lisp and no run-time Fortran either.  A value
 !> of another type is rejected with upstream's "Value `...' does not
@@ -61,8 +62,8 @@ submodule(simple_mod) simple_setvar_mod
     use docstrings_mod, only: user_option_names, user_option_info, set_user_option_logical, set_user_option_integer, &
                               set_user_option_real, set_user_option_string, set_user_option_choice, variable_doc, &
                               doc_entry_type, OPTION_NONE, OPTION_LOGICAL, OPTION_INTEGER, OPTION_REAL, OPTION_STRING, &
-                              OPTION_CHOICE, user_option_constants
-    use data_mod, only: is_local_variable, is_local_variable_if_set, is_forwarded_variable
+                              OPTION_CHOICE, user_option_constants, init_choice_values
+    use data_mod, only: is_local_variable, is_local_variable_if_set, is_forwarded_variable, setting_errors
     use error_mod, only: FM_END_OF_FILE, FM_INVALID_READ_SYNTAX, FM_WRONG_TYPE_ARGUMENT
     use minibuffer_mod, only: completion_annotation_function, completion_annotation_procedure, REQUIRE_MATCH_NO
     use minibuf_mod, only: read_from_minibuffer, completion_list_table
@@ -73,7 +74,7 @@ submodule(simple_mod) simple_setvar_mod
 
     !> The named constants of the option whose value `cmd_set_variable'
     !> reads, and their values, for `constant_annotation'.
-    character(len=48), allocatable :: read_constants(:)
+    character(len=:), allocatable :: read_constants(:)
     integer(int64), allocatable :: read_values(:)
 
 contains
@@ -90,7 +91,7 @@ contains
     end function is_settable_option
 
     module procedure set_variable
-    integer :: kind, n
+    integer :: kind, n, errors
     logical :: setting, lv, ok, local
     character(len=:), allocatable :: v, typename
     integer(int64) :: i64
@@ -168,7 +169,20 @@ contains
         typename = "choice"
         call literal_token(v, status)
         if (.not. status%ok()) return
+        ! A value the option does not accept is rejected as in the init
+        ! file (panel 2026-11-04).
+        call init_choice_values()
+        errors = 0
+        if (allocated(setting_errors)) errors = size(setting_errors)
         call set_user_option_choice(variable, upper(v), local, ok)
+
+        if (allocated(setting_errors)) then
+            if (size(setting_errors) > errors) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, setting_errors(size(setting_errors))%text)
+                setting_errors = setting_errors(1:errors)
+                return
+            end if
+        end if
 
         if (.not. ok) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected "//constant_list(variable)//", got "//v)
@@ -198,7 +212,7 @@ contains
     function constant_list(variable) result(names)
         character(len=*), intent(in) :: variable
         character(len=:), allocatable :: names
-        character(len=48), allocatable :: constants(:)
+        character(len=:), allocatable :: constants(:)
         integer(int64), allocatable :: values(:)
         integer :: k
 
@@ -227,6 +241,8 @@ contains
 
         annotation = ""
         if (.not. allocated(read_constants)) return
+        ! .true. and .false. are values themselves.
+        if (index(candidate, ".") == 1) return
         k = findloc(read_constants, candidate, dim=1)
         if (k == 0) return
         write (buffer, "(i0)") read_values(k)

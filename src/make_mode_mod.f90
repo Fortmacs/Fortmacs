@@ -36,10 +36,7 @@
 !>
 !> Deferred: the obsolete macro and target browser (C-c C-b,
 !> `makefile_switch_to_browser' and the `makefile_browser_*' commands and
-!> options, obsolete since 30.1), the Makefile menu, Imenu
-!> (`makefile_imenu_generic_expression' and makepp's "Functions"),
-!> `add_log_current_subprogram_function' (add-log's subprogram lookup is not ported;
-!> `makefile_add_log_target' is here), `cpp_font_lock_keywords' in
+!> options, obsolete since 30.1), the Makefile menu, `cpp_font_lock_keywords' in
 !> `makefile_imake_font_lock_keywords' (font-lock.el's C preprocessor
 !> keywords), and the obsolete `makefile_generate_temporary_filename'.
 module make_mode_mod
@@ -48,7 +45,8 @@ module make_mode_mod
     use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xstring, make_list, list, list_length, list_elt, vtag, V_INTEGER
-    use data_mod, only: number_to_string, integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
+    use fns_mod, only: is_string_less
+    use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
                         append_locals_clearer
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, execute_interactively
@@ -57,6 +55,7 @@ module make_mode_mod
                           set_buffer, current_buffer, erase_buffer, close_buffer
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use derived_mod, only: is_derived_mode
     use keymap_mod, only: keymap_set
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, skip_chars_forward, &
@@ -83,7 +82,7 @@ module make_mode_mod
     use dired_mod, only: file_name_all_completions
     use callproc_mod, only: execute_process
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_PREPEND, &
+                             font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_PREPEND, &
                              FONT_LOCK_OVERRIDE_APPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     use regexp_opt_mod, only: regexp_opt, REGEXP_OPT_GROUP
@@ -96,6 +95,8 @@ module make_mode_mod
     use minibuf_table_mod, only: capf_data_type, COMPLETION_SOLE, COMPLETION_FINISHED
     use minibuffer_mod, only: completing_read, completion_at_point_functions
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
+    use imenu_mod, only: imenu_patterns, imenu_pattern_type
+    use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
 
@@ -244,6 +245,11 @@ module make_mode_mod
     !> Port of make-mode.el makefile-bsdmake-rule-action-regex.
     character(len=:), allocatable, public :: makefile_bsdmake_rule_action_regexp
 
+    !> Imenu generic expression for Makefile mode.  See
+    !> `imenu_patterns'.  Port of make-mode.el
+    !> makefile-imenu-generic-expression.
+    type(imenu_pattern_type), allocatable, public :: makefile_imenu_patterns(:)
+
     !> Regex used to find macro assignment lines in a makefile.  Port of
     !> make-mode.el makefile-macroassign-regex.
     character(len=*), parameter, public :: makefile_macroassign_regexp = &
@@ -385,11 +391,6 @@ module make_mode_mod
     !> make-mode.el makefile-gnumake-functions-alist.
     type(makefile_gnumake_function_type), allocatable, public :: makefile_gnumake_functions(:)
 
-    !> A target or macro name of the tables.
-    type, public :: makefile_name_type
-        character(len=:), allocatable :: name
-    end type makefile_name_type
-
     ! The tables of known targets and macros (makefile-target-table,
     ! makefile-macro-table, newest first), makefile-has-prereqs and
     ! whether they must be picked up again (makefile-need-target-pickup,
@@ -397,7 +398,7 @@ module make_mode_mod
     ! buffers' own.
     type :: make_state_type
         integer(int64) :: serial = 0
-        type(makefile_name_type), allocatable :: targets(:), macros(:), prereqs(:)
+        type(string_type), allocatable :: targets(:), macros(:), prereqs(:)
         logical :: need_target_pickup = .true., need_macro_pickup = .true.
     end type make_state_type
 
@@ -477,6 +478,14 @@ contains
                                         "SCCS_GET", "SILENT", "SOURCE", "SUFFIXES", &
                                         "WAIT", "c.o", "C.o", "m.o", &
                                         "el.elc", "y.c", "s.o"]
+        end if
+
+        if (.not. allocated(makefile_imenu_patterns)) then
+            allocate (makefile_imenu_patterns(2))
+            makefile_imenu_patterns(1) = imenu_pattern_type(menu_title="Dependencies", &
+                                                            matcher=makefile_previous_dependency, subexpression=1)
+            makefile_imenu_patterns(2) = imenu_pattern_type(menu_title="Macro Assignment", &
+                                                            regexp=makefile_macroassign_regexp, subexpression=1)
         end if
 
         if (.not. allocated(makefile_runtime_macros)) then
@@ -803,7 +812,7 @@ contains
             call append(font_lock_keyword("^[ "//TAB//"]+$", face="makefile_space"))
             ! Highlight shell comments that Make treats as commands,
             ! since these can fool people.
-            h1(1) = h(0, "makefile_space", FONT_LOCK_OVERRIDE_YES)
+            h1(1) = h(0, "makefile_space", FONT_LOCK_OVERRIDE_REPLACE)
             call append(font_lock_keyword("^"//TAB//"+#", highlights=h1))
             ! Highlight spaces that precede tabs.
             ! They can make a tab fail to be effective.
@@ -840,7 +849,7 @@ contains
                                        VA = "font_lock_variable_name_face", TY = "font_lock_type_face", &
                                        PERL = "makefile_makepp_perl", SH = "makefile_shell", TG = "makefile_targets"
         integer, parameter :: PREPEND = FONT_LOCK_OVERRIDE_PREPEND, APPEND = FONT_LOCK_OVERRIDE_APPEND, &
-                              T = FONT_LOCK_OVERRIDE_YES
+                              T = FONT_LOCK_OVERRIDE_REPLACE
         type(font_lock_keyword_type) :: extra(16)
         type(font_lock_keyword_type), allocatable :: base(:)
         type(font_lock_highlight_type) :: h1(1), h2(2), h3(3), a(1)
@@ -1005,22 +1014,10 @@ contains
         where (locals%serial == buffers(current)%serial) locals%serial = 0
     end subroutine clear_make_locals
 
-    ! NAMES with NAME added in front (cons).
-    ! Not a port.
-    subroutine prepend(names, name)
-        type(makefile_name_type), allocatable, intent(inout) :: names(:)
-        character(len=*), intent(in) :: name
-        type(makefile_name_type) :: entry
-
-        if (.not. allocated(names)) allocate (names(0))
-        entry%name = name
-        names = [entry, names]
-    end subroutine prepend
-
     ! Whether NAME is one of NAMES (assoc).
     ! Not a port.
     logical function member_name(names, name) result(found)
-        type(makefile_name_type), allocatable, intent(in) :: names(:)
+        type(string_type), allocatable, intent(in) :: names(:)
         character(len=*), intent(in) :: name
         integer :: k
 
@@ -1028,7 +1025,7 @@ contains
         if (.not. allocated(names)) return
 
         do k = 1, size(names)
-            if (names(k)%name == name .and. len(names(k)%name) == len(name)) then
+            if (names(k)%text == name .and. len(names(k)%text) == len(name)) then
                 found = .true.
                 return
             end if
@@ -1038,7 +1035,7 @@ contains
     ! The empty table.
     ! Not a port.
     subroutine clear_names(names)
-        type(makefile_name_type), allocatable, intent(inout) :: names(:)
+        type(string_type), allocatable, intent(inout) :: names(:)
 
         if (allocated(names)) deallocate (names)
         allocate (names(0))
@@ -1047,7 +1044,7 @@ contains
     !> Table of all target names known for this buffer, newest first.
     !> Port of make-mode.el makefile-target-table.
     function makefile_target_table() result(names)
-        type(makefile_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(make_state_type), pointer :: s
 
         s => state()
@@ -1062,7 +1059,7 @@ contains
     !> Table of all macro names known for this buffer, newest first.
     !> Port of make-mode.el makefile-macro-table.
     function makefile_macro_table() result(names)
-        type(makefile_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(make_state_type), pointer :: s
 
         s => state()
@@ -1077,7 +1074,7 @@ contains
     !> The targets known to have prerequisites, newest first.  Port of
     !> make-mode.el makefile-has-prereqs.
     function makefile_has_prereqs() result(names)
-        type(makefile_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(make_state_type), pointer :: s
 
         s => state()
@@ -1092,7 +1089,7 @@ contains
     ! The names of NAMES as a list of strings.
     ! Not a port.
     function names_list(names) result(v)
-        type(makefile_name_type), allocatable, intent(in) :: names(:)
+        type(string_type), allocatable, intent(in) :: names(:)
         type(value_type) :: v
         type(value_type), allocatable :: items(:)
         integer :: k
@@ -1105,7 +1102,7 @@ contains
         allocate (items(size(names)))
 
         do k = 1, size(names)
-            items(k) = value_type(text=names(k)%name)
+            items(k) = value_type(text=names(k)%text)
         end do
 
         v = make_list(items)
@@ -1216,6 +1213,10 @@ contains
         ! Font lock.
         call set_font_lock_defaults(makefile_font_lock_keywords)
         call syntax_propertize_function%set_local(makefile_syntax_propertize_function)
+        ! Add-log.
+        call add_log_current_subprogram_function%set_local(makefile_add_log_target)
+        ! Imenu.
+        call imenu_patterns%set_local(makefile_imenu_patterns)
         ! Dabbrev.
         call dabbrev_abbrev_skip_leading_regexp%set_local("\$")
         ! Filling.
@@ -1261,6 +1262,7 @@ contains
     !> make-mode.el:makefile-makepp-mode.
     recursive subroutine makefile_makepp_mode(status)
         type(status_type), intent(out) :: status
+        type(imenu_pattern_type), allocatable :: old(:), patterns(:)
         logical :: saved
 
         if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call init_make_mode()
@@ -1268,6 +1270,12 @@ contains
         if (.not. status%ok()) return
         call makefile_rule_action_regexp%set_local(makefile_makepp_rule_action_regexp)
         call set_font_lock_defaults(makefile_makepp_font_lock_keywords)
+        old = imenu_patterns%current()
+        allocate (patterns(size(old) + 1))
+        patterns(1) = imenu_pattern_type(menu_title="Functions", regexp="^[ "//TAB//"]*\(?:make\)?sub[ "//TAB// &
+                                         "]+\([A-Za-z0-9_]+\)", subexpression=1)
+        patterns(2:) = old
+        call imenu_patterns%set_local(patterns)
         call major_modes%makefile_makepp_mode%end(saved, status)
     end subroutine makefile_makepp_mode
 
@@ -1616,6 +1624,7 @@ contains
         type(status_type), intent(out) :: status
         type(make_state_type), pointer :: s
         character(len=:), allocatable :: target_name
+        character(len=32) :: line_text
         integer(int64) :: opoint, start, moved, shortage
         logical :: found, has_prereqs
         type(status_type) :: st
@@ -1641,7 +1650,8 @@ contains
                 has_prereqs = .not. looking_at(":["//TAB//" ]*$", st)
 
                 if (makefile_remember_target(target_name, has_prereqs)) then
-                    call message("Picked up target """//target_name//""" from line "//number_to_string(line_number_at_pos()))
+                    write (line_text, '(""" from line ", i0)') line_number_at_pos()
+                    call message("Picked up target """//target_name//trim(line_text))
                 end if
 
                 moved = skip_chars_forward(" "//TAB, st)
@@ -1662,6 +1672,7 @@ contains
         type(status_type), intent(out) :: status
         type(make_state_type), pointer :: s
         character(len=:), allocatable :: macro_name
+        character(len=32) :: line_text
         integer(int64) :: opoint, start, moved, shortage, found
         type(status_type) :: st
 
@@ -1682,7 +1693,8 @@ contains
             call buffer_substring(start, point(), macro_name, st)
 
             if (makefile_remember_macro(macro_name)) then
-                call message("Picked up macro """//macro_name//""" from line "//number_to_string(line_number_at_pos()))
+                write (line_text, '(""" from line ", i0)') line_number_at_pos()
+                call message("Picked up macro """//macro_name//trim(line_text))
             end if
 
             shortage = forward_line()
@@ -2131,7 +2143,7 @@ contains
     recursive subroutine makefile_create_up_to_date_overview(status)
         type(status_type), intent(out) :: status
         type(make_state_type), pointer :: s
-        type(makefile_name_type), allocatable :: saved_target_table(:), real_targets(:), prereqs(:)
+        type(string_type), allocatable :: saved_target_table(:), real_targets(:), prereqs(:)
         type(handle_type) :: this_buffer, up_to_date_buffer, b
         character(len=:), allocatable :: filename
         logical :: ok
@@ -2204,8 +2216,8 @@ contains
     ! Not a port.
     subroutine sort_lines_in_buffer(status)
         type(status_type), intent(out) :: status
-        type(makefile_name_type), allocatable :: lines(:)
-        type(makefile_name_type) :: tmp
+        type(string_type), allocatable :: lines(:)
+        type(string_type) :: tmp
         character(len=:), allocatable :: text
         integer :: i, j, n, k, start
         logical :: final_newline
@@ -2228,10 +2240,10 @@ contains
         do k = 1, len(text) + 1
             if (k > len(text)) then
                 i = i + 1
-                lines(i)%name = text(start:)
+                lines(i)%text = text(start:)
             else if (text(k:k) == LF) then
                 i = i + 1
-                lines(i)%name = text(start:k - 1)
+                lines(i)%text = text(start:k - 1)
                 start = k + 1
             end if
         end do
@@ -2241,7 +2253,7 @@ contains
             j = i - 1
 
             do while (j >= 1)
-                if (.not. is_less(tmp%name, lines(j)%name)) exit
+                if (.not. is_string_less(tmp%text, lines(j)%text)) exit
                 lines(j + 1) = lines(j)
                 j = j - 1
             end do
@@ -2252,30 +2264,13 @@ contains
         text = ""
 
         do i = 1, n
-            text = text//lines(i)%name
+            text = text//lines(i)%text
             if (i < n .or. final_newline) text = text//LF
         end do
 
         call delete_region(point_min(), point_max(), status)
         if (status%ok()) call insert(text, status)
         call goto_char(point_min())
-
-    contains
-
-        ! string-lessp on UTF-8 bytes (the order of the characters).
-        logical function is_less(a, b)
-            character(len=*), intent(in) :: a, b
-            integer :: m
-
-            do m = 1, min(len(a), len(b))
-                if (a(m:m) /= b(m:m)) then
-                    is_less = iachar(a(m:m)) < iachar(b(m:m))
-                    return
-                end if
-            end do
-
-            is_less = len(a) < len(b)
-        end function is_less
     end subroutine sort_lines_in_buffer
 
     !> Create a temporary file from the current makefile buffer.  Port of
@@ -2297,7 +2292,7 @@ contains
     !> make-mode.el:makefile-query-targets.
     subroutine makefile_query_targets(filename, target_table, prerequisites, status)
         character(len=*), intent(in) :: filename
-        type(makefile_name_type), intent(in) :: target_table(:), prerequisites(:)
+        type(string_type), intent(in) :: target_table(:), prerequisites(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         logical :: no_prereqs, needs_rebuild
@@ -2310,20 +2305,20 @@ contains
             no_prereqs = .true.
 
             do j = 1, size(prerequisites)
-                if (prerequisites(j)%name == target_table(k)%name &
-                    .and. len(prerequisites(j)%name) == len(target_table(k)%name)) no_prereqs = .false.
+                if (prerequisites(j)%text == target_table(k)%text &
+                    .and. len(prerequisites(j)%text) == len(target_table(k)%text)) no_prereqs = .false.
             end do
 
             needs_rebuild = no_prereqs
-            if (.not. needs_rebuild) needs_rebuild = makefile_query_one_target_method_function(target_table(k)%name, filename)
+            if (.not. needs_rebuild) needs_rebuild = makefile_query_one_target_method_function(target_table(k)%text, filename)
             if (k > 1) text = text//LF
 
             if (no_prereqs) then
-                text = text//TAB//target_table(k)%name//"  .. has no prerequisites"
+                text = text//TAB//target_table(k)%text//"  .. has no prerequisites"
             else if (needs_rebuild) then
-                text = text//TAB//target_table(k)%name//"  .. NEEDS REBUILD"
+                text = text//TAB//target_table(k)%text//"  .. NEEDS REBUILD"
             else
-                text = text//TAB//target_table(k)%name//"  .. is up to date"
+                text = text//TAB//target_table(k)%text//"  .. is up to date"
             end if
         end do
 
@@ -2408,6 +2403,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: opoint, found
         type(status_type) :: st
+        character(len=40) :: line_text
         logical :: ok
 
         status = status_type()
@@ -2418,7 +2414,8 @@ contains
         call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR)
 
         if (st%ok() .and. found > 0) then
-            call read_y_or_n(prompt//number_to_string(count_lines(point_min(), point()))//".  Save anyway?", ok, status)
+            write (line_text, '(i0, ".  Save anyway?")') count_lines(point_min(), point())
+            call read_y_or_n(prompt//trim(line_text), ok, status)
             done = .not. ok
         end if
 
@@ -2638,11 +2635,11 @@ contains
         value = .false.
         if (len(target_name) == 0) return
         s => state()
-        if (.not. member_name(s%targets, target_name)) call prepend(s%targets, target_name)
+        if (.not. member_name(s%targets, target_name)) call prepend_string(s%targets, target_name)
 
         if (present(has_prereqs)) then
             if (has_prereqs) then
-                call prepend(s%prereqs, target_name)
+                call prepend_string(s%prereqs, target_name)
                 value = .true.
             end if
         end if
@@ -2660,7 +2657,7 @@ contains
         s => state()
 
         if (.not. member_name(s%macros, macro_name)) then
-            call prepend(s%macros, macro_name)
+            call prepend_string(s%macros, macro_name)
             value = .true.
         end if
     end function makefile_remember_macro
@@ -2729,22 +2726,13 @@ contains
 
         ! Remove leading and trailing whitespace.
         if (allocated(found)) then
-            k = len(found)
+            k = verify(found, " "//TAB)
 
-            do while (k > 0)
-                if (found(k:k) /= " " .and. found(k:k) /= TAB) exit
-                k = k - 1
-            end do
-
-            found = found(1:k)
-            k = 1
-
-            do while (k <= len(found))
-                if (found(k:k) /= " " .and. found(k:k) /= TAB) exit
-                k = k + 1
-            end do
-
-            found = found(k:)
+            if (k == 0) then
+                found = ""
+            else
+                found = found(k:verify(found, " "//TAB, back=.true.))
+            end if
         end if
 
         call goto_char(opoint)

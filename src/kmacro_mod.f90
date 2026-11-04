@@ -57,7 +57,7 @@ module kmacro_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, command_type
-    use data_mod, only: number_to_string, value_eq
+    use data_mod, only: choice_setting_type, value_eq
     use keymap_mod, only: make_sparse_keymap, define_key, key_binding, is_keymap_live, key_parse, destroy_keymap
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, find_function
     use buffer_mod, only: is_buffer_live, buffers
@@ -69,13 +69,13 @@ module kmacro_mod
                             read_event, unread_command_events, set_transient_map, redisplay_hook, is_defining_kbd_macro, &
                             clear_this_command_keys, set_last_macro_command, last_macro_command
     use xdisp_mod, only: message, add_minor_mode_lighter
-    use print_mod, only: fortran_string, marker_repr
+    use print_mod, only: fortran_string, marker_text
     use subr_mod, only: read_number
     use minibuf_mod, only: read_string
     use register_mod, only: register_read_with_preview, get_register, set_register, register_contents_type, REGISTER_EMPTY, &
                             REGISTER_MARKER, REGISTER_TEXT, REGISTER_RECTANGLE, REGISTER_NUMBER, &
                             REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, REGISTER_FILE_QUERY, REGISTER_BUFFER
-    use rect_mod, only: format_integer
+    use editfns_mod, only: styled_format, format_arguments_type
     use edmacro_mod, only: format_kbd_macro
     use simple_mod, only: kmacro_keyboard_quit_hook
     implicit none(type, external)
@@ -91,9 +91,16 @@ module kmacro_mod
               kmacro_end_or_execute_macro_repeat, kmacro_end_and_execute_macro, kmacro_view_macro, &
               kmacro_view_macro_repeat, kmacro_redisplay, kmacro_keyboard_quit, kmacro_execute, kmacro, init_kmacro
 
-    !> Values of `kmacro_execute_repeat_key' other than a character:
-    !> KMACRO_EXECUTE_REPEAT_KEY_NO and KMACRO_EXECUTE_REPEAT_KEY_LAST (the last key).
-    integer, parameter, public :: KMACRO_EXECUTE_REPEAT_KEY_NO = -1, KMACRO_EXECUTE_REPEAT_KEY_LAST = -2
+    !> The setting `kmacro_execute_repeat_key': .false., .true. or a
+    !> character (R6-39: `kmacro_execute_repeat_key%char = iachar("e")';
+    !> negative when none is set).  Not a port.
+    type, extends(choice_setting_type), public :: kmacro_execute_repeat_key_choice_setting_type
+        integer :: char = -1
+    contains
+        procedure :: clear_kinds => kmacro_execute_repeat_key_clear_kinds
+        procedure :: other_value => kmacro_execute_repeat_key_other_value
+        procedure :: kind_hint => kmacro_execute_repeat_key_kind_hint
+    end type kmacro_execute_repeat_key_choice_setting_type
 
     !> Values of `kmacro_reg_add_counter''s and `kmacro_quit_counter''s
     !> TEST: =, < and >.
@@ -131,10 +138,11 @@ module kmacro_mod
     logical, public :: kmacro_repeat_no_prefix = .true.
 
     !> Allow repeating macro call using last key or a specific key.
-    !> In Fortran: KMACRO_EXECUTE_REPEAT_KEY_NO (none),
-    !> KMACRO_EXECUTE_REPEAT_KEY_LAST (the last key) or a character.  Port of
+    !> .false. means no repeat key, .true. the last key, and
+    !> `kmacro_execute_repeat_key%char' a character.  Port of
     !> kmacro.el kmacro-call-repeat-key (a key name is Deferred).
-    integer, public :: kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_LAST
+    type(kmacro_execute_repeat_key_choice_setting_type), public :: kmacro_execute_repeat_key = &
+                                       kmacro_execute_repeat_key_choice_setting_type(name="kmacro_execute_repeat_key", value=.true.)
 
     !> Repeat macro call with original arg when true; repeat once if false.
     !> Port of kmacro.el kmacro-call-repeat-with-arg.
@@ -241,15 +249,18 @@ contains
         type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
+        type(format_arguments_type) :: arguments
 
         call ensure_formats()
         call take_initial_counter_value()
 
         if (arg%kind == PREFIX_RAW) then
-            call format_integer(kmacro_counter_format, kmacro_last_counter, text, status)
+            call arguments%append(kmacro_last_counter)
+            call styled_format(kmacro_counter_format, arguments, .false., text, status)
             if (status%ok()) call insert(text, status)
         else
-            call format_integer(kmacro_counter_format, kmacro_counter, text, status)
+            call arguments%append(kmacro_counter)
+            call styled_format(kmacro_counter_format, arguments, .false., text, status)
             if (status%ok()) call insert(text, status)
             if (status%ok()) call kmacro_add_counter(prefix_numeric_value(arg), status)
         end if
@@ -259,7 +270,7 @@ contains
     !>
     !> The default format is "%d", which means to insert the number in
     !> decimal without any padding.  You can specify any format string
-    !> that the `format' function accepts and that makes sense with a
+    !> that the `format_text' function accepts and that makes sense with a
     !> single integer extra argument.
     !>
     !> If you run this command while no keyboard macro is being defined,
@@ -293,13 +304,17 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: value
         character(len=:), allocatable :: text
+        character(len=24) :: value_text
         integer(int64) :: v
+        type(format_arguments_type) :: arguments
 
         call ensure_formats()
         v = kmacro_counter
         if (present(value)) v = value
-        call format_integer(kmacro_counter_format, v, text, status)
-        if (status%ok()) call message("New macro counter value: "//text//" ("//number_to_string(v)//")")
+        call arguments%append(v)
+        call styled_format(kmacro_counter_format, arguments, .false., text, status)
+        write (value_text, '(" (", i0, ")")') v
+        if (status%ok()) call message("New macro counter value: "//text//trim(value_text))
     end subroutine kmacro_display_counter
 
     !> Set the value of `kmacro_counter' to ARG, or prompt for value if no argument.
@@ -406,15 +421,16 @@ contains
             call marker_position(v%marker, n, status)
         case default
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
-                           "expected integer, real or type(marker_type), got "//register_value_repr(v))
+                           "expected integer, real or type(marker_type), got "//register_value_text(v))
         end select
     end subroutine register_to_number
 
     !> The printed representation of register contents V.  Not a port.
-    function register_value_repr(v) result(s)
+    function register_value_text(v) result(s)
         type(register_contents_type), intent(in) :: v
         character(len=:), allocatable :: s
         character(len=:), allocatable :: name
+        character(len=24) :: number_text
         type(status_type) :: st
         integer :: k
 
@@ -433,11 +449,12 @@ contains
 
             s = s//"]"
         case (REGISTER_WINDOW_CONFIGURATION)
-            s = "(#<window-configuration> "//marker_repr(v%marker)//")"
+            s = "(#<window-configuration> "//marker_text(v%marker)//")"
         case (REGISTER_FILE)
             s = "(file . "//fortran_string(v%text)//")"
         case (REGISTER_FILE_QUERY)
-            s = "(file-query "//fortran_string(v%text)//" "//number_to_string(v%number)//")"
+            write (number_text, '(" ", i0, ")")') v%number
+            s = "(file-query "//fortran_string(v%text)//trim(number_text)
         case (REGISTER_BUFFER)
             if (is_buffer_live(v%buffer)) then
                 name = buffers(v%buffer%index)%name
@@ -450,7 +467,7 @@ contains
         end select
 
         st = status_type()
-    end function register_value_repr
+    end function register_value_text
 
     !> TEST applied to A and B.  Not a port.
     logical function compare(test, a, b)
@@ -733,6 +750,7 @@ contains
         character(len=:), allocatable :: m, d, counter_part
         integer, parameter :: x = 60
         logical :: z
+        type(format_arguments_type) :: arguments
 
         status = status_type()
         call ensure_formats()
@@ -746,7 +764,8 @@ contains
             counter_part = ""
 
             if (kmacro_counter /= 0) then
-                call format_integer(kmacro_counter_format_start, kmacro_counter, counter_part, status)
+                call arguments%append(kmacro_counter)
+                call styled_format(kmacro_counter_format_start, arguments, .false., counter_part, status)
                 if (.not. status%ok()) return
                 counter_part = " ["//counter_part//"]"
             end if
@@ -1137,6 +1156,7 @@ contains
         type(prefix_arg_type) :: a
         type(status_type) :: st
         character(len=:), allocatable :: times
+        character(len=32) :: times_text
         logical :: ending, had_saved
         integer :: nr
 
@@ -1198,14 +1218,11 @@ contains
             if (a%value <= 0) return
         end if
 
-        select case (kmacro_execute_repeat_key)
-        case (KMACRO_EXECUTE_REPEAT_KEY_LAST)
-            continue
-        case (KMACRO_EXECUTE_REPEAT_KEY_NO)
+        if (kmacro_execute_repeat_key%char >= 0) then
+            repeat_key = value_type(int(kmacro_execute_repeat_key%char, int64))
+        else if (.not. kmacro_execute_repeat_key%value) then
             repeat_key = value_type()
-        case default
-            repeat_key = value_type(int(kmacro_execute_repeat_key, int64))
-        end select
+        end if
 
         if (.not. allocated(repeat_key%a)) return
 
@@ -1214,7 +1231,10 @@ contains
             times = ""
 
             if (kmacro_execute_repeat_with_arg .and. a%kind == PREFIX_NUMBER) then
-                if (a%value > 1) times = " "//number_to_string(a%value)//" times"
+                if (a%value > 1) then
+                    write (times_text, '(" ", i0, " times")') a%value
+                    times = trim(times_text)
+                end if
             end if
 
             key(1) = repeat_key
@@ -1313,7 +1333,7 @@ contains
         status = status_type()
 
         if (is_defining_kbd_macro()) then
-            if (kmacro_execute_repeat_key /= KMACRO_EXECUTE_REPEAT_KEY_NO) then
+            if (.not. kmacro_execute_repeat_key%is_off()) then
                 call kmacro_execute_macro(arg, status, nr, .true.)
             else
                 call kmacro_end_macro(arg, status)
@@ -1372,6 +1392,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         character(len=:), allocatable :: descr
+        character(len=24) :: ordinal
 
         status = status_type()
 
@@ -1399,7 +1420,8 @@ contains
             case (3)
                 descr = "3rd"
             case default
-                descr = number_to_string(kmacro_view_item_no)//"th"
+                write (ordinal, '(i0, "th")') kmacro_view_item_no
+                descr = trim(ordinal)
             end select
 
             keys = kmacro_ring(kmacro_view_last_item)%keys
@@ -1611,7 +1633,7 @@ contains
     !> The previous value of the counter is the one it had before
     !> the last increment.
     !>
-    !> See Info node `(emacs) Keyboard Macro Counter' for more
+    !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-insert-counter.
     recursive subroutine cmd_kmacro_insert_counter(status)
         type(status_type), intent(out) :: status
@@ -1623,7 +1645,7 @@ contains
     !>
     !> The default format is "%d", which means to insert the number in
     !> decimal without any padding.  You can specify any format string
-    !> that the `format' function accepts and that makes sense with a
+    !> that the `format_text' function accepts and that makes sense with a
     !> single integer extra argument.
     !>
     !> If you run this command while no keyboard macro is being defined,
@@ -1635,7 +1657,7 @@ contains
     !> Do not put the format string inside double quotes when you insert
     !> it in the minibuffer.
     !>
-    !> See Info node `(emacs) Keyboard Macro Counter' for more
+    !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-set-format.
     recursive subroutine cmd_kmacro_set_format(status)
         type(status_type), intent(out) :: status
@@ -1649,7 +1671,7 @@ contains
     !> With \[universal_argument] prefix, reset counter to its value prior to this iteration of the
     !> macro.
     !>
-    !> See Info node `(emacs) Keyboard Macro Counter' for more
+    !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-set-counter.
     recursive subroutine cmd_kmacro_set_counter(status)
         type(status_type), intent(out) :: status
@@ -1662,7 +1684,7 @@ contains
     !> Add the value of numeric prefix arg (prompt if missing) to `kmacro_counter'.
     !> With \[universal_argument], restore previous counter value.
     !>
-    !> See Info node `(emacs) Keyboard Macro Counter' for more
+    !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-add-counter.
     recursive subroutine cmd_kmacro_add_counter(status)
         type(status_type), intent(out) :: status
@@ -1971,4 +1993,37 @@ contains
 
         t = s
     end function first_chars
+
+    !> Forget the char of `kmacro_execute_repeat_key', as any assignment to it does.
+    !> Not a port.
+    subroutine kmacro_execute_repeat_key_clear_kinds(self)
+        class(kmacro_execute_repeat_key_choice_setting_type), intent(inout) :: self
+
+        self%char = -1
+    end subroutine kmacro_execute_repeat_key_clear_kinds
+
+    !> The char of `kmacro_execute_repeat_key' as help shows it (`%char = N'); "" when
+    !> none is set.  Not a port.
+    function kmacro_execute_repeat_key_other_value(self) result(text)
+        class(kmacro_execute_repeat_key_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        character(len=32) :: component_text
+
+        text = ""
+
+        if (self%char >= 0) then
+            write (component_text, '("%char = ", i0)') self%char
+            text = trim(component_text)
+        end if
+    end function kmacro_execute_repeat_key_other_value
+
+    !> The assignment that sets the number or procedure `kmacro_execute_repeat_key' takes, for the error of a rejected
+    !> value.  Not a port.
+    function kmacro_execute_repeat_key_kind_hint(self, number) result(text)
+        class(kmacro_execute_repeat_key_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a character code is `"//trim(self%name)//"%char = "//number//"'"
+    end function kmacro_execute_repeat_key_kind_hint
 end module kmacro_mod

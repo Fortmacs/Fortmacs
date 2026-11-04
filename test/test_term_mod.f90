@@ -32,7 +32,7 @@ module test_term_mod
     use keymap_mod, only: lookup_key
     use value_mod, only: make_keymap_ref, value_type
     use keyboard_mod, only: input_decode_map
-    use sysdep_mod, only: open_pty, close_fd, input_available, emacs_read, &
+    use sysdep_mod, only: open_pty, close_fd, input_available, fortmacs_read, &
                           set_tty_size
     use term_mod, only: delete_tty, encode_terminal_code, init_tty, init_tty_entry, &
                         tty_clear_end_of_line, tty_clear_frame, tty_clear_to_end, tty_cursor_to, &
@@ -343,7 +343,7 @@ contains
             call check(error, input_available(master, 2000_int32), "output")
 
             if (.not. allocated(error)) then
-                call emacs_read(master, buffer, n, st)
+                call fortmacs_read(master, buffer, n, st)
                 call check(error, buffer(1:n), ESC//"[1;1H")
             end if
         end if

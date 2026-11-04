@@ -53,11 +53,11 @@ module syntax_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE, &
                          FM_SCAN_ERROR
     use handle_mod, only: handle_type, slot_table_type, null_handle
-    use character_mod, only: MAX_CHAR, string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH, unibyte_to_char
+    use character_mod, only: MAX_CHAR, string_char_and_length, unibyte_to_char
     use error_mod, only: format_message
     use buffer_mod, only: buffers, current, buf_fetch_char, buf_next_char_len, buf_prev_char_len
     use marker_mod, only: char_to_byte
-    use editfns_mod, only: point, goto_char, constrain_to_field
+    use editfns_mod, only: point, goto_char, constrain_to_field, char_to_string
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use characters_mod, only: characters_syntax
     use category_mod, only: char_has_category
@@ -246,7 +246,7 @@ module syntax_mod
 
     interface
         !> Port of syntax.c:skip_chars.  (In syntax_skip_mod, which can use
-        !> regex_emacs_mod for the character classes.)
+        !> regex_mod for the character classes.)
         module function skip_chars(forwardp, string, status, lim) result(moved)
             implicit none(type, external)
             logical, intent(in) :: forwardp
@@ -917,6 +917,8 @@ contains
         character(len=:), allocatable :: text
         integer :: syntax_code, code
         logical :: start1, start2, end1, end2, prefix, comstyleb, comstylec, comnested
+        character(len=:), allocatable :: match
+        type(status_type) :: st
 
         if (syntax%code == -1) then
             text = "default"
@@ -940,11 +942,13 @@ contains
         end if
 
         text = syntax_code_spec(code + 1:code + 1)
+        match = ""
+        if (syntax%match /= -1) call char_to_string(int(syntax%match, int32), match, st)
 
         if (syntax%match == -1) then
             text = text//" "
         else
-            text = text//char_utf8(syntax%match)
+            text = text//match
         end if
 
         if (start1) text = text//"1"
@@ -956,7 +960,7 @@ contains
         if (comstylec) text = text//"c"
         if (comnested) text = text//"n"
         text = text//achar(9)//"which means: "//class_name(code)
-        if (syntax%match /= -1) text = text//", matches "//char_utf8(syntax%match)
+        if (syntax%match /= -1) text = text//", matches "//match
         if (start1) text = text//","//achar(10)//achar(9)//"  is the first character of a comment-start sequence"
         if (start2) text = text//","//achar(10)//achar(9)//"  is the second character of a comment-start sequence"
         if (end1) text = text//","//achar(10)//achar(9)//"  is the first character of a comment-end sequence"
@@ -1012,18 +1016,6 @@ contains
             name = "string fence"
         end select
     end function class_name
-
-    !> The UTF-8 form of character C.  Not a port.
-    function char_utf8(c) result(s)
-        integer, intent(in) :: c
-        character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: tmp
-        integer(int32) :: n
-        type(status_type) :: st
-
-        call char_string(int(c, int32), tmp, n, st)
-        s = tmp(1:n)
-    end function char_utf8
 
     !> Return the matching parenthesis of CHARACTER, or -1 if none.
     !> Port of syntax.c:Fmatching_paren (with
@@ -1115,7 +1107,7 @@ contains
     !> The second character of NEWENTRY is the matching parenthesis,
     !>  used only if the first character is `(' or `)'.
     !> Any additional characters are flags: 1, 2, 3, 4, b, c, n and p
-    !> (comment sequences and prefix characters; see the Emacs manual).
+    !> (comment sequences and prefix characters; see the Fortmacs manual).
     !> Port of syntax.c:Fmodify_syntax_entry.
     subroutine modify_syntax_entry(from, to, newentry, status, syntax_table_h)
         integer, intent(in) :: from, to

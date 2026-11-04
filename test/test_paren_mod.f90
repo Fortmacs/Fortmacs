@@ -40,7 +40,7 @@ module test_paren_mod
     use bindings_mod, only: init_bindings
     use timer_mod, only: execute_with_timer, destroy_timer
     use keyboard_mod, only: read_event, set_input_fd, discard_input
-    use sysdep_mod, only: emacs_tty_type, open_pty, close_fd, init_sys_modes, reset_sys_modes, emacs_write
+    use sysdep_mod, only: fortmacs_tty_type, open_pty, close_fd, init_sys_modes, reset_sys_modes, fortmacs_write
     use test_support_mod, only: show_alone
     implicit none(type, external)
     private
@@ -355,7 +355,7 @@ contains
     subroutine write_x(status)
         type(status_type), intent(out) :: status
 
-        call emacs_write(master, "x", status)
+        call fortmacs_write(master, "x", status)
     end subroutine write_x
 
     !> The idle timer highlights the parens while the command loop waits
@@ -364,7 +364,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, key_timer
         type(status_type) :: st
-        type(emacs_tty_type) :: old
+        type(fortmacs_tty_type) :: old
         type(value_type) :: ev
         integer(int32) :: slave
         logical :: have

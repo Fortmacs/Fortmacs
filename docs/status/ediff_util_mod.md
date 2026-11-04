@@ -1,0 +1,92 @@
+# ediff_util_mod
+
+- Module: ediff_util_mod, ediff_util_session_mod (submodule)
+- Upstream: vc/ediff-util.el
+- State: partial
+
+## Ported
+
+`ediff-mode` (the hook, no derived mode),
+`ediff-setup` (the control buffer `*Ediff Control Panel*` and its suffix and number, the job's classification, `ediff-keep-variants` for buffer jobs, the error buffer, the bounds overlays, `ediff-prepare-buffer-hook`, `ediff-make-buffers-readonly-at-startup`, the difference regions, the current-difference overlays, the windows and points, `ediff-select-control-window-on-setup`, STARTUP-HOOKS, `ediff-startup-hook`),
+`ediff-setup-keymap` with `ediff-set-keys` (a keymap per control buffer, suppressed, the keys of the ported commands, 2-way and 3-way copy keys, `ediff-no-emacs-help-in-control-buffer`, `ediff-keymap-setup-hook`),
+`ediff-setup-control-buffer`,
+`ediff-update-diffs` (!),
+`ediff-recenter` (C-l),
+`ediff-recenter-one-window`,
+`ediff-position-region`,
+`ediff-toggle-split` (\|),
+`ediff-toggle-hilit` (h, as `toggle_ediff_highlighting`),
+`ediff-toggle-help` (?),
+`ediff-visible-region`,
+`ediff-next-difference` (n, SPC),
+`ediff-previous-difference` (p, DEL, <delete>, <backspace>, S-SPC),
+`ediff-jump-to-difference` (j),
+`ediff-jump-to-difference-at-point` (ga, gb, gc),
+`ediff-diff-at-point`,
+`ediff-diff-to-diff` (C-u copies all),
+`ediff-copy-A-to-B` (a or ab) and the five other copies,
+`ediff-copy-diff`,
+`ediff-save-diff-region`,
+`ediff-test-save-region`,
+`ediff-pop-diff`,
+`ediff-restore-diff` (ra, rb, rc),
+`ediff-quit` (q, C-u reverses `ediff-keep-variants`),
+`ediff-really-quit` (`quit_ediff_session`),
+`ediff-cleanup-mess` (in `ediff-quit-hook`),
+`ediff-janitor`,
+`ediff-dispose-of-variant-according-to-user`,
+`ediff-select-difference`,
+`ediff-unselect-difference`,
+`ediff-unselect-and-select-difference`,
+the highlighting with faces or ASCII flags (`ediff-highlight-diff(-in-one-buffer)`, `ediff-unhighlight-*`, `ediff-place-flags-in-buffer(1)`, `ediff-remove-flags-from-buffer`),
+`ediff-get-diff-posn`,
+`ediff-get-region-contents`,
+`ediff-restore-highlighting`,
+`ediff-clear-diff-vector`,
+`ediff-make-bullet-proof-overlay`,
+`ediff-make-current-diff-overlay`,
+`ediff-read-file-name`,
+`ediff-make-temp-file`,
+`ediff-verify-file-buffer`,
+`ediff-other-buffer`,
+`ediff-unique-buffer-name`
+
+## Deferred
+
+fine differences (`*` `ediff-make-or-kill-fine-diffs`, `@` `ediff-toggle-autorefine`),
+the regexp filters (`#h`, `#f`, `##`: `ediff-toggle-regexp-match`, `ediff-toggle-skip-similar`, `ediff-focus-on-regexp-matches`, `ediff-hide-regexp-matches`, `ediff-skip-diff-region-function`),
+scrolling (`v`, `V`, `C-v`, `M-v`, `^`, `<`, `>`: `ediff-scroll-vertically`, `-horizontally`, `ediff-operate-on-windows`),
+`ediff-swap-buffers` (~),
+`ediff-toggle-read-only` (A, B, C),
+`ediff-save-buffer` (wa, wb, wc, wd),
+`ediff-status-info` (i),
+`ediff-show-diff-output` (D, `ediff-compute-custom-diffs-maybe`),
+`ediff-inferior-compare-regions` (=),
+`ediff-suspend` (z),
+`ediff-documentation` (E),
+`ediff-help-for-quick-help` (RET, mouse-2),
+`ediff-submit-report` (G),
+the session registry and groups (R, M; ediff-mult.el),
+`ediff-toggle-wide-display` (m),
+`ediff-toggle-multiframe`,
+`ediff-toggle-use-toolbar`,
+merging (ediff-merg.el: the merge buffer in `ediff-setup`, `ediff-arrange-autosave-in-merge-jobs`, `ediff-restore-diff-in-merge-buffer`, `/`, `s`, `+`, `$$`, `$*`, `&`, `ediff-toggle-show-ancestor`, the state of differences in 3-way jobs: `ediff-set-state-of-diff-in-all-buffers`),
+`ediff-toggle-narrow-region` (%) and the word,
+window and region jobs,
+`ediff-revert-buffers-then-recompute-diffs`,
+`ediff-reload-keymap`,
+`ediff-debug-info`,
+`ediff-profile`,
+the mode lines of buffers A,
+B and C (`ediff-strip-mode-line-format`, `ediff-protected-variables`: waits for `mode_line_format`),
+`ediff-delete-temp-files` and the deletion at exit (the temporary files of revision jobs),
+`balance-windows` in `ediff-cleanup-mess`,
+the `window-min-height` bindings,
+indirect buffers,
+`ediff-choose-syntax-table`,
+the Buffer Menu's marked buffers in `ediff-other-buffer`;
+a copy of identical regions shows an empty message where upstream shows "nil"
+
+## Tests
+
+test_ediff_util_mod (own: setup, windows, n, p, j, copying one or all differences and restoring, the keys, ?, quitting)

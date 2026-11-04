@@ -27,8 +27,7 @@
 !> and `css_current_rule_name'.
 !>
 !> Deferred: `css_lookup_symbol' (it needs eww; `css__mdn_find_symbol'
-!> is ported), Imenu (its index functions are ported, for
-!> `css_current_rule_name'), `add_log_current_subprogram_function', the menu,
+!> is ported), the menu,
 !> `css_ts_mode', `less_css_mode' (less-css-mode.el) and the
 !> `:company_kind' completion properties.
 module css_mode_mod
@@ -43,6 +42,7 @@ module css_mode_mod
     use buffer_mod, only: buffers, current, buffer_serial_live, current_buffer, buffer_list, set_buffer, is_buffer_live
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
                           forward_comment, skip_chars_forward, skip_chars_backward, char_syntax
@@ -63,7 +63,7 @@ module css_mode_mod
     use faces_mod, only: named_face_type, display_when, face_attrs, readable_foreground_color
     use color_mod, only: color_name_to_rgb, color_rgb_to_hex, color_hsl_to_rgb
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_KEEP
+                             FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_KEEP
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_default_fontify_region, &
                              font_lock_fontify_region_function_set_local
     use expression_motion_mod, only: forward_expression, backward_expression, down_group, cut_expression
@@ -84,6 +84,7 @@ module css_mode_mod
     use minibuf_mod, only: try_completion, all_completions, is_exact_completion
     use minibuffer_mod, only: completion_at_point_functions
     use regexp_opt_mod, only: regexp_opt
+    use imenu_mod, only: imenu_prev_index_position_function, imenu_extract_index_name_function, imenu_space_replacement
     implicit none(type, external)
     private
 
@@ -91,7 +92,7 @@ module css_mode_mod
               css_property_value_cache_get, css_foreign_completions, css_completion_at_point, css_color_to_4_dpc, &
               css_format_hex, css_named_color_to_hex, css_format_rgba_alpha, css_hex_to_rgb, &
               css_rgb_to_named_color_or_hex, css_cycle_color_format, css_join_nested_selectors, &
-              css_prev_index_position, css_extract_index_name, css_current_rule_name, css_mdn_find_symbol, &
+              css_prev_index_position, extract_css_index_name, css_current_rule_name, css_mdn_find_symbol, &
               css_rgb_color, css_hsl_color, css_hex_color, css_hex_alpha, css_named_color, css_compute_color, &
               css_fontify_region, css_smie_forward_token, css_smie_backward_token, css_smie_rules, css_fill_paragraph, &
               css_adaptive_fill, is_scss_smie_not_interpolation, css_font_lock_keywords_of, scss_font_lock_keywords
@@ -1292,7 +1293,7 @@ contains
 
         ! puthash.
         if (.not. allocated(value_cache)) allocate (value_cache(0))
-        i = findloc(value_cache%property, property, dim=1)
+        i = findloc(value_cache%property == property, .true., dim=1)
 
         if (i > 0) then
             value_cache(i)%values = values
@@ -1316,7 +1317,7 @@ contains
         found = .false.
         allocate (values(0))
         if (.not. allocated(value_cache)) return
-        i = findloc(value_cache%property, property, dim=1)
+        i = findloc(value_cache%property == property, .true., dim=1)
         if (i == 0) return
         values = value_cache(i)%values
         found = size(values) > 0
@@ -2541,10 +2542,11 @@ contains
         end do
     end function css_join_nested_selectors
 
-    !> Move to the start of the CSS section before point, returning
-    !> whether there is one (imenu-prev-index-position-function).  Port of
+    !> Move to the start of the CSS section before point, FOUND if there
+    !> is one (an `imenu_prev_index_position_function').  Port of
     !> css-mode.el:css--prev-index-position.
-    recursive logical function css_prev_index_position() result(found)
+    recursive subroutine css_prev_index_position(found)
+        logical, intent(out) :: found
         type(parse_state_type) :: ppss
         type(status_type) :: st
         integer(int64) :: pos
@@ -2570,8 +2572,8 @@ contains
         found = pos > 0
         call goto_char(point() - (me(0) - mb(0)))
         ! (The match data stays that of the name, for
-        ! `css_extract_index_name'.)
-    end function css_prev_index_position
+        ! `extract_css_index_name'.)
+    end subroutine css_prev_index_position
 
     ! STRING with each run of newlines and spaces made one space, trimmed
     ! (string-trim of replace-regexp-in-string).
@@ -2605,11 +2607,12 @@ contains
         end if
     end function squeeze
 
-    !> The name of the CSS section whose name the last search matched,
-    !> with those it is nested in (imenu-extract-index-name-function).
-    !> Port of css-mode.el:css--extract-index-name.
-    recursive function css_extract_index_name() result(name)
-        character(len=:), allocatable :: name
+    !> NAME gets the name of the CSS section whose name the last search
+    !> matched, with those it is nested in (an
+    !> `imenu_extract_index_name_function').  Port of
+    !> css-mode.el:css--extract-index-name.
+    recursive subroutine extract_css_index_name(name)
+        character(len=:), allocatable, intent(out) :: name
         type(parse_state_type) :: ppss
         type(status_type) :: st
         character(len=200), allocatable :: res(:)
@@ -2640,7 +2643,7 @@ contains
 
         name = join_squeezed(res)
         call goto_char(opoint)
-    end function css_extract_index_name
+    end subroutine extract_css_index_name
 
     ! css--join-nested-selectors of the squeezed elements of RES.
     ! Not a port.
@@ -2659,17 +2662,16 @@ contains
         name = css_join_nested_selectors(parts)
     end function join_squeezed
 
-    !> Return the name of the CSS section at point (`found' false for
+    !> Return the name of the CSS section at point (unallocated for
     !> none).  Port of css-mode.el:css-current-defun-name.
-    recursive subroutine css_current_rule_name(name, found)
+    recursive subroutine css_current_rule_name(name)
         character(len=:), allocatable, intent(out) :: name
-        logical, intent(out) :: found
         integer(int64) :: opoint
+        logical :: found
 
-        name = ""
         opoint = point()
-        found = css_prev_index_position()
-        if (found) name = css_extract_index_name()
+        call css_prev_index_position(found)
+        if (found) call extract_css_index_name(name)
         call goto_char(opoint)
     end subroutine css_current_rule_name
 
@@ -2798,8 +2800,8 @@ contains
         ! default face. This is done because the parens may sometimes
         ! receive generic string delimiter syntax (see
         ! `css_syntax_propertize_function').
-        h2(1) = h(1, "default", FONT_LOCK_OVERRIDE_YES)
-        h2(2) = h(2, "default", FONT_LOCK_OVERRIDE_YES)
+        h2(1) = h(1, "default", FONT_LOCK_OVERRIDE_REPLACE)
+        h2(2) = h(2, "default", FONT_LOCK_OVERRIDE_REPLACE)
         kw(8) = font_lock_keyword(KW8_REGEXP, highlights=h2)
     end function css_font_lock_keywords_of
 
@@ -3374,6 +3376,8 @@ contains
         call comment_end%set_local("*/")
         call comment_end_skip%set_local("[ "//TAB//"]*\*+/")
         call electric_indent_chars_set_local([css_electric_keys, electric_indent_chars_value()])
+        ! The default "." creates ambiguity with class selectors.
+        call imenu_space_replacement%set_local(" ")
         call major_modes%css_base_mode%end(saved, status)
     end subroutine css_base_mode
 
@@ -3402,6 +3406,9 @@ contains
         call smie_setup(css_smie_grammar, css_smie_rules, css_smie_forward_token, css_smie_backward_token)
         call font_lock_fontify_region_function_set_local(css_fontify_region)
         call completion_at_point_functions%prepend(css_completion_at_point, local=.true.)
+        call imenu_prev_index_position_function%set_local(css_prev_index_position)
+        call imenu_extract_index_name_function%set_local(extract_css_index_name)
+        call add_log_current_subprogram_function%set_local(css_current_rule_name)
         call major_modes%css_mode%end(saved, status)
     end subroutine css_mode
 

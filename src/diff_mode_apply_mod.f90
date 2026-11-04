@@ -29,6 +29,7 @@ submodule(diff_mode_mod) diff_mode_apply_mod
     use search_mod, only: search_forward, search_backward, regexp_quote
     use fns_mod, only: count_characters
     use xdisp_mod, only: message
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
 contains
@@ -108,17 +109,6 @@ contains
     call char_after(c, found)
     if (.not. found) c = -1
     end procedure char_at_point
-
-    module procedure string_to_number
-    integer :: k
-
-    n = 0
-
-    do k = 1, len(s)
-        if (s(k:k) < "0" .or. s(k:k) > "9") exit
-        n = 10*n + (iachar(s(k:k)) - iachar("0"))
-    end do
-    end procedure string_to_number
 
     !> Check the first or second half of the context hunk at point: it
     !> must have LINES lines.  Port of
@@ -228,8 +218,8 @@ contains
         else
             before = 1
             after = 1
-            if (me(2) > 0) before = string_to_number(match_string(2))
-            if (me(4) > 0) after = string_to_number(match_string(4))
+            if (me(2) > 0) call string_to_number(match_string(2), before)
+            if (me(4) > 0) call string_to_number(match_string(4), after)
             shortage = forward_line(1_int64)
 
             do
@@ -307,8 +297,15 @@ contains
 
     !> The number of lines a context half header from the match says.
     integer(int64) function half_lines()
+        integer(int64) :: first, last
+
         half_lines = 1
-        if (me(2) > 0) half_lines = 1 + string_to_number(match_string(2)) - string_to_number(match_string(1))
+
+        if (me(2) > 0) then
+            call string_to_number(match_string(1), first)
+            call string_to_number(match_string(2), last)
+            half_lines = 1 + last - first
+        end if
     end function half_lines
     end procedure diff_sanity_check_hunk
 
@@ -575,7 +572,7 @@ contains
     use files_mod, only: find_file_noselect
     character(len=:), allocatable :: hunk, line, file
     type(diff_text_type) :: old, new
-    integer(int64) :: saved, char_offset, x, orig_pos, shortage, pb, pe, start
+    integer(int64) :: saved, char_offset, x, orig_pos, shortage, pb, pe, start, line_number
     type(handle_type) :: obuf
     logical :: other, rev, quiet, has_file, maybe_old, maybe_new, found_pos, switched
     integer(int64) :: ob, oe, nb, ne
@@ -666,7 +663,8 @@ contains
     obuf = current_buffer()
     call set_buffer(loc%buffer, st)
     call goto_char(point_min())
-    shortage = forward_line(string_to_number(line) - 1)
+    call string_to_number(line, line_number)
+    shortage = forward_line(line_number - 1)
     orig_pos = point()
     switched = .false.
     call diff_find_text(old%text, maybe_old, ob, oe)
@@ -748,6 +746,7 @@ contains
         logical, intent(in) :: found, reversed, dry_run
         integer(int64), intent(in) :: line_offset
         character(len=:), allocatable :: msg
+        character(len=40) :: offset_text
 
         if (dry_run) then
             msg = merge("already applied", "not yet applied", reversed)
@@ -762,9 +761,11 @@ contains
         else if (line_offset == 0) then
             call message("Hunk "//msg)
         else if (line_offset == 1) then
-            call message("Hunk "//msg//" at offset "//number_to_string(line_offset)//" line")
+            write (offset_text, '(" at offset ", i0, " line")') line_offset
+            call message("Hunk "//msg//trim(offset_text))
         else
-            call message("Hunk "//msg//" at offset "//number_to_string(line_offset)//" lines")
+            write (offset_text, '(" at offset ", i0, " lines")') line_offset
+            call message("Hunk "//msg//trim(offset_text))
         end if
     end subroutine diff_hunk_status_msg
 
@@ -774,7 +775,7 @@ contains
     use subr_mod, only: read_y_or_n
     use window_mod, only: display_buffer, display_action_parameters_type, set_window_point, windows, pop_to_buffer
     use frame_mod, only: selected_frame
-    type(diff_name_type), allocatable :: names(:)
+    type(string_type), allocatable :: names(:)
     type(diff_source_location_type) :: loc
     type(display_action_parameters_type) :: table
     type(handle_type) :: obuf, window, saved_window
@@ -801,7 +802,7 @@ contains
     if (.not. status%ok()) return
     call diff_hunk_file_names(names, rev)
     deletion = .false.
-    if (size(names) > 0) deletion = names(1)%s == "/dev/null"
+    if (size(names) > 0) deletion = names(1)%text == "/dev/null"
     call diff_find_source_location(loc, status, deletion .neqv. rev, rev)
     if (.not. status%ok()) return
 
@@ -915,7 +916,7 @@ contains
     type :: edit_type
         type(handle_type) :: buffer
         integer(int64), allocatable :: pbeg(:), pend(:)
-        type(diff_name_type), allocatable :: dst(:)
+        type(string_type), allocatable :: dst(:)
     end type edit_type
     type(edit_type), allocatable :: edits(:)
     type(diff_source_location_type) :: loc
@@ -925,6 +926,7 @@ contains
     integer :: k, j, n
     logical :: rev, testing, nosave, more
     type(value_type) :: saved_inhibit
+    character(len=48) :: text
 
     status = status_type()
     rev = .false.
@@ -985,7 +987,7 @@ contains
                 do j = 1, size(edits(k)%pbeg)
                     call goto_char(edits(k)%pbeg(j))
                     call delete_region(edits(k)%pbeg(j), edits(k)%pend(j), status)
-                    if (status%ok()) call insert(edits(k)%dst(j)%s, status)
+                    if (status%ok()) call insert(edits(k)%dst(j)%text, status)
                 end do
 
                 call restore_inhibit_read_only(saved_inhibit)
@@ -1005,7 +1007,8 @@ contains
         if (failures == 1) then
             call message("1 hunk failed; no buffers changed")
         else
-            call message(number_to_string(int(failures, int64))//" hunks failed; no buffers changed")
+            write (text, '(i0, " hunks failed; no buffers changed")') failures
+            call message(trim(text))
         end if
     end if
 
@@ -1016,8 +1019,10 @@ contains
         character(len=*), intent(in) :: verb
         integer, intent(in) :: count
         character(len=:), allocatable :: s
+        character(len=24) :: count_text
 
-        s = verb//" "//number_to_string(int(count, int64))//" buffer"
+        write (count_text, '(" ", i0, " buffer")') count
+        s = verb//trim(count_text)
         if (count /= 1) s = s//"s"
     end function plural
 
@@ -1025,7 +1030,7 @@ contains
     subroutine add_edit(l)
         type(diff_source_location_type), intent(in) :: l
         type(edit_type) :: edit
-        type(diff_name_type) :: dst
+        type(string_type) :: dst
         integer :: i
 
         i = findloc(edits%buffer%index == l%buffer%index .and. edits%buffer%generation == l%buffer%generation, .true., dim=1)
@@ -1038,7 +1043,7 @@ contains
             i = 1
         end if
 
-        dst%s = l%dst%text
+        dst%text = l%dst%text
         edits(i)%pbeg = [l%beginning, edits(i)%pbeg]
         edits(i)%pend = [l%end, edits(i)%pend]
         edits(i)%dst = [dst, edits(i)%dst]

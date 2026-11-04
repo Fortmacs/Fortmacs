@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ibuffer is an advanced replacement for the `buffer_menu' which is
-!> normally distributed with Emacs.  Its interface is intended to be
+!> normally distributed with Fortmacs.  Its interface is intended to be
 !> analogous to that of Dired.  To start using it, type `M-x ibuffer'.
 !>
 !> The columns of `ibuffer_formats' are drawn by interpreting the format
@@ -107,6 +107,7 @@ module ibuffer_mod
                              ibuffer_derived_mode, ibuffer_starred_name, ibuffer_filename, ibuffer_buffer_test_procedure, &
                              ibuffer_filter_test_procedure, IBUFFER_FILTER_SIMPLE, IBUFFER_FILTER_NOT, IBUFFER_FILTER_AND, &
                              IBUFFER_FILTER_OR, IBUFFER_FILTER_SAVED
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -147,12 +148,12 @@ module ibuffer_mod
               make_ibuffer_local_entry, filter_symbol
     public :: ibuffer_column, ibuffer_text
 
-    !> The values of `ibuffer_always_show_last_buffer'.
-    integer, parameter, public :: IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO = 0, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES = 1, &
-                                  IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI = 2
-    !> The values of `ibuffer_use_header_line'.
-    integer, parameter, public :: IBUFFER_USE_HEADER_LINE_NO = 0, IBUFFER_USE_HEADER_LINE_FILTERS = 1, &
-                                  IBUFFER_USE_HEADER_LINE_TITLE = 2
+    !> Values of `ibuffer_always_show_last_buffer' besides .true. and .false.
+    integer, parameter, public :: IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI = 2
+
+    !> The values of `ibuffer_use_header_line' besides .true. and .false.
+    integer, parameter, public :: IBUFFER_USE_HEADER_LINE_TITLE = 2
+
     !> The values of the SHRINK argument of `ibuffer'
     !> (`ibuffer-shrink-to-minimum-size').
     integer, parameter, public :: IBUFFER_SHRINK_NO = 0, IBUFFER_SHRINK_YES = 1, IBUFFER_SHRINK_ONEWINDOW = 2
@@ -308,24 +309,26 @@ module ibuffer_mod
     !> state, size, etc.  Port of ibuffer.el ibuffer-view-ibuffer.
     logical, public :: ibuffer_view_ibuffer = .false.
 
-    !> If not IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, always display the previous buffer:
-    !> IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES always, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI always
+    !> If true, always display the previous buffer: .true. always,
+    !> IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI always
     !> except a minibuffer.  This variable takes precedence over
     !> filtering, and even `ibuffer_never_show_tests'.  Port of
     !> ibuffer.el ibuffer-always-show-last-buffer.
-    integer, public :: ibuffer_always_show_last_buffer = IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO
+    type(choice_setting_type), public :: ibuffer_always_show_last_buffer = &
+                                         choice_setting_type(name="ibuffer_always_show_last_buffer")
 
     !> If true, only offer buffers visible in the Ibuffer buffer
     !> in completion lists of the `ibuffer_jump_to_buffer' command.  Port of
     !> ibuffer.el ibuffer-jump-offer-only-visible-buffers.
     logical, public :: ibuffer_jump_offer_only_visible_buffers = .false.
 
-    !> If not IBUFFER_USE_HEADER_LINE_NO, display a header line.
-    !> If the variable's value is IBUFFER_USE_HEADER_LINE_FILTERS, the header line
+    !> If true, display a header line.
+    !> If the variable's value is .true., the header line
     !> displays the current filters.  For IBUFFER_USE_HEADER_LINE_TITLE,
     !> display the column titles.  Port of ibuffer.el
     !> ibuffer-use-header-line.
-    integer, public :: ibuffer_use_header_line = IBUFFER_USE_HEADER_LINE_FILTERS
+    type(choice_setting_type), public :: ibuffer_use_header_line = &
+                                         choice_setting_type(name="ibuffer_use_header_line", value=.true.)
 
     !> The default directory to use for a new Ibuffer buffer.
     !> If unallocated, inherit the directory of the buffer in which
@@ -1321,8 +1324,7 @@ contains
         if (present(arg)) n = arg
         skip = .false.
         if (present(skip_group_names)) skip = skip_group_names
-        props(1) = "ibuffer_summary"
-        props(2) = "ibuffer_filter_group_name"
+        props = [character(len=32) :: "ibuffer_summary", "ibuffer_filter_group_name"]
         call beginning_of_line()
 
         do while (n > 0)
@@ -1377,8 +1379,7 @@ contains
         if (present(arg)) n = arg
         skip = .false.
         if (present(skip_group_names)) skip = skip_group_names
-        props(1) = "ibuffer_title"
-        props(2) = "ibuffer_filter_group_name"
+        props = [character(len=32) :: "ibuffer_title", "ibuffer_filter_group_name"]
         call beginning_of_line()
 
         if (ibuffer_movement_cycle .and. (is_eob() .or. has_prop(point(), "ibuffer_summary"))) then
@@ -2633,7 +2634,7 @@ contains
     integer function column_index(name) result(k)
         character(len=*), intent(in) :: name
 
-        k = findloc(ibuffer_columns%name, name, dim=1)
+        k = findloc(ibuffer_columns%name == name, .true., dim=1)
     end function column_index
 
     ! ibuffer-expand-format-entry: check SPEC's column, and give MIN and
@@ -3250,7 +3251,7 @@ contains
             ! This takes precedence over anything else
             keep = .false.
 
-            if (ibuffer_always_show_last_buffer /= IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO .and. last%index /= 0) then
+            if (.not. ibuffer_always_show_last_buffer%is_off() .and. last%index /= 0) then
                 keep = last%index == bmarklist(k)%buffer%index
             end if
 
@@ -3691,7 +3692,7 @@ contains
         integer :: k
 
         if (.not. allocated(ibuffer_sorting_functions)) allocate (ibuffer_sorting_functions(0))
-        k = findloc(ibuffer_sorting_functions%name, name, dim=1)
+        k = findloc(ibuffer_sorting_functions%name == name, .true., dim=1)
 
         if (k == 0) then
             ! (Pushed onto the table.)
@@ -3985,7 +3986,7 @@ contains
         if (associated(ibuffer_columns(column)%summarizer)) then
             if (.not. allocated(summaries)) call clear_summary_columns()
             ! (The summary list is pushed: the last line first.)
-            call ibuffer_columns(column)%summarizer(reversed(summaries(column)%cells(1:summaries(column)%n)), summary)
+            call ibuffer_columns(column)%summarizer(summaries(column)%cells(summaries(column)%n:1:-1), summary)
         else
             title = trim(ibuffer_columns(column)%title)
             if (len(title) == 0) title = " "
@@ -3995,20 +3996,6 @@ contains
         l = len(summary)
         if (l < min) summary = ibuffer_format_column(summary, min - l, spec%align)
     end function format_summary
-
-    ! Not a port.
-    function reversed(cells) result(r)
-        type(ibuffer_cell_type), intent(in) :: cells(:)
-        type(ibuffer_cell_type), allocatable :: r(:)
-        integer :: k, n
-
-        n = size(cells)
-        allocate (r(n))
-
-        do k = 1, n
-            r(k) = cells(n - k + 1)
-        end do
-    end function reversed
 
     ! ibuffer-update-title-and-summary.  Port of
     ! ibuffer.el:ibuffer-update-title-and-summary.
@@ -4025,7 +4012,7 @@ contains
         if (.not. status%ok()) return
 
         ! Insert the title names.
-        if (ibuffer_use_header_line == IBUFFER_USE_HEADER_LINE_TITLE) then
+        if (ibuffer_use_header_line%choice == IBUFFER_USE_HEADER_LINE_TITLE) then
             call buffers(current)%header_line_format%clear()
             call buffers(current)%header_line_format%append("")
 
@@ -4162,7 +4149,7 @@ contains
         if (size(bufs) >= 2) then
             last = bufs(2)
 
-            if (ibuffer_always_show_last_buffer == IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI .and. is_minibuffer(bufs(2))) then
+            if (ibuffer_always_show_last_buffer%choice == IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI .and. is_minibuffer(bufs(2))) then
                 last = null_handle()
                 if (size(bufs) >= 3) last = bufs(3)
             end if
@@ -4196,11 +4183,11 @@ contains
         ! I tried to update this automatically from the mode-line-process
         ! format, but changing nil-ness of header-line-format while computing
         ! mode-line-format is asking a bit too much it seems.  --Stef
-        if (ibuffer_use_header_line /= IBUFFER_USE_HEADER_LINE_TITLE) then
+        if (ibuffer_use_header_line%choice /= IBUFFER_USE_HEADER_LINE_TITLE) then
             call buffers(current)%header_line_format%clear()
             call make_ibuffer_local_entry(k)
 
-            if (ibuffer_use_header_line /= IBUFFER_USE_HEADER_LINE_NO .and. size(locals(k)%qualifiers) > 0) then
+            if (.not. ibuffer_use_header_line%is_off() .and. size(locals(k)%qualifiers) > 0) then
                 call buffers(current)%header_line_format%append("")
             end if
         end if
@@ -4230,7 +4217,7 @@ contains
     recursive subroutine update_mode_line_process()
         type(mode_line_part_type), allocatable :: parts(:)
 
-        if (ibuffer_use_header_line /= IBUFFER_USE_HEADER_LINE_TITLE .and. &
+        if (ibuffer_use_header_line%choice /= IBUFFER_USE_HEADER_LINE_TITLE .and. &
             allocated(buffers(current)%header_line_format%segments)) then
             ! Display the part that won't be in the mode-line.
             call buffers(current)%header_line_format%clear()
@@ -4294,7 +4281,7 @@ contains
 
         call make_ibuffer_local_entry(k)
         less => null()
-        n = findloc(ibuffer_sorting_functions%name, locals(k)%sorting_mode, dim=1)
+        n = findloc(ibuffer_sorting_functions%name == locals(k)%sorting_mode, .true., dim=1)
         if (n > 0) less => ibuffer_sorting_functions(n)%less
 
         if (associated(less) .and. size(bmarklist) > 1) then
@@ -5063,10 +5050,7 @@ contains
         end if
 
         if (.not. allocated(ibuffer_help_buffer_modes)) then
-            allocate (ibuffer_help_buffer_modes(3))
-            ibuffer_help_buffer_modes(1) = "help_mode"
-            ibuffer_help_buffer_modes(2) = "apropos_mode"
-            ibuffer_help_buffer_modes(3) = "info_mode"
+            ibuffer_help_buffer_modes = [character(len=IBUFFER_NAME_LEN) :: "help_mode", "apropos_mode", "info_mode"]
         end if
 
         if (.not. allocated(ibuffer_compressed_file_name_regexp)) then
@@ -5082,25 +5066,23 @@ contains
         if (.not. allocated(ibuffer_always_show_tests)) allocate (ibuffer_always_show_tests(0))
 
         if (.not. allocated(ibuffer_never_search_content_name)) then
-            allocate (ibuffer_never_search_content_name(13))
-            ibuffer_never_search_content_name(1) = "\`\*Completions\*\'"
-            ibuffer_never_search_content_name(2) = "\`\*Help\*\'"
-            ibuffer_never_search_content_name(3) = "\`\*Messages\*\'"
-            ibuffer_never_search_content_name(4) = "\`\*Pp Eval Output\*\'"
-            ibuffer_never_search_content_name(5) = "\`\*CompileLog\*\'"
-            ibuffer_never_search_content_name(6) = "\`\*Info\*\'"
-            ibuffer_never_search_content_name(7) = "\`\*Buffer List\*\'"
-            ibuffer_never_search_content_name(8) = "\`\*Ibuffer\*\'"
-            ibuffer_never_search_content_name(9) = "\`\*Apropos\*\'"
-            ibuffer_never_search_content_name(10) = "\`\*Customize Option: "
-            ibuffer_never_search_content_name(11) = "\`\*Async Shell Command\*"
-            ibuffer_never_search_content_name(12) = "\`\*Shell Command Output\*"
-            ibuffer_never_search_content_name(13) = "\`\*ediff "
+            ibuffer_never_search_content_name = [character(len=256) :: "\`\*Completions\*\'", &
+                                                 "\`\*Help\*\'", &
+                                                 "\`\*Messages\*\'", &
+                                                 "\`\*Pp Eval Output\*\'", &
+                                                 "\`\*CompileLog\*\'", &
+                                                 "\`\*Info\*\'", &
+                                                 "\`\*Buffer List\*\'", &
+                                                 "\`\*Ibuffer\*\'", &
+                                                 "\`\*Apropos\*\'", &
+                                                 "\`\*Customize Option: ", &
+                                                 "\`\*Async Shell Command\*", &
+                                                 "\`\*Shell Command Output\*", &
+                                                 "\`\*ediff "]
         end if
 
         if (.not. allocated(ibuffer_never_search_content_mode)) then
-            allocate (ibuffer_never_search_content_mode(1))
-            ibuffer_never_search_content_mode(1) = "dired_mode"
+            ibuffer_never_search_content_mode = [character(len=IBUFFER_NAME_LEN) :: "dired_mode"]
         end if
 
         if (.not. allocated(ibuffer_saved_filters%entries)) then

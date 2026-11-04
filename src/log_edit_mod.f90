@@ -25,17 +25,17 @@
 !> M-s), the list of files to be committed (`log_edit_show_files'), the
 !> diff (`log_edit_show_diff'), the message template and its headers
 !> (`log_edit_set_header', `log_edit_extract_headers'), and log messages
-!> taken from ChangeLog entries (`log_edit_insert_changelog').
+!> taken from ChangeLog entries (`log_edit_insert_changelog') or
+!> generated from the diff (\[generate_log_edit_changelog_from_diff]).
 !>
 !> The variables that upstream's `log-edit' takes as PARAMS (the
 !> function listing the files, the diff function, the VC backend) are
 !> arguments of `log_edit' here; the caller's own buffer-local values
 !> are set by its SET_PARAMS procedure.
 !>
-!> Deferred: `log_edit_generate_changelog_from_diff' (C-c C-w, needing
-!> `diff_add_log_current_subprograms'), `log_edit_add_to_changelog' and
-!> `log_edit_comment_to_change_log' (needing `add_change_log_entry'),
-!> the BUFFER argument of `log_edit' (PCL-CVS) and so
+!> Deferred: upstream's `log-edit-add-to-changelog' and
+!> `log-edit-comment-to-change-log' (their verb-first names wait for the
+!> owner), the BUFFER argument of `log_edit' (PCL-CVS) and so
 !> `log_edit_parent_buffer', `log_edit_maybe_show_diff' (needing
 !> `display_buffer_overriding_action'), `log_edit_diff_patch' (patches),
 !> the menu and the tool bar,
@@ -93,19 +93,21 @@ module log_edit_mod
     use keymap_mod, only: keymap_set
     use faces_mod, only: named_face_type, display_when, face_attrs
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             FONT_LOCK_OVERRIDE_YES
+                             FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
-    use pcvs_util_mod, only: cvs_string_type, cvs_insert_strings
+    use pcvs_util_mod, only: cvs_insert_strings
     use add_log_mod, only: find_change_log, add_log_find_changelog_buffer, change_log_mode, change_log_default_name, &
                            add_log_full_name, add_log_mailing_address, add_log_time_format, &
                            add_log_dont_create_changelog_file
     use editfns_mod, only: user_full_name
     use startup_mod, only: user_mail_address_value
     use page_mod, only: forward_page
+    use string_type_mod, only: string_type, append_string
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
-    public :: log_edit_string_type, log_edit_header_type, log_edit_listfun_procedure, log_edit_header_procedure
+    public :: log_edit_header_type, log_edit_listfun_procedure, log_edit_header_procedure
     public :: log_edit, log_edit_mode, log_edit_files, log_edit_done, log_edit_close_buffer, is_log_edit_empty_buffer, &
               log_edit_set_header, log_edit_toggle_header, log_edit_extract_headers, log_edit_toggle_amend, &
               log_edit_remember_comment, log_edit_show_files, log_edit_show_diff, log_edit_insert_changelog, &
@@ -113,19 +115,14 @@ module log_edit_mod
               log_edit_comment_search_backward, log_edit_comment_search_forward, log_edit_set_common_indentation, &
               log_edit_font_lock_keywords, log_edit_vc_backend, log_edit_diff_fileset, &
               log_edit_done_strip_cvs_lines, log_edit_fill_entry, set_log_edit_callback, set_log_edit_vc_backend, &
+              generate_log_edit_changelog_from_diff, &
               init_log_edit
 
-    !> A string of a list (files, command line arguments).
-    type :: log_edit_string_type
-        character(len=:), allocatable :: s
-    end type log_edit_string_type
+    !> Values of `log_edit_confirm' besides .true. and .false.
+    integer, parameter, public :: LOG_EDIT_CONFIRM_CHANGED = 2
 
-    !> Values of `log_edit_confirm'.
-    integer, parameter, public :: LOG_EDIT_CONFIRM_NO = 0, LOG_EDIT_CONFIRM_YES = 1, LOG_EDIT_CONFIRM_CHANGED = 2
-
-    !> Values of `log_edit_require_final_newline'.
-    integer, parameter, public :: LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO = 0, LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT = 1, &
-                                  LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK = 2
+    !> Values of `log_edit_require_final_newline' besides .true. and .false.
+    integer, parameter, public :: LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK = 2
 
     !> Kinds of the entries of HEADERS for `log_edit_extract_headers': a
     !> command line option given the value (CMDARG), a function of the
@@ -137,9 +134,9 @@ module log_edit_mod
         !> `log_edit_listfun': the list of files that are concerned by the
         !> current operation (using relative names).  Not a port.
         recursive subroutine log_edit_listfun_procedure(files, status)
-            import :: log_edit_string_type, status_type
+            import :: string_type, status_type
             implicit none(type, external)
-            type(log_edit_string_type), allocatable, intent(out) :: files(:)
+            type(string_type), allocatable, intent(out) :: files(:)
             type(status_type), intent(out) :: status
         end subroutine log_edit_listfun_procedure
 
@@ -147,10 +144,10 @@ module log_edit_mod
         !> strings to append to the arguments for the header's VALUE.
         !> Not a port.
         subroutine log_edit_header_procedure(value, args)
-            import :: log_edit_string_type
+            import :: string_type
             implicit none(type, external)
             character(len=*), intent(in) :: value
-            type(log_edit_string_type), allocatable, intent(out) :: args(:)
+            type(string_type), allocatable, intent(out) :: args(:)
         end subroutine log_edit_header_procedure
 
         !> The LAST-MSG-FN of `log_edit_toggle_amend'.  Not a port.
@@ -177,18 +174,20 @@ module log_edit_mod
     !> If LOG_EDIT_CONFIRM_CHANGED, only request confirmation if the list
     !> of files has changed since the beginning of the `log_edit' session.
     !> Port of log-edit.el log-edit-confirm.
-    integer, public :: log_edit_confirm = LOG_EDIT_CONFIRM_CHANGED
+    type(choice_setting_type), public :: log_edit_confirm = &
+                                         choice_setting_type(name="log_edit_confirm", choice=LOG_EDIT_CONFIRM_CHANGED)
 
     !> If true, don't hide the buffer after `log_edit_done'.  Port of
     !> log-edit.el log-edit-keep-buffer.
     logical, public :: log_edit_keep_buffer = .false.
 
     !> Enforce a newline at the end of commit log messages.
-    !> Enforce it silently if LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT, query if
-    !> LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK and don't do anything if
-    !> LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO.  Port of log-edit.el
+    !> Enforce it silently if .true., query if
+    !> LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK and don't do anything if .false.
+    !> Port of log-edit.el
     !> log-edit-require-final-newline.
-    integer, public :: log_edit_require_final_newline = LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT
+    type(choice_setting_type), public :: log_edit_require_final_newline = &
+                                         choice_setting_type(name="log_edit_require_final_newline", value=.true.)
 
     !> True means `log_edit' should invert the meaning of its SETUP arg.
     !> If SETUP is forced, this variable has no effect.  Port of
@@ -312,7 +311,7 @@ module log_edit_mod
         procedure(command_procedure), pointer, nopass :: diff_function => null()
         integer :: vc_backend = 0
         logical :: has_initial_files = .false.
-        type(log_edit_string_type), allocatable :: initial_files(:)
+        type(string_type), allocatable :: initial_files(:)
         logical :: has_ring_index = .false.
         logical :: ring_index_set = .false.
         integer :: ring_index = 0
@@ -352,6 +351,22 @@ module log_edit_mod
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine log_edit_mode_help
+
+        !> Insert a VC commit log message by looking at the current diffs.
+        !> This command is intended to be used in the "*vc-log*" buffer.
+        !> This command will generate ChangeLog entries listing the modified
+        !> files and functions changed in those files, based on the diffs
+        !> you are about to commit.  You can then add a description for each
+        !> change where needed, and use \[fill_paragraph] to join consecutive function
+        !> names into a single entry where they all share the same description.
+        !> Should you need to look at the diffs themselves, they can be found
+        !> in the "*vc-diff*" buffer produced by this command.  Port of
+        !> log-edit.el:log-edit-generate-changelog-from-diff.  (In
+        !> log_edit_vc_mod.)
+        recursive module subroutine generate_log_edit_changelog_from_diff(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine generate_log_edit_changelog_from_diff
     end interface
 
 contains
@@ -895,17 +910,17 @@ contains
         ! Rather than
         !   * foo.el (bla, bli,
         !   blo, blu): Toto.
-        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(3) = font_lock_keyword(regexp="^[ "//achar(9)//"]*\(?:\* .*\)?\(([^"//achar(10)//")]*,\s-*\)$", &
                                         highlights=h)
         ! Change Log entries should use present tense.
         keywords(4) = font_lock_keyword(regexp="):[ "//achar(9)//achar(10)//"]*[[:alpha:]]+\(ed\)\>", highlights=h)
         ! Change log entries start with a capital letter.
-        h(1) = font_lock_highlight(0, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(0, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(5) = font_lock_keyword(regexp="): [a-z]", highlights=h)
-        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(6) = font_lock_keyword(regexp="[^[:upper:]]\(\. [[:upper:]]\)", highlights=h)
-        h(1) = font_lock_highlight(0, face_function=gnu_punctuate_face, override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(0, face_function=gnu_punctuate_face, override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(7) = font_lock_keyword(regexp="^(", highlights=h)
     end subroutine log_edit_font_lock_keywords
 
@@ -1105,7 +1120,7 @@ contains
     !> log-edit.el:log-edit-done.
     recursive subroutine log_edit_done(status)
         type(status_type), intent(out) :: status
-        type(log_edit_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         type(handle_type) :: win
         integer(int64) :: beginning, moved
         integer :: c, k
@@ -1151,9 +1166,9 @@ contains
             call char_before(c, found, point_max())
 
             if (c /= 10) then
-                add = log_edit_require_final_newline == LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT
+                add = log_edit_require_final_newline%value
 
-                if (.not. add .and. log_edit_require_final_newline /= LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO) then
+                if (.not. add .and. .not. log_edit_require_final_newline%is_off()) then
                     call read_y_or_n("Buffer "//buffers(current)%name//" does not end in newline.  Add one? ", add, status)
                     if (.not. status%ok()) return
                 end if
@@ -1172,10 +1187,10 @@ contains
         win = get_buffer_window(get_buffer(LOG_EDIT_FILES_BUF))
         yes = .true.
 
-        if (log_edit_confirm /= LOG_EDIT_CONFIRM_NO) then
+        if (.not. log_edit_confirm%is_off()) then
             same = .false.
 
-            if (log_edit_confirm == LOG_EDIT_CONFIRM_CHANGED) then
+            if (log_edit_confirm%choice == LOG_EDIT_CONFIRM_CHANGED) then
                 call log_edit_files(files)
                 ! An unset `log_edit_initial_files' is nil, the empty list.
                 same = size(files) == 0
@@ -1220,14 +1235,14 @@ contains
     contains
 
         logical function same_files(a, b)
-            type(log_edit_string_type), intent(in) :: a(:), b(:)
+            type(string_type), intent(in) :: a(:), b(:)
             integer :: i
 
             same_files = .false.
             if (size(a) /= size(b)) return
 
             do i = 1, size(a)
-                if (a(i)%s /= b(i)%s) return
+                if (a(i)%text /= b(i)%text) return
             end do
 
             same_files = .true.
@@ -1252,7 +1267,7 @@ contains
     !> Return the list of files that are about to be committed.  Port of
     !> log-edit.el:log-edit-files (errors are ignored).
     recursive subroutine log_edit_files(files)
-        type(log_edit_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         type(status_type) :: st
         integer :: k
 
@@ -1313,8 +1328,8 @@ contains
     !> log-edit.el:log-edit-show-files.
     recursive subroutine log_edit_show_files(status)
         type(status_type), intent(out) :: status
-        type(log_edit_string_type), allocatable :: files(:)
-        type(cvs_string_type), allocatable :: strings(:)
+        type(string_type), allocatable :: files(:)
+        type(string_type), allocatable :: strings(:)
         type(handle_type) :: buffer, old, win
         type(display_action_parameters_type) :: table
         type(status_type) :: st
@@ -1334,7 +1349,7 @@ contains
             allocate (strings(size(files)))
 
             do k = 1, size(files)
-                strings(k)%s = files(k)%s
+                strings(k)%text = files(k)%text
             end do
 
             call cvs_insert_strings(strings, status)
@@ -1345,7 +1360,7 @@ contains
 
         if (status%ok()) then
             table%inhibit_same_window = .true.
-            table%window_height => shrink_window
+            table%window_height%procedure => shrink_window
             ! (dedicated . t)
             saved_dedicated = display_buffer_mark_dedicated
             display_buffer_mark_dedicated = DEDICATED_STRONG
@@ -1516,7 +1531,7 @@ contains
     !> log-edit.el:log-edit-insert-filenames.
     recursive subroutine log_edit_insert_filenames(status)
         type(status_type), intent(out) :: status
-        type(log_edit_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         character(len=:), allocatable :: text
         integer :: k
 
@@ -1525,7 +1540,7 @@ contains
 
         do k = 1, size(files)
             if (k > 1) text = text//"  "//achar(10)
-            text = text//files(k)%s
+            text = text//files(k)%text
         end do
 
         call insert(text, status)
@@ -1535,7 +1550,7 @@ contains
     !> log-edit.el:log-edit-insert-filenames-without-changelog.
     recursive subroutine log_edit_insert_filenames_without_changelog(status)
         type(status_type), intent(out) :: status
-        type(log_edit_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         type(changelog_entries_type) :: entries
         character(len=:), allocatable :: text
         integer :: k
@@ -1545,12 +1560,12 @@ contains
         text = ""
 
         do k = 1, size(files)
-            call log_edit_changelog_entries(files(k)%s, entries, status)
+            call log_edit_changelog_entries(files(k)%text, entries, status)
             if (.not. status%ok()) return
             if (entries%n > 0) cycle
-            if (file_name_nondirectory(files(k)%s) == "ChangeLog") cycle
+            if (file_name_nondirectory(files(k)%text) == "ChangeLog") cycle
             if (len(text) > 0) text = text//", "
-            text = text//files(k)%s
+            text = text//files(k)%text
         end do
 
         if (len(text) > 0) then
@@ -1605,7 +1620,7 @@ contains
     recursive subroutine log_edit_insert_changelog(status, use_first)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: use_first
-        type(log_edit_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         character(len=:), allocatable :: fixes
         integer(int64) :: here, eoh, start, end, shortage, moved
         logical :: found, saved_use_first, use
@@ -2032,7 +2047,7 @@ contains
     recursive subroutine log_edit_changelog_insert_entries(buffer, beginning, end, files, status)
         type(handle_type), intent(in) :: buffer
         integer(int64), intent(in) :: beginning, end
-        type(log_edit_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: log_name
         type(handle_type) :: bound
@@ -2063,11 +2078,11 @@ contains
                 ! of the ChangeLog file.
                 call goto_char(opoint)
                 call re_search_forward("\(^\|[ "//achar(9)//"]\)\("// &
-                                       file_relative_name(files(k)%s, file_name_directory(log_name))// &
+                                       file_relative_name(files(k)%text, file_name_directory(log_name))// &
                                        "\)[, :"//achar(10)//"]", found, status, bound=mpos(bound), &
                                        noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) exit
-                if (found) call replace_match(files(k)%s, status, fixedcase=.true., literal=.true., subexp=2)
+                if (found) call replace_match(files(k)%text, status, fixedcase=.true., literal=.true., subexp=2)
                 if (.not. status%ok()) exit
             end do
         end if
@@ -2093,13 +2108,13 @@ contains
     !> Sets the author found (log-edit-author, the result).  Port of
     !> log-edit.el:log-edit-insert-changelog-entries.
     recursive subroutine log_edit_insert_changelog_entries(files, status)
-        type(log_edit_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         ! A log entry: ((LOGBUFFER ENTRYSTART ENTRYEND) FILE1 FILE2...).
         type :: log_entry_type
             type(handle_type) :: buffer
             integer(int64) :: beginning, end
-            type(log_edit_string_type), allocatable :: files(:)
+            type(string_type), allocatable :: files(:)
         end type log_entry_type
         type(log_entry_type), allocatable :: log_entries(:)
         type(log_entry_type) :: log_entry
@@ -2118,7 +2133,7 @@ contains
         ! Here we construct a log-entries list with elements of the form
         !   ((LOGBUFFER ENTRYSTART ENTRYEND) FILE1 FILE2...)
         do i = 1, size(files)
-            call log_edit_changelog_entries(files(i)%s, entries, status)
+            call log_edit_changelog_entries(files(i)%text, entries, status)
             if (.not. status%ok()) exit
 
             do j = 1, entries%n
@@ -2132,7 +2147,7 @@ contains
 
                 if (k > 0) then
                     n = size(log_entries(k)%files)
-                    call append_file(log_entries(k)%files, files(i)%s)
+                    call append_string(log_entries(k)%files, files(i)%text)
                 else
                     ! (push ...): the newest first, as reversed below.
                     log_entry%buffer = entries%buffer
@@ -2140,7 +2155,7 @@ contains
                     log_entry%end = entries%end(j)
                     if (allocated(log_entry%files)) deallocate (log_entry%files)
                     allocate (log_entry%files(0))
-                    call append_file(log_entry%files, files(i)%s)
+                    call append_string(log_entry%files, files(i)%text)
                     log_entries = [log_entry, log_entries]
                 end if
             end do
@@ -2160,17 +2175,6 @@ contains
         ! No newline after the last entry.
         if (status%ok() .and. size(log_entries) > 0) call delete_region(point() - 1, point(), status)
         author_bound = saved_bound
-
-    contains
-
-        subroutine append_file(list, f)
-            type(log_edit_string_type), allocatable, intent(inout) :: list(:)
-            character(len=*), intent(in) :: f
-            type(log_edit_string_type) :: file
-
-            file%s = f
-            list = [list, file]
-        end subroutine append_file
     end subroutine log_edit_insert_changelog_entries
 
     ! ------------------------------------------------------------------
@@ -2266,10 +2270,10 @@ contains
         type(log_edit_header_type), intent(in) :: headers(:)
         character(len=*), intent(in) :: comment
         character(len=:), allocatable, intent(out) :: msg
-        type(log_edit_string_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: args(:)
         type(status_type), intent(out) :: status
         type(log_edit_header_type), allocatable :: all(:)
-        type(log_edit_string_type), allocatable :: res(:), more(:)
+        type(string_type), allocatable :: res(:), more(:)
         character(len=:), allocatable :: summary, txt
         type(handle_type) :: old, temp
         type(status_type) :: st
@@ -2332,9 +2336,7 @@ contains
                         res = [res, more]
                         deallocate (more)
                     case default
-                        allocate (more(2))
-                        more(1)%s = cmdarg_of(all(k))
-                        more(2)%s = txt
+                        call append_string(more, cmdarg_of(all(k)), txt)
                         res = [res, more]
                         deallocate (more)
                     end select
@@ -2577,9 +2579,8 @@ contains
     ! Insert FUNC_NAMES, following ChangeLog formatting.
     ! Port of log-edit.el:log-edit--insert-filled-defuns.
     recursive subroutine log_edit_insert_filled_subprograms(func_names, status)
-        use add_log_mod, only: change_log_string_type
         use cmds_mod, only: delete_char
-        type(change_log_string_type), intent(in) :: func_names(:)
+        type(string_type), intent(in) :: func_names(:)
         type(status_type), intent(out) :: status
         logical :: inside_paren_pair, first_line, found, more
         integer(int64) :: fill
@@ -2610,7 +2611,7 @@ contains
         i = 1
 
         do while (i <= size(func_names))
-            associate (name => func_names(i)%s)
+            associate (name => func_names(i)%text)
                 more = i < size(func_names)
 
                 ! If inserting `name' after preexisting text in the first
@@ -2675,7 +2676,7 @@ contains
     !> form "(FUNCTION):") will be combined into "(FUNC1, FUNC2):"
     !> according to `fill_column'.  Port of log-edit.el:log-edit-fill-entry.
     recursive subroutine log_edit_fill_entry(status, done, justify)
-        use add_log_mod, only: change_log_string_type, change_log_read_subprograms, change_log_unindented_file_names_regexp
+        use add_log_mod, only: change_log_read_subprograms, change_log_unindented_file_names_regexp
         use fill_mod, only: fill_region, fill_indent_according_to_mode
         use editfns_mod, only: line_beginning_position
         use subr_mod, only: replace_regexp_in_region, replace_string_in_region
@@ -2683,7 +2684,7 @@ contains
         logical, intent(out) :: done
         integer, intent(in), optional :: justify
         character(len=*), parameter :: NBSP = char(194)//char(160)
-        type(change_log_string_type), allocatable :: subprograms(:)
+        type(string_type), allocatable :: subprograms(:)
         type(handle_type) :: opoint, end_marker, subprograms_beginning, space_beginning, space_end
         integer(int64) :: beginning, end, e, b, here, n
         logical :: found
@@ -2859,10 +2860,12 @@ contains
         commands%log_edit_insert_filenames%execute => cmd_log_edit_insert_filenames
         commands%log_edit_insert_filenames_without_changelog%execute => cmd_log_edit_insert_filenames_without_changelog
         commands%log_edit_diff_fileset%execute => cmd_log_edit_diff_fileset
+        commands%generate_log_edit_changelog_from_diff%execute => generate_log_edit_changelog_from_diff
         call keymap_set(log_edit_mode_map, "C-c C-c", "log_edit_done", st)
         call keymap_set(log_edit_mode_map, "C-c C-a", "log_edit_insert_changelog", st)
         call keymap_set(log_edit_mode_map, "C-c C-d", "log_edit_show_diff", st)
         call keymap_set(log_edit_mode_map, "C-c C-f", "log_edit_show_files", st)
+        call keymap_set(log_edit_mode_map, "C-c C-w", "generate_log_edit_changelog_from_diff", st)
         call keymap_set(log_edit_mode_map, "C-c C-k", "log_edit_close_buffer", st)
         call keymap_set(log_edit_mode_map, "M-n", "log_edit_next_comment", st)
         call keymap_set(log_edit_mode_map, "M-p", "log_edit_previous_comment", st)

@@ -36,17 +36,18 @@ submodule(files_mod) files_dir_mod
     use cmds_mod, only: forward_line
     use editfns_mod, only: line_end_position, char_after, is_bol, is_eol
     use fileio_mod, only: is_file_name_absolute, delete_file_internal, delete_directory_internal, file_system_info, &
-                          emacs_wd, create_temp_file_internal
+                          fortmacs_wd, create_temp_file_internal
     use character_mod, only: string_char_and_length, is_char_byte8
     use casefiddle_mod, only: downcase_string
     use minibuffer_mod, only: read_file_name_completion_ignore_case
-    use sysdep_mod, only: emacs_readlink
+    use sysdep_mod, only: fortmacs_readlink
     use error_mod, only: FM_FILE_MISSING
     use search_mod, only: case_fold_search
     use editfns_mod, only: buffer_substring, delete_region, pos_bol
     use buffer_mod, only: buf_fetch_char, buf_next_char_len
     use marker_mod, only: char_to_byte
     use fileio_mod, only: report_file_errno
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
     !> Two strings (an old directory name and its truename).
@@ -336,14 +337,12 @@ contains
             integer(int64), intent(inout) :: k
             integer(int64), intent(out) :: value
             logical, intent(out) :: ok
+            integer :: n
 
             value = 0
             ok = .false.
-
-            do while (k <= len(text))
-                if (text(k:k) /= " ") exit
-                k = k + 1
-            end do
+            n = verify(text(k:), " ")
+            k = merge(len(text, kind=int64) + 1, k + n - 1, n == 0)
 
             do while (k <= len(text))
                 if (text(k:k) < "0" .or. text(k:k) > "9") exit
@@ -602,7 +601,7 @@ contains
                 ! Is the file name the name of a link?
                 target = ""
                 err = -1
-                if (is_file_symlink(filename)) err = emacs_readlink(filename, target)
+                if (is_file_symlink(filename)) err = fortmacs_readlink(filename, target)
 
                 if (err == 0) then
                     ! Yes => chase that link, then start all over since the
@@ -1150,10 +1149,7 @@ contains
     type(value_type) :: all
     type(value_type), allocatable :: elts(:)
     character(len=:), allocatable :: s1
-    type :: name_box_type
-        character(len=:), allocatable :: s
-    end type name_box_type
-    type(name_box_type), allocatable :: kept(:)
+    type(string_type), allocatable :: kept(:)
     type(status_type) :: st
     integer :: k, n, i, j
 
@@ -1177,28 +1173,28 @@ contains
         s1 = file_name_sans_versions(candidate)
         if (s1 /= name .or. len(s1) /= len(name)) cycle
         n = n + 1
-        kept(n)%s = candidate
+        kept(n)%text = candidate
     end do
 
     ! (sort ... #'file-newer-than-file-p), stably.
     do i = 2, n
-        tmp = kept(i)%s
+        tmp = kept(i)%text
         j = i - 1
 
         do while (j >= 1)
-            if (.not. is_file_newer_than_file(tmp, kept(j)%s)) exit
-            kept(j + 1)%s = kept(j)%s
+            if (.not. is_file_newer_than_file(tmp, kept(j)%text)) exit
+            kept(j + 1)%text = kept(j)%text
             j = j - 1
         end do
 
-        kept(j + 1)%s = tmp
+        kept(j + 1)%text = tmp
     end do
 
     deallocate (elts)
     allocate (elts(n))
 
     do k = 1, n
-        elts(k) = value_type(text=kept(k)%s)
+        elts(k) = value_type(text=kept(k)%text)
     end do
 
     names = make_list(elts)

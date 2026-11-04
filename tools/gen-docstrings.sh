@@ -30,7 +30,8 @@
 #     cites NAME ("Port of simple.el:NAME" or "Port of cmds.c:FNAME");
 #   - functions: the procedures src/fortmacs.f90 exports (the config
 #     API), named by their citation or else by their Fortran name with
-#     hyphens;
+#     hyphens, and the private procedures behind an `interface
+#     operator(OP)', with the operator form as their call line;
 #   - variables: the variables src/fortmacs.f90 exports, named by their
 #     citation ("Port of files.el make-backup-files") or likewise, and
 #     every other variable with such a citation.
@@ -130,6 +131,35 @@ FNR == 1 { block = ""; sig = ""; insig = 0; indecl = 0; base = FILENAME; sub(/.*
 # Submodules (their variables are not accessible) and the names in
 # `public ::` statements.
 /^submodule/ { submod[base] = 1 }
+# The startup value of an array component of a setting, assigned in its
+# init_ routine while still unallocated (`if (.not. allocated(x%commands))`
+# then `x%commands = [...]`): help shows it in the original value, in
+# the form the setting's other_value gives (`%commands = ["a", "b"]`).
+startvar != "" {
+    l = $0
+    if (match(l, "^[ \t]*" startvar "[ \t]*=[ \t]*\\[")) {
+        while (l ~ /&[ \t]*$/ && (getline nextl) > 0) {
+            sub(/[ \t]*&[ \t]*$/, " ", l)
+            sub(/^[ \t]*&?[ \t]*/, "", nextl)
+            l = l nextl
+        }
+        sub(/^[^[]*\[/, "", l)
+        sub(/^[^:"]*::/, "", l)
+        items = ""
+        while (match(l, /"[^"]*"/)) {
+            items = items (items == "" ? "" : ", ") substr(l, RSTART, RLENGTH)
+            l = substr(l, RSTART + RLENGTH)
+        }
+        split(startvar, sv, "%")
+        startdef[sv[1] SUBSEP base] = "%" sv[2] " = [" items "]"
+    }
+    startvar = ""
+}
+/^[ \t]*if[ \t]*\([ \t]*\.not\.[ \t]*allocated[ \t]*\([ \t]*[a-z0-9_]+%[a-z0-9_]+[ \t]*\)[ \t]*\)[ \t]*then/ {
+    startvar = $0
+    sub(/.*allocated[ \t]*\([ \t]*/, "", startvar)
+    sub(/[ \t]*\).*/, "", startvar)
+}
 /^[ \t]*public[ \t]*::/ { inpub = 1; l = $0; sub(/^[^:]*::/, "", l) }
 inpub {
     if (!(/^[ \t]*public[ \t]*::/)) l = $0
@@ -164,7 +194,27 @@ indecl { collect_decl() }
 }
 
 /^[ \t]*abstract interface/ { abstract = 1; block = ""; next }
-/^[ \t]*end interface/ { abstract = 0; ingeneric = ""; block = ""; next }
+/^[ \t]*end interface/ { abstract = 0; ingeneric = ""; inop = ""; block = ""; next }
+
+# An operator interface (`interface operator(<=)'): its specific
+# procedures are private, the operator their only spelling, so C-h f
+# shows each under its own help name with the operator as its call line
+# (`v1 <= v2'; see `operator_call').
+/^[ \t]*interface[ \t]+operator[ \t]*\(/ {
+    inop = $0
+    sub(/^[^(]*\([ \t]*/, "", inop)
+    sub(/[ \t]*\).*$/, "", inop)
+    block = ""
+    next
+}
+inop != "" && /^[ \t]*module procedure/ {
+    line = tolower($0)
+    sub(/^[ \t]*module procedure[ \t]*/, "", line)
+    gsub(/[ \t]/, "", line)
+    n = split(line, opnames, ",")
+    for (i = 1; i <= n; i++) if (opnames[i] != "") opof[opnames[i] SUBSEP base] = inop
+    next
+}
 
 # A named generic interface: documented like a procedure, called like
 # its first specific procedure.
@@ -279,6 +329,21 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
                 init = substr(rest, RSTART, RLENGTH)
                 sub(/value[ \t]*=[ \t]*/, "", init)
             }
+            # A choice setting: its value= argument (.false. when none), or
+            # its choice= argument; a setting with a component of another
+            # kind set in its constructor (`lines=1000') shows that.
+            if (type ~ /choice_setting_type\)/ && init == "") init = ".false."
+            if (type ~ /choice_setting_type\)/ && match(rest, /choice[ \t]*=[ \t]*[^,)]+/)) {
+                init = substr(rest, RSTART, RLENGTH)
+                sub(/choice[ \t]*=[ \t]*/, "", init)
+                sub(/[ \t]+$/, "", init)
+            }
+            if (match(rest, /(^|[(, ])(lines|seconds|level|char|characters|columns|modifications)[ \t]*=[ \t]*[^,)]+/)) {
+                init = substr(rest, RSTART, RLENGTH)
+                sub(/^[(, ]/, "", init)
+                sub(/[ \t]*=[ \t]*/, " = ", init)
+                init = "%" init
+            }
         } else if (type ~ /^type/) {
             # Other derived types have no printed value to compare.
             init = ""
@@ -391,6 +456,18 @@ function finish_sig(    s, key, c, res) {
     if (!(pname in anydoc)) anydoc[pname] = pdoc[key]
 }
 
+# The call line of a procedure behind operator OP, from its Fortran call
+# line CALL (`version_less(v1, v2)'): `v1 < v2', or `OP a' for a unary
+# operator.
+function operator_call(op, call,    a, n, args) {
+    a = call
+    sub(/^[^(]*\(/, "", a)
+    sub(/\)[^)]*$/, "", a)
+    n = split(a, args, /[ \t]*,[ \t]*/)
+    if (n == 1) return op " " trim(args[1])
+    return trim(args[1]) " " op " " trim(args[2])
+}
+
 # The module (its file) from which docstrings_mod can import TARGET, the
 # default procedure of a procedure pointer declared in FILE: FILE itself
 # when its `public ::` lists the target, else the file that defines the
@@ -420,6 +497,9 @@ function print_variables(    i, hname, key, target) {
         hname = qh[i]
         if (hcount[hname] > 1 && hname != qn[i]) hname = qn[i]
         key = qk[i]
+        # A named state with a startup list (see startdef).
+        if ((key in startdef) && vtype[key] ~ /choice_setting_type\)/ && vinit[key] !~ /^(\.true\.|\.false\.|)$/)
+            vinit[key] = vinit[key] ", " startdef[key]
         target = (vtype[key] ~ /^procedure/) ? target_module(vinit[key], qf[i]) : ""
         printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\037%s\n", hname, qf[i], qn[i], vtype[key], \
             varr[key], vinit[key], target, vdoc[key]
@@ -474,6 +554,17 @@ END {
             queue_variable(hname, api[nm], nm, key)
         }
     }
+    # The procedures behind operators, under their citation (when it is
+    # a name: version<= is not) or else their own name.
+    for (key in opof) {
+        if (!(key in pdoc) || pdoc[key] == "") continue
+        split(key, kp, SUBSEP)
+        hname = pcite[key]
+        if (hname !~ /^[a-z][a-z0-9_]*$/) hname = help_name(kp[1])
+        if (hname in fdoc) continue
+        fdoc[hname] = pdoc[key]; ffile[hname] = kp[2]; fcall[hname] = operator_call(opof[key], pcall[key])
+        fdecl[hname] = pdecl[key]; fcommand[hname] = 0
+    }
     # Every other variable that cites the upstream variable it ports
     # (upstream documents every DEFVAR and defvar, not only the
     # settings a configuration uses).
@@ -519,16 +610,19 @@ find src -name '*.f90' ! -name docstrings_mod.f90 | sort |
     LC_ALL=C sort -t "$(printf '\037')" -k1,1 -k2,2 >"$tmp.records"
 
 # The named constants of enumerated settings (integer variables whose
-# value is one of a set of parameters, like search_upper_case).
+# value is one of a set of parameters, like search_upper_case): one
+# record per parameter statement, the settings its comment names
+# ("Values of `x' and `y'") then the statement, separated by \037.
 # A declaration continued over several lines is joined into one.
 find src -name '*.f90' ! -name docstrings_mod.f90 | sort |
     xargs awk '
         cont { sub(/^[ \t]*/, ""); line = line $0 }
+        !cont && /^[ \t]*!>/ { c = $0; while (match(c, /`[a-z][a-z0-9_]*\x27/)) { names = names " " substr(c, RSTART + 1, RLENGTH - 2); c = substr(c, RSTART + RLENGTH) } ; next }
         !cont && /integer, parameter, public ::/ { line = $0 }
-        !cont && !/integer, parameter, public ::/ { next }
+        !cont && !/integer, parameter, public ::/ { names = ""; next }
         {
             cont = sub(/[ \t]*&[ \t]*$/, " ", line)
-            if (!cont) print line
+            if (!cont) { print names "\037" line; names = "" }
         }' >"$tmp.params" || true
 
 # The user options (tools/user-options), without comments.
@@ -547,12 +641,53 @@ function wrapped(s, piece,    last) {
     return s piece
 }
 
-# A string literal for s, in pieces of at most 90 characters.
-function lit(s, ind,    out) {
+# An array constructor of the N items ITEMS (Fortran text), with the type
+# specification SPEC ("character(len=W) :: ", or ""), several items a
+# line.  A list longer than 200 lines (the standard allows 255
+# continuation lines a statement) is first printed as parameter arrays
+# NAME_part_1, NAME_part_2, ... declared with DECL, and the constructor
+# joins them.
+function constructor(spec, decl, name, items, n,    nl, i, k, p, last, out, joined, line, size) {
+    nl = 0
+    line = ""
+    for (i = 1; i <= n; i++) {
+        if (line != "" && length(line) + length(items[i]) + 2 > 90) {
+            ctext[++nl] = line
+            cupto[nl] = i - 1
+            line = ""
+        }
+        line = line (line == "" ? "" : ", ") items[i]
+    }
+    ctext[++nl] = line
+    cupto[nl] = n
+    p = 0
+    joined = ""
+    for (k = 1; k <= nl; k += 200) {
+        last = (k + 199 < nl) ? k + 199 : nl
+        out = "[" spec "&\n"
+        for (i = k; i <= last; i++)
+            out = out "        " ctext[i] (i < last ? ", &\n" : "]")
+        if (nl <= 200) return out
+        size = cupto[last] - (k > 1 ? cupto[k - 1] : 0)
+        p++
+        printf "    %s :: %s_part_%d(%d) = %s\n", decl, name, p, size, out
+        joined = joined (p > 1 ? ", &\n        " : "&\n        ") name "_part_" p
+    }
+    print ""
+    return "[" joined "]"
+}
+
+# A string literal for s, in pieces of at most 90 characters, each
+# ending after a character that cannot be part of a name, so no name is
+# split between two pieces (tools/fortran-names reads the pieces).
+function lit(s, ind,    out, n) {
     out = ""
     while (length(s) > 90) {
-        out = out q(substr(s, 1, 90)) "// &\n" ind
-        s = substr(s, 91)
+        for (n = 90; n > 1; n--)
+            if (substr(s, n, 1) !~ /[A-Za-z0-9_]/) break
+        if (n == 1) n = 90
+        out = out q(substr(s, 1, n)) "// &\n" ind
+        s = substr(s, n + 1)
     }
     return out q(s)
 }
@@ -564,7 +699,7 @@ function lit(s, ind,    out) {
 function okind(i,    t) {
     t = vtype[i]
     if (varr[i]) return "OPTION_NONE"
-    if (venum[i] != "" && (t ~ /^integer/ || t ~ /integer_setting_type\)/)) return "OPTION_CHOICE"
+    if (venum[i] != "" && (t ~ /^integer/ || t ~ /(integer|choice)_setting_type\)/)) return "OPTION_CHOICE"
     if (t ~ /logical_setting_type\)/ || t ~ /^logical/) return "OPTION_LOGICAL"
     if (t ~ /integer_setting_type\)/ || t ~ /^integer/) return "OPTION_INTEGER"
     if (t ~ /^real/) return "OPTION_REAL"
@@ -573,7 +708,23 @@ function okind(i,    t) {
 }
 
 # Whether variable i is a setting object (it can have buffer-local values).
-function osetting(i) { return vtype[i] ~ /(logical|integer|string)_setting_type\)/ }
+function osetting(i) { return vtype[i] ~ /(logical|integer|string|choice)_setting_type\)/ }
+
+# Whether variable i is a choice setting (.true., .false. and named
+# constants), and whether it is one with a procedure component (an
+# extension of choice_setting_type).
+function ochoice(i) { return vtype[i] ~ /choice_setting_type\)/ }
+function okinds(i) { return vtype[i] ~ /[a-z]_(choice|integer|logical|string)_setting_type\)/ }
+
+# The named constants of a choice setting whose default is .true. or
+# .false.: the parameter statement whose comment names it ("Values of
+# x"), else the one whose constants start with the setting name; ""
+# if none.
+function choice_group(name,    c) {
+    if (name in vgroup) return vgroup[name]
+    for (c in group) if (index(c, toupper(name) "_") == 1) return group[c]
+    return ""
+}
 
 # Fortran statements assigning `val` to variable i, given buffer-locally
 # when `local` is true and the variable is a setting object.
@@ -607,6 +758,10 @@ BEGIN {
     nu = 0
     while ((getline l < uopts) > 0) { uopt[l] = 1; nu++; uname[nu] = l }
     while ((getline l < params) > 0) {
+        split(l, rec, "\037")
+        l = rec[2]; sub(/.*::/, "", l)
+        nn = split(rec[1], setting_names, " ")
+        for (i = 1; i <= nn; i++) if (setting_names[i] != "") vgroup[setting_names[i]] = l
         sub(/.*::/, "", l)
         n = split(l, defs, ",")
         for (i = 1; i <= n; i++) {
@@ -633,10 +788,25 @@ $1 == "V" {
         mods["callint_mod.f90"] = mods["callint_mod.f90"] (mods["callint_mod.f90"] == "" ? "" : ", ") "command_name_of"
     # A prefix argument is shown as its structure constructor.
     if ($5 ~ /prefix_arg_type\)/ && !named_prefix++)
-        mods["callint_mod.f90"] = mods["callint_mod.f90"] (mods["callint_mod.f90"] == "" ? "" : ", ") "prefix_arg_repr"
+        mods["callint_mod.f90"] = mods["callint_mod.f90"] (mods["callint_mod.f90"] == "" ? "" : ", ") "prefix_arg_text"
     if ($5 ~ /indent_line_setting_type\)/ && !named_indent++)
         mods["indent_mod.f90"] = mods["indent_mod.f90"] (mods["indent_mod.f90"] == "" ? "" : ", ") "indent_line_function_name"
-    if ($7 ~ /^[A-Z][A-Z0-9_]*$/ && ($7 in group)) {
+    # A choice setting: the reserved choices, and its named constants
+    # found by its name when its default is .true. or .false..
+    if ($5 ~ /choice_setting_type\)/) {
+        # The parameter statement whose comment names the setting comes
+        # first (a family shared by several settings may name only some),
+        # then the family of its initial constant.
+        cg = ($4 in vgroup) ? vgroup[$4] : (($7 in group) ? group[$7] : choice_group($4))
+        if (cg != "") {
+            venum[nv] = cg
+            n = split(cg, defs, ",")
+            for (i = 1; i <= n; i++) {
+                d = defs[i]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
+                mods[$3] = mods[$3] ", " d
+            }
+        }
+    } else if ($7 ~ /^[A-Z][A-Z0-9_]*$/ && ($7 in group)) {
         venum[nv] = group[$7]
         n = split(group[$7], defs, ",")
         for (i = 1; i <= n; i++) {
@@ -688,8 +858,8 @@ END {
         for (j = i - 1; j >= 1 && mlist[j] > x; j--) mlist[j + 1] = mlist[j]
         mlist[j + 1] = x
     }
-    print "    use, intrinsic :: iso_fortran_env, only: int64"
-    print "    use print_mod, only: fortran_repr"
+    print "    use, intrinsic :: iso_fortran_env, only: int64, real64"
+    print "    use print_mod, only: fortran_text"
     for (i = 1; i <= nm; i++) {
         m = mlist[i]; sub(/\.f90$/, "", m)
         line = "    use " m ", only: "
@@ -709,6 +879,7 @@ END {
     print "    public :: function_doc, variable_doc"
     print "    public :: user_option_info, set_user_option_logical, set_user_option_integer, set_user_option_real, &"
     print "              set_user_option_string, set_user_option_choice, user_option_constants"
+    print "    public :: init_choice_values"
     print ""
     print "    !> Kinds of value of a user option, as `set_variable` reads it."
     print "    integer, parameter, public :: OPTION_NONE = 0, OPTION_LOGICAL = 1, OPTION_INTEGER = 2, OPTION_REAL = 3, &"
@@ -737,44 +908,43 @@ END {
     print "        logical :: user_option = .false."
     print "    end type doc_entry_type"
     print ""
+    # The name arrays, from the longest name so none is truncated.
     w = 1
-    for (i = 1; i <= nf; i++) if (length(fname[i]) > w) w = length(fname[i])
-    printf "    !> The documented functions, sorted.\n"
-    printf "    character(len=%d), parameter, public :: function_names(%d) = [character(len=%d) :: &\n", w, nf, w
-    # Several names a line, to stay within the 255 continuation lines
-    # of a statement.
-    line = ""
     for (i = 1; i <= nf; i++) {
-        item = q(fname[i]) (i < nf ? ", " : "]")
-        if (line != "" && length(line) + length(item) > 90) { printf "        %s&\n", line; line = "" }
-        line = line item
+        citem[i] = q(fname[i])
+        if (length(fname[i]) > w) w = length(fname[i])
     }
-    printf "        %s\n", line
+    spec = sprintf("character(len=%d)", w)
+    c = constructor(spec " :: ", spec ", parameter", "function_names", citem, nf)
+    printf "    !> The documented functions, sorted.\n"
+    printf "    %s, parameter, public :: function_names(%d) = %s\n", spec, nf, c
     print ""
     w = 1
-    for (i = 1; i <= nv; i++) if (length(vname[i]) > w) w = length(vname[i])
-    printf "    !> The documented variables, sorted.\n"
-    printf "    character(len=%d), parameter, public :: variable_names(%d) = [character(len=%d) :: &\n", w, nv, w
-    line = ""
     for (i = 1; i <= nv; i++) {
-        item = q(vname[i]) (i < nv ? ", " : "]")
-        if (line != "" && length(line) + length(item) > 90) { printf "        %s&\n", line; line = "" }
-        line = line item
+        citem[i] = q(vname[i])
+        if (length(vname[i]) > w) w = length(vname[i])
     }
-    printf "        %s\n", line
+    spec = sprintf("character(len=%d)", w)
+    c = constructor(spec " :: ", spec ", parameter", "variable_names", citem, nv)
+    printf "    !> The documented variables, sorted.\n"
+    printf "    %s, parameter, public :: variable_names(%d) = %s\n", spec, nv, c
     print ""
     w = 1
-    for (k = 1; k <= nu; k++) if (length(uname[k]) > w) w = length(uname[k])
+    for (k = 1; k <= nu; k++) {
+        citem[k] = q(uname[k])
+        if (length(uname[k]) > w) w = length(uname[k])
+    }
+    spec = sprintf("character(len=%d)", w)
+    c = constructor(spec " :: ", spec ", parameter", "user_option_names", citem, nu)
     printf "    !> The user options (tools/user-options), sorted.\n"
-    printf "    character(len=%d), parameter, public :: user_option_names(%d) = [character(len=%d) :: &\n", w, nu, w
-    for (k = 1; k <= nu; k++)
-        printf "        %s%s\n", q(uname[k]), (k < nu ? ", &" : "]")
+    printf "    %s, parameter, public :: user_option_names(%d) = %s\n", spec, nu, c
     print ""
     print "    character(len=*), parameter :: LF = achar(10)"
     print ""
-    print "    interface repr"
-    print "        module procedure repr_logical, repr_integer, repr_int64, repr_int64s, repr_integers, repr_real, repr_string, repr_strings"
-    print "    end interface repr"
+    print "    interface value_text"
+    print "        module procedure value_text_logical, value_text_int64s, value_text_integers, value_text_real, &"
+    print "            value_text_real64, value_text_real64s, value_text_string, value_text_strings"
+    print "    end interface value_text"
     print ""
     print "contains"
     print ""
@@ -809,6 +979,7 @@ END {
     print "        character(len=*), intent(in) :: name"
     print "        type(doc_entry_type), intent(out) :: entry"
     print "        logical, intent(out) :: found"
+    print "        character(len=21) :: digits"
     print ""
     print "        found = .true."
     print "        entry%original = \"\""
@@ -823,9 +994,40 @@ END {
         if (vinit[i] != "") {
             init = vinit[i]
             sub(/_int(32|64)$/, "", init)
-            print "            entry%original = " q(init)
+            print "            entry%original = " lit(init, "                ")
         }
-        if (venum[i] != "") {
+        # A standard value the setup of the module sets (a procedure given at
+        # startup) replaces the one of the declaration.
+        if (ochoice(i) && okinds(i)) {
+            print ""
+            print "            if (len(" vfort[i] "%standard_value()) > 0) then"
+            print "                entry%original = " vfort[i] "%standard_value()"
+            print "            end if"
+            print ""
+        }
+        if (ochoice(i)) {
+            # A choice setting: a value of another kind (a procedure, a
+            # number, a string), the named constant of its choice, or
+            # .true./.false..
+            ind = "            "
+            if (okinds(i)) {
+                print "            entry%value = " vfort[i] "%other_value()"
+                print ""
+                print "            if (len(entry%value) == 0) then"
+                ind = "                "
+            }
+            print ind "select case (" vfort[i] "%choice)"
+            n = (venum[i] == "") ? 0 : split(venum[i], defs, ",")
+            for (k = 1; k <= n; k++) {
+                d = defs[k]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
+                print ind "case (" d ")"
+                print ind "    entry%value = " q(d)
+            }
+            print ind "case default"
+            print ind "    entry%value = value_text(" vfort[i] "%value)"
+            print ind "end select"
+            if (okinds(i)) print "            end if"
+        } else if (venum[i] != "") {
             # The value of a setting object is its value component.
             ex = vfort[i]
             if (vtype[i] ~ /_setting_type\)/) ex = ex "%value"
@@ -837,7 +1039,12 @@ END {
                 print "                entry%value = " q(d)
             }
             print "            case default"
-            print "                entry%value = repr(" ex ")"
+            if (vtype[i] ~ /^integer/ || vtype[i] ~ /integer_setting_type\)/) {
+                # An integer outside its named constants: its decimal text
+                # (an internal write, PORTING.md "Numbers to text").
+                print "                write (digits, \"(i0)\") " ex
+                print "                entry%value = trim(digits)"
+            } else print "                entry%value = value_text(" ex ")"
             print "            end select"
         } else {
             # Values as Fortran: a string or array that is not allocated
@@ -846,10 +1053,22 @@ END {
             # prefix argument its structure constructor.  Other derived types
             # (hooks, keymaps, syntax tables) have no printed representation
             # yet: help leaves the value out.
-            if (vtype[i] ~ /(integer|logical)_setting_type\)/) print "            entry%value = repr(" vfort[i] "%value)"
+            if (vtype[i] ~ /(integer|logical)_setting_type\)/ && okinds(i)) {
+                print "            entry%value = " vfort[i] "%other_value()"
+                print ""
+                print "            if (len(entry%value) == 0) then"
+                if (vtype[i] ~ /integer_setting_type\)/) {
+                    print "                write (digits, \"(i0)\") " vfort[i] "%value"
+                    print "                entry%value = trim(digits)"
+                } else print "                entry%value = value_text(" vfort[i] "%value)"
+                print "            end if"
+            } else if (vtype[i] ~ /integer_setting_type\)/) {
+                print "            write (digits, \"(i0)\") " vfort[i] "%value"
+                print "            entry%value = trim(digits)"
+            } else if (vtype[i] ~ /logical_setting_type\)/) print "            entry%value = value_text(" vfort[i] "%value)"
             else if (vtype[i] ~ /string_setting_type\)/) {
                 print "            if (allocated(" vfort[i] "%value)) then"
-                print "                entry%value = repr(" vfort[i] "%value)"
+                print "                entry%value = value_text(" vfort[i] "%value)"
                 print "            else"
                 print "                entry%value = \"unallocated\""
                 print "            end if"
@@ -874,7 +1093,7 @@ END {
                 # cannot be compared with.
                 decl = vtype[i]
                 sub(/,[ \t]*public/, "", decl)
-                print "            entry%declarations = " q(decl " :: " vfort[i])
+                print "            entry%declarations = " lit(decl " :: " vfort[i], "                                 ")
                 print "            if (.not. associated(" vfort[i] ")) then"
                 print "                entry%value = \"null()\""
                 if (vtarget[i] != "") {
@@ -891,17 +1110,27 @@ END {
                 }
                 print "            end if"
             } else if (vtype[i] ~ /^type\(prefix_arg_type\)/)
-                print "            entry%value = prefix_arg_repr(" vfort[i] ")"
+                print "            entry%value = prefix_arg_text(" vfort[i] ")"
             else if (vtype[i] ~ /indent_line_setting_type\)/)
                 print "            entry%value = indent_line_function_name(" vfort[i] "%value)"
-            else if (vtype[i] ~ /value_type/ && !varr[i]) print "            entry%value = fortran_repr(" vfort[i] ")"
-            else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/) {
+            else if (vtype[i] ~ /value_type/ && !varr[i]) print "            entry%value = fortran_text(" vfort[i] ")"
+            else if (vtype[i] ~ /allocatable/ && vtype[i] ~ /^integer/ && !varr[i]) {
                 print "            if (allocated(" vfort[i] ")) then"
-                print "                entry%value = repr(" vfort[i] ")"
+                print "                write (digits, \"(i0)\") " vfort[i]
+                print "                entry%value = trim(digits)"
                 print "            else"
                 print "                entry%value = \"unallocated\""
                 print "            end if"
-            } else if (vtype[i] !~ /^type/) print "            entry%value = repr(" vfort[i] ")"
+            } else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/) {
+                print "            if (allocated(" vfort[i] ")) then"
+                print "                entry%value = value_text(" vfort[i] ")"
+                print "            else"
+                print "                entry%value = \"unallocated\""
+                print "            end if"
+            } else if (vtype[i] ~ /^integer/ && !varr[i]) {
+                print "            write (digits, \"(i0)\") " vfort[i]
+                print "            entry%value = trim(digits)"
+            } else if (vtype[i] !~ /^type/) print "            entry%value = value_text(" vfort[i] ")"
         }
         print "            entry%doc = " docexpr(vdoc[i], "                        ")
     }
@@ -1015,8 +1244,9 @@ END {
     print "    end subroutine set_user_option_string"
     print ""
     print "    !> Set the enumerated user option called `name` to its named constant"
-    print "    !> `constant` (in upper case), buffer-locally if `local` (a setting"
-    print "    !> object); `ok` is false if `constant` is not one of its constants."
+    print "    !> `constant` (in upper case; .TRUE. or .FALSE. for a choice setting),"
+    print "    !> buffer-locally if `local` (a setting object); `ok` is false if"
+    print "    !> `constant` is not one of its constants."
     print "    subroutine set_user_option_choice(name, constant, local, ok)"
     print "        character(len=*), intent(in) :: name, constant"
     print "        logical, intent(in) :: local"
@@ -1030,6 +1260,12 @@ END {
         if (okind(i) != "OPTION_CHOICE") continue
         print "        case (" q(vname[i]) ")"
         print "            select case (constant)"
+        if (ochoice(i)) {
+            print "            case (\".TRUE.\")"
+            print oassign(i, ".true.", "                ")
+            print "            case (\".FALSE.\")"
+            print oassign(i, ".false.", "                ")
+        }
         n = split(venum[i], defs, ",")
         for (m = 1; m <= n; m++) {
             d = defs[m]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
@@ -1045,11 +1281,24 @@ END {
     print "        end select"
     print "    end subroutine set_user_option_choice"
     print ""
+    # The constants all have the length of the longest, so none is
+    # truncated.
+    cw = length(".false.")
+    for (k = 1; k <= nu; k++) {
+        i = vidx[uname[k]]
+        if (okind(i) != "OPTION_CHOICE") continue
+        n = split(venum[i], defs, ",")
+        for (m = 1; m <= n; m++) {
+            d = defs[m]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
+            if (length(d) > cw) cw = length(d)
+        }
+    }
     print "    !> The named constants of the enumerated user option called `name`"
-    print "    !> (in upper case) and their values; empty arrays for another name."
+    print "    !> (in upper case), all of one length, and their values; empty"
+    print "    !> arrays for another name."
     print "    subroutine user_option_constants(name, constants, values)"
     print "        character(len=*), intent(in) :: name"
-    print "        character(len=48), allocatable, intent(out) :: constants(:)"
+    print "        character(len=:), allocatable, intent(out) :: constants(:)"
     print "        integer(int64), allocatable, intent(out) :: values(:)"
     print ""
     print "        select case (name)"
@@ -1058,7 +1307,12 @@ END {
         if (okind(i) != "OPTION_CHOICE") continue
         print "        case (" q(vname[i]) ")"
         n = split(venum[i], defs, ",")
-        cl = "            constants = [character(len=48) :: "; vl = "            values = [integer(int64) :: "
+        cl = "            constants = [character(len=" cw ") :: "; vl = "            values = [integer(int64) :: "
+        # A choice setting also takes .true. and .false..
+        if (ochoice(i)) {
+            cl = cl q(".true.") ", " q(".false.") ", "
+            vl = vl "1_int64, 0_int64, "
+        }
         for (m = 1; m <= n; m++) {
             d = defs[m]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
             cl = wrapped(cl, q(toupper(d)) (m < n ? ", " : "]"))
@@ -1068,30 +1322,46 @@ END {
         print vl
     }
     print "        case default"
-    print "            allocate (constants(0), values(0))"
+    print "            allocate (character(len=" cw ") :: constants(0))"
+    print "            allocate (values(0))"
     print "        end select"
     print "    end subroutine user_option_constants"
     print ""
-    print "    function repr_logical(v) result(s)"
+    # The named constants each choice setting accepts (panel 2026-11-04):
+    # those of its "Values of" parameter statement, none without one.
+    print "    !> Declare the named constants each choice setting of the config API"
+    print "    !> accepts: those of the parameter statement documenting its values"
+    print "    !> (none when it has none).  Not a port."
+    print "    subroutine init_choice_values()"
+    for (i = 1; i <= nv; i++) {
+        if (!ochoice(i)) continue
+        n = (venum[i] == "") ? 0 : split(venum[i], defs, ",")
+        print "        " vfort[i] "%choices = 0"
+        if (n > 0) {
+            line = "        " vfort[i] "%choices(1:" n ") = ["
+            for (k = 1; k <= n; k++) {
+                d = defs[k]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
+                item = d (k < n ? ", " : "]")
+                if (length(line) + length(item) > 110) { print line "&"; line = "            " }
+                line = line item
+            }
+            print line
+        }
+        print "        " vfort[i] "%choices_declared = .true."
+    }
+    print "    end subroutine init_choice_values"
+    print ""
+    print "    function value_text_logical(v) result(s)"
     print "        logical, intent(in) :: v"
     print "        character(len=:), allocatable :: s"
     print ""
     print "        s = merge(\".true. \", \".false.\", v)"
     print "        s = trim(s)"
-    print "    end function repr_logical"
-    print ""
-    print "    function repr_integer(v) result(s)"
-    print "        integer, intent(in) :: v"
-    print "        character(len=:), allocatable :: s"
-    print "        character(len=12) :: digits"
-    print ""
-    print "        write (digits, \"(i0)\") v"
-    print "        s = trim(digits)"
-    print "    end function repr_integer"
+    print "    end function value_text_logical"
     print ""
     print "    ! A real with at least one digit"
     print "    ! after the point, no trailing zeros."
-    print "    function repr_real(v) result(s)"
+    print "    function value_text_real(v) result(s)"
     print "        real, intent(in) :: v"
     print "        character(len=:), allocatable :: s"
     print "        character(len=32) :: digits"
@@ -1106,51 +1376,69 @@ END {
     print "        if (len(s) > 1) then"
     print "            if (s(1:2) == \"-.\") s = \"-0\"//s(2:)"
     print "        end if"
-    print "    end function repr_real"
+    print "    end function value_text_real"
     print ""
-    print "    function repr_int64(v) result(s)"
-    print "        integer(int64), intent(in) :: v"
+    print "    function value_text_real64(v) result(s)"
+    print "        real(real64), intent(in) :: v"
     print "        character(len=:), allocatable :: s"
-    print "        character(len=21) :: digits"
     print ""
-    print "        write (digits, \"(i0)\") v"
-    print "        s = trim(digits)"
-    print "    end function repr_int64"
+    print "        s = value_text_real(real(v))"
+    print "    end function value_text_real64"
+    print ""
+    print "    !> An array of reals as a Fortran array constructor."
+    print "    function value_text_real64s(v) result(s)"
+    print "        real(real64), intent(in) :: v(:)"
+    print "        character(len=:), allocatable :: s"
+    print "        integer :: i"
+    print ""
+    print "        s = \"[\""
+    print ""
+    print "        do i = 1, size(v)"
+    print "            if (i > 1) s = s//\", \""
+    print "            s = s//value_text_real64(v(i))"
+    print "        end do"
+    print ""
+    print "        s = s//\"]\""
+    print "    end function value_text_real64s"
     print ""
     print "    !> An array of integers as a Fortran array constructor."
-    print "    function repr_int64s(v) result(s)"
+    print "    function value_text_int64s(v) result(s)"
     print "        integer(int64), intent(in) :: v(:)"
     print "        character(len=:), allocatable :: s"
+    print "        character(len=21) :: digits"
     print "        integer :: i"
     print ""
     print "        s = \"[\""
     print ""
     print "        do i = 1, size(v)"
     print "            if (i > 1) s = s//\", \""
-    print "            s = s//repr_int64(v(i))"
+    print "            write (digits, \"(i0)\") v(i)"
+    print "            s = s//trim(digits)"
     print "        end do"
     print ""
     print "        s = s//\"]\""
-    print "    end function repr_int64s"
+    print "    end function value_text_int64s"
     print ""
     print "    !> An array of default integers as a Fortran array constructor."
-    print "    function repr_integers(v) result(s)"
+    print "    function value_text_integers(v) result(s)"
     print "        integer, intent(in) :: v(:)"
     print "        character(len=:), allocatable :: s"
+    print "        character(len=12) :: digits"
     print "        integer :: i"
     print ""
     print "        s = \"[\""
     print ""
     print "        do i = 1, size(v)"
     print "            if (i > 1) s = s//\", \""
-    print "            s = s//repr_integer(v(i))"
+    print "            write (digits, \"(i0)\") v(i)"
+    print "            s = s//trim(digits)"
     print "        end do"
     print ""
     print "        s = s//\"]\""
-    print "    end function repr_integers"
+    print "    end function value_text_integers"
     print ""
     print "    !> A string as a Fortran literal."
-    print "    function repr_string(v) result(s)"
+    print "    function value_text_string(v) result(s)"
     print "        character(len=*), intent(in) :: v"
     print "        character(len=:), allocatable :: s"
     print "        integer :: i"
@@ -1163,10 +1451,10 @@ END {
     print "        end do"
     print ""
     print "        s = s//\"\"\"\""
-    print "    end function repr_string"
+    print "    end function value_text_string"
     print ""
     print "    !> An array of strings as a Fortran array constructor."
-    print "    function repr_strings(v) result(s)"
+    print "    function value_text_strings(v) result(s)"
     print "        character(len=*), intent(in) :: v(:)"
     print "        character(len=:), allocatable :: s"
     print "        integer :: i"
@@ -1175,11 +1463,11 @@ END {
     print ""
     print "        do i = 1, size(v)"
     print "            if (i > 1) s = s//\", \""
-    print "            s = s//repr_string(v(i))"
+    print "            s = s//value_text_string(v(i))"
     print "        end do"
     print ""
     print "        s = s//\"]\""
-    print "    end function repr_strings"
+    print "    end function value_text_strings"
     print "end module docstrings_mod"
 }
 ' "$tmp.records" >"$tmp.f90"

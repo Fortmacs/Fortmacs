@@ -32,7 +32,7 @@
 !> histories), `selective_display'.
 submodule(simple_mod) simple_goto_mod
     use editfns_mod, only: point_min, widen, narrow_to_region, is_buffer_narrowed, interactive_region, region_beginning, &
-                           region_end, inhibit_field_text_motion
+                           region_end, inhibit_field_text_motion, transpose_regions
     use buffer_mod, only: current_buffer
     use subr_mod, only: read_number
     use thingatpt_mod, only: number_at_point
@@ -281,7 +281,15 @@ contains
     !>
     !> When calling from a program, pass two arguments START and END:
     !> positions (integers or markers) bounding the text that should
-    !> remain visible.  Port of editfns.c:Fnarrow_to_region (the command).
+    !> remain visible.
+    !>
+    !> However, when restrictions have been set by `with_restriction' with a
+    !> label, `narrow_to_region' can be used only within the limits of these
+    !> restrictions.  If the START or END arguments are outside these limits,
+    !> the corresponding limit set by `with_restriction' is used instead of the
+    !> argument.  To gain access to other portions of the buffer, use
+    !> `without_restriction' with the same label.  Port of
+    !> editfns.c:Fnarrow_to_region (the command).
     recursive subroutine cmd_narrow_to_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
@@ -293,7 +301,12 @@ contains
 
     !> Remove restrictions (narrowing) from current buffer.
     !>
-    !> This allows the buffer's full text to be seen and edited.  Port of
+    !> This allows the buffer's full text to be seen and edited.
+    !>
+    !> However, when restrictions have been set by `with_restriction' with a
+    !> label, `widen' restores the narrowing limits set by `with_restriction'.
+    !> To gain access to other portions of the buffer, use
+    !> `without_restriction' with the same label.  Port of
     !> editfns.c:Fwiden (the command).
     recursive subroutine cmd_widen(status)
         type(status_type), intent(out) :: status
@@ -301,6 +314,50 @@ contains
         status = status_type()
         call widen()
     end subroutine cmd_widen
+
+    !> Transpose region STARTR1 to ENDR1 with STARTR2 to ENDR2.
+    !> The regions should not be overlapping, because the size of the buffer is
+    !> never changed in a transposition.
+    !>
+    !> Optional sixth arg LEAVE_MARKERS, if true, means don't update
+    !> any markers that happen to be located in the regions.
+    !>
+    !> Transposing beyond buffer boundaries is an error.
+    !>
+    !> Interactively, STARTR1 and ENDR1 are point and mark; STARTR2 and ENDR2
+    !> are the last two marks pushed to the mark ring; LEAVE_MARKERS is false.
+    !> If a prefix argument N is given, STARTR2 and ENDR2 are the two
+    !> successive marks N entries back in the mark ring.  A negative prefix
+    !> argument instead counts forward from the oldest mark in the mark
+    !> ring.  Port of editfns.c:Ftranspose_regions (the command).
+    recursive subroutine cmd_transpose_regions(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: num, ring_length, mark_pos, startr2, endr2
+
+        ring_length = 0
+        if (allocated(buffers(current)%mark_ring)) ring_length = size(buffers(current)%mark_ring, kind=int64)
+
+        if (ring_length < 2) then
+            call set_error(status, FM_GENERIC_ERROR, "Other region must be marked before transposing two regions")
+            return
+        end if
+
+        num = 0
+        if (current_prefix_arg%kind /= PREFIX_NONE) num = prefix_numeric_value(current_prefix_arg)
+        call mark(mark_pos, status)
+        if (.not. status%ok()) return
+
+        if (mark_pos == 0) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
+            return
+        end if
+
+        call marker_position(buffers(current)%mark_ring(modulo(num, ring_length) + 1), startr2, status)
+        if (.not. status%ok()) return
+        call marker_position(buffers(current)%mark_ring(modulo(num + 1, ring_length) + 1), endr2, status)
+        if (.not. status%ok()) return
+        call transpose_regions(point(), mark_pos, startr2, endr2, status)
+    end subroutine cmd_transpose_regions
 
     module procedure count_words
     integer(int64) :: opoint, begv, zv_from_end
@@ -343,27 +400,26 @@ contains
 
     module procedure count_words_format
     integer(int64) :: lines, sentences, words, chars
+    character(len=len(string) + 160) :: buffer
 
     lines = count_lines(start, end)
     sentences = count_sentences(start, end)
     words = count_words(start, end)
     chars = end - start
-    text = string//" has "//counted(lines, "line")//", "//counted(sentences, "sentence")//", "//counted(words, "word") &
-           //", and "//counted(chars, "character")
+    write (buffer, '(a, " has ", i0, " line", a, ", ", i0, " sentence", a, ", ", i0, " word", a, ", and ", i0, " character", a)') &
+        string, lines, plural(lines), sentences, plural(sentences), words, plural(words), chars, plural(chars)
+    text = trim(buffer)
 
 contains
 
-    ! "N NOUN", with an s unless N is 1.
-    function counted(n, noun) result(s)
+    ! "s" unless N is 1.
+    function plural(n) result(s)
         integer(int64), intent(in) :: n
-        character(len=*), intent(in) :: noun
         character(len=:), allocatable :: s
-        character(len=24) :: buffer
 
-        write (buffer, "(i0)") n
-        s = trim(buffer)//" "//noun
-        if (n /= 1) s = s//"s"
-    end function counted
+        s = "s"
+        if (n == 1) s = ""
+    end function plural
     end procedure count_words_format
 
     !> Count words between START and END (the command): report the number
@@ -431,6 +487,7 @@ contains
     commands%narrow_to_region%execute => cmd_narrow_to_region
     commands%narrow_to_region%disabled = .true.
     commands%widen%execute => cmd_widen
+    commands%transpose_regions%execute => cmd_transpose_regions
     commands%count_words%execute => cmd_count_words
     commands%count_words_region%execute => cmd_count_words_region
     end procedure init_simple_goto

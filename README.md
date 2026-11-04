@@ -11,7 +11,7 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
-<img src="docs/progress/pie.svg" width="871" height="236" alt="Ported: ≈5.44% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 148,761 of the about 10,392,596 lines of Emacs and its packages translated">
+<img src="docs/progress/pie.svg" width="873" height="236" alt="Ported: ≈5.92% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 158,743 of the about 10,392,596 lines of Emacs and its packages translated">
 </picture>
 <!-- progress:end -->
 
@@ -25,13 +25,17 @@ confirm or correct it.
 
 Requires gfortran ≥ 13 and [fpm](https://fpm.fortran-lang.org); development
 also needs [fprettify](https://github.com/fortran-lang/fprettify) 0.3.7 and
-[Fortitude](https://fortitude.readthedocs.io) 0.9.2.
+[Fortitude](https://fortitude.readthedocs.io) 0.9.2. Build through
+`tools/build.sh`, which first generates the modules made from `src/` (the
+command, mode, face and help tables, not kept in git) and then runs fpm with
+its arguments.
 
 ```sh
-fpm build
-fpm run -- FILE         # edit FILE (C-x C-s saves, C-x C-c exits)
-tools/check.sh          # format, lint, debug build and tests, as CI runs them
-tools/check.sh --fix    # reformat and apply safe lint fixes
+tools/build.sh                 # fpm build
+tools/build.sh run -- FILE     # edit FILE (C-x C-s saves, C-x C-c exits)
+tools/build.sh test            # all the tests (test -- SUITE for one)
+tools/check.sh                 # format, lint, debug build and tests, as CI runs them
+tools/check.sh --fix           # reformat and apply safe lint fixes
 ```
 
 CI runs the same check on Ubuntu and Fedora (x86-64 and aarch64) and Arch
@@ -48,12 +52,12 @@ Write your configuration in `~/.config/fortmacs/init.f90`
 `keymap_global_set("C-c d", "my_command", status)`.
 
 ```sh
-fpm install --profile release   # fortmacs, its library and modules, in ~/.local
-fortmacs --recompile            # build init.f90 into a new generation
-fortmacs -q                     # start without your configuration
-fortmacs --list-generations     # every build, the current one marked
-fortmacs --rollback             # back to the generation before
-fortmacs --switch-generation 3  # or to any generation
+tools/build.sh install --profile release  # fortmacs, its library and modules, in ~/.local
+fortmacs --recompile                      # build init.f90 into a new generation
+fortmacs -q                               # start without your configuration
+fortmacs --list-generations               # every build, the current one marked
+fortmacs --rollback                       # back to the generation before
+fortmacs --switch-generation 3            # or to any generation
 ```
 
 A failed build shows the compiler's errors and leaves your last good build
@@ -62,19 +66,21 @@ running. Each generation is kept with the `init.f90` it was built from in
 
 ## Why Fortran?
 
-1. **Real parallel threads.** Emacs runs one thread at a time under a global
-   lock. Fortmacs keeps one thread for buffers and the screen, as Emacs does,
-   and will run heavy work (searching large files, file I/O, syntax parsing,
-   language servers) on other cores, each worker with its own copy of the
-   data. Not implemented yet; see "Threads" in [PORTING.md](PORTING.md).
+1. **Real parallel threads.** Emacs Lisp threads run one at a time under a
+   global lock. Fortmacs keeps one thread for buffers and the screen, as
+   Emacs does, and will run heavy work (searching large files, file I/O,
+   syntax parsing, language servers) on other cores, each worker with its
+   own copy of the data. Not implemented yet; see "Threads" in
+   [PORTING.md](PORTING.md).
 2. **Fast native code.** Compiled ahead of time by optimizing compilers,
-   with no garbage-collection pauses (objects are freed explicitly) and no
-   init files to evaluate at startup.
+   with no garbage-collection pauses (objects are freed explicitly); your
+   init file is compiled in, not evaluated at startup.
 3. **Errors caught at compile time.** Static types, `implicit none` and
    argument intents turn many mistakes into compile errors, in your
    configuration too.
 4. **A stable standard.** Fortran is an ISO standard with many independent
-   compilers; code from decades ago still compiles.
+   compilers; code from decades ago still compiles (compilers accept
+   features later removed from the standard, by default with a warning).
 5. **Syntax.** Blocks say where they end (`end if`, `end do`) instead of
    ending where parentheses balance.
    [Compare the two side by side](https://fortmacs.github.io/Fortmacs/syntax.html).
@@ -118,6 +124,7 @@ names, help and internals are Fortran-first.
   "One word per meaning", has the full list.
 - Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
   names the Fortran file a definition lives in.
+- Settings read plainly. `.true.` and `.false.` mean what the option's name says, with no knowledge of Emacs assumed: `dired_recursive_deletes = .true.` deletes directories recursively, where Emacs's `t` means "ask for each directory"; that state is the named constant `DIRED_RECURSIVE_ASK`. Options whose Emacs values hide their meaning are renamed so that their values read plainly.
 - There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
   `ielm`, and `*scratch*` starts in Fundamental mode. Changing the
   configuration means rebuilding.
@@ -152,7 +159,12 @@ Fortmacs now has `commands%upcase_region%disabled = .false.`. It also let
 Lisp terms slip into Fortran names unremarked, such as <!-- fortran-names: keep -->
 `beginning_of_defun`, `forward_sexp` and `auto_mode_alist`; the renames <!-- fortran-names: keep -->
 are recorded in PORTING.md, and a check in CI keeps them from coming
-back. In return it:
+back. It also wrapped Fortran statements in Lisp-shaped helpers:
+`number_to_string`, a port of Emacs's function, stood in about 150 places
+for Fortran's own `write (text, "(i0)") n` until a review caught it; that
+too is now checked. Such corrections are ongoing: each case is found in
+review, the rule is written down and a check added, so the model is taught
+one case at a time. In return it:
 
 - reads C, Elisp and Fortran, porting each function with a citation to its
   source and porting Emacs's tests with it;

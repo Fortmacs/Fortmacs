@@ -24,8 +24,8 @@
 !> earlier and expand them with M-/ (`dabbrev_expand'), which searches
 !> backward, then forward in the current buffer, then in other buffers.
 !>
-!> Settings whose upstream values are .false., .true. or a name are integers
-!> with the named constants DABBREV_NO, DABBREV_YES,
+!> Settings whose upstream values are .false., .true. or a name are choice
+!> settings: .true., .false. and the named constants
 !> DABBREV_LIKE_CASE_FOLD_SEARCH (like `case_fold_search'),
 !> DABBREV_LIKE_CASE_REPLACE (like `case_replace') and DABBREV_ASK (another
 !> value of `dabbrev_check_other_buffers').
@@ -41,7 +41,7 @@ module dabbrev_mod
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, format_message, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type, null_handle
-    use data_mod, only: string_setting_type, forward_setting
+    use data_mod, only: string_setting_type, forward_setting, choice_setting_type, choice_state
     use buffer_mod, only: buffers, current, BEGINNING, current_buffer, set_buffer, is_buffer_live, buffer_list, resolve_buffer, &
                           get_buffer, get_or_make_buffer, generate_new_buffer_name, close_buffer, &
                           barf_if_buffer_read_only, UE_POINT, undo_entry_type
@@ -64,12 +64,13 @@ module dabbrev_mod
     use window_mod, only: windows, window_leaves, get_mru_window, same_handle, window_type
     use derived_mod, only: provided_mode_derived_p
     use xdisp_mod, only: message
-    use value_mod, only: value_type, make_list, xstring
+    use value_mod, only: value_type, make_list, xstring, choice_type, assignment(=)
     use minibuf_table_mod, only: capf_data_type, completion_test_procedure, completion_table_type, completion_list_table, &
                                  completion_function_table, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuf_mod, only: try_completion, all_completions, is_exact_completion
     use hooks_mod, only: capf_entry_type
     use minibuffer_mod, only: execute_completion_at_point
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -77,11 +78,14 @@ module dabbrev_mod
     public :: dabbrev_expand, dabbrev_reset_global_variables, is_dabbrev_same_major_mode, dabbrev_select_buffers, &
               dabbrev_friend_buffer_procedure, dabbrev_select_buffers_procedure, init_dabbrev
 
-    !> Values of the dabbrev settings that upstream are .false., .true. or a
-    !> name: off, on, like `case_fold_search', like
-    !> `case_replace', and ask (another value).
-    integer, parameter, public :: DABBREV_NO = 0, DABBREV_YES = 1, DABBREV_LIKE_CASE_FOLD_SEARCH = 2, &
-                                  DABBREV_LIKE_CASE_REPLACE = 3, DABBREV_ASK = 4
+    !> Values of `dabbrev_case_fold_search' besides .true. and .false.: like
+    !> case_fold_search.
+    integer, parameter, public :: DABBREV_LIKE_CASE_FOLD_SEARCH = 2
+    !> Values of `dabbrev_case_distinction' and `dabbrev_case_replace' besides
+    !> .true. and .false.: like case_replace.
+    integer, parameter, public :: DABBREV_LIKE_CASE_REPLACE = 3
+    !> Values of `dabbrev_check_other_buffers' besides .true. and .false.: ask.
+    integer, parameter, public :: DABBREV_ASK = 4
 
     abstract interface
         !> A function deciding whether dabbrev should search OTHER_BUFFER.
@@ -126,12 +130,13 @@ module dabbrev_mod
     logical, public :: dabbrev_eliminate_newlines = .true.
 
     !> Control whether dabbrev searches should ignore case.
-    !> A value of DABBREV_NO means case is significant.
+    !> .false. means case is significant.
     !> A value of DABBREV_LIKE_CASE_FOLD_SEARCH means case is significant
     !>  if `case_fold_search' is false.
     !> Any other value means case is not significant.  Port of dabbrev.el
     !> dabbrev-case-fold-search.
-    integer, public :: dabbrev_case_fold_search = DABBREV_LIKE_CASE_FOLD_SEARCH
+    type(choice_setting_type), public :: dabbrev_case_fold_search = &
+                                         choice_setting_type(name="dabbrev_case_fold_search", choice=DABBREV_LIKE_CASE_FOLD_SEARCH)
 
     !> The significance of an uppercase character in an abbreviation.
     !> A false value means case fold search when searching for possible expansions;
@@ -142,21 +147,22 @@ module dabbrev_mod
     !> dabbrev-upcase-means-case-search.
     logical, public :: dabbrev_upcase_means_case_search = .false.
 
-    !> Whether dabbrev treats expansions as the same if they differ in case.
+    !> Whether dabbrev treats expansions that differ only in case as different.
     !>
-    !> A value of DABBREV_NO means treat them as different.
+    !> .true. means treat them as different (case differences count).
+    !> .false. means treat them as the same.
     !> A value of DABBREV_LIKE_CASE_REPLACE means distinguish them if
     !> `case_replace' is false.
-    !> Any other value means to treat them as the same.
     !>
     !> This variable has an effect only when the value of
     !> `dabbrev_case_fold_search' specifies to ignore case.  Port of
     !> dabbrev.el dabbrev-case-distinction.
-    integer, public :: dabbrev_case_distinction = DABBREV_LIKE_CASE_REPLACE
+    type(choice_setting_type), public :: dabbrev_case_distinction = &
+                                         choice_setting_type(name="dabbrev_case_distinction", choice=DABBREV_LIKE_CASE_REPLACE)
 
     !> Whether dabbrev applies the abbreviations's case pattern to the expansion.
     !>
-    !> A value of DABBREV_NO means preserve the expansion's case pattern.
+    !> .false. means preserve the expansion's case pattern.
     !> A value of DABBREV_LIKE_CASE_REPLACE means preserve it if `case_replace'
     !> is false.
     !> Any other value means modify the expansion
@@ -165,7 +171,8 @@ module dabbrev_mod
     !> This variable has an effect only when the value of
     !> `dabbrev_case_fold_search' specifies to ignore case.  Port of
     !> dabbrev.el dabbrev-case-replace.
-    integer, public :: dabbrev_case_replace = DABBREV_LIKE_CASE_REPLACE
+    type(choice_setting_type), public :: dabbrev_case_replace = &
+                                         choice_setting_type(name="dabbrev_case_replace", choice=DABBREV_LIKE_CASE_REPLACE)
 
     !> Regexp to recognize a character in an abbreviation or expansion.
     !> This regexp will be surrounded with \\( ... \\) when actually used.
@@ -219,16 +226,17 @@ module dabbrev_mod
     character(len=:), allocatable, public :: dabbrev_ignored_buffer_modes(:)
 
     !> Should \[dabbrev_expand] look in other buffers?
-    !> DABBREV_NO: Don't look in other buffers.
-    !> DABBREV_YES: Also look for expansions in the buffers pointed out by
+    !> .false.: Don't look in other buffers.
+    !> .true.: Also look for expansions in the buffers pointed out by
     !>    `dabbrev_select_buffers_function'.
     !> DABBREV_ASK: When we can't find any more expansions in
     !> the current buffer, then ask the user whether to look in other
     !> buffers too.
     !>
-    !> The default value is DABBREV_YES.  Port of dabbrev.el
+    !> The default value is .true.  Port of dabbrev.el
     !> dabbrev-check-other-buffers.
-    integer, public :: dabbrev_check_other_buffers = DABBREV_YES
+    type(choice_setting_type), public :: dabbrev_check_other_buffers = &
+                                         choice_setting_type(name="dabbrev_check_other_buffers", value=.true.)
 
     !> A function that selects buffers that should be searched by dabbrev.
     !> The function should take no arguments and return a list of buffers to
@@ -252,11 +260,6 @@ module dabbrev_mod
     !> member of this list.  Port of dabbrev.el
     !> dabbrev-search-these-buffers-only.
     character(len=:), allocatable, public :: dabbrev_search_these_buffers_only(:)
-
-    !> A string, for the tables of strings.
-    type :: string_type
-        character(len=:), allocatable :: s
-    end type string_type
 
     ! Table of expansions seen so far.
     type(string_type), allocatable :: last_table(:)
@@ -304,7 +307,7 @@ module dabbrev_mod
     integer :: last_case_pattern = CASE_PATTERN_NONE
 
     ! Same as dabbrev_check_other_buffers, but is set for every expand.
-    integer :: check_other_buffers = DABBREV_YES
+    type(choice_type) :: check_other_buffers = choice_type(value=.true.)
 
     ! Same as dabbrev_check_all_buffers, but is set for every expand.
     logical :: check_all_buffers = .true.
@@ -487,10 +490,10 @@ contains
     logical function is_ignore_case(abbrev)
         character(len=*), intent(in) :: abbrev
 
-        if (dabbrev_case_fold_search == DABBREV_LIKE_CASE_FOLD_SEARCH) then
+        if (dabbrev_case_fold_search%choice == DABBREV_LIKE_CASE_FOLD_SEARCH) then
             is_ignore_case = case_fold_search%value
         else
-            is_ignore_case = dabbrev_case_fold_search /= DABBREV_NO
+            is_ignore_case = .not. dabbrev_case_fold_search%is_off()
         end if
 
         if (is_ignore_case .and. dabbrev_upcase_means_case_search) then
@@ -864,7 +867,7 @@ contains
             abbrev_char_regexp = DEFAULT_CHAR_REGEXP
         end if
 
-        check_other_buffers = dabbrev_check_other_buffers
+        check_other_buffers = choice_state(dabbrev_check_other_buffers)
         check_all_buffers = dabbrev_check_all_buffers
     end subroutine dabbrev_reset_global_variables
 
@@ -955,7 +958,7 @@ contains
         type(status_type), intent(out) :: status
         type(excursion_type) :: ex
         integer(int64) :: savedb, savedz, count
-        logical :: saved_fold, distinction
+        logical :: saved_fold, treat_as_same
         type(status_type) :: st
 
         status = status_type()
@@ -966,13 +969,13 @@ contains
         if (location_set) call goto_char(location())
         saved_fold = case_fold_search%value
         case_fold_search = ignore_case
-        distinction = .false.
+        treat_as_same = .false.
 
         if (ignore_case) then
-            if (dabbrev_case_distinction == DABBREV_LIKE_CASE_REPLACE) then
-                distinction = case_replace
+            if (dabbrev_case_distinction%choice == DABBREV_LIKE_CASE_REPLACE) then
+                treat_as_same = case_replace
             else
-                distinction = dabbrev_case_distinction /= DABBREV_NO
+                treat_as_same = .not. dabbrev_case_distinction%value
             end if
         end if
 
@@ -980,7 +983,7 @@ contains
 
         do while (count > 0)
             if (allocated(expansion)) deallocate (expansion)
-            call dabbrev_search(abbrev, reverse, distinction, expansion, status)
+            call dabbrev_search(abbrev, reverse, treat_as_same, expansion, status)
             if (.not. status%ok() .or. .not. allocated(expansion)) exit
             count = count - 1
         end do
@@ -1222,13 +1225,13 @@ contains
             end do
         end if
 
-        if (.not. these_only .and. check_other_buffers /= DABBREV_NO) then
-            scan = check_other_buffers == DABBREV_YES
+        if (.not. these_only .and. .not. check_other_buffers%is_off()) then
+            scan = check_other_buffers%value
 
             if (.not. scan) then
                 call read_y_or_n("Scan other buffers also? ", scan, status)
                 if (.not. status%ok()) return
-                check_other_buffers = merge(DABBREV_YES, DABBREV_NO, scan)
+                check_other_buffers = scan
             end if
 
             if (scan) then
@@ -1334,10 +1337,10 @@ contains
         use_case_replace = is_ignore_case(abbrev)
 
         if (use_case_replace) then
-            if (dabbrev_case_replace == DABBREV_LIKE_CASE_REPLACE) then
+            if (dabbrev_case_replace%choice == DABBREV_LIKE_CASE_REPLACE) then
                 use_case_replace = case_replace
             else
-                use_case_replace = dabbrev_case_replace /= DABBREV_NO
+                use_case_replace = .not. dabbrev_case_replace%is_off()
             end if
         end if
 
@@ -1539,7 +1542,7 @@ contains
                 seen = .false.
 
                 do k = 1, last_table_count
-                    if (same_string(found_string, last_table(k)%s)) seen = .true.
+                    if (same_string(found_string, last_table(k)%text)) seen = .true.
                 end do
 
                 have = .not. seen
@@ -1576,7 +1579,7 @@ contains
             end if
 
             last_table_count = last_table_count + 1
-            last_table(last_table_count)%s = found_string
+            last_table(last_table_count)%text = found_string
         else if (allocated(result)) then
             deallocate (result)
         end if
@@ -1601,8 +1604,8 @@ contains
         logical :: res
 
         call dabbrev_reset_global_variables()
-        check_other_buffers = DABBREV_NO
-        if (present(arg)) check_other_buffers = DABBREV_YES
+        check_other_buffers = .false.
+        if (present(arg)) check_other_buffers = .true.
         check_all_buffers = .false.
         if (present(arg)) check_all_buffers = arg == 16
         ! Set it so `dabbrev_capf' won't reset the vars.
@@ -1615,7 +1618,7 @@ contains
             call abbrev_at_point(abbrev, status)
             if (.not. status%ok()) return
             where = " in this-buffer"
-            if (check_other_buffers /= DABBREV_NO) where = ""
+            if (.not. check_other_buffers%is_off()) where = ""
             call set_error(status, FM_USER_ERROR, "No dynamic expansion for """//abbrev//""" found"//where)
         end if
     end subroutine dabbrev_completion
@@ -1648,7 +1651,7 @@ contains
             ! Contrary to `dabbrev_completion', the CAPF protocol doesn't
             ! have a way to control the scope of the search.  We just
             ! default to confine it to the current buffer.
-            check_other_buffers = DABBREV_NO
+            check_other_buffers = .false.
             check_all_buffers = .false.
             call copy_marker_at(point(), last_abbrev_location, .false., status)
         end if
@@ -1734,7 +1737,7 @@ contains
 
         first = char_substring(abbrev, 0_int64, 1_int64)
 
-        if (ignore_case .and. dabbrev_case_replace /= DABBREV_NO) then
+        if (ignore_case .and. .not. dabbrev_case_replace%is_off()) then
             do n = 1, size(all)
                 if (same_string(abbrev, upcase_string(abbrev))) then
                     all(n) = value_type(text=upcase_string(xstring(all(n))))

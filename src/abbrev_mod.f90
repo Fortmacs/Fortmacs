@@ -64,7 +64,7 @@ module abbrev_mod
     use callint_mod, only: prefix_arg_type
     use error_mod, only: status_type
     use handle_mod, only: handle_type
-    use data_mod, only: logical_setting_type
+    use data_mod, only: logical_setting_type, choice_setting_type
     use hooks_mod, only: hook_type
     implicit none(type, external)
     private
@@ -80,7 +80,7 @@ module abbrev_mod
 
     !> The values of `save_abbrevs': never save, ask or save
     !> without asking (`silently').
-    integer, parameter, public :: SAVE_ABBREVS_NO = 0, SAVE_ABBREVS_ASK = 1, SAVE_ABBREVS_SILENTLY = 2
+    integer, parameter, public :: SAVE_ABBREVS_SILENTLY = 2
 
     abstract interface
         !> An abbrev's hook, called after its expansion is inserted;
@@ -267,8 +267,8 @@ module abbrev_mod
 
     !> True means save word abbrevs too when files are saved.
     !> If `SAVE_ABBREVS_SILENTLY', don't ask the user before saving.  Port
-    !> of files.el save-abbrevs (SAVE_ABBREVS_ASK).
-    integer, public :: save_abbrevs = SAVE_ABBREVS_ASK
+    !> of files.el save-abbrevs (.true. asks before saving, as upstream t).
+    type(choice_setting_type), public :: save_abbrevs = choice_setting_type(name="save_abbrevs", value=.true.)
 
     !> Keymap used in `edit_abbrevs'.  Port of abbrev.el
     !> edit-abbrevs-mode-map (its keys run commands not ported yet).

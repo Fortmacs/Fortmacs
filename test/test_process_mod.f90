@@ -32,12 +32,14 @@ module test_process_mod
     use editfns_mod, only: buffer_string
     use keyboard_mod, only: sit_for
     use sys_worker_mod, only: on_main_thread, wait_for_worker_messages
-    use process_mod, only: process_arg_type, make_process, start_process, delete_process, destroy_process, &
+    use sysdep_mod, only: signal_disposition_type, default_signal, restore_signal, SIGHUP
+    use process_mod, only: make_process, start_process, delete_process, destroy_process, &
                            process_status, process_exit_status, is_process_live, process_name, process_tty_name, &
                            set_process_sentinel, set_process_filter, accept_process_output, stop_process, &
                            process_send_string, process_send_eof, get_buffer_process, get_process, process_list, &
                            process_shutdown, is_process, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, &
                            set_process_window_size, process_running_child, process_id, PROCESS_RUNNING_CHILD_UNKNOWN
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -165,11 +167,9 @@ contains
     !> The arguments `sh -c SCRIPT'.
     subroutine sh_args(script, args)
         character(len=*), intent(in) :: script
-        type(process_arg_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: args(:)
 
-        allocate (args(2))
-        args(1)%s = "-c"
-        args(2)%s = script
+        call append_string(args, "-c", script)
     end subroutine sh_args
 
     !> Upstream's process-test-wait-for-sentinel on `bash -c "exit 20"`
@@ -191,7 +191,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         logical, intent(in) :: sit
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call reset_records()
@@ -232,13 +232,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         integer :: k
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         type(status_type) :: st
         integer, parameter :: types(2) = [PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY]
 
-        allocate (command(2))
-        command(1)%s = "echo"
-        command(2)%s = "first"
+        call append_string(command, "echo", "first")
 
         do k = 1, 2
             call reset_records()
@@ -266,16 +264,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         integer :: k
         type(handle_type) :: process, other
-        type(process_arg_type), allocatable :: command(:), slow(:)
+        type(string_type), allocatable :: command(:), slow(:)
         type(status_type) :: st
         integer, parameter :: types(2) = [PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY]
 
-        allocate (command(2), slow(3))
-        command(1)%s = "echo"
-        command(2)%s = "first"
-        slow(1)%s = "sh"
-        slow(2)%s = "-c"
-        slow(3)%s = "sleep 10; echo second"
+        call append_string(command, "echo", "first")
+        call append_string(slow, "sh", "-c", "sleep 10; echo second")
 
         do k = 1, 2
             call reset_records()
@@ -303,16 +297,13 @@ contains
         character(len=*), intent(in) :: expected
         logical, intent(in) :: tty
         type(handle_type) :: process, buffer
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         type(status_type) :: st
 
         call get_or_make_buffer("*process-test*", buffer, st)
         call set_buffer(buffer, st)
         call erase_buffer(st)
-        allocate (command(3))
-        command(1)%s = "sh"
-        command(2)%s = "-c"
-        command(3)%s = "for fd in 0 1 2; do if [ -t $fd ]; then printf y; else printf n; fi; done"
+        call append_string(command, "sh", "-c", "for fd in 0 1 2; do if [ -t $fd ]; then printf y; else printf n; fi; done")
         call reset_records()
         call make_process("test", command, process, st, buffer=buffer, noquery=.true., connection_type=ctype, &
                           sentinel=record_sentinel)
@@ -348,7 +339,7 @@ contains
     subroutine test_default_filter(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call get_or_make_buffer("*process-test*", buffer, st)
@@ -371,7 +362,7 @@ contains
     subroutine test_exit_abnormally(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call get_or_make_buffer("*process-test*", buffer, st)
@@ -391,7 +382,7 @@ contains
     subroutine test_kill(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call reset_records()
@@ -416,7 +407,7 @@ contains
     subroutine test_delete(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call reset_records()
@@ -442,7 +433,7 @@ contains
     subroutine test_main_thread(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
         logical :: ready
 
@@ -477,7 +468,7 @@ contains
     subroutine test_utf8_split(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call reset_records()
@@ -498,10 +489,9 @@ contains
         type(status_type) :: st
         integer :: k
         integer, parameter :: types(2) = [PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY]
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
 
-        allocate (command(1))
-        command(1)%s = "cat"
+        call append_string(command, "cat")
 
         do k = 1, 2
             call reset_records()
@@ -527,7 +517,7 @@ contains
     subroutine test_unique_names(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: p1, p2
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call sh_args("sleep 100", args)
@@ -540,18 +530,25 @@ contains
         call process_shutdown()
     end subroutine test_unique_names
 
-    !> Closing a buffer sends SIGHUP to its process.
+    !> Closing a buffer sends SIGHUP to its process.  The child starts
+    !> with SIGHUP at its default, as under interactive Emacs (whose
+    !> handler, sysdep.c:init_signals, exec resets), whatever the test
+    !> runner left: under nohup an ignored SIGHUP would pass through exec,
+    !> and the child would run until `sleep' ends ("finished").
     subroutine test_close_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer, other
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
+        type(signal_disposition_type) :: old_hup
 
         call get_or_make_buffer("*process-test*", buffer, st)
         call set_buffer(buffer, st)
         call reset_records()
         call sh_args("sleep 100", args)
+        call default_signal(SIGHUP, old_hup)
         call start_process("hup", buffer, "sh", process, st, args)
+        call restore_signal(SIGHUP, old_hup)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         other = get_buffer_process(buffer)
@@ -588,7 +585,7 @@ contains
     subroutine test_workers_beside_main(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
         integer(int64) :: start
         integer :: k
@@ -622,7 +619,7 @@ contains
         use simple_mod, only: list_processes, process_menu_delete_process
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, b, old
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
         character(len=:), allocatable :: text
         integer(int64) :: pos
@@ -666,14 +663,11 @@ contains
     subroutine test_set_process_window_size(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         type(status_type) :: st
         logical :: told
 
-        allocate (command(3))
-        command(1)%s = "sh"
-        command(2)%s = "-c"
-        command(3)%s = "sleep 1; stty size"
+        call append_string(command, "sh", "-c", "sleep 1; stty size")
         call reset_records()
         call make_process("stty", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PTY, &
                           filter=record_filter)
@@ -689,7 +683,7 @@ contains
 
         call destroy_process(process, st)
         if (allocated(error)) return
-        command(3)%s = "sleep 1"
+        command(3)%text = "sleep 1"
         call make_process("pipe", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PIPE)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -711,16 +705,13 @@ contains
     subroutine test_process_running_child(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         type(status_type) :: st
         integer(int64) :: start
         integer(int32) :: gid
         logical :: got
 
-        allocate (command(3))
-        command(1)%s = "sh"
-        command(2)%s = "-c"
-        command(3)%s = "read line"
+        call append_string(command, "sh", "-c", "read line")
         call make_process("child", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PTY)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -729,7 +720,7 @@ contains
         if (allocated(error)) return
         ! A job-control shell puts the command in a process group of its
         ! own and gives it the terminal.
-        command(3)%s = "set -m; sleep 10; exit 0"
+        command(3)%text = "set -m; sleep 10; exit 0"
         call make_process("child", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PTY)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -745,7 +736,7 @@ contains
         call check(error, gid > 0 .and. gid /= process_id(process), "the foreground group of a child")
         call destroy_process(process, st)
         if (allocated(error)) return
-        command(3)%s = "read line"
+        command(3)%text = "read line"
         call make_process("child", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PIPE)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return

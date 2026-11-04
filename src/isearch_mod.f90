@@ -47,15 +47,16 @@ module isearch_mod
     use value_mod, only: value_type, xfixnum, xstring, make_keymap_ref, list_length, list_elt, list_elements, make_list, &
                          vtag, V_INTEGER, V_STRING
     use data_mod, only: symbol_value, set, append_locals_clearer, history_setting_type, forward_setting
+    use window_mod, only: same_handle
     use hooks_mod, only: hook_type
-    use character_mod, only: string_char_and_length, char_string, MAX_CHAR, MAX_MULTIBYTE_LENGTH, &
+    use character_mod, only: string_char_and_length, MAX_CHAR, &
                              CHAR_SHIFT
     use casetab_mod, only: downcase
     use buffer_mod, only: buffers, current, transient_mark_mode, buf_fetch_char
     use marker_mod, only: char_to_byte
     use syntax_mod, only: char_syntax, forward_word
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_eol, pos_eol, &
-                           buffer_substring
+                           buffer_substring, char_to_string
     use cmds_mod, only: forward_char
     use search_mod, only: re_search_forward, re_search_backward, match_beginning, match_end, looking_at, &
                           string_match, regexp_quote, case_fold_search, search_spaces_regexp, SEARCH_NOERROR
@@ -72,6 +73,7 @@ module isearch_mod
     use simple_mod, only: push_mark, current_clipboard_entry
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -94,17 +96,18 @@ module isearch_mod
     !> M-c: fold even when the string has upper-case letters).
     integer, parameter, public :: CASE_FOLD_NO = 0, CASE_FOLD_YES = 1, CASE_FOLD_FORCED = 2
 
-    !> Values of `search_upper_case': SEARCH_UPPER_CASE_NO, SEARCH_UPPER_CASE_YES and SEARCH_UPPER_CASE_NOT_PASTED.
-    integer, parameter, public :: SEARCH_UPPER_CASE_NO = 0, SEARCH_UPPER_CASE_YES = 1, SEARCH_UPPER_CASE_NOT_PASTED = 2
+    !> Values of `search_upper_case' besides .true. and .false.
+    integer, parameter, public :: SEARCH_UPPER_CASE_NOT_PASTED = 2
 
-    !> If not SEARCH_UPPER_CASE_NO, upper case chars disable case fold searching.
+    !> If true, upper case chars disable case fold searching.
     !> That is, upper and lower case chars must match exactly.
     !> This applies no matter where the chars come from, but does not
     !> apply to chars in regexps that are prefixed with `\'.
     !> If this value is SEARCH_UPPER_CASE_NOT_PASTED, text pasted into the search string
     !> in Isearch mode is always downcased.  Port of isearch.el
     !> search-upper-case.
-    integer, public :: search_upper_case = SEARCH_UPPER_CASE_NOT_PASTED
+    type(choice_setting_type), public :: search_upper_case = &
+                                         choice_setting_type(name="search_upper_case", choice=SEARCH_UPPER_CASE_NOT_PASTED)
 
     !> True means random control characters terminate incremental
     !> search.  (Only true and false: `edit', `append', `move' and
@@ -415,6 +418,10 @@ module isearch_mod
     type(handle_type) :: saved_local_map, saved_overriding_local_map
     !> The pre-command hook isearch-mode replaced.
 
+    !> Face for highlighting Isearch matches.  Port of isearch.el isearch
+    !> (Isearch's own highlighting is Deferred: the face serves Ispell).
+    type(named_face_type), target, public :: isearch
+
     !> Face for lazy highlighting of matches other than the current one.
     !> Used in Isearch when `isearch_lazy_highlight' is true, and in
     !> `query_replace' when `query_replace_lazy_highlight' is true (both
@@ -454,18 +461,6 @@ contains
         end do
     end subroutine decode
 
-    !> The UTF-8 encoding of character `c'.  Not a port.
-    function encode(c) result(s)
-        integer(int32), intent(in) :: c
-        character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
-        integer(int32) :: nbytes
-        type(status_type) :: status
-
-        call char_string(c, buffer, nbytes, status)
-        s = buffer(1:nbytes)
-    end function encode
-
     !> Number of characters in UTF-8 `s'.  Not a port.
     integer function nchars(s)
         character(len=*), intent(in) :: s
@@ -481,12 +476,15 @@ contains
         character(len=:), allocatable :: r
         integer(int32), allocatable :: chars(:)
         integer :: k, m
+        character(len=:), allocatable :: one
+        type(status_type) :: st
 
         call decode(s, chars, m)
         r = ""
 
         do k = 1, m - n
-            r = r//encode(chars(k))
+            call char_to_string(chars(k), one, st)
+            r = r//one
         end do
     end function drop_chars
 
@@ -497,12 +495,15 @@ contains
         character(len=:), allocatable :: r
         integer(int32), allocatable :: chars(:)
         integer :: k, m
+        character(len=:), allocatable :: one
+        type(status_type) :: st
 
         call decode(s, chars, m)
         r = ""
 
         do k = 1, m
-            r = r//encode(downcase(chars(k)))
+            call char_to_string(downcase(chars(k)), one, st)
+            r = r//one
         end do
     end function downcase_string
 
@@ -567,10 +568,11 @@ contains
     function word_search_regexp(string, lax) result(regexp)
         character(len=*), intent(in) :: string
         logical, intent(in), optional :: lax
-        character(len=:), allocatable :: regexp, word
+        character(len=:), allocatable :: regexp, word, one
         integer(int32), allocatable :: chars(:)
         integer :: k, m, nwords
         logical :: is_lax
+        type(status_type) :: st
 
         is_lax = .false.
         if (present(lax)) is_lax = lax
@@ -596,7 +598,8 @@ contains
         do k = 1, m + 1
             if (k <= m) then
                 if (char_syntax(int(chars(k))) == "w") then
-                    word = word//encode(chars(k))
+                    call char_to_string(chars(k), one, st)
+                    word = word//one
                     cycle
                 end if
             end if
@@ -922,13 +925,6 @@ contains
         call isearch_update()
         call pre_command_hook%prepend(isearch_pre_command_hook)
     end subroutine isearch_mode
-
-    ! Not a port.
-    logical function same_handle(a, b)
-        type(handle_type), intent(in) :: a, b
-
-        same_handle = a%index == b%index .and. a%generation == b%generation
-    end function same_handle
 
     !> This is called after every isearch command to update the display.
     !> Port of isearch.el:isearch-update (no slow-terminal window, hscroll
@@ -1361,7 +1357,7 @@ contains
         logical :: saved_fold, found, retry
         integer(int64) :: mb, me
 
-        if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+        if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
             isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
                                              is_isearch_no_upper_case(isearch_string, isearch_regexp))
         end if
@@ -1526,7 +1522,7 @@ contains
             ! the match does not extend past search origin.
             fold = isearch_case_fold_search /= CASE_FOLD_NO
 
-            if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+            if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
                 fold = is_isearch_no_upper_case(isearch_string, isearch_regexp)
             end if
 
@@ -1535,7 +1531,7 @@ contains
                 if (allocated(isearch_error)) deallocate (isearch_error)
                 isearch_other_end = mend
 
-                if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+                if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
                     isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
                                                      is_isearch_no_upper_case(isearch_string, isearch_regexp))
                 end if
@@ -1820,6 +1816,7 @@ contains
     subroutine isearch_process_search_char(char, count)
         integer(int64), intent(in) :: char, count
         character(len=:), allocatable :: one, string
+        type(status_type) :: st
 
         ! * and ? are special in regexps when not preceded by \.  } and |
         ! are special in regexps when preceded by \.  Nothing special for
@@ -1835,7 +1832,7 @@ contains
             continue
         end select
 
-        one = encode(int(char, int32))
+        call char_to_string(int(char, int32), one, st)
         string = one
         if (count > 1) string = repeat(one, int(count))
         ! Append the char(s) to the search string, update the message and
@@ -1961,7 +1958,7 @@ contains
         s = string
 
         ! Downcase the string if not supposed to case-fold pasted strings.
-        if (isearch_case_fold_search /= CASE_FOLD_NO .and. search_upper_case == SEARCH_UPPER_CASE_NOT_PASTED) then
+        if (isearch_case_fold_search /= CASE_FOLD_NO .and. search_upper_case%choice == SEARCH_UPPER_CASE_NOT_PASTED) then
             s = downcase_string(s)
         end if
 
@@ -2672,6 +2669,18 @@ contains
         type(status_type) :: status
 
         call append_locals_clearer(clear_isearch_locals)
+        call isearch%define("isearch", "Face for highlighting Isearch matches.")
+        call isearch%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, &
+                                             backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                face_attrs(background="magenta3", foreground="lightskyblue1"))
+        call isearch%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, &
+                                             backgrounds=[FACE_BACKGROUND_DARK]), &
+                                face_attrs(background="palevioletred2", foreground="brown4"))
+        call isearch%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
+                                face_attrs(background="magenta4", foreground="cyan1"))
+        call isearch%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=8), &
+                                face_attrs(background="magenta4", foreground="cyan1"))
+        call isearch%spec_entry(display_when(), face_attrs(inverse_video=.true.))
         call lazy_highlight%define("lazy_highlight", "Face for lazy highlighting of matches other than the current one."// &
                                    new_line("a")//"Used in Isearch when `isearch_lazy_highlight' is true,"// &
                                    new_line("a")//"and in `query_replace' when `query_replace_lazy_highlight' is true.")

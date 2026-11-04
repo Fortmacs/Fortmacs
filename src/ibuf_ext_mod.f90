@@ -60,22 +60,24 @@ submodule(ibuffer_mod) ibuf_ext_mod
     use fileio_mod, only: file_exists, file_name_nondirectory, file_name_directory, write_region
     use files_mod, only: file_relative_name, create_temp_file, revert_buffer
     use subr_mod, only: shell_quote_argument
-    use diff_mod, only: diff_check_labels, diff_sentinel, diff_command, diff_switches, diff_use_labels, DIFF_USE_LABELS_YES
+    use diff_mod, only: diff_check_labels, diff_sentinel, diff_command, diff_switches, diff_use_labels
     use diff_mode_mod, only: diff_mode
     use window_mod, only: pop_to_buffer_same_window
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     use value_mod, only: xsymbol, symbols, list_elements, make_list, vtag, V_NULL, V_INTEGER, V_NAME, value_type
+    use fns_mod, only: is_string_less
+    use data_mod, only: string_to_number
     use search_mod, only: SEARCH_NOERROR
     use files_mod, only: file_name_extension
     use simple_mod, only: simple_cut_line => cut_line
     use derived_mod, only: major_mode_type, major_mode_named, provided_mode_derived_p
-    use minibuf_mod, only: minibuffer_string_type
     use crm_mod, only: completing_read_multiple
     use callint_mod, only: execute_interactively
     use keymap_mod, only: where_is_internal, current_local_map
     use minibuf_table_mod, only: TABLE_OBARRAY
     use ibuf_macs_mod, only: ibuffer_filter_node_type, ibuffer_filter, ibuffer_saved, ibuffer_test, &
                              ibuffer_filter_extent, ibuffer_filter_part, ibuffer_filter_equal, ibuffer_buffer_test_procedure
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
     ! frame-or-buffer-changed-p's state for `ibuffer_auto_mode'
@@ -319,7 +321,7 @@ contains
         character(len=*), intent(in) :: name
 
         i = 0
-        if (allocated(ibuffer_filterings)) i = findloc(ibuffer_filterings%name, name, dim=1)
+        if (allocated(ibuffer_filterings)) i = findloc(ibuffer_filterings%name == name, .true., dim=1)
     end function filter_index
 
     ! The string qualifier of NODE.  Not a port.
@@ -755,7 +757,7 @@ contains
         status = status_type()
         buffer = get_buffer(shell_command_buffer_name)
         if (.not. is_buffer_live(buffer)) return
-        if (shell_command_keep_output%value /= 0) return
+        if (.not. shell_command_keep_output%is_off()) return
         old = current_buffer()
         call set_buffer(buffer, st)
         if (buffer_size() /= 0) call erase_buffer(st)
@@ -1215,23 +1217,6 @@ contains
         end do
     end function downcased
 
-    ! (string-lessp A B)  Not a port.
-    logical function is_string_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k, n
-
-        n = min(len(a), len(b))
-
-        do k = 1, n
-            if (a(k:k) /= b(k:k)) then
-                is_string_less = iachar(a(k:k)) < iachar(b(k:k))
-                return
-            end if
-        end do
-
-        is_string_less = len(a) < len(b)
-    end function is_string_less
-
     !> Sort the buffers by major modes.
     !> Ordering is lexicographic.  Port of ibuf-ext.el
     !> define-ibuffer-sorter major-mode.
@@ -1599,7 +1584,7 @@ contains
             if (len(diff_switches) > 0) command = command//" "//diff_switches
         end if
 
-        if (diff_use_labels == DIFF_USE_LABELS_YES) then
+        if (diff_use_labels%value) then
             command = command//" --label "//shell_quote_argument(old)//" --label " &
                       //shell_quote_argument("#<buffer "//buffers(buffer%index)%name//">")
         end if
@@ -2873,7 +2858,7 @@ contains
 
     ! A completion table of the names of NAMES.  Not a port.
     function names_table(names) result(table)
-        type(minibuffer_string_type), intent(in) :: names(:)
+        type(string_type), intent(in) :: names(:)
         type(completion_table_type) :: table
         type(value_type), allocatable :: values(:)
         integer :: j
@@ -2881,7 +2866,7 @@ contains
         allocate (values(size(names)))
 
         do j = 1, size(names)
-            values(j) = value_type(text=names(j)%s)
+            values(j) = value_type(text=names(j)%text)
         end do
 
         table%kind = TABLE_LIST
@@ -2890,13 +2875,13 @@ contains
 
     ! The names of the saved filters.  Not a port.
     function saved_filter_names() result(names)
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         integer :: j
 
         allocate (names(ibuffer_saved_filters%count()))
 
         do j = 1, size(names)
-            names(j)%s = ibuffer_saved_filters%entries(j)%name
+            names(j)%text = ibuffer_saved_filters%entries(j)%name
         end do
     end function saved_filter_names
 
@@ -3085,7 +3070,7 @@ contains
         type(ibuffer_state_type), allocatable :: states(:)
         character(len=256), allocatable :: groups(:)
         integer, allocatable :: group_of(:)
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         logical :: no_default, no_error
         integer :: k, j, n
 
@@ -3114,13 +3099,13 @@ contains
 
         do j = 1, size(groups)
             n = n + 1
-            names(n)%s = trim(groups(j))
+            names(n)%text = trim(groups(j))
         end do
 
         do j = 1, size(locals(k)%hidden_groups)
             if (no_default .and. locals(k)%hidden_groups(j) == "Default") cycle
             n = n + 1
-            names(n)%s = trim(locals(k)%hidden_groups(j))
+            names(n)%text = trim(locals(k)%hidden_groups(j))
         end do
 
         call completing_read(msg, names_table(names(1:n)), name, status, require_match=REQUIRE_MATCH_YES)
@@ -3290,13 +3275,13 @@ contains
 
     ! The names of the saved sets of filter groups.  Not a port.
     function saved_group_names() result(names)
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         integer :: j
 
         allocate (names(ibuffer_saved_filter_groups%count()))
 
         do j = 1, size(names)
-            names(j)%s = ibuffer_saved_filter_groups%entries(j)%name
+            names(j)%text = ibuffer_saved_filter_groups%entries(j)%name
         end do
     end function saved_group_names
 
@@ -3568,7 +3553,7 @@ contains
         logical, intent(in) :: modes_only
         character(len=IBUFFER_NAME_LEN), allocatable, intent(out) :: modes(:)
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), allocatable :: results(:)
+        type(string_type), allocatable :: results(:)
         integer :: j
 
         if (modes_only .and. len(default) > 0) then
@@ -3588,7 +3573,7 @@ contains
         allocate (modes(size(results)))
 
         do j = 1, size(results)
-            modes(j) = results(j)%s
+            modes(j) = results(j)%text
         end do
     end subroutine read_modes
 
@@ -3610,13 +3595,13 @@ contains
     function modes_table(modes) result(table)
         character(len=*), intent(in) :: modes(:)
         type(completion_table_type) :: table
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         integer :: j
 
         allocate (names(size(modes)))
 
         do j = 1, size(modes)
-            names(j)%s = trim(modes(j))
+            names(j)%text = trim(modes(j))
         end do
 
         table = names_table(names)
@@ -3707,53 +3692,26 @@ contains
         if (status%ok()) call ibuffer_filter_by_directory(s, status)
     end subroutine cmd_ibuffer_filter_by_directory
 
-    ! (string-to-number S) for a size: its integer part (0 if S is not a
-    ! number).  Not a port.
-    integer(int64) function size_number(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: k
-        logical :: negative
-
-        n = 0
-        k = 1
-
-        do while (k <= len(s))
-            if (s(k:k) /= " " .and. s(k:k) /= achar(9)) exit
-            k = k + 1
-        end do
-
-        negative = .false.
-
-        if (k <= len(s)) then
-            if (s(k:k) == "-" .or. s(k:k) == "+") then
-                negative = s(k:k) == "-"
-                k = k + 1
-            end if
-        end if
-
-        do while (k <= len(s))
-            if (s(k:k) < "0" .or. s(k:k) > "9") exit
-            n = 10*n + (iachar(s(k:k)) - iachar("0"))
-            k = k + 1
-        end do
-
-        if (negative) n = -n
-    end function size_number
-
     recursive subroutine cmd_ibuffer_filter_by_size_gt(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: s
+        integer(int64) :: n
 
         call read_from_minibuffer("Filter by size greater than: ", s, status)
-        if (status%ok()) call ibuffer_filter_by_size_gt(size_number(s), status)
+        if (.not. status%ok()) return
+        call string_to_number(s, n)
+        call ibuffer_filter_by_size_gt(n, status)
     end subroutine cmd_ibuffer_filter_by_size_gt
 
     recursive subroutine cmd_ibuffer_filter_by_size_lt(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: s
+        integer(int64) :: n
 
         call read_from_minibuffer("Filter by size less than: ", s, status)
-        if (status%ok()) call ibuffer_filter_by_size_lt(size_number(s), status)
+        if (.not. status%ok()) return
+        call string_to_number(s, n)
+        call ibuffer_filter_by_size_lt(n, status)
     end subroutine cmd_ibuffer_filter_by_size_lt
 
     recursive subroutine cmd_ibuffer_filter_by_modified(status)
@@ -3785,7 +3743,7 @@ contains
     !> ibuf-ext.el:ibuffer-filter-chosen-by-completion.
     recursive subroutine ibuffer_filter_chosen_by_completion(status)
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(value_type), allocatable :: events(:)
         type(value_type) :: keys
         character(len=:), allocatable :: match, command
@@ -3795,7 +3753,7 @@ contains
         allocate (names(size(ibuffer_filterings)))
 
         do j = 1, size(names)
-            names(j)%s = trim(ibuffer_filterings(j)%description)
+            names(j)%text = trim(ibuffer_filterings(j)%description)
         end do
 
         call completing_read("Filter by: ", names_table(names), match, status, require_match=REQUIRE_MATCH_YES)
@@ -3803,7 +3761,7 @@ contains
         i = 0
 
         do j = 1, size(names)
-            if (names(j)%s == match) then
+            if (names(j)%text == match) then
                 i = j
                 exit
             end if

@@ -41,7 +41,7 @@
 !> (`finalize_kbd_macro_chars' in command_loop_1), and `discard_input'
 !> (so any command error) drops the events of the current command and
 !> ends the definition.  macros.c is the submodule macros_mod;
-!> suspending Emacs (C-z), which needs the terminal and the frame, is the
+!> suspending Fortmacs (C-z), which needs the terminal and the frame, is the
 !> submodule keyboard_suspend_mod.
 !>
 !> Keystrokes are echoed as keyboard.c does (`echo_keystrokes'), in the
@@ -59,7 +59,7 @@ module keyboard_mod
     use error_mod, only: status_type, set_error, format_error, error_name, FM_GENERIC_ERROR, FM_QUIT, FM_USER_ERROR, &
                          FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_mod, only: handle_type, null_handle
-    use data_mod, only: value_eq
+    use data_mod, only: value_eq, choice_setting_type
     use value_mod, only: value_type, V_ARRAY, make_keymap_ref, vtag, xfixnum, xsymbol, xstring, list_elements, list_elt, &
                          make_list, symbols, command_procedure
     use names_mod, only: intern
@@ -73,13 +73,14 @@ module keyboard_mod
                           overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping, &
                           push_key_description, key_parse, M_UP, M_DOWN, M_DRAG, M_CLICK, M_DOUBLE, M_TRIPLE
     use callint_mod, only: execute_interactively, current_prefix_arg, prefix_arg, &
-                           prefix_numeric_value, this_command, command_name_of, command_of, command_type, &
+                           prefix_numeric_value, this_command, command_name_of, command_of, command_type, find_command, &
                            prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
-    use buffer_mod, only: buffers, current, deactivate_mark_variable, transient_mark_mode, current_buffer, set_buffer
+    use buffer_mod, only: buffers, current, deactivate_mark_variable, transient_mark_mode, current_buffer, set_buffer, &
+                          input_method_procedure
     use casetab_mod, only: downcase, is_uppercase
     use undo_mod, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                         buffer_before_last_command_or_undo
-    use sysdep_mod, only: emacs_read, input_available, interrupt_pending, inputs_available, emacs_write, &
+    use sysdep_mod, only: fortmacs_read, input_available, interrupt_pending, inputs_available, fortmacs_write, &
                           window_change_pending
     use hooks_mod, only: hook_type
     use textprop_mod, only: get_char_property_and_overlay, get_property_and_range, text_prop_means_invisible, &
@@ -93,7 +94,8 @@ module keyboard_mod
 
     public :: current_input_meta_mode, set_input_meta_mode, set_input_fd, kbd_store_bytes, &
               tty_read_avail_input, unread_command_events, &
-              discard_input, is_input_pending, read_event, has_unread_command_events, read_input_event, store_event
+              discard_input, is_input_pending, read_event, has_unread_command_events, read_input_event, store_event, &
+              unread_post_input_method_events, unread_input_method_events
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, is_exit_requested, set_transient_map, recursive_edit_1, &
               throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
@@ -104,8 +106,9 @@ module keyboard_mod
     public :: start_kbd_macro, end_kbd_macro, execute_last_kbd_macro, store_kbd_macro_char, store_kbd_macro_event, &
               finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, is_defining_kbd_macro, &
               init_macros_commands
-    public :: suspend_emacs, suspend_frame, init_keyboard_suspend_commands
+    public :: suspend_fortmacs, suspend_frame, init_keyboard_suspend_commands
     public :: recent_keys, lossage_size, message_log_procedure
+    public :: handle_disabled_command, disabled_command_function_procedure
     public :: read_char, read_char_exclusive, read_filtered_event, read_key_sequence_vs, barf_if_interaction_inhibited
     public :: this_command_key_events, this_single_command_keys, this_single_command_raw_keys, &
               set_this_command_keys, clear_this_command_keys, recursion_depth, top_level, recursive_edit
@@ -200,6 +203,20 @@ module keyboard_mod
     !> Vunread_command_events, read before the queue.
     type(value_type), allocatable :: unread(:)
     integer(int64) :: nunread = 0
+    !> Vunread_post_input_method_events, read first and not given to the
+    !> input method.
+    type(value_type), allocatable :: post_input_method_queue(:)
+    integer(int64) :: post_input_method_queue_count = 0
+    !> Vunread_input_method_events, read after `unread' and given to the
+    !> input method.
+    type(value_type), allocatable :: input_method_queue(:)
+    integer(int64) :: input_method_queue_count = 0
+
+    !> When `input_method_function' is called, hold the previous echo area
+    !> message.  This variable exists because `read_event' clears the echo
+    !> area before running the input method.  It is unallocated if there
+    !> was no message.  Port of keyboard.c input-method-previous-message.
+    character(len=:), allocatable, public :: input_method_previous_message
 
     abstract interface
         !> Redisplay all frames (xdisp.c:redisplay); also the form of a
@@ -226,15 +243,16 @@ module keyboard_mod
             character(len=*), intent(in) :: text
         end subroutine message_log_procedure
 
-        !> Run a disabled command's handler instead of the command, if
-        !> CMD is disabled: `handled' says it was.  Not a port.
-        subroutine disabled_command_procedure(cmd, handled, status)
+        !> A `disabled_command_function_variable%procedure': handle the
+        !> disabled command CMD, typed as KEYS, instead of running it.
+        !> Not a port.
+        recursive subroutine disabled_command_function_procedure(cmd, keys, status)
             import :: value_type, status_type
             implicit none(type, external)
             type(value_type), intent(in) :: cmd
-            logical, intent(out) :: handled
+            type(value_type), intent(in) :: keys(:)
             type(status_type), intent(out) :: status
-        end subroutine disabled_command_procedure
+        end subroutine disabled_command_function_procedure
 
         !> Run when descriptor FD, given to `add_read_fd', is readable.
         !> Not a port.
@@ -274,10 +292,32 @@ module keyboard_mod
     type(special_event_type), allocatable :: special_events(:)
     integer :: special_event_count = 0
 
-    !> Checks for disabled commands (simple.el:command-execute's `disabled'
-    !> property test and `disabled_command_function'), set by novice_mod;
-    !> null for none.
-    procedure(disabled_command_procedure), pointer, public :: disabled_command_hook => null()
+    !> The setting `disabled_command_function_variable': .false. or a
+    !> procedure (R6-37), set with `=>'.  Not a port.
+    type, extends(choice_setting_type), public :: disabled_command_function_choice_setting_type
+        procedure(disabled_command_function_procedure), pointer, nopass :: procedure => null()
+        !> The standard procedure, set at startup by
+        !> `set_standard_procedure', and its name.
+        procedure(disabled_command_function_procedure), pointer, nopass :: standard => null()
+        character(len=64) :: standard_name = ""
+    contains
+        procedure :: clear_kinds => disabled_command_function_clear_kinds
+        procedure :: other_value => disabled_command_function_other_value
+        procedure :: standard_value => disabled_command_function_standard_value
+        !> Make HANDLER, called NAME, the standard value and the value.
+        procedure :: set_standard_procedure => disabled_command_function_set_standard_procedure
+        procedure :: kind_hint => disabled_command_function_kind_hint
+    end type disabled_command_function_choice_setting_type
+
+    !> Function to call to handle disabled commands.
+    !> If .false., the feature is disabled, i.e., all commands work normally.
+    !> The procedure (`disabled_command_function_variable%procedure =>
+    !> mine') is called with the command and the keys that invoked it;
+    !> novice_mod sets it to `disabled_command_function'.  Port of novice.el
+    !> disabled-command-function (which keyboard.c and
+    !> simple.el:command-execute call).
+    type(disabled_command_function_choice_setting_type), public :: disabled_command_function_variable = &
+                        disabled_command_function_choice_setting_type(name="disabled_command_function_variable", true_valid=.false.)
 
     !> Logs the error messages of the command loop in *Messages*
     !> (xdisp_mod sits above this module; set by simple_mod); null for
@@ -314,7 +354,7 @@ module keyboard_mod
     !> If true, suppress point adjustment after executing a command.
     !>
     !> After a command is executed, if point moved into a region that has
-    !> special properties (e.g. composition, display), Emacs adjusts point
+    !> special properties (e.g. composition, display), Fortmacs adjusts point
     !> to the boundary of the region.  But when a command leaves this
     !> variable at a true value, this point adjustment is suppressed.
     !>
@@ -360,20 +400,20 @@ module keyboard_mod
     !> and the command loop clears it before executing it.
     procedure(command_wrapper_procedure), pointer, public :: this_command_wrapper => null()
 
-    !> Hook run when `exit_emacs' is called.
-    !> Since `exit_emacs' may be invoked when the terminal is disconnected
+    !> Hook run when `exit_fortmacs' is called.
+    !> Since `exit_fortmacs' may be invoked when the terminal is disconnected
     !> (or in other similar situations), functions placed on this hook
     !> should not expect to be able to interact with the user.  To ask for
-    !> confirmation, see `exit_emacs_query_functions' instead.  Port of
+    !> confirmation, see `exit_fortmacs_query_functions' instead.  Port of
     !> emacs.c kill-emacs-hook (here, below the modules that add to it;
-    !> emacs_mod runs it).
-    type(hook_type), target, public :: exit_emacs_hook = hook_type(name="exit_emacs_hook")
+    !> fortmacs_mod runs it).
+    type(hook_type), target, public :: exit_fortmacs_hook = hook_type(name="exit_fortmacs_hook")
 
-    !> Normal hook run by `suspend_emacs', before suspending.  Port of
+    !> Normal hook run by `suspend_fortmacs', before suspending.  Port of
     !> subr.el suspend-hook.
     type(hook_type), target, public :: suspend_hook = hook_type(name="suspend_hook")
 
-    !> Normal hook run by `suspend_emacs', after Emacs is continued.  Port
+    !> Normal hook run by `suspend_fortmacs', after Fortmacs is continued.  Port
     !> of subr.el suspend-resume-hook.
     type(hook_type), target, public :: suspend_resume_hook = hook_type(name="suspend_resume_hook")
 
@@ -442,7 +482,7 @@ module keyboard_mod
 
     !> True means any user interaction will make an `inhibited_interaction' error condition occur.
     !> This variable can be bound when user interaction can't be performed,
-    !> for instance when running a headless Emacs server.  Functions like
+    !> for instance when running a headless Fortmacs server.  Functions like
     !> `read_from_minibuffer' (and the like) will make an `inhibited_interaction' error condition occur
     !> instead.  Port of minibuf.c inhibit-interaction (here because
     !> keyboard.c's `read_event' reads it too).
@@ -455,10 +495,10 @@ module keyboard_mod
     real, public :: echo_keystrokes = 1.0
 
     !> If true, interpret upper case keys as lower case (when applicable).
-    !> Emacs allows binding both upper and lower case key sequences to
+    !> Fortmacs allows binding both upper and lower case key sequences to
     !> commands.  However, if there is a lower case key sequence bound to a
     !> command, and the user enters an upper case key sequence that is not
-    !> bound to a command, Emacs will use the lower case binding.  Setting
+    !> bound to a command, Fortmacs will use the lower case binding.  Setting
     !> this variable to false inhibits this behavior.  Port of keyboard.c
     !> translate-upper-case-key-bindings.
     logical, public :: translate_upper_case_key_bindings = .true.
@@ -682,10 +722,10 @@ module keyboard_mod
             implicit none(type, external)
         end subroutine init_macros_commands
 
-        !> Stop Emacs and return to superior process.  You can resume later.
+        !> Stop Fortmacs and return to superior process.  You can resume later.
         !>
         !> If optional arg STUFFSTRING is present, stuff it and then a newline
-        !> as keyboard input, if Emacs is running interactively on a terminal
+        !> as keyboard input, if Fortmacs is running interactively on a terminal
         !> and the platform supports and allows stuffing; this may need
         !> special privileges.
         !>
@@ -693,14 +733,14 @@ module keyboard_mod
         !> After resumption run the normal hook `suspend_resume_hook'.
         !> Port of keyboard.c:Fsuspend_emacs (`cannot_suspend' and the
         !> subshell run instead of suspending are not ported).
-        recursive module subroutine suspend_emacs(status, stuffstring)
+        recursive module subroutine suspend_fortmacs(status, stuffstring)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: stuffstring
-        end subroutine suspend_emacs
+        end subroutine suspend_fortmacs
 
         !> Do whatever is right to suspend the current frame.
-        !> Calls `suspend_emacs' if invoked from the controlling tty device,
+        !> Calls `suspend_fortmacs' if invoked from the controlling tty device,
         !> `suspend_tty' from a secondary tty device, and
         !> `iconify_or_deiconify_frame' from a graphical frame.
         !> Port of frame.el:suspend-frame (`suspend_tty' and
@@ -710,7 +750,7 @@ module keyboard_mod
             type(status_type), intent(out) :: status
         end subroutine suspend_frame
 
-        !> Register the commands `suspend_emacs' and `suspend_frame'.
+        !> Register the commands `suspend_fortmacs' and `suspend_frame'.
         !> Port of the defsubr of keyboard.c:syms_of_keyboard for
         !> suspend-emacs (and frame.el's suspend-frame).
         module subroutine init_keyboard_suspend_commands()
@@ -930,7 +970,7 @@ contains
         nread = 0
         if (input_fd < 0) return
         if (.not. input_available(input_fd, 0_int32)) return
-        call emacs_read(input_fd, buffer, nread, status)
+        call fortmacs_read(input_fd, buffer, nread, status)
         if (.not. status%ok()) return
         if (nread > 0) call kbd_store_bytes(buffer(1:nread))
     end subroutine tty_read_avail_input
@@ -939,16 +979,61 @@ contains
     !> Like setting keyboard.c:Vunread_command_events.  Not a port.
     subroutine unread_command_events(evs)
         type(value_type), intent(in) :: evs(:)
-        type(value_type), allocatable :: merged(:)
-        integer(int64) :: n
 
-        n = size(evs, kind=int64)
-        allocate (merged(n + nunread))
-        merged(1:n) = evs
-        if (nunread > 0) merged(n + 1:) = unread(1:nunread)
-        call move_alloc(merged, unread)
-        nunread = nunread + n
+        call prepend_events(unread, nunread, evs)
     end subroutine unread_command_events
+
+    !> Push `evs' to be read before any other input, in order, without
+    !> passing them to the input method.  Like setting
+    !> keyboard.c:Vunread_post_input_method_events.  Not a port.
+    subroutine unread_post_input_method_events(evs)
+        type(value_type), intent(in) :: evs(:)
+
+        call prepend_events(post_input_method_queue, post_input_method_queue_count, evs)
+    end subroutine unread_post_input_method_events
+
+    !> Push `evs' to be read after `unread_command_events', in order, and
+    !> passed to the input method.  Like setting
+    !> keyboard.c:Vunread_input_method_events.  Not a port.
+    subroutine unread_input_method_events(evs)
+        type(value_type), intent(in) :: evs(:)
+
+        call prepend_events(input_method_queue, input_method_queue_count, evs)
+    end subroutine unread_input_method_events
+
+    !> Put EVS in front of the QUEUED events of QUEUE.  Not a port.
+    subroutine prepend_events(queue, queued, evs)
+        type(value_type), allocatable, intent(inout) :: queue(:)
+        integer(int64), intent(inout) :: queued
+        type(value_type), intent(in) :: evs(:)
+        type(value_type), allocatable :: merged(:)
+        integer(int64) :: added
+
+        added = size(evs, kind=int64)
+        allocate (merged(added + queued))
+        merged(1:added) = evs
+        if (queued > 0) merged(added + 1:) = queue(1:queued)
+        call move_alloc(merged, queue)
+        queued = queued + added
+    end subroutine prepend_events
+
+    !> Take the first of the QUEUED events of QUEUE into EV.  Not a port.
+    subroutine take_first_event(queue, queued, ev)
+        type(value_type), intent(inout) :: queue(:)
+        integer(int64), intent(inout) :: queued
+        type(value_type), intent(out) :: ev
+
+        ev = queue(1)
+        queue(1:queued - 1) = queue(2:queued)
+        queue(queued) = value_type()
+        queued = queued - 1
+    end subroutine take_first_event
+
+    !> Whether any of the unread-events variables holds events.
+    !> Not a port.
+    logical function has_unread_events()
+        has_unread_events = nunread > 0 .or. post_input_method_queue_count > 0 .or. input_method_queue_count > 0
+    end function has_unread_events
 
     !> Discard the contents of the terminal input buffer.
     !> Also end any kbd macro being defined.  Port of
@@ -962,6 +1047,10 @@ contains
 
         nunread = 0
         if (allocated(unread)) deallocate (unread)
+        post_input_method_queue_count = 0
+        if (allocated(post_input_method_queue)) deallocate (post_input_method_queue)
+        input_method_queue_count = 0
+        if (allocated(input_method_queue)) deallocate (input_method_queue)
         head = 1
         tail = 0
         if (allocated(events)) deallocate (events)
@@ -979,9 +1068,9 @@ contains
     !> keyboard.c:get_input_pending, keyboard.c:readable_events,
     !> keyboard.c:detect_input_pending, keyboard.c:requeued_events_pending_p,
     !> keyboard.c:requeued_command_events_pending_p and
-    !> keyboard.c:kbd_buffer_events_waiting (no input methods).
+    !> keyboard.c:kbd_buffer_events_waiting.
     logical function is_input_pending()
-        is_input_pending = nunread > 0 .or. tail >= head
+        is_input_pending = has_unread_events() .or. tail >= head
         if (is_input_pending .or. input_fd < 0) return
         is_input_pending = input_available(input_fd, 0_int32)
     end function is_input_pending
@@ -997,34 +1086,85 @@ contains
     !> false on a timeout (read-event's SECONDS), and the event is not
     !> added to `this_command_keys'.  Before waiting, keystrokes are
     !> echoed if `echo_keystrokes' seconds pass in the middle of a key
-    !> sequence.  Port of keyboard.c:read_char (its core).
-    recursive subroutine read_input_event(ev, have, status, seconds)
+    !> sequence.  With INPUT_METHOD true (the first event of a key
+    !> sequence), a character from space to 255 but DEL goes through the
+    !> current buffer's `input_method_function': the first event it returns
+    !> is read, the others are read next without it
+    !> (`unread_post_input_method_events'), and if it returns none another
+    !> event is read.  Port of keyboard.c:read_char (its core).
+    recursive subroutine read_input_event(ev, have, status, seconds, input_method)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
         type(status_type), intent(out) :: status
         real, intent(in), optional :: seconds
-        logical :: reread, from_macro
+        logical, intent(in), optional :: input_method
+        logical :: reread, from_macro, post_input_method, recorded, use_input_method, has_previous_message
 
-        call read_event_1(ev, have, status, seconds, reread, from_macro)
+        retry: do
+            call read_event_1(ev, have, status, seconds, reread, from_macro, post_input_method)
 
-        if (.not. have) then
-            ! Input ended (no terminal): no longer waiting.
-            if (.not. present(seconds)) call timer_stop_idle()
-            return
-        end if
+            if (.not. have) then
+                ! Input ended (no terminal): no longer waiting.
+                if (.not. present(seconds)) call timer_stop_idle()
+                return
+            end if
 
-        ! Now that we have read an event, Emacs is not idle.
-        call timer_stop_idle()
-        ! Store these characters into recent_keys, the dribble file if
-        ! any, and the keyboard macro being defined, if any.
-        call record_char(ev)
+            ! Now that we have read an event, Emacs is not idle.
+            call timer_stop_idle()
+            ! What the input method returned beyond its first event is
+            ! neither recorded nor given to it again (read_char's
+            ! reread_first).
+            if (post_input_method) exit retry
+            recorded = .false.
+            use_input_method = .false.
+            has_previous_message = .false.
 
-        ! Now wipe the echo area (clear_message, which also runs
-        ! clear-message-function).
-        if (.not. reread .and. .not. from_macro) then
-            if (echo_area_busy()) last_message = ""
-            if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
-        end if
+            if (present(input_method)) then
+                ! No buffer yet (keyboard tests run without one): no input
+                ! method.
+                if (input_method .and. allocated(buffers) .and. current > 0) then
+                    if (associated(buffers(current)%input_method_function)) use_input_method = is_input_method_char(ev)
+                end if
+            end if
+
+            if (.not. reread .and. .not. from_macro) then
+                ! Store these characters into recent_keys, the dribble file
+                ! if any, and the keyboard macro being defined, if any.
+                call record_char(ev)
+                recorded = .true.
+
+                ! If we are about to use an input method, save the echo
+                ! area contents for it to refer to.
+                if (use_input_method) then
+                    if (allocated(input_method_previous_message)) deallocate (input_method_previous_message)
+                    has_previous_message = echo_area_busy()
+                    if (has_previous_message) input_method_previous_message = last_message
+                end if
+
+                ! Now wipe the echo area (clear_message, which also runs
+                ! clear-message-function).
+                if (echo_area_busy()) last_message = ""
+                if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
+            end if
+
+            if (use_input_method) then
+                call execute_input_method(ev, have, status)
+                if (.not. status%ok()) return
+
+                ! The input method can return no events.
+                if (.not. have) then
+                    ! Bring back the previous message, if any.
+                    if (has_previous_message) last_message = input_method_previous_message
+                    cycle retry
+                end if
+            end if
+
+            ! When we consume events from the unread-events variables, we
+            ! bypass the code that records input, so record these events
+            ! now if they were not recorded already.
+            if (.not. recorded) call record_char(ev)
+            exit retry
+        end do retry
 
         if ((.not. reread .or. size_of_command_keys() == 0) .and. .not. present(seconds)) then
             ! Once we reread a character, echoing can happen the next time
@@ -1038,6 +1178,70 @@ contains
         last_input_event = ev
         num_input_events = num_input_events + 1
     end subroutine read_input_event
+
+    !> Whether event EV is a character the input method takes: from space
+    !> to 255, but not DEL.  Not a port.
+    logical function is_input_method_char(ev)
+        type(value_type), intent(in) :: ev
+
+        is_input_method_char = .false.
+        if (vtag(ev) /= V_INTEGER) return
+        is_input_method_char = ev%a(1)%i >= 32 .and. ev%a(1)%i < 256 .and. ev%a(1)%i /= 127
+    end function is_input_method_char
+
+    !> Give the character EV to the current buffer's
+    !> `input_method_function', with `this_command_keys' and the echo
+    !> state saved and restored around it, and the echo area wiped; EV
+    !> becomes the first event it returns (`have' false when it returns
+    !> none), the others read next (`unread_post_input_method_events').
+    !> Port of keyboard.c:read_char (its input method part; the echo area
+    !> is always used: a key sequence is being read).
+    recursive subroutine execute_input_method(ev, have, status)
+        type(value_type), intent(inout) :: ev
+        logical, intent(out) :: have
+        type(status_type), intent(out) :: status
+        procedure(input_method_procedure), pointer :: method
+        type(value_type), allocatable :: keys(:), evs(:)
+        character(len=:), allocatable :: saved_echo_string, saved_echo_prompt
+        logical :: saved_immediate_echo, saved_ok_to_echo, has_keys
+        integer :: command_key_start
+
+        have = .false.
+        method => buffers(current)%input_method_function
+        ! Save the echo status.
+        saved_immediate_echo = immediate_echo
+        saved_ok_to_echo = ok_to_echo_at_next_pause
+        if (allocated(echo_string)) saved_echo_string = echo_string
+        if (allocated(echo_prompt)) saved_echo_prompt = echo_prompt
+        ! Save the this_command_keys status.
+        has_keys = size_of_command_keys() > 0
+        if (has_keys) keys = this_command_keys
+        command_key_start = this_single_command_key_start
+        ! Clear out this_command_keys.
+        if (allocated(this_command_keys)) deallocate (this_command_keys)
+        this_single_command_key_start = 0
+        ! Now wipe the echo area.
+        last_message = ""
+        call echo_truncate(0)
+        ! Call the input method.
+        call method(ev%a(1)%i, evs, status)
+        ! Restore the saved echoing state and this_command_keys state.
+        if (allocated(this_command_keys)) deallocate (this_command_keys)
+        if (has_keys) call move_alloc(keys, this_command_keys)
+        this_single_command_key_start = command_key_start
+        call cancel_echoing()
+        ok_to_echo_at_next_pause = saved_ok_to_echo
+        if (allocated(saved_echo_string)) call move_alloc(saved_echo_string, echo_string)
+        if (allocated(saved_echo_prompt)) call move_alloc(saved_echo_prompt, echo_prompt)
+        if (saved_immediate_echo) call echo_now()
+        if (.not. status%ok()) return
+        if (.not. allocated(evs)) return
+        if (size(evs) == 0) return
+        ! It returned one event or more.
+        have = .true.
+        ev = evs(1)
+        if (size(evs) > 1) call unread_post_input_method_events(evs(2:))
+    end subroutine execute_input_method
 
     !> The number of events in `this_command_keys'
     !> (keyboard.c:this_command_key_count).  Not a port.
@@ -1076,17 +1280,17 @@ contains
 
         if (vtag(c) == V_INTEGER) then
             if (xfixnum(c) >= 0 .and. xfixnum(c) < 256) then
-                call emacs_write(dribble_fd, achar(xfixnum(c)), st)
+                call fortmacs_write(dribble_fd, achar(xfixnum(c)), st)
             else
                 write (buffer, "(z0)") xfixnum(c)
-                call emacs_write(dribble_fd, " 0x"//to_lower(trim(buffer)), st)
+                call fortmacs_write(dribble_fd, " 0x"//to_lower(trim(buffer)), st)
             end if
         else
             ! If it's a structured event, take the event header.
             head = c
             if (vtag(c) == V_ARRAY) head = list_elt(c, 1_int64)
-            if ((vtag(head) == V_NAME .or. vtag(head) == V_NULL)) call emacs_write(dribble_fd, &
-                                                                                   "<"//symbols(xsymbol(head))%name//">", st)
+            if ((vtag(head) == V_NAME .or. vtag(head) == V_NULL)) call fortmacs_write(dribble_fd, &
+                                                                                      "<"//symbols(xsymbol(head))%name//">", st)
         end if
 
     contains
@@ -1160,18 +1364,19 @@ contains
     end subroutine recent_keys
 
     !> The next input event (read_input_event without recording it):
-    !> `reread' tells it came from `unread_command_events', `from_macro'
-    !> from the keyboard macro being executed.  Port of
-    !> keyboard.c:kbd_buffer_get_event and
+    !> `reread' tells it came from one of the unread-events variables,
+    !> `post_input_method' from `unread_post_input_method_events',
+    !> `from_macro' from the keyboard macro being executed.
+    !> Port of keyboard.c:kbd_buffer_get_event and
     !> keyboard.c:read_event_from_main_queue (with keyboard.c:next_kbd_event
     !> and keyboard.c:clear_event: the queue's head advances, its slot
     !> cleared) and of keyboard.c:read_char's reading part.
-    recursive subroutine read_event_1(ev, have, status, seconds, reread, from_macro)
+    recursive subroutine read_event_1(ev, have, status, seconds, reread, from_macro, post_input_method)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
         type(status_type), intent(out) :: status
         real, intent(in), optional :: seconds
-        logical, intent(out) :: reread, from_macro
+        logical, intent(out) :: reread, from_macro, post_input_method
         integer(int64) :: nread, start, now, rate
         integer(int32) :: timeout
         logical :: echoed
@@ -1179,17 +1384,30 @@ contains
         have = .false.
         reread = .false.
         from_macro = .false.
+        post_input_method = .false.
         echoed = .false.
         call system_clock(start, rate)
 
         reading: do
             call execute_special_events()
 
+            if (post_input_method_queue_count > 0) then
+                call take_first_event(post_input_method_queue, post_input_method_queue_count, ev)
+                have = .true.
+                reread = .true.
+                post_input_method = .true.
+                return
+            end if
+
             if (nunread > 0) then
-                ev = unread(1)
-                unread(1:nunread - 1) = unread(2:nunread)
-                unread(nunread) = value_type()
-                nunread = nunread - 1
+                call take_first_event(unread, nunread, ev)
+                have = .true.
+                reread = .true.
+                return
+            end if
+
+            if (input_method_queue_count > 0) then
+                call take_first_event(input_method_queue, input_method_queue_count, ev)
                 have = .true.
                 reread = .true.
                 return
@@ -1222,7 +1440,7 @@ contains
                 ! `sit_for'.
                 if (.not. present(seconds)) call timer_start_idle()
                 call echo_before_reading(present(seconds))
-                if (nunread > 0) cycle reading
+                if (has_unread_events()) cycle reading
             end if
 
             if (tail >= head) then
@@ -1285,7 +1503,7 @@ contains
                 end if
 
                 ! A timer or subprocess may have queued events, or C-g came.
-                if (nunread > 0 .or. tail >= head) cycle reading
+                if (has_unread_events() .or. tail >= head) cycle reading
 
                 if (interrupt_pending()) then
                     ev = value_type(7_int64)
@@ -1546,7 +1764,7 @@ contains
                 end if
 
                 macro_end = .false.
-                if (macro_active .and. nunread == 0) macro_end = is_at_end_of_macro()
+                if (macro_active .and. .not. has_unread_events()) macro_end = is_at_end_of_macro()
 
                 if (t < mock_input) then
                     key = keybuf(t + 1)
@@ -1566,7 +1784,7 @@ contains
                     eof = .true.
                     exit replay
                 else
-                    call read_input_event(key, have, status)
+                    call read_input_event(key, have, status, input_method=t == 0)
                     if (.not. status%ok()) return
 
                     if (.not. have) then
@@ -2302,8 +2520,7 @@ contains
             else if (vtag(cmd) == V_STRING .or. vtag(cmd) == V_ARRAY) then
                 call execute_kbd_macro(cmd, current_prefix_arg, status)
             else
-                handled = .false.
-                if (associated(disabled_command_hook)) call disabled_command_hook(cmd, handled, status)
+                call handle_disabled_command(cmd, handled, status)
                 if (.not. handled) call execute_interactively(cmd, status)
             end if
         end if
@@ -2607,7 +2824,7 @@ contains
 
     !> Run a command loop until a command returns to `exit' with a status: return
     !> for a plain exit, and a `quit' error condition occurs for an abort.  End of input, or a
-    !> request to leave Emacs, also ends it with a quit; the end of the
+    !> request to leave Fortmacs, also ends it with a quit; the end of the
     !> keyboard macro being executed ends it as an exit.  Its command loop
     !> checks the status of each command (keyboard.c's internal_catch of Qexit).
     !> Minibuffers call it directly; `recursive_edit' counts the level.
@@ -3841,4 +4058,90 @@ contains
         real_last_command => real_this_command
         if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command => real_this_command
     end subroutine command_loop_1_start
+
+    !> If CMD is a disabled command (its `disabled' attribute is .true. or
+    !> it has a disabled message), call
+    !> `disabled_command_function_variable%procedure' with it and
+    !> `this_command_keys' instead of running it; HANDLED says it did.
+    !> Port of the disabled-command test of simple.el:command-execute.
+    recursive subroutine handle_disabled_command(cmd, handled, status)
+        type(value_type), intent(in) :: cmd
+        logical, intent(out) :: handled
+        type(status_type), intent(out) :: status
+        type(command_type), pointer :: p
+
+        handled = .false.
+        status = status_type()
+        if (.not. associated(disabled_command_function_variable%procedure)) return
+        if (.not. allocated(cmd%a)) return
+        if (vtag(cmd) /= V_NAME .and. vtag(cmd) /= V_NULL) return
+        p => find_command(symbols(xsymbol(cmd))%name)
+        if (.not. associated(p)) return
+        ! A disabled message disables it too.
+        if (.not. (p%disabled .or. len_trim(p%disabled_message) > 0)) return
+        handled = .true.
+        call disabled_command_function_variable%procedure(cmd, this_command_keys, status)
+    end subroutine handle_disabled_command
+
+    !> Forget the procedure of `disabled_command_function_variable', as any
+    !> assignment to it does.  Not a port.
+    subroutine disabled_command_function_clear_kinds(self)
+        class(disabled_command_function_choice_setting_type), intent(inout) :: self
+
+        nullify (self%procedure)
+    end subroutine disabled_command_function_clear_kinds
+
+    !> The procedure of `disabled_command_function_variable' as help shows
+    !> it.  Not a port.
+    function disabled_command_function_other_value(self) result(text)
+        class(disabled_command_function_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+
+        if (associated(self%procedure) .and. associated(self%standard)) then
+            if (associated(self%procedure, self%standard)) then
+                text = trim(self%standard_name)
+            else
+                text = "a procedure set by the configuration"
+            end if
+        else if (associated(self%procedure)) then
+            text = "a procedure set by the configuration"
+        end if
+    end function disabled_command_function_other_value
+
+    !> The name of the standard procedure of
+    !> `disabled_command_function_variable', once set; "" before.
+    !> Not a port.
+    function disabled_command_function_standard_value(self) result(text)
+        class(disabled_command_function_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (associated(self%standard)) text = trim(self%standard_name)
+    end function disabled_command_function_standard_value
+
+    !> Make HANDLER, called NAME, the standard value of
+    !> `disabled_command_function_variable' (the value help compares
+    !> with) and its value, as novice.el's defvar does.  Not a port.
+    subroutine disabled_command_function_set_standard_procedure(self, handler, name)
+        class(disabled_command_function_choice_setting_type), intent(inout) :: self
+        procedure(disabled_command_function_procedure) :: handler
+        character(len=*), intent(in) :: name
+
+        self%standard => handler
+        self%standard_name = name
+        self%procedure => handler
+    end subroutine disabled_command_function_set_standard_procedure
+
+    !> The assignment that sets the procedure `disabled_command_function_variable' takes, for the error of a rejected
+    !> value.  Not a port.
+    function disabled_command_function_kind_hint(self, number) result(text)
+        class(disabled_command_function_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a procedure is `"//trim(self%name)//"%procedure => mine'"
+        if (len(number) < 0) text = number
+    end function disabled_command_function_kind_hint
 end module keyboard_mod

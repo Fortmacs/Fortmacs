@@ -39,7 +39,7 @@
 !>   tm: glibc bits/types/struct_tm.h (nine ints, then tm_gmtoff and tm_zone)
 !> - struct timespec: two longs;  struct group: glibc grp.h (two pointers,
 !>   a 32-bit id, a pointer)
-!> - O_CREAT, O_EXCL, O_TRUNC: asm-generic/fcntl.h;  RENAME_NOREPLACE:
+!> - O_CREAT, O_EXCL, O_TRUNC, O_APPEND: asm-generic/fcntl.h;  RENAME_NOREPLACE:
 !>   linux/fs.h;  UTIME_NOW, UTIME_OMIT: linux/stat.h
 !> - CLOCK_REALTIME: linux/time.h
 !> - threads (glibc >= 2.34 has them in libc itself): pthread_t is an
@@ -203,6 +203,8 @@ module sys_linux_mod
     integer(c_int), parameter, public :: O_EXCL = int(o'0000200', c_int)
     !> inotify event mask or watch flag O_TRUNC.
     integer(c_int), parameter, public :: O_TRUNC = int(o'0001000', c_int)
+    !> open flag O_APPEND.
+    integer(c_int), parameter, public :: O_APPEND = int(o'0002000', c_int)
     ! access modes
     !> access mode F_OK.
     integer(c_int), parameter, public :: F_OK = 0, X_OK = 1, W_OK = 2, R_OK = 4
@@ -352,7 +354,7 @@ module sys_linux_mod
     public :: c_inotify_init1, c_inotify_add_watch, c_inotify_rm_watch
     public :: c_pthread_create, c_pthread_join, c_pthread_self, c_pthread_mutex_lock, &
               c_pthread_mutex_unlock, c_pthread_sigmask, c_kill, c_setsid, c_pidfd_open, c_tcgetpgrp, &
-              c_ioctl_int, c_fcntl_int, c_execve, c_sched_getaffinity, c_time, c_clock_gettime
+              c_ioctl_int, c_fcntl_int, c_execve, c_sched_getaffinity, c_time, c_clock_gettime, c_getrandom
     public :: c_ioctl_char, c_tcdrain, c_getpid, c_getpgrp, c_setpgid
     public :: errno, c_string_to_fortran
 
@@ -388,6 +390,16 @@ module sys_linux_mod
             character(kind=c_char), intent(out) :: buffer(*)
             integer(c_size_t), value :: count
         end function c_read
+
+        !> Binding of libc's getrandom (flags 0: the urandom source, blocking
+        !> only until it is first initialized).
+        integer(c_long) function c_getrandom(buffer, count, flags) bind(C, name="getrandom")
+            import :: c_int, c_long, c_size_t, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(out) :: buffer(*)
+            integer(c_size_t), value :: count
+            integer(c_int), value :: flags
+        end function c_getrandom
 
         !> Binding of libc's write.
         integer(c_long) function c_write(fd, buffer, count) bind(C, name="write")

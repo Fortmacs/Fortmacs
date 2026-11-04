@@ -36,7 +36,7 @@ module test_marker_mod
                           set_marker_insertion_type, set_marker_to
     use insdel_mod, only: insert, insert_before_markers, del_range
     use value_mod, only: make_marker_ref
-    use print_mod, only: readable_repr
+    use print_mod, only: readable_text
     implicit none(type, external)
     private
 
@@ -250,13 +250,13 @@ contains
         call enter("tm-print", h, old)
         call insert("hello", st)
         call copy_marker_at(4_int64, m, .false., st)
-        call check(error, readable_repr(make_marker_ref(m)), "#<marker at 4 in tm-print>")
+        call check(error, readable_text(make_marker_ref(m)), "#<marker at 4 in tm-print>")
         if (allocated(error)) return
         call set_marker_insertion_type(m, .true., st)
-        call check(error, readable_repr(make_marker_ref(m)), "#<marker (moves after insertion) at 4 in tm-print>")
+        call check(error, readable_text(make_marker_ref(m)), "#<marker (moves after insertion) at 4 in tm-print>")
         if (allocated(error)) return
         call make_marker(nowhere)
-        call check(error, readable_repr(make_marker_ref(nowhere)), "#<marker in no buffer>")
+        call check(error, readable_text(make_marker_ref(nowhere)), "#<marker in no buffer>")
         call destroy_marker(m, st)
         call destroy_marker(nowhere, st)
         call leave(h, old)

@@ -1,8 +1,9 @@
 name: Progress
 
 # After each merge, redraw the README's progress block and pie charts
-# (tools/progress.sh --update-readme) and commit them to main. Branches
-# never touch them, so open PRs don't conflict over them.
+# (tools/progress.sh --update-readme) and the index of the status files
+# (tools/status.sh --index, docs/progress/status-index.md), and commit them
+# to main. Branches never touch them, so open PRs don't conflict over them.
 #
 # The push uses the repository secret PROGRESS_TOKEN: a fine-grained
 # personal access token for this repository only, with Contents read and
@@ -15,6 +16,8 @@ on:
     branches: [main]
     paths:
       - "src/**.f90"
+      - "docs/status/**"
+      - tools/status.sh
       - tools/progress.sh
       - tools/package-totals
       - tools/ported-packages
@@ -58,11 +61,13 @@ jobs:
           # new main and try again.
           for attempt in 1 2 3; do
             tools/progress.sh --update-readme
-            if git diff --quiet -- README.md docs/progress; then
+            tools/status.sh --index >docs/progress/status-index.md
+            # Added first, so that a new file (the first index) counts.
+            git add README.md docs/progress
+            if git diff --cached --quiet; then
               echo "The progress block is current."
               exit 0
             fi
-            git add README.md docs/progress
             git commit -q -m "README: update the progress block"
             if git push origin HEAD:main; then
               exit 0

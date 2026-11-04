@@ -36,8 +36,8 @@ module repeat_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, command_type, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO, V_INTEGER, &
-                         V_NAME, vtag, xfixnum, make_keymap_ref
+    use value_mod, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, V_INTEGER, V_NAME, vtag, xfixnum, &
+                         make_keymap_ref
     use hooks_mod, only: hook_type, hook_current_prefix_arg
     use commands_mod, only: commands, builtin_command, BUILTIN_COMMAND_NAMES
     use modes_mod, only: minor_modes
@@ -74,7 +74,7 @@ module repeat_mod
     !> repeat.el repeat-on-final-keystroke (no list of characters).
     logical, public :: repeat_on_final_keystroke = .true.
 
-    !> # key sequences read in Emacs session when `repeat' last invoked.
+    !> # key sequences read in Fortmacs session when `repeat' last invoked.
     !> Port of repeat.el repeat-num-input-keys-at-repeat.
     integer(int64), public :: repeat_num_input_keys_at_repeat = -1
 
@@ -109,9 +109,9 @@ module repeat_mod
     !>
     !> You can also set the component `repeat_check_key' of the command.
     !> This component can override the value of this variable.
-    !> When the variable value is true, but the component is `REPEAT_CHECK_KEY_NO',
+    !> When the variable value is true, but the component is .false.,
     !> then don't check the last key.  Also when the variable value is false,
-    !> but the component is `REPEAT_CHECK_KEY_YES', then check the last key.
+    !> but the component is .true., then check the last key.
     !> Port of repeat.el repeat-check-key.
     logical, public :: repeat_check_key = .true.
 
@@ -160,7 +160,7 @@ module repeat_mod
 contains
 
     !> Return true if this command is happening because user invoked `repeat'.
-    !> Usually, when a command is executing, the Emacs builtin variable
+    !> Usually, when a command is executing, the Fortmacs builtin variable
     !> `this_command' identifies the command the user invoked.  Some commands modify
     !> that variable on the theory they're doing more good than harm; `repeat' does
     !> that, and usually does do more good than harm.  However, like all do-gooders,
@@ -456,18 +456,12 @@ contains
         type(value_type) :: binding, keys(1)
         type(status_type) :: st
         logical :: check
-        integer :: prop
 
-        prop = 0
+        check = repeat_check_key
         p => this_command_object()
-        if (associated(p)) prop = p%repeat_check_key
 
-        if (prop == REPEAT_CHECK_KEY_NO) then
-            check = .false.
-        else if (prop == REPEAT_CHECK_KEY_YES) then
-            check = .true.
-        else
-            check = repeat_check_key
+        if (associated(p)) then
+            if (p%repeat_check_key%choice /= REPEAT_CHECK_KEY_DEFAULT) check = p%repeat_check_key%value
         end if
 
         ok = .not. check

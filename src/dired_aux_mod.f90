@@ -52,7 +52,8 @@
 !> not the condition's data list), file name handlers.  Loading Lisp
 !> files (`L', `B') is not applicable.
 submodule(dired_mode_mod) dired_aux_mod
-    use value_mod, only: make_list, xfixnum, value_type, vtag, V_INTEGER
+    use value_mod, only: make_list, xfixnum, value_type, vtag, V_INTEGER, choice_type, assignment(=)
+    use data_mod, only: choice_setting_type, choice_state, string_to_number
     use error_mod, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
     use sysdep_mod, only: S_IFMT, S_IFDIR, S_IFLNK
     use timefns_mod, only: format_time_string, time_type, TIMESPEC_COUNT_RATE
@@ -69,21 +70,22 @@ submodule(dired_mode_mod) dired_aux_mod
     use window_mod, only: pop_to_buffer, same_handle
     use view_mod, only: view_file
     use keyboard_mod, only: sit_for
-    use print_mod, only: fortran_repr
+    use print_mod, only: fortran_text
     use diff_mod, only: diff, diff_backup, diff_latest_backup_file, diff_operand_type, diff_switches
     use minibuffer_mod, only: REQUIRE_MATCH_YES
     use editfns_mod, only: mark_position, ngettext
     use buffer_mod, only: transient_mark_mode
     use files_mod, only: file_name_sans_versions
+    use string_type_mod, only: string_type, append_string, prepend_string
     implicit none(type, external)
 
     !> File names `dired_create_files' records as failing (and
     !> `dired_copy_file_recursive' too).  Port of dired-aux.el
     !> dired-create-files-failures.
-    type(dired_string_type), allocatable :: create_files_failures(:)
+    type(string_type), allocatable :: create_files_failures(:)
 
     !> The results of the body of `dired_map_over_marks_check'.
-    type(dired_string_type), allocatable :: check_results(:)
+    type(string_type), allocatable :: check_results(:)
 
     !> The request and the answer of the readers that
     !> `dired_mark_pop_up_body' runs.
@@ -198,7 +200,7 @@ contains
         character, intent(in), optional :: marker_char
         logical, intent(in), optional :: relative
         character(len=:), allocatable :: file, current_dir, directory, saved_dir, inserted_name, reason
-        type(dired_string_type) :: list1(1)
+        type(string_type) :: list1(1)
         type(value_type) :: saved_ro, props
         type(status_type) :: st
         integer(int64) :: opoint, p, line_start, pt
@@ -250,7 +252,7 @@ contains
             ! Don't expand `.'.  Show just the file name within directory.
             saved_dir = aux_default_directory()
             buffers(current)%directory = directory
-            list1(1)%s = file
+            list1(1)%text = file
             call dired_insert_directory(directory, dired_actual_switches_of()//" -d", status, file_list=list1)
             buffers(current)%directory = saved_dir
 
@@ -617,7 +619,7 @@ contains
     !> `commands'.  Port of dired.el:dired-mark-pop-up.
     recursive subroutine dired_mark_pop_up_body(buffer_name, op_symbol, files, one_marked, body, status)
         character(len=*), intent(in) :: buffer_name, op_symbol
-        type(dired_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         logical, intent(in) :: one_marked
         interface
             recursive subroutine body(status)
@@ -657,7 +659,7 @@ contains
         saved_dedicated = display_buffer_mark_dedicated
         display_buffer_mark_dedicated = DEDICATED_WEAK
         pop_up_files = files
-        table%window_height => fit_window
+        table%window_height%procedure => fit_window
         table%body_function => insert_marked_files
         call temp_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_BELOW_SELECTED], table)
         display_buffer_mark_dedicated = saved_dedicated
@@ -760,7 +762,7 @@ contains
         character(len=*), intent(in) :: prompt, op_symbol
         integer, intent(in) :: arg_kind
         integer(int64), intent(in) :: arg_n
-        type(dired_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         character(len=:), allocatable, intent(out) :: result
         logical, intent(out) :: used_default
         type(status_type), intent(out) :: status
@@ -802,7 +804,7 @@ contains
         character(len=*), intent(in) :: prompt, dir, op_symbol
         integer, intent(in) :: arg_kind
         integer(int64), intent(in) :: arg_n
-        type(dired_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: default
@@ -866,7 +868,7 @@ contains
         integer(int64), intent(in) :: arg_n
         logical, intent(out) :: confirmed
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         logical :: one_marked
         integer :: k
 
@@ -915,7 +917,7 @@ contains
     !> `dired_log_buffer'.  Port of dired-aux.el:dired-check-process.
     recursive subroutine dired_check_process(msg, program, args, failed, status)
         character(len=*), intent(in) :: msg, program
-        type(dired_string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         logical, intent(out) :: failed
         type(status_type), intent(out) :: status
         type(progress_reporter_type) :: reporter
@@ -941,7 +943,7 @@ contains
         allocate (elems(size(args)))
 
         do k = 1, size(args)
-            elems(k) = value_type(text=args(k)%s)
+            elems(k) = value_type(text=args(k)%text)
         end do
 
         arglist = make_list(elems)
@@ -958,7 +960,7 @@ contains
         if (failed) then
             call buffer_substring(point_min(), point_max(), output, st)
             call set_buffer(old, st)
-            call dired_log(program//" "//fortran_repr(arglist)//LF)
+            call dired_log(program//" "//fortran_text(arglist)//LF)
             call dired_log(output)
         else
             call set_buffer(old, st)
@@ -976,7 +978,7 @@ contains
     recursive subroutine dired_bunch_files(max_chars, msg, program, args, files, failed, status)
         integer, intent(in) :: max_chars
         character(len=*), intent(in) :: msg, program
-        type(dired_string_type), intent(in) :: args(:), files(:)
+        type(string_type), intent(in) :: args(:), files(:)
         logical, intent(out) :: failed
         type(status_type), intent(out) :: status
         integer :: first, k, pending_length, thislength
@@ -988,7 +990,7 @@ contains
         pending_length = 0
 
         do k = 1, size(files)
-            thislength = len(files(k)%s) + 3
+            thislength = len(files(k)%text) + 3
 
             ! If we have at least 1 pending file and this file won't fit
             ! in the length limit, process now.
@@ -1008,17 +1010,17 @@ contains
 
         recursive subroutine execute_batch(from, to)
             integer, intent(in) :: from, to
-            type(dired_string_type), allocatable :: argv(:)
+            type(string_type), allocatable :: argv(:)
             integer :: j
 
             allocate (argv(size(args) + max(0, to - from + 1)))
 
             do j = 1, size(args)
-                argv(j)%s = args(j)%s
+                argv(j)%text = args(j)%text
             end do
 
             do j = from, to
-                argv(size(args) + j - from + 1)%s = files(j)%s
+                argv(size(args) + j - from + 1)%text = files(j)%text
             end do
 
             call dired_check_process(msg, program, argv, f, status)
@@ -1038,7 +1040,7 @@ contains
         integer, intent(in) :: arg_kind
         integer(int64), intent(in) :: arg_n
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: files(:), args(:)
+        type(string_type), allocatable :: files(:), args(:)
         character(len=:), allocatable :: default_file, default, prompt, new_attribute, operation, user, group
         type(value_type) :: collection
         type(file_stat_type) :: attrs
@@ -1101,18 +1103,18 @@ contains
         ! Use `eq' instead of `equal' to detect empty input (bug#12399).
         if (.not. (len(new_attribute) == 0 .or. used_default)) then
             if (op_symbol == "touch") then
-                args(1)%s = "-t"
-                args(2)%s = new_attribute
+                args(1)%text = "-t"
+                args(2)%text = new_attribute
                 n = 2
             else
-                args(1)%s = new_attribute
+                args(1)%text = new_attribute
                 n = 1
             end if
         end if
 
         ! (string-match-p "gnu" system-configuration): a GNU/Linux system.
         n = n + 1
-        args(n)%s = "--"
+        args(n)%text = "--"
         call dired_bunch_files(10000, operation, program, args(1:n), files, failed, status)
         if (.not. status%ok()) return
         ! moves point if ARG is an integer
@@ -1122,11 +1124,12 @@ contains
     end subroutine dired_do_chxxx
 
     module procedure dired_do_chmod
-    type(dired_string_type), allocatable :: files(:)
+    type(string_type), allocatable :: files(:)
     character(len=:), allocatable :: default_file, modestr, default, modes
     type(file_stat_type) :: attrs
     type(status_type) :: st
     integer(int32) :: mode_count, mode
+    integer(int64) :: octal
     logical :: found, has_default, used_default, has_num
     integer :: k
 
@@ -1165,17 +1168,21 @@ contains
     end if
 
     has_num = string_match("^[0-7]+", modes, st) > 0
-    if (has_num) mode_count = string_to_octal(modes)
+
+    if (has_num) then
+        call string_to_number(modes, octal, 8)
+        mode_count = int(octal)
+    end if
 
     do k = 1, size(files)
         if (has_num) then
             mode = mode_count
         else
-            call file_modes_symbolic_to_number(modes, mode, status, file_modes(files(k)%s, nofollow=.true.))
+            call file_modes_symbolic_to_number(modes, mode, status, file_modes(files(k)%text, nofollow=.true.))
             if (.not. status%ok()) return
         end if
 
-        call set_file_modes(files(k)%s, mode, status, nofollow=.true.)
+        call set_file_modes(files(k)%text, mode, status, nofollow=.true.)
         if (.not. status%ok()) return
     end do
 
@@ -1195,39 +1202,6 @@ contains
         end do
     end function strip_dashes
     end procedure dired_do_chmod
-
-    !> (string-to-number S 8): the octal number at the start of S (after
-    !> spaces and tabs, with an optional sign), 0 if none.  Not a port.
-    integer(int32) function string_to_octal(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: i
-        logical :: negative
-
-        n = 0
-        i = 1
-
-        do while (i <= len(s))
-            if (s(i:i) /= " " .and. s(i:i) /= TAB) exit
-            i = i + 1
-        end do
-
-        negative = .false.
-
-        if (i <= len(s)) then
-            if (s(i:i) == "-" .or. s(i:i) == "+") then
-                negative = s(i:i) == "-"
-                i = i + 1
-            end if
-        end if
-
-        do while (i <= len(s))
-            if (index("01234567", s(i:i)) == 0) exit
-            n = n*8 + (iachar(s(i:i)) - iachar("0"))
-            i = i + 1
-        end do
-
-        if (negative) n = -n
-    end function string_to_octal
 
     !> Change the mode of the marked (or next ARG) files.
     !> Both octal numeric modes like `644' and symbolic modes like `g+w'
@@ -1358,6 +1332,7 @@ contains
 
     module procedure dired_do_remove_lines
     type(value_type) :: saved_ro
+    character(len=40) :: text
     integer(int64) :: opoint, b, n
 
     status = status_type()
@@ -1394,10 +1369,12 @@ contains
         if (len(fmt) > 0) call message(format_d(fmt, n))
     else
         if (n == 1) then
-            call message("Killed "//number_to_string(n)//" line.")
+            write (text, '("Killed ", i0, " line.")') n
         else
-            call message("Killed "//number_to_string(n)//" lines.")
+            write (text, '("Killed ", i0, " lines.")') n
         end if
+
+        call message(trim(text))
     end if
 
     if (present(count)) count = n
@@ -1409,11 +1386,13 @@ contains
         character(len=*), intent(in) :: fmt
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
+        character(len=20) :: digits
         integer :: k
 
         s = fmt
         k = index(s, "%d")
-        if (k > 0) s = s(1:k - 1)//number_to_string(n)//s(k + 2:)
+        write (digits, "(i0)") n
+        if (k > 0) s = s(1:k - 1)//trim(digits)//s(k + 2:)
         k = index(s, "%s")
 
         if (k > 0) then
@@ -1536,7 +1515,7 @@ contains
 
     module procedure dired_compress_file
     character(len=:), allocatable :: command, suffix, out_name, dir_saved, msg
-    type(dired_string_type), allocatable :: args(:)
+    type(string_type), allocatable :: args(:)
     type(value_type) :: res
     type(status_type) :: st
     integer(int64) :: mb
@@ -1587,13 +1566,10 @@ contains
             msg = "Uncompressing "//file
 
             if (match > 0) then
-                allocate (args(2))
-                args(1)%s = command(match + 1:)
-                args(2)%s = file
+                call append_string(args, command(match + 1:), file)
                 call dired_check_process(msg, command(1:match - 1), args, failed, status)
             else
-                allocate (args(1))
-                args(1)%s = file
+                call append_string(args, file)
                 call dired_check_process(msg, command, args, failed, status)
             end if
 
@@ -1684,12 +1660,11 @@ contains
     !> The `file_error' handler: try compress.  Don't use NEWNAME with
     !> `compress'.
     recursive subroutine compress_with_compress()
-        type(dired_string_type) :: cargs(2)
+        type(string_type), allocatable :: cargs(:)
         logical :: cfailed
 
         status = status_type()
-        cargs(1)%s = "-f"
-        cargs(2)%s = file
+        call append_string(cargs, "-f", file)
         call dired_check_process("Compressing "//file, "compress", cargs, cfailed, status)
         if (.not. status%ok()) return
 
@@ -1812,8 +1787,9 @@ contains
         integer(int64), intent(in) :: arg_n
         character(len=*), intent(in) :: op_symbol
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: failures(:)
+        type(string_type), allocatable :: failures(:)
         character(len=:), allocatable :: string
+        character(len=48) :: text
         integer(int64) :: total, count
         logical :: confirmed, found, upward
         integer :: k
@@ -1828,26 +1804,27 @@ contains
         count = 0
 
         do k = 1, size(check_results)
-            if (len(check_results(k)%s) > 0) count = count + 1
+            if (len(check_results(k)%text) > 0) count = count + 1
         end do
 
         allocate (failures(count))
         count = 0
 
         do k = 1, size(check_results)
-            if (len(check_results(k)%s) == 0) cycle
+            if (len(check_results(k)%text) == 0) cycle
             count = count + 1
-            failures(count)%s = check_results(k)%s
+            failures(count)%text = check_results(k)%text
         end do
 
         string = operation_string(op_symbol)
 
         if (count == 0) then
-            call message(string//": "//number_to_string(total)//ngettext(" file.", " files.", total))
+            write (text, '(": ", i0)') total
+            call message(string//trim(text)//ngettext(" file.", " files.", total))
         else
             ! end this bunch of errors:
-            call dired_log_summary("Failed to "//downcase_string(string)//" "//number_to_string(count)//" of "// &
-                                   number_to_string(total)//ngettext(" file", " files", total), failures)
+            write (text, '(" ", i0, " of ", i0)') count, total
+            call dired_log_summary("Failed to "//downcase_string(string)//trim(text)//ngettext(" file", " files", total), failures)
         end if
     end subroutine dired_map_over_marks_check
 
@@ -1979,8 +1956,9 @@ contains
     end subroutine format_spec_io
 
     module procedure dired_do_compress_to
-    type(dired_string_type), allocatable :: in_files(:)
+    type(string_type), allocatable :: in_files(:)
     character(len=:), allocatable :: out_file, input, ins, command
+    character(len=32) :: text
     type(value_type) :: res
     type(status_type) :: st
     integer :: k, rule
@@ -2020,7 +1998,7 @@ contains
 
     do k = 1, size(in_files)
         if (k > 1) ins = ins//" "
-        ins = ins//shell_quote_argument(file_relative_name(in_files(k)%s))
+        ins = ins//shell_quote_argument(file_relative_name(in_files(k)%text))
     end do
 
     call format_spec_io(dired_compress_files_commands(rule)%command, shell_quote_argument(out_file), ins, command, status)
@@ -2031,9 +2009,8 @@ contains
     if (vtag(res) == V_INTEGER) zero = xfixnum(res) == 0
 
     if (zero) then
-        call message(ngettext("Compressed "//number_to_string(int(size(in_files), int64))//" file to ", &
-                              "Compressed "//number_to_string(int(size(in_files), int64))//" files to ", &
-                              int(size(in_files), int64))//file_name_nondirectory(out_file))
+        write (text, '("Compressed ", i0)') size(in_files)
+        call message(trim(text)//ngettext(" file to ", " files to ", int(size(in_files), int64))//file_name_nondirectory(out_file))
     end if
     end procedure dired_do_compress_to
 
@@ -2190,8 +2167,11 @@ contains
     end subroutine dired_handle_overwrite
 
     module procedure dired_copy_file
+    type(choice_type) :: recursive
+
     call dired_handle_overwrite(to)
-    call dired_copy_file_recursive(from, to, ok_flag, status, dired_copy_preserve_time, .true., dired_recursive_copies, &
+    recursive = choice_state(dired_recursive_copies)
+    call dired_copy_file_recursive(from, to, ok_flag, status, dired_copy_preserve_time, .true., recursive, &
                                    dired_copy_dereference)
     end procedure dired_copy_file
 
@@ -2203,9 +2183,9 @@ contains
         logical :: answer
 
         status = status_type()
-        if (dired_create_destination_dirs == DIRED_CREATE_DESTINATION_DIRS_NO) return
+        if (dired_create_destination_dirs%is_off()) return
         if (file_exists(dir)) return
-        answer = dired_create_destination_dirs == DIRED_CREATE_DESTINATION_DIRS_YES
+        answer = dired_create_destination_dirs%value
 
         if (.not. answer) then
             call read_yes_or_no("Create destination dir `"//dir//"'? ", answer, status)
@@ -2217,7 +2197,7 @@ contains
 
     module procedure dired_copy_file_recursive
     type(file_stat_type) :: attrs
-    integer :: rec
+    type(choice_type) :: rec
     logical :: keep, at_top, deref
     character(len=:), allocatable :: target
     logical :: found, is_dir, is_link, answer, do_dir
@@ -2236,7 +2216,7 @@ contains
     if (present(preserve_time)) keep = preserve_time
     at_top = .false.
     if (present(top)) at_top = top
-    rec = DIRED_RECURSIVE_NO
+    rec = .false.
     if (present(recursive)) rec = recursive
     deref = .false.
     if (present(dereference)) deref = dereference
@@ -2251,8 +2231,8 @@ contains
 
     do_dir = .false.
 
-    if (rec /= DIRED_RECURSIVE_NO .and. is_dir) then
-        if (rec == DIRED_RECURSIVE_YES) then
+    if (.not. rec%is_off() .and. is_dir) then
+        if (rec%value) then
             do_dir = .true.
         else
             call read_yes_or_no("Copy "//from//" recursively? ", answer, status)
@@ -2288,11 +2268,9 @@ contains
     !> Push NAME on `dired_create_files_failures'.  Not a port.
     subroutine prepend_create_files_failure(name)
         character(len=*), intent(in) :: name
-        type(dired_string_type) :: failure
 
         if (.not. allocated(create_files_failures)) allocate (create_files_failures(0))
-        failure%s = name
-        create_files_failures = [failure, create_files_failures]
+        call prepend_string(create_files_failures, name)
     end subroutine prepend_create_files_failure
 
     module procedure dired_rename_file
@@ -2577,13 +2555,13 @@ contains
         procedure(dired_file_creator_procedure) :: file_creator
         integer, intent(in) :: creator_kind
         character(len=*), intent(in) :: operation
-        type(dired_string_type), intent(in) :: file_names(:)
+        type(string_type), intent(in) :: file_names(:)
         procedure(dired_name_constructor_procedure) :: name_constructor
         character, intent(in) :: marker_char
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: failures(:), skipped(:), all(:)
-        type(dired_string_type) :: relative
+        type(string_type), allocatable :: failures(:), skipped(:), all(:)
         character(len=:), allocatable :: from, to, destname, help, lower_op
+        character(len=48) :: text, requests_text
         type(file_stat_type) :: dattrs
         type(status_type) :: st
         integer(int64) :: success_count, total, p, nf
@@ -2600,7 +2578,7 @@ contains
         lower_op = downcase_string(operation)
 
         do k = 1, size(file_names)
-            from = file_names(k)%s
+            from = file_names(k)%text
             ! Position point on the current file -- this is useful if
             ! handling a number of files to show where we're working at.
             p = dired_goto_file(from, st)
@@ -2615,8 +2593,7 @@ contains
             end if
 
             if (skip) then
-                relative%s = dired_make_relative(from)
-                skipped = [relative, skipped]
+                call prepend_string(skipped, dired_make_relative(from))
                 cycle
             end if
 
@@ -2672,7 +2649,8 @@ contains
                 ! entry (if any) has to be deleted before adding the new entry.
                 if (overwrite) call dired_remove_file(to)
                 success_count = success_count + 1
-                call message(operation//": "//number_to_string(success_count)//" of "//number_to_string(total))
+                write (text, '(": ", i0, " of ", i0)') success_count, total
+                call message(operation//trim(text))
 
                 if (has_marker) then
                     call dired_add_file(to, status, actual_marker_char)
@@ -2683,8 +2661,7 @@ contains
                 if (.not. status%ok()) return
             else if (condition_matches(st%code, FM_FILE_ERROR)) then
                 ! FILE-CREATOR aborted
-                relative%s = dired_make_relative(from)
-                failures = [relative, failures]
+                call prepend_string(failures, dired_make_relative(from))
                 call dired_log(operation//format_message(": `")//from//format_message("' to `")//to// &
                                format_message("' failed:")//LF//"("//error_name(st%code)//" "//format_error(st)//")"//LF)
             else
@@ -2698,18 +2675,20 @@ contains
             all(1:size(failures)) = failures
             all(size(failures) + 1:) = create_files_failures
             nf = size(all)
-            call dired_log_summary(operation//" failed for "//number_to_string(nf)//ngettext(" file", " files", nf)//" in "// &
-                                   number_to_string(total)//" requests", all)
+            write (text, '(" failed for ", i0)') nf
+            write (requests_text, '(" in ", i0, " requests")') total
+            call dired_log_summary(operation//trim(text)//ngettext(" file", " files", nf)//trim(requests_text), all)
         else if (size(failures) > 0) then
             nf = size(failures)
-            call dired_log_summary(operation//": "//number_to_string(nf)//" of "//number_to_string(total)// &
-                                   ngettext(" file", " files", total)//" failed", failures)
+            write (text, '(": ", i0, " of ", i0)') nf, total
+            call dired_log_summary(operation//trim(text)//ngettext(" file", " files", total)//" failed", failures)
         else if (size(skipped) > 0) then
             nf = size(skipped)
-            call dired_log_summary(operation//": "//number_to_string(nf)//" of "//number_to_string(total)// &
-                                   ngettext(" file", " files", total)//" skipped", skipped)
+            write (text, '(": ", i0, " of ", i0)') nf, total
+            call dired_log_summary(operation//trim(text)//ngettext(" file", " files", total)//" skipped", skipped)
         else
-            call message(operation//": "//number_to_string(success_count)//ngettext(" file done", " files done", success_count))
+            write (text, '(": ", i0)') success_count
+            call message(operation//trim(text)//ngettext(" file done", " files done", success_count))
         end if
 
         p = dired_move_to_filename(st)
@@ -2748,7 +2727,7 @@ contains
     !> Port of dired-aux.el:dired-dwim-target-directory.
     function dired_dwim_target_directory() result(dir)
         character(len=:), allocatable :: dir
-        type(dired_string_type), allocatable :: dirs(:)
+        type(string_type), allocatable :: dirs(:)
         type(status_type) :: st
 
         dir = ""
@@ -2759,9 +2738,9 @@ contains
 
         ! non-dired buffer may want to profit from this function, e.g.
         ! vm-uudecode
-        if (dired_dwim_target /= DIRED_DWIM_TARGET_NO) then
+        if (.not. dired_dwim_target%is_off()) then
             call dired_dwim_target_directories(dirs)
-            if (size(dirs) > 0) dir = dirs(1)%s
+            if (size(dirs) > 0) dir = dirs(1)%text
         end if
     end function dired_dwim_target_directory
 
@@ -2771,14 +2750,19 @@ contains
     !> dired-dwim-target-next, -next-visible and -recent (one frame; a
     !> function as `dired_dwim_target' is deferred).
     subroutine dired_dwim_target_directories(dirs)
-        type(dired_string_type), allocatable, intent(out) :: dirs(:)
+        type(string_type), allocatable, intent(out) :: dirs(:)
         type(handle_type), allocatable :: leaves(:), order(:)
         type(handle_type) :: sel, old
         type(status_type) :: st
         integer(int64), allocatable :: times(:)
         integer(int64) :: b, tk
-        type(dired_string_type) :: td
+        type(string_type) :: td
         integer :: k, n, first, j
+
+        if (associated(dired_dwim_target%procedure)) then
+            call dired_dwim_target%procedure(dirs)
+            return
+        end if
 
         allocate (dirs(0))
         call window_leaves(selected_frame%root_window, leaves)
@@ -2815,7 +2799,7 @@ contains
 
         call set_buffer(old, st)
 
-        if (dired_dwim_target == DIRED_DWIM_TARGET_RECENT) then
+        if (dired_dwim_target%choice == DIRED_DWIM_TARGET_RECENT) then
             ! Ordered by most-recently-used.
             do k = 2, size(dirs)
                 j = k
@@ -2844,7 +2828,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: op1
         logical, intent(in), optional :: how_to_plain
-        type(dired_string_type), allocatable :: file_names(:), relative_file_names(:)
+        type(string_type), allocatable :: file_names(:), relative_file_names(:)
         character(len=:), allocatable :: target_dir, default, target, input, op, prompt
         type(handle_type), allocatable :: bufs(:)
         type(handle_type) :: old
@@ -2857,7 +2841,7 @@ contains
         allocate (relative_file_names(size(file_names)))
 
         do k = 1, size(file_names)
-            relative_file_names(k)%s = dired_make_relative(file_names(k)%s)
+            relative_file_names(k)%text = dired_make_relative(file_names(k)%text)
         end do
 
         one_file = size(file_names) == 1
@@ -2898,7 +2882,7 @@ contains
             return
         end if
 
-        if (.not. is_file_directory(file_names(1)%s) .and. .not. is_file_directory(target) .and. is_directory_name(target)) then
+        if (.not. is_file_directory(file_names(1)%text) .and. .not. is_file_directory(target) .and. is_directory_name(target)) then
             call set_error(status, FM_GENERIC_ERROR, operation//": Target directory does not exist: "//target)
             return
         end if
@@ -2967,7 +2951,7 @@ contains
 
     module procedure dired_do_copy
     logical :: saved_dereference
-    integer :: saved_recursive
+    type(choice_setting_type) :: saved_recursive
 
     ! (let ((dired-recursive-copies dired-recursive-copies)
     !       (dired-copy-dereference (if (equal arg '(4)) ...))) ...)
@@ -3105,7 +3089,7 @@ contains
     end subroutine cmd_dired_do_hardlink
 
     module procedure dired_do_rename
-    type(dired_string_type), allocatable :: files(:)
+    type(string_type), allocatable :: files(:)
     character(len=:), allocatable :: name
     integer :: k
 
@@ -3113,7 +3097,7 @@ contains
     if (.not. status%ok()) return
 
     do k = 1, size(files)
-        name = file_name_nondirectory(files(k)%s)
+        name = file_name_nondirectory(files(k)%text)
 
         if (name == "." .or. name == "..") then
             call set_error(status, FM_USER_ERROR, "Can't rename ""."" or "".."" files")
@@ -3236,7 +3220,7 @@ contains
         logical, intent(in) :: whole_name
         character, intent(in) :: marker_char
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: file_names(:)
+        type(string_type), allocatable :: file_names(:)
         character(len=:), allocatable :: lower
 
         call dired_get_marked_files(file_names, status, arg_kind=arg_kind, arg_n=arg_n)
@@ -3336,11 +3320,11 @@ contains
     end subroutine regexp_command
 
     module procedure dired_do_copy_regexp
-    integer :: saved
+    type(choice_setting_type) :: saved
 
     ! No recursive copies.
     saved = dired_recursive_copies
-    dired_recursive_copies = DIRED_RECURSIVE_NO
+    dired_recursive_copies = .false.
 
     if (dired_copy_preserve_time) then
         call dired_do_create_files_regexp(copy_creator, DIRED_CREATOR_COPY, "Copy [-p]", arg_kind, arg_n, regexp, &
@@ -3443,7 +3427,7 @@ contains
         integer, intent(in) :: arg_kind
         integer(int64), intent(in) :: arg_n
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: file_names(:)
+        type(string_type), allocatable :: file_names(:)
         character(len=:), allocatable :: lower
 
         call dired_get_marked_files(file_names, status, arg_kind=arg_kind, arg_n=arg_n)
@@ -3946,16 +3930,6 @@ contains
     call aux_bind("y", "dired_show_file_type")
     call aux_bind("=", "dired_diff")
     end procedure dired_aux_keys
-
-    !> Append S to the strings LIST.  Not a port.
-    subroutine append_string(list, s)
-        type(dired_string_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(dired_string_type) :: string
-
-        string%s = s
-        list = [list, string]
-    end subroutine append_string
 
     !> `re_search_forward' of REGEXP (NOERROR .true.) as a logical.  Not a port.
     logical function aux_re_search_forward(regexp) result(found)

@@ -70,8 +70,8 @@ module comint_mod
     use error_mod, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, symbols, xsymbol, list_elements, command_procedure
-    use data_mod, only: number_to_string, string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
-                        append_locals_clearer, forward_setting
+    use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
+                        append_locals_clearer, forward_setting, choice_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           barf_if_buffer_read_only
     use marker_mod, only: make_marker, destroy_marker, marker_buffer, marker_position, set_marker, copy_marker_at, &
@@ -94,7 +94,7 @@ module comint_mod
                           make_sparse_keymap, is_keymap_live, set_repeat_map
     use modes_mod, only: major_modes
     use simple_mod, only: cut_region, copy_region_quietly, push_mark, cut_whole_line, just_one_space
-    use process_mod, only: process_arg_type, append_arg, prepend_arg, make_process, get_buffer_process, process_status, &
+    use process_mod, only: make_process, get_buffer_process, process_status, &
                            process_mark, process_buffer, delete_process, set_process_filter, process_send_string, &
                            process_send_region, process_send_eof, interrupt_process, stop_process, quit_process, &
                            accept_process_output, is_process, process_connection_type, PROCESS_CONNECTION_PIPE, &
@@ -150,6 +150,7 @@ module comint_mod
     use dired_mod, only: completion_ignored_extensions
     use regexp_opt_mod, only: regexp_opt_charset
     use itree_mod, only: destroy_overlay
+    use string_type_mod, only: string_type, append_string, prepend_string
     implicit none(type, external)
     private
 
@@ -226,10 +227,9 @@ module comint_mod
         end subroutine comint_password_procedure
     end interface
 
-    !> Values of `comint_move_point_for_output'.
-    integer, parameter, public :: COMINT_MOVE_POINT_FOR_OUTPUT_NO = 0, COMINT_MOVE_POINT_FOR_OUTPUT_YES = 1, &
-                                  COMINT_MOVE_POINT_FOR_OUTPUT_ALL = 2, &
-                                  COMINT_MOVE_POINT_FOR_OUTPUT_THIS = 3, COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS = 4
+    !> Values of `comint_move_point_for_output' besides .true. and .false.
+    integer, parameter, public :: COMINT_MOVE_POINT_FOR_OUTPUT_ALL = 2, COMINT_MOVE_POINT_FOR_OUTPUT_THIS = 3, &
+                                  COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS = 4
 
     !> Values of `comint_move_point_for_matching_input'.
     integer, parameter, public :: COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT = 0, &
@@ -303,10 +303,10 @@ module comint_mod
     !>
     !> The interactive browsing aspects of pagination are not needed, and
     !> get in the way, when the output of the program is directed to an
-    !> Emacs buffer, so in those cases pagination might need to be
+    !> Fortmacs buffer, so in those cases pagination might need to be
     !> disabled.  Disabling pagination means that some programs will
     !> produce large amounts of output, but most such programs have other
-    !> ways to limit their output, such as additional arguments or Emacs
+    !> ways to limit their output, such as additional arguments or Fortmacs
     !> interfaces.  To disable pagination, this variable's value should be
     !> a string that names a program, such as "cat", which passes through
     !> all of the output without any filtering or delays.  Comint will then
@@ -322,23 +322,22 @@ module comint_mod
 
     !> Controls whether interpreter output moves point to the end of the
     !> output.
-    !> If COMINT_MOVE_POINT_FOR_OUTPUT_NO, then output never moves point to the output.
+    !> If .false., then output never moves point to the output.
     !>  (If the output occurs at point, it is inserted before point.)
-    !> If COMINT_MOVE_POINT_FOR_OUTPUT_YES or COMINT_MOVE_POINT_FOR_OUTPUT_ALL, move point in all windows
+    !> If .true. or COMINT_MOVE_POINT_FOR_OUTPUT_ALL, move point in all windows
     !> showing the buffer.
     !> If COMINT_MOVE_POINT_FOR_OUTPUT_THIS, move point only the selected window.
     !> If COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS, move point only in other windows, not in the
     !> selected window.
     !>
-    !> The default is COMINT_MOVE_POINT_FOR_OUTPUT_NO.
+    !> The default is .false.
     !>
     !> See the variable `comint_scroll_show_maximum_output' and the
     !> function `comint_postoutput_scroll_to_bottom'.
     !> This variable is buffer-local in all Comint buffers.  Port of
     !> comint.el comint-move-point-for-output.
-    type(integer_setting_type), target, public :: comint_move_point_for_output = &
-                                                  integer_setting_type(name="comint_move_point_for_output", &
-                                                                       value=COMINT_MOVE_POINT_FOR_OUTPUT_NO)
+    type(choice_setting_type), target, public :: comint_move_point_for_output = &
+                                                 choice_setting_type(name="comint_move_point_for_output")
 
     !> Controls where to place point after matching input.
     !> \<comint_mode_map>This influences the commands
@@ -410,48 +409,45 @@ module comint_mod
 
     !> If true, use `comint_prompt_regexp' to recognize prompts.
     !> If false, then program output and user-input are given different
-    !> `field' properties, which Emacs commands can use to distinguish them
+    !> `field' properties, which Fortmacs commands can use to distinguish them
     !> (in particular, common movement commands such as
     !> `beginning_of_line' respect field boundaries in a natural way).
     !> Port of comint.el comint-use-prompt-regexp.
     type(logical_setting_type), target, public :: comint_use_prompt_regexp = &
                                                   logical_setting_type(name="comint_use_prompt_regexp", value=.false.)
 
-    !> Values of `comint_input_autoexpand'.
-    integer, parameter, public :: COMINT_AUTOEXPAND_NO = 0, COMINT_AUTOEXPAND_ON_COMPLETION = 1, COMINT_AUTOEXPAND_INPUT = 2, &
-                                  COMINT_AUTOEXPAND_HISTORY = 3
+    !> Values of `comint_input_autoexpand' besides .true. and .false.
+    integer, parameter, public :: COMINT_INPUT_AUTOEXPAND_INPUT = 2, COMINT_INPUT_AUTOEXPAND_HISTORY = 3
 
-    !> If not COMINT_AUTOEXPAND_NO, expand input command history
+    !> If true, expand input command history
     !> references on completion.  This mirrors the optional behavior of
     !> tcsh (its autoexpand and histlist).
     !>
-    !> If the value is COMINT_AUTOEXPAND_INPUT, then the expansion is seen
-    !> on input.  If the value is COMINT_AUTOEXPAND_HISTORY, then the
+    !> If the value is COMINT_INPUT_AUTOEXPAND_INPUT, then the expansion is seen
+    !> on input.  If the value is COMINT_INPUT_AUTOEXPAND_HISTORY, then the
     !> expansion is only when inserting into the buffer's input ring.
     !> See also `comint_magic_space' and `completion_at_point'.
     !>
     !> This variable is buffer-local.  Port of comint.el
     !> comint-input-autoexpand.
-    type(integer_setting_type), target, public :: comint_input_autoexpand = &
-                                                  integer_setting_type(name="comint_input_autoexpand", value=COMINT_AUTOEXPAND_NO)
+    type(choice_setting_type), target, public :: comint_input_autoexpand = &
+                                                 choice_setting_type(name="comint_input_autoexpand")
 
-    !> Values of `comint_scroll_to_bottom_on_input'.
-    integer, parameter, public :: COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO = 0, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES = 1, &
-                                  COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL = 2, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS = 3
+    !> Values of `comint_scroll_to_bottom_on_input' besides .true. and .false.
+    integer, parameter, public :: COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL = 2, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS = 3
 
     !> Controls whether input to interpreter causes window to scroll.
-    !> If COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO, then do not scroll.  If
-    !> COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES or COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, scroll all
-    !> windows showing buffer.  If COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, scroll only
+    !> If .false., then do not scroll.  If .true. or
+    !> COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, scroll all windows showing
+    !> buffer.  If COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, scroll only
     !> the selected window.
     !>
-    !> The default is COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO.
+    !> The default is .false.
     !>
     !> See `comint_preinput_scroll_to_bottom'.  This variable is
     !> buffer-local.  Port of comint.el comint-scroll-to-bottom-on-input.
-    type(integer_setting_type), target, public :: comint_scroll_to_bottom_on_input = &
-                                                  integer_setting_type(name="comint_scroll_to_bottom_on_input", &
-                                                                       value=COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO)
+    type(choice_setting_type), target, public :: comint_scroll_to_bottom_on_input = &
+                                                 choice_setting_type(name="comint_scroll_to_bottom_on_input")
 
     !> If true, `comint_insert_previous_argument' counts args from the
     !> end.  If this variable is false, the default,
@@ -465,21 +461,20 @@ module comint_mod
                                                   logical_setting_type(name="comint_insert_previous_argument_from_end", &
                                                                        value=.false.)
 
-    !> Values of `comint_history_isearch'.
-    integer, parameter, public :: COMINT_HISTORY_ISEARCH_NO = 0, COMINT_HISTORY_ISEARCH_DWIM = 1, &
-                                  COMINT_HISTORY_ISEARCH_ALWAYS = 2
+    !> Values of `comint_history_isearch' besides .true. and .false.
+    integer, parameter, public :: COMINT_HISTORY_ISEARCH_DWIM = 2
 
-    !> If not COMINT_HISTORY_ISEARCH_NO, Isearch in input history only,
-    !> not in comint buffer output.  If COMINT_HISTORY_ISEARCH_ALWAYS, usual
+    !> If true, Isearch in input history only,
+    !> not in comint buffer output.  If .true., usual
     !> Isearch keys like \`C-r' and \`C-M-r' in comint mode search in the
     !> input history.  If COMINT_HISTORY_ISEARCH_DWIM, Isearch keys search
     !> in the input history only when initial point position is at the
     !> comint command line.  When starting Isearch from other parts of the
-    !> comint buffer, they search in the comint buffer.  If
-    !> COMINT_HISTORY_ISEARCH_NO, Isearch operates on the whole comint
+    !> comint buffer, they search in the comint buffer.  If .false.,
+    !> Isearch operates on the whole comint
     !> buffer.  Port of comint.el comint-history-isearch.
-    type(integer_setting_type), target, public :: comint_history_isearch = &
-                                                integer_setting_type(name="comint_history_isearch", value=COMINT_HISTORY_ISEARCH_NO)
+    type(choice_setting_type), target, public :: comint_history_isearch = &
+                                                 choice_setting_type(name="comint_history_isearch")
 
     !> Value to use for TERM when the system uses terminfo.
     !> If the system's terminfo database contains a definition for the
@@ -1217,10 +1212,10 @@ contains
         type(handle_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: buffer_name, startfile
-        type(process_arg_type), intent(in), optional :: switches(:)
+        type(string_type), intent(in), optional :: switches(:)
         type(handle_type) :: old
         type(status_type) :: st
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
 
         if (present(buffer_name)) then
             call get_or_make_buffer(buffer_name, result, status)
@@ -1272,7 +1267,7 @@ contains
         type(handle_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: startfile
-        type(process_arg_type), intent(in), optional :: switches(:)
+        type(string_type), intent(in), optional :: switches(:)
 
         call make_comint_in_buffer(name, program, result, status, startfile=startfile, switches=switches)
     end subroutine make_comint
@@ -1292,7 +1287,7 @@ contains
         use window_mod, only: switch_to_buffer
         character(len=*), intent(in) :: program
         type(status_type), intent(out) :: status
-        type(process_arg_type), intent(in), optional :: switches(:)
+        type(string_type), intent(in), optional :: switches(:)
         type(handle_type) :: buffer
         character(len=:), allocatable :: name
 
@@ -1335,10 +1330,10 @@ contains
     recursive subroutine comint_exec(buffer, name, command, switches, status, startfile, environment)
         type(handle_type), intent(in) :: buffer
         character(len=*), intent(in) :: name, command
-        type(process_arg_type), intent(in) :: switches(:)
+        type(string_type), intent(in) :: switches(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: startfile
-        type(process_arg_type), intent(in), optional :: environment(:)
+        type(string_type), intent(in), optional :: environment(:)
         type(handle_type) :: old, process
         type(status_type) :: st
         character(len=:), allocatable :: text
@@ -1406,22 +1401,22 @@ contains
     recursive subroutine comint_exec_1(name, buffer, command, switches, process, status, environment)
         character(len=*), intent(in) :: name, command
         type(handle_type), intent(in) :: buffer
-        type(process_arg_type), intent(in) :: switches(:)
+        type(string_type), intent(in) :: switches(:)
         type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
-        type(process_arg_type), intent(in), optional :: environment(:)
-        type(process_arg_type), allocatable :: env(:), argv(:)
+        type(string_type), intent(in), optional :: environment(:)
+        type(string_type), allocatable :: env(:), argv(:)
         character(len=:), allocatable :: saved_dir
         logical :: had_dir
         integer :: k
 
         call comint_term_environment(env)
-        call append_arg(env, "INSIDE_EMACS="//upstream_version//",comint")
-        if (allocated(comint_pager%value)) call append_arg(env, "PAGER="//comint_pager%value)
+        call append_string(env, "INSIDE_EMACS="//upstream_version//",comint")
+        if (allocated(comint_pager%value)) call append_string(env, "PAGER="//comint_pager%value)
 
         if (present(environment)) then
             do k = 1, size(environment)
-                call append_arg(env, environment(k)%s)
+                call append_string(env, environment(k)%text)
             end do
         end if
 
@@ -1435,10 +1430,10 @@ contains
         end if
 
         allocate (argv(size(switches) + 1))
-        argv(1)%s = command
+        argv(1)%text = command
 
         do k = 1, size(switches)
-            argv(k + 1)%s = switches(k)%s
+            argv(k + 1)%text = switches(k)%text
         end do
 
         call make_process(name, argv, process, status, buffer=buffer, environment=env)
@@ -1455,17 +1450,14 @@ contains
     !> Port of comint.el:comint-term-environment (a system using
     !> terminfo).
     subroutine comint_term_environment(env)
-        type(process_arg_type), allocatable, intent(out) :: env(:)
+        type(string_type), allocatable, intent(out) :: env(:)
         character(len=16) :: cols
         integer :: width
 
         width = 80
         if (selected_frame%selected_window%index /= 0) width = window_text_cols(windows(selected_frame%selected_window%index))
         write (cols, "(i0)") width
-        allocate (env(3))
-        env(1)%s = "TERM="//comint_terminfo_terminal%value
-        env(2)%s = "TERMCAP="
-        env(3)%s = "COLUMNS="//trim(cols)
+        call append_string(env, "TERM="//comint_terminfo_terminal%value, "TERMCAP=", "COLUMNS="//trim(cols))
     end subroutine comint_term_environment
 
     !> Return true if STRING contains non-whitespace syntax.  Port of
@@ -2076,17 +2068,16 @@ contains
     subroutine comint_delim_arg(arg, literal, args)
         character(len=*), intent(in) :: arg
         logical, intent(in) :: literal(:)
-        type(process_arg_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: args(:)
         character(len=:), allocatable :: delims
-        integer :: pos, start, n
+        integer :: pos, start, n, k
         character :: ch
 
         delims = ""
         if (allocated(comint_delimiter_arguments%value)) delims = comint_delimiter_arguments%value
 
         if (len(delims) == 0) then
-            allocate (args(1))
-            args(1)%s = arg
+            call append_string(args, arg)
             return
         end if
 
@@ -2099,10 +2090,8 @@ contains
             start = pos
 
             if (index(delims, ch) > 0 .and. .not. literal(pos)) then
-                do while (pos <= n)
-                    if (arg(pos:pos) /= ch) exit
-                    pos = pos + 1
-                end do
+                k = verify(arg(pos:n), ch)
+                pos = merge(n + 1, pos + k - 1, k == 0)
             else
                 do while (pos <= n)
                     if (index(delims, arg(pos:pos)) > 0 .and. .not. literal(pos)) exit
@@ -2110,7 +2099,7 @@ contains
                 end do
             end if
 
-            call prepend_arg(args, arg(start:pos - 1))
+            call prepend_string(args, arg(start:pos - 1))
         end do
     end subroutine comint_delim_arg
 
@@ -2134,7 +2123,7 @@ contains
         ! strings.  This seems to fit the syntax of BASH 2.0.
         character(len=*), parameter :: ARGPART = "[^ "//achar(10)//achar(9)//"""'`\]\|\(\\.\)\|"// &
                                        "\(""\([^""\]\|\\.\)*""\|'[^']*'\|`[^`]*`\)"
-        type(process_arg_type), allocatable :: args(:), parts(:)
+        type(string_type), allocatable :: args(:), parts(:)
         logical, allocatable :: literal(:)
         type(status_type) :: st
         integer(int64) :: index, mb, me, b1, e1, q
@@ -2208,7 +2197,7 @@ contains
 
         do k = max(n, 0), count - 1 - m
             if (k > max(n, 0)) res = res//" "
-            res = res//args(count - k)%s
+            res = res//args(count - k)%text
         end do
 
     contains
@@ -2219,7 +2208,7 @@ contains
             piece = string(beginning:pos - 1)
 
             if (quotes) then
-                call prepend_arg(args, piece)
+                call prepend_string(args, piece)
             else
                 call comint_delim_arg(piece, literal(beginning:pos - 1), parts)
                 args = [parts, args]
@@ -2321,7 +2310,7 @@ contains
             intxt = copy
         end if
 
-        if (comint_input_autoexpand%value /= COMINT_AUTOEXPAND_INPUT) then
+        if (comint_input_autoexpand%choice /= COMINT_INPUT_AUTOEXPAND_INPUT) then
             ! Just whatever's already there.
             input = intxt
         else
@@ -2330,7 +2319,7 @@ contains
             call buffer_substring(pm, point(), input, st)
         end if
 
-        if (comint_input_autoexpand%value /= COMINT_AUTOEXPAND_HISTORY) then
+        if (comint_input_autoexpand%choice /= COMINT_INPUT_AUTOEXPAND_HISTORY) then
             history = input
         else
             ! This is messy 'cos ultimately the original functions used do
@@ -2391,7 +2380,7 @@ contains
                 ! field to make cursor movement between input and output
                 ! fields smoother.
                 props = list(value_type(name="mouse_face"), value_type(name="highlight"), value_type(name="help_echo"), &
-                             make_string("mouse-2: insert after prompt as new input"))
+                             value_type(text="mouse-2: insert after prompt as new input"))
                 call add_text_properties(beginning, end, props, changed, st)
             end if
         end if
@@ -2485,15 +2474,6 @@ contains
             same_text = t1 == t2 .and. len(t1) == len(t2)
         end function same_text
     end subroutine comint_send_input
-
-    ! Not a port.
-    function make_string(s) result(v)
-        use value_mod, only: value_type
-        character(len=*), intent(in) :: s
-        type(value_type) :: v
-
-        v = value_type(text=s)
-    end function make_string
 
     !> The command: send input to process.  Port of the command of
     !> comint.el:comint-send-input.
@@ -2915,16 +2895,15 @@ contains
         pm = pmark_pos(process)
         if (.not. (wp < pm)) return
 
-        select case (comint_move_point_for_output%value)
-        case (COMINT_MOVE_POINT_FOR_OUTPUT_YES, COMINT_MOVE_POINT_FOR_OUTPUT_ALL)
-            move = .true.
+        select case (comint_move_point_for_output%choice)
         case (COMINT_MOVE_POINT_FOR_OUTPUT_THIS)
             ! Maybe user wants point to jump to end.
             move = same_handle(window, selected_frame%selected_window)
         case (COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS)
             move = .not. same_handle(window, selected_frame%selected_window)
         case default
-            move = .false.
+            ! .true. or COMINT_MOVE_POINT_FOR_OUTPUT_ALL: all windows.
+            move = .not. comint_move_point_for_output%is_off()
         end select
 
         if (.not. move) then
@@ -3379,8 +3358,8 @@ contains
         call interrupt_process(status, current_group=is_comint_pty())
     end subroutine comint_interrupt_subjob
 
-    !> Send stop signal to the current subjob.  Port of
-    !> comint.el:comint-stop-subjob.
+    !> Send kill signal to the current subjob.  Port of
+    !> comint.el:comint-kill-subjob.
     recursive subroutine comint_stop_subjob(status)
         type(status_type), intent(out) :: status
 
@@ -4244,7 +4223,7 @@ contains
     !> one.
     !>
     !> Assumes history syntax is like typical Un*x shells'.  However,
-    !> since Emacs cannot know the interpreter's idea of input line
+    !> since Fortmacs cannot know the interpreter's idea of input line
     !> numbers, assuming it has one, it cannot expand absolute input line
     !> number references.
     !>
@@ -4288,7 +4267,7 @@ contains
         integer :: kind
 
         applies = .false.
-        if (comint_input_autoexpand%value == COMINT_AUTOEXPAND_NO) return
+        if (comint_input_autoexpand%is_off()) return
 
         if (comint_use_prompt_regexp%value) then
             ! Use comint-prompt-regexp
@@ -4331,6 +4310,7 @@ contains
         integer(int64) :: toend, beginning, moved, mb1, me1, mb2, me2, mb4, me4, pos, mb0, me0
         integer :: number, hpos
         logical :: quiet, dry, matched, found
+        character(len=32) :: item_text
 
         status = status_type()
         quiet = .false.
@@ -4388,7 +4368,8 @@ contains
                     call replace_match(comint_args(comint_previous_input_string(number), mb2, me2), st, &
                                        fixedcase=.true., literal=.true.)
                     call set_input_ring_index(number)
-                    call message("History item: "//number_to_string(number + 1))
+                    write (item_text, '("History item: ", i0)') number + 1
+                    call message(trim(item_text))
                 else
                     call goto_char(match_end(0, st))
                     call message("Relative reference exceeds input history size")
@@ -4447,7 +4428,8 @@ contains
                     call set_input_ring_index(hpos)
                     call comint_input_ring_ref(hpos, input)
                     call replace_match(comint_args(input, mb4, me4), st, fixedcase=.true., literal=.true.)
-                    call message("History item: "//number_to_string(hpos + 1))
+                    write (item_text, '("History item: ", i0)') hpos + 1
+                    call message(trim(item_text))
                 end if
             else if (looking_at("\^\([^^]+\)\^?\([^^]*\)\^?", st)) then
                 ! Quick substitution on the previous input line.
@@ -4674,8 +4656,8 @@ contains
         ! Prompt is not empty like in Async Shell Command buffers or in
         ! finished shell buffers
         if (prompt_line_start() == comint_line_beginning_position()) return
-        if (.not. (comint_force_history_isearch .or. comint_history_isearch%value == COMINT_HISTORY_ISEARCH_ALWAYS .or. &
-                   (comint_history_isearch%value == COMINT_HISTORY_ISEARCH_DWIM .and. is_comint_after_pmark()))) return
+        if (.not. (comint_force_history_isearch .or. comint_history_isearch%value .or. &
+                   (comint_history_isearch%choice == COMINT_HISTORY_ISEARCH_DWIM .and. is_comint_after_pmark()))) return
         isearch_message_prefix_add = "history "
         call isearch_search_fun_function%set_local(comint_history_isearch_search)
         call isearch_message_function%set_local(comint_history_isearch_message)
@@ -4841,6 +4823,7 @@ contains
     recursive subroutine comint_history_isearch_message(c_q_hack, ellipsis)
         logical, intent(in) :: c_q_hack, ellipsis
         type(status_type) :: st
+        character(len=32) :: item_text
         integer :: k
 
         if (.not. (isearch_success .and. .not. allocated(isearch_error))) then
@@ -4867,11 +4850,12 @@ contains
         end if
 
         call overlay_put(comint_buffers(k)%history_isearch_message_overlay, "display", &
-                         make_string(isearch_message_prefix(isearch_nonincremental, ellipsis)), st)
+                         value_type(text=isearch_message_prefix(isearch_nonincremental, ellipsis)), st)
 
         if (comint_buffers(k)%input_ring_index >= 0 .and. .not. ellipsis) then
             ! Display the current history index.
-            call message("History item: "//number_to_string(comint_buffers(k)%input_ring_index + 1))
+            write (item_text, '("History item: ", i0)') comint_buffers(k)%input_ring_index + 1
+            call message(trim(item_text))
         else
             ! Or clear a previous isearch message.
             call message("")
@@ -4904,8 +4888,10 @@ contains
     recursive subroutine comint_history_isearch_push_state(data, pop)
         character(len=:), allocatable, intent(out) :: data
         procedure(isearch_pop_procedure), pointer, intent(out) :: pop
+        character(len=20) :: digits
 
-        data = number_to_string(input_ring_index())
+        write (digits, "(i0)") input_ring_index()
+        data = trim(digits)
         pop => comint_history_isearch_pop_state
     end subroutine comint_history_isearch_push_state
 
@@ -4942,8 +4928,8 @@ contains
         integer :: scroll, i
 
         status = status_type()
-        scroll = int(comint_scroll_to_bottom_on_input%value)
-        if (scroll == COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO) return
+        if (comint_scroll_to_bottom_on_input%is_off()) return
+        scroll = comint_scroll_to_bottom_on_input%choice
         ! (Upstream's list also has hilit-yank, which is not ported.)
         if (.not. (associated(this_command, commands%self_insert_command) .or. &
                    associated(this_command, commands%comint_magic_space) .or. associated(this_command, commands%paste))) return
@@ -5133,6 +5119,7 @@ contains
         type(pending_prompt_type) :: pending
         type(handle_type) :: timer
         logical :: saved_fold, matched
+        integer :: b, e
 
         status = status_type()
         text = string_limit_end(without_cr(string), comint_password_prompt_max_length)
@@ -5146,7 +5133,17 @@ contains
             return
         end if
 
-        content = string_trim(match_string(0, text))
+        ! (string-trim (match-string 0 text) "[ \n\r\t\v\f\b\a]+" "\n+")
+        content = match_string(0, text)
+        b = verify(content, " "//achar(10)//achar(13)//achar(9)//achar(11)//achar(12)//achar(8)//achar(7))
+        e = verify(content, achar(10), back=.true.)
+
+        if (b == 0) then
+            content = ""
+        else
+            content = content(b:e)
+        end if
+
         prompt = content
 
         if (len(content) > 0) then
@@ -5204,29 +5201,6 @@ contains
 
             r = s(b:)
         end function string_limit_end
-
-        ! (string-trim S "[ \n\r\t\v\f\b\a]+" "\n+")
-        function string_trim(s) result(r)
-            character(len=*), intent(in) :: s
-            character(len=:), allocatable :: r
-            integer :: b, e
-
-            b = 1
-
-            do while (b <= len(s))
-                if (index(" "//achar(10)//achar(13)//achar(9)//achar(11)//achar(12)//achar(8)//achar(7), s(b:b)) == 0) exit
-                b = b + 1
-            end do
-
-            e = len(s)
-
-            do while (e >= b)
-                if (s(e:e) /= achar(10)) exit
-                e = e - 1
-            end do
-
-            r = s(b:e)
-        end function string_trim
     end subroutine comint_watch_for_password_prompt
 
     ! The timer function of `comint_watch_for_password_prompt': send the

@@ -276,21 +276,21 @@ module coding_mod
     !> such conversion.  Port of coding.c inhibit-eol-conversion.
     type(logical_setting_type), public :: inhibit_eol_conversion = logical_setting_type(name="inhibit_eol_conversion")
 
-    !> If true, Emacs ignores null bytes on code detection.
-    !> By default, Emacs treats it as binary data, and does not attempt to
+    !> If true, Fortmacs ignores null bytes on code detection.
+    !> By default, Fortmacs treats it as binary data, and does not attempt to
     !> decode it.  The effect is as if you specified `no-conversion' for
     !> reading that text.
     !>
     !> Set this to true when a regular text happens to include null bytes.
     !> Examples are Index nodes of Info files and null-byte delimited output
-    !> from GNU Find and GNU Grep.  Emacs will then ignore the null bytes and
+    !> from GNU Find and GNU Grep.  Fortmacs will then ignore the null bytes and
     !> decode text as usual.  Port of coding.c inhibit-null-byte-detection.
     type(logical_setting_type), public :: inhibit_null_byte_detection = logical_setting_type(name="inhibit_null_byte_detection")
 
-    !> If true, Emacs ignores ISO-2022 escape sequences during code detection.
+    !> If true, Fortmacs ignores ISO-2022 escape sequences during code detection.
     !>
-    !> When Emacs reads text, it tries to detect how the text is encoded.
-    !> This code detection is sensitive to escape sequences.  If Emacs sees
+    !> When Fortmacs reads text, it tries to detect how the text is encoded.
+    !> This code detection is sensitive to escape sequences.  If Fortmacs sees
     !> a valid ISO-2022 escape sequence, it assumes the text is encoded in one
     !> of the ISO2022 encodings, and decodes text by the corresponding coding
     !> system (e.g. `iso-2022-7bit').
@@ -4757,18 +4757,6 @@ contains
         end do
     end subroutine consume_chars
 
-    !> The internal (multibyte) form of character C.  Not a port.
-    function internal_bytes(c) result(s)
-        integer, intent(in) :: c
-        character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
-        integer(int32) :: nb
-        type(status_type) :: st
-
-        call char_string(c, buffer, nb, st)
-        s = buffer(1:nb)
-    end function internal_bytes
-
     !> Encode TEXT (Emacs's internal encoding unless MULTIBYTE is false)
     !> by coding system CODING ("" for no-conversion) into the bytes OUT.
     !> USED is the coding system used (`last_coding_system_used').  Port of
@@ -4784,6 +4772,9 @@ contains
         integer(int64) :: n, k, q, code
         integer :: id, eol, c, u, charset, b
         logical :: mb
+        character(len=MAX_MULTIBYTE_LENGTH) :: bytes
+        integer(int32) :: nbytes
+        type(status_type) :: st
 
         out = ""
         used = coding
@@ -4820,7 +4811,8 @@ contains
                 else if (c < 128) then
                     call emit(out, q, char(c))
                 else
-                    call emit(out, q, internal_bytes(c))
+                    call char_string(c, bytes, nbytes, st)
+                    call emit(out, q, bytes(1:nbytes))
                 end if
             end do
         case (CODING_UTF_16)
@@ -4929,7 +4921,8 @@ contains
                 else if (is_char_byte8(c)) then
                     call emit(out, q, char(char_to_byte8(c)))
                 else if (mb) then
-                    call emit(out, q, internal_bytes(c))
+                    call char_string(c, bytes, nbytes, st)
+                    call emit(out, q, bytes(1:nbytes))
                 else
                     u = iand(c, 255)
                     call emit(out, q, char(u))

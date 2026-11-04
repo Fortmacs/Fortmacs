@@ -43,11 +43,11 @@ module buffer_mod
     use value_mod, only: vtag, V_NULL
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                          FM_BUFFER_READ_ONLY, FM_INVALID_HANDLE
-    use handle_mod, only: handle_type, slot_table_type, null_handle
+    use handle_mod, only: handle_type, slot_table_type, null_handle, has_handle, same_handle
     use timefns_mod, only: time_type
     use value_mod, only: value_type, make_symbol_ref
     use names_mod, only: intern
-    use data_mod, only: symbol_value, integer_setting_type, logical_setting_type, function_setting_type
+    use data_mod, only: symbol_value, integer_setting_type, logical_setting_type, function_setting_type, history_setting_type
     use intervals_mod, only: intervals_type, find_interval, textget
     use character_mod, only: bytes_by_char_head, raw_prev_char_len, &
                              string_char_and_length
@@ -131,6 +131,29 @@ module buffer_mod
         procedure :: clear => header_line_clear
     end type header_line_format_type
 
+    abstract interface
+        !> An input method (`input_method_function'): given the character
+        !> KEY just read, the events to use as input (none for none).
+        !> Not a port.
+        recursive subroutine input_method_procedure(key, events, status)
+            import :: value_type, status_type, int64
+            implicit none(type, external)
+            integer(int64), intent(in) :: key
+            type(value_type), allocatable, intent(out) :: events(:)
+            type(status_type), intent(out) :: status
+        end subroutine input_method_procedure
+
+        !> A `deactivate_current_input_method_function' or
+        !> `describe_current_input_method_function'.  Not a port.
+        recursive subroutine current_input_method_procedure(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine current_input_method_procedure
+    end interface
+
+    public :: input_method_procedure, current_input_method_procedure
+
     !> A buffer: its text, positions, mark and undo list, file, local
     !> variables and modes.  Port of buffer.h struct buffer (in part).
     type, public :: buffer_type
@@ -151,6 +174,9 @@ module buffer_mod
         integer :: bidi_paragraph_direction = 0
         !> BVAR read_only.
         logical :: read_only = .false.
+        !> BVAR save_length (`buffer_saved_size'): the length of the buffer
+        !> when it was last read in or saved (0 initially).
+        integer(int64) :: save_length = 0
         !> Upstream sets undo_entries to t (disabled) for names starting with SPC.
         logical :: undo_enabled = .true.
         !> BVAR undo_entries (`buffer_undo_entries'): entries 1 to `undo_count',
@@ -194,6 +220,12 @@ module buffer_mod
         !> mode line (" Git-main"); unallocated when the file is not under
         !> version control.  Permanent-local.
         character(len=:), allocatable :: vc_mode
+        !> window.el's window--sides-shown: true if this buffer was shown
+        !> in a side window once; `switch_to_prev_buffer' and
+        !> `switch_to_next_buffer' then refrain from showing it within the
+        !> main window area.  Buffer-local, cleared with the other local
+        !> variables.
+        logical :: window_sides_shown = .false.
         !> modtime and modtime_size: the visited file's modification time
         !> and size when last read or written.  `modtime_known' is false
         !> for UNKNOWN_MODTIME_NSECS, and `modtime_file_exists' false for
@@ -246,6 +278,12 @@ module buffer_mod
         !> While SEGMENTS is unallocated the mode line shows the default,
         !> the name in `mode_line_buffer_id' padded to 12 columns ("%12b").
         type(header_line_format_type) :: mode_line_buffer_identification
+        !> BVAR mode_line_format (`mode_line_format'), as a string: while
+        !> SEGMENTS is unallocated the mode line is the default one, else
+        !> the text of the segments in the mode line's face (their FACE and
+        !> ALIGN_TO are ignored; the %-constructs and the other
+        !> mode-line-format elements are Deferred).
+        type(header_line_format_type) :: mode_line_format
         !> BVAR mode_name (`mode_name'): the major mode's name for the mode
         !> line.
         character(len=:), allocatable :: mode_name
@@ -253,6 +291,60 @@ module buffer_mod
         !> t, else the list `invisibility_spec'.
         logical :: invisibility_spec_t = .true.
         type(invisibility_entry_type), allocatable :: invisibility_spec(:)
+        !> The current input method for multilingual text.
+        !> If unallocated, that means no input method is activated now.
+        !> Port of mule-cmds.el current-input-method (permanently local,
+        !> as are the input method components below).
+        character(len=:), allocatable :: current_input_method
+        !> Title string of the current input method shown in mode line.
+        !> Port of mule-cmds.el current-input-method-title.
+        character(len=:), allocatable :: current_input_method_title
+        !> Current input method temporarily enabled by
+        !> `activate_transient_input_method'.  If unallocated, that means no
+        !> transient input method is active now.
+        !> Port of mule-cmds.el current-transient-input-method.
+        character(len=:), allocatable :: current_transient_input_method
+        !> The input method that was active before enabling the transient
+        !> input method.  If unallocated, that means no previous input method
+        !> was active.  Port of mule-cmds.el previous-transient-input-method.
+        character(len=:), allocatable :: previous_transient_input_method
+        !> History list of input methods read from the minibuffer, the most
+        !> recent first.
+        !>
+        !> Maximum length of the history list is determined by the value
+        !> of `history_length', which see.
+        !> Port of mule-cmds.el input-method-history.
+        type(history_setting_type) :: input_method_history
+        !> If associated, the procedure that implements the current input
+        !> method.  It's called with one argument, which must be a single-byte
+        !> character that was just read.  Any single-byte character is
+        !> acceptable, except the DEL character, codepoint 127 decimal, 177
+        !> octal.  Typically this procedure uses `read_event' to read
+        !> additional events.  When it does so, it should first nullify
+        !> `input_method_function' so it will not be called recursively.
+        !>
+        !> The procedure should return an array of zero or more events
+        !> to be used as input.  If it wants to put back some events
+        !> to be reconsidered, separately, by the input method,
+        !> it can add them to the beginning of `unread_command_events'.
+        !>
+        !> The input method procedure can find in
+        !> `input_method_previous_message' the previous echo area message.
+        !> Port of keyboard.c input-method-function (null for upstream's
+        !> default `list', which returns the character itself).
+        procedure(input_method_procedure), pointer, nopass :: input_method_function => null()
+        !> Procedure to call for deactivating the current input method.
+        !> Every input method should set this to an appropriate value when
+        !> activated.
+        !>
+        !> This procedure should never change the value of
+        !> `current_input_method'.  It is nullified by the procedure
+        !> `deactivate_input_method'.
+        !> Port of mule-cmds.el deactivate-current-input-method-function.
+        procedure(current_input_method_procedure), pointer, nopass :: deactivate_current_input_method_function => null()
+        !> Procedure to call for describing the current input method.
+        !> Port of mule-cmds.el describe-current-input-method-function.
+        procedure(current_input_method_procedure), pointer, nopass :: describe_current_input_method_function => null()
     end type buffer_type
 
     !> True if Transient Mark mode is enabled.
@@ -334,7 +426,8 @@ module buffer_mod
 
     !> The selected frame's buffer lists (frame.h buffer_list and
     !> buried_buffer_list), most recent first: the buffers selected in
-    !> the frame, and those buried there.  Fortmacs has one frame.
+    !> the frame, and those buried there.  The other frames keep theirs
+    !> (frame_mod:select_frame exchanges them).
     type(handle_type), allocatable :: frame_buffers(:), frame_buried(:)
     integer(int64) :: last_serial = 0
 
@@ -409,7 +502,7 @@ module buffer_mod
     public :: resolve_buffer, is_buffer_live, current_buffer, buffer_handle, auto_fill_procedure, swap_locals_procedure, &
               set_buffer_internal
     public :: get_buffer, get_or_make_buffer, generate_new_buffer_name, get_file_buffer
-    public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer, frame_buffer_list, &
+    public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer, frame_buffer_list, exchange_frame_buffers, &
               frame_seen_buffers, bury_buffer_internal, frames_discard_buffer
     public :: set_buffer, close_buffer, erase_buffer
     public :: is_buffer_modified, restore_buffer_modified, &
@@ -811,8 +904,8 @@ contains
         end if
 
         do k = 1, size(general)
-            if (in_list(frame_buffers, general(k))) cycle
-            if (in_list(frame_buried, general(k))) cycle
+            if (has_handle(frame_buffers, general(k))) cycle
+            if (has_handle(frame_buried, general(k))) cycle
             n = n + 1
             list(n) = general(k)
         end do
@@ -837,44 +930,13 @@ contains
         end if
     end function frame_seen_buffers
 
-    !> Whether `h' is in `list'.  Not a port.
-    logical function in_list(list, h)
-        type(handle_type), allocatable, intent(in) :: list(:)
-        type(handle_type), intent(in) :: h
-
-        in_list = .false.
-        if (.not. allocated(list)) return
-        in_list = any(list%index == h%index .and. list%generation == h%generation)
-    end function in_list
-
-    !> `list' without `h'.  Not a port.
-    subroutine list_delq(list, h)
-        type(handle_type), allocatable, intent(inout) :: list(:)
-        type(handle_type), intent(in) :: h
-        type(handle_type), allocatable :: kept(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-
-        do k = 1, n
-            if (list(k)%index == h%index .and. list(k)%generation == h%generation) then
-                allocate (kept(n - 1))
-                kept(1:k - 1) = list(1:k - 1)
-                kept(k:n - 1) = list(k + 1:n)
-                call move_alloc(kept, list)
-                return
-            end if
-        end do
-    end subroutine list_delq
-
     !> Move H to the front of LIST (removing it elsewhere).  Not a port.
     subroutine move_to_front(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
 
-        call list_delq(list, h)
-        list = [h, list]
+        if (.not. allocated(list)) allocate (list(0))
+        list = [h, pack(list,.not. same_handle(list, h))]
     end subroutine move_to_front
 
     !> Move BUFFER to the end of the buffer list.  Port of
@@ -893,7 +955,7 @@ contains
         end do
 
         ! Update buffer lists of selected frame.
-        call list_delq(frame_buffers, h)
+        if (allocated(frame_buffers)) frame_buffers = pack(frame_buffers,.not. same_handle(frame_buffers, h))
         call move_to_front(frame_buried, h)
         call execute_buffer_list_update_hook(h%index, status)
     end subroutine bury_buffer_internal
@@ -903,9 +965,29 @@ contains
     subroutine frames_discard_buffer(h)
         type(handle_type), intent(in) :: h
 
-        call list_delq(frame_buffers, h)
-        call list_delq(frame_buried, h)
+        if (allocated(frame_buffers)) frame_buffers = pack(frame_buffers,.not. same_handle(frame_buffers, h))
+        if (allocated(frame_buried)) frame_buried = pack(frame_buried,.not. same_handle(frame_buried, h))
     end subroutine frames_discard_buffer
+
+    !> Exchange the selected frame's buffer lists (frame.h buffer_list and
+    !> buried_buffer_list) with SEEN and BURIED: frame_mod's select_frame
+    !> stores the old frame's lists in it and gives this module the new
+    !> frame's.  Buffers closed while the new frame was not selected are
+    !> dropped from its lists here (frame.c:frames_discard_buffer for the
+    !> frames that are not selected).  Not a port.
+    subroutine exchange_frame_buffers(seen, buried)
+        type(handle_type), allocatable, intent(inout) :: seen(:), buried(:)
+        type(handle_type), allocatable :: held(:)
+
+        call move_alloc(frame_buffers, held)
+        call move_alloc(seen, frame_buffers)
+        call move_alloc(held, seen)
+        call move_alloc(frame_buried, held)
+        call move_alloc(buried, frame_buried)
+        call move_alloc(held, buried)
+        if (allocated(frame_buffers)) frame_buffers = pack(frame_buffers, table%is_live(frame_buffers))
+        if (allocated(frame_buried)) frame_buried = pack(frame_buried, table%is_live(frame_buried))
+    end subroutine exchange_frame_buffers
 
     !> Make `h' the current buffer.  Port of buffer.c:Fset_buffer (also
     !> buffer.c:restore_buffer, the same as an unwind function).
@@ -956,7 +1038,7 @@ contains
 
         ! Update buffer list of selected frame.
         call move_to_front(frame_buffers, h)
-        call list_delq(frame_buried, h)
+        if (allocated(frame_buried)) frame_buried = pack(frame_buried,.not. same_handle(frame_buried, h))
         call execute_buffer_list_update_hook(h%index, status)
     end subroutine record_buffer
 

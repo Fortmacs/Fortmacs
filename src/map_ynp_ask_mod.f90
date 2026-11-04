@@ -42,7 +42,7 @@ submodule(map_ynp_mod) map_ynp_ask_mod
     use casefiddle_mod, only: downcase_string
     use insdel_mod, only: insert
     use fns_mod, only: use_short_answers
-    use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
+    use editfns_mod, only: char_to_string
     use help_mod, only: with_help_window
     use subr_mod, only: read_key, query_replace_answer, query_replace_map, init_query_replace_map, QRM_KEYS, &
                         read_y_or_n_use_read_key, read_y_or_n_history_variable, ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, &
@@ -300,7 +300,7 @@ contains
         type(status_type), intent(out) :: status
         type(read_answer_type), allocatable :: with_help(:)
         type(read_answer_type) :: help_answer
-        character(len=:), allocatable :: prompt, msg, string, text
+        character(len=:), allocatable :: prompt, msg, string, text, key
         type(value_type) :: key1(1)
         type(command_type), pointer :: saved_this, saved_real_this
         type(value_type), allocatable :: remap_events(:)
@@ -308,10 +308,10 @@ contains
         logical :: short, has_help, found
         integer :: k
 
-        if (read_answer_short == READ_ANSWER_SHORT_AUTO) then
+        if (read_answer_short%choice == READ_ANSWER_SHORT_AUTO) then
             short = use_short_answers
         else
-            short = read_answer_short == READ_ANSWER_SHORT_YES
+            short = read_answer_short%value
         end if
 
         has_help = .false.
@@ -341,8 +341,10 @@ contains
             end if
 
             if (short) then
-                prompt = prompt//char_string_of(with_help(k)%short)
-                msg = msg//"`"//char_string_of(with_help(k)%short)//"'"
+                call char_to_string(int(with_help(k)%short, int32), key, status)
+                if (.not. status%ok()) return
+                prompt = prompt//key
+                msg = msg//"`"//key//"'"
             else
                 prompt = prompt//with_help(k)%long
                 msg = msg//"`"//with_help(k)%long//"'"
@@ -408,7 +410,8 @@ contains
                     if (k > 1) text = text//","//achar(10)
 
                     if (short) then
-                        text = text//"`"//char_string_of(with_help(k)%short)//"' ("//with_help(k)%long//")"
+                        call char_to_string(int(with_help(k)%short, int32), key, st)
+                        text = text//"`"//key//"' ("//with_help(k)%long//")"
                     else
                         text = text//"`"//with_help(k)%long//"'"
                     end if
@@ -460,18 +463,6 @@ contains
         call message(short_answer_message)
         call sit_for(2000)
     end subroutine answer_reject
-
-    !> The text of character C.  Not a port.
-    function char_string_of(c) result(text)
-        integer, intent(in) :: c
-        character(len=:), allocatable :: text
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
-        integer(int32) :: n
-        type(status_type) :: st
-
-        call char_string(int(c, int32), buffer, n, st)
-        text = buffer(1:n)
-    end function char_string_of
 
     !> The character of event EV, or 0.  Not a port.
     integer(int64) function xfixnum_or_zero(ev) result(c)

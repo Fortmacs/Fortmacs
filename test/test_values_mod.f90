@@ -1,6 +1,7 @@
 ! test_values_mod.f90 -- tests for value_mod, names_mod, data_mod and fns_mod.
-! Ports GNU Emacs 31.1 test/src/fns-tests.el and test/src/data-tests.el
-! in part; only the cases of the ported value functions.
+! Ports GNU Emacs 31.1 test/src/fns-tests.el, test/src/data-tests.el and
+! test/src/lread-tests.el in part; only the cases of the ported value
+! functions.
 !
 ! Copyright (C) 2008-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -20,15 +21,19 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
+!> Ports lread-string-to-number-trailing-dot (the integers int64 holds;
+!> bignums are not applicable, as is data-tests-number-to-string); own
+!> tests of `string_to_number'.
 module test_values_mod
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use value_mod, only: vtag, V_NULL, V_NAME, V_ARRAY, value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, &
-                         FM_SETTING_CONSTANT
+                         FM_SETTING_CONSTANT, FM_ARGS_OUT_OF_RANGE
     use value_mod, only: cons, list, list_elt, list_length, list_tail, make_list, sym_nil, sym_t, value_type, xfixnum, &
                          xstring
     use names_mod, only: intern, intern_soft
+    use data_mod, only: string_to_number
     use data_mod, only: boundp, makunbound, set, symbol_name, &
                         symbol_value, value_eq
     use fns_mod, only: get, plist_get, plist_member, plist_put, &
@@ -55,7 +60,9 @@ contains
                     new_unittest("plist-get/odd-number-of-elements", test_plist_get_odd), &
                     new_unittest("plist-put/odd-number-of-elements", test_plist_put_odd), &
                     new_unittest("test-plist", test_plist), &
-                    new_unittest("get-put", test_get_put) &
+                    new_unittest("get-put", test_get_put), &
+                    new_unittest("lread-string-to-number-trailing-dot", test_string_to_number_trailing_dot), &
+                    new_unittest("string-to-number", test_string_to_number) &
                     ]
     end subroutine collect_values_mod
 
@@ -305,4 +312,74 @@ contains
         call put(value_type(1_int64), value_type(name="p"), value_type(), st)
         call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
     end subroutine test_get_put
+
+    subroutine test_string_to_number_trailing_dot(error)
+        type(error_type), allocatable, intent(out) :: error
+        integer(int64), parameter :: largest = 2_int64**61 - 1
+        integer(int64), parameter :: numbers(9) = [-largest - 2, -largest - 1, -largest, -1_int64, 0_int64, 1_int64, &
+                                                   largest - 1, largest, largest + 1]
+        integer(int64) :: n
+        integer :: k
+        character(len=24) :: text
+
+        do k = 1, size(numbers)
+            write (text, '(i0, ".")') numbers(k)
+            call string_to_number(trim(text), n)
+            call check(error, n == numbers(k), trim(text))
+            if (allocated(error)) return
+        end do
+    end subroutine test_string_to_number_trailing_dot
+
+    !> Leading blanks, trailing text, bases, real syntax, nothing to read.
+    subroutine test_string_to_number(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        integer(int64) :: n
+        real(real64) :: x
+
+        call string_to_number(" "//achar(9)//"12abc", n)
+        call check(error, n == 12, "leading blanks, trailing text")
+        if (allocated(error)) return
+        call string_to_number("-17", n)
+        call check(error, n == -17)
+        if (allocated(error)) return
+        call string_to_number("abc", n)
+        call check(error, n == 0, "nothing to read")
+        if (allocated(error)) return
+        call string_to_number("ff", n, 16)
+        call check(error, n == 255, "base 16")
+        if (allocated(error)) return
+        call string_to_number("1.5", n, 16)
+        call check(error, n == 1, "no real syntax in base 16")
+        if (allocated(error)) return
+        call string_to_number("12", n, 1, st)
+        call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "base out of range")
+        if (allocated(error)) return
+        call string_to_number("1.5", x)
+        call check(error, x == 1.5_real64, "a real")
+        if (allocated(error)) return
+        call string_to_number("1.5", n)
+        call check(error, n == 1, "a real as an integer")
+        if (allocated(error)) return
+        call string_to_number("-.5", x)
+        call check(error, x == -0.5_real64, "no integer part")
+        if (allocated(error)) return
+        call string_to_number("1e3", x)
+        call check(error, x == 1000.0_real64, "an exponent")
+        if (allocated(error)) return
+        call string_to_number("1e", x)
+        call check(error, x == 1.0_real64, "no exponent digits")
+        if (allocated(error)) return
+        call string_to_number("1.0e+INF", x)
+        call check(error, x > huge(x), "infinity")
+        if (allocated(error)) return
+        call string_to_number("-1.0e+INF", x)
+        call check(error, x < -huge(x), "minus infinity")
+        if (allocated(error)) return
+        call string_to_number("99999999999999999999", n)
+        call check(error, n == huge(n), "beyond int64")
+        if (allocated(error)) return
+        call string_to_number("99999999999999999999", x)
+        call check(error, abs(x - 1.0e20_real64) < 1.0e5_real64, "beyond int64, as a real")
+    end subroutine test_string_to_number
 end module test_values_mod

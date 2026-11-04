@@ -37,7 +37,7 @@ module test_bookmark_mod
     use editfns_mod, only: buffer_string, goto_char, point_min, point_max, point
     use cmds_mod, only: forward_line, beginning_of_line, forward_char
     use regexp_opt_mod, only: regexp_unmatchable
-    use fileio_mod, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory, file_attributes
+    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, file_attributes
     use sysdep_mod, only: file_stat_type
     use files_mod, only: create_temp_file, delete_file, find_file_noselect, abbreviate_file_name
     use search_mod, only: string_match, looking_at, re_search_forward
@@ -47,7 +47,7 @@ module test_bookmark_mod
     use subr_mod, only: history_delete_duplicates
     use bindings_mod, only: init_bindings
     use bookmark_mod, only: bookmark_type, bookmarks, bookmark_default_file, bookmark_bookmarks_timestamp, &
-                            bookmark_save_flag, BOOKMARK_SAVE_FLAG_NO, bookmark_use_annotations, &
+                            bookmark_save_flag, bookmark_use_annotations, &
                             bookmark_make_record_function, bookmark_all_names, bookmark_get_bookmark, &
                             bookmark_set_name, bookmark_get_filename, bookmark_set_filename, bookmark_get_position, &
                             bookmark_set_position, bookmark_get_front_context_string, &
@@ -67,7 +67,7 @@ module test_bookmark_mod
                             bookmark_bmenu_unmark, bookmark_bmenu_unmark_all, bookmark_bmenu_delete, &
                             bookmark_bmenu_execute_deletions, bookmark_bmenu_delete_all, bookmark_bmenu_locate, &
                             bookmark_bmenu_filter_bookmarks_by_regexp
-    use minibuf_mod, only: minibuffer_string_type
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -141,7 +141,7 @@ contains
         type(status_type) :: st
 
         call init_fileio()
-        call expand_file_name("test/bookmark-resources", file, st, emacs_wd)
+        call expand_file_name("test/bookmark-resources", file, st, fortmacs_wd)
         file = file_name_as_directory(file)//name
     end function resource_file
 
@@ -186,7 +186,7 @@ contains
         bookmark_bookmarks_timestamp%mtime_known = found
         bookmark_bookmarks_timestamp%mtime_sec = stat%mtime_sec
         bookmark_bookmarks_timestamp%mtime_nsec = stat%mtime_nsec
-        bookmark_save_flag = BOOKMARK_SAVE_FLAG_NO
+        bookmark_save_flag = .false.
         bookmark_use_annotations = .false.
     end subroutine use_default_file
 
@@ -273,7 +273,7 @@ contains
         if (.not. same) return
 
         do k = 1, size(a%defaults)
-            same = same_string(a%defaults(k)%s, b%defaults(k)%s)
+            same = same_string(a%defaults(k)%text, b%defaults(k)%text)
             if (.not. same) return
         end do
 
@@ -294,7 +294,7 @@ contains
     !> Whether the bookmark names are NAMES.
     logical function names_are(names) result(same)
         character(len=*), intent(in) :: names(:)
-        type(minibuffer_string_type), allocatable :: all(:)
+        type(string_type), allocatable :: all(:)
         integer :: k
 
         all = bookmark_all_names()
@@ -302,7 +302,7 @@ contains
         if (.not. same) return
 
         do k = 1, size(names)
-            same = all(k)%s == trim(names(k)) .and. len(all(k)%s) == len_trim(names(k))
+            same = all(k)%text == trim(names(k)) .and. len(all(k)%text) == len_trim(names(k))
             if (.not. same) return
         end do
     end function names_are
@@ -445,8 +445,7 @@ contains
         b%filename = example_file()
         b%front_context_string = "is text file is "
         b%position = 3
-        allocate (b%defaults(1))
-        b%defaults(1)%s = "example.txt"
+        call append_string(b%defaults, "example.txt")
     end function example_record
 
     subroutine make_record_twice(error)
@@ -524,8 +523,7 @@ contains
             call bookmark_make_record(record, st)
             expected%name = "test"
             expected%position = 2
-            allocate (expected%defaults(1))
-            expected%defaults(1)%s = "test"
+            call append_string(expected%defaults, "test")
             call check(error, same_bookmark(record, expected), "position")
         end if
 
@@ -904,10 +902,10 @@ contains
     subroutine test_maybe_rename(error)
         type(error_type), allocatable, intent(out) :: error
         type(bookmark_type) :: bookmark
-        type(minibuffer_string_type) :: names(1)
+        type(string_type) :: names(1)
 
         bookmark%name = "foo"
-        names(1)%s = "foo"
+        names(1)%text = "foo"
         call bookmark_maybe_rename(bookmark, names)
         call check(error, bookmark%name, "foo<2>")
     end subroutine test_maybe_rename

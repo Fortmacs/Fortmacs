@@ -29,7 +29,7 @@ module test_dired_mode_mod
     use bindings_mod, only: init_bindings
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, xstring, vtag, V_STRING
+    use value_mod, only: value_type, xstring, vtag, V_STRING, choice_type
     use textprop_mod, only: get_text_property
     use buffer_mod, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, close_buffer, current_buffer, &
                           is_buffer_live, erase_buffer
@@ -38,19 +38,22 @@ module test_dired_mode_mod
                            line_end_position, delete_region
     use cmds_mod, only: forward_line
     use keyboard_mod, only: unread_command_events, discard_input
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                           write_region, create_directory_internal
     use files_mod, only: find_file_noselect, delete_directory, abbreviate_file_name, is_insert_directory_wildcard_in_dir, &
                          file_relative_name
     use dired_mode_mod, only: dired, dired_noselect, dired_get_filename, dired_goto_file, dired_get_marked_files, &
-                              dired_string_type, dired_toggle_marks, dired_mark_files_regexp, &
+                              dired_toggle_marks, dired_mark_files_regexp, &
                               dired_mark_files_containing_regexp, dired_flag_file_deletion, dired_do_delete, &
                               dired_do_flagged_delete, dired_find_file, dired_up_directory, dired_revert, &
                               dired_create_directory, dired_file_name_at_point, dired_buffers_for_dir, &
                               dired_sort_toggle, dired_unmark_all_files, dired_mark_1, dired_insert_directory, &
                               dired_deletion_confirmer, dired_auto_revert_buffer, dired_always_read_filesystem, &
-                              dired_free_space, DIRED_FREE_SPACE_SEPARATE, &
+                              dired_free_space, DIRED_FREE_SPACE_SEPARATE, dired_switches_in_mode_line, &
+                              DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, DIRED_SWITCHES_IN_MODE_LINE_AS_IS, &
                               DIRED_LOCALP_ABSOLUTE, DIRED_LOCALP_RELATIVE, DIRED_LOCALP_NO_DIR, DIRED_ARG_NONE
+    use string_type_mod, only: string_type
+    use data_mod, only: choice_state
     implicit none(type, external)
     private
 
@@ -90,7 +93,7 @@ contains
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     !> A fresh, empty test directory; *scratch* current and shown alone.
@@ -103,7 +106,7 @@ contains
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         call show_alone()
         call kill_dired_buffers()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
@@ -213,7 +216,7 @@ contains
     !> The file names (relative) of the marked files, joined by spaces.
     function marked_names() result(s)
         character(len=:), allocatable :: s
-        type(dired_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         type(status_type) :: st
         integer :: k
 
@@ -222,7 +225,7 @@ contains
 
         do k = 1, size(files)
             if (k > 1) s = s//" "
-            s = s//files(k)%s
+            s = s//files(k)%text
         end do
     end function marked_names
 
@@ -446,9 +449,36 @@ contains
             if (allocated(error)) exit body
             call dired_sort_toggle(st)
             call check(error, buffers(current)%mode_name, "Dired by name")
+            if (allocated(error)) exit body
+            ! The other values of `dired_switches_in_mode_line'.
+            dired_switches_in_mode_line%characters = 0
+            call dired_sort_toggle(st)
+            call check(error, buffers(current)%mode_name, "Dired")
+            if (allocated(error)) exit body
+            dired_switches_in_mode_line = DIRED_SWITCHES_IN_MODE_LINE_AS_IS
+            call check(error, dired_switches_in_mode_line%characters < 0, "number cleared")
+            if (allocated(error)) exit body
+            call dired_sort_toggle(st)
+            call check(error, index(buffers(current)%mode_name, "Dired -") == 1, buffers(current)%mode_name)
+            if (allocated(error)) exit body
+            dired_switches_in_mode_line%procedure => switches_length
+            call dired_sort_toggle(st)
+            call check(error, buffers(current)%mode_name(1:len("Dired length ")), "Dired length ")
         end block body
 
+        dired_switches_in_mode_line = DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER
         call teardown()
+
+    contains
+
+        subroutine switches_length(switches, text)
+            character(len=*), intent(in) :: switches
+            character(len=:), allocatable, intent(out) :: text
+            character(len=8) :: digits
+
+            write (digits, "(i0)") len(switches)
+            text = "length "//trim(digits)
+        end subroutine switches_length
     end subroutine test_sort_toggle
 
     !> Keys typed in a Dired buffer: m, n, u and t.
@@ -514,7 +544,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: fbuf
         type(status_type) :: st
-        type(dired_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         logical :: one
 
         call setup()
@@ -529,7 +559,7 @@ contains
             call dired_get_marked_files(files, st, distinguish_one_marked=.true., one_marked=one)
             call check(error, one .and. size(files) == 1, "one marked")
             if (allocated(error)) exit body
-            call check(error, files(1)%s, tdir()//"test")
+            call check(error, files(1)%text, tdir()//"test")
             call close_buffer(fbuf, st)
         end block body
 
@@ -727,7 +757,7 @@ contains
 
     !> The number of marked files.
     integer function marked_count()
-        type(dired_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         type(status_type) :: st
         logical :: one
 
@@ -812,14 +842,14 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: text
-        integer :: saved
+        type(choice_type) :: saved
 
         call setup()
         call make_file("foo", "")
         call make_file("bar", "")
         call get_or_make_buffer("files-tests--insert-directory", buffer, st)
         call set_buffer(buffer, st)
-        saved = dired_free_space
+        saved = choice_state(dired_free_space)
         dired_free_space = DIRED_FREE_SPACE_SEPARATE
         call dired_insert_directory(tdir(), "-l", st)
         dired_free_space = saved

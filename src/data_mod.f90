@@ -34,13 +34,15 @@
 !> `(TEST VALUE)').  Dynamic binding (`let'), variable watchers and
 !> aliases are not here yet.
 module data_mod
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_nan, ieee_value, ieee_positive_inf, ieee_quiet_nan
     use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
-                         FM_VOID_VARIABLE, FM_SETTING_CONSTANT, FM_VOID_FUNCTION
+                         FM_VOID_VARIABLE, FM_SETTING_CONSTANT, FM_VOID_FUNCTION, FM_ARGS_OUT_OF_RANGE
     use value_mod, only: list, list_elt, list_tail, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
                          V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol, V_STRING
     use names_mod, only: ensure_obarray
-    use value_mod, only: command_procedure, command_type, value_type
+    use value_mod, only: command_procedure, command_type, value_type, set_choice_state, is_choice_off, choice_type
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -68,6 +70,18 @@ module data_mod
         procedure :: local_p => is_setting_local
         !> Start giving the current buffer its own value.
         procedure :: make_local => setting_make_local
+        !> Forget the value's other kinds that an extension adds (a
+        !> procedure, R6-37; a number or a string in a named component,
+        !> R6-39); every assignment calls it.  This type has none.
+        procedure :: clear_kinds => setting_clear_kinds
+        !> The Fortran text of a value of another kind that is set
+        !> (`a procedure set by the configuration', `%lines = 5'), for the
+        !> help commands; "" when the main value is the value.
+        procedure :: other_value => setting_other_value
+        !> The Fortran text of the standard value when the module's setup
+        !> set it (a procedure given at startup, not in the declaration),
+        !> for the help commands' "Original value"; "" otherwise.
+        procedure :: standard_value => setting_standard_value
     end type setting_type
 
     !> An integer setting.
@@ -116,6 +130,77 @@ module data_mod
         procedure, private :: set_local_function => function_set_local
     end type function_setting_type
 
+    !> The most named constants a choice setting accepts.  Not a port.
+    integer, parameter, public :: MAX_CHOICES = 12
+
+    !> A setting with more than two states (R6-38): `=' takes .true. and
+    !> .false. for its on and off states (upstream t and nil) and its
+    !> named constants for the others:
+    !>
+    !>     compilation_scroll_output = .true.
+    !>     compilation_scroll_output = COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
+    !>
+    !> Fortran code reads on and off as `%value' and the other states as
+    !> `%choice == X_CONSTANT' (a named state has `%value' .false.: the
+    !> two words of value_mod's `choice_type').
+    !> .true. and .false. mean what the option's name plainly
+    !> says (R6-46); an upstream t with a special meaning is a named
+    !> constant.  An option whose value can also be a function (R6-37), a
+    !> number or a string (R6-39) is an extension of this type with a
+    !> `procedure' component, set with `=>', or an allocatable component
+    !> named for what the value is (`%lines = 5'); assigning with `='
+    !> clears them (`clear_kinds').
+    !>
+    !> The object also says which values it accepts (panel 2026-11-04):
+    !> `choices', its named constants (filled by docstrings_mod's
+    !> `init_choice_values' from the "Values of `x'" parameter statements,
+    !> once `choices_declared' is set), and `true_valid' and `false_valid',
+    !> given in its declaration when .true. or .false. is not one of its
+    !> states.  Assigning anything else leaves the state as it was and
+    !> records an error in `setting_errors', which loading the init file
+    !> and `set_variable' report.  Not a port.
+    type, extends(setting_type), public :: choice_setting_type
+        !> On (.true.) or off (.false.); .false. in a named state.
+        logical :: value = .false.
+        !> The named constant of the state; 0 for on and off.
+        integer :: choice = 0
+        !> The named constants it accepts (unused entries 0), once
+        !> `choices_declared' is set; any constant before.
+        integer :: choices(MAX_CHOICES) = 0
+        logical :: choices_declared = .false.
+        !> Whether .true. and .false. are states of it.
+        logical :: true_valid = .true., false_valid = .true.
+    contains
+        generic :: assignment(=) => assign_choice, assign_logical, assign_state
+        generic :: set_local => set_local_choice, set_local_logical, set_local_setting
+        procedure, private :: assign_choice => choice_assign_choice, assign_logical => choice_assign_logical
+        procedure, private :: assign_state => choice_assign_state
+        procedure, private :: set_local_choice => choice_set_local_choice
+        procedure, private :: set_local_logical => choice_set_local_logical
+        procedure, private :: set_local_setting => choice_set_local_setting
+        !> Whether the state is off: neither on, a named constant nor a
+        !> value of another kind (upstream nil; any other state is
+        !> `.not. x%is_off()').
+        procedure :: is_off => is_choice_setting_off
+        !> The value of another kind (R6-39) that is set, as the value a
+        !> buffer keeps of a forwarded setting (data_buffer_mod); FOUND is
+        !> false when none is set.  This type has none.
+        procedure :: get_kind_value => choice_get_kind_value
+        !> Set the value of another kind that V, a value a buffer kept,
+        !> holds; DONE is false when V is none.  This type has none.
+        procedure :: set_kind_value => choice_set_kind_value
+        !> The assignment that sets the number or the procedure an extension
+        !> takes, shown when NUMBER (a number, or "N") is rejected
+        !> ("a number of columns is `x%columns = 0'"); "" for none.
+        procedure :: kind_hint => choice_kind_hint
+    end type choice_setting_type
+
+    !> The errors of rejected assignments to choice settings, oldest first
+    !> ("sh_indent_for_fi: 0 is not a value of this option; ..."), for
+    !> the init file's loading and `set_variable' to report and clear.
+    !> Not a port.
+    type(string_type), allocatable, public :: setting_errors(:)
+
     !> The `%length' of a history that uses `history_length'.  Not a port.
     integer, parameter, public :: HISTORY_LENGTH_DEFAULT = -huge(0)
     !> The `%length' of a history that is never truncated (upstream's
@@ -137,11 +222,6 @@ module data_mod
     !> history-delete-duplicates.
     logical, public :: history_delete_duplicates = .false.
 
-    !> One entry of a history.
-    type, public :: history_item_type
-        character(len=:), allocatable :: text
-    end type history_item_type
-
     !> A history list: the strings a prompt offers with M-p and M-n, newest
     !> first.  A prompt names its history (read_from_minibuffer's HISTORY),
     !> which `find_history' finds through the settings registry:
@@ -156,7 +236,7 @@ module data_mod
     !> `history-length' property).
     type, extends(setting_type), public :: history_setting_type
         !> The entries, newest first.
-        type(history_item_type), allocatable :: items(:)
+        type(string_type), allocatable :: items(:)
         !> The maximum length: HISTORY_LENGTH_DEFAULT uses `history_length',
         !> HISTORY_LENGTH_UNLIMITED never truncates.
         integer :: length = HISTORY_LENGTH_DEFAULT
@@ -195,13 +275,26 @@ module data_mod
     !> The settings forwarded with `forward_setting'.
     type(forwarded_ref_type), allocatable :: forwarded(:)
 
-    public :: forward_setting, find_history, number_to_string
+    public :: forward_setting, find_history, choice_state
 
-    !> The decimal text of the integer N (as `write' with "(i0)").  Port
-    !> of data.c:Fnumber_to_string (integers).
-    interface number_to_string
-        module procedure number_to_string_int, number_to_string_int64
-    end interface number_to_string
+    public :: string_to_number
+
+    !> Parse STRING as a decimal number and return the number.
+    !> Ignore leading spaces and tabs, and all trailing chars.  Return 0 if
+    !> STRING cannot be parsed as an integer or floating point number.
+    !>
+    !> If BASE, interpret STRING as a number in that base.  If BASE isn't
+    !> present, base 10 is used.  BASE must be between 2 and 16 (inclusive).
+    !> If the base used is not 10, STRING is always parsed as an integer.
+    !>
+    !> `call string_to_number(string, number, base, status)': NUMBER is an
+    !> integer(int64) or a real(real64); a BASE out of range is an
+    !> `args_out_of_range' error condition in STATUS (with STATUS absent the
+    !> caller guarantees it; NUMBER is then 0).  Port of
+    !> data.c:Fstring_to_number.
+    interface string_to_number
+        module procedure string_to_number_int64, string_to_number_real64
+    end interface string_to_number
 
     public :: check_fixnum, check_symbol, check_string, check_list
     public :: value_eq
@@ -390,7 +483,8 @@ module data_mod
 
         !> Set SYMBOL's default value to VALUE.  SYMBOL and VALUE are evaluated.
         !> The default value is seen in buffers that do not have their own values
-        !> for this variable.  Port of data.c:Fset_default.  (In
+        !> for this variable.  Port of data.c:Fset_default
+        !> (set_default_internal).  (In
         !> data_buffer_mod.)
         module subroutine set_default(symbol, v, status)
             implicit none(type, external)
@@ -440,27 +534,219 @@ module data_mod
 
 contains
 
-    !> The decimal text of N, a default integer.  Port of
-    !> data.c:Fnumber_to_string (an integer).
-    pure function number_to_string_int(n) result(text)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: text
-        character(len=11) :: buffer
+    !> STRING as an integer: a real number converted with `int'
+    !> (truncated; a NaN gives 0), an integer beyond int64 the nearest
+    !> int64 (upstream's bignums are not applicable).  Port of
+    !> data.c:Fstring_to_number.
+    subroutine string_to_number_int64(string, number, base, status)
+        character(len=*), intent(in) :: string
+        integer(int64), intent(out) :: number
+        integer, intent(in), optional :: base
+        type(status_type), intent(out), optional :: status
+        real(real64) :: x
+        logical :: is_float
 
-        write (buffer, "(i0)") n
-        text = trim(buffer)
-    end function number_to_string_int
+        call string_to_number_parse(string, number, x, is_float, base, status)
+        if (.not. is_float) return
 
-    !> The decimal text of N.  Port of data.c:Fnumber_to_string (an
-    !> integer).
-    pure function number_to_string_int64(n) result(text)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: text
-        character(len=20) :: buffer
+        if (ieee_is_nan(x)) then
+            number = 0
+        else if (x >= 2.0_real64**63) then
+            number = huge(0_int64)
+        else if (x < -2.0_real64**63) then
+            number = -huge(0_int64) - 1
+        else
+            number = int(x, int64)
+        end if
+    end subroutine string_to_number_int64
 
-        write (buffer, "(i0)") n
-        text = trim(buffer)
-    end function number_to_string_int64
+    !> STRING as a real value: the real number upstream returns, or its
+    !> integer converted with `real'.  Port of data.c:Fstring_to_number.
+    subroutine string_to_number_real64(string, number, base, status)
+        character(len=*), intent(in) :: string
+        real(real64), intent(out) :: number
+        integer, intent(in), optional :: base
+        type(status_type), intent(out), optional :: status
+        integer(int64) :: n
+        logical :: is_float
+
+        call string_to_number_parse(string, n, number, is_float, base, status)
+    end subroutine string_to_number_real64
+
+    !> Parse STRING as `string_to_number' does: N (and X) for integer
+    !> syntax, X with IS_FLOAT for real syntax in base 10, both 0 if it is
+    !> neither.  Port of data.c:Fstring_to_number and
+    !> lread.c:string_to_number.
+    subroutine string_to_number_parse(string, n, x, is_float, base, status)
+        character(len=*), intent(in) :: string
+        integer(int64), intent(out) :: n
+        real(real64), intent(out) :: x
+        logical, intent(out) :: is_float
+        integer, intent(in), optional :: base
+        type(status_type), intent(out), optional :: status
+        integer :: b, cp, first, digit, ios
+        real(real64) :: value
+        logical :: negative, signed, lead_int, trail_int, e_exp, overflow, value_known
+        character(len=11) :: digits
+
+        n = 0
+        x = 0
+        is_float = .false.
+        b = 10
+
+        if (present(base)) then
+            if (.not. (base >= 2 .and. base <= 16)) then
+                write (digits, "(i0)") base
+                if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(digits))
+                return
+            end if
+
+            b = base
+        end if
+
+        ! Ignore leading spaces and tabs.
+        first = verify(string, " "//achar(9))
+        if (first == 0) return
+        cp = first
+        negative = string(cp:cp) == "-"
+        signed = negative .or. string(cp:cp) == "+"
+        if (signed) cp = cp + 1
+        value = 0
+        value_known = .false.
+        lead_int = .false.
+        trail_int = .false.
+        e_exp = .false.
+        overflow = .false.
+
+        do while (cp <= len(string))
+            digit = digit_to_number(string(cp:cp), b)
+            if (digit < 0) exit
+            lead_int = .true.
+
+            if (n > (huge(0_int64) - digit)/b) then
+                overflow = .true.
+            else
+                n = n*b + digit
+            end if
+
+            x = x*b + digit
+            cp = cp + 1
+        end do
+
+        if (cp <= len(string)) then
+            if (string(cp:cp) == ".") cp = cp + 1
+        end if
+
+        if (b == 10) then
+            do while (cp <= len(string))
+                if (verify(string(cp:cp), "0123456789") /= 0) exit
+                trail_int = .true.
+                cp = cp + 1
+            end do
+
+            call parse_exponent()
+            ! A float has digits after the dot or an exponent.
+            ! This excludes numbers like "1." which are lexed as integers.
+            is_float = trail_int .or. (lead_int .and. e_exp)
+        end if
+
+        if (is_float) then
+            ! Convert to floating point, unless the value is already known
+            ! because it is infinite or a NaN.
+            if (.not. value_known) then
+                read (string(merge(first + 1, first, signed):cp - 1), *, iostat=ios) value
+                if (ios /= 0) value = 0
+            end if
+
+            x = merge(-value, value, negative)
+            n = 0
+            return
+        end if
+
+        if (.not. lead_int) then
+            n = 0
+            x = 0
+            return
+        end if
+
+        if (overflow) n = huge(0_int64)
+
+        if (negative) then
+            n = -n
+            if (overflow) n = n - 1
+            x = -x
+        end if
+
+        if (.not. overflow) x = real(n, real64)
+
+    contains
+
+        !> Skip an exponent (e or E, an optional sign and digits, or +INF
+        !> and +NaN for an infinity and a NaN).
+        subroutine parse_exponent()
+            integer :: ecp
+
+            if (cp > len(string)) return
+            if (string(cp:cp) /= "e" .and. string(cp:cp) /= "E") return
+            ecp = cp
+            cp = cp + 1
+
+            if (cp <= len(string)) then
+                if (string(cp:cp) == "+" .or. string(cp:cp) == "-") cp = cp + 1
+            end if
+
+            if (cp <= len(string)) then
+                if (verify(string(cp:cp), "0123456789") == 0) then
+                    e_exp = .true.
+
+                    do while (cp <= len(string))
+                        if (verify(string(cp:cp), "0123456789") /= 0) exit
+                        cp = cp + 1
+                    end do
+
+                    return
+                end if
+            end if
+
+            if (string(cp - 1:cp - 1) == "+" .and. cp + 2 <= len(string)) then
+                if (string(cp:cp + 2) == "INF") then
+                    e_exp = .true.
+                    cp = cp + 3
+                    value = ieee_value(value, ieee_positive_inf)
+                    value_known = .true.
+                    return
+                else if (string(cp:cp + 2) == "NaN") then
+                    e_exp = .true.
+                    cp = cp + 3
+                    value = ieee_value(value, ieee_quiet_nan)
+                    value_known = .true.
+                    return
+                end if
+            end if
+
+            cp = ecp
+        end subroutine parse_exponent
+    end subroutine string_to_number_parse
+
+    !> The value of digit C in BASE, or -1 if it is not one.  Port of
+    !> lread.c:digit_to_number.
+    pure integer function digit_to_number(c, base) result(digit)
+        character, intent(in) :: c
+        integer, intent(in) :: base
+
+        select case (c)
+        case ("0":"9")
+            digit = iachar(c) - iachar("0")
+        case ("a":"z")
+            digit = iachar(c) - iachar("a") + 10
+        case ("A":"Z")
+            digit = iachar(c) - iachar("A") + 10
+        case default
+            digit = -1
+        end select
+
+        if (digit >= base) digit = -1
+    end function digit_to_number
 
     !> Make the variable named after setting S stand for S, as the
     !> built-in settings do: its value is S's, `make_local_variable' and
@@ -535,12 +821,39 @@ contains
         is_setting_local = is_local_variable(value_type(name=trim(self%name)))
     end function is_setting_local
 
-    !> Forget voidness: the Fortran value is the value now.  Not a port.
+    !> Forget voidness and the value's other kinds: the Fortran value is
+    !> the value now.  Not a port.
     subroutine settled(self)
         class(setting_type), intent(inout) :: self
 
         self%void = .false.
+        call self%clear_kinds()
     end subroutine settled
+
+    !> Nothing to forget: this type has no other kinds.  Not a port.
+    subroutine setting_clear_kinds(self)
+        class(setting_type), intent(inout) :: self
+
+        if (self%void) return
+    end subroutine setting_clear_kinds
+
+    !> "": the declaration gives the standard value.  Not a port.
+    function setting_standard_value(self) result(text)
+        class(setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (self%void) return
+    end function setting_standard_value
+
+    !> "": this type has no other kinds.  Not a port.
+    function setting_other_value(self) result(text)
+        class(setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (self%void) return
+    end function setting_other_value
 
     ! Not a port.
     subroutine integer_assign_int(self, v)
@@ -588,7 +901,7 @@ contains
 
         call self%make_local()
         self%value = v%value
-        self%void = .false.
+        call settled(self)
     end subroutine integer_set_local_setting
 
     ! Not a port.
@@ -647,6 +960,189 @@ contains
         self%command => null()
         call settled(self)
     end subroutine function_set_local
+
+    !> None: this type has no other kinds.  Not a port.
+    subroutine choice_get_kind_value(self, v, found)
+        class(choice_setting_type), intent(in) :: self
+        type(value_type), intent(out) :: v
+        logical, intent(out) :: found
+
+        found = .false.
+        v = value_type()
+        if (self%void) return
+    end subroutine choice_get_kind_value
+
+    !> None: this type has no other kinds.  Not a port.
+    subroutine choice_set_kind_value(self, v, done)
+        class(choice_setting_type), intent(inout) :: self
+        type(value_type), intent(in) :: v
+        logical, intent(out) :: done
+
+        done = .false.
+        if (self%void .or. .not. allocated(v%a)) return
+    end subroutine choice_set_kind_value
+
+    ! Not a port.
+    logical function is_choice_setting_off(self)
+        class(choice_setting_type), intent(in) :: self
+
+        is_choice_setting_off = is_choice_off(self%value, self%choice) .and. len(self%other_value()) == 0
+    end function is_choice_setting_off
+
+    !> Set the state to STATE, a `choice_type' (as `choice_state' gives
+    !> it).  Not a port.
+    subroutine choice_assign_state(self, state)
+        class(choice_setting_type), intent(inout) :: self
+        type(choice_type), intent(in) :: state
+
+        self%value = state%value
+        self%choice = state%choice
+        call settled(self)
+    end subroutine choice_assign_state
+
+    !> The state of choice setting S as a `choice_type', to keep or pass
+    !> on: `saved = choice_state(x)', later `x = saved'.  Not a port.
+    function choice_state(s) result(state)
+        class(choice_setting_type), intent(in) :: s
+        type(choice_type) :: state
+
+        state%value = s%value
+        state%choice = s%choice
+    end function choice_state
+
+    !> Give the current buffer its own state, the state of V (as
+    !> `(setq-local SELF V)').  Port of subr.el:setq-local.
+    subroutine choice_set_local_setting(self, v)
+        class(choice_setting_type), intent(inout) :: self
+        class(choice_setting_type), intent(in) :: v
+
+        call self%make_local()
+        self%value = v%value
+        self%choice = v%choice
+        call settled(self)
+    end subroutine choice_set_local_setting
+
+    !> Set the state to the named constant NAMED, if it is one of SELF's
+    !> (else record the error and keep the state).  Not a port.
+    subroutine choice_assign_choice(self, named)
+        class(choice_setting_type), intent(inout) :: self
+        integer, intent(in) :: named
+        logical :: accepted
+
+        call check_choice(self, named, accepted)
+        if (.not. accepted) return
+        call set_choice_state(self%value, self%choice, named=named)
+        call settled(self)
+    end subroutine choice_assign_choice
+
+    !> Set the choice to its on (.true.) or off (.false.) state.
+    !> Not a port.
+    subroutine choice_assign_logical(self, on)
+        class(choice_setting_type), intent(inout) :: self
+        logical, intent(in) :: on
+        logical :: accepted
+
+        call check_logical(self, on, accepted)
+        if (.not. accepted) return
+        call set_choice_state(self%value, self%choice, on=on)
+        call settled(self)
+    end subroutine choice_assign_logical
+
+    !> Whether NAMED is one of SELF's named constants (ACCEPTED); records
+    !> the error when it is not.  Not a port.
+    subroutine check_choice(self, named, accepted)
+        class(choice_setting_type), intent(in) :: self
+        integer, intent(in) :: named
+        logical, intent(out) :: accepted
+        character(len=40) :: digits
+
+        accepted = .true.
+
+        if (self%choices_declared) then
+            ! (0, the mark of unused entries, is never a named constant.)
+            accepted = named /= 0 .and. any(self%choices == named)
+
+            if (.not. accepted) then
+                write (digits, "(i0)") named
+                call reject_choice(self, trim(digits))
+            end if
+        end if
+    end subroutine check_choice
+
+    !> Whether ON (.true. or .false.) is a state of SELF (ACCEPTED);
+    !> records the error when it is not.  Not a port.
+    subroutine check_logical(self, on, accepted)
+        class(choice_setting_type), intent(in) :: self
+        logical, intent(in) :: on
+        logical, intent(out) :: accepted
+
+        if (on) then
+            accepted = self%true_valid
+            if (.not. accepted) call reject_choice(self, ".true.")
+        else
+            accepted = self%false_valid
+            if (.not. accepted) call reject_choice(self, ".false.")
+        end if
+    end subroutine check_logical
+
+    !> Record that VALUE (as Fortran) is not a value of choice setting
+    !> SELF, with the right assignment when SELF takes a number or a procedure.
+    !> Not a port.
+    subroutine reject_choice(self, value)
+        class(choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: value
+        type(string_type) :: error
+        character(len=:), allocatable :: hint
+
+        if (value(1:1) == ".") then
+            hint = self%kind_hint("N")
+        else
+            hint = self%kind_hint(value)
+        end if
+
+        error%text = trim(self%name)//": "//value//" is not a value of this option"
+        if (len(hint) > 0) error%text = error%text//"; "//hint
+        if (.not. allocated(setting_errors)) allocate (setting_errors(0))
+        setting_errors = [setting_errors, error]
+    end subroutine reject_choice
+
+    !> None: this type takes no number or procedure.  Not a port.
+    function choice_kind_hint(self, number) result(text)
+        class(choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (self%void .and. len(number) < 0) text = number
+    end function choice_kind_hint
+
+    !> Give the current buffer its own state, the named constant NAMED.
+    !> Port of subr.el:setq-local.
+    subroutine choice_set_local_choice(self, named)
+        class(choice_setting_type), intent(inout) :: self
+        integer, intent(in) :: named
+        logical :: accepted
+
+        call check_choice(self, named, accepted)
+        if (.not. accepted) return
+        call self%make_local()
+        call set_choice_state(self%value, self%choice, named=named)
+        call settled(self)
+    end subroutine choice_set_local_choice
+
+    !> Give the current buffer its own on (.true.) or off (.false.)
+    !> state.  Port of subr.el:setq-local.
+    subroutine choice_set_local_logical(self, on)
+        class(choice_setting_type), intent(inout) :: self
+        logical, intent(in) :: on
+        logical :: accepted
+
+        call check_logical(self, on, accepted)
+        if (.not. accepted) return
+        call self%make_local()
+        call set_choice_state(self%value, self%choice, on=on)
+        call settled(self)
+    end subroutine choice_set_local_logical
 
     ! ------------------------------------------------------------------
     ! Type checks (lisp.h CHECK_*)
@@ -780,7 +1276,7 @@ contains
 
     !> Give `symbol' the value `newval'.  Constants (nil, t, keywords)
     !> signal setting-constant, except a keyword set to itself.
-    !> Port of data.c:Fset / set_internal (global value only).
+    !> Port of data.c:Fset (data.c:set_internal; global value only).
     recursive subroutine set(symbol, newval, status)
         type(value_type), intent(in) :: symbol, newval
         type(status_type), intent(out) :: status
@@ -902,7 +1398,7 @@ contains
         integer, intent(in), optional :: maxelt
         logical, intent(in), optional :: keep_all
         logical, intent(out), optional :: added
-        type(history_item_type), allocatable :: kept(:)
+        type(string_type), allocatable :: kept(:)
         logical :: all
         integer :: limit, k, n
 

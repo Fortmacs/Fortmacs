@@ -23,13 +23,16 @@
 !> `add_to_history', and the match data helpers (`match_string',
 !> `string_matches', `is_looking_at', `looking_back').
 module subr_mod
-    use error_mod, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP, FM_VOID_VARIABLE
+    use error_mod, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP, FM_VOID_VARIABLE, FM_GENERIC_ERROR
     use callint_mod, only: prefix_arg_type
     use timefns_mod, only: current_time, real
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use value_mod, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, &
+    use value_mod, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, command_type, &
                          list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
-    use data_mod, only: symbol_value, set, value_eq, history_setting_type, find_history, history_length, history_delete_duplicates
+    use data_mod, only: symbol_value, set, value_eq, history_setting_type, find_history, history_length, &
+                        history_delete_duplicates, string_to_number
+    use character_mod, only: string_char_and_length
+    use casetab_mod, only: downcase
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_modified, restore_buffer_modified, &
                           invisibility_entry_type
@@ -45,7 +48,7 @@ module subr_mod
     use search_mod, only: string_match, looking_at, re_search_backward, match_beginning, match_end, &
                           re_search_forward, SEARCH_MOVE, regexp_quote, &
                           is_match_in_string, string_index_to_offset, SEARCH_NOERROR, match_data, &
-                          set_match_data, match_data_translate, replace_match
+                          set_match_data, match_data_translate, replace_match, case_fold_search
     use syntax_mod, only: skip_syntax_backward
     use editfns_mod, only: buffer_substring, point, goto_char, point_min, point_max, narrow_to_region, widen
     implicit none(type, external)
@@ -56,7 +59,7 @@ module subr_mod
               find_tag_default_as_regexp, find_tag_default_as_identifier_regexp
     public :: make_progress_reporter, progress_reporter_update, progress_reporter_done
     public :: replace_string_in_region, replace_regexp_in_region
-    public :: add_to_invisibility_spec, remove_from_invisibility_spec
+    public :: add_to_invisibility_spec, remove_from_invisibility_spec, bounds_of_identifier_at_point
     public :: read_char_from_minibuffer, read_char_choice, shell_quote_argument
 
     !> A numerical progress reporter (`make_progress_reporter' with
@@ -99,6 +102,48 @@ module subr_mod
     type(hook_type), public, target :: after_change_major_mode_hook = hook_type(name="after_change_major_mode_hook")
     public :: match_string, match_string_no_properties, string_matches, is_looking_at, looking_back, &
               match_substitute_replacement, is_subregexp_context
+
+    !> A version, as `version' gives it from a version string: upstream's
+    !> version-to-list result, with the status of the parse.  Compare two
+    !> with the operators <, <=, ==, /=, >= and >.
+    type, public :: version_type
+        !> The version as an array of integers ("1.0pre2" is [1, 0, -1, 2]).
+        integer(int64), allocatable :: numbers(:)
+        !> An `error' error condition for invalid version syntax.
+        type(status_type) :: status
+    end type version_type
+    public :: version
+    public :: operator(<), operator(<=), operator(>), operator(>=), operator(==), operator(/=)
+
+    !> Version V1 lower (older) than V2.
+    interface operator(<)
+        module procedure version_less
+    end interface operator(<)
+
+    !> Version V1 lower (older) than or equal to V2.
+    interface operator(<=)
+        module procedure version_less_or_equal
+    end interface operator(<=)
+
+    !> Version V1 higher (newer) than V2.
+    interface operator(>)
+        module procedure version_greater
+    end interface operator(>)
+
+    !> Version V1 higher (newer) than or equal to V2.
+    interface operator(>=)
+        module procedure version_greater_or_equal
+    end interface operator(>=)
+
+    !> Version V1 equal to V2.
+    interface operator(==)
+        module procedure version_equal
+    end interface operator(==)
+
+    !> Version V1 not equal to V2.
+    interface operator(/=)
+        module procedure version_not_equal
+    end interface operator(/=)
 
     !> Give KEY a global binding as COMMAND (a command name or any key
     !> definition).
@@ -160,6 +205,49 @@ module subr_mod
     !> Name of the history list to add `read_y_or_n' answers to (unallocated for
     !> no history).  Port of subr.el y-or-n-p-history-variable.
     character(len=:), allocatable, public :: read_y_or_n_history_variable
+
+    abstract interface
+        !> A SWITCH_FUNCTION of `compose_mail': switch to and display the
+        !> buffer named BUFFER_NAME, made if needed.  Not a port.
+        recursive subroutine mail_switch_procedure(buffer_name, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: buffer_name
+            type(status_type), intent(out) :: status
+        end subroutine mail_switch_procedure
+
+        !> The COMPOSEFUNC of a mail user agent: compose an outgoing mail
+        !> message buffer with the arguments of `compose_mail'.  Not a port.
+        recursive subroutine mail_compose_procedure(status, to, subject, continue, switch_function)
+            import :: status_type, mail_switch_procedure
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: to, subject
+            logical, intent(in), optional :: continue
+            procedure(mail_switch_procedure), optional :: switch_function
+        end subroutine mail_compose_procedure
+    end interface
+    public :: mail_switch_procedure, mail_compose_procedure
+
+    !> A mail-sending package for `mail_user_agent' (upstream a name
+    !> with the attributes `define_mail_user_agent' sets): its name, the
+    !> procedure that composes a message, the commands that send it and
+    !> abort it, and the hook run before it is sent.
+    type, public :: mail_user_agent_type
+        character(len=64) :: name = ""
+        !> COMPOSEFUNC.
+        procedure(mail_compose_procedure), pointer, nopass :: compose => null()
+        !> SENDFUNC, the command a user would run to send the message.
+        type(command_type), pointer :: send => null()
+        !> ABORTFUNC, the command a user would run to abort the message
+        !> (`close_buffer' unless given).
+        type(command_type), pointer :: abort => null()
+        !> HOOKVAR, run before the message is actually sent (null for none).
+        type(hook_type), pointer :: hook => null()
+    contains
+        !> Define the agent (`define_mail_user_agent').
+        procedure :: define => define_mail_user_agent
+    end type mail_user_agent_type
 
     !> What `silent_modifications_begin' changed, for
     !> `silent_modifications_end' to restore (the bindings of
@@ -274,7 +362,7 @@ module subr_mod
         !> Read from the minibuffer and return a numeric value, prompting with PROMPT.
         !> DEFAULT specifies a default value to return if the user just types RET.
         !> For historical reasons, the value of DEFAULT is always inserted into
-        !> PROMPT, so it's recommended to use `format' instead of `format_prompt'
+        !> PROMPT, so it's recommended to use `format_text' instead of `format_prompt'
         !> to generate PROMPT.  HIST specifies a history list variable.  See
         !> `read_from_minibuffer' for details of the HIST argument.
         !>
@@ -365,7 +453,7 @@ module subr_mod
         !>
         !> As long as this handle is still in use, do not call procedures
         !> which edit the undo list: if it no longer contains its current
-        !> value, Emacs will not be able to cancel the change group.  Port of
+        !> value, Fortmacs will not be able to cancel the change group.  Port of
         !> subr.el:prepare-change-group (the current buffer; a group of several
         !> buffers is Deferred).  (In subr_change_group_mod.)
         module subroutine prepare_change_group(handle)
@@ -400,6 +488,45 @@ module subr_mod
     end interface
 
 contains
+
+    !> Define the agent, named NAME, to identify a mail-sending package for
+    !> `mail_user_agent'.
+    !>
+    !> COMPOSE is a procedure that composes an outgoing
+    !> mail message buffer.  This procedure should set up the basics of the
+    !> buffer without requiring user interaction.  It should populate the
+    !> standard mail headers, leaving the `to:' and `subject:' headers blank
+    !> by default.
+    !>
+    !> COMPOSE should accept several optional arguments--the same
+    !> arguments that `compose_mail' takes.  See that function's documentation.
+    !>
+    !> SEND is the command a user would run to send the message.
+    !>
+    !> Optional ABORT is the command a user would run to abort the
+    !> message.  For mail packages that don't have a separate abort function,
+    !> this can be `close_buffer' (the equivalent of omitting this argument).
+    !>
+    !> Optional HOOK is a hook that gets run before the message
+    !> is actually sent.  Callers that use the `mail_user_agent' may
+    !> install a hook function temporarily on this hook.  Port of
+    !> subr.el:define-mail-user-agent.
+    subroutine define_mail_user_agent(self, name, compose, send, abort, hook)
+        class(mail_user_agent_type), intent(inout) :: self
+        character(len=*), intent(in) :: name
+        procedure(mail_compose_procedure) :: compose
+        type(command_type), intent(in), target :: send
+        type(command_type), intent(in), target, optional :: abort
+        type(hook_type), intent(in), target, optional :: hook
+
+        self%name = name
+        self%compose => compose
+        self%send => send
+        self%abort => commands%close_buffer
+        if (present(abort)) self%abort => abort
+        self%hook => null()
+        if (present(hook)) self%hook => hook
+    end subroutine define_mail_user_agent
 
     !> Replace STRING with REPLACEMENT in the region from START to END.
     !> The number of replaced occurrences is returned in MATCHES (0 if
@@ -994,6 +1121,236 @@ contains
 
         found = string_match(regexp, string, status, start, inhibit_modify=.true.) > 0
     end function string_matches
+
+    !> The version that version string TEXT gives, as an array of
+    !> integers (the NUMBERS component).  Compare two versions with the
+    !> operators <, <=, ==, /=, >= and >: version(a) <= version(b).
+    !>
+    !> The version syntax is given by the following EBNF:
+    !>
+    !>    VERSION ::= NUMBER ( SEPARATOR NUMBER )*.
+    !>
+    !>    NUMBER ::= (0|1|2|3|4|5|6|7|8|9)+.
+    !>
+    !>    SEPARATOR ::= "." (upstream's version-separator)
+    !>                | a match for version-regexp-alist.
+    !>
+    !> The NUMBER part is optional if SEPARATOR is a match for an element
+    !> of version-regexp-alist: "snapshot", a lone "-", "_", "." or "+",
+    !> "cvs", "git", "bzr", "svn", "hg", "darcs" and "unknown" give -4,
+    !> "alpha" -3, "beta" -2, "pre" and "rc" -1, each after an optional
+    !> "-", ".", "_", "+" or space, ignoring case.  A single letter at
+    !> the end, after an optional separator, gives its place in the
+    !> alphabet (22.3a is 22.3.1).
+    !>
+    !> Examples of valid version syntax:
+    !>
+    !>    1.0pre2   1.0.7.5   22.8beta3   0.9alpha1   6.9.30Beta   2.4.snapshot   .5
+    !>
+    !> Examples of invalid version syntax:
+    !>
+    !>    1.0prepre2   1.0..7.5   22.8X3   alpha3.2
+    !>
+    !> Examples of version conversion:
+    !>
+    !>    Version String    Version as an Array of Integers
+    !>    ".5"              [0, 5]
+    !>    "0.9 alpha"       [0, 9, -3]
+    !>    "0.9AlphA1"       [0, 9, -3, 1]
+    !>    "0.9snapshot"     [0, 9, -4]
+    !>    "1.0-git"         [1, 0, -4]
+    !>    "1.0.7.5"         [1, 0, 7, 5]
+    !>    "1.0.cvs"         [1, 0, -4]
+    !>    "1.0PRE2"         [1, 0, -1, 2]
+    !>    "1.0pre2"         [1, 0, -1, 2]
+    !>    "22.8 Beta3"      [22, 8, -2, 3]
+    !>    "22.8beta3"       [22, 8, -2, 3]
+    !>
+    !> Invalid syntax is an `error' error condition in the result's STATUS
+    !> component, which makes every comparison false except `/='.
+    !> Port of subr.el:version-to-list (with version-separator and
+    !> version-regexp-alist).
+    type(version_type) function version(text) result(v)
+        character(len=*), intent(in) :: text
+        ! version-regexp-alist, in its order.
+        character(len=*), parameter :: separator_regexps(7) = [character(len=48) :: &
+                                                               "^[-._+ ]?snapshot$", "^[-._+]$", &
+                                                               "^[-._+ ]?\(cvs\|git\|bzr\|svn\|hg\|darcs\)$", "^[-._+ ]?unknown$", &
+                                                               "^[-._+ ]?alpha$", "^[-._+ ]?beta$", "^[-._+ ]?\(pre\|rc\)$"]
+        integer(int64), parameter :: priorities(7) = [-4, -4, -4, -4, -3, -2, -1]
+        character(len=*), parameter :: DIGITS = "0123456789"
+        character(len=:), allocatable :: normalized, s, letter
+        integer(int64), allocatable :: saved(:)
+        integer(int64) :: number
+        integer(int32) :: c, clen
+        integer :: i, e, k
+        logical :: saved_fold, matched
+
+        allocate (v%numbers(0))
+        normalized = text
+        ! Change .x.y to 0.x.y
+        if (index(normalized, ".") == 1) normalized = "0"//normalized
+
+        if (.not. string_matches("^[0-9]", normalized, v%status)) then
+            call set_error(v%status, FM_GENERIC_ERROR, "Invalid version syntax: `"//text//"' (must start with a number)")
+            return
+        end if
+
+        ! save-match-data, and ignore case in matching.
+        saved = match_data()
+        saved_fold = case_fold_search%value
+        case_fold_search = .true.
+        i = 1
+
+        ! Parse the version string up to a separator until there are none
+        ! left.
+        do while (i <= len(normalized))
+            e = verify(normalized(i:), DIGITS) - 1
+            if (e == -1) e = len(normalized) - i + 1
+            if (e == 0) exit
+            call string_to_number(normalized(i:i + e - 1), number)
+            v%numbers = [v%numbers, number]
+            i = i + e
+            if (i > len(normalized)) exit
+            ! The non-numeric part.
+            e = scan(normalized(i:), DIGITS) - 1
+            if (e == -1) e = len(normalized) - i + 1
+            s = normalized(i:i + e - 1)
+            i = i + e
+            ! The alpha, beta, pre, etc. separator.
+            if (s == ".") cycle
+
+            do k = 1, size(separator_regexps)
+                if (string_matches(trim(separator_regexps(k)), s, v%status)) exit
+            end do
+
+            if (k <= size(separator_regexps)) then
+                v%numbers = [v%numbers, priorities(k)]
+                cycle
+            end if
+
+            ! Convert 22.3a to 22.3.1, 22.3b to 22.3.2, etc., but only if
+            ! the letter is the end of the version string, to avoid 22.8X3
+            ! being valid.
+            matched = .false.
+
+            if (i > len(normalized)) then
+                if (string_match("^[-._+ ]?\([a-zA-Z]\)$", s, v%status) > 0) then
+                    letter = match_string(1, s, matched)
+                end if
+            end if
+
+            if (.not. matched) then
+                call set_error(v%status, FM_GENERIC_ERROR, "Invalid version syntax: `"//text//"'")
+                exit
+            end if
+
+            call string_char_and_length(letter, 1_int64, c, clen)
+            v%numbers = [v%numbers, int(downcase(c) - iachar("a") + 1, int64)]
+        end do
+
+        case_fold_search = saved_fold
+        call set_match_data(saved)
+    end function version
+
+    !> Return true if version V1 is lower (older) than V2.
+    !>
+    !> Note that version "1" is equal to "1.0", "1.0.0", "1.0.0.0", etc.
+    !> That is, the trailing ".0"s are insignificant.  Also, version "1"
+    !> is higher (newer) than "1pre", which is higher than "1beta", which
+    !> is higher than "1alpha", which is higher than "1snapshot".  Also,
+    !> "-GIT", "-CVS" and "-NNN" are treated as snapshot versions.  False
+    !> when either has invalid version syntax.  The operator `<' between
+    !> two `version_type' values.  Port of subr.el:version< and
+    !> version-list-<.
+    elemental logical function version_less(v1, v2) result(less)
+        type(version_type), intent(in) :: v1, v2
+
+        less = .false.
+        if (v1%status%ok() .and. v2%status%ok()) less = version_order(v1%numbers, v2%numbers) < 0
+    end function version_less
+
+    !> Return true if version V1 is lower (older) than or equal to V2
+    !> (see `version_less').  False when either has invalid version
+    !> syntax.  The operator `<=' between two `version_type' values.
+    !> Port of subr.el:version<= and version-list-<=.
+    elemental logical function version_less_or_equal(v1, v2) result(less)
+        type(version_type), intent(in) :: v1, v2
+
+        less = .false.
+        if (v1%status%ok() .and. v2%status%ok()) less = version_order(v1%numbers, v2%numbers) <= 0
+    end function version_less_or_equal
+
+    !> Return true if version V1 is higher (newer) than V2 (see
+    !> `version_less').  False when either has invalid version syntax.
+    !> The operator `>' between two `version_type' values.  Port of
+    !> subr.el:version< (with its arguments swapped).
+    elemental logical function version_greater(v1, v2) result(greater)
+        type(version_type), intent(in) :: v1, v2
+
+        greater = version_less(v2, v1)
+    end function version_greater
+
+    !> Return true if version V1 is higher (newer) than or equal to V2
+    !> (see `version_less').  False when either has invalid version
+    !> syntax.  The operator `>=' between two `version_type' values.
+    !> Port of subr.el:version<= (with its arguments swapped).
+    elemental logical function version_greater_or_equal(v1, v2) result(greater)
+        type(version_type), intent(in) :: v1, v2
+
+        greater = version_less_or_equal(v2, v1)
+    end function version_greater_or_equal
+
+    !> Return true if version V1 is equal to V2.
+    !>
+    !> Note that version "1" is equal to "1.0", "1.0.0", "1.0.0.0", etc.
+    !> That is, the trailing ".0"s are insignificant.  Also, version "1"
+    !> is higher (newer) than "1pre", which is higher than "1beta", which
+    !> is higher than "1alpha", which is higher than "1snapshot".  Also,
+    !> "-GIT", "-CVS" and "-NNN" are treated as snapshot versions.  False
+    !> when either has invalid version syntax.  The operator `==' between
+    !> two `version_type' values.  Port of subr.el:version= and
+    !> version-list-=.
+    elemental logical function version_equal(v1, v2) result(equal)
+        type(version_type), intent(in) :: v1, v2
+
+        equal = .false.
+        if (v1%status%ok() .and. v2%status%ok()) equal = version_order(v1%numbers, v2%numbers) == 0
+    end function version_equal
+
+    !> Return true unless version V1 is equal to V2 (`version_equal'):
+    !> true when either has invalid version syntax, as `/=' is for an
+    !> IEEE NaN.  The operator `/=' between two `version_type' values.
+    !> Port of subr.el:version= (negated).
+    elemental logical function version_not_equal(v1, v2) result(not_equal)
+        type(version_type), intent(in) :: v1, v2
+
+        not_equal = .not. version_equal(v1, v2)
+    end function version_not_equal
+
+    !> -1, 0 or 1 as version array L1 is lower than, equal to or higher
+    !> than L2, past their common part comparing the rest of the longer
+    !> one's first non-zero element (version-list-not-zero) to 0.  Port of
+    !> subr.el:version-list-<, version-list-<=, version-list-= and
+    !> version-list-not-zero (their common comparison).
+    pure integer function version_order(l1, l2) result(order)
+        integer(int64), intent(in) :: l1(:), l2(:)
+        integer :: k, n
+
+        n = min(size(l1), size(l2))
+        k = findloc(l1(1:n) /= l2(1:n), .true., dim=1)
+        order = 0
+
+        if (k > 0) then
+            order = merge(-1, 1, l1(k) < l2(k))
+        else if (size(l1) > n) then
+            k = findloc(l1(n + 1:) /= 0, .true., dim=1)
+            if (k > 0) order = merge(-1, 1, l1(n + k) < 0)
+        else if (size(l2) > n) then
+            k = findloc(l2(n + 1:) /= 0, .true., dim=1)
+            if (k > 0) order = merge(1, -1, l2(n + k) < 0)
+        end if
+    end function version_order
 
     !> Same as `looking_at' except this function does not change the match
     !> data.  Port of subr.el:looking-at-p.

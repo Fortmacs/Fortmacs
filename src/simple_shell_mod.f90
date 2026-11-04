@@ -50,7 +50,7 @@
 !> `major_mode' other than Fundamental mode in `set_buffer_major_mode'.
 submodule(simple_mod) simple_shell_mod
     use value_mod, only: xstring, xfixnum, make_buffer_ref, vtag, V_STRING, value_type
-    use data_mod, only: integer_setting_type, logical_setting_type
+    use data_mod, only: integer_setting_type, logical_setting_type, choice_setting_type
     use buffer_mod, only: get_buffer, get_or_make_buffer, set_buffer, current_buffer, is_buffer_live, erase_buffer, &
                           generate_new_buffer_name, rename_buffer
     use search_mod, only: string_match
@@ -60,19 +60,20 @@ submodule(simple_mod) simple_shell_mod
     use fileio_mod, only: expand_file_name, file_exists, file_attributes, file_stat_type, insert_file_contents, &
                           delete_file_internal, report_file_errno
     use files_mod, only: temporary_file_directory, abbreviate_file_name, file_relative_name
-    use sysdep_mod, only: emacs_mkostemp, close_fd
+    use sysdep_mod, only: fortmacs_mkostemp, close_fd
     use callproc_mod, only: execute_process, execute_process_region, shell_file_name, init_callproc
     use window_mod, only: window_type, windows, get_buffer_window, display_buffer, set_window_point
     use frame_mod, only: selected_frame
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, is_keymap_live
-    use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, minibuffer_string_type
+    use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map
     use help_mod, only: register_keymap_name
     use fns_mod, only: read_yes_or_no
-    use process_mod, only: process_arg_type, append_arg, prepend_arg, make_process, get_buffer_process, stop_process, &
+    use process_mod, only: make_process, get_buffer_process, stop_process, &
                            process_status, process_buffer, process_command, set_process_sentinel, set_process_filter
     use comint_mod, only: comint_output_filter, comint_term_environment
     use shell_mod, only: shell_command_mode
     use xdisp_mod, only: set_mode_line_process, mode_line_part_type
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
 
     !> The processes of asynchronous shell commands whose buffer is to be
@@ -96,7 +97,7 @@ contains
     !> to `shell_command_history'.  Port of simple.el:read-shell-command
     !> (without shell completion).
     module procedure read_shell_command
-    type(minibuffer_string_type) :: defaults(1)
+    type(string_type) :: defaults(1)
     character(len=:), allocatable :: hist
 
     hist = "shell_command_history"
@@ -107,7 +108,7 @@ contains
                                                                      status)
 
     if (present(default)) then
-        defaults(1)%s = default
+        defaults(1)%text = default
         call read_from_minibuffer(prompt, result, status, initial_input=initial_input, keymap=minibuffer_local_shell_command_map, &
                                   history=hist, defaults=defaults, position=position, history_position=history_position)
     else
@@ -130,17 +131,19 @@ contains
         buffers(current)%read_only = .false.
         pos = 0
 
-        select case (shell_command_keep_output%value)
-        case (SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT)
-            if (.not. output_to_current_buffer) pos = point()
-        case (SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT)
-            if (.not. output_to_current_buffer) pos = point_max()
-        case (SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT)
-            call erase_buffer(st)
-        case (SHELL_COMMAND_KEEP_OUTPUT_NO)
+        if (shell_command_keep_output%is_off()) then
             if (.not. output_to_current_buffer) call erase_buffer(st)
-        case default
-        end select
+        else
+            select case (shell_command_keep_output%choice)
+            case (SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT)
+                if (.not. output_to_current_buffer) pos = point()
+            case (SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT)
+                if (.not. output_to_current_buffer) pos = point_max()
+            case (SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT)
+                call erase_buffer(st)
+            case default
+            end select
+        end if
 
         if (pos /= 0) then
             call goto_char(point_max())
@@ -161,7 +164,7 @@ contains
         integer(int64) :: pos, pmax
         integer :: k
 
-        if (shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_NO) return
+        if (shell_command_keep_output%is_off()) return
         pos = 0
 
         if (allocated(shell_command_saved_pos)) then
@@ -186,9 +189,9 @@ contains
         ! The first time we run a command in a freshly created buffer we
         ! have not saved positions yet; advance to `point_max', so that
         ! successive commands know where to start.
-        if (pos == 0 .or. .not. (shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT &
-                                 .or. shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT &
-                                 .or. shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT)) pos = pmax
+        if (pos == 0 .or. .not. (shell_command_keep_output%choice == SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT &
+                                 .or. shell_command_keep_output%choice == SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT &
+                                 .or. shell_command_keep_output%choice == SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT)) pos = pmax
 
         ! Set point in the window displaying buffer, if any; otherwise in the
         ! buffer.
@@ -220,7 +223,7 @@ contains
         call expand_file_name("scorXXXXXX", pattern, status, temporary_file_directory())
         if (.not. status%ok()) return
         file = pattern
-        err = emacs_mkostemp(file, fd)
+        err = fortmacs_mkostemp(file, fd)
 
         if (err /= 0) then
             call report_file_errno("Creating file with prefix", pattern(1:len(pattern) - 6), err, status)
@@ -262,7 +265,7 @@ contains
     !> to put the output in some other buffer.  If OUTPUT_BUFFER is a
     !> buffer or buffer name, erase that buffer and insert the output
     !> there; a value of `shell_command_keep_output' other than
-    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents the buffer from being
+    !> .false. or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents the buffer from being
     !> erased.  If INSERT_HERE is true (which happens
     !> interactively when the prefix argument is given), insert the output
     !> in current buffer after point leaving mark after it.  This cannot be
@@ -406,7 +409,7 @@ contains
         character(len=*), intent(in), optional :: output_buffer_name
         logical, intent(in) :: insert_here
         type(handle_type) :: buffer, process, old, win
-        type(process_arg_type), allocatable :: env(:), argv(:)
+        type(string_type), allocatable :: env(:), argv(:)
         type(mode_line_part_type) :: parts(1)
         type(status_type) :: st
         character(len=:), allocatable :: command, bname, directory
@@ -420,20 +423,9 @@ contains
 
         ! Remove the ampersand and test if the command is not empty before
         ! creating a new buffer.
-        k = len(command_in)
-
-        do while (k >= 1)
-            if (command_in(k:k) /= " " .and. command_in(k:k) /= achar(9)) exit
-            k = k - 1
-        end do
-
-        k = k - 1
-
-        do while (k >= 1)
-            if (command_in(k:k) /= " " .and. command_in(k:k) /= achar(9)) exit
-            k = k - 1
-        end do
-
+        ! (The last non-blank character is the `&'; the command ends before it.)
+        k = verify(command_in, " "//achar(9), back=.true.) - 1
+        k = verify(command_in(1:k), " "//achar(9), back=.true.)
         command = command_in(1:k)
 
         if (len(command) == 0) then
@@ -498,19 +490,16 @@ contains
 
         if (async_shell_command_width%value >= 0) then
             write (cols, "(i0)") async_shell_command_width%value
-            call append_arg(env, "COLUMNS="//trim(cols))
+            call append_string(env, "COLUMNS="//trim(cols))
         end if
 
         block
-            type(process_arg_type), allocatable :: term(:)
+            type(string_type), allocatable :: term(:)
             call comint_term_environment(term)
             env = [env, term]
         end block
 
-        allocate (argv(3))
-        argv(1)%s = shell_program()
-        argv(2)%s = shell_switch()
-        argv(3)%s = command
+        call append_string(argv, shell_program(), shell_switch(), command)
         call make_process("Shell", argv, process, status, buffer=buffer, environment=env)
 
         if (.not. status%ok()) then
@@ -625,7 +614,7 @@ contains
     end subroutine display_then_filter
 
     module procedure shell_command_sentinel
-    type(process_arg_type), allocatable :: cmd(:)
+    type(string_type), allocatable :: cmd(:)
     character(len=:), allocatable :: state
 
     status = status_type()
@@ -635,7 +624,7 @@ contains
     call process_command(process, cmd)
 
     if (size(cmd) >= 3 .and. len(signal) >= 1) then
-        call message(cmd(3)%s//": "//signal(1:len(signal) - 1)//".")
+        call message(cmd(3)%text//": "//signal(1:len(signal) - 1)//".")
     end if
     end procedure shell_command_sentinel
 
@@ -702,13 +691,7 @@ contains
         integer :: k
 
         is_async_command = .false.
-        k = len(command)
-
-        do while (k >= 1)
-            if (command(k:k) /= " " .and. command(k:k) /= achar(9)) exit
-            k = k - 1
-        end do
-
+        k = verify(command, " "//achar(9), back=.true.)
         if (k < 1) return
         is_async_command = command(k:k) == "&"
     end function is_async_command
@@ -854,7 +837,7 @@ contains
     !> Optional OUTPUT_BUFFER (or OUTPUT_BUFFER_NAME) specifies where to
     !> put the command's output: erase that buffer and insert the output
     !> there; a value of `shell_command_keep_output' other than
-    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents erasing the buffer.  If
+    !> .false. or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents erasing the buffer.  If
     !> absent, use the buffer
     !> specified by
     !> `shell_command_buffer_name'.  A true INSERT_HERE means to insert the
@@ -934,8 +917,8 @@ contains
         use_current = same_buffer(buffer, current_buffer())
 
         if (use_current) then
-            use_current = shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_NO .or. &
-                          shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT
+            use_current = shell_command_keep_output%is_off() .or. &
+                          shell_command_keep_output%choice == SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT
 
             if (.not. use_current) then
                 use_current = .not. same_buffer(buffer, get_buffer(shell_command_buffer_name)) .and. &

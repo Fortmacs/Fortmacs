@@ -47,6 +47,7 @@ module tabulated_list_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xstring, xfixnum, string_intervals, vtag, V_INTEGER, V_STRING
+    use fns_mod, only: is_string_less
     use data_mod, only: append_locals_clearer
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
@@ -812,26 +813,10 @@ contains
                 sorter = locals(k)%format(n)%test(x, y)
             else
                 ! Default sorter checks column N:
-                sorter = string_less(x%cols(n)%text, y%cols(n)%text)
+                sorter = is_string_less(x%cols(n)%text, y%cols(n)%text)
             end if
         end function sorter
     end function sorts_before
-
-    ! string<: by character code (the order of the UTF-8 bytes).
-    ! Not a port.
-    pure logical function string_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k
-
-        do k = 1, min(len(a), len(b))
-            if (a(k:k) /= b(k:k)) then
-                string_less = iachar(a(k:k)) < iachar(b(k:k))
-                return
-            end if
-        end do
-
-        string_less = len(a) < len(b)
-    end function string_less
 
     ! The sort column of local K (0 for no sorter: no sort key, or an
     ! unsortable column).
@@ -1711,6 +1696,10 @@ contains
         call major_modes%tabulated_list_mode%define("tabulated_list_mode", "Tabulated", tabulated_list_mode, &
                                                     tabulated_list_mode_hook, parent=major_modes%special_mode)
         tabulated_list_mode_map = major_modes%tabulated_list_mode%map
+        ! The keys of the other parent, button-buffer-map (no composed keymaps).
+        call keymap_set(tabulated_list_mode_map, "TAB", "forward_button", st)
+        call keymap_set(tabulated_list_mode_map, "ESC TAB", "backward_button", st)
+        call keymap_set(tabulated_list_mode_map, "<backtab>", "backward_button", st)
         call keymap_set(tabulated_list_mode_map, "n", "next_line", st)
         call keymap_set(tabulated_list_mode_map, "p", "previous_line", st)
         call keymap_set(tabulated_list_mode_map, "M-<left>", "tabulated_list_previous_column", st)

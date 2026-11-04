@@ -65,7 +65,7 @@ module replace_mod
     use value_mod, only: value_type, make_list, xstring, list_elements, list_length, list_elt, vtag, V_INTEGER, &
                          V_STRING
     use fns_mod, only: count_characters
-    use data_mod, only: number_to_string, value_eq, symbol_value, set, history_setting_type, forward_setting
+    use data_mod, only: value_eq, symbol_value, set, history_setting_type, forward_setting
     use buffer_mod, only: barf_if_buffer_read_only
     use marker_mod, only: make_marker, set_marker, marker_position, destroy_marker
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, buffer_substring, &
@@ -84,9 +84,9 @@ module replace_mod
                         ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, ANSWER_EDIT, &
                         ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, ANSWER_DIFF, &
                         ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN
-    use isearch_mod, only: search_upper_case, SEARCH_UPPER_CASE_NO, search_whitespace_regexp, &
+    use isearch_mod, only: search_upper_case, search_whitespace_regexp, &
                            is_isearch_no_upper_case, word_search_regexp
-    use minibuf_mod, only: read_from_minibuffer, read_string, history_append_new_input, minibuffer_string_type
+    use minibuf_mod, only: read_from_minibuffer, read_string, history_append_new_input
     use keyboard_mod, only: this_command, unread_command_events, sit_for, recursive_edit
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use simple_mod, only: push_mark, is_use_region, deactivate_mark
@@ -130,6 +130,7 @@ module replace_mod
     use xfaces_mod, only: is_face_differs_from_default
     use faces_mod, only: named_face_type, display_when, face_attrs, init_faces, FACE_CLASS_COLOR, FACE_CLASS_MONO, &
                          FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -509,14 +510,16 @@ contains
         character(len=*), intent(in) :: to
         integer(int64), intent(in) :: count
         character(len=:), allocatable :: text
+        character(len=20) :: digits
         integer :: at, from
 
         text = ""
         from = 1
         at = find_directive(to, 1, "#")
+        write (digits, "(i0)") count
 
         do while (at > 0)
-            text = text//to(from:at - 1)//number_to_string(count)
+            text = text//to(from:at - 1)//trim(digits)
             from = at + 2
             at = find_directive(to, from, "#")
         end do
@@ -584,24 +587,24 @@ contains
     !> Append `s' to the list `list' (allocated, `n' used) unless absent.
     !> Not a port.
     subroutine append_string(list, n, s)
-        type(minibuffer_string_type), allocatable, intent(inout) :: list(:)
+        type(string_type), allocatable, intent(inout) :: list(:)
         integer, intent(inout) :: n
         character(len=*), intent(in) :: s
-        type(minibuffer_string_type), allocatable :: grown(:)
+        type(string_type), allocatable :: grown(:)
         integer :: k
 
         if (n == size(list)) then
             allocate (grown(max(4, 2*n)))
 
             do k = 1, n
-                call move_alloc(list(k)%s, grown(k)%s)
+                call move_alloc(list(k)%text, grown(k)%text)
             end do
 
             call move_alloc(grown, list)
         end if
 
         n = n + 1
-        list(n)%s = s
+        list(n)%text = s
     end subroutine append_string
 
     !> The region's text, if `is_use_region'.  Not a port.
@@ -626,7 +629,7 @@ contains
     !> returned by this function to the end of values available via M-n.
     !> Port of replace.el:query-replace-read-from-suggestions.
     subroutine query_replace_read_from_suggestions(list, n)
-        type(minibuffer_string_type), allocatable, intent(out) :: list(:)
+        type(string_type), allocatable, intent(out) :: list(:)
         integer, intent(out) :: n
         character(len=:), allocatable :: s
         logical :: found
@@ -651,7 +654,7 @@ contains
     !> M-n.  Port of replace.el:read-regexp-suggestions (unallocated elements are
     !> left out, as read-regexp drops them).
     subroutine read_regexp_suggestions(list, n)
-        type(minibuffer_string_type), allocatable, intent(out) :: list(:)
+        type(string_type), allocatable, intent(out) :: list(:)
         integer, intent(out) :: n
         character(len=:), allocatable :: s
         logical :: found
@@ -690,9 +693,9 @@ contains
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), intent(in), optional :: defaults(:)
+        type(string_type), intent(in), optional :: defaults(:)
         character(len=*), intent(in), optional :: history
-        type(minibuffer_string_type), allocatable :: more(:), suggestions(:)
+        type(string_type), allocatable :: more(:), suggestions(:)
         character(len=:), allocatable :: full, input, histvar
         integer :: n, nmore, k, j
         logical :: saved_add, has_default, dup
@@ -708,12 +711,12 @@ contains
 
         if (present(defaults)) then
             do k = 1, size(defaults)
-                call add_suggestion(defaults(k)%s)
+                call add_suggestion(defaults(k)%text)
             end do
         end if
 
         do k = 1, nmore
-            call add_suggestion(more(k)%s)
+            call add_suggestion(more(k)%text)
         end do
 
         ! The prompt
@@ -723,7 +726,7 @@ contains
             full = prompt
 
             if (has_default) then
-                if (len(defaults(1)%s) > 0) full = full//" (default "//query_replace_descr(defaults(1)%s)//")"
+                if (len(defaults(1)%text) > 0) full = full//" (default "//query_replace_descr(defaults(1)%text)//")"
             end if
 
             full = full//": "
@@ -740,7 +743,7 @@ contains
 
         if (len(input) == 0) then
             if (.not. has_default) return
-            result = defaults(1)%s
+            result = defaults(1)%text
         end if
 
         call add_to_history(histvar, result)
@@ -754,7 +757,7 @@ contains
             dup = .false.
 
             do j = 1, n
-                if (suggestions(j)%s == s .and. len(suggestions(j)%s) == len(s)) dup = .true.
+                if (suggestions(j)%text == s .and. len(suggestions(j)%text) == len(s)) dup = .true.
             end do
 
             if (.not. dup) call append_string(suggestions, n, s)
@@ -790,7 +793,7 @@ contains
         character(len=:), allocatable :: full_prompt
         type(value_type) :: saved_history, from_history
         type(value_type), allocatable :: older(:), entries(:)
-        type(minibuffer_string_type), allocatable :: suggestions(:)
+        type(string_type), allocatable :: suggestions(:)
         type(status_type) :: st
         integer(int64) :: saved_point
         logical :: saved_add, has_separator
@@ -1181,6 +1184,7 @@ contains
                    last_was_act_and_show, update_stack, nonempty_match, has_limit, back, found, done, &
                    replaced, querying, use_items, use_fn, is_counted, unread, matched, ro_found
         integer :: again, def, nstack, item, stack_idx, stack_len, replacement_count
+        character(len=48) :: count_text
 
         status = status_type()
         back = present_true(backward)
@@ -1189,7 +1193,7 @@ contains
         if (present(result)) result = .false.
         fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+        if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
             fold = is_isearch_no_upper_case(from_string, regexp_flag)
         end if
 
@@ -1504,8 +1508,8 @@ contains
                             if (replacement_count == 1) then
                                 call message("Undid 1 replacement")
                             else
-                                call message("Undid "//number_to_string(int(replacement_count, int64))// &
-                                             " replacements")
+                                write (count_text, '("Undid ", i0, " replacements")') replacement_count
+                                call message(trim(count_text))
                             end if
 
                             call ding()
@@ -1667,11 +1671,13 @@ contains
         if (.not. status%ok()) return
 
         if (.not. unread) then
-            help_text = "Replaced "//number_to_string(replace_count)//" occurrence"
+            write (count_text, '("Replaced ", i0, " occurrence")') replace_count
+            help_text = trim(count_text)
             if (replace_count /= 1) help_text = help_text//"s"
 
             if (skip_read_only_count > 0) then
-                help_text = help_text//" (skipped "//number_to_string(skip_read_only_count)//" read-only)"
+                write (count_text, '(" (skipped ", i0, " read-only)")') skip_read_only_count
+                help_text = help_text//trim(count_text)
             end if
 
             call message(help_text)
@@ -1754,8 +1760,8 @@ contains
     !> search string as the string to replace.
     !>
     !> Matching is independent of case if both `case_fold_search'
-    !> and `search_upper_case' are true (not SEARCH_UPPER_CASE_NO) and FROM_STRING has no
-    !> uppercase letters; if `search_upper_case' is SEARCH_UPPER_CASE_NO, then whether
+    !> and `search_upper_case' are true and FROM_STRING has no
+    !> uppercase letters; if `search_upper_case' is .false., then whether
     !> matching ignores case depends on `case_fold_search' regardless
     !> of whether there are uppercase letters in FROM_STRING.
     !> Replacement transfers the case pattern of the old text to the
@@ -1804,8 +1810,8 @@ contains
     !> use `C-q C-j' instead.  To match a tab character (`\t'), just press `TAB'.
     !>
     !> Matching is independent of case if both `case_fold_search'
-    !> and `search_upper_case' are true (not SEARCH_UPPER_CASE_NO) and REGEXP has no uppercase
-    !> letters; if `search_upper_case' is SEARCH_UPPER_CASE_NO, then whether matching
+    !> and `search_upper_case' are true and REGEXP has no uppercase
+    !> letters; if `search_upper_case' is .false., then whether matching
     !> ignores case depends on `case_fold_search' regardless of whether
     !> there are uppercase letters in REGEXP.
     !> Replacement transfers the case pattern of the old text to the new
@@ -2044,6 +2050,7 @@ contains
         integer(int64) :: limit, found, beginning, shortage
         logical :: inter, saved_fold
         type(status_type) :: st
+        character(len=40) :: text
 
         count = 0
         status = status_type()
@@ -2065,7 +2072,7 @@ contains
 
         saved_fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+        if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
             case_fold_search%value = is_isearch_no_upper_case(regexp, .true.)
         end if
 
@@ -2098,7 +2105,8 @@ contains
             if (count == 1) then
                 call message("Deleted 1 matching line")
             else
-                call message("Deleted "//number_to_string(count)//" matching lines")
+                write (text, '("Deleted ", i0, " matching lines")') count
+                call message(trim(text))
             end if
         end if
     end subroutine flush_lines
@@ -2258,7 +2266,7 @@ contains
 
         fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+        if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
             fold = is_isearch_no_upper_case(regexp, .true.)
         end if
     end function lines_case_fold
@@ -2556,8 +2564,10 @@ contains
         integer(int64), intent(in) :: n
         character(len=*), intent(in) :: verb, noun
         character(len=:), allocatable :: text
+        character(len=24) :: count_text
 
-        text = verb//" "//number_to_string(n)//" "//noun
+        write (count_text, '(" ", i0)') n
+        text = verb//trim(count_text)//" "//noun
         if (n /= 1) text = text//"s"
     end function plural
 
@@ -2618,6 +2628,7 @@ contains
         type(status_type) :: st
         integer(int64) :: limit, found, opoint, pos
         logical :: inter, saved_fold
+        character(len=32) :: text
 
         count = 0
         status = status_type()
@@ -2659,7 +2670,8 @@ contains
             if (count == 1) then
                 call message("1 occurrence")
             else
-                call message(number_to_string(count)//" occurrences")
+                write (text, '(i0, " occurrences")') count
+                call message(trim(text))
             end if
         end if
     end subroutine how_many
@@ -3279,7 +3291,7 @@ contains
         logical, intent(out) :: has_nlines, has_collect
         integer(int64), intent(out) :: nlines
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), allocatable :: defaults(:)
+        type(string_type), allocatable :: defaults(:)
         type(status_type) :: st
         character(len=:), allocatable :: head, default
         logical :: found
@@ -3293,7 +3305,7 @@ contains
 
         if (found) then
             allocate (defaults(1))
-            defaults(1)%s = head
+            defaults(1)%text = head
         else
             allocate (defaults(0))
         end if
@@ -3319,7 +3331,7 @@ contains
                 if (.not. found) default = "\1"
                 deallocate (defaults)
                 allocate (defaults(1))
-                defaults(1)%s = default
+                defaults(1)%text = default
                 call read_regexp(format_prompt("Regexp to collect", default), collect, status, defaults, &
                                  OCCUR_COLLECT_HISTORY)
             end if
@@ -3758,6 +3770,7 @@ contains
         type(value_type) :: inhibit
         type(status_type) :: st
         character(len=:), allocatable :: name, dir, actual, string, text
+        character(len=40) :: count_text
         integer(int64) :: count, n, found, limit
         logical :: saved_undo, fold, same, saved_fold
         integer :: i, k, bufcount, diff
@@ -3862,7 +3875,7 @@ contains
             call set_buffer(old, st)
             fold = case_fold_search%value
 
-            if (case_fold_search%value .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+            if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
                 fold = is_isearch_no_upper_case(regexp, .true.)
             end if
 
@@ -3887,15 +3900,22 @@ contains
 
         bufcount = size(active)
         diff = size(sources) - bufcount
-        text = "Searched "//number_to_string(int(bufcount, int64))//" buffer"
+        write (count_text, '("Searched ", i0, " buffer")') bufcount
+        text = trim(count_text)
         if (bufcount /= 1) text = text//"s"
-        if (diff /= 0) text = text//" ("//number_to_string(int(diff, int64))//" killed)"
+
+        if (diff /= 0) then
+            write (count_text, '(" (", i0, " killed)")') diff
+            text = text//trim(count_text)
+        end if
+
         text = text//"; "
 
         if (count == 0) then
             text = text//"no"
         else
-            text = text//number_to_string(count)
+            write (count_text, "(i0)") count
+            text = text//trim(count_text)
         end if
 
         text = text//" match"
@@ -4151,6 +4171,7 @@ contains
                                        after_e(:), prev_after_b(:), prev_after_e(:), acc_b(:), acc_e(:)
         logical, allocatable :: prev_after_current(:), before_current(:), after_current(:)
         character(len=:), allocatable :: curstring, header
+        character(len=64) :: count_text
         integer(int64) :: global_lines, lines, matches, headerpt, orig_line, limit, start_line, current_line, &
                           prev_line, origpt, begpt, endpt, found, slen, mstart, mb, me, hb, he, nlines, &
                           shortage, opoint, x
@@ -4409,13 +4430,15 @@ contains
                 global_matches = global_matches + matches
                 call set_buffer(out_buffer, st)
                 call goto_char(headerpt)
-                header = number_to_string(matches)//" match"
+                write (count_text, '(i0, " match")') matches
+                header = trim(count_text)
                 if (matches /= 1) header = header//"es"
 
                 ! Don't display the same number of lines and matches in
                 ! case of 1 match per line.
                 if (lines /= matches) then
-                    header = header//" in "//number_to_string(lines)//" line"
+                    write (count_text, '(" in ", i0, " line")') lines
+                    header = header//trim(count_text)
                     if (lines /= 1) header = header//"s"
                 end if
 
@@ -4426,7 +4449,8 @@ contains
                 if (sources(s)%region) then
                     call marker_position(sources(s)%start, mb, st)
                     call marker_position(sources(s)%end, me, st)
-                    header = header//" within region: "//number_to_string(mb)//"-"//number_to_string(me)
+                    write (count_text, '(" within region: ", i0, "-", i0)') mb, me
+                    header = header//trim(count_text)
                 end if
 
                 call out_insert(header//LF, hb, he)
@@ -4451,11 +4475,13 @@ contains
 
         if (global_lines /= 0 .and. size(sources) > 1) then
             call goto_char(point_min())
-            header = number_to_string(global_matches)//" match"
+            write (count_text, '(i0, " match")') global_matches
+            header = trim(count_text)
             if (global_matches /= 1) header = header//"es"
 
             if (global_lines /= global_matches) then
-                header = header//" in "//number_to_string(global_lines)//" line"
+                write (count_text, '(" in ", i0, " line")') global_lines
+                header = header//trim(count_text)
                 if (global_lines /= 1) header = header//"s"
             end if
 

@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Visiting files, saving buffers with backups, and leaving Emacs.
+!> Visiting files, saving buffers with backups, and leaving Fortmacs.
 !>
 !> Directory listings for Dired (`insert_directory', running `ls'),
 !> `file_truename', deleting files and directories and `revert_buffer'
@@ -40,7 +40,7 @@ module files_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use minibuf_table_mod, only: completion_test_procedure
-    use data_mod, only: integer_setting_type, logical_setting_type
+    use data_mod, only: integer_setting_type, logical_setting_type, choice_setting_type
     use buffer_mod, only: buffers, current, current_buffer, resolve_buffer, set_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, get_file_buffer, &
                           buffer_list, close_buffer, erase_buffer, set_buffer_read_only, &
@@ -65,7 +65,7 @@ module files_mod
     use fns_mod, only: read_yes_or_no
     use derived_mod, only: major_mode_type, major_mode_named
     use map_ynp_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK
-    use window_mod, only: pop_to_buffer_same_window, switch_to_buffer_other_window
+    use window_mod, only: pop_to_buffer_same_window, switch_to_buffer_other_window, switch_to_buffer_other_frame
     use coding_mod, only: buffer_file_coding_system, last_coding_system_used
     use hooks_mod, only: hook_type, until_success_hook_type
     implicit none(type, external)
@@ -111,23 +111,26 @@ module files_mod
     character(len=:), allocatable, public :: auto_mode_interpreter_regexp
     public :: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, file_name_unquote, after_find_file, &
               file_chase_links
+    public :: set_require_final_newline_from_mode
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_test_function, is_file_ownership_preserved
-    public :: save_some_buffers, save_buffers_exit_emacs, temporary_file_directory
+    public :: save_some_buffers, save_buffers_exit_fortmacs, temporary_file_directory
     public :: file_relative_name, locate_dominating_file, executable_find
     public :: set_visited_file_name, write_file
     public :: buffer_stale_procedure, buffer_stale_default_function
     public :: create_directory
     public :: normal_mode, set_auto_mode, prepend_auto_mode, file_name_sans_versions, auto_mode_spec
     public :: save_some_buffers_procedure, append_save_some_buffers_function, save_some_buffers_test_procedure
-    public :: find_file_other_window, is_backup_file_name, revert_buffer, revert_function_procedure, find_directory_procedure
+    public :: find_file_other_window, find_file_other_frame, is_backup_file_name, revert_buffer, revert_function_procedure, &
+              find_directory_procedure
     public :: insert_directory, insert_directory_clean, is_insert_directory_wildcard_in_dir, file_truename, &
               delete_file, delete_directory, file_name_extension, file_name_sans_extension, wildcard_to_regexp, &
               is_auto_save_file_name, &
               file_size_human_readable, byte_count_to_string, get_free_disk_space, split_string_and_unquote, &
               shell_quote_wildcard_pattern, is_string_prefix
     public :: copy_directory, is_file_in_directory, is_file_equal, create_empty_file, file_modes_symbolic_to_number, &
-              file_modes_number_to_symbolic, find_file_read_only, find_file_read_only_other_window
+              file_modes_number_to_symbolic, find_file_read_only, find_file_read_only_other_window, &
+              find_file_read_only_other_frame
 
     !> This option influences the handling of symbolic links in `copy_directory'.
     !> If true, `copy_directory' will create a symbolic link if the
@@ -263,6 +266,17 @@ module files_mod
             character(len=*), intent(in) :: filename
             type(status_type), intent(out) :: status
         end subroutine find_file_read_only_other_window
+
+        !> Edit file FILENAME in another frame but don't allow changes.
+        !> Like \[find_file_other_frame], but marks buffer as read-only.
+        !> Use \[read_only_mode] to permit editing.  Port of
+        !> files.el:find-file-read-only-other-frame (no wildcards).
+        !> (In files_read_mod.)
+        recursive module subroutine find_file_read_only_other_frame(filename, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            type(status_type), intent(out) :: status
+        end subroutine find_file_read_only_other_frame
 
         !> Do completion for file names passed to `locate_file': a function
         !> completion table (ACTION, RESULT, STATUS, TEST and SUFFIX as for
@@ -662,29 +676,29 @@ module files_mod
     !> True means make a backup of a file the first time it is saved.
     !> This can be done by renaming the file or by copying.
     !>
-    !> Renaming means that Emacs renames the existing file so that it is a
+    !> Renaming means that Fortmacs renames the existing file so that it is a
     !> backup file, then writes the buffer into a new file.  Any other names
     !> that the old file had will now refer to the backup file.  The new file
     !> is owned by you and its group is defaulted.
     !>
-    !> Copying means that Emacs copies the existing file into the backup
+    !> Copying means that Fortmacs copies the existing file into the backup
     !> file, then writes the buffer on top of the existing file.  Any other
     !> names that the old file had will now refer to the new (edited) file.
     !> The file's owner and group are unchanged.  Port of files.el
     !> make-backup-files.
     logical, public :: create_backup_files = .true.
 
-    !> Values of `require_final_newline' and `mode_require_final_newline'.
-    integer, parameter, public :: FINAL_NEWLINE_NO = 0, FINAL_NEWLINE_SAVE = 1, FINAL_NEWLINE_VISIT = 2, &
-                                  FINAL_NEWLINE_VISIT_SAVE = 3, FINAL_NEWLINE_ASK = 4
+    !> Values of `require_final_newline' besides .true. and .false.
+    integer, parameter, public :: REQUIRE_FINAL_NEWLINE_VISIT = 2, REQUIRE_FINAL_NEWLINE_VISIT_SAVE = 3, &
+                                  REQUIRE_FINAL_NEWLINE_ASK = 4
 
     !> Whether to add a newline automatically at the end of the file.
     !>
-    !> A value of FINAL_NEWLINE_SAVE means do this only when the file is about to be saved.
-    !> A value of FINAL_NEWLINE_VISIT means do this right after the file is visited.
-    !> A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
-    !> A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
-    !> A value of FINAL_NEWLINE_NO means don't add newlines.
+    !> A value of .true. means do this only when the file is about to be saved.
+    !> A value of REQUIRE_FINAL_NEWLINE_VISIT means do this right after the file is visited.
+    !> A value of REQUIRE_FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
+    !> A value of REQUIRE_FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
+    !> A value of .false. means don't add newlines.
     !>
     !> Certain major modes set this locally to the value obtained
     !> from `mode_require_final_newline'.
@@ -693,8 +707,7 @@ module files_mod
     !> buffers into files they visit).  Writing data to the file system
     !> with `write_region' and the like is not influenced by this variable.
     !> Port of files.el require-final-newline.
-    type(integer_setting_type), public :: require_final_newline = &
-                                          integer_setting_type(name="require_final_newline", value=FINAL_NEWLINE_NO)
+    type(choice_setting_type), public :: require_final_newline = choice_setting_type(name="require_final_newline")
 
     !> Regexp of directory names that stop the search in `locate_dominating_file'.
     !> Any directory whose name matches this regexp will be treated like
@@ -733,24 +746,27 @@ module files_mod
     !> vc-hooks.el:vc-after-save, set by vc_hooks_mod.
     procedure(vc_save_procedure), pointer, public :: vc_after_save_hook => null()
 
+    !> Values of `mode_require_final_newline' besides .true. and .false.
+    integer, parameter, public :: MODE_REQUIRE_FINAL_NEWLINE_VISIT = 2, MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE = 3, &
+                                  MODE_REQUIRE_FINAL_NEWLINE_ASK = 4
+
     !> Whether to add a newline at end of file, in certain major modes.
     !> Those modes set `require_final_newline' to this value when you enable them.
     !> They do so because they are often used for files that are supposed
     !> to end in newlines, and the question is how to arrange that.
     !>
-    !> A value of FINAL_NEWLINE_SAVE means do this only when the file is about to be saved.
-    !> A value of FINAL_NEWLINE_VISIT means do this right after the file is visited.
-    !> A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
-    !> A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
+    !> A value of .true. means do this only when the file is about to be saved.
+    !> A value of MODE_REQUIRE_FINAL_NEWLINE_VISIT means do this right after the file is visited.
+    !> A value of MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
+    !> A value of MODE_REQUIRE_FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
     !>
-    !> A value of FINAL_NEWLINE_NO means do not add newlines.  That is a risky choice in this
+    !> A value of .false. means do not add newlines.  That is a risky choice in this
     !> variable since this value is used for modes for files that ought to have
-    !> final newlines.  So if you set this to FINAL_NEWLINE_NO, you must explicitly check and
+    !> final newlines.  So if you set this to .false., you must explicitly check and
     !> add a final newline, whenever you save a file that really needs one.
-    !> Port of files.el mode-require-final-newline (values as for
-    !> `require_final_newline').
-    type(integer_setting_type), public :: mode_require_final_newline = &
-                                          integer_setting_type(name="mode_require_final_newline", value=FINAL_NEWLINE_SAVE)
+    !> Port of files.el mode-require-final-newline.
+    type(choice_setting_type), public :: mode_require_final_newline = &
+                                         choice_setting_type(name="mode_require_final_newline", value=.true.)
 
     !> True means \[write_file] should set the major mode from the file name.
     !> However, the mode will not be changed if
@@ -1369,8 +1385,8 @@ contains
         call normal_mode(st, .true.)
 
         ! If requested, add a newline at the end of the file.
-        if (require_final_newline%value == FINAL_NEWLINE_VISIT .or. &
-            require_final_newline%value == FINAL_NEWLINE_VISIT_SAVE) then
+        if (require_final_newline%choice == REQUIRE_FINAL_NEWLINE_VISIT .or. &
+            require_final_newline%choice == REQUIRE_FINAL_NEWLINE_VISIT_SAVE) then
             if (missing_final_newline()) call insert_final_newline(st)
         end if
 
@@ -1409,6 +1425,21 @@ contains
         if (.not. status%ok()) return
         call switch_to_buffer_other_window(buffer, status)
     end subroutine find_file_other_window
+
+    !> Edit file FILENAME, in another frame.
+    !>
+    !> Like \[find_file] (which see), but creates a new frame or reuses
+    !> an existing one.  See the function `display_buffer'.  Port of
+    !> files.el:find-file-other-frame (one file; WILDCARDS deferred).
+    recursive subroutine find_file_other_frame(filename, status)
+        character(len=*), intent(in) :: filename
+        type(status_type), intent(out) :: status
+        type(handle_type) :: buffer
+
+        call find_file_noselect(filename, buffer, status)
+        if (.not. status%ok()) return
+        call switch_to_buffer_other_frame(buffer, status)
+    end subroutine find_file_other_frame
 
     ! ------------------------------------------------------------------
     ! Backups
@@ -1740,6 +1771,23 @@ contains
         call after_save_hook%execute(status)
     end subroutine basic_save_buffer
 
+    !> Give the current buffer its own `require_final_newline', the state
+    !> of `mode_require_final_newline', as the major modes that ask for a
+    !> final newline do (text-mode.el:text-mode, prog-mode.el:prog-mode);
+    !> each option has its own named constants, mapped here.  Not a port.
+    subroutine set_require_final_newline_from_mode()
+        select case (mode_require_final_newline%choice)
+        case (MODE_REQUIRE_FINAL_NEWLINE_VISIT)
+            call require_final_newline%set_local(REQUIRE_FINAL_NEWLINE_VISIT)
+        case (MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE)
+            call require_final_newline%set_local(REQUIRE_FINAL_NEWLINE_VISIT_SAVE)
+        case (MODE_REQUIRE_FINAL_NEWLINE_ASK)
+            call require_final_newline%set_local(REQUIRE_FINAL_NEWLINE_ASK)
+        case default
+            call require_final_newline%set_local(mode_require_final_newline%value)
+        end select
+    end subroutine set_require_final_newline_from_mode
+
     !> Add a newline at the end of the current buffer if
     !> `require_final_newline' says so (asking if it is neither t nor
     !> visit-save).  Port of part of files.el:basic-save-buffer.
@@ -1750,15 +1798,14 @@ contains
         status = status_type()
         if (.not. missing_final_newline()) return
 
-        select case (require_final_newline%value)
-        case (FINAL_NEWLINE_NO)
+        if (require_final_newline%is_off()) then
             add = .false.
-        case (FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT_SAVE)
+        else if (require_final_newline%value .or. require_final_newline%choice == REQUIRE_FINAL_NEWLINE_VISIT_SAVE) then
             add = .true.
-        case default
+        else
             call read_y_or_n("Buffer "//buffers(current)%name//" does not end in newline.  Add one? ", add, status)
             if (.not. status%ok()) return
-        end select
+        end if
 
         if (add) call insert_final_newline(status)
     end subroutine final_newline_on_save
@@ -1941,10 +1988,10 @@ contains
         end do
     end function modified_file_buffers_exist
 
-    !> Offer to save each modified file buffer, then leave Emacs, asking
+    !> Offer to save each modified file buffer, then leave Fortmacs, asking
     !> first if any stay unsaved.  Port of files.el:save-buffers-kill-emacs
     !> (no processes, kill-emacs-query-functions or confirm-kill-emacs).
-    recursive subroutine save_buffers_exit_emacs(arg, status)
+    recursive subroutine save_buffers_exit_fortmacs(arg, status)
         logical, intent(in) :: arg
         type(status_type), intent(out) :: status
         logical :: ok, need_save
@@ -1971,7 +2018,7 @@ contains
         end if
 
         call request_exit()
-    end subroutine save_buffers_exit_emacs
+    end subroutine save_buffers_exit_fortmacs
 
     !> `name' in the current buffer's default directory.  Not a port.
     function file_in_default_directory(name) result(file)
@@ -2185,6 +2232,28 @@ contains
         call find_file_other_window(filename, status)
     end subroutine cmd_find_file_other_window
 
+    !> Edit file FILENAME, in another frame.
+    !>
+    !> Like \[find_file] (which see), but creates a new frame or reuses
+    !> an existing one.  See the function `display_buffer'.
+    !>
+    !> \<minibuffer_local_map>Interactively, the default if you just type RET is the current directory,
+    !> but the visited file name is available through the minibuffer history:
+    !> type \[next_history_element] to pull it into the minibuffer.
+    !> Port of files.el:find-file-other-frame (interactive), with
+    !> find-file-read-args (no wildcards or `file_name_at_point_functions').
+    recursive subroutine cmd_find_file_other_frame(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: filename, dir
+
+        dir = "~/"
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        call read_file_name_in_minibuffer("Find file in other frame: ", filename, status, default_filename=dir, &
+                                          confirm_nonexistent=.true.)
+        if (.not. status%ok()) return
+        call find_file_other_frame(filename, status)
+    end subroutine cmd_find_file_other_frame
+
     !> Replace current buffer text with the text of the visited file on disk.
     !> This undoes all changes since the file was visited or saved.
     !> With a prefix argument, offer to revert from latest auto-save file, if
@@ -2391,14 +2460,14 @@ contains
         call save_some_buffers(current_prefix_arg%kind /= PREFIX_NONE, .true., status)
     end subroutine cmd_save_some_buffers
 
-    !> Offer to save each buffer, then exit Emacs.
+    !> Offer to save each buffer, then exit Fortmacs.
     !>
     !> With prefix ARG, silently save all file-visiting buffers, then exit.
     !> Port of files.el:save-buffers-kill-terminal (no emacsclient frames).
     subroutine cmd_save_buffers_exit_terminal(status)
         type(status_type), intent(out) :: status
 
-        call save_buffers_exit_emacs(current_prefix_arg%kind /= PREFIX_NONE, status)
+        call save_buffers_exit_fortmacs(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_save_buffers_exit_terminal
 
     !> Execute `close_buffer_hook' in the buffer H being cut (current).
@@ -2430,6 +2499,7 @@ contains
         commands%find_file%execute => cmd_find_file
         commands%open_dribble_file%execute => cmd_open_dribble_file
         commands%find_file_other_window%execute => cmd_find_file_other_window
+        commands%find_file_other_frame%execute => cmd_find_file_other_frame
         commands%revert_buffer%execute => cmd_revert_buffer
         execute_close_buffer_hook => files_execute_close_buffer_hook
         call init_files_copy()

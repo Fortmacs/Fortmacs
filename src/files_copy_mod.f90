@@ -208,16 +208,12 @@ contains
             integer, intent(inout) :: start
             integer, intent(out) :: finish
             logical, intent(out) :: found
-            integer :: slash
+            integer :: slash, k
 
             found = .false.
             finish = start - 1
-
-            do while (start <= len(s))
-                if (s(start:start) /= "/") exit
-                start = start + 1
-            end do
-
+            k = verify(s(start:), "/")
+            start = merge(len(s) + 1, start + k - 1, k == 0)
             if (start > len(s)) return
             found = .true.
             slash = index(s(start:), "/")

@@ -49,6 +49,13 @@
 #                the states for their meaning with the vocabulary _NO,
 #                _YES, _NONE, _ASK, _ALWAYS and _UNLIMITED (R2-Q16,
 #                R2-Q17); two states make a logical.
+#   yes-no       a named constant ending in _YES or _NO (R6-38): a
+#                setting with more than two states is a choice setting
+#                (data_mod's choice_setting_type), whose `=' takes .true.
+#                and .false. for its on and off states; only its other
+#                states are named constants.  The baseline lists the
+#                internal enumerations (arguments, return codes, record
+#                fields) and the settings not converted yet.
 #   vector       a name (variable, component, named constant, type or
 #                procedure) ending in `_vector'.  Use a plural.
 #   interactive  a component `interactive' of command_type (it is
@@ -56,7 +63,7 @@
 #   verb         a procedure, procedure pointer or type-bound procedure
 #                named `run', `run_*' or `call_*': execute_ is the only
 #                verb for running something (`execute_with_timer',
-#                `commands%yank%execute'), and a procedure pointer is
+#                `commands%paste%execute'), and a procedure pointer is
 #                called directly, with no call_* wrapper (PORTING.md,
 #                "One word per meaning").
 #   command-state  the command loop's state declared as a `value_type'
@@ -80,6 +87,39 @@
 #                or `preds' (R2-Q10): a passed logical procedure is a
 #                test, a setting holding one X_test_function, and an
 #                array is filtered with a logical mask.
+#   write-wrapper  a function or subroutine whose executable part is a
+#                `write' into a local buffer followed by `trim' of it
+#                (`write (buffer, "(i0)") n' then `text = trim(buffer)'),
+#                or one `write' into its result (R6-44): numbers become
+#                text with an internal write where they are used, never
+#                through a helper.
+#   number-text  a reference to a procedure named number_to_string,
+#                int_text, integer_text, itoa, int_str, int2str or
+#                to_string (R6-44, R6-45): fixed-format text is one
+#                internal `write' with edit descriptors.
+#   char-loop    a `do K = 1, min(len(A), len(B))' loop that orders the
+#                characters `A(K:K)' and `B(K:K)' with `<' or `>' (also
+#                through ichar or iachar): string-lessp by hand.  fns_mod's
+#                is_string_less is its port (`<' pads the shorter string
+#                with blanks) (R6-45).
+#   blank-skip   a `do while' whose body is only `if (S(K:K) /= C1 .and.
+#                S(K:K) /= C2 ...) exit', each C a character literal,
+#                constant or achar(N), and `K = K + 1' (or `- 1'): it is
+#                `verify(S, C1//C2...)' (with `back=.true.'), 0 meaning
+#                all blank (R6-45).
+#   constructor-wrapper  a function whose one executable statement
+#                assigns a structure constructor of its dummies to the
+#                result (`v = value_type(text=s)'): write the constructor
+#                where it is used (R6-45).
+#   duplicate-helper  a definition of is_string_less, is_string_prefix,
+#                string_to_number, int_text, string_trim, version_less,
+#                version_less_or_equal (or version_le, is_version_le,
+#                is_version_less, is_version_less_or_equal,
+#                version_to_numbers), char_text or list_delq outside the
+#                module that holds the one port (fns_mod, files_dir_mod,
+#                data_mod, none, none, subr_mod: its version_type with the
+#                operators < <= == /= >= >, editfns_mod for char_to_string,
+#                none (pack)): a private copy of a Lisp function (R6-45).
 #
 # Logical user options named *_p upstream keep their names: they are
 # variables, which the predicate rule does not look at.
@@ -132,12 +172,14 @@ function start_proc(name, args, res, line, n, i, a) {
     pres[depth] = res
     pstmts[depth] = 0
     pstmt[depth] = ""
+    pfirst[depth] = ""
     pexec[depth] = 0
     pdone[depth] = 0
     for (i in dummy) if (index(i, depth SUBSEP) == 1) delete dummy[i]
     n = split(args, a, ",")
     for (i = 1; i <= n; i++) dummy[depth, tolower(trim(a[i]))] = 1
     if (tolower(name) in lisp) finding(line, "lisp-helper", name, "")
+    check_helper(line, name)
     check_predicate(line, name)
     if (tolower(name) ~ /_vectors?$/) finding(line, "vector", name, "")
     check_verb(line, name)
@@ -152,6 +194,122 @@ function check_name(line, name, shown, n) {
     if (n ~ /[a-z0-9]__[a-z0-9]/) finding(line, "underscores", shown, "")
     if (n ~ /_(re|regex)_$/) finding(line, "regexp", shown, "")
     if (n ~ /_(predicates?|preds?)_/) finding(line, "test", shown, "")
+}
+
+# Whether NAME is a private copy of a Lisp function that has one port
+# (the duplicate-helper rule): a definition outside that port's file.
+function check_helper(line, name, n, base) {
+    n = tolower(name)
+    if (!(n in helper)) return
+    base = file
+    sub(/^.*\//, "", base)
+    if (base == helper[n]) return
+    if (helper[n] == "") finding(line, "duplicate-helper", name, " (no port: use the intrinsics)")
+    else finding(line, "duplicate-helper", name, " (the one port is in " helper[n] ")")
+}
+
+# The regexp of a reference to character K of string NAME: `NAME(K:K)'.
+function charref(name, k) {
+    return name "[ \t]*\\([ \t]*" k "[ \t]*:[ \t]*" k "[ \t]*\\)"
+}
+
+# The loops of the char-loop and blank-skip rules, on the statement L
+# (lower case, no strings) at line LINE.  A `do K = 1, min(len(A),
+# len(B))' opens a char loop until its first ordering comparison of
+# `A(K:K)' with `B(K:K)'; a `do while' opens a blank skip, which the
+# exact body `if (S(K:K) /= C1 .and. S(K:K) /= C2 ...) exit' (each C a
+# character literal, constant or achar(N)), `K = K + 1' and `end do'
+# completes.
+function check_loops(line, l, s, k, a, b, ca, cb, cond, terms, n, i, t, name, kk) {
+    if (match(l, /^do[ \t]+[a-z_][a-z0-9_]*[ \t]*=[ \t]*1[ \t]*,[ \t]*min[ \t]*\([ \t]*len[ \t]*\([ \t]*[a-z_][a-z0-9_]*[ \t]*\)[ \t]*,[ \t]*len[ \t]*\([ \t]*[a-z_][a-z0-9_]*[ \t]*\)[ \t]*\)$/)) {
+        s = l
+        sub(/^do[ \t]+/, "", s)
+        k = s
+        sub(/[ \t]*=.*/, "", k)
+        sub(/^[^(]*\([ \t]*len[ \t]*\([ \t]*/, "", s)
+        a = s
+        sub(/[ \t]*\).*/, "", a)
+        sub(/^[^,]*,[ \t]*len[ \t]*\([ \t]*/, "", s)
+        b = s
+        sub(/[ \t]*\).*/, "", b)
+        incl = 1
+        clline = line
+        ca = charref(a, k)
+        cb = charref(b, k)
+        clregexp = "(^|[^a-z0-9_])((ichar|iachar)[ \t]*\\([ \t]*)?" ca "[ \t]*\\)?[ \t]*(<|>|<=|>=)[ \t]*((ichar|iachar)[ \t]*\\([ \t]*)?" cb
+        clreverse = "(^|[^a-z0-9_])((ichar|iachar)[ \t]*\\([ \t]*)?" cb "[ \t]*\\)?[ \t]*(<|>|<=|>=)[ \t]*((ichar|iachar)[ \t]*\\([ \t]*)?" ca
+        return
+    }
+    if (incl && (l ~ clregexp || l ~ clreverse)) {
+        finding(clline, "char-loop", depth > 0 ? pname[depth] : "?", " (use fns_mod's is_string_less)")
+        incl = 0
+    }
+    if (incl && l ~ /^end[ \t]*(function|subroutine|procedure)/) incl = 0
+    if (l ~ /^do[ \t]+while[ \t]*\(/) {
+        bs = 1
+        bsline = line
+        return
+    }
+    if (bs == 1) {
+        bs = 0
+        if (!match(l, /^if[ \t]*\(.*\)[ \t]*exit$/)) return
+        cond = l
+        sub(/^if[ \t]*\(/, "", cond)
+        sub(/\)[ \t]*exit$/, "", cond)
+        n = split(cond, terms, /\.and\./)
+
+        for (i = 1; i <= n; i++) {
+            t = trim(terms[i])
+            if (!match(t, /^[a-z_][a-z0-9_]*[ \t]*\([ \t]*[a-z_][a-z0-9_]*[ \t]*:[ \t]*[a-z_][a-z0-9_]*[ \t]*\)[ \t]*\/=[ \t]*([a-z_][a-z0-9_]*|a?char\([0-9]+\))$/)) return
+            name = t
+            sub(/[ \t]*\(.*/, "", name)
+            kk = t
+            sub(/^[^(]*\([ \t]*/, "", kk)
+            sub(/[ \t]*\).*/, "", kk)
+            s = kk
+            sub(/[ \t]*:.*/, "", s)
+            sub(/^.*:[ \t]*/, "", kk)
+            if (s != kk) return
+            if (i == 1) {
+                bsvar = name
+                bsk = kk
+            } else if (name != bsvar || kk != bsk) {
+                return
+            }
+        }
+        bs = 2
+        return
+    }
+    if (bs == 2) {
+        bs = 0
+        if (l ~ ("^" bsk "[ \t]*=[ \t]*" bsk "[ \t]*[-+][ \t]*1$")) bs = 3
+        return
+    }
+    if (bs == 3) {
+        bs = 0
+        if (l ~ /^end[ \t]*do$/) finding(bsline, "blank-skip", depth > 0 ? pname[depth] : "?", " (use `verify')")
+    }
+}
+
+# Whether the argument list ARGS of a call names only the innermost
+# procedure's dummies (with components and elements), keywords, kinds
+# and literals: no other call.  NDUMMIES counts the dummies.
+function only_dummies(args, t, tok) {
+    ndummies = 0
+    gsub(/\.[a-z]+\./, " ", args)
+    # (A comparison is not a keyword: `list%name == name'.)
+    gsub(/==|\/=|<=|>=/, " ", args)
+    gsub(/%[a-z_][a-z0-9_]*/, "", args)
+    gsub(/[a-z_][a-z0-9_]*[ \t]*=/, " ", args)
+    t = args
+    while (match(t, /[a-z_][a-z0-9_]*/)) {
+        tok = substr(t, RSTART, RLENGTH)
+        t = substr(t, RSTART + RLENGTH)
+        if ((depth, tok) in dummy) ndummies++
+        if ((depth, tok) in dummy || tok in kinds || tok == "s") continue
+        return 0
+    }
+    return 1
 }
 
 # Whether NAME runs something with another verb than execute (reported
@@ -216,6 +374,7 @@ function check_decl(line, l, names, n, i, nm) {
         if (l ~ /(^|,)[ \t]*parameter([ \t]*(,|::))/ && nm ~ /_(nil|t|true|false|disabled|never|off|on|no_limit)$/) {
             finding(line, "constant", toupper(nm), "")
         }
+        if (l ~ /(^|,)[ \t]*parameter([ \t]*(,|::))/ && nm ~ /_(yes|no)$/) finding(line, "yes-no", toupper(nm), "")
         if (nm ~ /_vectors?$/) finding(line, "vector", nm, "")
         check_name(line, nm, (intype != "" ? intype "%" : "") nm)
         if (intype == "command_type" && nm == "interactive") finding(line, "interactive", "command_type%interactive", "")
@@ -223,10 +382,34 @@ function check_decl(line, l, names, n, i, nm) {
     }
 }
 
+# Whether the innermost procedure only writes a number into a buffer and
+# trims it: one `write' into its result, or a `write' into a local
+# variable and then `RESULT = trim(LOCAL)' (or `RESULT = LOCAL').
+function is_write_wrapper(first, last, buffer, lhs) {
+    first = tolower(pfirst[depth])
+    if (!match(first, /^write[ \t]*\([ \t]*[a-z_][a-z0-9_]*[ \t]*[,)]/)) return 0
+    buffer = substr(first, 1, RLENGTH)
+    sub(/^write[ \t]*\([ \t]*/, "", buffer)
+    sub(/[ \t]*[,)]$/, "", buffer)
+    if (pstmts[depth] == 1) return buffer == tolower(pres[depth])
+    if (pstmts[depth] != 2) return 0
+    last = tolower(pstmt[depth])
+    if (!match(last, /^[a-z_][a-z0-9_]*[ \t]*=[ \t]*/)) return 0
+    lhs = trim(substr(last, 1, RLENGTH))
+    sub(/[ \t]*=$/, "", lhs)
+    if (lhs != tolower(pres[depth]) && !((depth, lhs) in dummy)) return 0
+    last = substr(last, RLENGTH + 1)
+    return last == buffer || last == "trim(" buffer ")" || last ~ ("^trim[ \t]*\\([ \t]*" buffer "[ \t]*\\)$")
+}
+
 # Judges the body of the innermost procedure, once.
-function judge(stmt, lhs, rest, intr, args, ok, tok, t) {
+function judge(stmt, lhs, rest, intr, args) {
     if (pdone[depth]) return
     pdone[depth] = 1
+    if (is_write_wrapper()) {
+        finding(pline[depth], "write-wrapper", pname[depth], " (write the number where it is used)")
+        return
+    }
     if (pstmts[depth] != 1) return
     stmt = tolower(pstmt[depth])
     if (!match(stmt, /^[a-z_][a-z0-9_]*[ \t]*=[ \t]*/)) return
@@ -245,22 +428,19 @@ function judge(stmt, lhs, rest, intr, args, ok, tok, t) {
     if (!match(rest, /^[a-z_][a-z0-9_]*[ \t]*\(/)) return
     intr = rest
     sub(/[ \t]*\(.*/, "", intr)
-    if (!(intr in intrinsic)) return
     args = substr(rest, RLENGTH + 1)
     if (args !~ /\)[ \t]*$/) return
     sub(/\)[ \t]*$/, "", args)
-    # Only dummies (with components and elements), keywords, kinds and
-    # literals: no other call.
-    gsub(/\.[a-z]+\./, " ", args)
-    gsub(/%[a-z_][a-z0-9_]*/, "", args)
-    gsub(/[a-z_][a-z0-9_]*[ \t]*=/, " ", args)
-    t = args
-    while (match(t, /[a-z_][a-z0-9_]*/)) {
-        tok = substr(t, RSTART, RLENGTH)
-        t = substr(t, RSTART + RLENGTH)
-        if ((depth, tok) in dummy || tok in kinds || tok == "s") continue
+    # A structure constructor of the dummies (every derived type is
+    # named *_type).
+    if (intr ~ /_type$/) {
+        if (only_dummies(args) && ndummies > 0) {
+            finding(pline[depth], "constructor-wrapper", pname[depth], " (write the constructor where it is used)")
+        }
         return
     }
+    if (!(intr in intrinsic)) return
+    if (!only_dummies(args)) return
     finding(pline[depth], "wrapper", pname[depth], " (only `" intr "')")
 }
 
@@ -288,6 +468,21 @@ BEGIN {
     for (i = 1; i <= n; i++) cmdstate[w[i]] = 1
     n = split("int8 int16 int32 int64 real32 real64 real128 c_int c_long c_char", w, " ")
     for (i = 1; i <= n; i++) kinds[w[i]] = 1
+    # The Lisp functions with one port, and its file (none for the last two).
+    helper["is_string_less"] = "fns_mod.f90"
+    helper["is_string_prefix"] = "files_dir_mod.f90"
+    helper["string_to_number"] = "data_mod.f90"
+    helper["int_text"] = ""
+    helper["string_trim"] = ""
+    helper["version_less"] = "subr_mod.f90"
+    helper["version_less_or_equal"] = "subr_mod.f90"
+    helper["version_le"] = "subr_mod.f90"
+    helper["is_version_le"] = "subr_mod.f90"
+    helper["is_version_less"] = "subr_mod.f90"
+    helper["is_version_less_or_equal"] = "subr_mod.f90"
+    helper["version_to_numbers"] = "subr_mod.f90"
+    helper["char_text"] = "editfns_mod.f90"
+    helper["list_delq"] = ""
     if (baseline != "") {
         while ((getline l <baseline) > 0) {
             if (l ~ /^#/ || l ~ /^[ \t]*$/) continue
@@ -305,6 +500,8 @@ FNR == 1 {
     ifdepth = 0
     intype = ""
     cont = ""
+    incl = 0
+    bs = 0
 }
 
 {
@@ -328,6 +525,23 @@ FNR == 1 {
     l = tolower(trim(c))
     if (l == "") next
 }
+
+# A number made text through a helper (the number-text rule).
+{
+    t = l
+
+    while (match(t, /(^|[^a-z0-9_])(number_to_string|int_text|integer_text|itoa|int_str|int2str|to_string)[ \t]*\(/)) {
+        name = substr(t, RSTART, RLENGTH)
+        sub(/^[^a-z]/, "", name)
+        sub(/[ \t]*\($/, "", name)
+        finding(startline, "number-text", name, "")
+        t = substr(t, RSTART + RLENGTH)
+    }
+}
+
+# The hand-written string comparisons and blank skips (the char-loop and
+# blank-skip rules).
+{ check_loops(startline, l) }
 
 # Derived-type definitions (for the component rule) and declarations
 # anywhere (for the constant and vector rules).
@@ -403,6 +617,7 @@ depth > 0 && !pdone[depth] {
     pexec[depth] = 1
     pstmts[depth]++
     pstmt[depth] = l
+    if (pstmts[depth] == 1) pfirst[depth] = l
 }
 
 END {

@@ -22,8 +22,8 @@
 !> Log View mode, the major mode of VC's log buffers: moving between
 !> log messages (n, p, TAB, <backtab>) and files, marking entries
 !> (m, u, U), expanding short entries (RET), diffs of an entry or a
-!> region (d, =, D, M-RET, M-n, M-p), visiting a revision (f) and
-!> copying revision IDs (w).
+!> region (d, =, D, M-RET, M-n, M-p), visiting (f) or annotating (a) a
+!> revision and copying revision IDs (w).
 !>
 !> The buffer-local variables `log_view_file_regexp', `log_view_message_regexp',
 !> `log_view_per_file_logs', `log_view_expanded_log_entry_function',
@@ -31,8 +31,7 @@
 !> `set_log_view_file_regexp' and its siblings, as `set_local' does.
 !>
 !> Deferred: `log_view_modify_change_comment' (e, needing the backend's
-!> `modify-change-comment'), `log_view_annotate_version' (a, needing
-!> `vc-annotate'), `log_view_cherry_pick' (C), `log_view_revert_or_delete_revisions' (R),
+!> `modify-change-comment'), `log_view_cherry_pick' (C), `log_view_revert_or_delete_revisions' (R),
 !> `log_view_uncommit_revisions_from_end' (x),
 !> `log_view_delete_revisions_from_end' (X), `log_view_revert_revisions'
 !> and `log_view_delete_revisions' (needing `vc--pick-or-revert' and
@@ -72,8 +71,9 @@ module log_view_mod
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use keymap_mod, only: keymap_set
     use fileio_mod, only: is_file_directory
-    use vc_hooks_mod, only: vc_string_type, vc_backends
+    use vc_hooks_mod, only: vc_backends
     use vc_mod, only: vc_fileset_type, vc_diff_internal, vc_find_revision, vc_root_dir, vc_allow_async_diff
+    use string_type_mod, only: string_type, prepend_string, append_string
     implicit none(type, external)
     private
 
@@ -83,7 +83,8 @@ module log_view_mod
               log_view_toggle_mark_entry, log_view_mark_entry, log_view_unmark_entry, log_view_unmark_all_entries, &
               log_view_get_marked, log_view_toggle_entry_display, log_view_display_entry_and_diff, &
               log_view_beginning_of_entry, log_view_end_of_entry, log_view_find_revision, log_view_diff, &
-              log_view_diff_changeset, log_view_diff_common, log_view_copy_revision, &
+              log_view_diff_changeset, log_view_diff_common, log_view_copy_revision, log_view_annotate_version, &
+              log_view_vc_annotate_procedure, &
               log_view_file_regexp, log_view_message_regexp, log_view_per_file_logs, log_view_vc_fileset, log_view_vc_backend, &
               set_log_view_file_regexp, set_log_view_message_regexp, set_log_view_per_file_logs, &
               set_log_view_expanded_log_entry_function, set_log_view_vc_fileset, set_log_view_vc_backend, &
@@ -99,7 +100,21 @@ module log_view_mod
             character(len=:), allocatable, intent(out) :: text
             logical, intent(out) :: found
         end subroutine log_view_entry_procedure
+
+        !> vc-annotate.el's `vc_annotate' of revision REV of FILE with
+        !> BACKEND (no display mode, buffer or line).  Not a port.
+        recursive subroutine log_view_vc_annotate_procedure(file, rev, backend, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: file, rev
+            integer, intent(in) :: backend
+            type(status_type), intent(out) :: status
+        end subroutine log_view_vc_annotate_procedure
     end interface
+
+    !> vc-annotate.el's `vc_annotate' for `log_view_annotate_version',
+    !> associated once VC-Annotate is loaded (vc_annotate_mod).
+    procedure(log_view_vc_annotate_procedure), pointer, public :: log_view_vc_annotate => null()
 
     !> Hook run at the end of `log_view_mode'.
     type(hook_type), target, public :: log_view_mode_hook = hook_type(name="log_view_mode_hook")
@@ -157,7 +172,7 @@ module log_view_mod
         logical :: has_keywords = .false.
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: has_fileset = .false.
-        type(vc_string_type), allocatable :: fileset(:)
+        type(string_type), allocatable :: fileset(:)
         integer :: backend = 0
     end type local_type
 
@@ -254,7 +269,7 @@ contains
     !> The current buffer's `log_view_vc_fileset': the VC fileset
     !> corresponding to the current log (HAS .false. for none).  Not a port.
     subroutine log_view_vc_fileset(fileset, has)
-        type(vc_string_type), allocatable, intent(out) :: fileset(:)
+        type(string_type), allocatable, intent(out) :: fileset(:)
         logical, intent(out) :: has
         integer :: k
 
@@ -344,7 +359,7 @@ contains
 
     !> Give the current buffer its own `log_view_vc_fileset', FILESET (set_local).  Not a port.
     subroutine set_log_view_vc_fileset(fileset)
-        type(vc_string_type), intent(in) :: fileset(:)
+        type(string_type), intent(in) :: fileset(:)
         integer :: k
 
         call make_local_entry(k)
@@ -841,8 +856,7 @@ contains
     !> Return the list of tags for the marked log entries.  Port of
     !> log-view.el:log-view-get-marked.
     subroutine log_view_get_marked(marked)
-        type(vc_string_type), allocatable, intent(out) :: marked(:)
-        type(vc_string_type) :: string
+        type(string_type), allocatable, intent(out) :: marked(:)
         type(value_type) :: v, tag
         type(handle_type) :: ov
         integer(int64) :: pos, next
@@ -861,8 +875,7 @@ contains
             if (allocated(v%a) .and. ov%index /= 0) then
                 tag = overlay_get(ov, "log_view_marked")
                 ! (push ...): the last found comes first.
-                string%s = xstring(tag)
-                marked = [string, marked]
+                call prepend_string(marked, xstring(tag))
                 pos = overlay_end(ov)
             end if
         end do
@@ -1092,13 +1105,13 @@ contains
     recursive subroutine single_file(file, status)
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: fileset(:)
+        type(string_type), allocatable :: fileset(:)
         logical :: has, several
 
         status = status_type()
         call log_view_vc_fileset(fileset, has)
         file = ""
-        if (size(fileset) > 0) file = fileset(1)%s
+        if (size(fileset) > 0) file = fileset(1)%text
 
         if (.not. log_view_per_file_logs()) then
             several = size(fileset) > 1 .or. size(fileset) == 0
@@ -1134,6 +1147,40 @@ contains
         call goto_char(opoint)
         if (status%ok()) call switch_to_buffer(buffers(buffer%index)%name, status)
     end subroutine log_view_find_revision
+
+    !> Annotate the version at POS.
+    !> If called interactively, annotate the version at point.  Port of
+    !> log-view.el:log-view-annotate-version.
+    recursive subroutine log_view_annotate_version(pos, status)
+        integer(int64), intent(in) :: pos
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: file, tag
+        type(handle_type) :: old
+        type(status_type) :: st
+        integer(int64) :: opoint
+        logical :: has
+
+        call single_file(file, status)
+        if (.not. status%ok()) return
+        old = current_buffer()
+        opoint = point()
+        call goto_char(pos)
+        if (log_view_per_file_logs()) call log_view_current_file(file, status)
+
+        if (status%ok()) then
+            call log_view_current_tag(tag, has)
+
+            if (.not. associated(log_view_vc_annotate)) then
+                call set_error(status, FM_GENERIC_ERROR, "VC-Annotate is not loaded")
+            else
+                call log_view_vc_annotate(file, tag, log_view_vc_backend(), status)
+            end if
+        end if
+
+        ! (save-excursion ...)
+        if (is_buffer_live(old)) call set_buffer(old, st)
+        call goto_char(opoint)
+    end subroutine log_view_annotate_version
 
     ! ------------------------------------------------------------------
     ! Diff
@@ -1199,7 +1246,7 @@ contains
         type(vc_fileset_type) :: fs
         integer(int64) :: fr_beginning, opoint, last
         logical :: has_to, has_fr, whole, changes, has, previous
-        type(vc_string_type), allocatable :: fileset(:)
+        type(string_type), allocatable :: fileset(:)
 
         status = status_type()
         whole = .false.
@@ -1247,8 +1294,7 @@ contains
         else if (log_view_per_file_logs()) then
             call log_view_current_file(file, status)
             if (.not. status%ok()) return
-            allocate (fs%files(1))
-            fs%files(1)%s = file
+            call append_string(fs%files, file)
         else
             call log_view_vc_fileset(fileset, has)
             fs%files = fileset
@@ -1272,7 +1318,7 @@ contains
     !> spaces.  Port of log-view.el:log-view-copy-revision-as-kill.
     recursive subroutine log_view_copy_revision(status)
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: revisions(:)
+        type(string_type), allocatable :: revisions(:)
         character(len=:), allocatable :: found, rev
         logical :: has
         integer :: k
@@ -1281,17 +1327,17 @@ contains
         call log_view_get_marked(revisions)
 
         if (size(revisions) > 1) then
-            found = revisions(1)%s
+            found = revisions(1)%text
 
             do k = 2, size(revisions)
-                found = found//" "//revisions(k)%s
+                found = found//" "//revisions(k)%text
             end do
 
             call copy_to_clipboard_history(found)
             call message(found)
         else
             if (size(revisions) == 1) then
-                rev = revisions(1)%s
+                rev = revisions(1)%text
                 has = .true.
             else
                 call log_view_current_tag(rev, has)
@@ -1421,6 +1467,12 @@ contains
         call log_view_find_revision(point(), status)
     end subroutine cmd_log_view_find_revision
 
+    recursive subroutine cmd_log_view_annotate_version(status)
+        type(status_type), intent(out) :: status
+
+        call log_view_annotate_version(point(), status)
+    end subroutine cmd_log_view_annotate_version
+
     recursive subroutine cmd_log_view_diff(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
@@ -1484,6 +1536,7 @@ contains
         commands%log_view_toggle_entry_display%execute => log_view_toggle_entry_display
         commands%log_view_display_entry_and_diff%execute => log_view_display_entry_and_diff
         commands%log_view_find_revision%execute => cmd_log_view_find_revision
+        commands%log_view_annotate_version%execute => cmd_log_view_annotate_version
         commands%log_view_diff%execute => cmd_log_view_diff
         commands%log_view_diff_changeset%execute => cmd_log_view_diff_changeset
         commands%log_view_copy_revision%execute => log_view_copy_revision
@@ -1496,6 +1549,7 @@ contains
         call keymap_set(log_view_mode_map, "=", "log_view_diff", st)
         call keymap_set(log_view_mode_map, "D", "log_view_diff_changeset", st)
         call keymap_set(log_view_mode_map, "f", "log_view_find_revision", st)
+        call keymap_set(log_view_mode_map, "a", "log_view_annotate_version", st)
         call keymap_set(log_view_mode_map, "n", "log_view_msg_next", st)
         call keymap_set(log_view_mode_map, "p", "log_view_msg_prev", st)
         call keymap_set(log_view_mode_map, "M-n", "log_view_msg_and_diff_next", st)
