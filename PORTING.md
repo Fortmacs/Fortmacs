@@ -671,7 +671,7 @@ existing rule (decided and reported), or by the decision panel
 | `syms_of_X` (a module's one-time startup setup) | `init_X` (`init_X_commands` where upstream has an `init_X` of its own) | `init_simple`, `init_files`; `init_buffer_commands`, `init_display_commands`, `init_window_commands`, `init_macros_commands` |
 | a predicate (`*-p`, `*p`) | `is_*` or `has_*`, a logical function | `is_region_active`, `is_derived_mode`, `is_process_live`, `is_bob`, `has_overlay_strings`; a verb phrase where it reads so: `file_exists`, `string_matches` (logical, no longer the match position); `set_buffer_modified`, `restore_buffer_modified`; a predicate that only wrapped an intrinsic or a tag test is gone (`frame_window_p` is `associated(f%rif)`) |
 | y-or-n-p, yes-or-no-p (prompts) | `read_y_or_n`, `read_yes_or_no` | `read_y_or_n_map`, `read_y_or_n_use_read_key`, `map_read_y_or_n`, `read_yes_or_no_history` |
-| `*_NIL`, `*_T` named constants | the meaning, after the option's full name (R2-Q15): `_NO`/`_YES` for plain off/on, `_NONE`, `_ASK`, `_ALWAYS` only beside `_YES`, `_UNLIMITED`, else the meaning itself (R2-Q17) | `COMPILATION_SCROLL_OUTPUT_NO`/`_YES`/`_FIRST_ERROR`, `LOG_EDIT_CONFIRM_YES`, `DIRED_LOCALP_ABSOLUTE`/`_RELATIVE`, `KMACRO_REPEAT_YES`/`_NO` (upstream's NO-REPEAT read positively; the argument is REPEAT), `CASE_FOLD_NO`/`_YES`/`_FORCED`, one family per setting (`GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*`); every family has three or more states upstream, so none became a logical (the full table: tools/fortran-names, "A1"); since R6-38 a setting's on and off states are `.true.` and `.false.` of a `choice_setting_type` (`compilation_scroll_output = .true.`): `_NO`/`_YES` remain only in internal enumerations ("Choice settings" below) |
+| `*_NIL`, `*_T` named constants | the meaning, after the option's full name (R2-Q15; a stem several options share is the common start of their names, else each option has its own family: changed by #261, owner, 2026-11-04): `_NO`/`_YES` for plain off/on, `_NONE`, `_ASK`, `_ALWAYS` only beside `_YES`, `_UNLIMITED`, else the meaning itself (R2-Q17) | `COMPILATION_SCROLL_OUTPUT_NO`/`_YES`/`_FIRST_ERROR`, `LOG_EDIT_CONFIRM_YES`, `DIRED_LOCALP_ABSOLUTE`/`_RELATIVE`, `KMACRO_REPEAT_YES`/`_NO` (upstream's NO-REPEAT read positively; the argument is REPEAT), `CASE_FOLD_NO`/`_YES`/`_FORCED`, one family per setting (`GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*`); every family has three or more states upstream, so none became a logical (the full table: tools/fortran-names, "A1"); since R6-38 a setting's on and off states are `.true.` and `.false.` of a `choice_setting_type` (`compilation_scroll_output = .true.`): `_NO`/`_YES` remain only in internal enumerations ("Choice settings" below) |
 | nil, NILP (the null value) | `value_type()`; `.not. allocated(v%a)` | the intrinsic itself, no helper; a function result is tested as `vtag(f(x)) == V_NULL`; the value tags are `V_NULL`, `V_INTEGER`, `V_NAME`, `V_STRING`, `V_ARRAY` (were `V_NIL`, `V_INT`, `V_SYMBOL`, `V_STRING`, `V_LIST`) |
 | FIXNUMP, STRINGP, CONSP, SYMBOLP, LISTP, BUFFERP, MARKERP, WINDOWP and value_mod's keymap and syntax-table tests | the tag test itself: `vtag(v) == V_INTEGER`, `vtag(v) /= V_STRING`, `(vtag(v) == V_NAME .or. vtag(v) == V_NULL)` | no wrapper; `vtag` gives `V_NULL` for the null value, and is elemental like the wrappers were; window.c's `windowp` (a handle test) is `is_window` |
 | the argument list C-h f shows | the call line, then the declaration block | `call insert(string, status)` followed by `character(len=*), intent(in) :: string` and `type(status_type), intent(out) :: status`; a function's result is declared too (`integer(int64) :: point`); tools/gen-docstrings.sh takes the lines from the dummy arguments' declarations (the help entry's `declarations`) |
@@ -1365,10 +1365,17 @@ a logical mask (`pack`, `count`, `any` with an elemental `is_*`).
 
 **Named constants (R2-Q15, R2-Q16, R2-Q17).**  A constant starts with
 its option's full name; a value set several options share is defined
-once under their shared stem (`DABBREV_*`, `FINAL_NEWLINE_*`, `SH_PLUS`,
-`DIRED_RECURSIVE_*`, `ANSI_COLOR_*`).  The vocabulary is `_NO` (off),
-`_YES` (on), `_NONE` (no item or value chosen), `_ASK` (prompt each
-time) and `_ALWAYS` (only where a family also has `_YES`); "no limit" is
+once under a shared stem only when the stem is the common start of the
+sharing options' names (`DABBREV_*`, `SH_PLUS`, `DIRED_RECURSIVE_*`,
+`ANSI_COLOR_*`); otherwise each option gets its own family with its full
+name as prefix (`SGML_QUICK_KEYS_INDENT` and `HTML_QUICK_KEYS_INDENT`,
+`REQUIRE_FINAL_NEWLINE_VISIT` and `MODE_REQUIRE_FINAL_NEWLINE_VISIT`), with
+only the states that option takes, and code that passes a state from one
+option to another maps the constants explicitly (owner, #261,
+2026-11-04; changed R2-Q15, which had `FINAL_NEWLINE_*`).  The
+vocabulary is `_NO` (off), `_YES` (on), `_NONE` (no item or value
+chosen), `_ASK` (prompt each time) and `_ALWAYS` (only where a family
+also has `_YES`); "no limit" is
 `_UNLIMITED`; distinct behaviors keep their own names (`_FIRST_ERROR`,
 `_VISIT_SAVE`, `SH_PLUS`).  Options are named positively (R2-Q18b).
 Since R6-38 a setting's off and on states are `.false.` and `.true.`, not
@@ -1384,6 +1391,7 @@ record fields and face attribute states keep `_NO`/`_YES` (`FACE_NO`/`FACE_YES`,
 | `RECENTF_NO_LIMIT`, `SAVE_PLACE_NO_LIMIT`, `MESSAGE_LOG_UNLIMITED` | `RECENTF_MAX_SAVED_ITEMS_UNLIMITED`, `SAVE_PLACE_LIMIT_UNLIMITED`, `MESSAGE_LOG_MAX_UNLIMITED` (`FILL_COLUMN_NONE` stays: no column set) |
 | `shell_command_dont_erase_buffer`: `DONT_ERASE_NO`, `DONT_ERASE_ERASE`, `DONT_ERASE_BEG_LAST_OUT`, `DONT_ERASE_END_LAST_OUT`, `DONT_ERASE_SAVE_POINT` | `shell_command_keep_output`: `SHELL_COMMAND_KEEP_OUTPUT_NO` (the default), `_ERASE_CURRENT` (R3-4; first `_ERASE`), `_BEGINNING_OF_LAST_OUTPUT`, `_END_OF_LAST_OUTPUT`, `_SAVE_POINT` |
 | `no_redraw_on_reenter` (step 42e) | `redraw_after_suspend` (.true. by default: the value inverted) |
+| shared stems that were not the common start of their options' names (#261): `QUICK_KEYS_INDENT`, `_CLOSE`, `_DEFAULT`; `FINAL_NEWLINE_VISIT`, `_VISIT_SAVE`, `_ASK`; `COMINT_AUTOEXPAND_INPUT`, `_HISTORY` | `SGML_QUICK_KEYS_INDENT`, `_CLOSE` and `HTML_QUICK_KEYS_INDENT`, `_CLOSE`, `_DEFAULT`; `REQUIRE_FINAL_NEWLINE_*` and `MODE_REQUIRE_FINAL_NEWLINE_*`; `COMINT_INPUT_AUTOEXPAND_*` and `SHELL_INPUT_AUTOEXPAND_*` |
 
 **Frame fields (step 42e).**  frame.h's flags are named for what they
 say: new_size_p is `new_size_pending`, garbaged (SET_FRAME_GARBAGED) is
@@ -1444,7 +1452,7 @@ The owner settled the questions steps 41 and 40d raised; the audit of
 | per-shell skeletons (R4-6) | `skeleton_variants_type`, chosen by `skeleton_filter_function` (sh-mode's `sh_skeleton_feature`) |
 | smie-config's rules (R4-7) | `smie_config_rule_type(mode=, method=, token=, normal=, new=, normal_kind=, new_kind=)`; messages and prompts in Fortran form (`SMIE_AFTER "then" -> 4`) |
 | sgml-tag-alist's end-tag field (R4-8) | `SGML_END_TAG_NONE` (absent), `_DEFAULT` (an explicit nil), `_NO` (t), `_NEWLINES`, `_SKELETON` |
-| sgml-quick-keys and html-quick-keys (R4-9) | one set, `.false.`, `.true.` (R6-38), `QUICK_KEYS_INDENT`, `_CLOSE`, with `QUICK_KEYS_DEFAULT` for html-quick-keys's "follow sgml-quick-keys" |
+| sgml-quick-keys and html-quick-keys (R4-9; changed by #261) | `.false.`, `.true.` (R6-38) and a family each (owner, #261, 2026-11-04): `SGML_QUICK_KEYS_INDENT`, `_CLOSE`; `HTML_QUICK_KEYS_INDENT`, `_CLOSE` (taken from sgml-quick-keys), with `HTML_QUICK_KEYS_DEFAULT` for "follow sgml-quick-keys"; R4-9 had one shared `QUICK_KEYS_*` set |
 | the command and the variable sgml-tag-help (R4-10) | `sgml_tag_help` and `sgml_tag_help_variable` (the `_variable` rule) |
 | procedure-valued variables (R4-11) | plain procedure pointers (`sgml_transformation_function => upcase_tag_name`); tools/gen-docstrings.sh documents them (the value is `null()`, the default target's name while it is the target, else "a procedure set by the configuration"); the defcustoms among them are in tools/user-options |
 | a place in our own helper names (R5-1) | "beginning", as in upstream's names: `_beginning`/`_end`, `line_beginning`, `hunk_beginning`; "start" only as a verb.  The `_start` names (58 procedures) are renamed in a PR of their own |
@@ -1801,8 +1809,10 @@ constants (R6-38); internal enumerations that are not settings
 (arguments, record fields, face attribute states) keep `_NO`/`_YES`
 (`FACE_NO`/`FACE_YES`, `CASE_FOLD_*`; panel 2026-11-04).  Its `=` takes `.true.` and `.false.` for its on and
 off states and named constants for its other states only; those start
-with the option's full name, or a stem the options share (`DABBREV_*`,
-`QUICK_KEYS_*`, `ANSI_COLOR_FILTER`), and take the values 2, 3, ...
+with the option's full name, or a stem that is the common start of the
+names of the options that share it (`DABBREV_*`, `ANSI_COLOR_FILTER`;
+otherwise a family per option, `SGML_QUICK_KEYS_*` and `HTML_QUICK_KEYS_*`:
+owner, #261, 2026-11-04), and take the values 2, 3, ...
 (a named constant's number is never 0, the internal mark of the plain on
 and off states).  The object has two state words, as value_mod's
 nameless `choice_type` (the type of a command property such as
