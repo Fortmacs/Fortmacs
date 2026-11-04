@@ -1,0 +1,19 @@
+#!/bin/sh
+# fake-sendmail -- a stand-in for sendmail in test_sendmail_mod: writes
+# its arguments (one line) and then its standard input, the message, to
+# the file $FORTMACS_TEST_SENDMAIL_OUTPUT, and exits with the status
+# $FORTMACS_TEST_SENDMAIL_EXIT (0 if unset), after printing
+# $FORTMACS_TEST_SENDMAIL_ERROR if that is set.
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+
+{
+    printf '%s\n' "$*"
+    cat
+} >"$FORTMACS_TEST_SENDMAIL_OUTPUT"
+if [ -n "${FORTMACS_TEST_SENDMAIL_ERROR:-}" ]; then
+    printf '%s\n' "$FORTMACS_TEST_SENDMAIL_ERROR"
+fi
+exit "${FORTMACS_TEST_SENDMAIL_EXIT:-0}"

@@ -276,10 +276,13 @@ module commands_mod
         type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
         type(command_type) :: compile_goto_error
+        type(command_type) :: complete_mail_abbrev_alias
         type(command_type) :: complete_name
         type(command_type) :: completion_at_point
         type(command_type) :: completion_help_at_point
         type(command_type) :: completion_in_region_mode
+        type(command_type) :: compose_mail
+        type(command_type) :: compose_mail_other_window
         type(command_type) :: conf_align_assignments
         type(command_type) :: conf_colon_mode
         type(command_type) :: conf_desktop_mode
@@ -326,6 +329,7 @@ module commands_mod
         type(command_type) :: dabbrev_expand
         type(command_type) :: default_indent_new_line
         type(command_type) :: define_global_abbrev
+        type(command_type) :: define_mail_abbrev
         type(command_type) :: define_mode_abbrev
         type(command_type) :: delete_all_space
         type(command_type) :: delete_backward_char
@@ -793,6 +797,9 @@ module commands_mod
         type(command_type) :: info_up
         type(command_type) :: info_virtual_index
         type(command_type) :: insert_abbrevs
+        type(command_type) :: insert_mail_abbrev_alias
+        type(command_type) :: insert_mail_disposition_notification_to
+        type(command_type) :: insert_mail_file
         type(command_type) :: insert_pair
         type(command_type) :: insert_parentheses
         type(command_type) :: insert_register
@@ -924,6 +931,23 @@ module commands_mod
         type(command_type) :: log_view_unmark_all_entries
         type(command_type) :: log_view_unmark_entry
         type(command_type) :: lossage_size
+        type(command_type) :: mail
+        type(command_type) :: mail_abbrev_end_of_buffer
+        type(command_type) :: mail_abbrev_next_line
+        type(command_type) :: mail_abbrevs_mode
+        type(command_type) :: mail_bcc
+        type(command_type) :: mail_cc
+        type(command_type) :: mail_dont_send
+        type(command_type) :: mail_fcc
+        type(command_type) :: mail_mail_followup_to
+        type(command_type) :: mail_mail_reply_to
+        type(command_type) :: mail_mode
+        type(command_type) :: mail_other_window
+        type(command_type) :: mail_reply_to
+        type(command_type) :: mail_signature
+        type(command_type) :: mail_subject
+        type(command_type) :: mail_text
+        type(command_type) :: mail_to
         type(command_type) :: make_frame_command
         type(command_type) :: makefile_automake_mode
         type(command_type) :: makefile_backslash_region
@@ -956,6 +980,7 @@ module commands_mod
         type(command_type) :: mark_subprogram
         type(command_type) :: mark_whole_buffer
         type(command_type) :: mark_word
+        type(command_type) :: merge_mail_abbrevs
         type(command_type) :: messages_buffer_mode
         type(command_type) :: minibuffer_complete
         type(command_type) :: minibuffer_complete_and_exit
@@ -1007,6 +1032,8 @@ module commands_mod
         type(command_type) :: other_window
         type(command_type) :: other_window_backward
         type(command_type) :: paste
+        type(command_type) :: paste_mail_original
+        type(command_type) :: paste_mail_region
         type(command_type) :: paste_previous
         type(command_type) :: paste_rectangle
         type(command_type) :: point_to_register
@@ -1056,6 +1083,7 @@ module commands_mod
         type(command_type) :: query_replace
         type(command_type) :: query_replace_regexp
         type(command_type) :: quit_window
+        type(command_type) :: quote_mail_printable_region
         type(command_type) :: quoted_insert
         type(command_type) :: raise_expression
         type(command_type) :: re_search_backward
@@ -1068,6 +1096,7 @@ module commands_mod
         type(command_type) :: read_y_or_n_insert_n
         type(command_type) :: read_y_or_n_insert_other
         type(command_type) :: read_y_or_n_insert_y
+        type(command_type) :: rebuild_mail_abbrevs
         type(command_type) :: recenter
         type(command_type) :: recenter_follow
         type(command_type) :: recenter_top_bottom
@@ -1128,6 +1157,8 @@ module commands_mod
         type(command_type) :: search_forward
         type(command_type) :: select_frame_by_name
         type(command_type) :: self_insert_command
+        type(command_type) :: send_mail
+        type(command_type) :: send_mail_and_exit
         type(command_type) :: set_buffer_file_coding_system
         type(command_type) :: set_buffer_process_coding_system
         type(command_type) :: set_fill_column
@@ -1263,6 +1294,7 @@ module commands_mod
         type(command_type) :: universal_argument_more
         type(command_type) :: universal_coding_system_argument
         type(command_type) :: unix_sync
+        type(command_type) :: unquote_mail_printable_region
         type(command_type) :: up_group
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
@@ -1375,7 +1407,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1336) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1368) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1619,10 +1651,13 @@ module commands_mod
                                                                   "compilation_shell_minor_mode", &
                                                                   "compile", &
                                                                   "compile_goto_error", &
+                                                                  "complete_mail_abbrev_alias", &
                                                                   "complete_name", &
                                                                   "completion_at_point", &
                                                                   "completion_help_at_point", &
                                                                   "completion_in_region_mode", &
+                                                                  "compose_mail", &
+                                                                  "compose_mail_other_window", &
                                                                   "conf_align_assignments", &
                                                                   "conf_colon_mode", &
                                                                   "conf_desktop_mode", &
@@ -1669,6 +1704,7 @@ module commands_mod
                                                                   "dabbrev_expand", &
                                                                   "default_indent_new_line", &
                                                                   "define_global_abbrev", &
+                                                                  "define_mail_abbrev", &
                                                                   "define_mode_abbrev", &
                                                                   "delete_all_space", &
                                                                   "delete_backward_char", &
@@ -2136,6 +2172,9 @@ module commands_mod
                                                                   "info_up", &
                                                                   "info_virtual_index", &
                                                                   "insert_abbrevs", &
+                                                                  "insert_mail_abbrev_alias", &
+                                                                  "insert_mail_disposition_notification_to", &
+                                                                  "insert_mail_file", &
                                                                   "insert_pair", &
                                                                   "insert_parentheses", &
                                                                   "insert_register", &
@@ -2267,6 +2306,23 @@ module commands_mod
                                                                   "log_view_unmark_all_entries", &
                                                                   "log_view_unmark_entry", &
                                                                   "lossage_size", &
+                                                                  "mail", &
+                                                                  "mail_abbrev_end_of_buffer", &
+                                                                  "mail_abbrev_next_line", &
+                                                                  "mail_abbrevs_mode", &
+                                                                  "mail_bcc", &
+                                                                  "mail_cc", &
+                                                                  "mail_dont_send", &
+                                                                  "mail_fcc", &
+                                                                  "mail_mail_followup_to", &
+                                                                  "mail_mail_reply_to", &
+                                                                  "mail_mode", &
+                                                                  "mail_other_window", &
+                                                                  "mail_reply_to", &
+                                                                  "mail_signature", &
+                                                                  "mail_subject", &
+                                                                  "mail_text", &
+                                                                  "mail_to", &
                                                                   "make_frame_command", &
                                                                   "makefile_automake_mode", &
                                                                   "makefile_backslash_region", &
@@ -2299,6 +2355,7 @@ module commands_mod
                                                                   "mark_subprogram", &
                                                                   "mark_whole_buffer", &
                                                                   "mark_word", &
+                                                                  "merge_mail_abbrevs", &
                                                                   "messages_buffer_mode", &
                                                                   "minibuffer_complete", &
                                                                   "minibuffer_complete_and_exit", &
@@ -2350,6 +2407,8 @@ module commands_mod
                                                                   "other_window", &
                                                                   "other_window_backward", &
                                                                   "paste", &
+                                                                  "paste_mail_original", &
+                                                                  "paste_mail_region", &
                                                                   "paste_previous", &
                                                                   "paste_rectangle", &
                                                                   "point_to_register", &
@@ -2399,6 +2458,7 @@ module commands_mod
                                                                   "query_replace", &
                                                                   "query_replace_regexp", &
                                                                   "quit_window", &
+                                                                  "quote_mail_printable_region", &
                                                                   "quoted_insert", &
                                                                   "raise_expression", &
                                                                   "re_search_backward", &
@@ -2411,6 +2471,7 @@ module commands_mod
                                                                   "read_y_or_n_insert_n", &
                                                                   "read_y_or_n_insert_other", &
                                                                   "read_y_or_n_insert_y", &
+                                                                  "rebuild_mail_abbrevs", &
                                                                   "recenter", &
                                                                   "recenter_follow", &
                                                                   "recenter_top_bottom", &
@@ -2471,6 +2532,8 @@ module commands_mod
                                                                   "search_forward", &
                                                                   "select_frame_by_name", &
                                                                   "self_insert_command", &
+                                                                  "send_mail", &
+                                                                  "send_mail_and_exit", &
                                                                   "set_buffer_file_coding_system", &
                                                                   "set_buffer_process_coding_system", &
                                                                   "set_fill_column", &
@@ -2606,6 +2669,7 @@ module commands_mod
                                                                   "universal_argument_more", &
                                                                   "universal_coding_system_argument", &
                                                                   "unix_sync", &
+                                                                  "unquote_mail_printable_region", &
                                                                   "up_group", &
                                                                   "upcase_initials_region", &
                                                                   "upcase_region", &
@@ -3210,6 +3274,8 @@ contains
             p => commands%compile
         case ("compile_goto_error")
             p => commands%compile_goto_error
+        case ("complete_mail_abbrev_alias")
+            p => commands%complete_mail_abbrev_alias
         case ("complete_name")
             p => commands%complete_name
         case ("completion_at_point")
@@ -3218,6 +3284,10 @@ contains
             p => commands%completion_help_at_point
         case ("completion_in_region_mode")
             p => commands%completion_in_region_mode
+        case ("compose_mail")
+            p => commands%compose_mail
+        case ("compose_mail_other_window")
+            p => commands%compose_mail_other_window
         case ("conf_align_assignments")
             p => commands%conf_align_assignments
         case ("conf_colon_mode")
@@ -3310,6 +3380,8 @@ contains
             p => commands%default_indent_new_line
         case ("define_global_abbrev")
             p => commands%define_global_abbrev
+        case ("define_mail_abbrev")
+            p => commands%define_mail_abbrev
         case ("define_mode_abbrev")
             p => commands%define_mode_abbrev
         case ("delete_all_space")
@@ -4244,6 +4316,12 @@ contains
             p => commands%info_virtual_index
         case ("insert_abbrevs")
             p => commands%insert_abbrevs
+        case ("insert_mail_abbrev_alias")
+            p => commands%insert_mail_abbrev_alias
+        case ("insert_mail_disposition_notification_to")
+            p => commands%insert_mail_disposition_notification_to
+        case ("insert_mail_file")
+            p => commands%insert_mail_file
         case ("insert_pair")
             p => commands%insert_pair
         case ("insert_parentheses")
@@ -4506,6 +4584,40 @@ contains
             p => commands%log_view_unmark_entry
         case ("lossage_size")
             p => commands%lossage_size
+        case ("mail")
+            p => commands%mail
+        case ("mail_abbrev_end_of_buffer")
+            p => commands%mail_abbrev_end_of_buffer
+        case ("mail_abbrev_next_line")
+            p => commands%mail_abbrev_next_line
+        case ("mail_abbrevs_mode")
+            p => commands%mail_abbrevs_mode
+        case ("mail_bcc")
+            p => commands%mail_bcc
+        case ("mail_cc")
+            p => commands%mail_cc
+        case ("mail_dont_send")
+            p => commands%mail_dont_send
+        case ("mail_fcc")
+            p => commands%mail_fcc
+        case ("mail_mail_followup_to")
+            p => commands%mail_mail_followup_to
+        case ("mail_mail_reply_to")
+            p => commands%mail_mail_reply_to
+        case ("mail_mode")
+            p => commands%mail_mode
+        case ("mail_other_window")
+            p => commands%mail_other_window
+        case ("mail_reply_to")
+            p => commands%mail_reply_to
+        case ("mail_signature")
+            p => commands%mail_signature
+        case ("mail_subject")
+            p => commands%mail_subject
+        case ("mail_text")
+            p => commands%mail_text
+        case ("mail_to")
+            p => commands%mail_to
         case ("make_frame_command")
             p => commands%make_frame_command
         case ("makefile_automake_mode")
@@ -4570,6 +4682,8 @@ contains
             p => commands%mark_whole_buffer
         case ("mark_word")
             p => commands%mark_word
+        case ("merge_mail_abbrevs")
+            p => commands%merge_mail_abbrevs
         case ("messages_buffer_mode")
             p => commands%messages_buffer_mode
         case ("minibuffer_complete")
@@ -4672,6 +4786,10 @@ contains
             p => commands%other_window_backward
         case ("paste")
             p => commands%paste
+        case ("paste_mail_original")
+            p => commands%paste_mail_original
+        case ("paste_mail_region")
+            p => commands%paste_mail_region
         case ("paste_previous")
             p => commands%paste_previous
         case ("paste_rectangle")
@@ -4770,6 +4888,8 @@ contains
             p => commands%query_replace_regexp
         case ("quit_window")
             p => commands%quit_window
+        case ("quote_mail_printable_region")
+            p => commands%quote_mail_printable_region
         case ("quoted_insert")
             p => commands%quoted_insert
         case ("raise_expression")
@@ -4794,6 +4914,8 @@ contains
             p => commands%read_y_or_n_insert_other
         case ("read_y_or_n_insert_y")
             p => commands%read_y_or_n_insert_y
+        case ("rebuild_mail_abbrevs")
+            p => commands%rebuild_mail_abbrevs
         case ("recenter")
             p => commands%recenter
         case ("recenter_follow")
@@ -4914,6 +5036,10 @@ contains
             p => commands%select_frame_by_name
         case ("self_insert_command")
             p => commands%self_insert_command
+        case ("send_mail")
+            p => commands%send_mail
+        case ("send_mail_and_exit")
+            p => commands%send_mail_and_exit
         case ("set_buffer_file_coding_system")
             p => commands%set_buffer_file_coding_system
         case ("set_buffer_process_coding_system")
@@ -5184,6 +5310,8 @@ contains
             p => commands%universal_coding_system_argument
         case ("unix_sync")
             p => commands%unix_sync
+        case ("unquote_mail_printable_region")
+            p => commands%unquote_mail_printable_region
         case ("up_group")
             p => commands%up_group
         case ("upcase_initials_region")
