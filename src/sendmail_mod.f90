@@ -25,12 +25,12 @@
 !> headers end at the line `mail_header_separator'; C-c C-c
 !> (`send_mail_and_exit') sends it with `send_mail_function', by default
 !> `query_sendmail_once', which asks how to send mail the first time;
-!> `send_with_sendmail' hands the message to the program
+!> `send_mail_with_sendmail' hands the message to the program
 !> `sendmail_program' and writes copies to the files of Fcc fields.  To
 !> use Mail mode from \[compose_mail], the configuration writes
 !>
 !>     mail_user_agent => sendmail_user_agent
-!>     send_mail_function => send_with_sendmail
+!>     send_mail_function => send_mail_with_sendmail
 !>
 !> See PORTING.md's status table for what is deferred.
 module sendmail_mod
@@ -95,7 +95,7 @@ module sendmail_mod
     public :: query_sendmail_once, compose_sendmail_user_agent, set_up_mail, mail_mode, mail_header_end, mail_text_start, &
               delimit_mail_sendmail_header, undelimit_mail_sendmail_header, mail_mode_auto_fill, fill_mail_mode_paragraph, &
               send_mail_and_exit, mail_dont_send, bury_mail, send_mail, insert_mail_from_field, combine_mail_fields, &
-              send_with_sendmail, do_mail_fcc, mail_to, mail_subject, mail_cc, mail_bcc, mail_fcc, mail_reply_to, &
+              send_mail_with_sendmail, do_mail_fcc, mail_to, mail_subject, mail_cc, mail_bcc, mail_fcc, mail_reply_to, &
               mail_mail_reply_to, mail_mail_followup_to, position_mail_on_field, mail_text, &
               insert_mail_disposition_notification_to, mail_signature, indent_mail_citation, paste_mail_original, &
               clear_mail_paste_headers, paste_mail_region, insert_mail_file, mail, mail_other_window, &
@@ -129,7 +129,7 @@ module sendmail_mod
 
     !> True means insert `From:' field when setting up the message.  Port
     !> of sendmail.el mail-setup-with-from.
-    logical, public :: mail_setup_with_from = .true.
+    logical, public :: set_up_mail_with_from = .true.
 
     !> Program used to send messages.
     !> If the program returns a nonzero error code, or outputs any
@@ -223,7 +223,7 @@ module sendmail_mod
 
     !> Normal hook, run each time a new outgoing message is initialized.
     !> Port of sendmail.el mail-setup-hook.
-    type(hook_type), target, public :: mail_setup_hook = hook_type(name="mail_setup_hook")
+    type(hook_type), target, public :: set_up_mail_hook = hook_type(name="set_up_mail_hook")
 
     !> Prefix insert on lines of pasted message being replied to.
     !> If this is unallocated, use indentation, as specified by
@@ -325,7 +325,7 @@ module sendmail_mod
 
     !> Hook run by Mail mode.
     !> When composing a mail, this runs immediately after creating, or
-    !> switching to, the `*mail*' buffer.  See also `mail_setup_hook'.
+    !> switching to, the `*mail*' buffer.  See also `set_up_mail_hook'.
     !> Port of sendmail.el mail-mode-hook.
     type(hook_type), target, public :: mail_mode_hook = hook_type(name="mail_mode_hook")
 
@@ -665,7 +665,7 @@ contains
 
         select case (downcase_text(choice))
         case ("transport")
-            chosen => send_with_sendmail
+            chosen => send_mail_with_sendmail
         case ("smtp")
             call set_error(status, FM_VOID_FUNCTION, "smtpmail_send_it")
         case default
@@ -707,7 +707,7 @@ contains
     !> IN_REPLY_TO and CC: the From, To, Cc, In-Reply-To and Subject
     !> fields, `mail_default_headers', Reply-To, Bcc and Fcc fields as the
     !> options say, the separator and the signature; then run
-    !> `mail_setup_hook'.  REPLYBUFFER, if present, is the buffer holding the
+    !> `set_up_mail_hook'.  REPLYBUFFER, if present, is the buffer holding the
     !> message being replied to.  Port of sendmail.el:mail-setup (the
     !> actions, mail aliases and input methods are Deferred).
     recursive subroutine set_up_mail(status, to, subject, in_reply_to, cc, replybuffer)
@@ -738,7 +738,7 @@ contains
 
         call goto_char(point_min())
 
-        if (mail_setup_with_from) then
+        if (set_up_mail_with_from) then
             call insert_mail_from_field(status)
             if (.not. status%ok()) return
         end if
@@ -830,7 +830,7 @@ contains
         if (.not. status%ok()) return
         if (present(to)) call goto_char(to_position)
         if (.not. (present(to) .or. present(subject) .or. present(in_reply_to))) call set_buffer_modified(.false.)
-        call mail_setup_hook%execute(status)
+        call set_up_mail_hook%execute(status)
     end subroutine set_up_mail
 
     !> Major mode for editing mail to be sent.
@@ -1635,7 +1635,7 @@ contains
     !> sendmail.el:sendmail-send-it (expanding mail aliases, which needs
     !> mailalias.el, and RFC 2047 encoding of the header, which needs
     !> rfc2047.el, are Deferred).
-    recursive subroutine send_with_sendmail(status)
+    recursive subroutine send_mail_with_sendmail(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: errbuf, tembuf, mailbuf, delimline
         type(value_type) :: result, destination, item
@@ -1938,7 +1938,7 @@ contains
             item = value_type(text=arg)
             argv = [argv, item]
         end subroutine append_arg
-    end subroutine send_with_sendmail
+    end subroutine send_mail_with_sendmail
 
     ! The addresses of the Resent- field at point (its continuation lines
     ! included) as `parse_mail_comma_list' gives them.  Not a port.
@@ -2679,7 +2679,7 @@ contains
     !> If `mail_archive_file_name' is allocated, an Fcc field with that file name
     !> is inserted.
     !>
-    !> The normal hook `mail_setup_hook' is run after the message is
+    !> The normal hook `set_up_mail_hook' is run after the message is
     !> initialized.  It can add more default fields to the message.
     !>
     !> The first argument, NOERASE, determines what to do when there is

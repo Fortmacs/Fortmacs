@@ -2424,6 +2424,12 @@ name	mail_split_line	split_mail_line
 name	mail_recover	recover_mail
 name	mail_abbrev_insert_alias	insert_mail_abbrev_alias
 name	mail_abbrev_complete_alias	complete_mail_abbrev_alias
+# Confirmed by the owner (2026-11-04, step 52a): mail-setup is set_up_mail (as
+# set_up_ediff) and sendmail-send-it is send_mail_with_sendmail (the verb,
+# then what is sent and how).
+name	mail_setup	set_up_mail
+name	sendmail_send_it	send_mail_with_sendmail
+name	send_with_sendmail	send_mail_with_sendmail
 
 # R6-21 (owner's decision, 2026-11-03): Fortmacs is a new program in
 # another language, so a name that means this program says fortmacs, not

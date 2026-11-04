@@ -35,7 +35,7 @@ module test_mailabbrev_mod
     use files_mod, only: create_temp_file, delete_file
     use fileio_mod, only: file_exists
     use abbrev_mod, only: expand_abbrev
-    use sendmail_mod, only: mail, mail_personal_alias_file, mail_setup_with_from, mail_signature_variable, &
+    use sendmail_mod, only: mail, mail_personal_alias_file, set_up_mail_with_from, mail_signature_variable, &
                             MAIL_SIGNATURE_NO, MAIL_NOERASE_NO
     use mailabbrev_mod, only: build_mail_abbrevs, define_mail_abbrev, resolve_all_mail_aliases, set_up_mail_abbrevs, &
                               mail_abbrevs, mail_abbrevs_built
@@ -76,7 +76,7 @@ contains
         mail_personal_alias_file = file
         mail_abbrevs_built = .false.
         call mail_abbrevs%clear()
-        mail_setup_with_from = .false.
+        set_up_mail_with_from = .false.
         mail_signature_variable = MAIL_SIGNATURE_NO
     end subroutine set_up
 

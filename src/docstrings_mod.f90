@@ -521,11 +521,12 @@ module docstrings_mod
                             mail_mode_syntax_table, mail_paste_ignored_headers, mail_paste_prefix, &
                             mail_personal_alias_file, mail_self_blind, mail_send_hook, mail_send_nonascii, &
                             MAIL_SEND_NONASCII_NO, MAIL_SEND_NONASCII_YES, MAIL_SEND_NONASCII_ASK, &
-                            MAIL_SEND_NONASCII_MIME, mail_setup_hook, mail_setup_with_from, mail_signature_variable, &
-                            MAIL_SIGNATURE_NO, MAIL_SIGNATURE_YES, MAIL_SIGNATURE_STRING, MAIL_SIGNATURE_PROCEDURE, &
-                            mail_signature_file, mail_specify_envelope_from, mail_use_dsn, send_mail_function, &
-                            query_sendmail_once, sendmail_coding_system, sendmail_error_reporting_interactive, &
-                            sendmail_error_reporting_non_interactive, sendmail_program, sendmail_user_agent
+                            MAIL_SEND_NONASCII_MIME, mail_signature_variable, MAIL_SIGNATURE_NO, MAIL_SIGNATURE_YES, &
+                            MAIL_SIGNATURE_STRING, MAIL_SIGNATURE_PROCEDURE, mail_signature_file, &
+                            mail_specify_envelope_from, mail_use_dsn, send_mail_function, query_sendmail_once, &
+                            sendmail_coding_system, sendmail_error_reporting_interactive, &
+                            sendmail_error_reporting_non_interactive, sendmail_program, sendmail_user_agent, &
+                            set_up_mail_hook, set_up_mail_with_from
     use sgml_mode_mod, only: html_mode_hook, html_mode_map, html_quick_keys, QUICK_KEYS_NO, &
                              QUICK_KEYS_YES, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, html_tag_faces, &
                              html_tag_help, html_tags, sgml_attribute_offset, sgml_basic_offset, sgml_char_names, &
@@ -1534,8 +1535,8 @@ module docstrings_mod
                                             "mail_indentation_spaces", "mail_interactive", "mail_mailing_lists", "mail_mode_hook", &
                                                           "mail_mode_map", "mail_mode_syntax_table", "mail_paste_ignored_headers", &
                                              "mail_paste_prefix", "mail_personal_alias_file", "mail_self_blind", "mail_send_hook", &
-                                                "mail_send_nonascii", "mail_setup_hook", "mail_setup_with_from", "mail_signature", &
-                                           "mail_signature_file", "mail_specify_envelope_from", "mail_use_dsn", "mail_user_agent", &
+                                                                    "mail_send_nonascii", "mail_signature", "mail_signature_file", &
+                                                                  "mail_specify_envelope_from", "mail_use_dsn", "mail_user_agent", &
                                                             "makefile_automake_font_lock_keywords", "makefile_automake_mode_hook", &
                                                    "makefile_backslash_align", "makefile_backslash_column", "makefile_brave_make", &
                                                       "makefile_bsdmake_dependency_regexp", "makefile_bsdmake_font_lock_keywords", &
@@ -1628,42 +1629,42 @@ module docstrings_mod
                                             "sendmail_error_reporting_non_interactive", "sendmail_program", "sendmail_user_agent", &
                                                                  "sentence_end", "sentence_end_base", "sentence_end_double_space", &
                                           "sentence_end_without_period", "sentence_end_without_space", "set_auto_coding_function", &
-                                                       "set_variable_value_history", "sgml_attribute_offset", "sgml_basic_offset", &
-                                                          "sgml_char_names", "sgml_empty_tags", "sgml_mode_hook", "sgml_mode_map", &
-                                              "sgml_mode_syntax_table", "sgml_quick_keys", "sgml_slash_distance", "sgml_specials", &
-                                                    "sgml_tag_help", "sgml_tag_history", "sgml_tag_last", "sgml_tag_syntax_table", &
-                                                                "sgml_tags", "sgml_transformation_function", "sgml_unclosed_tags", &
-                                         "sgml_validate_command", "sgml_whitespace_sensitive_tags", "sgml_xml_mode", "sh_aliases", &
-                                              "sh_ancestors", "sh_assignment_regexp", "sh_backslash_align", "sh_backslash_column", &
-                                            "sh_base_mode_hook", "sh_base_mode_map", "sh_basic_offset", "sh_beginning_of_command", &
-                                                              "sh_builtins", "sh_dynamic_complete_functions", "sh_end_of_command", &
-                                                                    "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
-                                                   "sh_font_lock_keywords_var_2", "sh_here_document_word", "sh_indent_after_case", &
-                                                     "sh_indent_after_continuation", "sh_indent_after_do", "sh_indent_after_done", &
-                                                         "sh_indent_after_else", "sh_indent_after_function", "sh_indent_after_if", &
-                                               "sh_indent_after_loop_construct", "sh_indent_after_open", "sh_indent_after_switch", &
-                                               "sh_indent_for_case_alt", "sh_indent_for_case_label", "sh_indent_for_continuation", &
-                                               "sh_indent_for_do", "sh_indent_for_done", "sh_indent_for_fi", "sh_indent_for_then", &
-                                                    "sh_indent_statement_after_and", "sh_indent_supported", "sh_leading_keywords", &
-                                                      "sh_make_vars_local", "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", &
-                                                        "sh_mode_syntax_table", "sh_mode_syntax_table_input", "sh_other_keywords", &
-                                                      "sh_remember_variable_min", "sh_set_shell_hook", "sh_shell", "sh_shell_arg", &
-                                                          "sh_shell_file", "sh_skeleton_pair_default_alist", "sh_smie_rc_grammar", &
-                                                  "sh_smie_sh_grammar", "sh_styles", "sh_test", "sh_variables", "shell_cd_regexp", &
-                                                               "shell_close_buffer_on_exit", "shell_command_default_error_buffer", &
-                                                 "shell_command_keep_output", "shell_command_mode_hook", "shell_command_mode_map", &
-                                                                    "shell_command_prompt_show_cwd", "shell_command_regexp", &
-                                            "shell_command_separator_regexp", "shell_command_switch", "shell_completion_execonly", &
-                                                  "shell_completion_fignore", "shell_delimiter_arguments", "shell_dirstack_query", &
-                                                  "shell_dirtrack_mode_hook", "shell_dirtrack_verbose", "shell_dumb_shell_regexp", &
-                                                   "shell_dynamic_complete_functions", "shell_file_name", "shell_file_name_chars", &
-                                                  "shell_file_name_quote_chars", "shell_get_old_input_include_continuation_lines", &
-                                                         "shell_has_auto_cd", "shell_history_file_name", "shell_input_autoexpand", &
-                                                  "shell_mode_hook", "shell_mode_map", "shell_popd_regexp", "shell_prompt_regexp", &
-                                                              "shell_pushd_dextract", "shell_pushd_dunique", "shell_pushd_regexp", &
-                                                    "shell_pushd_tohome", "shell_repeat_map", "show_paren_context_when_offscreen", &
-                                                 "show_paren_data_function", "show_paren_delay", "show_paren_highlight_openparen", &
-                                                                    "show_paren_local_mode_hook", "show_paren_mode_hook", &
+                                                        "set_up_mail_hook", "set_up_mail_with_from", "set_variable_value_history", &
+                                               "sgml_attribute_offset", "sgml_basic_offset", "sgml_char_names", "sgml_empty_tags", &
+                                                   "sgml_mode_hook", "sgml_mode_map", "sgml_mode_syntax_table", "sgml_quick_keys", &
+                                                      "sgml_slash_distance", "sgml_specials", "sgml_tag_help", "sgml_tag_history", &
+                                            "sgml_tag_last", "sgml_tag_syntax_table", "sgml_tags", "sgml_transformation_function", &
+                                                  "sgml_unclosed_tags", "sgml_validate_command", "sgml_whitespace_sensitive_tags", &
+                                                            "sgml_xml_mode", "sh_aliases", "sh_ancestors", "sh_assignment_regexp", &
+                                             "sh_backslash_align", "sh_backslash_column", "sh_base_mode_hook", "sh_base_mode_map", &
+                                                                    "sh_basic_offset", "sh_beginning_of_command", "sh_builtins", &
+                                                "sh_dynamic_complete_functions", "sh_end_of_command", "sh_font_lock_keywords_var", &
+                                            "sh_font_lock_keywords_var_1", "sh_font_lock_keywords_var_2", "sh_here_document_word", &
+                                                     "sh_indent_after_case", "sh_indent_after_continuation", "sh_indent_after_do", &
+                                                       "sh_indent_after_done", "sh_indent_after_else", "sh_indent_after_function", &
+                                                   "sh_indent_after_if", "sh_indent_after_loop_construct", "sh_indent_after_open", &
+                                                   "sh_indent_after_switch", "sh_indent_for_case_alt", "sh_indent_for_case_label", &
+                                                           "sh_indent_for_continuation", "sh_indent_for_do", "sh_indent_for_done", &
+                                                        "sh_indent_for_fi", "sh_indent_for_then", "sh_indent_statement_after_and", &
+                                                               "sh_indent_supported", "sh_leading_keywords", "sh_make_vars_local", &
+                                                    "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", "sh_mode_syntax_table", &
+                                                    "sh_mode_syntax_table_input", "sh_other_keywords", "sh_remember_variable_min", &
+                                                                 "sh_set_shell_hook", "sh_shell", "sh_shell_arg", "sh_shell_file", &
+                                                     "sh_skeleton_pair_default_alist", "sh_smie_rc_grammar", "sh_smie_sh_grammar", &
+                                          "sh_styles", "sh_test", "sh_variables", "shell_cd_regexp", "shell_close_buffer_on_exit", &
+                                                                "shell_command_default_error_buffer", "shell_command_keep_output", &
+                                             "shell_command_mode_hook", "shell_command_mode_map", "shell_command_prompt_show_cwd", &
+                                                 "shell_command_regexp", "shell_command_separator_regexp", "shell_command_switch", &
+                                             "shell_completion_execonly", "shell_completion_fignore", "shell_delimiter_arguments", &
+                                                     "shell_dirstack_query", "shell_dirtrack_mode_hook", "shell_dirtrack_verbose", &
+                                                 "shell_dumb_shell_regexp", "shell_dynamic_complete_functions", "shell_file_name", &
+                                                                    "shell_file_name_chars", "shell_file_name_quote_chars", &
+                                                            "shell_get_old_input_include_continuation_lines", "shell_has_auto_cd", &
+                                         "shell_history_file_name", "shell_input_autoexpand", "shell_mode_hook", "shell_mode_map", &
+                                                               "shell_popd_regexp", "shell_prompt_regexp", "shell_pushd_dextract", &
+                                            "shell_pushd_dunique", "shell_pushd_regexp", "shell_pushd_tohome", "shell_repeat_map", &
+                                              "show_paren_context_when_offscreen", "show_paren_data_function", "show_paren_delay", &
+                                           "show_paren_highlight_openparen", "show_paren_local_mode_hook", "show_paren_mode_hook", &
                                                                    "show_paren_not_in_comments_or_strings", "show_paren_priority", &
                                                "show_paren_ring_bell_on_mismatch", "show_paren_style", "show_paren_test_function", &
                                                        "show_paren_when_point_in_periphery", "show_paren_when_point_inside_paren", &
@@ -2124,8 +2125,8 @@ module docstrings_mod
                                                                       "mail_self_blind", &
                                                                       "mail_send_hook", &
                                                                       "mail_send_nonascii", &
-                                                                      "mail_setup_hook", &
-                                                                      "mail_setup_with_from", &
+                                                                      "set_up_mail_hook", &
+                                                                      "set_up_mail_with_from", &
                                                                       "mail_signature_file", &
                                                                       "mail_signature", &
                                                                       "mail_specify_envelope_from", &
@@ -11998,7 +11999,7 @@ contains
                         "If `mail_archive_file_name' is allocated, an Fcc field with that file name"//LF// &
                         "is inserted."//LF// &
                         ""//LF// &
-                        "The normal hook `mail_setup_hook' is run after the message is"//LF// &
+                        "The normal hook `set_up_mail_hook' is run after the message is"//LF// &
                         "initialized.  It can add more default fields to the message."//LF// &
                         ""//LF// &
                         "The first argument, NOERASE, determines what to do when there is"//LF// &
@@ -28487,7 +28488,7 @@ contains
             entry%user_option = .true.
             entry%doc = "Hook run by Mail mode."//LF// &
                         "When composing a mail, this runs immediately after creating, or"//LF// &
-                        "switching to, the `*mail*' buffer.  See also `mail_setup_hook'."
+                        "switching to, the `*mail*' buffer.  See also `set_up_mail_hook'."
         case ("mail_mode_map")
             entry%file = "sendmail_mod.f90"
             entry%fortran = "mail_mode_map"
@@ -28578,18 +28579,6 @@ contains
                         "already present.  The default is MAIL_SEND_NONASCII_MIME."//LF// &
                         "Including non-ASCII characters in a mail message can be problematical"//LF// &
                         "for the recipient, who may not know how to decode them properly."
-        case ("mail_setup_hook")
-            entry%file = "sendmail_mod.f90"
-            entry%fortran = "mail_setup_hook"
-            entry%user_option = .true.
-            entry%doc = "Normal hook, run each time a new outgoing message is initialized."
-        case ("mail_setup_with_from")
-            entry%file = "sendmail_mod.f90"
-            entry%fortran = "mail_setup_with_from"
-            entry%user_option = .true.
-            entry%original = ".true."
-            entry%value = repr(mail_setup_with_from)
-            entry%doc = "True means insert `From:' field when setting up the message."
         case ("mail_signature")
             entry%file = "sendmail_mod.f90"
             entry%fortran = "mail_signature_variable"
@@ -31235,6 +31224,18 @@ contains
                         "specified in the heading lines with the format:"//LF// &
                         "        -*- ... coding: CODING-SYSTEM; ... -*-"//LF// &
                         "or local variable spec of the tailing lines with `coding:' tag."
+        case ("set_up_mail_hook")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "set_up_mail_hook"
+            entry%user_option = .true.
+            entry%doc = "Normal hook, run each time a new outgoing message is initialized."
+        case ("set_up_mail_with_from")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "set_up_mail_with_from"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(set_up_mail_with_from)
+            entry%doc = "True means insert `From:' field when setting up the message."
         case ("set_variable_value_history")
             entry%file = "simple_mod.f90"
             entry%fortran = "set_variable_value_history"
@@ -34951,7 +34952,7 @@ contains
             kind = OPTION_LOGICAL
         case ("mail_send_nonascii")
             kind = OPTION_CHOICE
-        case ("mail_setup_with_from")
+        case ("set_up_mail_with_from")
             kind = OPTION_LOGICAL
         case ("mail_signature_file")
             kind = OPTION_STRING
@@ -35877,8 +35878,8 @@ contains
             mail_interactive = v
         case ("mail_self_blind")
             mail_self_blind = v
-        case ("mail_setup_with_from")
-            mail_setup_with_from = v
+        case ("set_up_mail_with_from")
+            set_up_mail_with_from = v
         case ("mail_specify_envelope_from")
             mail_specify_envelope_from = v
         case ("makefile_backslash_align")

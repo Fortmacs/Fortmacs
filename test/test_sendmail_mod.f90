@@ -38,8 +38,8 @@ module test_sendmail_mod
     use env_mod, only: setenv
     use startup_mod, only: user_mail_address
     use simple_mod, only: mail_user_agent, compose_mail
-    use sendmail_mod, only: mail, mail_cc, mail_subject, mail_to, insert_mail_from_field, send_mail, send_with_sendmail, &
-                            mail_signature, mail_setup_with_from, mail_signature_variable, mail_signature_text, &
+    use sendmail_mod, only: mail, mail_cc, mail_subject, mail_to, insert_mail_from_field, send_mail, send_mail_with_sendmail, &
+                            mail_signature, set_up_mail_with_from, mail_signature_variable, mail_signature_text, &
                             mail_from_style, send_mail_function, sendmail_program, mail_archive_file_name, &
                             sendmail_user_agent, mail_header_end, mail_text_start, MAIL_SIGNATURE_NO, &
                             MAIL_SIGNATURE_STRING, MAIL_FROM_STYLE_SIMPLE, MAIL_FROM_STYLE_ANGLES, MAIL_NOERASE_NO
@@ -58,8 +58,8 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
-                    new_unittest("mail-setup", test_mail_setup), &
-                    new_unittest("mail-setup-empty", test_mail_setup_empty), &
+                    new_unittest("mail-setup", test_set_up_mail), &
+                    new_unittest("mail-setup-empty", test_set_up_mail_empty), &
                     new_unittest("mail-field-commands", test_field_commands), &
                     new_unittest("mail-from-field", test_from_field), &
                     new_unittest("mail-signature", test_signature), &
@@ -84,11 +84,11 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        mail_setup_with_from = .false.
+        set_up_mail_with_from = .false.
         mail_signature_variable = MAIL_SIGNATURE_NO
         mail_from_style = MAIL_FROM_STYLE_SIMPLE
         user_mail_address = "king@grassland.com"
-        send_mail_function => send_with_sendmail
+        send_mail_function => send_mail_with_sendmail
         call init_fileio()
         call expand_file_name("test/sendmail-resources/fake-sendmail", program, st, fortmacs_wd)
         sendmail_program = program
@@ -163,7 +163,7 @@ contains
     ! Composing
     ! ------------------------------------------------------------------
 
-    subroutine test_mail_setup(error)
+    subroutine test_set_up_mail(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         logical :: initialized
@@ -178,9 +178,9 @@ contains
                                                "mail_header_end")
         if (.not. allocated(error)) call check(error, mail_text_start() == point_max(), "mail_text_start")
         call leave()
-    end subroutine test_mail_setup
+    end subroutine test_set_up_mail
 
-    subroutine test_mail_setup_empty(error)
+    subroutine test_set_up_mail_empty(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         logical :: modified
@@ -193,7 +193,7 @@ contains
         call is_buffer_modified(current_buffer(), modified, st)
         if (.not. allocated(error)) call check(error,.not. modified, "the buffer is modified")
         call leave()
-    end subroutine test_mail_setup_empty
+    end subroutine test_set_up_mail_empty
 
     subroutine test_field_commands(error)
         type(error_type), allocatable, intent(out) :: error

@@ -412,8 +412,8 @@ mail_personal_alias_file
 mail_self_blind
 mail_send_hook
 mail_send_nonascii
-mail_setup_hook
-mail_setup_with_from
+set_up_mail_hook
+set_up_mail_with_from
 mail_signature_file
 mail_signature
 mail_specify_envelope_from
