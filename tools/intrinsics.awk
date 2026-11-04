@@ -63,7 +63,7 @@
 #   verb         a procedure, procedure pointer or type-bound procedure
 #                named `run', `run_*' or `call_*': execute_ is the only
 #                verb for running something (`execute_with_timer',
-#                `commands%yank%execute'), and a procedure pointer is
+#                `commands%paste%execute'), and a procedure pointer is
 #                called directly, with no call_* wrapper (PORTING.md,
 #                "One word per meaning").
 #   command-state  the command loop's state declared as a `value_type'
