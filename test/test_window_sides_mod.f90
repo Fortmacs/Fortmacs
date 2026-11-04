@@ -98,7 +98,7 @@ contains
 
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
-        window_sides_slots = WINDOW_SIDES_SLOTS_UNLIMITED
+        window_sides_slots = window_sides_slots_type()
         window_sides_vertical = .false.
         ignore_window_parameters = .false.
     end subroutine leave_frame
@@ -219,13 +219,13 @@ contains
         type(status_type) :: st
 
         call enter_frame(h)
-        window_sides_slots(WINDOW_SIDE_BOTTOM) = 1
+        window_sides_slots%bottom = 1
         call show_side("side-a", WINDOW_SIDE_BOTTOM, 0, a, st)
         call show_side("side-b", WINDOW_SIDE_BOTTOM, 2, b, st)
         call check(error, same_window(a, b) .and. size(leaves()) == 2 .and. windows(a%index)%window_slot == 2, &
                    "reused with the new slot")
         if (allocated(error)) return
-        window_sides_slots(WINDOW_SIDE_TOP) = 0
+        window_sides_slots%top = 0
         call show_side("side-c", WINDOW_SIDE_TOP, 0, b, st)
         call check(error, st%ok() .and. size(leaves()) == 3 .and. windows(b%index)%window_side == WINDOW_SIDE_NONE, &
                    "no slot on top: another action shows it")
@@ -304,7 +304,7 @@ contains
         call check(error, st%detail == "Cannot split side window or parent of side window", st%detail)
         if (allocated(error)) return
         call execute_keys("C-x 0")
-        call check(error, last_message == "Attempt to delete main window of frame #<frame F1>", last_message)
+        call check(error, last_message == "Attempt to delete main window of frame F1", last_message)
         if (allocated(error)) return
         call execute_keys("C-x 2")
         parent = windows(main%index)%parent

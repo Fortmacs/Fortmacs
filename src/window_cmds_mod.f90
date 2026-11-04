@@ -285,7 +285,7 @@ contains
         if (present(before)) above = before
         for_side = .false.
         if (present(side_resize)) for_side = side_resize
-        call window_sides_check(status)
+        call check_window_sides(status)
         if (.not. status%ok()) return
         ! (A copy: WINDOW may be the root window, which this updates.)
         w = window
@@ -472,7 +472,7 @@ contains
             end associate
         end if
 
-        call window_sides_check(status)
+        call check_window_sides(status)
     end subroutine split_window
 
     !> Split WINDOW_TO_SPLIT into two windows, one above the other.
@@ -549,7 +549,7 @@ contains
             return
         end if
 
-        call window_sides_check(status)
+        call check_window_sides(status)
         if (.not. status%ok()) return
 
         if (same_window(window, selected_frame%root_window) .or. windows(window%index)%mini) then
@@ -559,7 +559,7 @@ contains
 
         if (.not. ignore_window_parameters) then
             if (same_window(window, window_main_window())) then
-                call set_error(status, FM_GENERIC_ERROR, "Attempt to delete main window of frame #<frame F1>")
+                call set_error(status, FM_GENERIC_ERROR, "Attempt to delete main window of frame "//selected_frame%name)
                 return
             end if
         end if
@@ -609,7 +609,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call window_sides_check(status)
+        call check_window_sides(status)
     end subroutine delete_window
 
     !> Delete specified WINDOW.
@@ -647,7 +647,7 @@ contains
             return
         end if
 
-        call window_sides_check(status)
+        call check_window_sides(status)
         if (.not. status%ok()) return
 
         if (.not. ignore_window_parameters) then
@@ -746,7 +746,7 @@ contains
 
         if (is_window_live(window)) call select_window(window, status)
         if (.not. status%ok()) return
-        call window_sides_check(status)
+        call check_window_sides(status)
     end subroutine delete_other_windows
 
     !> Make WINDOW fill its frame.

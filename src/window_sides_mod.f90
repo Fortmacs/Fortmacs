@@ -126,7 +126,7 @@ contains
     end function side_name
 
     !> An error condition in STATUS if the frame's side windows are not
-    !> set up as `window_sides_check' says.  Port of
+    !> set up as `check_window_sides' says.  Port of
     !> window.el:window--sides-check-failed (FRAME always has a main
     !> window: `window_main_window' falls back on the root window).
     subroutine window_sides_check_failed(status)
@@ -173,7 +173,7 @@ contains
         end do
     end subroutine window_sides_check_failed
 
-    module subroutine window_sides_check(status)
+    module subroutine check_window_sides(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
@@ -183,7 +183,7 @@ contains
         ! `window_side' parameters is never reached: STATUS returns the
         ! error.
         call window_sides_check_failed(status)
-    end subroutine window_sides_check
+    end subroutine check_window_sides
 
     module function is_window_sides_reversed_on_frame() result(p)
         logical :: p
@@ -239,10 +239,10 @@ contains
     !> SIDE must be one of WINDOW_SIDE_LEFT, WINDOW_SIDE_TOP,
     !> WINDOW_SIDE_RIGHT or WINDOW_SIDE_BOTTOM.
     !>
-    !> This is an auxiliary function of `window_make_major_side_window'
+    !> This is an auxiliary function of `make_major_side_window'
     !> and must not be called when a window on SIDE exists already.
     !> Port of window.el:window--make-major-side-window-next-to.
-    function window_make_major_side_window_next_to(side) result(window)
+    function make_major_side_window_next_to(side) result(window)
         integer, intent(in) :: side
         type(handle_type) :: window
         type(handle_type) :: root, other
@@ -307,7 +307,7 @@ contains
             other = window_with_side(WINDOW_SIDE_RIGHT, .true.)
             if (is_window_valid(other)) window = windows(other%index)%prev
         end if
-    end function window_make_major_side_window_next_to
+    end function make_major_side_window_next_to
 
     !> Display BUFFER in a new major side window on the selected frame.
     !> SIDE must be one of WINDOW_SIDE_LEFT, WINDOW_SIDE_TOP,
@@ -320,7 +320,7 @@ contains
     !> and may be called only if no window on SIDE exists yet.  Port of
     !> window.el:window--make-major-side-window (no window is merged into
     !> another, so the main window needs no combination limit).
-    subroutine window_make_major_side_window(buffer, side, slot, table, window, status)
+    subroutine make_major_side_window(buffer, side, slot, table, window, status)
         type(handle_type), intent(in) :: buffer
         integer, intent(in) :: side, slot
         type(display_action_parameters_type), intent(in) :: table
@@ -336,7 +336,7 @@ contains
         left_or_right = side == WINDOW_SIDE_LEFT .or. side == WINDOW_SIDE_RIGHT
         saved_inhibit = window_sides_inhibit_check
         window_sides_inhibit_check = .true.
-        next_to = window_make_major_side_window_next_to(side)
+        next_to = make_major_side_window_next_to(side)
         ! Splitting with `side_resize' takes the space for the new window
         ! from the selected frame's main window and makes no new parent
         ! window unless needed.
@@ -366,19 +366,19 @@ contains
         ! the frame's root window.
         associate (root => windows(selected_frame%root_window%index))
             if (left_or_right) then
-                if (entries%window_width_columns == 0 .and. entries%window_width_fraction == 0.0_real64) then
-                    entries%window_width_columns = root%total_cols/4
+                if (entries%window_width%columns == 0 .and. entries%window_width%fraction == 0.0_real64) then
+                    entries%window_width%columns = root%total_cols/4
                 end if
-            else if (entries%window_height_lines == 0 .and. entries%window_height_fraction == 0.0_real64 .and. &
-                     .not. associated(entries%window_height)) then
-                entries%window_height_lines = root%total_lines/4
+            else if (entries%window_height%lines == 0 .and. entries%window_height%fraction == 0.0_real64 .and. &
+                     .not. associated(entries%window_height%procedure)) then
+                entries%window_height%lines = root%total_lines/4
             end if
         end associate
 
         if (is_buffer_live(buffer)) buffers(buffer%index)%window_sides_shown = .true.
         ! Install BUFFER in new window and return WINDOW.
         window = window_display_buffer(buffer, window, QR_WINDOW, status, entries)
-    end subroutine window_make_major_side_window
+    end subroutine make_major_side_window
 
     module subroutine display_buffer_in_side_window(buffer, table, window, status)
         type(handle_type), intent(in) :: buffer
@@ -428,8 +428,19 @@ contains
             if (reversed) list = list(size(list):1:-1)
         end if
 
-        if (is_window_valid(major)) slots = max(1, window_child_count(major))
-        max_slots = window_sides_slots(side)
+        if (is_window_valid(major)) slots = max(1, count_window_children(major))
+
+        select case (side)
+        case (WINDOW_SIDE_LEFT)
+            max_slots = window_sides_slots%left
+        case (WINDOW_SIDE_TOP)
+            max_slots = window_sides_slots%top
+        case (WINDOW_SIDE_RIGHT)
+            max_slots = window_sides_slots%right
+        case default
+            max_slots = window_sides_slots%bottom
+        end select
+
         saved_inhibit = window_sides_inhibit_check
         window_sides_inhibit_check = .true.
         entries = table
@@ -449,7 +460,7 @@ contains
 
         if (size(list) == 0) then
             ! No major side window exists on this side, make one.
-            call window_make_major_side_window(buffer, side, slot, entries, window, status)
+            call make_major_side_window(buffer, side, slot, entries, window, status)
             window_sides_inhibit_check = saved_inhibit
             return
         end if
@@ -557,16 +568,16 @@ contains
 
     !> Return number of WINDOW's child windows.  Port of
     !> window.el:window-child-count.
-    integer function window_child_count(h)
+    integer function count_window_children(h)
         type(handle_type), intent(in) :: h
         type(handle_type) :: child
 
-        window_child_count = 0
+        count_window_children = 0
         child = windows(h%index)%child
 
         do while (is_window_valid(child))
-            window_child_count = window_child_count + 1
+            count_window_children = count_window_children + 1
             child = windows(child%index)%next
         end do
-    end function window_child_count
+    end function count_window_children
 end submodule window_sides_mod

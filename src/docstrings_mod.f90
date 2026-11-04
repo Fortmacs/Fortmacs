@@ -33301,18 +33301,16 @@ contains
             entry%file = "window_mod.f90"
             entry%fortran = "window_sides_slots"
             entry%user_option = .true.
-            entry%value = repr(window_sides_slots)
             entry%doc = "Number of available side window slots on each side of a frame."//LF// &
-                        "The value is an array of four elements specifying the maximum"//LF// &
-                        "number of side windows that may be created on the left, top,"//LF// &
-                        "right and bottom side of any frame (indexed by WINDOW_SIDE_LEFT,"//LF// &
-                        "WINDOW_SIDE_TOP, WINDOW_SIDE_RIGHT and WINDOW_SIDE_BOTTOM)."//LF// &
+                        "The value has four components specifying the maximum number of"//LF// &
+                        "side windows that may be created on the `left', `top', `right'"//LF// &
+                        "and `bottom' side of any frame."//LF// &
                         ""//LF// &
-                        "If an element is a number, `display_buffer_in_side_window' will"//LF// &
+                        "If a component is a number, `display_buffer_in_side_window' will"//LF// &
                         "refrain from making a new side window if the number of windows on"//LF// &
                         "that side is equal to or exceeds that number.  Rather, it will"//LF// &
                         "reuse the window whose `window_slot' value is nearest to the slot"//LF// &
-                        "specified via its table argument.  If an element is"//LF// &
+                        "specified via its table argument.  If a component is"//LF// &
                         "WINDOW_SIDES_SLOTS_UNLIMITED, this means there's no bound on the"//LF// &
                         "number of windows on that side."
         case ("window_sides_vertical")

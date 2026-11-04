@@ -1475,24 +1475,24 @@ contains
         ! if asked for.
         if (type == QR_WINDOW .or. (windows(h%index)%quit_restore%kind == QR_SAME .and. &
                                     windows(h%index)%quit_restore%what == QR_WINDOW)) then
-            new_size = table%window_height_lines
+            new_size = table%window_height%lines
 
-            if (table%window_height_fraction > 0.0_real64) then
-                new_size = nint(windows(selected_frame%root_window%index)%total_lines*table%window_height_fraction)
+            if (table%window_height%fraction > 0.0_real64) then
+                new_size = nint(windows(selected_frame%root_window%index)%total_lines*table%window_height%fraction)
             end if
 
             if (new_size > 0) then
                 delta = new_size - windows(h%index)%total_lines
                 if (is_window_combined(h, .false.)) call resize_safely(.false.)
-            else if (associated(table%window_height)) then
-                call table%window_height(h)
+            else if (associated(table%window_height%procedure)) then
+                call table%window_height%procedure(h)
             end if
 
             ! Adjust width of window if asked for.
-            new_size = table%window_width_columns
+            new_size = table%window_width%columns
 
-            if (table%window_width_fraction > 0.0_real64) then
-                new_size = nint(windows(selected_frame%root_window%index)%total_cols*table%window_width_fraction)
+            if (table%window_width%fraction > 0.0_real64) then
+                new_size = nint(windows(selected_frame%root_window%index)%total_cols*table%window_width%fraction)
             end if
 
             if (new_size > 0) then

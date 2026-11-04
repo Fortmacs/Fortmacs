@@ -6309,7 +6309,7 @@ contains
         ! (display-buffer-below-selected (window-height . fit-window-to-buffer)
         !  (preserve-size . (nil . t)) (body-function ...))
         pop_up_files = files
-        table%window_height => fit_window
+        table%window_height%procedure => fit_window
         table%body_function => insert_marked_files
         call temp_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_BELOW_SELECTED], table)
         display_buffer_mark_dedicated = saved_dedicated

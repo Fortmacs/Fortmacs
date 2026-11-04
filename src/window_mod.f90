@@ -68,7 +68,7 @@ module window_mod
               force_window_update
     public :: select_window, split_window, delete_window, delete_other_windows, other_window, other_buffer, &
               replace_buffer_in_windows, switch_to_buffer, init_window_cmds
-    public :: window_main_window, window_with_side, walk_window_tree, is_window_no_other, window_sides_check, &
+    public :: window_main_window, window_with_side, walk_window_tree, is_window_no_other, check_window_sides, &
               is_window_sides_reversed_on_frame, display_buffer_in_side_window
 
     !> Number of lines of continuity when scrolling by screenfuls.
@@ -117,7 +117,7 @@ module window_mod
     !> The side of the frame a side window is on (its `window_side'
     !> parameter): WINDOW_SIDE_NONE for a window that is not a side
     !> window, else left, top, right or bottom.  The four sides number 1
-    !> to 4 in that order, the order of `window_sides_slots'.
+    !> to 4 in that order.
     integer, parameter, public :: WINDOW_SIDE_NONE = 0, WINDOW_SIDE_LEFT = 1, WINDOW_SIDE_TOP = 2, &
                                   WINDOW_SIDE_RIGHT = 3, WINDOW_SIDE_BOTTOM = 4
 
@@ -167,6 +167,25 @@ module window_mod
         end subroutine window_height_procedure
     end interface
 
+    !> The height `display_buffer' gives a window it made (the
+    !> `window_height' entry of an action table, R6-39): a number of
+    !> `lines', a `fraction' of the frame's root window height, or a
+    !> `procedure' called with the window to set it; none set means no
+    !> entry.
+    type, public :: display_window_height_type
+        integer :: lines = 0
+        real(real64) :: fraction = 0.0_real64
+        procedure(window_height_procedure), pointer, nopass :: procedure => null()
+    end type display_window_height_type
+
+    !> The width `display_buffer' gives a window it made (the
+    !> `window_width' entry): a number of `columns' or a `fraction' of
+    !> the frame's root window width; none set means no entry.
+    type, public :: display_window_width_type
+        integer :: columns = 0
+        real(real64) :: fraction = 0.0_real64
+    end type display_window_width_type
+
     !> A buffer display action table: the entries ported.  Port of the
     !> `inhibit_same_window', `reusable_frames', `window_height' (a
     !> function, a number of lines or a fraction of the frame's height),
@@ -178,20 +197,12 @@ module window_mod
         !> The frames to search for a window showing the buffer
         !> (REUSABLE_FRAMES_*).
         integer :: reusable_frames = REUSABLE_FRAMES_SELECTED
-        !> Called with a window made to display the buffer, to set its
-        !> height.
-        procedure(window_height_procedure), pointer, nopass :: window_height => null()
-        !> The total height in lines to give a window made to display the
-        !> buffer (0 for none).
-        integer :: window_height_lines = 0
-        !> The fraction of the frame's root window height to give such a
-        !> window (0 for none).
-        real(real64) :: window_height_fraction = 0.0_real64
-        !> The total width in columns to give such a window (0 for none).
-        integer :: window_width_columns = 0
-        !> The fraction of the frame's root window width to give such a
-        !> window (0 for none).
-        real(real64) :: window_width_fraction = 0.0_real64
+        !> The height to give a window made to display the buffer
+        !> (`window_height'): its `lines', `fraction' or `procedure'.
+        type(display_window_height_type) :: window_height
+        !> The width to give such a window (`window_width'): its
+        !> `columns' or `fraction'.
+        type(display_window_width_type) :: window_width
         !> With `has_dedicated', the dedication (DEDICATED_*) to give the
         !> window chosen, if it is new or a side window.
         logical :: has_dedicated = .false.
@@ -261,21 +272,30 @@ module window_mod
     !> window-sides-reversed.
     integer, public :: window_sides_reversed = WINDOW_SIDES_REVERSED_NO
 
+    !> The number of side window slots on each side of a frame
+    !> (`window_sides_slots', R6-39): `left', `top', `right' and
+    !> `bottom', each a number or WINDOW_SIDES_SLOTS_UNLIMITED.
+    type, public :: window_sides_slots_type
+        integer :: left = WINDOW_SIDES_SLOTS_UNLIMITED
+        integer :: top = WINDOW_SIDES_SLOTS_UNLIMITED
+        integer :: right = WINDOW_SIDES_SLOTS_UNLIMITED
+        integer :: bottom = WINDOW_SIDES_SLOTS_UNLIMITED
+    end type window_sides_slots_type
+
     !> Number of available side window slots on each side of a frame.
-    !> The value is an array of four elements specifying the maximum
-    !> number of side windows that may be created on the left, top,
-    !> right and bottom side of any frame (indexed by WINDOW_SIDE_LEFT,
-    !> WINDOW_SIDE_TOP, WINDOW_SIDE_RIGHT and WINDOW_SIDE_BOTTOM).
+    !> The value has four components specifying the maximum number of
+    !> side windows that may be created on the `left', `top', `right'
+    !> and `bottom' side of any frame.
     !>
-    !> If an element is a number, `display_buffer_in_side_window' will
+    !> If a component is a number, `display_buffer_in_side_window' will
     !> refrain from making a new side window if the number of windows on
     !> that side is equal to or exceeds that number.  Rather, it will
     !> reuse the window whose `window_slot' value is nearest to the slot
-    !> specified via its table argument.  If an element is
+    !> specified via its table argument.  If a component is
     !> WINDOW_SIDES_SLOTS_UNLIMITED, this means there's no bound on the
     !> number of windows on that side.  Port of window.el
     !> window-sides-slots.
-    integer, public :: window_sides_slots(4) = WINDOW_SIDES_SLOTS_UNLIMITED
+    type(window_sides_slots_type), public :: window_sides_slots
 
     !> If true, standard functions ignore window parameters.
     !> The functions currently affected by this are `split_window',
@@ -1729,10 +1749,10 @@ module window_mod
         !> parameters of all windows on the frame.  Port of
         !> window.el:window--sides-check (with window--sides-check-failed,
         !> whose error condition STATUS returns).
-        module subroutine window_sides_check(status)
+        module subroutine check_window_sides(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine window_sides_check
+        end subroutine check_window_sides
 
         !> Return true when side windows should appear reversed on the
         !> frame.  This uses some heuristics to guess the user's intentions
