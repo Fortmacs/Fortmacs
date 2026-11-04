@@ -102,7 +102,7 @@ module subr_mod
     type(hook_type), public, target :: after_change_major_mode_hook = hook_type(name="after_change_major_mode_hook")
     public :: match_string, match_string_no_properties, string_matches, is_looking_at, looking_back, &
               match_substitute_replacement, is_subregexp_context
-    public :: version_to_list, is_version_list_less, is_version_list_less_or_equal, is_version_less, &
+    public :: version_to_numbers, is_version_numbers_less, is_version_numbers_less_or_equal, is_version_less, &
               is_version_less_or_equal
 
     !> Give KEY a global binding as COMMAND (a command name or any key
@@ -1082,7 +1082,7 @@ contains
         found = string_match(regexp, string, status, start, inhibit_modify=.true.) > 0
     end function string_matches
 
-    !> Convert version string VER into an array of integers, NUMBERS.
+    !> Convert version string VERSION into an array of integers, NUMBERS.
     !>
     !> The version syntax is given by the following EBNF:
     !>
@@ -1127,8 +1127,8 @@ contains
     !> Invalid syntax is an `error' error condition in STATUS.
     !> Port of subr.el:version-to-list (with version-separator and
     !> version-regexp-alist).
-    subroutine version_to_list(ver, numbers, status)
-        character(len=*), intent(in) :: ver
+    subroutine version_to_numbers(version, numbers, status)
+        character(len=*), intent(in) :: version
         integer(int64), allocatable, intent(out) :: numbers(:)
         type(status_type), intent(out) :: status
         ! version-regexp-alist, in its order.
@@ -1138,7 +1138,7 @@ contains
                                                                "^[-._+ ]?alpha$", "^[-._+ ]?beta$", "^[-._+ ]?\(pre\|rc\)$"]
         integer(int64), parameter :: priorities(7) = [-4, -4, -4, -4, -3, -2, -1]
         character(len=*), parameter :: DIGITS = "0123456789"
-        character(len=:), allocatable :: version, s, letter
+        character(len=:), allocatable :: text, s, letter
         integer(int64), allocatable :: saved(:)
         integer(int64) :: number
         integer(int32) :: c, clen
@@ -1146,12 +1146,12 @@ contains
         logical :: saved_fold, matched
 
         allocate (numbers(0))
-        version = ver
+        text = version
         ! Change .x.y to 0.x.y
-        if (index(version, ".") == 1) version = "0"//version
+        if (index(text, ".") == 1) text = "0"//text
 
-        if (.not. string_matches("^[0-9]", version, status)) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid version syntax: `"//ver//"' (must start with a number)")
+        if (.not. string_matches("^[0-9]", text, status)) then
+            call set_error(status, FM_GENERIC_ERROR, "Invalid version syntax: `"//version//"' (must start with a number)")
             return
         end if
 
@@ -1163,18 +1163,18 @@ contains
 
         ! Parse the version string up to a separator until there are none
         ! left.
-        do while (i <= len(version))
-            e = verify(version(i:), DIGITS) - 1
-            if (e == -1) e = len(version) - i + 1
+        do while (i <= len(text))
+            e = verify(text(i:), DIGITS) - 1
+            if (e == -1) e = len(text) - i + 1
             if (e == 0) exit
-            call string_to_number(version(i:i + e - 1), number)
+            call string_to_number(text(i:i + e - 1), number)
             numbers = [numbers, number]
             i = i + e
-            if (i > len(version)) exit
+            if (i > len(text)) exit
             ! The non-numeric part.
-            e = scan(version(i:), DIGITS) - 1
-            if (e == -1) e = len(version) - i + 1
-            s = version(i:i + e - 1)
+            e = scan(text(i:), DIGITS) - 1
+            if (e == -1) e = len(text) - i + 1
+            s = text(i:i + e - 1)
             i = i + e
             ! The alpha, beta, pre, etc. separator.
             if (s == ".") cycle
@@ -1193,14 +1193,14 @@ contains
             ! being valid.
             matched = .false.
 
-            if (i > len(version)) then
+            if (i > len(text)) then
                 if (string_match("^[-._+ ]?\([a-zA-Z]\)$", s, status) > 0) then
                     letter = match_string(1, s, matched)
                 end if
             end if
 
             if (.not. matched) then
-                call set_error(status, FM_GENERIC_ERROR, "Invalid version syntax: `"//ver//"'")
+                call set_error(status, FM_GENERIC_ERROR, "Invalid version syntax: `"//version//"'")
                 exit
             end if
 
@@ -1210,7 +1210,7 @@ contains
 
         case_fold_search = saved_fold
         call set_match_data(saved)
-    end subroutine version_to_list
+    end subroutine version_to_numbers
 
     !> Return true if L1, an array specification of a version, is lower
     !> than L2.
@@ -1220,11 +1220,11 @@ contains
     !> insignificant.  Also, a version given by the array [1] is higher
     !> than [1, -1], which in turn is higher than [1, -2], which is higher
     !> than [1, -3].  Port of subr.el:version-list-<.
-    pure logical function is_version_list_less(l1, l2) result(less)
+    pure logical function is_version_numbers_less(l1, l2) result(less)
         integer(int64), intent(in) :: l1(:), l2(:)
 
-        less = version_list_order(l1, l2) < 0
-    end function is_version_list_less
+        less = version_numbers_order(l1, l2) < 0
+    end function is_version_numbers_less
 
     !> Return true if L1, an array specification of a version, is lower or
     !> equal to L2.
@@ -1234,18 +1234,18 @@ contains
     !> Also, integer array [1] is greater than [1, -1] which is greater
     !> than [1, -2] which is greater than [1, -3].  Port of
     !> subr.el:version-list-<=.
-    pure logical function is_version_list_less_or_equal(l1, l2) result(less)
+    pure logical function is_version_numbers_less_or_equal(l1, l2) result(less)
         integer(int64), intent(in) :: l1(:), l2(:)
 
-        less = version_list_order(l1, l2) <= 0
-    end function is_version_list_less_or_equal
+        less = version_numbers_order(l1, l2) <= 0
+    end function is_version_numbers_less_or_equal
 
     !> -1, 0 or 1 as version array L1 is lower than, equal to or higher
     !> than L2, past their common part comparing the rest of the longer
     !> one's first non-zero element (version-list-not-zero) to 0.  Port of
     !> subr.el:version-list-<, version-list-<= and version-list-not-zero
     !> (their common comparison).
-    pure integer function version_list_order(l1, l2) result(order)
+    pure integer function version_numbers_order(l1, l2) result(order)
         integer(int64), intent(in) :: l1(:), l2(:)
         integer :: k, n
 
@@ -1262,7 +1262,7 @@ contains
             k = findloc(l2(n + 1:) /= 0, .true., dim=1)
             if (k > 0) order = merge(1, -1, l2(n + k) < 0)
         end if
-    end function version_list_order
+    end function version_numbers_order
 
     !> Return true if version V1 is lower (older) than V2.
     !>
@@ -1272,18 +1272,18 @@ contains
     !> "1beta", which is higher than "1alpha", which is higher than
     !> "1snapshot".  Also, "-GIT", "-CVS" and "-NNN" are treated as snapshot
     !> versions.  Invalid version syntax is an `error' error condition in
-    !> STATUS (`version_to_list').  Port of subr.el:version<.
+    !> STATUS (`version_to_numbers').  Port of subr.el:version<.
     logical function is_version_less(v1, v2, status) result(less)
         character(len=*), intent(in) :: v1, v2
         type(status_type), intent(out) :: status
         integer(int64), allocatable :: l1(:), l2(:)
 
         less = .false.
-        call version_to_list(v1, l1, status)
+        call version_to_numbers(v1, l1, status)
         if (.not. status%ok()) return
-        call version_to_list(v2, l2, status)
+        call version_to_numbers(v2, l2, status)
         if (.not. status%ok()) return
-        less = is_version_list_less(l1, l2)
+        less = is_version_numbers_less(l1, l2)
     end function is_version_less
 
     !> Return true if version V1 is lower (older) than or equal to V2.
@@ -1294,18 +1294,18 @@ contains
     !> "1beta", which is higher than "1alpha", which is higher than
     !> "1snapshot".  Also, "-GIT", "-CVS" and "-NNN" are treated as snapshot
     !> versions.  Invalid version syntax is an `error' error condition in
-    !> STATUS (`version_to_list').  Port of subr.el:version<=.
+    !> STATUS (`version_to_numbers').  Port of subr.el:version<=.
     logical function is_version_less_or_equal(v1, v2, status) result(less)
         character(len=*), intent(in) :: v1, v2
         type(status_type), intent(out) :: status
         integer(int64), allocatable :: l1(:), l2(:)
 
         less = .false.
-        call version_to_list(v1, l1, status)
+        call version_to_numbers(v1, l1, status)
         if (.not. status%ok()) return
-        call version_to_list(v2, l2, status)
+        call version_to_numbers(v2, l2, status)
         if (.not. status%ok()) return
-        less = is_version_list_less_or_equal(l1, l2)
+        less = is_version_numbers_less_or_equal(l1, l2)
     end function is_version_less_or_equal
 
     !> Same as `looking_at' except this function does not change the match

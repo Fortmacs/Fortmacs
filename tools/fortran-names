@@ -2716,3 +2716,11 @@ name	version_less	is_version_less
 keep	is_version_less
 keep	is_version_less_or_equal
 keep	is_string_version_less
+# Panel 2026-11-04 (lisp-slips): version-to-list is version_to_numbers
+# (the X_to_Y conversion pattern, the array's plural for "list"), and
+# version-list-< and version-list-<= are is_version_numbers_less and
+# is_version_numbers_less_or_equal.
+name	version_to_list	version_to_numbers
+name	version_list_less_or_equal	is_version_numbers_less_or_equal
+name	version_list_less	is_version_numbers_less
+name	version_list_le	is_version_numbers_less_or_equal

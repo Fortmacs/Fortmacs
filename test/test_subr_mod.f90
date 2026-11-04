@@ -25,7 +25,7 @@ module test_subr_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
-    use subr_mod, only: version_to_list, is_version_list_less, is_version_list_less_or_equal, is_version_less, &
+    use subr_mod, only: version_to_numbers, is_version_numbers_less, is_version_numbers_less_or_equal, is_version_less, &
                         is_version_less_or_equal
     implicit none(type, external)
     private
@@ -41,8 +41,8 @@ contains
         testsuite = [ &
                     new_unittest("version-parsing", test_version_parsing), &
                     new_unittest("version-parsing-errors", test_version_parsing_errors), &
-                    new_unittest("version-list-less", test_version_list_less), &
-                    new_unittest("version-list-less-or-equal", test_version_list_less_or_equal), &
+                    new_unittest("version-numbers-less", test_version_numbers_less), &
+                    new_unittest("version-numbers-less-or-equal", test_version_numbers_less_or_equal), &
                     new_unittest("version-compare", test_version_compare) &
                     ]
     end subroutine collect_subr_mod
@@ -55,7 +55,7 @@ contains
         integer(int64), allocatable :: numbers(:)
         type(status_type) :: st
 
-        call version_to_list(ver, numbers, st)
+        call version_to_numbers(ver, numbers, st)
         call check(error, st%ok(), ver//": "//format_error(st))
         if (allocated(error)) return
         call check(error, size(numbers) == size(expected), ver//": length")
@@ -70,7 +70,7 @@ contains
         integer(int64), allocatable :: numbers(:)
         type(status_type) :: st
 
-        call version_to_list(ver, numbers, st)
+        call version_to_numbers(ver, numbers, st)
         call check(error,.not. st%ok(), ver//": no error")
         if (allocated(error)) return
         call check(error, format_error(st), message)
@@ -129,39 +129,39 @@ contains
     end subroutine test_version_parsing_errors
 
     !> Port of subr-tests.el:subr-test-version-list-<.
-    subroutine test_version_list_less(error)
+    subroutine test_version_numbers_less(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, is_version_list_less([0_int64], [1_int64]), "(0) < (1)")
+        call check(error, is_version_numbers_less([0_int64], [1_int64]), "(0) < (1)")
         if (allocated(error)) return
-        call check(error, is_version_list_less([0_int64, 9_int64], [1_int64, 0_int64]), "(0 9) < (1 0)")
+        call check(error, is_version_numbers_less([0_int64, 9_int64], [1_int64, 0_int64]), "(0 9) < (1 0)")
         if (allocated(error)) return
-        call check(error, is_version_list_less([1_int64, -1_int64], [1_int64, 0_int64]), "(1 -1) < (1 0)")
+        call check(error, is_version_numbers_less([1_int64, -1_int64], [1_int64, 0_int64]), "(1 -1) < (1 0)")
         if (allocated(error)) return
-        call check(error, is_version_list_less([1_int64, -2_int64], [1_int64, -1_int64]), "(1 -2) < (1 -1)")
+        call check(error, is_version_numbers_less([1_int64, -2_int64], [1_int64, -1_int64]), "(1 -2) < (1 -1)")
         if (allocated(error)) return
-        call check(error,.not. is_version_list_less([1_int64], [0_int64]), "not (1) < (0)")
+        call check(error,.not. is_version_numbers_less([1_int64], [0_int64]), "not (1) < (0)")
         if (allocated(error)) return
-        call check(error,.not. is_version_list_less([1_int64, 1_int64], [1_int64, 0_int64]), "not (1 1) < (1 0)")
+        call check(error,.not. is_version_numbers_less([1_int64, 1_int64], [1_int64, 0_int64]), "not (1 1) < (1 0)")
         if (allocated(error)) return
-        call check(error,.not. is_version_list_less([1_int64], [1_int64, 0_int64]), "not (1) < (1 0)")
+        call check(error,.not. is_version_numbers_less([1_int64], [1_int64, 0_int64]), "not (1) < (1 0)")
         if (allocated(error)) return
-        call check(error,.not. is_version_list_less([1_int64, 0_int64], [1_int64, 0_int64, 0_int64]), &
+        call check(error,.not. is_version_numbers_less([1_int64, 0_int64], [1_int64, 0_int64, 0_int64]), &
                    "not (1 0) < (1 0 0)")
-    end subroutine test_version_list_less
+    end subroutine test_version_numbers_less
 
     !> Port of subr-tests.el:subr-test-version-list-<=.
-    subroutine test_version_list_less_or_equal(error)
+    subroutine test_version_numbers_less_or_equal(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, is_version_list_less_or_equal([0_int64], [1_int64]), "(0) <= (1)")
+        call check(error, is_version_numbers_less_or_equal([0_int64], [1_int64]), "(0) <= (1)")
         if (allocated(error)) return
-        call check(error, is_version_list_less_or_equal([1_int64], [1_int64]), "(1) <= (1)")
+        call check(error, is_version_numbers_less_or_equal([1_int64], [1_int64]), "(1) <= (1)")
         if (allocated(error)) return
-        call check(error, is_version_list_less_or_equal([1_int64, 0_int64], [1_int64]), "(1 0) <= (1)")
+        call check(error, is_version_numbers_less_or_equal([1_int64, 0_int64], [1_int64]), "(1 0) <= (1)")
         if (allocated(error)) return
-        call check(error,.not. is_version_list_less_or_equal([1_int64], [0_int64]), "not (1) <= (0)")
-    end subroutine test_version_list_less_or_equal
+        call check(error,.not. is_version_numbers_less_or_equal([1_int64], [0_int64]), "not (1) <= (0)")
+    end subroutine test_version_numbers_less_or_equal
 
     !> version< and version<= on strings, with the examples of their
     !> docstrings (own test).
