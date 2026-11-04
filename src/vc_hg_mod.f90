@@ -744,7 +744,7 @@ contains
 
         if (.not. has_rev) rev = "???"
         s = ""
-        if (vc_display_status /= VC_DISPLAY_STATUS_NO_BACKEND) s = "Hg"
+        if (vc_display_status%choice /= VC_DISPLAY_STATUS_NO_BACKEND) s = "Hg"
         s = s//indicator//rev
         found = .true.
     end subroutine vc_hg_mode_line_string
