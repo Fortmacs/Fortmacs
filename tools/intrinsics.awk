@@ -112,12 +112,14 @@
 #                result (`v = value_type(text=s)'): write the constructor
 #                where it is used (R6-45).
 #   duplicate-helper  a definition of is_string_less, is_string_prefix,
-#                string_to_number, int_text, string_trim, is_version_less,
-#                is_version_less_or_equal (or version_less, version_le,
-#                is_version_le), char_text or list_delq outside the module
-#                that holds the one port (fns_mod, files_dir_mod, data_mod,
-#                none, none, subr_mod, editfns_mod for char_to_string, none
-#                (pack)): a private copy of a Lisp function (R6-45).
+#                string_to_number, int_text, string_trim, version_less,
+#                version_less_or_equal (or version_le, is_version_le,
+#                is_version_less, is_version_less_or_equal,
+#                version_to_numbers), char_text or list_delq outside the
+#                module that holds the one port (fns_mod, files_dir_mod,
+#                data_mod, none, none, subr_mod: its version_type with the
+#                operators < <= == /= >= >, editfns_mod for char_to_string,
+#                none (pack)): a private copy of a Lisp function (R6-45).
 #
 # Logical user options named *_p upstream keep their names: they are
 # variables, which the predicate rule does not look at.
@@ -472,11 +474,13 @@ BEGIN {
     helper["string_to_number"] = "data_mod.f90"
     helper["int_text"] = ""
     helper["string_trim"] = ""
-    helper["is_version_less"] = "subr_mod.f90"
-    helper["is_version_less_or_equal"] = "subr_mod.f90"
     helper["version_less"] = "subr_mod.f90"
+    helper["version_less_or_equal"] = "subr_mod.f90"
     helper["version_le"] = "subr_mod.f90"
     helper["is_version_le"] = "subr_mod.f90"
+    helper["is_version_less"] = "subr_mod.f90"
+    helper["is_version_less_or_equal"] = "subr_mod.f90"
+    helper["version_to_numbers"] = "subr_mod.f90"
     helper["char_text"] = "editfns_mod.f90"
     helper["list_delq"] = ""
     if (baseline != "") {

@@ -57,7 +57,7 @@ module vc_git_mod
                            buffer_substring
     use cmds_mod, only: forward_line
     use search_mod, only: string_match, re_search_forward, looking_at, SEARCH_NOERROR
-    use subr_mod, only: match_string, is_version_less_or_equal
+    use subr_mod, only: match_string, version, operator(<=)
     use fileio_mod, only: expand_file_name, is_file_directory, is_directory_name, file_exists
     use files_mod, only: file_relative_name, executable_find, revert_buffer_in_progress
     use callproc_mod, only: execute_process
@@ -712,7 +712,6 @@ contains
         character(len=:), allocatable :: status
         logical :: ok
         integer :: b, e
-        type(status_type) :: st
 
         ! It can't set `needs-update' or `needs-merge'. The rough
         ! equivalent would be that upstream branch for current branch is in
@@ -724,7 +723,7 @@ contains
         ! Just to be explicit, it's the default anyway.
         ! Invalid version syntax, an error condition upstream, counts as
         ! a lower version.
-        if (is_version_less_or_equal("1.7.6.3", vc_git_program_version(), st)) call append_string(args, "--ignored")
+        if (version("1.7.6.3") <= version(vc_git_program_version())) call append_string(args, "--ignored")
         call append_string(args, "--")
         call vc_git_execute_command_string(args, status, ok, file)
 

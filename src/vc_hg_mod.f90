@@ -37,7 +37,7 @@ module vc_hg_mod
     use editfns_mod, only: point, goto_char, point_min, point_max, buffer_string, is_eob, pos_eol, buffer_substring
     use cmds_mod, only: forward_line
     use search_mod, only: string_match, re_search_forward, looking_at, SEARCH_NOERROR
-    use subr_mod, only: match_string, is_version_less_or_equal
+    use subr_mod, only: match_string, version, operator(<=)
     use fileio_mod, only: expand_file_name, is_file_directory, file_exists, file_name_directory, rename_file, &
                           insert_file_contents
     use files_mod, only: file_relative_name, file_truename, delete_file, delete_directory
@@ -1615,7 +1615,6 @@ contains
         type(string_type), allocatable :: flags(:)
         character(len=:), allocatable :: saved, options
         integer :: k
-        type(status_type) :: st
 
         if (.not. allocated(dir_states)) allocate (dir_states(0))
 
@@ -1637,7 +1636,7 @@ contains
 
         ! Invalid version syntax, an error condition upstream, counts as
         ! a lower version.
-        if (is_version_less_or_equal("4.2", vc_hg_program_version(), st)) then
+        if (version("4.2") <= version(vc_hg_program_version())) then
             call append_all(flags, strings("--config", "commands.status.relative=1"))
         else
             call append_all(flags, strings("re:", "-I", "."))

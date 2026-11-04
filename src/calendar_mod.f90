@@ -114,7 +114,7 @@ module calendar_mod
               calendar_other_month, calendar_set_mark, calendar_exchange_point_and_mark, calendar_count_days_region, &
               calendar_not_implemented, calendar_read_expression, calendar_read_date, calendar_interval, &
               calendar_day_name, calendar_month_name, calendar_day_of_week, calendar_week_end_day, calendar_unmark, &
-              is_calendar_date_visible, calendar_get_month_range, is_calendar_date_valid, is_calendar_date_equal, &
+              is_calendar_date_visible, calendar_get_month_range, is_calendar_date_valid, &
               calendar_mark_visible_date, calendar_star_date, calendar_mark_today, calendar_date_string, &
               calendar_dayname_on_or_before, calendar_nth_named_absday, calendar_nth_named_day, &
               calendar_day_of_year_string, calendar_print_day_of_year, calendar_set_date_style, &
