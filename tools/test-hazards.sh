@@ -1,7 +1,8 @@
 #!/bin/sh
 # test-hazards.sh -- check tools/hazards.awk on the fixture in
-# tools/hazards-test: the components of command_type it must report and
-# the ones it must not.
+# tools/hazards-test: the components of command_type and the strings in
+# array constructors it must report and the ones it must not; and a
+# statement of more than 255 continuation lines, made here.
 #
 # Copyright (C) 2026 The Fortmacs authors
 #
@@ -26,7 +27,7 @@ set -eu
 
 cd "$(dirname "$0")/hazards-test"
 out=${TMPDIR:-/tmp}/test-hazards.$$
-trap 'rm -f "$out"' EXIT
+trap 'rm -f "$out" "$out.f90"' EXIT
 
 if awk -f ../hazards.awk sample.f90 >"$out"; then
     echo "test-hazards.sh: tools/hazards.awk passes the fixture" >&2
@@ -37,5 +38,18 @@ if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = F
     expected "$out"; then
     echo "test-hazards.sh: tools/hazards.awk differs from tools/hazards-test/expected:" >&2
     cat "$out" >&2
+    exit 1
+fi
+
+# 255 continuation lines are allowed, 256 are reported.
+awk 'BEGIN {
+    for (n = 254; n <= 255; n++) {
+        printf "integer, parameter :: a%d(%d) = [ &\n", n, n + 1
+        for (i = 1; i <= n; i++) printf "    %d, &\n", i
+        print "    0]"
+    }
+}' >"$out.f90"
+if [ "$(awk -f ../hazards.awk "$out.f90" | cut -d: -f2-3)" != "257: continuation-limit" ]; then
+    echo "test-hazards.sh: tools/hazards.awk does not report exactly the statement of 256 continuation lines" >&2
     exit 1
 fi

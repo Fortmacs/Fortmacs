@@ -182,8 +182,8 @@ contains
         character(len=6), parameter :: edit_names(4) = &
                                        [character(len=6) :: "insert", "delete", "prior", "next"]
         character(len=16), parameter :: kp_finals = "jklmopqrstuvwxyX"
-        character(len=11), parameter :: kp_names(16) = &
-                                        [character(len=11) :: "kp-multiply", "kp-add", "kp-separator", &
+        character(len=12), parameter :: kp_names(16) = &
+                                        [character(len=12) :: "kp-multiply", "kp-add", "kp-separator", &
                                                                "kp-subtract", "kp-divide", "kp-0", "kp-1", "kp-2", "kp-3", "kp-4", &
                                                                "kp-5", "kp-6", "kp-7", "kp-8", "kp-9", "kp-equal"]
         integer, parameter :: fkey_mods(5) = [2, 5, 6, 3, 4]

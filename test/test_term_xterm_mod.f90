@@ -92,6 +92,9 @@ contains
         if (allocated(error)) return
         call check(error, decoded(ESC//"Ok"), "<kp-add>")
         if (allocated(error)) return
+        ! The longest keypad name, not truncated.
+        call check(error, decoded(ESC//"Ol"), "<kp-separator>")
+        if (allocated(error)) return
         call check(error, decoded(ESC//"[27;5;9~"), "C-<tab>")
         if (allocated(error)) return
         call check(error, decoded(ESC//"[44;5u"), "C-,")
