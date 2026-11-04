@@ -37,7 +37,7 @@
 !> Deferred: the completion at point of `html_tags' (html-mode--complete-at-point),
 !> `sgml_tags_invisible' (cursor sensors), `sgml_electric_tag_pair_mode'
 !> (text clones), `sgml_show_context', facemenu, tildify, Imenu,
-!> outline and add-log variables, `sgml_comment_indent_new_line',
+!> outline variables, `sgml_comment_indent_new_line',
 !> the buffer-local `adaptive_fill_regexp', `fill_nobreak_functions' and
 !> `sentence_end_base', the classes and IDs of HTML buffers (libxml),
 !> yank-media handlers, `html_autoview_mode' and `browse_url_of_buffer'.
@@ -53,6 +53,7 @@ module sgml_mode_mod
     use buffer_mod, only: buffers, current, buffer_serial_live
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set
     use keyboard_mod, only: last_command_event, this_command, sit_for
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
@@ -2606,19 +2607,16 @@ contains
         end do
     end subroutine sort_strings
 
-    !> Return the name of the last HTML title or heading (`found' false for
+    !> Return the name of the last HTML title or heading (unallocated for
     !> none).  Port of sgml-mode.el:html-current-defun-name.
-    recursive subroutine html_current_heading_name(name, found)
+    recursive subroutine html_current_heading_name(name)
         character(len=:), allocatable, intent(out) :: name
-        logical, intent(out) :: found
         type(status_type) :: st
         integer(int64) :: opoint, pos
 
-        name = ""
         opoint = point()
         call re_search_backward(HTML_SUBPROGRAM_REGEXP, pos, st, noerror=SEARCH_NOERROR)
-        found = pos > 0
-        if (found) name = match_string_no_properties(1)
+        if (st%ok() .and. pos > 0) name = match_string_no_properties(1)
         call goto_char(opoint)
     end subroutine html_current_heading_name
 
@@ -2844,6 +2842,7 @@ contains
         ! sgml-empty-tags and sgml-unclosed-tags.
         call make_local_entry(k)
         locals(k)%html = .true.
+        call add_log_current_subprogram_function%set_local(html_current_heading_name)
         call major_modes%html_mode%end(saved, status)
     end subroutine html_mode
 

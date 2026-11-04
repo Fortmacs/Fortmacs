@@ -2111,6 +2111,7 @@ contains
                                              DISPLAY_ACTION_USE_SOME_WINDOW]
         type(display_action_parameters_type) :: al
         integer :: k
+        logical :: failed
 
         status = status_type()
         window = null_handle()
@@ -2126,6 +2127,20 @@ contains
         ! `display_buffer_overriding_action' comes first.
         if (display_buffer_overriding_action%has_inhibit_same_window) then
             al%inhibit_same_window = display_buffer_overriding_action%inhibit_same_window
+        end if
+
+        if (display_buffer_overriding_action%has_allow_no_window) then
+            al%allow_no_window = display_buffer_overriding_action%allow_no_window
+        end if
+
+        if (associated(display_buffer_overriding_action%action_function)) then
+            call display_buffer_overriding_action%action_function(buffer, al, window, failed, status)
+            if (.not. status%ok() .or. window%index /= 0) return
+
+            if (failed) then
+                window = null_handle()
+                return
+            end if
         end if
 
         if (allocated(display_buffer_overriding_action%actions)) then
@@ -2147,6 +2162,19 @@ contains
             if (.not. status%ok() .or. window%index /= 0) return
         end do
     end subroutine display_buffer
+
+    recursive module subroutine display_buffer_no_window(buffer, table, window, failed, status)
+        type(handle_type), intent(in) :: buffer
+        type(display_action_parameters_type), intent(in) :: table
+        type(handle_type), intent(out) :: window
+        logical, intent(out) :: failed
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        ! BUFFER is not displayed.
+        window = null_handle()
+        failed = table%allow_no_window
+    end subroutine display_buffer_no_window
 
     !> Display buffer BUFFER and select its window.  This uses
     !> `display_buffer' with ACTIONS and TABLE and then selects the window;
