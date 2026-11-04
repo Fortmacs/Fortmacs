@@ -39,7 +39,8 @@ module test_novice_mod
     use keyboard_mod, only: unread_command_events, discard_input, command_loop
     use callint_mod, only: prefix_arg
     use bindings_mod, only: init_bindings
-    use novice_mod, only: enable_command, disable_command, disabled_command_function_variable
+    use novice_mod, only: enable_command, disable_command, disabled_command_function
+    use keyboard_mod, only: disabled_command_function_variable
     use names_mod, only: user_init_file
     use fileio_mod, only: expand_file_name, create_directory_internal, delete_file_internal, fortmacs_wd, init_fileio
     use files_mod, only: find_file_noselect
@@ -68,7 +69,7 @@ contains
         call init_bindings()
         call discard_input()
         prefix_arg = prefix_arg_type()
-        disabled_command_function_variable = .true.
+        disabled_command_function_variable%procedure => disabled_command_function
         commands%upcase_region%disabled = .true.
         call get_or_make_buffer("novice-test", h, st)
         call set_buffer(h, st)
@@ -124,11 +125,11 @@ contains
         if (allocated(error)) return
         ! !: enable all disabled commands.
         call execute_keys("C-x C-u !")
-        call check(error, buffer_string() == "ABC" .and. .not. disabled_command_function_variable, buffer_string())
+        call check(error, buffer_string() == "ABC" .and. disabled_command_function_variable%is_off(), buffer_string())
         if (allocated(error)) return
         call execute_keys("C-x C-l")
         call check(error, buffer_string() == "abc", buffer_string())
-        disabled_command_function_variable = .true.
+        disabled_command_function_variable%procedure => disabled_command_function
         call disable_command("downcase_region", st)
         call discard_input()
         call close_buffer(h, st)

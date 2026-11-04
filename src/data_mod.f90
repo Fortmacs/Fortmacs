@@ -160,6 +160,13 @@ module data_mod
         !> value of another kind (upstream nil; any other state is
         !> `.not. x%is_off()').
         procedure :: is_off => is_choice_setting_off
+        !> The value of another kind (R6-39) that is set, as the value a
+        !> buffer keeps of a forwarded setting (data_buffer_mod); FOUND is
+        !> false when none is set.  This type has none.
+        procedure :: get_kind_value => choice_get_kind_value
+        !> Set the value of another kind that V, a value a buffer kept,
+        !> holds; DONE is false when V is none.  This type has none.
+        procedure :: set_kind_value => choice_set_kind_value
     end type choice_setting_type
 
     !> The `%length' of a history that uses `history_length'.  Not a port.
@@ -938,6 +945,27 @@ contains
         self%command => null()
         call settled(self)
     end subroutine function_set_local
+
+    !> None: this type has no other kinds.  Not a port.
+    subroutine choice_get_kind_value(self, v, found)
+        class(choice_setting_type), intent(in) :: self
+        type(value_type), intent(out) :: v
+        logical, intent(out) :: found
+
+        found = .false.
+        v = value_type()
+        if (self%void) return
+    end subroutine choice_get_kind_value
+
+    !> None: this type has no other kinds.  Not a port.
+    subroutine choice_set_kind_value(self, v, done)
+        class(choice_setting_type), intent(inout) :: self
+        type(value_type), intent(in) :: v
+        logical, intent(out) :: done
+
+        done = .false.
+        if (self%void .or. .not. allocated(v%a)) return
+    end subroutine choice_set_kind_value
 
     ! Not a port.
     logical function is_choice_setting_off(self)

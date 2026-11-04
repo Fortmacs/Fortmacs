@@ -233,7 +233,7 @@ module fortmacs
     use simple_mod, only: fill_prefix, cycle_spacing_actions, cycle_spacing_action_type, CYCLE_JUST_ONE_SPACE, &
                           CYCLE_DELETE_SPACE_AFTER, CYCLE_DELETE_SPACE_BEFORE, CYCLE_DELETE_ALL_SPACE, CYCLE_RESTORE, &
                           CYCLE_ARG_NONE, CYCLE_ARG_FIXED, CYCLE_ARG_INVERTED, CYCLE_ARG_MINUS
-    use novice_mod, only: disabled_command_function_variable
+    use keyboard_mod, only: disabled_command_function_variable
     use buffer_mod, only: fill_column, left_margin, auto_fill_function
     use indent_mod, only: indent_tabs_mode, standard_indent, tab_always_indent, tab_stops, indent_line_function, &
                           indent_region_function
@@ -349,7 +349,7 @@ module fortmacs
                            compilation_transform_file_matches, compilation_error_screen_columns, &
                            compilation_first_column, compilation_skip_threshold, compilation_skip_visited, &
                            compilation_skip_to_next_location, compilation_search_all_directories, &
-                           compilation_context_lines, COMPILATION_CONTEXT_TOP, COMPILATION_CONTEXT_LINES_NO_SCROLL, &
+                           compilation_context, COMPILATION_CONTEXT_TOP, COMPILATION_CONTEXT_NO_SCROLL, &
                            compilation_message_face, compilation_error_face, compilation_warning_face, &
                            compilation_info_face, compilation_line_face, compilation_column_face, &
                            compilation_enter_directory_face, compilation_leave_directory_face, &
@@ -690,7 +690,7 @@ module fortmacs
                              SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
                              SH_INDENT_AFTER_CONTINUATION_ALWAYS, &
                              sh_dynamic_complete_functions, sh_styles, &
-                             sh_style_type, sh_vars
+                             sh_style_type, sh_indent_type, sh_vars
     use python_mod, only: python_2_support, python_indent_offset, python_indent_guess_indent_offset_variable, &
                           python_indent_guess_indent_offset_verbose, python_indent_trigger_commands, &
                           python_indent_def_block_scale, python_indent_block_paren_deeper, python_forward_expression_function, &
@@ -760,8 +760,8 @@ module fortmacs
               compilation_error_regexp_names, compilation_error_case_fold_search, compilation_directory_matcher, &
               compilation_transform_file_matches, compilation_error_screen_columns, compilation_first_column, &
               compilation_skip_threshold, compilation_skip_visited, compilation_skip_to_next_location, &
-              compilation_search_all_directories, compilation_context_lines, COMPILATION_CONTEXT_TOP, &
-              COMPILATION_CONTEXT_LINES_NO_SCROLL, compilation_message_face, compilation_error_face, compilation_warning_face, &
+              compilation_search_all_directories, compilation_context, COMPILATION_CONTEXT_TOP, &
+              COMPILATION_CONTEXT_NO_SCROLL, compilation_message_face, compilation_error_face, compilation_warning_face, &
               compilation_info_face, compilation_line_face, compilation_column_face, compilation_enter_directory_face, &
               compilation_leave_directory_face, &
               compilation_minor_mode, &
@@ -1194,7 +1194,7 @@ module fortmacs
               sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, &
               SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
               SH_INDENT_AFTER_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles, &
-              sh_style_type, sh_vars
+              sh_style_type, sh_indent_type, sh_vars
     public :: python_2_support, python_indent_offset, python_indent_guess_indent_offset_variable, &
               python_indent_guess_indent_offset_verbose, python_indent_trigger_commands, &
               python_indent_def_block_scale, python_indent_block_paren_deeper, python_forward_expression_function, &

@@ -288,7 +288,7 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
                 sub(/choice[ \t]*=[ \t]*/, "", init)
                 sub(/[ \t]+$/, "", init)
             }
-            if (match(rest, /(^|[(, ])(lines|seconds|level|char|modifications)[ \t]*=[ \t]*[^,)]+/)) {
+            if (match(rest, /(^|[(, ])(lines|seconds|level|char|characters|columns|modifications)[ \t]*=[ \t]*[^,)]+/)) {
                 init = substr(rest, RSTART, RLENGTH)
                 sub(/^[(, ]/, "", init)
                 sub(/[ \t]*=[ \t]*/, " = ", init)

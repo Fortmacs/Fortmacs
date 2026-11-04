@@ -402,6 +402,8 @@ contains
         type(value_type), intent(out) :: v
         logical, intent(out) :: bound
         type(minor_mode_type), pointer :: m
+        type(value_type) :: kept
+        logical :: found
 
         bound = .true.
 
@@ -418,7 +420,9 @@ contains
             type is (history_setting_type)
                 call setting_value(p, history_value(p), v, bound)
             class is (choice_setting_type)
-                call setting_value(p, choice_value(p), v, bound)
+                call p%get_kind_value(kept, found)
+                if (.not. found) kept = choice_value(p)
+                call setting_value(p, kept, v, bound)
             class default
                 v = value_type()
             end select
@@ -530,6 +534,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
         type(minor_mode_type), pointer :: m
+        logical :: done
 
         status = status_type()
 
@@ -546,7 +551,8 @@ contains
             type is (history_setting_type)
                 call set_history(p, v, status)
             class is (choice_setting_type)
-                call set_choice(p, v, status)
+                call p%set_kind_value(v, done)
+                if (.not. done) call set_choice(p, v, status)
             class default
             end select
 

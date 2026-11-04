@@ -126,8 +126,8 @@ module docstrings_mod
                           comint_use_prompt_regexp
     use commands_mod, only: commands
     use compile_mod, only: compilation_always_stop, compilation_ask_about_save, &
-                           compilation_column_face, compilation_context_lines, COMPILATION_CONTEXT_TOP, &
-                           COMPILATION_CONTEXT_LINES_NO_SCROLL, compilation_directory, compilation_directory_matcher, &
+                           compilation_column_face, compilation_context, COMPILATION_CONTEXT_TOP, &
+                           COMPILATION_CONTEXT_NO_SCROLL, compilation_directory, compilation_directory_matcher, &
                            compilation_disable_input, compilation_enter_directory_face, &
                            compilation_error_case_fold_search, compilation_error_count_found, compilation_error_face, &
                            compilation_error_regexp_names, compilation_error_regexps, compilation_error_screen_columns, &
@@ -353,12 +353,12 @@ module docstrings_mod
                       js_mode_syntax_table, js_paren_indent_offset, js_square_indent_offset, &
                       js_switch_indent_offset
     use keyboard_mod, only: defining_kbd_macro, DEFINING_KBD_MACRO_NO, DEFINING_KBD_MACRO_YES, &
-                            DEFINING_KBD_MACRO_APPEND, disable_point_adjustment, echo_keystrokes, echo_keystrokes_help, &
-                            exit_fortmacs_hook, global_disable_point_adjustment, help_char, help_events, &
-                            inhibit_interaction, input_method_previous_message, kbd_macro_termination_hook, &
-                            last_input_event, last_kbd_macro, last_repeatable_command, minibuffer_message_timeout, &
-                            num_input_keys, num_nonmacro_input_events, post_command_hook, pre_command_hook, suspend_hook, &
-                            suspend_resume_hook, translate_upper_case_key_bindings
+                            DEFINING_KBD_MACRO_APPEND, disable_point_adjustment, disabled_command_function_variable, &
+                            echo_keystrokes, echo_keystrokes_help, exit_fortmacs_hook, global_disable_point_adjustment, &
+                            help_char, help_events, inhibit_interaction, input_method_previous_message, &
+                            kbd_macro_termination_hook, last_input_event, last_kbd_macro, last_repeatable_command, &
+                            minibuffer_message_timeout, num_input_keys, num_nonmacro_input_events, post_command_hook, &
+                            pre_command_hook, suspend_hook, suspend_resume_hook, translate_upper_case_key_bindings
     use kmacro_mod, only: kmacro_counter, kmacro_counter_format, kmacro_counter_format_start, &
                           kmacro_counter_value_start, kmacro_default_counter_format, kmacro_execute_before_append, &
                           kmacro_execute_repeat_key, kmacro_execute_repeat_with_arg, kmacro_initial_counter_value, &
@@ -420,7 +420,6 @@ module docstrings_mod
                               COMMENT_STYLE_ALIGNED, COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
                               COMMENT_STYLE_BOX_MULTI, comment_use_global_state, comment_use_syntax, &
                               COMMENT_USE_SYNTAX_UNDECIDED, uncomment_region_function
-    use novice_mod, only: disabled_command_function_variable
     use paragraphs_mod, only: page_delimiter, paragraph_ignore_fill_prefix, paragraph_separate, &
                               paragraph_start, sentence_end, sentence_end_base, sentence_end_double_space, &
                               sentence_end_without_period, sentence_end_without_space
@@ -516,22 +515,25 @@ module docstrings_mod
                              sh_here_document_word, sh_indent_after_case, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
                              SH_STAR, SH_SLASH, sh_indent_after_continuation, SH_INDENT_AFTER_CONTINUATION_ALWAYS, &
                              sh_indent_after_do, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
-                             sh_indent_after_done, sh_indent_after_else, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
-                             SH_STAR, SH_SLASH, sh_indent_after_function, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
-                             SH_STAR, SH_SLASH, sh_indent_after_if, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
-                             SH_STAR, SH_SLASH, sh_indent_after_loop_construct, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
-                             SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_open, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
-                             SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_switch, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
-                             SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_case_alt, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
-                             SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_case_label, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
-                             SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_continuation, SH_PLUS, SH_MINUS, &
-                             SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_do, sh_indent_for_done, &
-                             sh_indent_for_fi, sh_indent_for_then, sh_indent_statement_after_and, sh_indent_supported, &
-                             sh_leading_keywords, sh_make_vars_local, sh_mode_abbrev_table, sh_mode_hook, sh_mode_map, &
-                             sh_mode_syntax_table, sh_mode_syntax_table_input, sh_other_keywords, &
-                             sh_remember_variable_min, sh_set_shell_hook, sh_shell, sh_shell_arg, sh_shell_file, &
-                             sh_skeleton_default_pairs, sh_smie_rc_grammar, sh_smie_sh_grammar, sh_styles, sh_test, &
-                             sh_variables
+                             sh_indent_after_done, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
+                             sh_indent_after_else, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
+                             sh_indent_after_function, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
+                             sh_indent_after_if, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
+                             sh_indent_after_loop_construct, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                             SH_SLASH, sh_indent_after_open, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                             SH_SLASH, sh_indent_after_switch, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                             SH_SLASH, sh_indent_for_case_alt, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                             SH_SLASH, sh_indent_for_case_label, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                             SH_SLASH, sh_indent_for_continuation, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                             SH_STAR, SH_SLASH, sh_indent_for_do, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                             SH_STAR, SH_SLASH, sh_indent_for_done, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                             SH_STAR, SH_SLASH, sh_indent_for_fi, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                             SH_STAR, SH_SLASH, sh_indent_for_then, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                             SH_STAR, SH_SLASH, sh_indent_statement_after_and, sh_indent_supported, sh_leading_keywords, &
+                             sh_make_vars_local, sh_mode_abbrev_table, sh_mode_hook, sh_mode_map, sh_mode_syntax_table, &
+                             sh_mode_syntax_table_input, sh_other_keywords, sh_remember_variable_min, sh_set_shell_hook, &
+                             sh_shell, sh_shell_arg, sh_shell_file, sh_skeleton_default_pairs, sh_smie_rc_grammar, &
+                             sh_smie_sh_grammar, sh_styles, sh_test, sh_variables
     use shell_mod, only: explicit_bash_args, explicit_csh_args, explicit_shell_file_name, &
                          list_buffers_directory, shell_cd_regexp, shell_close_buffer_on_exit, shell_command_mode_hook, &
                          shell_command_mode_map, shell_command_regexp, shell_command_separator_regexp, &
@@ -1311,7 +1313,7 @@ module docstrings_mod
                                                  "comment_setup_function", "comment_start", "comment_start_skip", "comment_style", &
                                                       "comment_use_global_state", "comment_use_syntax", "comment_use_syntax_ppss", &
                                                "compilation_always_stop", "compilation_ask_about_save", "compilation_column_face", &
-                                            "compilation_context_lines", "compilation_directory", "compilation_directory_matcher", &
+                                                  "compilation_context", "compilation_directory", "compilation_directory_matcher", &
                                                                   "compilation_disable_input", "compilation_enter_directory_face", &
                                                             "compilation_error_case_fold_search", "compilation_error_count_found", &
                                           "compilation_error_face", "compilation_error_regexp_names", "compilation_error_regexps", &
@@ -1862,7 +1864,7 @@ module docstrings_mod
                                                                       "comment_style", &
                                                                       "compilation_always_stop", &
                                                                       "compilation_ask_about_save", &
-                                                                      "compilation_context_lines", &
+                                                                      "compilation_context", &
                                                                       "compilation_disable_input", &
                                                                       "compilation_error_regexp_names", &
                                                                       "compilation_error_screen_columns", &
@@ -22106,29 +22108,33 @@ contains
             end if
 
             entry%doc = "Face name to use for column numbers in compiler messages."
-        case ("compilation_context_lines")
+        case ("compilation_context")
             entry%file = "compile_mod.f90"
-            entry%fortran = "compilation_context_lines"
+            entry%fortran = "compilation_context"
             entry%user_option = .true.
             entry%original = "COMPILATION_CONTEXT_TOP"
+            entry%value = compilation_context%other_value()
 
-            select case (compilation_context_lines%value)
-            case (COMPILATION_CONTEXT_TOP)
-                entry%value = "COMPILATION_CONTEXT_TOP"
-            case (COMPILATION_CONTEXT_LINES_NO_SCROLL)
-                entry%value = "COMPILATION_CONTEXT_LINES_NO_SCROLL"
-            case default
-                entry%value = repr(compilation_context_lines%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (compilation_context%choice)
+                case (COMPILATION_CONTEXT_TOP)
+                    entry%value = "COMPILATION_CONTEXT_TOP"
+                case (COMPILATION_CONTEXT_NO_SCROLL)
+                    entry%value = "COMPILATION_CONTEXT_NO_SCROLL"
+                case default
+                    entry%value = repr(compilation_context%value)
+                end select
+            end if
 
             entry%doc = "Display this many lines of leading context before the current"//LF// &
-                        "message.  If COMPILATION_CONTEXT_TOP or COMPILATION_CONTEXT_LINES_NO_SCROLL, and"//LF// &
-                        "the left fringe is displayed, don't scroll the compilation output"//LF// &
-                        "window; an arrow in the left fringe points to the current message."//LF// &
-                        "With no left fringe, if COMPILATION_CONTEXT_TOP, the message scrolls"//LF// &
-                        "to the top of the window; there is no arrow.  If"//LF// &
-                        "COMPILATION_CONTEXT_LINES_NO_SCROLL, don't scroll the compilation output window at"//LF// &
-                        "all; an arrow before column zero points to the current message."
+                        "message (`compilation_context%lines').  If COMPILATION_CONTEXT_TOP or"//LF// &
+                        "COMPILATION_CONTEXT_NO_SCROLL, and the left fringe is displayed,"//LF// &
+                        "don't scroll the compilation output window; an arrow in the left"//LF// &
+                        "fringe points to the current message.  With no left fringe, if"//LF// &
+                        "COMPILATION_CONTEXT_TOP, the message scrolls to the top of the"//LF// &
+                        "window; there is no arrow.  If COMPILATION_CONTEXT_NO_SCROLL, don't"//LF// &
+                        "scroll the compilation output window at all; an arrow before column"//LF// &
+                        "zero points to the current message."
         case ("compilation_directory")
             entry%file = "compile_mod.f90"
             entry%fortran = "compilation_directory"
@@ -23298,12 +23304,12 @@ contains
                 entry%value = repr(dabbrev_case_distinction%value)
             end select
 
-            entry%doc = "Whether dabbrev treats expansions as the same if they differ in case."//LF// &
+            entry%doc = "Whether dabbrev treats expansions that differ only in case as different."//LF// &
                         ""//LF// &
-                        ".false. means treat them as different."//LF// &
+                        ".true. means treat them as different (case differences count)."//LF// &
+                        ".false. means treat them as the same."//LF// &
                         "A value of DABBREV_LIKE_CASE_REPLACE means distinguish them if"//LF// &
                         "`case_replace' is false."//LF// &
-                        "Any other value means to treat them as the same."//LF// &
                         ""//LF// &
                         "This variable has an effect only when the value of"//LF// &
                         "`dabbrev_case_fold_search' specifies to ignore case."
@@ -24501,22 +24507,26 @@ contains
             entry%fortran = "dired_switches_in_mode_line"
             entry%user_option = .true.
             entry%original = "DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER"
+            entry%value = dired_switches_in_mode_line%other_value()
 
-            select case (dired_switches_in_mode_line)
-            case (DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER)
-                entry%value = "DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER"
-            case (DIRED_SWITCHES_IN_MODE_LINE_AS_IS)
-                entry%value = "DIRED_SWITCHES_IN_MODE_LINE_AS_IS"
-            case default
-                entry%value = repr(dired_switches_in_mode_line)
-            end select
+            if (len(entry%value) == 0) then
+                select case (dired_switches_in_mode_line%choice)
+                case (DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER)
+                    entry%value = "DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER"
+                case (DIRED_SWITCHES_IN_MODE_LINE_AS_IS)
+                    entry%value = "DIRED_SWITCHES_IN_MODE_LINE_AS_IS"
+                case default
+                    entry%value = repr(dired_switches_in_mode_line%value)
+                end select
+            end if
 
             entry%doc = "How to indicate `dired_actual_switches' in mode-line."//LF// &
                         "Possible values:"//LF// &
                         " * DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER: Indicate name-or-date sort order, if"//LF// &
                         "   possible.  Else show full switches."//LF// &
                         " * DIRED_SWITCHES_IN_MODE_LINE_AS_IS:  Show full switches."//LF// &
-                        " * N >= 0:  Show only the first N chars of full switches."
+                        " * `%characters = N':  Show only the first N chars of full switches."//LF// &
+                        " * `%procedure => f':  Pass `dired_actual_switches' as arg and show result."
         case ("dired_symlink")
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "dired_symlink"
@@ -24613,12 +24623,23 @@ contains
                         "This variable is set to false before reading a command, and is"//LF// &
                         "checked just after executing the command."
         case ("disabled_command_function")
-            entry%file = "novice_mod.f90"
+            entry%file = "keyboard_mod.f90"
             entry%fortran = "disabled_command_function_variable"
-            entry%original = ".true."
-            entry%value = repr(disabled_command_function_variable)
+            entry%original = ".false."
+            entry%value = disabled_command_function_variable%other_value()
+
+            if (len(entry%value) == 0) then
+                select case (disabled_command_function_variable%choice)
+                case default
+                    entry%value = repr(disabled_command_function_variable%value)
+                end select
+            end if
+
             entry%doc = "Function to call to handle disabled commands."//LF// &
-                        "If false, the feature is disabled, i.e., all commands work normally."
+                        "If .false., the feature is disabled, i.e., all commands work normally."//LF// &
+                        "The procedure (`disabled_command_function_variable%procedure =>"//LF// &
+                        "mine') is called with the command and the keys that invoked it;"//LF// &
+                        "novice_mod sets it to `disabled_command_function'."
         case ("display_buffer_mark_dedicated")
             entry%file = "window_mod.f90"
             entry%fortran = "display_buffer_mark_dedicated"
@@ -32442,23 +32463,26 @@ contains
             entry%fortran = "sh_indent_after_case"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+            entry%value = sh_indent_after_case%other_value()
 
-            select case (sh_indent_after_case%value)
-            case (SH_PLUS)
-                entry%value = "SH_PLUS"
-            case (SH_MINUS)
-                entry%value = "SH_MINUS"
-            case (SH_PLUS_PLUS)
-                entry%value = "SH_PLUS_PLUS"
-            case (SH_MINUS_MINUS)
-                entry%value = "SH_MINUS_MINUS"
-            case (SH_STAR)
-                entry%value = "SH_STAR"
-            case (SH_SLASH)
-                entry%value = "SH_SLASH"
-            case default
-                entry%value = repr(sh_indent_after_case%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (sh_indent_after_case%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_after_case%value)
+                end select
+            end if
 
             entry%doc = "How much to indent a statement relative to the `case' statement."//LF// &
                         "This is for the rc shell."
@@ -32500,23 +32524,26 @@ contains
             entry%fortran = "sh_indent_after_do"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+            entry%value = sh_indent_after_do%other_value()
 
-            select case (sh_indent_after_do%value)
-            case (SH_PLUS)
-                entry%value = "SH_PLUS"
-            case (SH_MINUS)
-                entry%value = "SH_MINUS"
-            case (SH_PLUS_PLUS)
-                entry%value = "SH_PLUS_PLUS"
-            case (SH_MINUS_MINUS)
-                entry%value = "SH_MINUS_MINUS"
-            case (SH_STAR)
-                entry%value = "SH_STAR"
-            case (SH_SLASH)
-                entry%value = "SH_SLASH"
-            case default
-                entry%value = repr(sh_indent_after_do%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (sh_indent_after_do%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_after_do%value)
+                end select
+            end if
 
             entry%doc = "How much to indent a line after a `do' statement."//LF// &
                         "This is used when the `do' is the first word of the line."//LF// &
@@ -32526,8 +32553,28 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_indent_after_done"
             entry%user_option = .true.
-            entry%original = "0"
-            entry%value = repr(sh_indent_after_done%value)
+            entry%original = "%columns = 0"
+            entry%value = sh_indent_after_done%other_value()
+
+            if (len(entry%value) == 0) then
+                select case (sh_indent_after_done%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_after_done%value)
+                end select
+            end if
+
             entry%doc = "How much to indent a statement after a `done' keyword."//LF// &
                         "Normally this is 0, which aligns the `done' to the matching"//LF// &
                         "looping construct line."//LF// &
@@ -32538,23 +32585,26 @@ contains
             entry%fortran = "sh_indent_after_else"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+            entry%value = sh_indent_after_else%other_value()
 
-            select case (sh_indent_after_else%value)
-            case (SH_PLUS)
-                entry%value = "SH_PLUS"
-            case (SH_MINUS)
-                entry%value = "SH_MINUS"
-            case (SH_PLUS_PLUS)
-                entry%value = "SH_PLUS_PLUS"
-            case (SH_MINUS_MINUS)
-                entry%value = "SH_MINUS_MINUS"
-            case (SH_STAR)
-                entry%value = "SH_STAR"
-            case (SH_SLASH)
-                entry%value = "SH_SLASH"
-            case default
-                entry%value = repr(sh_indent_after_else%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (sh_indent_after_else%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_after_else%value)
+                end select
+            end if
 
             entry%doc = "How much to indent a statement after an `else' statement."
         case ("sh_indent_after_function")
@@ -32562,23 +32612,26 @@ contains
             entry%fortran = "sh_indent_after_function"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+            entry%value = sh_indent_after_function%other_value()
 
-            select case (sh_indent_after_function%value)
-            case (SH_PLUS)
-                entry%value = "SH_PLUS"
-            case (SH_MINUS)
-                entry%value = "SH_MINUS"
-            case (SH_PLUS_PLUS)
-                entry%value = "SH_PLUS_PLUS"
-            case (SH_MINUS_MINUS)
-                entry%value = "SH_MINUS_MINUS"
-            case (SH_STAR)
-                entry%value = "SH_STAR"
-            case (SH_SLASH)
-                entry%value = "SH_SLASH"
-            case default
-                entry%value = repr(sh_indent_after_function%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (sh_indent_after_function%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_after_function%value)
+                end select
+            end if
 
             entry%doc = "How much to indent after a function line."
         case ("sh_indent_after_if")
@@ -32586,23 +32639,26 @@ contains
             entry%fortran = "sh_indent_after_if"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+            entry%value = sh_indent_after_if%other_value()
 
-            select case (sh_indent_after_if%value)
-            case (SH_PLUS)
-                entry%value = "SH_PLUS"
-            case (SH_MINUS)
-                entry%value = "SH_MINUS"
-            case (SH_PLUS_PLUS)
-                entry%value = "SH_PLUS_PLUS"
-            case (SH_MINUS_MINUS)
-                entry%value = "SH_MINUS_MINUS"
-            case (SH_STAR)
-                entry%value = "SH_STAR"
-            case (SH_SLASH)
-                entry%value = "SH_SLASH"
-            case default
-                entry%value = repr(sh_indent_after_if%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (sh_indent_after_if%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_after_if%value)
+                end select
+            end if
 
             entry%doc = "How much to indent a statement after an `if' statement."//LF// &
                         "This includes lines after `else' and `elif' statements, too, but"//LF// &
@@ -32612,23 +32668,26 @@ contains
             entry%fortran = "sh_indent_after_loop_construct"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+            entry%value = sh_indent_after_loop_construct%other_value()
 
-            select case (sh_indent_after_loop_construct%value)
-            case (SH_PLUS)
-                entry%value = "SH_PLUS"
-            case (SH_MINUS)
-                entry%value = "SH_MINUS"
-            case (SH_PLUS_PLUS)
-                entry%value = "SH_PLUS_PLUS"
-            case (SH_MINUS_MINUS)
-                entry%value = "SH_MINUS_MINUS"
-            case (SH_STAR)
-                entry%value = "SH_STAR"
-            case (SH_SLASH)
-                entry%value = "SH_SLASH"
-            case default
-                entry%value = repr(sh_indent_after_loop_construct%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (sh_indent_after_loop_construct%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_after_loop_construct%value)
+                end select
+            end if
 
             entry%doc = "How much to indent a statement after a loop construct."//LF// &
                         ""//LF// &
@@ -32640,23 +32699,26 @@ contains
             entry%fortran = "sh_indent_after_open"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+            entry%value = sh_indent_after_open%other_value()
 
-            select case (sh_indent_after_open%value)
-            case (SH_PLUS)
-                entry%value = "SH_PLUS"
-            case (SH_MINUS)
-                entry%value = "SH_MINUS"
-            case (SH_PLUS_PLUS)
-                entry%value = "SH_PLUS_PLUS"
-            case (SH_MINUS_MINUS)
-                entry%value = "SH_MINUS_MINUS"
-            case (SH_STAR)
-                entry%value = "SH_STAR"
-            case (SH_SLASH)
-                entry%value = "SH_SLASH"
-            case default
-                entry%value = repr(sh_indent_after_open%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (sh_indent_after_open%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_after_open%value)
+                end select
+            end if
 
             entry%doc = "How much to indent after a line with an opening parenthesis or brace."//LF// &
                         "For an open paren after a function, `sh_indent_after_function' is used."
@@ -32665,23 +32727,26 @@ contains
             entry%fortran = "sh_indent_after_switch"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+            entry%value = sh_indent_after_switch%other_value()
 
-            select case (sh_indent_after_switch%value)
-            case (SH_PLUS)
-                entry%value = "SH_PLUS"
-            case (SH_MINUS)
-                entry%value = "SH_MINUS"
-            case (SH_PLUS_PLUS)
-                entry%value = "SH_PLUS_PLUS"
-            case (SH_MINUS_MINUS)
-                entry%value = "SH_MINUS_MINUS"
-            case (SH_STAR)
-                entry%value = "SH_STAR"
-            case (SH_SLASH)
-                entry%value = "SH_SLASH"
-            case default
-                entry%value = repr(sh_indent_after_switch%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (sh_indent_after_switch%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_after_switch%value)
+                end select
+            end if
 
             entry%doc = "How much to indent a `case' statement relative to the `switch' statement."//LF// &
                         "This is for the rc shell."
@@ -32690,23 +32755,26 @@ contains
             entry%fortran = "sh_indent_for_case_alt"
             entry%user_option = .true.
             entry%original = "SH_PLUS_PLUS"
+            entry%value = sh_indent_for_case_alt%other_value()
 
-            select case (sh_indent_for_case_alt%value)
-            case (SH_PLUS)
-                entry%value = "SH_PLUS"
-            case (SH_MINUS)
-                entry%value = "SH_MINUS"
-            case (SH_PLUS_PLUS)
-                entry%value = "SH_PLUS_PLUS"
-            case (SH_MINUS_MINUS)
-                entry%value = "SH_MINUS_MINUS"
-            case (SH_STAR)
-                entry%value = "SH_STAR"
-            case (SH_SLASH)
-                entry%value = "SH_SLASH"
-            case default
-                entry%value = repr(sh_indent_for_case_alt%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (sh_indent_for_case_alt%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_for_case_alt%value)
+                end select
+            end if
 
             entry%doc = "How much to indent statements after the case label."//LF// &
                         "This is relative to the line containing the `case' statement."
@@ -32715,23 +32783,26 @@ contains
             entry%fortran = "sh_indent_for_case_label"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+            entry%value = sh_indent_for_case_label%other_value()
 
-            select case (sh_indent_for_case_label%value)
-            case (SH_PLUS)
-                entry%value = "SH_PLUS"
-            case (SH_MINUS)
-                entry%value = "SH_MINUS"
-            case (SH_PLUS_PLUS)
-                entry%value = "SH_PLUS_PLUS"
-            case (SH_MINUS_MINUS)
-                entry%value = "SH_MINUS_MINUS"
-            case (SH_STAR)
-                entry%value = "SH_STAR"
-            case (SH_SLASH)
-                entry%value = "SH_SLASH"
-            case default
-                entry%value = repr(sh_indent_for_case_label%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (sh_indent_for_case_label%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_for_case_label%value)
+                end select
+            end if
 
             entry%doc = "How much to indent a case label statement."//LF// &
                         "This is relative to the line containing the `case' statement."
@@ -32740,31 +32811,54 @@ contains
             entry%fortran = "sh_indent_for_continuation"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+            entry%value = sh_indent_for_continuation%other_value()
 
-            select case (sh_indent_for_continuation%value)
-            case (SH_PLUS)
-                entry%value = "SH_PLUS"
-            case (SH_MINUS)
-                entry%value = "SH_MINUS"
-            case (SH_PLUS_PLUS)
-                entry%value = "SH_PLUS_PLUS"
-            case (SH_MINUS_MINUS)
-                entry%value = "SH_MINUS_MINUS"
-            case (SH_STAR)
-                entry%value = "SH_STAR"
-            case (SH_SLASH)
-                entry%value = "SH_SLASH"
-            case default
-                entry%value = repr(sh_indent_for_continuation%value)
-            end select
+            if (len(entry%value) == 0) then
+                select case (sh_indent_for_continuation%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_for_continuation%value)
+                end select
+            end if
 
             entry%doc = "How much to indent for a continuation statement."
         case ("sh_indent_for_do")
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_indent_for_do"
             entry%user_option = .true.
-            entry%original = "0"
-            entry%value = repr(sh_indent_for_do%value)
+            entry%original = "%columns = 0"
+            entry%value = sh_indent_for_do%other_value()
+
+            if (len(entry%value) == 0) then
+                select case (sh_indent_for_do%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_for_do%value)
+                end select
+            end if
+
             entry%doc = "How much to indent a `do' statement."//LF// &
                         "This is relative to the statement before the `do', typically a"//LF// &
                         "`while', `until', `for', `repeat' or `select' statement."
@@ -32772,22 +32866,82 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_indent_for_done"
             entry%user_option = .true.
-            entry%original = "0"
-            entry%value = repr(sh_indent_for_done%value)
+            entry%original = "%columns = 0"
+            entry%value = sh_indent_for_done%other_value()
+
+            if (len(entry%value) == 0) then
+                select case (sh_indent_for_done%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_for_done%value)
+                end select
+            end if
+
             entry%doc = "How much to indent a `done' relative to its matching stmt.  Usually 0."
         case ("sh_indent_for_fi")
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_indent_for_fi"
             entry%user_option = .true.
-            entry%original = "0"
-            entry%value = repr(sh_indent_for_fi%value)
+            entry%original = "%columns = 0"
+            entry%value = sh_indent_for_fi%other_value()
+
+            if (len(entry%value) == 0) then
+                select case (sh_indent_for_fi%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_for_fi%value)
+                end select
+            end if
+
             entry%doc = "How much to indent a `fi' relative to its `if'.  Usually 0."
         case ("sh_indent_for_then")
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_indent_for_then"
             entry%user_option = .true.
-            entry%original = "0"
-            entry%value = repr(sh_indent_for_then%value)
+            entry%original = "%columns = 0"
+            entry%value = sh_indent_for_then%other_value()
+
+            if (len(entry%value) == 0) then
+                select case (sh_indent_for_then%choice)
+                case (SH_PLUS)
+                    entry%value = "SH_PLUS"
+                case (SH_MINUS)
+                    entry%value = "SH_MINUS"
+                case (SH_PLUS_PLUS)
+                    entry%value = "SH_PLUS_PLUS"
+                case (SH_MINUS_MINUS)
+                    entry%value = "SH_MINUS_MINUS"
+                case (SH_STAR)
+                    entry%value = "SH_STAR"
+                case (SH_SLASH)
+                    entry%value = "SH_SLASH"
+                case default
+                    entry%value = repr(sh_indent_for_then%value)
+                end select
+            end if
+
             entry%doc = "How much to indent a `then' relative to its `if'."
         case ("sh_indent_statement_after_and")
             entry%file = "sh_script_mod.f90"
@@ -35807,7 +35961,7 @@ contains
         case ("compilation_ask_about_save")
             kind = OPTION_LOGICAL
             setting = .true.
-        case ("compilation_context_lines")
+        case ("compilation_context")
             kind = OPTION_CHOICE
             setting = .true.
         case ("compilation_disable_input")
@@ -35987,6 +36141,7 @@ contains
             setting = .true.
         case ("dired_switches_in_mode_line")
             kind = OPTION_CHOICE
+            setting = .true.
         case ("dired_touch_program")
             kind = OPTION_STRING
         case ("dired_trivial_filenames")
@@ -36608,7 +36763,7 @@ contains
             kind = OPTION_CHOICE
             setting = .true.
         case ("sh_indent_after_done")
-            kind = OPTION_INTEGER
+            kind = OPTION_CHOICE
             setting = .true.
         case ("sh_indent_after_else")
             kind = OPTION_CHOICE
@@ -36638,16 +36793,16 @@ contains
             kind = OPTION_CHOICE
             setting = .true.
         case ("sh_indent_for_do")
-            kind = OPTION_INTEGER
+            kind = OPTION_CHOICE
             setting = .true.
         case ("sh_indent_for_done")
-            kind = OPTION_INTEGER
+            kind = OPTION_CHOICE
             setting = .true.
         case ("sh_indent_for_fi")
-            kind = OPTION_INTEGER
+            kind = OPTION_CHOICE
             setting = .true.
         case ("sh_indent_for_then")
-            kind = OPTION_INTEGER
+            kind = OPTION_CHOICE
             setting = .true.
         case ("sh_indent_statement_after_and")
             kind = OPTION_LOGICAL
@@ -38012,36 +38167,6 @@ contains
             else
                 sh_basic_offset = v
             end if
-        case ("sh_indent_after_done")
-            if (local) then
-                call sh_indent_after_done%set_local(v)
-            else
-                sh_indent_after_done = v
-            end if
-        case ("sh_indent_for_do")
-            if (local) then
-                call sh_indent_for_do%set_local(v)
-            else
-                sh_indent_for_do = v
-            end if
-        case ("sh_indent_for_done")
-            if (local) then
-                call sh_indent_for_done%set_local(v)
-            else
-                sh_indent_for_done = v
-            end if
-        case ("sh_indent_for_fi")
-            if (local) then
-                call sh_indent_for_fi%set_local(v)
-            else
-                sh_indent_for_fi = v
-            end if
-        case ("sh_indent_for_then")
-            if (local) then
-                call sh_indent_for_then%set_local(v)
-            else
-                sh_indent_for_then = v
-            end if
         case ("sh_remember_variable_min")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
@@ -39090,19 +39215,31 @@ contains
             case default
                 ok = .false.
             end select
-        case ("compilation_context_lines")
+        case ("compilation_context")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call compilation_context%set_local(.true.)
+                else
+                    compilation_context = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call compilation_context%set_local(.false.)
+                else
+                    compilation_context = .false.
+                end if
             case ("COMPILATION_CONTEXT_TOP")
                 if (local) then
-                    call compilation_context_lines%set_local(COMPILATION_CONTEXT_TOP)
+                    call compilation_context%set_local(COMPILATION_CONTEXT_TOP)
                 else
-                    compilation_context_lines = COMPILATION_CONTEXT_TOP
+                    compilation_context = COMPILATION_CONTEXT_TOP
                 end if
-            case ("COMPILATION_CONTEXT_LINES_NO_SCROLL")
+            case ("COMPILATION_CONTEXT_NO_SCROLL")
                 if (local) then
-                    call compilation_context_lines%set_local(COMPILATION_CONTEXT_LINES_NO_SCROLL)
+                    call compilation_context%set_local(COMPILATION_CONTEXT_NO_SCROLL)
                 else
-                    compilation_context_lines = COMPILATION_CONTEXT_LINES_NO_SCROLL
+                    compilation_context = COMPILATION_CONTEXT_NO_SCROLL
                 end if
             case default
                 ok = .false.
@@ -39505,10 +39642,30 @@ contains
             end select
         case ("dired_switches_in_mode_line")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call dired_switches_in_mode_line%set_local(.true.)
+                else
+                    dired_switches_in_mode_line = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call dired_switches_in_mode_line%set_local(.false.)
+                else
+                    dired_switches_in_mode_line = .false.
+                end if
             case ("DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER")
-                dired_switches_in_mode_line = DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER
+                if (local) then
+                    call dired_switches_in_mode_line%set_local(DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER)
+                else
+                    dired_switches_in_mode_line = DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER
+                end if
             case ("DIRED_SWITCHES_IN_MODE_LINE_AS_IS")
-                dired_switches_in_mode_line = DIRED_SWITCHES_IN_MODE_LINE_AS_IS
+                if (local) then
+                    call dired_switches_in_mode_line%set_local(DIRED_SWITCHES_IN_MODE_LINE_AS_IS)
+                else
+                    dired_switches_in_mode_line = DIRED_SWITCHES_IN_MODE_LINE_AS_IS
+                end if
             case default
                 ok = .false.
             end select
@@ -40201,6 +40358,18 @@ contains
             end select
         case ("sh_indent_after_case")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_after_case%set_local(.true.)
+                else
+                    sh_indent_after_case = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_after_case%set_local(.false.)
+                else
+                    sh_indent_after_case = .false.
+                end if
             case ("SH_PLUS")
                 if (local) then
                     call sh_indent_after_case%set_local(SH_PLUS)
@@ -40265,6 +40434,18 @@ contains
             end select
         case ("sh_indent_after_do")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_after_do%set_local(.true.)
+                else
+                    sh_indent_after_do = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_after_do%set_local(.false.)
+                else
+                    sh_indent_after_do = .false.
+                end if
             case ("SH_PLUS")
                 if (local) then
                     call sh_indent_after_do%set_local(SH_PLUS)
@@ -40304,8 +40485,73 @@ contains
             case default
                 ok = .false.
             end select
+        case ("sh_indent_after_done")
+            select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_after_done%set_local(.true.)
+                else
+                    sh_indent_after_done = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_after_done%set_local(.false.)
+                else
+                    sh_indent_after_done = .false.
+                end if
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_after_done%set_local(SH_PLUS)
+                else
+                    sh_indent_after_done = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_after_done%set_local(SH_MINUS)
+                else
+                    sh_indent_after_done = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_after_done%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_after_done = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_after_done%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_after_done = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_after_done%set_local(SH_STAR)
+                else
+                    sh_indent_after_done = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_after_done%set_local(SH_SLASH)
+                else
+                    sh_indent_after_done = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
         case ("sh_indent_after_else")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_after_else%set_local(.true.)
+                else
+                    sh_indent_after_else = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_after_else%set_local(.false.)
+                else
+                    sh_indent_after_else = .false.
+                end if
             case ("SH_PLUS")
                 if (local) then
                     call sh_indent_after_else%set_local(SH_PLUS)
@@ -40347,6 +40593,18 @@ contains
             end select
         case ("sh_indent_after_function")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_after_function%set_local(.true.)
+                else
+                    sh_indent_after_function = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_after_function%set_local(.false.)
+                else
+                    sh_indent_after_function = .false.
+                end if
             case ("SH_PLUS")
                 if (local) then
                     call sh_indent_after_function%set_local(SH_PLUS)
@@ -40388,6 +40646,18 @@ contains
             end select
         case ("sh_indent_after_if")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_after_if%set_local(.true.)
+                else
+                    sh_indent_after_if = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_after_if%set_local(.false.)
+                else
+                    sh_indent_after_if = .false.
+                end if
             case ("SH_PLUS")
                 if (local) then
                     call sh_indent_after_if%set_local(SH_PLUS)
@@ -40429,6 +40699,18 @@ contains
             end select
         case ("sh_indent_after_loop_construct")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_after_loop_construct%set_local(.true.)
+                else
+                    sh_indent_after_loop_construct = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_after_loop_construct%set_local(.false.)
+                else
+                    sh_indent_after_loop_construct = .false.
+                end if
             case ("SH_PLUS")
                 if (local) then
                     call sh_indent_after_loop_construct%set_local(SH_PLUS)
@@ -40470,6 +40752,18 @@ contains
             end select
         case ("sh_indent_after_open")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_after_open%set_local(.true.)
+                else
+                    sh_indent_after_open = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_after_open%set_local(.false.)
+                else
+                    sh_indent_after_open = .false.
+                end if
             case ("SH_PLUS")
                 if (local) then
                     call sh_indent_after_open%set_local(SH_PLUS)
@@ -40511,6 +40805,18 @@ contains
             end select
         case ("sh_indent_after_switch")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_after_switch%set_local(.true.)
+                else
+                    sh_indent_after_switch = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_after_switch%set_local(.false.)
+                else
+                    sh_indent_after_switch = .false.
+                end if
             case ("SH_PLUS")
                 if (local) then
                     call sh_indent_after_switch%set_local(SH_PLUS)
@@ -40552,6 +40858,18 @@ contains
             end select
         case ("sh_indent_for_case_alt")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_for_case_alt%set_local(.true.)
+                else
+                    sh_indent_for_case_alt = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_for_case_alt%set_local(.false.)
+                else
+                    sh_indent_for_case_alt = .false.
+                end if
             case ("SH_PLUS")
                 if (local) then
                     call sh_indent_for_case_alt%set_local(SH_PLUS)
@@ -40593,6 +40911,18 @@ contains
             end select
         case ("sh_indent_for_case_label")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_for_case_label%set_local(.true.)
+                else
+                    sh_indent_for_case_label = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_for_case_label%set_local(.false.)
+                else
+                    sh_indent_for_case_label = .false.
+                end if
             case ("SH_PLUS")
                 if (local) then
                     call sh_indent_for_case_label%set_local(SH_PLUS)
@@ -40634,6 +40964,18 @@ contains
             end select
         case ("sh_indent_for_continuation")
             select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_for_continuation%set_local(.true.)
+                else
+                    sh_indent_for_continuation = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_for_continuation%set_local(.false.)
+                else
+                    sh_indent_for_continuation = .false.
+                end if
             case ("SH_PLUS")
                 if (local) then
                     call sh_indent_for_continuation%set_local(SH_PLUS)
@@ -40669,6 +41011,218 @@ contains
                     call sh_indent_for_continuation%set_local(SH_SLASH)
                 else
                     sh_indent_for_continuation = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_for_do")
+            select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_for_do%set_local(.true.)
+                else
+                    sh_indent_for_do = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_for_do%set_local(.false.)
+                else
+                    sh_indent_for_do = .false.
+                end if
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_for_do%set_local(SH_PLUS)
+                else
+                    sh_indent_for_do = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_for_do%set_local(SH_MINUS)
+                else
+                    sh_indent_for_do = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_for_do%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_for_do = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_for_do%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_for_do = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_for_do%set_local(SH_STAR)
+                else
+                    sh_indent_for_do = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_for_do%set_local(SH_SLASH)
+                else
+                    sh_indent_for_do = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_for_done")
+            select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_for_done%set_local(.true.)
+                else
+                    sh_indent_for_done = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_for_done%set_local(.false.)
+                else
+                    sh_indent_for_done = .false.
+                end if
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_for_done%set_local(SH_PLUS)
+                else
+                    sh_indent_for_done = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_for_done%set_local(SH_MINUS)
+                else
+                    sh_indent_for_done = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_for_done%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_for_done = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_for_done%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_for_done = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_for_done%set_local(SH_STAR)
+                else
+                    sh_indent_for_done = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_for_done%set_local(SH_SLASH)
+                else
+                    sh_indent_for_done = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_for_fi")
+            select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_for_fi%set_local(.true.)
+                else
+                    sh_indent_for_fi = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_for_fi%set_local(.false.)
+                else
+                    sh_indent_for_fi = .false.
+                end if
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_for_fi%set_local(SH_PLUS)
+                else
+                    sh_indent_for_fi = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_for_fi%set_local(SH_MINUS)
+                else
+                    sh_indent_for_fi = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_for_fi%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_for_fi = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_for_fi%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_for_fi = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_for_fi%set_local(SH_STAR)
+                else
+                    sh_indent_for_fi = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_for_fi%set_local(SH_SLASH)
+                else
+                    sh_indent_for_fi = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_for_then")
+            select case (constant)
+            case (".TRUE.")
+                if (local) then
+                    call sh_indent_for_then%set_local(.true.)
+                else
+                    sh_indent_for_then = .true.
+                end if
+            case (".FALSE.")
+                if (local) then
+                    call sh_indent_for_then%set_local(.false.)
+                else
+                    sh_indent_for_then = .false.
+                end if
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_for_then%set_local(SH_PLUS)
+                else
+                    sh_indent_for_then = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_for_then%set_local(SH_MINUS)
+                else
+                    sh_indent_for_then = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_for_then%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_for_then = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_for_then%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_for_then = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_for_then%set_local(SH_STAR)
+                else
+                    sh_indent_for_then = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_for_then%set_local(SH_SLASH)
+                else
+                    sh_indent_for_then = SH_SLASH
                 end if
             case default
                 ok = .false.
@@ -41083,11 +41637,11 @@ contains
                       int(COMMENT_STYLE_ALIGNED, int64), int(COMMENT_STYLE_BOX, int64), &
                       int(COMMENT_STYLE_EXTRA_LINE, int64), int(COMMENT_STYLE_MULTI_LINE, int64), &
                       int(COMMENT_STYLE_BOX_MULTI, int64)]
-        case ("compilation_context_lines")
-            constants = [character(len=48) :: "COMPILATION_CONTEXT_TOP", &
-                         "COMPILATION_CONTEXT_LINES_NO_SCROLL"]
-            values = [integer(int64) :: int(COMPILATION_CONTEXT_TOP, int64), &
-                      int(COMPILATION_CONTEXT_LINES_NO_SCROLL, int64)]
+        case ("compilation_context")
+            constants = [character(len=48) :: ".true.", ".false.", "COMPILATION_CONTEXT_TOP", &
+                         "COMPILATION_CONTEXT_NO_SCROLL"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(COMPILATION_CONTEXT_TOP, int64), &
+                      int(COMPILATION_CONTEXT_NO_SCROLL, int64)]
         case ("compilation_scroll_output")
             constants = [character(len=48) :: ".true.", ".false.", &
                          "COMPILATION_SCROLL_OUTPUT_FIRST_ERROR"]
@@ -41159,9 +41713,10 @@ contains
             values = [integer(int64) :: 1_int64, 0_int64, int(DIRED_RECURSIVE_TOP, int64), &
                       int(DIRED_RECURSIVE_ASK, int64)]
         case ("dired_switches_in_mode_line")
-            constants = [character(len=48) :: "DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER", &
-                         "DIRED_SWITCHES_IN_MODE_LINE_AS_IS"]
-            values = [integer(int64) :: int(DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, int64), &
+            constants = [character(len=48) :: ".true.", ".false.", &
+                         "DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER", "DIRED_SWITCHES_IN_MODE_LINE_AS_IS"]
+            values = [integer(int64) :: 1_int64, 0_int64, &
+                      int(DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, int64), &
                       int(DIRED_SWITCHES_IN_MODE_LINE_AS_IS, int64)]
         case ("dired_use_ls_dired")
             constants = [character(len=48) :: ".true.", ".false.", "DIRED_USE_LS_DIRED_UNSPECIFIED"]
@@ -41290,76 +41845,106 @@ contains
             values = [integer(int64) :: 1_int64, 0_int64, int(QUICK_KEYS_INDENT, int64), &
                       int(QUICK_KEYS_CLOSE, int64), int(QUICK_KEYS_DEFAULT, int64)]
         case ("sh_indent_after_case")
-            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
-                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
-            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
-                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
-                      int(SH_SLASH, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
         case ("sh_indent_after_continuation")
             constants = [character(len=48) :: ".true.", ".false.", &
                          "SH_INDENT_AFTER_CONTINUATION_ALWAYS"]
             values = [integer(int64) :: 1_int64, 0_int64, &
                       int(SH_INDENT_AFTER_CONTINUATION_ALWAYS, int64)]
         case ("sh_indent_after_do")
-            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
-                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
-            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
-                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
-                      int(SH_SLASH, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
+        case ("sh_indent_after_done")
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
         case ("sh_indent_after_else")
-            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
-                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
-            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
-                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
-                      int(SH_SLASH, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
         case ("sh_indent_after_function")
-            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
-                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
-            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
-                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
-                      int(SH_SLASH, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
         case ("sh_indent_after_if")
-            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
-                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
-            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
-                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
-                      int(SH_SLASH, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
         case ("sh_indent_after_loop_construct")
-            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
-                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
-            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
-                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
-                      int(SH_SLASH, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
         case ("sh_indent_after_open")
-            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
-                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
-            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
-                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
-                      int(SH_SLASH, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
         case ("sh_indent_after_switch")
-            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
-                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
-            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
-                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
-                      int(SH_SLASH, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
         case ("sh_indent_for_case_alt")
-            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
-                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
-            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
-                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
-                      int(SH_SLASH, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
         case ("sh_indent_for_case_label")
-            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
-                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
-            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
-                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
-                      int(SH_SLASH, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
         case ("sh_indent_for_continuation")
-            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
-                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
-            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
-                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
-                      int(SH_SLASH, int64)]
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
+        case ("sh_indent_for_do")
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
+        case ("sh_indent_for_done")
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
+        case ("sh_indent_for_fi")
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
+        case ("sh_indent_for_then")
+            constants = [character(len=48) :: ".true.", ".false.", "SH_PLUS", "SH_MINUS", &
+                         "SH_PLUS_PLUS", "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: 1_int64, 0_int64, int(SH_PLUS, int64), &
+                      int(SH_MINUS, int64), int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), &
+                      int(SH_STAR, int64), int(SH_SLASH, int64)]
         case ("shell_command_keep_output")
             constants = [character(len=48) :: ".true.", ".false.", &
                          "SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT", &
