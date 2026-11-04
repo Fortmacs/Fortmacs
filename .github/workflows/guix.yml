@@ -40,10 +40,11 @@ jobs:
 
       - name: Build and test in a Guix environment
         # nss-certs gives curl and git (for fpm's dependencies) the CA
-        # bundle that the profile builds.
+        # bundle that the profile builds; gawk runs the generators that
+        # tools/check.sh calls (through tools/build.sh) before fpm.
         run: |
           guix shell gfortran-toolchain valgrind curl git nss-certs coreutils bash grep sed \
-            findutils ncurses -- bash -euc '
+            findutils gawk ncurses -- bash -euc '
               export SSL_CERT_DIR="$GUIX_ENVIRONMENT/etc/ssl/certs"
               export SSL_CERT_FILE="$SSL_CERT_DIR/ca-certificates.crt"
               export GIT_SSL_CAINFO="$SSL_CERT_FILE"

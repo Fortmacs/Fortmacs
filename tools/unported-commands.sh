@@ -19,8 +19,9 @@
 # module, twice to be safe; --merge because two upstream names may share
 # a Fortran name, as comint-kill-subjob and comint-stop-subjob) and
 # looked up among the components of `commands'
-# (src/commands_mod.f90).  The output has one line per missing command:
-# FILE.el<TAB>upstream-name<TAB>fortran_name.
+# (src/commands_mod.f90, which tools/build.sh --generate makes).  The
+# output has one line per missing command: FILE.el<TAB>upstream-name<TAB>
+# fortran_name.
 set -eu
 cd "$(dirname "$0")/.."
 out=${1:-tools/unported-commands}
@@ -29,6 +30,7 @@ if [ ! -d "$up" ]; then
     echo "unported-commands.sh: no upstream/emacs/lisp (run tools/fetch-upstream.sh)" >&2
     exit 2
 fi
+tools/build.sh --generate >/dev/null
 work=${TMPDIR:-/tmp}/unported-commands.$$
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/src"
