@@ -540,6 +540,14 @@ module commands_mod
         type(command_type) :: first_error
         type(command_type) :: fixup_whitespace
         type(command_type) :: flush_lines
+        type(command_type) :: follow_delete_other_windows_and_split
+        type(command_type) :: follow_end_of_buffer
+        type(command_type) :: follow_first_window
+        type(command_type) :: follow_last_window
+        type(command_type) :: follow_mode
+        type(command_type) :: follow_switch_to_buffer
+        type(command_type) :: follow_switch_to_buffer_all
+        type(command_type) :: follow_switch_to_current_buffer_all
         type(command_type) :: font_lock_change_mode
         type(command_type) :: font_lock_debug_fontify
         type(command_type) :: font_lock_defontify
@@ -1004,6 +1012,7 @@ module commands_mod
         type(command_type) :: next_buffer
         type(command_type) :: next_error
         type(command_type) :: next_error_no_select
+        type(command_type) :: next_follow_window
         type(command_type) :: next_history_element
         type(command_type) :: next_line
         type(command_type) :: next_line_or_history_element
@@ -1040,6 +1049,7 @@ module commands_mod
         type(command_type) :: previous_buffer
         type(command_type) :: previous_error
         type(command_type) :: previous_error_no_select
+        type(command_type) :: previous_follow_window
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
         type(command_type) :: previous_line_or_history_element
@@ -1092,6 +1102,7 @@ module commands_mod
         type(command_type) :: read_y_or_n_insert_y
         type(command_type) :: rebuild_mail_abbrevs
         type(command_type) :: recenter
+        type(command_type) :: recenter_follow
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recentf
         type(command_type) :: recentf_cleanup
@@ -1113,6 +1124,7 @@ module commands_mod
         type(command_type) :: recursive_edit
         type(command_type) :: redo_window_change
         type(command_type) :: redraw_display
+        type(command_type) :: redraw_follow
         type(command_type) :: reindent_then_newline_and_indent
         type(command_type) :: repeat
         type(command_type) :: repeat_exit
@@ -1137,6 +1149,10 @@ module commands_mod
         type(command_type) :: savehist_save
         type(command_type) :: scroll_down
         type(command_type) :: scroll_down_command
+        type(command_type) :: scroll_follow_down
+        type(command_type) :: scroll_follow_down_window
+        type(command_type) :: scroll_follow_up
+        type(command_type) :: scroll_follow_up_window
         type(command_type) :: scroll_other_window
         type(command_type) :: scroll_other_window_down
         type(command_type) :: scroll_up
@@ -1394,6 +1410,7 @@ module commands_mod
         type(command_type) :: windmove_delete_default_keybindings
         type(command_type) :: windmove_mode
         type(command_type) :: window_configuration_to_register
+        type(command_type) :: window_divider_mode
         type(command_type) :: winner_mode
         type(command_type) :: write_abbrev_file
         type(command_type) :: write_file
@@ -1404,7 +1421,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1365) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1382) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1912,6 +1929,14 @@ module commands_mod
                                                                   "first_error", &
                                                                   "fixup_whitespace", &
                                                                   "flush_lines", &
+                                                                  "follow_delete_other_windows_and_split", &
+                                                                  "follow_end_of_buffer", &
+                                                                  "follow_first_window", &
+                                                                  "follow_last_window", &
+                                                                  "follow_mode", &
+                                                                  "follow_switch_to_buffer", &
+                                                                  "follow_switch_to_buffer_all", &
+                                                                  "follow_switch_to_current_buffer_all", &
                                                                   "font_lock_change_mode", &
                                                                   "font_lock_debug_fontify", &
                                                                   "font_lock_defontify", &
@@ -2376,6 +2401,7 @@ module commands_mod
                                                                   "next_buffer", &
                                                                   "next_error", &
                                                                   "next_error_no_select", &
+                                                                  "next_follow_window", &
                                                                   "next_history_element", &
                                                                   "next_line", &
                                                                   "next_line_or_history_element", &
@@ -2412,6 +2438,7 @@ module commands_mod
                                                                   "previous_buffer", &
                                                                   "previous_error", &
                                                                   "previous_error_no_select", &
+                                                                  "previous_follow_window", &
                                                                   "previous_history_element", &
                                                                   "previous_line", &
                                                                   "previous_line_or_history_element", &
@@ -2464,6 +2491,7 @@ module commands_mod
                                                                   "read_y_or_n_insert_y", &
                                                                   "rebuild_mail_abbrevs", &
                                                                   "recenter", &
+                                                                  "recenter_follow", &
                                                                   "recenter_top_bottom", &
                                                                   "recentf", &
                                                                   "recentf_cleanup", &
@@ -2485,6 +2513,7 @@ module commands_mod
                                                                   "recursive_edit", &
                                                                   "redo_window_change", &
                                                                   "redraw_display", &
+                                                                  "redraw_follow", &
                                                                   "reindent_then_newline_and_indent", &
                                                                   "repeat", &
                                                                   "repeat_exit", &
@@ -2509,6 +2538,10 @@ module commands_mod
                                                                   "savehist_save", &
                                                                   "scroll_down", &
                                                                   "scroll_down_command", &
+                                                                  "scroll_follow_down", &
+                                                                  "scroll_follow_down_window", &
+                                                                  "scroll_follow_up", &
+                                                                  "scroll_follow_up_window", &
                                                                   "scroll_other_window", &
                                                                   "scroll_other_window_down", &
                                                                   "scroll_up", &
@@ -2766,6 +2799,7 @@ module commands_mod
                                                                   "windmove_delete_default_keybindings", &
                                                                   "windmove_mode", &
                                                                   "window_configuration_to_register", &
+                                                                  "window_divider_mode", &
                                                                   "winner_mode", &
                                                                   "write_abbrev_file", &
                                                                   "write_file", &
@@ -3796,6 +3830,22 @@ contains
             p => commands%fixup_whitespace
         case ("flush_lines")
             p => commands%flush_lines
+        case ("follow_delete_other_windows_and_split")
+            p => commands%follow_delete_other_windows_and_split
+        case ("follow_end_of_buffer")
+            p => commands%follow_end_of_buffer
+        case ("follow_first_window")
+            p => commands%follow_first_window
+        case ("follow_last_window")
+            p => commands%follow_last_window
+        case ("follow_mode")
+            p => commands%follow_mode
+        case ("follow_switch_to_buffer")
+            p => commands%follow_switch_to_buffer
+        case ("follow_switch_to_buffer_all")
+            p => commands%follow_switch_to_buffer_all
+        case ("follow_switch_to_current_buffer_all")
+            p => commands%follow_switch_to_current_buffer_all
         case ("font_lock_change_mode")
             p => commands%font_lock_change_mode
         case ("font_lock_debug_fontify")
@@ -4724,6 +4774,8 @@ contains
             p => commands%next_error
         case ("next_error_no_select")
             p => commands%next_error_no_select
+        case ("next_follow_window")
+            p => commands%next_follow_window
         case ("next_history_element")
             p => commands%next_history_element
         case ("next_line")
@@ -4796,6 +4848,8 @@ contains
             p => commands%previous_error
         case ("previous_error_no_select")
             p => commands%previous_error_no_select
+        case ("previous_follow_window")
+            p => commands%previous_follow_window
         case ("previous_history_element")
             p => commands%previous_history_element
         case ("previous_line")
@@ -4900,6 +4954,8 @@ contains
             p => commands%rebuild_mail_abbrevs
         case ("recenter")
             p => commands%recenter
+        case ("recenter_follow")
+            p => commands%recenter_follow
         case ("recenter_top_bottom")
             p => commands%recenter_top_bottom
         case ("recentf")
@@ -4942,6 +4998,8 @@ contains
             p => commands%redo_window_change
         case ("redraw_display")
             p => commands%redraw_display
+        case ("redraw_follow")
+            p => commands%redraw_follow
         case ("reindent_then_newline_and_indent")
             p => commands%reindent_then_newline_and_indent
         case ("repeat")
@@ -4990,6 +5048,14 @@ contains
             p => commands%scroll_down
         case ("scroll_down_command")
             p => commands%scroll_down_command
+        case ("scroll_follow_down")
+            p => commands%scroll_follow_down
+        case ("scroll_follow_down_window")
+            p => commands%scroll_follow_down_window
+        case ("scroll_follow_up")
+            p => commands%scroll_follow_up
+        case ("scroll_follow_up_window")
+            p => commands%scroll_follow_up_window
         case ("scroll_other_window")
             p => commands%scroll_other_window
         case ("scroll_other_window_down")
@@ -5504,6 +5570,8 @@ contains
             p => commands%windmove_mode
         case ("window_configuration_to_register")
             p => commands%window_configuration_to_register
+        case ("window_divider_mode")
+            p => commands%window_divider_mode
         case ("winner_mode")
             p => commands%winner_mode
         case ("write_abbrev_file")

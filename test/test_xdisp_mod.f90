@@ -37,9 +37,11 @@ module test_xdisp_mod
     use term_mod, only: init_tty_entry
     use termchar_mod, only: tty_take_output
     use frame_mod, only: frame_type
-    use window_mod, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows
+    use window_mod, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows, &
+                          set_window_start, window_start, window_end, window_scroll_functions
     use xdisp_mod, only: layout_window, redisplay_internal, mode_line_text, glyph_width, mode_line_row, init_frame_windows, &
-                         mode_line_percent, recenter_start, message, mode_line_modes
+                         mode_line_percent, recenter_start, message, mode_line_modes, pre_redisplay_function
+    use buffer_mod, only: buffers
     use keyboard_mod, only: last_message, set_minibuffer_message_text
     use frame_mod, only: selected_frame, ensure_frame_windows
     use handle_mod, only: null_handle
@@ -58,6 +60,11 @@ module test_xdisp_mod
     private
 
     public :: collect_xdisp_mod
+
+    !> Calls of the test's `pre_redisplay_function' and
+    !> `window_scroll_functions' function, and the last start.
+    integer :: pre_redisplay_calls = 0, scroll_calls = 0
+    integer(int64) :: scroll_start = 0
 
 contains
 
@@ -80,6 +87,7 @@ contains
                     new_unittest("mode-line-text", test_mode_line), &
                     new_unittest("redisplay-recenters", test_redisplay), &
                     new_unittest("redisplay-split-windows", test_split_redisplay), &
+                    new_unittest("redisplay-forced-start", test_forced_start), &
                     new_unittest("overlay-strings", test_overlay_strings), &
                     new_unittest("overlay-string-properties", test_overlay_string_properties), &
                     new_unittest("invisible-ellipsis", test_invisible_ellipsis), &
@@ -898,6 +906,74 @@ contains
 
     !> A frame split in three: two windows side by side above one, each
     !> with its mode line, a vertical border between the upper two.
+    !> A forced start is kept, point moving to the middle of the window;
+    !> `pre_redisplay_function' runs first and `window_scroll_functions'
+    !> for the forced start; the end is recorded for `window_end'.
+    subroutine test_forced_start(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(frame_type) :: f
+        type(terminfo_type) :: ti
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=:), allocatable :: text, out
+        character(len=12) :: line
+        integer(int64) :: bi
+        integer :: k
+
+        text = ""
+
+        do k = 1, 100
+            write (line, '("line ",i3.3)') k
+            text = text//trim(line)//achar(10)
+        end do
+
+        call buffer_with("*xdisp-forced*", text, h, bi)
+        call builtin_xterm(ti)
+        call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call init_frame_windows(f)
+        call set_window_buffer(f%selected_window, h, st)
+        call goto_char(1_int64)
+        pre_redisplay_calls = 0
+        scroll_calls = 0
+        pre_redisplay_function => count_pre_redisplay
+        call window_scroll_functions%append(count_scroll)
+        ! Lines of 9 characters: line 50 starts at 442.
+        call set_window_start(windows(f%selected_window%index), 442_int64, st)
+        call redisplay_internal(f, st)
+        out = tty_take_output(f%tty)
+        call check(error, pre_redisplay_calls == 1 .and. scroll_calls == 1 .and. scroll_start == 442, "hooks")
+        if (allocated(error)) return
+        ! 22 text lines: point on the 11th, line 60.
+        call check(error, window_start(windows(f%selected_window%index)) == 442 .and. &
+                   buffers(bi)%pt == 1 + 9*59 .and. f%cursor_vpos == 10, "point moved")
+        if (allocated(error)) return
+        call check(error, window_end(f%selected_window, st) == 1 + 9*71, "window_end")
+        pre_redisplay_function => null()
+        call window_scroll_functions%remove(count_scroll)
+        call delete_window_tree(f%root_window)
+        call delete_window_object(f%minibuffer_window)
+        call close_buffer(h, st)
+    end subroutine test_forced_start
+
+    !> A `pre_redisplay_function' that counts its calls.
+    subroutine count_pre_redisplay(all, list)
+        logical, intent(in) :: all
+        type(handle_type), intent(in) :: list(:)
+
+        if (all .or. size(list) == 0) pre_redisplay_calls = pre_redisplay_calls + 1
+    end subroutine count_pre_redisplay
+
+    !> A `window_scroll_functions' function that counts its calls.
+    subroutine count_scroll(window, pos, status)
+        type(handle_type), intent(in) :: window
+        integer(int64), intent(in) :: pos
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (window%index > 0) scroll_calls = scroll_calls + 1
+        scroll_start = pos
+    end subroutine count_scroll
+
     subroutine test_split_redisplay(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
