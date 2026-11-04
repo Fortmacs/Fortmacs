@@ -20,7 +20,7 @@
 <text x="387" y="114" fill="#1A1A1A" text-anchor="end" font-weight="600">≈6.66%</text>
 <text x="399" y="114" fill="#1A1A1A" text-anchor="start">3,786 of 56,864</text>
 <text x="297" y="140" fill="#1A1A1A" text-anchor="end">Lines translated</text>
-<text x="399" y="140" fill="#1A1A1A" text-anchor="start">158,753 of 2,151,671</text>
+<text x="399" y="140" fill="#1A1A1A" text-anchor="start">158,743 of 2,151,671</text>
 <text x="663" y="26" fill="#1A1A1A" text-anchor="end" font-weight="600">Packages:</text>
 <text x="663" y="52" fill="#1A1A1A" text-anchor="end">Non/GNU ELPA</text>
 <rect x="673" y="41" width="14" height="14" rx="2" fill="#976057" stroke="#1A1A1A" stroke-width="1"/>
