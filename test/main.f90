@@ -26,6 +26,7 @@ program tester
     use testdrive, only: run_testsuite, run_selected, new_testsuite, &
                          testsuite_type, select_suite
     use test_version_mod, only: collect_version_mod
+    use test_subr_mod, only: collect_subr_mod
     use test_help_mod, only: collect_help_mod
     use test_apropos_mod, only: collect_apropos_mod
     use test_simple_setvar_mod, only: collect_simple_setvar_mod
@@ -99,6 +100,8 @@ program tester
     use test_simple_shell_mod, only: collect_simple_shell_mod
     use test_compile_mod, only: collect_compile_mod
     use test_grep_mod, only: collect_grep_mod
+    use test_xref_mod, only: collect_xref_mod
+    use test_etags_mod, only: collect_etags_mod
     use test_ring_mod, only: collect_ring_mod
     use test_comint_mod, only: collect_comint_mod
     use test_shell_mod, only: collect_shell_mod
@@ -188,6 +191,7 @@ program tester
     is = sys_unsetenv("LANG")
     testsuites = [ &
                  new_testsuite("version_mod", collect_version_mod), &
+                 new_testsuite("subr_mod", collect_subr_mod), &
                  new_testsuite("error_mod", collect_error_mod), &
                  new_testsuite("handle_mod", collect_handle_mod), &
                  new_testsuite("string_type_mod", collect_string_type_mod), &
@@ -230,6 +234,8 @@ program tester
                  new_testsuite("simple_shell_mod", collect_simple_shell_mod), &
                  new_testsuite("compile_mod", collect_compile_mod), &
                  new_testsuite("grep_mod", collect_grep_mod), &
+                 new_testsuite("xref_mod", collect_xref_mod), &
+                 new_testsuite("etags_mod", collect_etags_mod), &
                  new_testsuite("ring_mod", collect_ring_mod), &
                  new_testsuite("comint_mod", collect_comint_mod), &
                  new_testsuite("shell_mod", collect_shell_mod), &

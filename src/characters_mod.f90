@@ -40,6 +40,9 @@ module characters_mod
     use uni_category_mod, only: cased_letter_runs, cased_letter_starts, cased_letter_ends, &
                                 nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends
     use charset_mod, only: set_charset_attributes
+    use, intrinsic :: iso_fortran_env, only: int32
+    use error_mod, only: status_type
+    use editfns_mod, only: char_to_string
     implicit none(type, external)
     private
 
@@ -124,14 +127,18 @@ contains
                                                       int(z'0F38'), int(z'0F3F'), int(z'0F7F'), int(z'0F7F'), &
                                                       int(z'0F85'), int(z'0F85'), int(z'0FBE'), int(z'0FCF')], &
                                                       [2, 10])
+        character(len=:), allocatable :: open_text, close_text
+        type(status_type) :: st
         integer :: k
 
         ! JISX0201-Kana.
         call entry(int(z'FF61'), int(z'FF61'), ".")
         call entry(int(z'FF64'), int(z'FF65'), ".")
         ! (Upstream makes both of these open parentheses.)
-        call entry(int(z'FF62'), int(z'FF62'), "("//utf8(int(z'FF63')))
-        call entry(int(z'FF63'), int(z'FF63'), "("//utf8(int(z'FF62')))
+        call char_to_string(int(z'FF62', int32), open_text, st)
+        call char_to_string(int(z'FF63', int32), close_text, st)
+        call entry(int(z'FF62'), int(z'FF62'), "("//close_text)
+        call entry(int(z'FF63'), int(z'FF63'), "("//open_text)
 
         do k = 1, size(cjk_parens), 2
             call pair(cjk_parens(k), cjk_parens(k + 1))
@@ -235,27 +242,12 @@ contains
         subroutine pair(open, close)
             integer, intent(in) :: open, close
 
-            call entry(open, open, "("//utf8(close))
-            call entry(close, close, ")"//utf8(open))
+            call char_to_string(int(open, int32), open_text, st)
+            call char_to_string(int(close, int32), close_text, st)
+            call entry(open, open, "("//close_text)
+            call entry(close, close, ")"//open_text)
         end subroutine pair
     end subroutine characters_syntax
-
-    !> The UTF-8 encoding of character `c'.  Not a port.
-    pure function utf8(c) result(s)
-        integer, intent(in) :: c
-        character(len=:), allocatable :: s
-
-        if (c < 128) then
-            s = achar(c)
-        else if (c < 2048) then
-            s = achar(192 + c/64)//achar(128 + mod(c, 64))
-        else if (c < 65536) then
-            s = achar(224 + c/4096)//achar(128 + mod(c/64, 64))//achar(128 + mod(c, 64))
-        else
-            s = achar(240 + c/262144)//achar(128 + mod(c/4096, 64))//achar(128 + mod(c/64, 64))// &
-                achar(128 + mod(c, 64))
-        end if
-    end function utf8
 
     !> Define, through `define', the categories characters.el defines
     !> that are ported (in its order), and give them, through `entry',

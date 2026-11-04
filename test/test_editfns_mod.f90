@@ -1480,14 +1480,6 @@ contains
         s = propertize(value_type(text=string), list(value_type(name=name), v))
     end function propertized
 
-    !> The name value NAME.
-    function name_value(name) result(v)
-        character(len=*), intent(in) :: name
-        type(value_type) :: v
-
-        v = value_type(name=name)
-    end function name_value
-
     !> Check that formatting the string value STRING with ARGUMENTS gives
     !> EXPECTED, text properties included (equal-including-properties).
     subroutine check_propertized(error, string, arguments, expected, label)
@@ -1546,7 +1538,7 @@ contains
         type(value_type) :: s, red, bold01, under23, plain45, ital45, twenty
 
         call one%append(1)
-        red = name_value("red")
+        red = value_type(name="red")
         ! Bug #23730
         call check_propertized(error, propertized("%d", "face", red), one, propertized("1", "face", red), "%d")
         if (allocated(error)) return
@@ -1554,9 +1546,9 @@ contains
         if (allocated(error)) return
         call check_propertized(error, propertized("%02d", "face", red), one, propertized("01", "face", red), "%02d")
         if (allocated(error)) return
-        s = joined(propertized("a", "a", name_value("A")), propertized("b", "b", name_value("B")))
-        call check_propertized(error, joined(propertized("%2d", "x", name_value("X")), s), one, &
-                               joined(propertized(" 1", "x", name_value("X")), s), "three parts")
+        s = joined(propertized("a", "a", value_type(name="A")), propertized("b", "b", value_type(name="B")))
+        call check_propertized(error, joined(propertized("%2d", "x", value_type(name="X")), s), one, &
+                               joined(propertized(" 1", "x", value_type(name="X")), s), "three parts")
         if (allocated(error)) return
         ! Bug #5306
         twenty = propertized("12345678901234567890", "xxx", value_type(25_int64))
@@ -1569,20 +1561,20 @@ contains
                                joined(value_type(text="123456789"), propertized("1", "xxx", value_type(25_int64))), "%.10s cut")
         if (allocated(error)) return
         ! Bug #23859
-        call xxx%append(propertized("hi", "face", name_value("bold")))
+        call xxx%append(propertized("hi", "face", value_type(name="bold")))
         call check_propertized(error, value_type(text="%4s"), xxx, &
-                               joined(value_type(text="  "), propertized("hi", "face", name_value("bold"))), "%4s")
+                               joined(value_type(text="  "), propertized("hi", "face", value_type(name="bold"))), "%4s")
         if (allocated(error)) return
         ! Bug #23897
-        s = propertized("01234", "face", name_value("bold"))
+        s = propertized("01234", "face", value_type(name="bold"))
         xxx = format_arguments_type()
         call xxx%append(joined(s, value_type(text="56789")))
         call check_propertized(error, value_type(text="%s"), xxx, joined(s, value_type(text="56789")), "%s")
         if (allocated(error)) return
-        bold01 = propertized("01", "face", name_value("bold"))
-        under23 = propertized("23", "face", name_value("underline"))
+        bold01 = propertized("01", "face", value_type(name="bold"))
+        under23 = propertized("23", "face", value_type(name="underline"))
         plain45 = value_type(text="45")
-        ital45 = propertized("45", "face", name_value("italic"))
+        ital45 = propertized("45", "face", value_type(name="italic"))
         xxx = format_arguments_type()
         call xxx%append(joined(joined(bold01, under23), plain45))
         call check_propertized(error, value_type(text="%s"), xxx, joined(joined(bold01, under23), plain45), "%s two faces")
@@ -1608,30 +1600,31 @@ contains
         xxx = format_arguments_type()
         call xxx%append(joined(joined(bold01, under23), ital45))
         call check_propertized(error, value_type(text="%-10s"), xxx, &
-                               joined(joined(bold01, under23), propertized("45    ", "face", name_value("italic"))), "%-10s italic")
+                               joined(joined(bold01, under23), propertized("45    ", "face", value_type(name="italic"))), &
+                               "%-10s italic")
         if (allocated(error)) return
         ! Bug #38191
         xxx = format_arguments_type()
         call xxx%append("xxx")
-        call check_propertized(error, propertized(format_message("`foo' %s bar"), "face", name_value("bold")), xxx, &
-                               propertized(format_message("`foo' xxx bar"), "face", name_value("bold")), "curved quotes")
+        call check_propertized(error, propertized(format_message("`foo' %s bar"), "face", value_type(name="bold")), xxx, &
+                               propertized(format_message("`foo' xxx bar"), "face", value_type(name="bold")), "curved quotes")
         if (allocated(error)) return
         ! Bug #32404
         call foobar%append("foo")
         call foobar%append("bar")
-        call check_propertized(error, joined(joined(propertized("%s", "face", name_value("bold")), value_type(text="")), &
-                                             propertized("%s", "face", name_value("error"))), foobar, &
-                               joined(propertized("foo", "face", name_value("bold")), &
-                                      propertized("bar", "face", name_value("error"))), "two specs")
+        call check_propertized(error, joined(joined(propertized("%s", "face", value_type(name="bold")), value_type(text="")), &
+                                             propertized("%s", "face", value_type(name="error"))), foobar, &
+                               joined(propertized("foo", "face", value_type(name="bold")), &
+                                      propertized("bar", "face", value_type(name="error"))), "two specs")
         if (allocated(error)) return
-        call check_propertized(error, joined(value_type(text="%s"), propertized("%s", "face", name_value("error"))), foobar, &
-                               joined(value_type(text="foo"), propertized("bar", "face", name_value("error"))), "second spec")
+        call check_propertized(error, joined(value_type(text="%s"), propertized("%s", "face", value_type(name="error"))), foobar, &
+                               joined(value_type(text="foo"), propertized("bar", "face", value_type(name="error"))), "second spec")
         if (allocated(error)) return
-        call check_propertized(error, joined(value_type(text="%s "), propertized("%s", "face", name_value("error"))), foobar, &
-                               joined(value_type(text="foo "), propertized("bar", "face", name_value("error"))), "with space")
+        call check_propertized(error, joined(value_type(text="%s "), propertized("%s", "face", value_type(name="error"))), foobar, &
+                               joined(value_type(text="foo "), propertized("bar", "face", value_type(name="error"))), "with space")
         if (allocated(error)) return
         ! Bug #46317
-        s = propertized("X", "prop", name_value("val"))
+        s = propertized("X", "prop", value_type(name="val"))
         call twelve%append(12)
         call check_propertized(error, joined(value_type(text="%3s/"), s), twelve, joined(value_type(text=" 12/"), s), "%3s/")
         if (allocated(error)) return
@@ -1653,7 +1646,7 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        v = propertize(value_type(text="foo"), list(name_value("bar")), st)
+        v = propertize(value_type(text="foo"), list(value_type(name="bar")), st)
         call check(error, st%code == FM_WRONG_NUMBER_OF_ARGUMENTS, "wrong_number_of_arguments")
     end subroutine test_propertize_odd
 
@@ -1938,7 +1931,7 @@ contains
         call arguments%append(1e20_real64)
         call arguments%append(0.1_real64)
         call arguments%append(ieee_value(1.0_real64, ieee_positive_inf))
-        call arguments%append(name_value("bold"))
+        call arguments%append(value_type(name="bold"))
         call arguments%append(value_type())
         call arguments%append("a""b")
         call arguments%append(65)

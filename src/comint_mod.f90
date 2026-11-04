@@ -2070,7 +2070,7 @@ contains
         logical, intent(in) :: literal(:)
         type(string_type), allocatable, intent(out) :: args(:)
         character(len=:), allocatable :: delims
-        integer :: pos, start, n
+        integer :: pos, start, n, k
         character :: ch
 
         delims = ""
@@ -2090,10 +2090,8 @@ contains
             start = pos
 
             if (index(delims, ch) > 0 .and. .not. literal(pos)) then
-                do while (pos <= n)
-                    if (arg(pos:pos) /= ch) exit
-                    pos = pos + 1
-                end do
+                k = verify(arg(pos:n), ch)
+                pos = merge(n + 1, pos + k - 1, k == 0)
             else
                 do while (pos <= n)
                     if (index(delims, arg(pos:pos)) > 0 .and. .not. literal(pos)) exit
@@ -2382,7 +2380,7 @@ contains
                 ! field to make cursor movement between input and output
                 ! fields smoother.
                 props = list(value_type(name="mouse_face"), value_type(name="highlight"), value_type(name="help_echo"), &
-                             make_string("mouse-2: insert after prompt as new input"))
+                             value_type(text="mouse-2: insert after prompt as new input"))
                 call add_text_properties(beginning, end, props, changed, st)
             end if
         end if
@@ -2476,15 +2474,6 @@ contains
             same_text = t1 == t2 .and. len(t1) == len(t2)
         end function same_text
     end subroutine comint_send_input
-
-    ! Not a port.
-    function make_string(s) result(v)
-        use value_mod, only: value_type
-        character(len=*), intent(in) :: s
-        type(value_type) :: v
-
-        v = value_type(text=s)
-    end function make_string
 
     !> The command: send input to process.  Port of the command of
     !> comint.el:comint-send-input.
@@ -4861,7 +4850,7 @@ contains
         end if
 
         call overlay_put(comint_buffers(k)%history_isearch_message_overlay, "display", &
-                         make_string(isearch_message_prefix(isearch_nonincremental, ellipsis)), st)
+                         value_type(text=isearch_message_prefix(isearch_nonincremental, ellipsis)), st)
 
         if (comint_buffers(k)%input_ring_index >= 0 .and. .not. ellipsis) then
             ! Display the current history index.
@@ -5130,6 +5119,7 @@ contains
         type(pending_prompt_type) :: pending
         type(handle_type) :: timer
         logical :: saved_fold, matched
+        integer :: b, e
 
         status = status_type()
         text = string_limit_end(without_cr(string), comint_password_prompt_max_length)
@@ -5143,7 +5133,17 @@ contains
             return
         end if
 
-        content = string_trim(match_string(0, text))
+        ! (string-trim (match-string 0 text) "[ \n\r\t\v\f\b\a]+" "\n+")
+        content = match_string(0, text)
+        b = verify(content, " "//achar(10)//achar(13)//achar(9)//achar(11)//achar(12)//achar(8)//achar(7))
+        e = verify(content, achar(10), back=.true.)
+
+        if (b == 0) then
+            content = ""
+        else
+            content = content(b:e)
+        end if
+
         prompt = content
 
         if (len(content) > 0) then
@@ -5201,29 +5201,6 @@ contains
 
             r = s(b:)
         end function string_limit_end
-
-        ! (string-trim S "[ \n\r\t\v\f\b\a]+" "\n+")
-        function string_trim(s) result(r)
-            character(len=*), intent(in) :: s
-            character(len=:), allocatable :: r
-            integer :: b, e
-
-            b = 1
-
-            do while (b <= len(s))
-                if (index(" "//achar(10)//achar(13)//achar(9)//achar(11)//achar(12)//achar(8)//achar(7), s(b:b)) == 0) exit
-                b = b + 1
-            end do
-
-            e = len(s)
-
-            do while (e >= b)
-                if (s(e:e) /= achar(10)) exit
-                e = e - 1
-            end do
-
-            r = s(b:e)
-        end function string_trim
     end subroutine comint_watch_for_password_prompt
 
     ! The timer function of `comint_watch_for_password_prompt': send the

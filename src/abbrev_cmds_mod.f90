@@ -24,7 +24,7 @@
 !> that use abbrev_mod.
 submodule(abbrev_mod) abbrev_cmds_mod
     use, intrinsic :: iso_fortran_env, only: int32
-    use fns_mod, only: count_characters
+    use fns_mod, only: count_characters, is_string_less
     use callint_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: set_error, format_message, FM_GENERIC_ERROR
@@ -92,22 +92,6 @@ contains
         if (len(a) /= len(b)) return
         same_string = a == b
     end function same_string
-
-    !> Whether A sorts before B by character codes (string-lessp): a
-    !> prefix sorts first.  UTF-8 keeps the order of the codes.  Not a port.
-    pure logical function is_string_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k
-
-        do k = 1, min(len(a), len(b))
-            if (a(k:k) /= b(k:k)) then
-                is_string_less = ichar(a(k:k)) < ichar(b(k:k))
-                return
-            end if
-        end do
-
-        is_string_less = len(a) < len(b)
-    end function is_string_less
 
     !> The index of the abbrev named NAME in TABLE (interned upstream), or 0.
     !> Not a port.

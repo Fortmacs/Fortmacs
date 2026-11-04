@@ -1,39 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="871" height="236" viewBox="0 0 871 236" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
-<path d="M90 90 L90.00 10.00 A80 80 0 0 1 102.95 11.05 Z" fill="#608A83" stroke="#1A1A1A" stroke-width="0.35"/>
-<path d="M90 90 L102.95 11.05 A80 80 0 0 1 118.92 15.41 Z" fill="#578497" stroke="#1A1A1A" stroke-width="0.35"/>
-<path d="M90 90 L118.92 15.41 A80 80 0 1 1 90.00 10.00 Z" fill="#D6D6D3" stroke="#1A1A1A" stroke-width="0.35"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="873" height="236" viewBox="0 0 873 236" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
+<path d="M90 90 L90.00 10.00 A80 80 0 0 1 102.93 11.05 Z" fill="#608A83" stroke="#1A1A1A" stroke-width="0.35"/>
+<path d="M90 90 L102.93 11.05 A80 80 0 0 1 119.06 15.46 Z" fill="#578497" stroke="#1A1A1A" stroke-width="0.35"/>
+<path d="M90 90 L119.06 15.46 A80 80 0 1 1 90.00 10.00 Z" fill="#D6D6D3" stroke="#1A1A1A" stroke-width="0.35"/>
 <circle cx="90" cy="90" r="80" fill="none" stroke="#1A1A1A" stroke-width="1"/>
 <rect x="36" y="189" width="14" height="14" rx="2" fill="#D6D6D3" stroke="#1A1A1A" stroke-width="1"/>
 <text x="58" y="200" fill="#1A1A1A" text-anchor="start">Not yet ported</text>
-<text x="90" y="222" fill="#1A1A1A" text-anchor="middle">≈94.11%  60,231 of 63,999</text>
+<text x="90" y="222" fill="#1A1A1A" text-anchor="middle">≈94.08%  60,213 of 63,999</text>
 <text x="297" y="26" fill="#1A1A1A" text-anchor="end" font-weight="600">Internal:</text>
 <text x="297" y="52" fill="#1A1A1A" text-anchor="end">C functions</text>
 <rect x="307" y="41" width="14" height="14" rx="2" fill="#608A83" stroke="#1A1A1A" stroke-width="1"/>
-<text x="387" y="52" fill="#1A1A1A" text-anchor="end">≈19.38%</text>
-<text x="399" y="52" fill="#1A1A1A" text-anchor="start">1,656 of 8,547</text>
+<text x="387" y="52" fill="#1A1A1A" text-anchor="end">≈19.35%</text>
+<text x="399" y="52" fill="#1A1A1A" text-anchor="start">1,654 of 8,547</text>
 <text x="297" y="78" fill="#1A1A1A" text-anchor="end">Elisp definitions</text>
 <rect x="307" y="67" width="14" height="14" rx="2" fill="#578497" stroke="#1A1A1A" stroke-width="1"/>
-<text x="387" y="78" fill="#1A1A1A" text-anchor="end">≈4.37%</text>
-<text x="399" y="78" fill="#1A1A1A" text-anchor="start">2,112 of 48,317</text>
-<line x1="200" y1="92" x2="520" y2="92" stroke="#1A1A1A" stroke-width="1"/>
+<text x="387" y="78" fill="#1A1A1A" text-anchor="end">≈4.41%</text>
+<text x="399" y="78" fill="#1A1A1A" text-anchor="start">2,132 of 48,317</text>
+<line x1="200" y1="92" x2="522" y2="92" stroke="#1A1A1A" stroke-width="1"/>
 <text x="297" y="114" fill="#1A1A1A" text-anchor="end" font-weight="600">Complete</text>
-<text x="387" y="114" fill="#1A1A1A" text-anchor="end" font-weight="600">≈6.63%</text>
-<text x="399" y="114" fill="#1A1A1A" text-anchor="start">3,768 of 56,864</text>
+<text x="387" y="114" fill="#1A1A1A" text-anchor="end" font-weight="600">≈6.66%</text>
+<text x="399" y="114" fill="#1A1A1A" text-anchor="start">3,786 of 56,864</text>
 <text x="297" y="140" fill="#1A1A1A" text-anchor="end">Lines translated</text>
-<text x="399" y="140" fill="#1A1A1A" text-anchor="start">158,186 of 2,151,671</text>
-<text x="661" y="26" fill="#1A1A1A" text-anchor="end" font-weight="600">Packages:</text>
-<text x="661" y="52" fill="#1A1A1A" text-anchor="end">Non/GNU ELPA</text>
-<rect x="671" y="41" width="14" height="14" rx="2" fill="#976057" stroke="#1A1A1A" stroke-width="1"/>
-<text x="751" y="52" fill="#1A1A1A" text-anchor="end">0.00%</text>
-<text x="763" y="52" fill="#1A1A1A" text-anchor="start">0 of 802</text>
-<text x="661" y="78" fill="#1A1A1A" text-anchor="end">MELPA</text>
-<rect x="671" y="67" width="14" height="14" rx="2" fill="#B39574" stroke="#1A1A1A" stroke-width="1"/>
-<text x="751" y="78" fill="#1A1A1A" text-anchor="end">0.00%</text>
-<text x="763" y="78" fill="#1A1A1A" text-anchor="start">0 of 6,333</text>
-<line x1="564" y1="92" x2="863" y2="92" stroke="#1A1A1A" stroke-width="1"/>
-<text x="661" y="114" fill="#1A1A1A" text-anchor="end" font-weight="600">Complete</text>
-<text x="751" y="114" fill="#1A1A1A" text-anchor="end" font-weight="600">0.00%</text>
-<text x="763" y="114" fill="#1A1A1A" text-anchor="start">0 of 7,135</text>
-<text x="661" y="140" fill="#1A1A1A" text-anchor="end">Lines translated</text>
-<text x="763" y="140" fill="#1A1A1A" text-anchor="start">0 of ≈8,240,925</text>
+<text x="399" y="140" fill="#1A1A1A" text-anchor="start">158,753 of 2,151,671</text>
+<text x="663" y="26" fill="#1A1A1A" text-anchor="end" font-weight="600">Packages:</text>
+<text x="663" y="52" fill="#1A1A1A" text-anchor="end">Non/GNU ELPA</text>
+<rect x="673" y="41" width="14" height="14" rx="2" fill="#976057" stroke="#1A1A1A" stroke-width="1"/>
+<text x="753" y="52" fill="#1A1A1A" text-anchor="end">0.00%</text>
+<text x="765" y="52" fill="#1A1A1A" text-anchor="start">0 of 802</text>
+<text x="663" y="78" fill="#1A1A1A" text-anchor="end">MELPA</text>
+<rect x="673" y="67" width="14" height="14" rx="2" fill="#B39574" stroke="#1A1A1A" stroke-width="1"/>
+<text x="753" y="78" fill="#1A1A1A" text-anchor="end">0.00%</text>
+<text x="765" y="78" fill="#1A1A1A" text-anchor="start">0 of 6,333</text>
+<line x1="566" y1="92" x2="865" y2="92" stroke="#1A1A1A" stroke-width="1"/>
+<text x="663" y="114" fill="#1A1A1A" text-anchor="end" font-weight="600">Complete</text>
+<text x="753" y="114" fill="#1A1A1A" text-anchor="end" font-weight="600">0.00%</text>
+<text x="765" y="114" fill="#1A1A1A" text-anchor="start">0 of 7,135</text>
+<text x="663" y="140" fill="#1A1A1A" text-anchor="end">Lines translated</text>
+<text x="765" y="140" fill="#1A1A1A" text-anchor="start">0 of ≈8,240,925</text>
 </svg>

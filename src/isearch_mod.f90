@@ -47,15 +47,16 @@ module isearch_mod
     use value_mod, only: value_type, xfixnum, xstring, make_keymap_ref, list_length, list_elt, list_elements, make_list, &
                          vtag, V_INTEGER, V_STRING
     use data_mod, only: symbol_value, set, append_locals_clearer, history_setting_type, forward_setting
+    use window_mod, only: same_handle
     use hooks_mod, only: hook_type
-    use character_mod, only: string_char_and_length, char_string, MAX_CHAR, MAX_MULTIBYTE_LENGTH, &
+    use character_mod, only: string_char_and_length, MAX_CHAR, &
                              CHAR_SHIFT
     use casetab_mod, only: downcase
     use buffer_mod, only: buffers, current, transient_mark_mode, buf_fetch_char
     use marker_mod, only: char_to_byte
     use syntax_mod, only: char_syntax, forward_word
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_eol, pos_eol, &
-                           buffer_substring
+                           buffer_substring, char_to_string
     use cmds_mod, only: forward_char
     use search_mod, only: re_search_forward, re_search_backward, match_beginning, match_end, looking_at, &
                           string_match, regexp_quote, case_fold_search, search_spaces_regexp, SEARCH_NOERROR
@@ -460,18 +461,6 @@ contains
         end do
     end subroutine decode
 
-    !> The UTF-8 encoding of character `c'.  Not a port.
-    function encode(c) result(s)
-        integer(int32), intent(in) :: c
-        character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
-        integer(int32) :: nbytes
-        type(status_type) :: status
-
-        call char_string(c, buffer, nbytes, status)
-        s = buffer(1:nbytes)
-    end function encode
-
     !> Number of characters in UTF-8 `s'.  Not a port.
     integer function nchars(s)
         character(len=*), intent(in) :: s
@@ -487,12 +476,15 @@ contains
         character(len=:), allocatable :: r
         integer(int32), allocatable :: chars(:)
         integer :: k, m
+        character(len=:), allocatable :: one
+        type(status_type) :: st
 
         call decode(s, chars, m)
         r = ""
 
         do k = 1, m - n
-            r = r//encode(chars(k))
+            call char_to_string(chars(k), one, st)
+            r = r//one
         end do
     end function drop_chars
 
@@ -503,12 +495,15 @@ contains
         character(len=:), allocatable :: r
         integer(int32), allocatable :: chars(:)
         integer :: k, m
+        character(len=:), allocatable :: one
+        type(status_type) :: st
 
         call decode(s, chars, m)
         r = ""
 
         do k = 1, m
-            r = r//encode(downcase(chars(k)))
+            call char_to_string(downcase(chars(k)), one, st)
+            r = r//one
         end do
     end function downcase_string
 
@@ -573,10 +568,11 @@ contains
     function word_search_regexp(string, lax) result(regexp)
         character(len=*), intent(in) :: string
         logical, intent(in), optional :: lax
-        character(len=:), allocatable :: regexp, word
+        character(len=:), allocatable :: regexp, word, one
         integer(int32), allocatable :: chars(:)
         integer :: k, m, nwords
         logical :: is_lax
+        type(status_type) :: st
 
         is_lax = .false.
         if (present(lax)) is_lax = lax
@@ -602,7 +598,8 @@ contains
         do k = 1, m + 1
             if (k <= m) then
                 if (char_syntax(int(chars(k))) == "w") then
-                    word = word//encode(chars(k))
+                    call char_to_string(chars(k), one, st)
+                    word = word//one
                     cycle
                 end if
             end if
@@ -928,13 +925,6 @@ contains
         call isearch_update()
         call pre_command_hook%prepend(isearch_pre_command_hook)
     end subroutine isearch_mode
-
-    ! Not a port.
-    logical function same_handle(a, b)
-        type(handle_type), intent(in) :: a, b
-
-        same_handle = a%index == b%index .and. a%generation == b%generation
-    end function same_handle
 
     !> This is called after every isearch command to update the display.
     !> Port of isearch.el:isearch-update (no slow-terminal window, hscroll
@@ -1826,6 +1816,7 @@ contains
     subroutine isearch_process_search_char(char, count)
         integer(int64), intent(in) :: char, count
         character(len=:), allocatable :: one, string
+        type(status_type) :: st
 
         ! * and ? are special in regexps when not preceded by \.  } and |
         ! are special in regexps when preceded by \.  Nothing special for
@@ -1841,7 +1832,7 @@ contains
             continue
         end select
 
-        one = encode(int(char, int32))
+        call char_to_string(int(char, int32), one, st)
         string = one
         if (count > 1) string = repeat(one, int(count))
         ! Append the char(s) to the search string, update the message and
