@@ -1516,6 +1516,17 @@ statement or the comment line above it.  Checked:
 - `implicit-none`: `implicit none (type, external)` everywhere.
 - `stop`: errors return a status; `stop` only in a main program.
 - `obsolete`: no `common`, `equivalence` or `goto`.
+- `continuation-limit`: a statement of more than 255 continuation lines
+  (the standard's limit; gfortran only warns): a long array constructor
+  is split into parameter arrays `NAME_part_1`, `NAME_part_2`, ... that
+  the constructor joins, as the generators do (tools/gen-commands.sh,
+  gen-docstrings.sh, gen-tty-colors.sh, gen-unicategory.sh).
+- `truncated-literal`: a string longer than the length of its array
+  constructor's type specification (`[character(len=N) :: ...]`), which
+  gfortran truncates without a word (term_xterm_mod's `kp-separator`
+  read as `kp-separato`, fortmacs_mod's `--no-blinking-cursor` as
+  `--no-blinking-cu`): size the length from the longest string, as the
+  generators do.
 
 Checked by hand on every PR's diff (no script can tell):
 
