@@ -33,10 +33,14 @@ module docstrings_mod
                           fundamental_mode_abbrev_table, global_abbrev_table, last_abbrev, last_abbrev_location, &
                           last_abbrev_text, only_global_abbrevs, save_abbrevs, SAVE_ABBREVS_NO, SAVE_ABBREVS_ASK, &
                           SAVE_ABBREVS_SILENTLY
-    use add_log_mod, only: add_log_dont_create_changelog_file, add_log_full_name, &
-                           add_log_mailing_address, add_log_time_format, add_log_iso8601_time_string, change_log_date, &
-                           change_log_default_name, change_log_directory_files, change_log_mode_hook, &
-                           change_log_mode_map, change_log_mode_syntax_table
+    use add_log_mod, only: add_log_always_start_new_record, add_log_buffer_file_name_function, &
+                           add_log_current_subprogram_function, add_log_current_subprogram_header_regexp, &
+                           add_log_dont_create_changelog_file, add_log_file_name_function, add_log_full_name, &
+                           add_log_keep_changes_together, add_log_mailing_address, add_log_time_format, &
+                           add_log_iso8601_time_string, change_log_date, change_log_default_name, &
+                           change_log_directory_files, change_log_mode_hook, change_log_mode_map, &
+                           change_log_mode_syntax_table, change_log_version_info_enabled, &
+                           change_log_version_number_regexps
     use ansi_color_mod, only: ansi_color_apply_face_function, ansi_color_basic_faces, &
                               ansi_color_bold_is_bright, ansi_color_bright_colors, ansi_color_for_comint_mode, &
                               ANSI_COLOR_NO, ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_for_compilation_mode, &
@@ -177,10 +181,10 @@ module docstrings_mod
     use data_mod, only: history_delete_duplicates, history_length
     use diff_mod, only: diff_command, diff_entire_buffers, diff_switches, diff_use_labels, &
                         DIFF_USE_LABELS_NO, DIFF_USE_LABELS_YES, DIFF_USE_LABELS_CHECK
-    use diff_mode_mod, only: diff_advance_after_apply_hunk, diff_ask_before_revert_and_cut_hunk, &
-                             diff_default_read_only, diff_jump_to_old_file, diff_mode_hook, diff_mode_map, &
-                             diff_mode_read_only, diff_mode_read_only_map, diff_mode_shared_map, diff_read_only_map, &
-                             diff_valid_unified_empty_line
+    use diff_mode_mod, only: diff_add_log_use_relative_names, diff_advance_after_apply_hunk, &
+                             diff_ask_before_revert_and_cut_hunk, diff_default_read_only, diff_jump_to_old_file, &
+                             diff_mode_hook, diff_mode_map, diff_mode_read_only, diff_mode_read_only_map, &
+                             diff_mode_shared_map, diff_read_only_map, diff_valid_unified_empty_line
     use dired_mod, only: completion_ignored_extensions
     use dired_mode_mod, only: dired_after_readin_hook, dired_always_read_filesystem, &
                               dired_auto_revert_buffer, dired_before_readin_hook, dired_broken_symlink, &
@@ -687,13 +691,14 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1664) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1670) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
                                                "abort_recursive_edit", "accept_process_output", "activate_transient_input_method", &
-                                                                    "add_global_abbrev", "add_mode_abbrev", "add_name_to_file", &
-                                                             "ansi_color_compilation_filter", "ansi_color_for_comint_mode_filter", &
+                                                                    "add_change_log_entry", "add_change_log_entry_other_window", &
+                                               "add_diff_change_log_entries_other_window", "add_global_abbrev", "add_mode_abbrev", &
+                                         "add_name_to_file", "ansi_color_compilation_filter", "ansi_color_for_comint_mode_filter", &
                                                                 "ansi_color_for_comint_mode_off", "ansi_color_for_comint_mode_on", &
                                            "ansi_color_process_output", "append_save_some_buffers_function", "append_to_register", &
                                                "apply_on_rectangle", "apropos_command", "apropos_documentation", "apropos_follow", &
@@ -748,7 +753,7 @@ module docstrings_mod
                                                    "calendar_set_mark", "calendar_show_fewer_months", "calendar_show_more_months", &
                                                       "calendar_unmark", "cancel_timer", "canonically_space_region", "capitalize", &
                                            "capitalize_region", "capitalize_word", "category_docstring", "category_set_mnemonics", &
-                                                             "category_table", "char_category_set", "char_charset", "char_syntax", &
+                                          "category_table", "change_log_mode", "char_category_set", "char_charset", "char_syntax", &
                                            "char_table_extra_slot", "char_table_parent", "char_table_range", "char_table_subtype", &
                                                        "charset_priority_list", "charsetp", "check_coding_system", "check_parens", &
                                                 "clear_all_abbrevs", "clear_rectangle", "clear_this_command_keys", "close_buffer", &
@@ -870,37 +875,38 @@ module docstrings_mod
                                                                  "file_modes_number_to_symbolic", "file_modes_symbolic_to_number", &
                                          "file_name_sans_versions", "file_to_register", "file_truename_handler", "fill_paragraph", &
                                                     "fill_region", "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
-                                            "find_file", "find_file_other_frame", "find_file_other_window", "find_file_read_only", &
-                                               "find_file_read_only_other_frame", "find_file_read_only_other_window", "find_grep", &
-                                                       "first_error", "fixup_whitespace", "flush_lines", "font_lock_add_keywords", &
-                                                         "font_lock_anchored", "font_lock_change_mode", "font_lock_debug_fontify", &
-                                                     "font_lock_defontify", "font_lock_fontify_block", "font_lock_fontify_buffer", &
-                                                                    "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
+                                                               "find_change_log_entry_file", "find_file", "find_file_other_frame", &
+                                               "find_file_other_window", "find_file_read_only", "find_file_read_only_other_frame", &
+                                               "find_file_read_only_other_window", "find_grep", "first_error", "fixup_whitespace", &
+                                           "flush_lines", "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
+                                                      "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
+                                         "font_lock_fontify_buffer", "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
                                                 "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
                                                            "format_error", "format_time_string", "forward_button", "forward_char", &
                                          "forward_comment", "forward_expression", "forward_group", "forward_line", "forward_page", &
                                                       "forward_paragraph", "forward_sentence", "forward_word", "fundamental_mode", &
-                                                        "get_buffer_process", "get_or_make_buffer", "get_process", "get_register", &
-                                                        "get_unused_category", "global_auto_revert_mode", "global_font_lock_mode", &
-                                             "global_font_lock_mode_enable_in_buffer", "global_set_key", "goto_char", "goto_line", &
-                                              "goto_line_relative", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
-                                                 "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
-                                                "grep_find_toggle_abbreviation", "grep_mode", "help_follow_name", "help_for_help", &
-                                              "help_go_back", "help_go_forward", "help_goto_next_page", "help_goto_previous_page", &
-                                                   "help_mode", "help_procedure_show", "help_quit", "how_many", "html_checkboxes", &
-                                           "html_div", "html_headline_1", "html_headline_2", "html_headline_3", "html_headline_4", &
-                                                 "html_headline_5", "html_headline_6", "html_horizontal_rule", "html_href_anchor", &
-                                                   "html_href_anchor_file", "html_html5_template", "html_id_anchor", "html_image", &
-                                                                   "html_line", "html_list_item", "html_mode", "html_name_anchor", &
-                                           "html_navigational_links", "html_ordered_list", "html_paragraph", "html_radio_buttons", &
-                                                       "html_span", "html_unordered_list", "ibuffer", "ibuffer_add_saved_filters", &
-                                                              "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", "ibuffer_and", &
-                                                       "ibuffer_and_filter", "ibuffer_auto_mode", "ibuffer_backward_filter_group", &
-                                                     "ibuffer_backward_line", "ibuffer_backwards_next_marked", "ibuffer_basename", &
-                                                                "ibuffer_bs_show", "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", &
-                                                         "ibuffer_change_marks", "ibuffer_clear_filter_groups", "ibuffer_content", &
-                                                   "ibuffer_copy_buffername", "ibuffer_copy_filename", "ibuffer_cut_filter_group", &
-                                                 "ibuffer_cut_line", "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
+                                              "generate_log_edit_changelog_from_diff", "get_buffer_process", "get_or_make_buffer", &
+                                                  "get_process", "get_register", "get_unused_category", "global_auto_revert_mode", &
+                                              "global_font_lock_mode", "global_font_lock_mode_enable_in_buffer", "global_set_key", &
+                                                     "goto_char", "goto_line", "goto_line_relative", "grep", "grep_apply_setting", &
+                                                       "grep_change_to_grep_edit_mode", "grep_compute_defaults", "grep_edit_mode", &
+                                              "grep_edit_save_changes", "grep_find", "grep_find_toggle_abbreviation", "grep_mode", &
+                                                           "help_follow_name", "help_for_help", "help_go_back", "help_go_forward", &
+                                             "help_goto_next_page", "help_goto_previous_page", "help_mode", "help_procedure_show", &
+                                                        "help_quit", "how_many", "html_checkboxes", "html_div", "html_headline_1", &
+                                                       "html_headline_2", "html_headline_3", "html_headline_4", "html_headline_5", &
+                                           "html_headline_6", "html_horizontal_rule", "html_href_anchor", "html_href_anchor_file", &
+                                             "html_html5_template", "html_id_anchor", "html_image", "html_line", "html_list_item", &
+                                                  "html_mode", "html_name_anchor", "html_navigational_links", "html_ordered_list", &
+                                            "html_paragraph", "html_radio_buttons", "html_span", "html_unordered_list", "ibuffer", &
+                                                "ibuffer_add_saved_filters", "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", &
+                                                                    "ibuffer_and", "ibuffer_and_filter", "ibuffer_auto_mode", &
+                                                                    "ibuffer_backward_filter_group", "ibuffer_backward_line", &
+                                                           "ibuffer_backwards_next_marked", "ibuffer_basename", "ibuffer_bs_show", &
+                                                           "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", "ibuffer_change_marks", &
+                                                      "ibuffer_clear_filter_groups", "ibuffer_content", "ibuffer_copy_buffername", &
+                                                          "ibuffer_copy_filename", "ibuffer_cut_filter_group", "ibuffer_cut_line", &
+                                                                    "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
                                                              "ibuffer_delete_saved_filter_groups", "ibuffer_delete_saved_filters", &
                                                             "ibuffer_derived_mode", "ibuffer_diff_with_file", "ibuffer_directory", &
                                                     "ibuffer_do_close_on_deletion_marks", "ibuffer_do_delete", "ibuffer_do_occur", &
@@ -1188,14 +1194,17 @@ module docstrings_mod
                                                                     "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1471) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1480) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
-                                               "adaptive_fill_mode", "adaptive_fill_regexp", "add_log_dont_create_changelog_file", &
-                                                            "add_log_full_name", "add_log_mailing_address", "add_log_time_format", &
-                                                    "after_change_functions", "after_change_major_mode_hook", "after_revert_hook", &
-                                                 "after_save_hook", "after_set_visited_file_name_hook", "amalgamating_undo_limit", &
+                                                  "adaptive_fill_mode", "adaptive_fill_regexp", "add_log_always_start_new_record", &
+                                                       "add_log_buffer_file_name_function", "add_log_current_subprogram_function", &
+                                                 "add_log_current_subprogram_header_regexp", "add_log_dont_create_changelog_file", &
+                                               "add_log_file_name_function", "add_log_full_name", "add_log_keep_changes_together", &
+                                                       "add_log_mailing_address", "add_log_time_format", "after_change_functions", &
+                                                           "after_change_major_mode_hook", "after_revert_hook", "after_save_hook", &
+                                                                    "after_set_visited_file_name_hook", "amalgamating_undo_limit", &
                                           "ansi_color_apply_face_function", "ansi_color_basic_faces", "ansi_color_bold_is_bright", &
                                                                     "ansi_color_bright_colors", "ansi_color_for_comint_mode", &
                                                                     "ansi_color_for_compilation_mode", "ansi_color_normal_colors", &
@@ -1249,9 +1258,9 @@ module docstrings_mod
                                                            "calendar_weekend_days", "calendar_weekend_header", "case_fold_search", &
                                                                    "case_identifiers_as_words", "case_replace", "change_log_date", &
                                                   "change_log_default_name", "change_log_directory_files", "change_log_mode_hook", &
-                                                                    "change_log_mode_map", "change_log_mode_syntax_table", &
-                                                                    "change_major_mode_after_body_hook", "change_major_mode_hook", &
-                                                                    "change_major_mode_with_file_name", "clipboard_history_max", &
+                                         "change_log_mode_map", "change_log_mode_syntax_table", "change_log_version_info_enabled", &
+                                                     "change_log_version_number_regexp_list", "change_major_mode_after_body_hook", &
+                                            "change_major_mode_hook", "change_major_mode_with_file_name", "clipboard_history_max", &
                                                  "clipboard_history_paste_pointer", "close_buffer_hook", "coding_system_for_read", &
                                                  "coding_system_for_write", "coding_system_require_warning", "colon_double_space", &
                                                                     "combine_after_change_calls", "comint_buffer_maximum_size", &
@@ -1336,10 +1345,11 @@ module docstrings_mod
                                                                "default_terminal_coding_system", "default_transient_input_method", &
                                                             "define_ibuffer_column", "defining_kbd_macro", "delete_active_region", &
                                            "delete_exited_processes", "delete_pair_blink_delay", "delete_pair_push_mark", "diary", &
-                                           "diff_advance_after_apply_hunk", "diff_ask_before_revert_and_cut_hunk", "diff_command", &
-                                                         "diff_default_read_only", "diff_entire_buffers", "diff_jump_to_old_file", &
-                                              "diff_mode_hook", "diff_mode_map", "diff_mode_read_only", "diff_mode_read_only_map", &
-                                                 "diff_mode_shared_map", "diff_read_only_map", "diff_switches", "diff_use_labels", &
+                                                               "diff_add_log_use_relative_names", "diff_advance_after_apply_hunk", &
+                                                  "diff_ask_before_revert_and_cut_hunk", "diff_command", "diff_default_read_only", &
+                                                "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
+                                                         "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
+                                                                    "diff_read_only_map", "diff_switches", "diff_use_labels", &
                                                       "diff_valid_unified_empty_line", "directory_listing_before_filename_regexp", &
                                                       "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
                                            "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
@@ -1700,13 +1710,17 @@ module docstrings_mod
                                                                     "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(631) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(637) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
                                                                       "adaptive_fill_first_line_regexp", &
                                                                       "adaptive_fill_mode", &
                                                                       "adaptive_fill_regexp", &
+                                                                      "add_log_always_start_new_record", &
+                                                                      "add_log_current_subprogram_header_regexp", &
+                                                                      "add_log_file_name_function", &
+                                                                      "add_log_keep_changes_together", &
                                                                       "add_log_time_format", &
                                                                       "after_save_hook", &
                                                                       "ansi_color_bold_is_bright", &
@@ -1762,6 +1776,7 @@ module docstrings_mod
                                                                       "case_fold_search", &
                                                                       "case_replace", &
                                                                       "change_major_mode_with_file_name", &
+                                                                      "change_log_version_info_enabled", &
                                                                       "colon_double_space", &
                                                                       "comint_buffer_maximum_size", &
                                                                       "comint_completion_addsuffix", &
@@ -1855,6 +1870,7 @@ module docstrings_mod
                                                                       "delete_exited_processes", &
                                                                       "delete_pair_blink_delay", &
                                                                       "delete_pair_push_mark", &
+                                                                      "diff_add_log_use_relative_names", &
                                                                       "diff_advance_after_apply_hunk", &
                                                                       "diff_ask_before_revert_and_cut_hunk", &
                                                                       "diff_command", &
@@ -2482,6 +2498,55 @@ contains
             entry%command = .true.
             entry%doc = "C-x \: enable the transient input method, reading it with a prefix"//LF// &
                         "argument."
+        case ("add_change_log_entry")
+            entry%file = "add_log_mod.f90"
+            entry%command = .true.
+            entry%doc = "Find ChangeLog buffer, add an entry for today and an item for this file."//LF// &
+                        "Optional arg WHOAMI (the prefix argument) true means prompt for"//LF// &
+                        "user name and email (stored in `add_log_full_name'"//LF// &
+                        "and `add_log_mailing_address')."//LF// &
+                        ""//LF// &
+                        "Second arg CHANGELOG_FILE_NAME is the file name of the change log."//LF// &
+                        "If absent, use the value of `change_log_default_name'.  If the file"//LF// &
+                        "thus named exists, it is used for the new entry.  If it doesn't"//LF// &
+                        "exist, it is created, unless `add_log_dont_create_changelog_file' is .true.,"//LF// &
+                        "in which case a suitably named buffer that doesn't visit any file"//LF// &
+                        "is used for keeping entries pertaining to CHANGELOG_FILE_NAME's"//LF// &
+                        "directory."//LF// &
+                        ""//LF// &
+                        "Third arg OTHER_WINDOW true means visit in other window."//LF// &
+                        ""//LF// &
+                        "Fourth arg NEW_ENTRY true means always create a new entry at the front;"//LF// &
+                        "never append to an existing entry.  Option `add_log_keep_changes_together'"//LF// &
+                        "otherwise affects whether a new entry is created."//LF// &
+                        ""//LF// &
+                        "Fifth arg PUT_NEW_ENTRY_ON_NEW_LINE true means that if a new"//LF// &
+                        "entry is created, put it on a new line by itself, do not put it"//LF// &
+                        "after a comma on an existing line."//LF// &
+                        ""//LF// &
+                        "Option `add_log_always_start_new_record' true means always create a"//LF// &
+                        "new record, even when the last record was made on the same date and by"//LF// &
+                        "the same person."//LF// &
+                        ""//LF// &
+                        "The change log file can start with a copyright notice and a copying"//LF// &
+                        "permission notice.  The first blank line indicates the end of these"//LF// &
+                        "notices."//LF// &
+                        ""//LF// &
+                        "Today's date is calculated in local time."
+        case ("add_change_log_entry_other_window")
+            entry%file = "add_log_mod.f90"
+            entry%command = .true.
+            entry%doc = "Find change log file in other window and add entry and item."//LF// &
+                        "This is just like `add_change_log_entry' except that it displays"//LF// &
+                        "the change log file in another window."//LF// &
+                        "If this command needs to split the current window, it by default obeys"//LF// &
+                        "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
+                        "when it decides whether to split the window horizontally or vertically."
+        case ("add_diff_change_log_entries_other_window")
+            entry%file = "diff_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Iterate through the current diff and create ChangeLog entries."//LF// &
+                        "I.e. like `add_change_log_entry_other_window' but applied to all hunks."
         case ("add_global_abbrev")
             entry%file = "abbrev_cmds_mod.f90"
             entry%command = .true.
@@ -4006,6 +4071,17 @@ contains
             entry%declarations = "type(handle_type) :: h"
             entry%doc = "Return the current category table."//LF// &
                         "This is the one specified by the current buffer."
+        case ("change_log_mode")
+            entry%file = "add_log_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for editing change logs; like Indented Text mode."//LF// &
+                        "Prevents numeric backups and sets `left_margin' to 8 and `fill_column' to 74."//LF// &
+                        "New log entries are usually made with \[add_change_log_entry] or \[add_change_log_entry_ot"// &
+                        "her_window]."//LF// &
+                        "Each entry behaves as a paragraph, and the entries for one day as a page."//LF// &
+                        "Runs `change_log_mode_hook'."//LF// &
+                        ""//LF// &
+                        "\{change_log_mode_map}"
         case ("char_category_set")
             entry%file = "category_mod.f90"
             entry%fortran = "char_category_set(ch)"
@@ -7834,6 +7910,10 @@ contains
                         ""//LF// &
                         "If `sentence_end_double_space' is true, then period followed by one"//LF// &
                         "space does not end a sentence, so don't break a line there."
+        case ("find_change_log_entry_file")
+            entry%file = "add_log_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the file for the change under point."
         case ("find_file")
             entry%file = "files_mod.f90"
             entry%fortran = "call find_file(filename, status)"
@@ -8330,6 +8410,18 @@ contains
             entry%command = .true.
             entry%doc = "Major mode not specialized for anything in particular."//LF// &
                         "Other major modes are defined by comparison with this one."
+        case ("generate_log_edit_changelog_from_diff")
+            entry%file = "log_edit_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a VC commit log message by looking at the current diffs."//LF// &
+                        "This command is intended to be used in the ""*vc-log*"" buffer."//LF// &
+                        "This command will generate ChangeLog entries listing the modified"//LF// &
+                        "files and functions changed in those files, based on the diffs"//LF// &
+                        "you are about to commit.  You can then add a description for each"//LF// &
+                        "change where needed, and use \[fill_paragraph] to join consecutive function"//LF// &
+                        "names into a single entry where they all share the same description."//LF// &
+                        "Should you need to look at the diffs themselves, they can be found"//LF// &
+                        "in the ""*vc-diff*"" buffer produced by this command."
         case ("get_buffer_process")
             entry%file = "process_mod.f90"
             entry%fortran = "get_buffer_process(buffer)"
@@ -18343,6 +18435,40 @@ contains
                         "If the paragraph has just one line, the indentation is taken from that"//LF// &
                         "line, but in that case `adaptive_fill_first_line_regexp' also plays"//LF// &
                         "a role."
+        case ("add_log_always_start_new_record")
+            entry%file = "add_log_mod.f90"
+            entry%fortran = "add_log_always_start_new_record"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(add_log_always_start_new_record)
+            entry%doc = "If true, `add_change_log_entry' will always start a new record."
+        case ("add_log_buffer_file_name_function")
+            entry%file = "add_log_mod.f90"
+            entry%fortran = "add_log_buffer_file_name_function"
+            entry%doc = "If not null, function to call to identify the full filename of a buffer."//LF// &
+                        "This function is called with no argument.  The default is to"//LF// &
+                        "use `buffer_file_name'."
+        case ("add_log_current_subprogram_function")
+            entry%file = "add_log_mod.f90"
+            entry%fortran = "add_log_current_subprogram_function"
+            entry%doc = "If not null, function to guess name of surrounding function."//LF// &
+                        "It is called by `add_log_current_subprogram' with no argument, and"//LF// &
+                        "should return the function's name as a string, or unallocated if"//LF// &
+                        "point is outside a function."
+        case ("add_log_current_subprogram_header_regexp")
+            entry%file = "add_log_mod.f90"
+            entry%fortran = "add_log_current_subprogram_header_regexp"
+            entry%user_option = .true.
+
+            if (allocated(add_log_current_subprogram_header_regexp)) then
+                entry%value = repr(add_log_current_subprogram_header_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Heuristic regexp used by `add_log_current_subprogram' for unknown major modes."//LF// &
+                        "The regexp's first submatch is placed in the ChangeLog entry, in"//LF// &
+                        "parentheses."
         case ("add_log_dont_create_changelog_file")
             entry%file = "add_log_mod.f90"
             entry%fortran = "add_log_dont_create_changelog_file"
@@ -18351,6 +18477,23 @@ contains
             entry%doc = "If true, don't create ChangeLog files for log entries."//LF// &
                         "If a ChangeLog file does not already exist, a true value"//LF// &
                         "means to put log entries in a suitably named buffer."
+        case ("add_log_file_name_function")
+            entry%file = "add_log_mod.f90"
+            entry%fortran = "add_log_file_name_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(add_log_file_name_procedure), pointer :: add_log_file_name_function"
+
+            if (.not. associated(add_log_file_name_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "If not null, function to call to identify the filename for a ChangeLog entry."//LF// &
+                        "This function is called with one argument, the value of variable"//LF// &
+                        "`buffer_file_name' in that buffer.  If this is null, the default is to"//LF// &
+                        "use the file's name relative to the directory of the change log file."
         case ("add_log_full_name")
             entry%file = "add_log_mod.f90"
             entry%fortran = "add_log_full_name"
@@ -18363,6 +18506,38 @@ contains
 
             entry%doc = "Full name of user, for inclusion in ChangeLog daily headers."//LF// &
                         "This defaults to the value returned by the function `user_full_name'."
+        case ("add_log_keep_changes_together")
+            entry%file = "add_log_mod.f90"
+            entry%fortran = "add_log_keep_changes_together"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(add_log_keep_changes_together)
+            entry%doc = "If true, normally keep day's log entries for one file together."//LF// &
+                        ""//LF// &
+                        "Log entries for a given file made with \[add_change_log_entry] or"//LF// &
+                        "\[add_change_log_entry_other_window] will only be added to others for that file made"//LF// &
+                        "today if this variable is true or that file comes first in today's"//LF// &
+                        "entries.  Otherwise another entry for that file will be started.  An"//LF// &
+                        "original log:"//LF// &
+                        ""//LF// &
+                        "        * foo (...): ..."//LF// &
+                        "        * bar (...): change 1"//LF// &
+                        ""//LF// &
+                        "in the latter case, \[add_change_log_entry_other_window] in a buffer visiting `bar', yield"// &
+                        "s:"//LF// &
+                        ""//LF// &
+                        "        * bar (...): -!-"//LF// &
+                        "        * foo (...): ..."//LF// &
+                        "        * bar (...): change 1"//LF// &
+                        ""//LF// &
+                        "and in the former:"//LF// &
+                        ""//LF// &
+                        "        * foo (...): ..."//LF// &
+                        "        * bar (...): change 1"//LF// &
+                        "        (...): -!-"//LF// &
+                        ""//LF// &
+                        "The NEW_ENTRY arg to `add_change_log_entry' can override the effect of"//LF// &
+                        "this variable."
         case ("add_log_mailing_address")
             entry%file = "add_log_mod.f90"
             entry%fortran = "add_log_mailing_address"
@@ -19995,6 +20170,26 @@ contains
             entry%file = "add_log_mod.f90"
             entry%fortran = "change_log_mode_syntax_table"
             entry%doc = "Syntax table used while in `change_log_mode'."
+        case ("change_log_version_info_enabled")
+            entry%file = "add_log_mod.f90"
+            entry%fortran = "change_log_version_info_enabled"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(change_log_version_info_enabled)
+            entry%doc = "If true, enable recording version numbers with the changes."
+        case ("change_log_version_number_regexp_list")
+            entry%file = "add_log_mod.f90"
+            entry%fortran = "change_log_version_number_regexps"
+
+            if (allocated(change_log_version_number_regexps)) then
+                entry%value = repr(change_log_version_number_regexps)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of regexps to search for version number."//LF// &
+                        "The version number must be in group 1."//LF// &
+                        "Note: The search is conducted only within 10%, at the beginning of the file."
         case ("change_major_mode_after_body_hook")
             entry%file = "subr_mod.f90"
             entry%fortran = "change_major_mode_after_body_hook"
@@ -22702,6 +22897,16 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "diary"
             entry%doc = "Face for highlighting diary entries."
+        case ("diff_add_log_use_relative_names")
+            entry%file = "diff_mode_mod.f90"
+            entry%fortran = "diff_add_log_use_relative_names"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(diff_add_log_use_relative_names)
+            entry%doc = "Use relative file names when generating ChangeLog skeletons."//LF// &
+                        "The files will be relative to the root directory of the VC"//LF// &
+                        "repository.  This option affects the behavior of"//LF// &
+                        "`diff_add_log_current_subprograms'."
         case ("diff_advance_after_apply_hunk")
             entry%file = "diff_mode_mod.f90"
             entry%fortran = "diff_advance_after_apply_hunk"
@@ -33697,6 +33902,12 @@ contains
             setting = .true.
         case ("adaptive_fill_regexp")
             kind = OPTION_STRING
+        case ("add_log_always_start_new_record")
+            kind = OPTION_LOGICAL
+        case ("add_log_current_subprogram_header_regexp")
+            kind = OPTION_STRING
+        case ("add_log_keep_changes_together")
+            kind = OPTION_LOGICAL
         case ("ansi_color_bold_is_bright")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -33797,6 +34008,8 @@ contains
         case ("case_replace")
             kind = OPTION_LOGICAL
         case ("change_major_mode_with_file_name")
+            kind = OPTION_LOGICAL
+        case ("change_log_version_info_enabled")
             kind = OPTION_LOGICAL
         case ("colon_double_space")
             kind = OPTION_LOGICAL
@@ -34000,6 +34213,8 @@ contains
         case ("delete_pair_push_mark")
             kind = OPTION_LOGICAL
             setting = .true.
+        case ("diff_add_log_use_relative_names")
+            kind = OPTION_LOGICAL
         case ("diff_advance_after_apply_hunk")
             kind = OPTION_LOGICAL
         case ("diff_ask_before_revert_and_cut_hunk")
@@ -34890,6 +35105,10 @@ contains
             else
                 adaptive_fill_mode = v
             end if
+        case ("add_log_always_start_new_record")
+            add_log_always_start_new_record = v
+        case ("add_log_keep_changes_together")
+            add_log_keep_changes_together = v
         case ("ansi_color_bold_is_bright")
             if (local) then
                 call ansi_color_bold_is_bright%set_local(v)
@@ -34948,6 +35167,8 @@ contains
             case_replace = v
         case ("change_major_mode_with_file_name")
             change_major_mode_with_file_name = v
+        case ("change_log_version_info_enabled")
+            change_log_version_info_enabled = v
         case ("colon_double_space")
             colon_double_space = v
         case ("comint_completion_autolist")
@@ -35112,6 +35333,8 @@ contains
             else
                 delete_pair_push_mark = v
             end if
+        case ("diff_add_log_use_relative_names")
+            diff_add_log_use_relative_names = v
         case ("diff_advance_after_apply_hunk")
             diff_advance_after_apply_hunk = v
         case ("diff_ask_before_revert_and_cut_hunk")
@@ -36118,6 +36341,8 @@ contains
             adaptive_fill_first_line_regexp = v
         case ("adaptive_fill_regexp")
             adaptive_fill_regexp = v
+        case ("add_log_current_subprogram_header_regexp")
+            add_log_current_subprogram_header_regexp = v
         case ("auto_fill_inhibit_regexp")
             if (local) then
                 call auto_fill_inhibit_regexp%set_local(v)

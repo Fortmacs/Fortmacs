@@ -139,6 +139,7 @@ program tester
     use test_vc_mod, only: collect_vc_mod
     use test_vc_svn_mod, only: collect_vc_svn_mod
     use test_log_edit_mod, only: collect_log_edit_mod
+    use test_add_log_mod, only: collect_add_log_mod
     use test_ewoc_mod, only: collect_ewoc_mod
     use test_inotify_mod, only: collect_inotify_mod
     use test_filenotify_mod, only: collect_filenotify_mod
@@ -290,6 +291,7 @@ program tester
                  new_testsuite("vc_mod", collect_vc_mod), &
                  new_testsuite("vc_svn_mod", collect_vc_svn_mod), &
                  new_testsuite("log_edit_mod", collect_log_edit_mod), &
+                 new_testsuite("add_log_mod", collect_add_log_mod), &
                  new_testsuite("ewoc_mod", collect_ewoc_mod), &
                  new_testsuite("inotify_mod", collect_inotify_mod), &
                  new_testsuite("filenotify_mod", collect_filenotify_mod), &
