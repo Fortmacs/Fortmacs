@@ -1,6 +1,6 @@
 ! test_textprop_mod.f90 -- tests for intervals_mod and textprop_mod.
 ! Ports GNU Emacs 31.1 test/src/textprop-tests.el in part;
-! textprop-tests-format needs `format' and the other test needs
+! textprop-tests-format needs `format_text' and the other test needs
 ! font-lock--remove-face-from-text-property.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.

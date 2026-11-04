@@ -24,7 +24,7 @@
 !>
 !> Floats (real64 values: float values are deferred) are written by
 !> `float_to_string', and `sprintf_float' writes them as C's printf
-!> does for `format'.
+!> does for `format_text'.
 !>
 !> Deferred: print streams, `print_length' and `print_level',
 !> escaping in symbol names, circular structure, the text properties of
@@ -48,7 +48,7 @@ module print_mod
 
     public :: readable_repr, quoted_repr, marker_repr, fortran_repr, fortran_string, float_to_string, sprintf_float
 
-    !> C's printf with a conversion %e, %f or %g (`format' uses it):
+    !> C's printf with a conversion %e, %f or %g (`format_text' uses it):
     !> a real64 value, or an integer written exactly (as upstream writes
     !> one as a long double).  Not a port.
     interface sprintf_float

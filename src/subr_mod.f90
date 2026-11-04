@@ -274,7 +274,7 @@ module subr_mod
         !> Read from the minibuffer and return a numeric value, prompting with PROMPT.
         !> DEFAULT specifies a default value to return if the user just types RET.
         !> For historical reasons, the value of DEFAULT is always inserted into
-        !> PROMPT, so it's recommended to use `format' instead of `format_prompt'
+        !> PROMPT, so it's recommended to use `format_text' instead of `format_prompt'
         !> to generate PROMPT.  HIST specifies a history list variable.  See
         !> `read_from_minibuffer' for details of the HIST argument.
         !>

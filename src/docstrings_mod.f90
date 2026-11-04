@@ -11383,7 +11383,7 @@ contains
                         ""//LF// &
                         "The default format is ""%d"", which means to insert the number in"//LF// &
                         "decimal without any padding.  You can specify any format string"//LF// &
-                        "that the `format' function accepts and that makes sense with a"//LF// &
+                        "that the `format_text' function accepts and that makes sense with a"//LF// &
                         "single integer extra argument."//LF// &
                         ""//LF// &
                         "If you run this command while no keyboard macro is being defined,"//LF// &
@@ -12410,7 +12410,7 @@ contains
                         "With ARGUMENTS, TEXT is a format control string, and ARGUMENTS are"//LF// &
                         "data to be formatted under control of the string.  Percent sign (%),"//LF// &
                         "grave accent (`) and apostrophe (') are then special in the format;"//LF// &
-                        "see `format' and `format_message' for details.  Without them, TEXT"//LF// &
+                        "see `format_text' and `format_message' for details.  Without them, TEXT"//LF// &
                         "is displayed as it is."//LF// &
                         ""//LF// &
                         "If TEXT is the empty string, the function clears any existing"//LF// &
@@ -13974,7 +13974,7 @@ contains
             entry%doc = "Read from the minibuffer and return a numeric value, prompting with PROMPT."//LF// &
                         "DEFAULT specifies a default value to return if the user just types RET."//LF// &
                         "For historical reasons, the value of DEFAULT is always inserted into"//LF// &
-                        "PROMPT, so it's recommended to use `format' instead of `format_prompt'"//LF// &
+                        "PROMPT, so it's recommended to use `format_text' instead of `format_prompt'"//LF// &
                         "to generate PROMPT.  HIST specifies a history list variable.  See"//LF// &
                         "`read_from_minibuffer' for details of the HIST argument."//LF// &
                         ""//LF// &
@@ -14273,7 +14273,7 @@ contains
                         ""//LF// &
                         "START_AT, if present, should be a number from which to begin"//LF// &
                         "counting.  FORMAT, if present, should be a format string to pass"//LF// &
-                        "to `format' along with the line count.  When called interactively"//LF// &
+                        "to `format_text' along with the line count.  When called interactively"//LF// &
                         "with a prefix argument, prompt for START_AT and FORMAT."
         case ("rectangle_position_as_coordinates")
             entry%file = "rect_mod.f90"

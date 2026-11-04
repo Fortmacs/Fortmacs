@@ -885,7 +885,7 @@ contains
     !>
     !> START_AT, if present, should be a number from which to begin
     !> counting.  FORMAT, if present, should be a format string to pass
-    !> to `format' along with the line count.  When called interactively
+    !> to `format_text' along with the line count.  When called interactively
     !> with a prefix argument, prompt for START_AT and FORMAT.  Port of
     !> rect.el:rectangle-number-lines.
     recursive subroutine rectangle_number_lines(start, end, start_at, status, format)

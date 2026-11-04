@@ -262,7 +262,7 @@ contains
     !>
     !> The default format is "%d", which means to insert the number in
     !> decimal without any padding.  You can specify any format string
-    !> that the `format' function accepts and that makes sense with a
+    !> that the `format_text' function accepts and that makes sense with a
     !> single integer extra argument.
     !>
     !> If you run this command while no keyboard macro is being defined,
@@ -1640,7 +1640,7 @@ contains
     !>
     !> The default format is "%d", which means to insert the number in
     !> decimal without any padding.  You can specify any format string
-    !> that the `format' function accepts and that makes sense with a
+    !> that the `format_text' function accepts and that makes sense with a
     !> single integer extra argument.
     !>
     !> If you run this command while no keyboard macro is being defined,

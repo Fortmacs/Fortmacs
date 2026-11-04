@@ -3808,7 +3808,7 @@ contains
     !> With ARGUMENTS, TEXT is a format control string, and ARGUMENTS are
     !> data to be formatted under control of the string.  Percent sign (%),
     !> grave accent (`) and apostrophe (') are then special in the format;
-    !> see `format' and `format_message' for details.  Without them, TEXT
+    !> see `format_text' and `format_message' for details.  Without them, TEXT
     !> is displayed as it is.
     !>
     !> If TEXT is the empty string, the function clears any existing

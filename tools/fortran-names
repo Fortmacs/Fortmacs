@@ -2523,3 +2523,11 @@ name	button_activate	activate_button
 # (the hash of LENGTH random bytes) is its own subroutine,
 # call hash_random_bytes(SECURE_HASH_SHA512, 100_int64, hash, status)
 # (fns_mod); no name entry, as iv-auto is a symbol argument, not a name.
+# R6-47 (owner's decision, 2026-11-04): editfns_mod's port of Fformat is
+# format_text (format_message keeps its name): FORMAT is a Fortran
+# statement, and gfortran rejects a local variable named like a
+# use-associated generic.  Renamed by hand, with no name entry: a name
+# entry for `format' would rename every identifier part and prose word
+# `format' in the tree (FORMAT statements, `write (x, format)', "the
+# format string"), and a scoped one every identifier starting with it
+# (format_message, format_arguments_type).
