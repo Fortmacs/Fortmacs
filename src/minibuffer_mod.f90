@@ -2158,7 +2158,7 @@ contains
         ! A copy of `display_buffer_fallback_action' where
         ! `display_buffer_use_some_window' is replaced with
         ! `display_buffer_at_bottom' (with-current-buffer-window).
-        table%window_height => completions_fit_window_to_buffer
+        table%window_height%procedure => completions_fit_window_to_buffer
 
         if (selected_frame%minibuffer_selected) then
             call temp_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_MAYBE_SAME_WINDOW, &
