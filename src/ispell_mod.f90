@@ -862,6 +862,7 @@ contains
         integer(int64) :: found
         logical :: saved_fold, interactivep
         type(status_type) :: st
+        character(len=40) :: code_text
 
         interactivep = .false.
         if (present(interactive)) interactivep = interactive
@@ -900,8 +901,8 @@ contains
             return
         else if (vtag(code) == V_INTEGER) then
             if (xfixnum(code) /= 0) then
-                call set_error(status, FM_GENERIC_ERROR, ispell_program_name//" exited with code "// &
-                               integer_text(xfixnum(code)))
+                write (code_text, '(" exited with code ", i0)') xfixnum(code)
+                call set_error(status, FM_GENERIC_ERROR, ispell_program_name//trim(code_text))
                 call temp_end(old, temp)
                 return
             end if
@@ -981,16 +982,6 @@ contains
             if (s%ok() .and. pos > 0) value = match_string_no_properties(1)
         end function really
     end subroutine ispell_check_version
-
-    ! The decimal text of N.  Not a port.
-    function integer_text(n) result(text)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: text
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        text = trim(buffer)
-    end function integer_text
 
     ! The output of PROGRAM run with ARGS, "" if it fails.  Not a port.
     function program_output(args) result(text)
@@ -3810,6 +3801,7 @@ contains
         integer, intent(in) :: arg
         type(status_type), intent(out) :: status
         type(status_type) :: st
+        character(len=64) :: text
 
         status = status_type()
 
@@ -3821,7 +3813,8 @@ contains
         if (st%ok()) call forward_expression(int(arg, int64), st)
 
         if (.not. st%ok()) then
-            call message("Error skipping expressions at point "//integer_text(point())//".")
+            write (text, '("Error skipping expressions at point ", i0, ".")') point()
+            call message(trim(text))
             call ding()
             call sit_for(2000)
         end if
@@ -3848,6 +3841,7 @@ contains
         integer(int64) :: start, found, shortage
         logical :: null_skip
         type(status_type) :: st
+        character(len=40) :: point_text
         integer :: k
 
         status = status_type()
@@ -3895,7 +3889,8 @@ contains
         end if
 
         if (start == point() .and. .not. null_skip) then
-            call message("Matching region end for `"//key//"' point "//integer_text(point())//" not found")
+            write (point_text, '(" point ", i0, " not found")') point()
+            call message("Matching region end for `"//key//"'"//trim(point_text))
             call ding()
             call sit_for(2000)
         end if
@@ -3979,6 +3974,7 @@ contains
         integer(int64) :: word_len, ws, sub_shift, actual
         logical :: recheck_region, sub_quit
         type(status_type) :: st
+        character(len=64) :: point_text
         integer :: n
 
         status = status_type()
@@ -4028,8 +4024,8 @@ contains
                 if (.not. ispell_looking_at(poss%word)) then
                     ! This error occurs due to filter pipe problems.
                     actual = ws
-                    call set_error(status, FM_GENERIC_ERROR, "Ispell misalignment: word `"//poss%word//"' point "// &
-                                   integer_text(actual)//"; probably incompatible versions")
+                    write (point_text, '(" point ", i0, "; probably incompatible versions")') actual
+                    call set_error(status, FM_GENERIC_ERROR, "Ispell misalignment: word `"//poss%word//"'"//trim(point_text))
                     call release_markers()
                     return
                 end if

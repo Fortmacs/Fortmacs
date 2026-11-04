@@ -25,13 +25,17 @@ confirm or correct it.
 
 Requires gfortran ≥ 13 and [fpm](https://fpm.fortran-lang.org); development
 also needs [fprettify](https://github.com/fortran-lang/fprettify) 0.3.7 and
-[Fortitude](https://fortitude.readthedocs.io) 0.9.2.
+[Fortitude](https://fortitude.readthedocs.io) 0.9.2. Build through
+`tools/build.sh`, which first generates the modules made from `src/` (the
+command, mode, face and help tables, not kept in git) and then runs fpm with
+its arguments.
 
 ```sh
-fpm build
-fpm run -- FILE         # edit FILE (C-x C-s saves, C-x C-c exits)
-tools/check.sh          # format, lint, debug build and tests, as CI runs them
-tools/check.sh --fix    # reformat and apply safe lint fixes
+tools/build.sh                 # fpm build
+tools/build.sh run -- FILE     # edit FILE (C-x C-s saves, C-x C-c exits)
+tools/build.sh test            # all the tests (test -- SUITE for one)
+tools/check.sh                 # format, lint, debug build and tests, as CI runs them
+tools/check.sh --fix           # reformat and apply safe lint fixes
 ```
 
 CI runs the same check on Ubuntu and Fedora (x86-64 and aarch64) and Arch
@@ -48,12 +52,12 @@ Write your configuration in `~/.config/fortmacs/init.f90`
 `keymap_global_set("C-c d", "my_command", status)`.
 
 ```sh
-fpm install --profile release   # fortmacs, its library and modules, in ~/.local
-fortmacs --recompile            # build init.f90 into a new generation
-fortmacs -q                     # start without your configuration
-fortmacs --list-generations     # every build, the current one marked
-fortmacs --rollback             # back to the generation before
-fortmacs --switch-generation 3  # or to any generation
+tools/build.sh install --profile release  # fortmacs, its library and modules, in ~/.local
+fortmacs --recompile                      # build init.f90 into a new generation
+fortmacs -q                               # start without your configuration
+fortmacs --list-generations               # every build, the current one marked
+fortmacs --rollback                       # back to the generation before
+fortmacs --switch-generation 3            # or to any generation
 ```
 
 A failed build shows the compiler's errors and leaves your last good build
@@ -155,7 +159,12 @@ Fortmacs now has `commands%upcase_region%disabled = .false.`. It also let
 Lisp terms slip into Fortran names unremarked, such as <!-- fortran-names: keep -->
 `beginning_of_defun`, `forward_sexp` and `auto_mode_alist`; the renames <!-- fortran-names: keep -->
 are recorded in PORTING.md, and a check in CI keeps them from coming
-back. In return it:
+back. It also wrapped Fortran statements in Lisp-shaped helpers:
+`number_to_string`, a port of Emacs's function, stood in about 150 places
+for Fortran's own `write (text, "(i0)") n` until a review caught it; that
+too is now checked. Such corrections are ongoing: each case is found in
+review, the rule is written down and a check added, so the model is taught
+one case at a time. In return it:
 
 - reads C, Elisp and Fortran, porting each function with a citation to its
   source and porting Emacs's tests with it;

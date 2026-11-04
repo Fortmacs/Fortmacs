@@ -36,7 +36,7 @@
 !>
 !> Deferred: the completion at point of `html_tags' (html-mode--complete-at-point),
 !> `sgml_tags_invisible' (cursor sensors), `sgml_electric_tag_pair_mode'
-!> (text clones), `sgml_show_context', facemenu, tildify, Imenu,
+!> (text clones), `sgml_show_context', facemenu, tildify,
 !> outline variables, `sgml_comment_indent_new_line',
 !> the buffer-local `adaptive_fill_regexp', `fill_nobreak_functions' and
 !> `sentence_end_base', the classes and IDs of HTML buffers (libxml),
@@ -114,6 +114,7 @@ module sgml_mode_mod
     use print_mod, only: fortran_string
     use data_mod, only: history_setting_type
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
+    use imenu_mod, only: imenu_patterns, imenu_pattern_type, imenu_create_index_function, imenu_index_type
     use string_type_mod, only: string_type, append_string
     use data_mod, only: choice_setting_type
     implicit none(type, external)
@@ -335,6 +336,13 @@ module sgml_mode_mod
                                    "[ "//TAB//"]*$\|[ "//TAB//"]*</?\([_:[:alpha:]][-_.:[:alnum:]]*\(?" &
                                    //":[^_.:""'/><[:alnum:]-]\(?:[^""'/><]\|""[^""]*""\|'[^']" &
                                    //"*'\)*\)?\)?>"
+    !> A regular expression matching a head line to be added to the menu.
+    !> The first `match_string' should be a number from 1-9.
+    !> The second `match_string' matches extra tags and is ignored.
+    !> The third `match_string' will be the used in the menu.  Port of
+    !> sgml-mode.el html-imenu-regexp.
+    character(len=:), allocatable, public :: html_imenu_regexp
+
     character(len=*), parameter :: HTML_SUBPROGRAM_REGEXP = &
                                    "<[ "//TAB//achar(13)//LF//"]*\(?:[hH][0-6]\|title\|TITLE\|Title\)[^>]*>" &
                                    //"[ "//TAB//achar(13)//LF//"]*\([^<"//achar(13)//LF//"]*[^ <"//TAB//achar(13)//LF//"]+\)"
@@ -2803,6 +2811,8 @@ contains
 ! Port of sgml-mode.el:sgml-mode (in part: its body).
     ! The body of `sgml_mode'.
     recursive subroutine setup()
+        type(imenu_pattern_type), allocatable :: patterns(:)
+        character(len=:), allocatable :: q
         integer :: k
 
         call make_local_entry(k)
@@ -2822,6 +2832,17 @@ contains
         ! recognized.
         call comment_start_skip%set_local("<!--[ "//TAB//"]*")
         call comment_end_skip%set_local("[ "//TAB//"]*--[ "//TAB//LF//"]*>")
+        ! This definition has an HTML leaning but probably fits well for other modes.
+        q = "?"
+        if (sgml_xml_mode%value) q = ""
+        allocate (patterns(3))
+        patterns(1) = imenu_pattern_type(menu_title="", regexp="<!\(element\|entity\)[ "//TAB//LF//"]+%?[ "//TAB//LF// &
+                                         "]*\("//SGML_NAME_REGEXP//"\)", subexpression=2)
+        patterns(2) = imenu_pattern_type(menu_title="Id", regexp="<[^>]+[ "//TAB//LF//"]+[Ii][Dd]=\(['""]"//q// &
+                                         "\)\("//SGML_NAME_REGEXP//"\)\1", subexpression=2)
+        patterns(3) = imenu_pattern_type(menu_title="Name", regexp="<[^>]+[ "//TAB//LF//"]+[Nn][Aa][Mm][Ee]=\(['""]"// &
+                                         q//"\)\("//SGML_NAME_REGEXP//"\)\1", subexpression=2)
+        call imenu_patterns%set_local(patterns)
         call skeleton_further_elements_set_local(sgml_further_elements)
         call skeleton_end_newline%set_local(.false.)
         call skeleton_end_hook%prepend(sgml_skeleton_end, local=.true.)
@@ -2852,8 +2873,38 @@ contains
         call make_local_entry(k)
         locals(k)%html = .true.
         call add_log_current_subprogram_function%set_local(html_current_heading_name)
+        call imenu_create_index_function%set_local(html_imenu_index)
         call major_modes%html_mode%end(saved, status)
     end subroutine html_mode
+
+    !> Return a table of contents for an HTML buffer for use with Imenu.
+    !> Port of sgml-mode.el:html-imenu-index.
+    recursive subroutine html_imenu_index(index, status)
+        type(imenu_index_type), intent(out) :: index
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: digit
+        integer(int64) :: here, pos
+        integer :: k, level
+
+        status = status_type()
+        allocate (index%entries(0))
+        here = point()
+        call goto_char(point_min())
+
+        if (.not. allocated(html_imenu_regexp)) then
+            html_imenu_regexp = "\s-*<h\([1-9]\)[^"//LF//"<>]*>\(<[^"//LF//"<>]*>\)*\s-*\([^"//LF//"<>]*\)"
+        end if
+
+        do
+            call re_search_forward(html_imenu_regexp, pos, status, noerror=SEARCH_NOERROR)
+            if (.not. status%ok() .or. pos == 0) exit
+            digit = match_string(1)
+            level = ichar(digit(1:1)) - ichar("0")
+            call index%append(repeat(" ", max(0, 2*(level - 1)))//match_string(3), k, position=line_beginning_position())
+        end do
+
+        call goto_char(here)
+    end subroutine html_imenu_index
 
     ! Not a port.
     !> Define SGML mode and HTML mode: their variables, tables, keymaps and

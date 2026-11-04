@@ -36,7 +36,7 @@ module test_replace_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type
-    use data_mod, only: number_to_string, set
+    use data_mod, only: set
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, is_buffer_live, buffers, current
     use error_mod, only: format_error
     use editfns_mod, only: point, point_min, line_end_position, buffer_substring
@@ -298,10 +298,12 @@ contains
         character(len=:), allocatable :: text
         integer :: n
         character(len=:), allocatable :: digits
+        character(len=40) :: replacement
 
         digits = match_string(1)
         read (digits, *) n
-        text = replace_quote("theorem \\ref{theo_"//number_to_string(n + 1)//"}")
+        write (replacement, '("theorem \\ref{theo_", i0, "}")') n + 1
+        text = replace_quote(trim(replacement))
         if (count < 0) text = ""
     end function theorem_replacement
 
@@ -311,10 +313,12 @@ contains
         character(len=:), allocatable :: text
         integer :: n
         character(len=:), allocatable :: digits
+        character(len=11) :: replacement
 
         digits = match_string(1)
         read (digits, *) n
-        text = replace_quote(number_to_string(n + 1))
+        write (replacement, "(i0)") n + 1
+        text = replace_quote(trim(replacement))
         if (count < 0) text = ""
     end function increment_replacement
 

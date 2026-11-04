@@ -31,7 +31,7 @@ module test_help_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
-    use print_mod, only: fortran_repr
+    use print_mod, only: fortran_text
     use callint_mod, only: current_prefix_arg
     use files_mod, only: require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT
     use buffer_mod, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, current_buffer, is_buffer_modified, &
@@ -82,7 +82,7 @@ contains
                     new_unittest("describe-variable", test_describe_variable), &
                     new_unittest("describe-variable-fortran-values", test_variable_values), &
                     new_unittest("describe-function-fortran-file", test_function_file), &
-                    new_unittest("fortran-repr", test_fortran_repr), &
+                    new_unittest("fortran-text", test_fortran_text), &
                     new_unittest("help-empty-input", test_empty_input), &
                     new_unittest("help-window-and-quit", test_help_window), &
                     new_unittest("describe-key", test_describe_key), &
@@ -526,23 +526,23 @@ contains
     end subroutine test_function_file
 
     !> Values written as Fortran.
-    subroutine test_fortran_repr(error)
+    subroutine test_fortran_text(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: elems(3)
 
-        call check(error, fortran_repr(value_type()) == ".false." .and. fortran_repr(value_type(.true.)) == ".true.")
+        call check(error, fortran_text(value_type()) == ".false." .and. fortran_text(value_type(.true.)) == ".true.")
         if (allocated(error)) return
-        call check(error, fortran_repr(value_type(-12_int64)) == "-12", fortran_repr(value_type(-12_int64)))
+        call check(error, fortran_text(value_type(-12_int64)) == "-12", fortran_text(value_type(-12_int64)))
         if (allocated(error)) return
-        call check(error, fortran_repr(value_type(text='say "hi"')) == '"say ""hi"""', fortran_repr(value_type(text='say "hi"')))
+        call check(error, fortran_text(value_type(text='say "hi"')) == '"say ""hi"""', fortran_text(value_type(text='say "hi"')))
         if (allocated(error)) return
-        call check(error, fortran_repr(value_type(name="SEARCH_UPPER_CASE_NOT_PASTED")) == "SEARCH_UPPER_CASE_NOT_PASTED")
+        call check(error, fortran_text(value_type(name="SEARCH_UPPER_CASE_NOT_PASTED")) == "SEARCH_UPPER_CASE_NOT_PASTED")
         if (allocated(error)) return
         elems(1) = value_type(1_int64)
         elems(2) = value_type(text="a")
         elems(3) = value_type()
-        call check(error, fortran_repr(make_list(elems)) == '[1, "a", .false.]', fortran_repr(make_list(elems)))
-    end subroutine test_fortran_repr
+        call check(error, fortran_text(make_list(elems)) == '[1, "a", .false.]', fortran_text(make_list(elems)))
+    end subroutine test_fortran_text
 
     !> Empty input to C-h f, C-h v and C-h w is an error.
     subroutine test_empty_input(error)
