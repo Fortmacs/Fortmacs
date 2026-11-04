@@ -62,8 +62,9 @@ submodule(data_mod) data_buffer_mod
     use casefiddle_mod, only: case_identifiers_as_words
     use insdel_mod, only: inhibit_modification_hooks
     use electric_mod, only: electric_indent_inhibit
-    use files_mod, only: require_final_newline, mode_require_final_newline, &
-                         FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
+    use files_mod, only: require_final_newline, mode_require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT, &
+                         REQUIRE_FINAL_NEWLINE_VISIT_SAVE, REQUIRE_FINAL_NEWLINE_ASK, MODE_REQUIRE_FINAL_NEWLINE_VISIT, &
+                         MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, MODE_REQUIRE_FINAL_NEWLINE_ASK
     use string_type_mod, only: string_type
     implicit none(type, external)
 
@@ -502,10 +503,13 @@ contains
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(inhibit_modification_hooks%value)
         case ("require_final_newline")
-            call setting_value(require_final_newline, final_newline_value(require_final_newline), v, bound)
+            call setting_value(require_final_newline, &
+                               final_newline_value(require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT, &
+                                                   REQUIRE_FINAL_NEWLINE_VISIT_SAVE), v, bound)
         case ("mode_require_final_newline")
-            call setting_value(mode_require_final_newline, final_newline_value(mode_require_final_newline), &
-                               v, bound)
+            call setting_value(mode_require_final_newline, &
+                               final_newline_value(mode_require_final_newline, MODE_REQUIRE_FINAL_NEWLINE_VISIT, &
+                                                   MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE), v, bound)
         case default
             v = value_type()
         end select
@@ -627,9 +631,11 @@ contains
         case ("inhibit_modification_hooks")
             inhibit_modification_hooks = allocated(v%a)
         case ("require_final_newline")
-            call set_final_newline(require_final_newline, v)
+            call set_final_newline(require_final_newline, v, REQUIRE_FINAL_NEWLINE_VISIT, &
+                                   REQUIRE_FINAL_NEWLINE_VISIT_SAVE, REQUIRE_FINAL_NEWLINE_ASK)
         case ("mode_require_final_newline")
-            call set_final_newline(mode_require_final_newline, v)
+            call set_final_newline(mode_require_final_newline, v, MODE_REQUIRE_FINAL_NEWLINE_VISIT, &
+                                   MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, MODE_REQUIRE_FINAL_NEWLINE_ASK)
         case default
             ! Not a forwarded variable (resolve gives no such K).
         end select
@@ -707,39 +713,44 @@ contains
     end subroutine set_indent_line
 
     !> The value of a require-final-newline setting S: nil, t, `visit',
-    !> `visit_save' or (for any other value) `ask'.  Not a port.
-    function final_newline_value(s) result(v)
+    !> `visit_save' or (for any other value) `ask'; VISIT and VISIT_SAVE
+    !> are the setting's named constants for the two named states.
+    !> Not a port.
+    function final_newline_value(s, visit, visit_save) result(v)
         type(choice_setting_type), intent(in) :: s
+        integer, intent(in) :: visit, visit_save
         type(value_type) :: v
 
         if (s%is_off()) then
             v = value_type()
         else if (s%value) then
             v = value_type(.true.)
-        else if (s%choice == FINAL_NEWLINE_VISIT) then
+        else if (s%choice == visit) then
             v = value_type(name="visit")
-        else if (s%choice == FINAL_NEWLINE_VISIT_SAVE) then
+        else if (s%choice == visit_save) then
             v = value_type(name="visit_save")
         else
             v = value_type(name="ask")
         end if
     end function final_newline_value
 
-    !> Set require-final-newline setting S to V.  Not a port.
-    subroutine set_final_newline(s, v)
+    !> Set require-final-newline setting S to V; VISIT, VISIT_SAVE and ASK
+    !> are the setting's named constants.  Not a port.
+    subroutine set_final_newline(s, v, visit, visit_save, ask)
         type(choice_setting_type), intent(inout) :: s
         type(value_type), intent(in) :: v
+        integer, intent(in) :: visit, visit_save, ask
 
         if (.not. allocated(v%a)) then
             s = .false.
         else if (value_eq(v, value_type(.true.))) then
             s = .true.
         else if (value_eq(v, value_type(name="visit"))) then
-            s = FINAL_NEWLINE_VISIT
+            s = visit
         else if (value_eq(v, value_type(name="visit_save"))) then
-            s = FINAL_NEWLINE_VISIT_SAVE
+            s = visit_save
         else
-            s = FINAL_NEWLINE_ASK
+            s = ask
         end if
     end subroutine set_final_newline
 

@@ -633,6 +633,7 @@ contains
         character(len=:), allocatable, intent(out) :: version
         integer(int64) :: total, limit, opoint, begv, zv_from_end, found
         type(status_type) :: st
+        character(len=:), allocatable :: file
         logical :: has_revision
         integer :: k
 
@@ -647,7 +648,9 @@ contains
         if (total > 100*80) limit = point() + total/10
 
         if (allocated(buffers(current)%filename)) then
-            call vc_working_revision(buffers(current)%filename, version, has_revision)
+            ! A copy: the backend can grow (reallocate) the buffer registry.
+            file = buffers(current)%filename
+            call vc_working_revision(file, version, has_revision)
             if (has_revision) return
             if (allocated(version)) deallocate (version)
         end if

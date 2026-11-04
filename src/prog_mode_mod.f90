@@ -28,7 +28,7 @@ module prog_mode_mod
     use hooks_mod, only: hook_type
     use abbrev_mod, only: abbrev_table_type
     use handle_mod, only: handle_type
-    use files_mod, only: require_final_newline, mode_require_final_newline
+    use files_mod, only: set_require_final_newline_from_mode
     use syntax_mod, only: parse_expression_ignore_comments
     implicit none(type, external)
     private
@@ -82,7 +82,7 @@ contains
 
         call major_modes%prog_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call require_final_newline%set_local(mode_require_final_newline)
+        call set_require_final_newline_from_mode()
         call parse_expression_ignore_comments%set_local(.true.)
         call major_modes%prog_mode%end(saved, status)
     end subroutine prog_mode
