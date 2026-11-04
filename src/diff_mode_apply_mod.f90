@@ -110,17 +110,6 @@ contains
     if (.not. found) c = -1
     end procedure char_at_point
 
-    module procedure string_to_number
-    integer :: k
-
-    n = 0
-
-    do k = 1, len(s)
-        if (s(k:k) < "0" .or. s(k:k) > "9") exit
-        n = 10*n + (iachar(s(k:k)) - iachar("0"))
-    end do
-    end procedure string_to_number
-
     !> Check the first or second half of the context hunk at point: it
     !> must have LINES lines.  Port of
     !> diff-mode.el:diff-sanity-check-context-hunk-half.
@@ -229,8 +218,8 @@ contains
         else
             before = 1
             after = 1
-            if (me(2) > 0) before = string_to_number(match_string(2))
-            if (me(4) > 0) after = string_to_number(match_string(4))
+            if (me(2) > 0) call string_to_number(match_string(2), before)
+            if (me(4) > 0) call string_to_number(match_string(4), after)
             shortage = forward_line(1_int64)
 
             do
@@ -308,8 +297,15 @@ contains
 
     !> The number of lines a context half header from the match says.
     integer(int64) function half_lines()
+        integer(int64) :: first, last
+
         half_lines = 1
-        if (me(2) > 0) half_lines = 1 + string_to_number(match_string(2)) - string_to_number(match_string(1))
+
+        if (me(2) > 0) then
+            call string_to_number(match_string(1), first)
+            call string_to_number(match_string(2), last)
+            half_lines = 1 + last - first
+        end if
     end function half_lines
     end procedure diff_sanity_check_hunk
 
@@ -576,7 +572,7 @@ contains
     use files_mod, only: find_file_noselect
     character(len=:), allocatable :: hunk, line, file
     type(diff_text_type) :: old, new
-    integer(int64) :: saved, char_offset, x, orig_pos, shortage, pb, pe, start
+    integer(int64) :: saved, char_offset, x, orig_pos, shortage, pb, pe, start, line_number
     type(handle_type) :: obuf
     logical :: other, rev, quiet, has_file, maybe_old, maybe_new, found_pos, switched
     integer(int64) :: ob, oe, nb, ne
@@ -667,7 +663,8 @@ contains
     obuf = current_buffer()
     call set_buffer(loc%buffer, st)
     call goto_char(point_min())
-    shortage = forward_line(string_to_number(line) - 1)
+    call string_to_number(line, line_number)
+    shortage = forward_line(line_number - 1)
     orig_pos = point()
     switched = .false.
     call diff_find_text(old%text, maybe_old, ob, oe)

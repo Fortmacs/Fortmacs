@@ -2634,36 +2634,22 @@ contains
         subroutine split2(s, w1, w2)
             character(len=*), intent(in) :: s
             character(len=:), allocatable, intent(out) :: w1, w2
-            integer :: i, b
+            character(len=*), parameter :: blanks = " "//TAB//LF
+            integer :: i, b, e
 
-            i = 1
-
-            do while (i <= len(s))
-                if (s(i:i) /= " " .and. s(i:i) /= TAB .and. s(i:i) /= LF) exit
-                i = i + 1
-            end do
-
-            b = i
-
-            do while (i <= len(s))
-                if (s(i:i) == " " .or. s(i:i) == TAB .or. s(i:i) == LF) exit
-                i = i + 1
-            end do
-
+            w1 = ""
+            w2 = ""
+            b = verify(s, blanks)
+            if (b == 0) return
+            e = scan(s(b:), blanks)
+            i = merge(len(s) + 1, b + e - 1, e == 0)
             w1 = s(b:i - 1)
-
-            do while (i <= len(s))
-                if (s(i:i) /= " " .and. s(i:i) /= TAB .and. s(i:i) /= LF) exit
-                i = i + 1
-            end do
-
-            b = i
-
-            do while (i <= len(s))
-                if (s(i:i) == " " .or. s(i:i) == TAB .or. s(i:i) == LF) exit
-                i = i + 1
-            end do
-
+            if (i > len(s)) return
+            b = verify(s(i:), blanks)
+            if (b == 0) return
+            b = i + b - 1
+            e = scan(s(b:), blanks)
+            i = merge(len(s) + 1, b + e - 1, e == 0)
             w2 = s(b:i - 1)
         end subroutine split2
     end subroutine python_info_current_definition

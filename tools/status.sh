@@ -7,12 +7,16 @@
 #
 # This file is part of Fortmacs, under the GNU GPL version 3 or later.
 
-# Usage: tools/status.sh --check | --index | --from-row [-o DIR] [FILE...]
+# Usage: tools/status.sh --check | --index | --rows | --from-row [-o DIR] [FILE...]
 #                        | --move-rows OLD NEW
 #   --check      check every docs/status/*.md against the format below
 #                (tools/check.sh runs it); exit status 1 on a finding.
 #   --index      print the index of the modules as a Markdown table
-#                (module, upstream, state), one line per status file.
+#                (module, upstream, state), one line per status file, its
+#                links relative to docs/progress: the Progress workflow
+#                writes it to docs/progress/status-index.md on main.
+#   --rows       print the status files back as rows of the old status
+#                table (the inverse of --from-row, to check a round trip).
 #   --from-row   turn each row "| Module | Upstream | Ported | Deferred |
 #                Tests | State |" of the FILEs (or standard input) into
 #                DIR/NAME.md (DIR defaults to docs/status), printing each
@@ -215,8 +219,8 @@ FNR == 1 {
     v[key] = text
     if (check && key == "Module" && text !~ "^" stem "([^a-z0-9_]|$)")
         report(FNR, "the Module cell must start with " stem)
-    if (check && key == "State" && text !~ /^(done|partial|complete)$/)
-        report(FNR, "the state must be done, partial or complete")
+    if (check && key == "State" && text !~ /^(done|partial)$/)
+        report(FNR, "the state must be done or partial")
     next
 }
 
@@ -270,7 +274,7 @@ case "${1:-}" in
     echo "| Module | Upstream | State |"
     echo "|---|---|---|"
     awk -v check=0 "$fields_awk" docs/status/*.md |
-        awk -F '\t' '{ printf "| [%s](docs/status/%s.md) | %s | %s |\n", $1, $1, $3, $7 }'
+        awk -F '\t' '{ printf "| [%s](../status/%s.md) | %s | %s |\n", $1, $1, $3, $7 }'
     ;;
 --from-row)
     shift
@@ -346,7 +350,7 @@ case "${1:-}" in
     exit $status
     ;;
 *)
-    echo "usage: tools/status.sh --check | --index | --from-row [-o DIR] [FILE...] | --move-rows OLD NEW" >&2
+    echo "usage: tools/status.sh --check | --index | --rows | --from-row [-o DIR] [FILE...] | --move-rows OLD NEW" >&2
     exit 2
     ;;
 esac

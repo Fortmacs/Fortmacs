@@ -26,6 +26,7 @@
 !> depends (through the syntax table) on modules that use search_mod.
 submodule(search_mod) search_regexp_mod
     use commands_mod, only: commands
+    use window_mod, only: same_handle
     use regex_mod, only: re_pattern_buffer_type, re_registers_type, re_subject_type, re_compile_pattern, &
                          re_search, re_match, string_to_subject, buffer_to_subject
     use syntax_mod, only: syntax_table, syntax_modiff
@@ -155,13 +156,6 @@ contains
 
         searchbufs(k)%busy = .false.
     end subroutine unfreeze_pattern
-
-    !> Whether two handles are the same.  Not a port.
-    pure logical function same_handle(a, b)
-        type(handle_type), intent(in) :: a, b
-
-        same_handle = a%index == b%index .and. a%generation == b%generation
-    end function same_handle
 
     !> Make the match data from `regs', offsets in the current buffer's
     !> accessible portion.  Not a port.

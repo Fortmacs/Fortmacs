@@ -4175,7 +4175,7 @@ contains
         type(parse_state_type) :: state
         character(len=:), allocatable :: tabs, delim
         integer(int64) :: here, n
-        integer :: i
+        integer :: i, k
         logical :: ok
 
         status = status_type()
@@ -4224,11 +4224,8 @@ contains
             if (delim(1:1) == "-") i = 2
         end if
 
-        do while (i <= len(delim))
-            if (delim(i:i) /= " " .and. delim(i:i) /= TAB) exit
-            i = i + 1
-        end do
-
+        k = verify(delim(i:), " "//TAB)
+        i = merge(len(delim) + 1, i + k - 1, k == 0)
         call insert(LF//tabs//delim(i:), status)
         call goto_char(here)
     end subroutine sh_maybe_here_document

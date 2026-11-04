@@ -44,7 +44,12 @@ pulsing progress reporters (MIN-VALUE and MAX-VALUE omitted),
 `add-to-invisibility-spec`,
 `remove-from-invisibility-spec`,
 `replace-string-in-region`,
-`replace-regexp-in-region`
+`replace-regexp-in-region`;
+`version-to-list` (`version_to_numbers`; this name and the next two: panel 2026-11-04; with `version-separator` and `version-regexp-alist` as constants),
+`version-list-<`,
+`version-list-<=` (`is_version_numbers_less`, `is_version_numbers_less_or_equal`),
+`version<`,
+`version<=` (`is_version_less`, `is_version_less_or_equal`, invalid syntax an `error` error condition in STATUS)
 
 ## Deferred
 
@@ -57,10 +62,14 @@ minibuffer-scroll-other-window(-down),
 hook depths of local values,
 `derived-mode-add-parents`,
 mode aliases,
-`hack-local-variables` in `run-mode-hooks`
+`hack-local-variables` in `run-mode-hooks`,
+`version=`,
+`version-list-=`,
+`version-separator` and `version-regexp-alist` as settings
 
 ## Tests
 
+test_subr_mod (ports subr-test-version-parsing without its cases for another version-separator, subr-test-version-list-<, subr-test-version-list-<=),
 test_files_mod,
 test_keymap_mod,
 test_regex_mod,

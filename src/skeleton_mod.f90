@@ -67,7 +67,7 @@ module skeleton_mod
     use hooks_mod, only: hook_type
     use callint_mod, only: prefix_arg_type, current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER
     use editfns_mod, only: point, goto_char, is_bol, is_eol, line_beginning_position, line_end_position, buffer_substring, &
-                           delete_region, preceding_char
+                           delete_region, preceding_char, char_to_string
     use cmds_mod, only: delete_char, end_of_line, self_insert_command
     use insdel_mod, only: insert
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
@@ -85,7 +85,6 @@ module skeleton_mod
     use window_mod, only: window_buffer, is_pos_visible_in_window, recenter
     use frame_mod, only: selected_window
     use help_mod, only: substitute_command_keys
-    use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
     use commands_mod, only: commands
     implicit none(type, external)
     private
@@ -867,18 +866,6 @@ contains
         point_unmoved = saved_unmoved
         skeleton_state = saved_state
     end subroutine skeleton_insert
-
-    ! The character C as a string.  Not a port.
-    function char_text(c) result(s)
-        integer, intent(in) :: c
-        character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
-        integer(int32) :: n
-        type(status_type) :: st
-
-        call char_string(int(c, int32), buffer, n, st)
-        s = buffer(1:n)
-    end function char_text
 
     ! Whether handles A and B are the same buffer.  Not a port.
     logical function same_buffer(a, b)
@@ -1684,6 +1671,7 @@ contains
         type(skeleton_element_type), allocatable :: skeleton(:)
         procedure(skeleton_test_procedure), pointer :: filter
         character :: syntax
+        character(len=:), allocatable :: text
         integer(int64) :: c
         logical :: mark, saved, inhibit, found
         integer :: k
@@ -1725,8 +1713,9 @@ contains
         end if
 
         if (.not. found) then
-            skeleton = [SKELETON_NO_INTERACTOR, skeleton_text(char_text(int(c))), SKELETON_POINT, &
-                        skeleton_text(char_text(int(c)))]
+            call char_to_string(int(c, int32), text, status)
+            if (.not. status%ok()) return
+            skeleton = [SKELETON_NO_INTERACTOR, skeleton_text(text), SKELETON_POINT, skeleton_text(text)]
         end if
 
         syntax = char_syntax(preceding_char())
@@ -1800,6 +1789,8 @@ contains
     !> Not a port.
     subroutine init_skeleton()
         integer :: k
+        character(len=:), allocatable :: opening_text, closing_text
+        type(status_type) :: st
         integer, parameter :: opening(6) = [40, 91, 123, 60, 171, 96], closing(6) = [41, 93, 125, 62, 187, 39]
 
         commands%skeleton_pair_insert_maybe%execute => cmd_skeleton_pair_insert_maybe
@@ -1812,9 +1803,11 @@ contains
         if (allocated(skeleton_default_pairs%entries)) deallocate (skeleton_default_pairs%entries)
 
         do k = 1, size(opening)
-            call skeleton_default_pairs%append(opening(k), [skeleton_text(char_text(opening(k))), SKELETON_POINT, &
-                                                            skeleton_text(char_text(closing(k)))])
-            if (k < size(opening)) call skeleton_default_pairs%append(closing(k), [skeleton_text(char_text(closing(k)))])
+            call char_to_string(opening(k), opening_text, st)
+            call char_to_string(closing(k), closing_text, st)
+            call skeleton_default_pairs%append(opening(k), [skeleton_text(opening_text), SKELETON_POINT, &
+                                                            skeleton_text(closing_text)])
+            if (k < size(opening)) call skeleton_default_pairs%append(closing(k), [skeleton_text(closing_text)])
         end do
 
         if (.not. allocated(skeleton_pairs%entries)) allocate (skeleton_pairs%entries(0))

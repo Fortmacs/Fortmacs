@@ -461,10 +461,17 @@ port yet (CLAUDE.md); file headers and docstrings point at it.  A new
 module gets a new file; a module that spans several files (a module and
 its submodules) keeps one file, named for the first, with the others in
 its Module bullet.  `tools/status.sh --check` (run by tools/check.sh)
-checks the format, `--index` prints the index of the modules (module,
-upstream, state) and `--rows` the old table's rows.  The index is not
-committed: kept in this file it would be the shared line every pull
-request edits again; GitHub's listing of docs/status serves as one.
+checks the format (the state is done or partial), `--index` prints the
+index of the modules (module, upstream, state) and `--rows` prints the
+files back as the old table's rows (to check a round trip with
+`--from-row`).
+
+The index is [docs/progress/status-index.md](docs/progress/status-index.md),
+generated on main: the Progress workflow writes it with `tools/status.sh
+--index` after each merge, as it does the README's progress block and pie
+charts.  Pull requests never edit it (kept by hand it would be the shared
+line every pull request edits again); a branch's changes show in it once
+merged.
 
 A branch written before the status files, which edited a row of the
 table: merge main, resolve the conflict in this section by taking main's

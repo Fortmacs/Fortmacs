@@ -32,7 +32,7 @@ module regexp_opt_mod
     use error_mod, only: status_type
     use search_mod, only: regexp_quote, string_match, match_beginning, match_end, match_data, set_match_data
     use subr_mod, only: is_subregexp_context
-    use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
+    use editfns_mod, only: char_to_string
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -497,18 +497,6 @@ contains
         end do
     end function first_char
 
-    !> The UTF-8 string of character C.  Not a port.
-    function utf8(c) result(s)
-        integer(int32), intent(in) :: c
-        character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
-        integer(int32) :: nbytes
-        type(status_type) :: st
-
-        call char_string(c, buffer, nbytes, st)
-        s = buffer(1:nbytes)
-    end function utf8
-
     !> Return a regexp to match a character in CHARS.
     !> CHARS should be a list of characters.
     !> If CHARS is the empty list, the return value is a regexp that
@@ -586,11 +574,17 @@ contains
     contains
 
         subroutine flush ()
+            character(len=:), allocatable :: first, last
+            type(status_type) :: st
+
             if (end > start + 2) then
-                charset = charset//utf8(start)//"-"//utf8(end)
+                call char_to_string(start, first, st)
+                call char_to_string(end, last, st)
+                charset = charset//first//"-"//last
             else
                 do while (end >= start)
-                    charset = charset//utf8(start)
+                    call char_to_string(start, first, st)
+                    charset = charset//first
                     start = start + 1
                 end do
             end if

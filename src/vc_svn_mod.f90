@@ -31,6 +31,7 @@
 module vc_svn_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use data_mod, only: string_to_number
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, &
                           generate_new_buffer_name, is_buffer_live, get_file_buffer
@@ -225,24 +226,6 @@ contains
         b = vc_backend_named("SVN")
     end function svn_backend_index
 
-    !> S as a number (string-to-number: 0 when it does not start with
-    !> one).  Not a port.
-    integer(int64) function string_to_number(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: k, ios
-
-        n = 0
-        k = verify(s, "0123456789")
-
-        if (k == 0) then
-            k = len(s) + 1
-        end if
-
-        if (k == 1) return
-        read (s(1:k - 1), *, iostat=ios) n
-        if (ios /= 0) n = 0
-    end function string_to_number
-
     ! ------------------------------------------------------------------
     ! State-querying functions
     ! ------------------------------------------------------------------
@@ -416,7 +399,8 @@ contains
 
         prev = ""
         if (len(file) < 0) prev = ""
-        newrev = string_to_number(rev) - 1
+        call string_to_number(rev, newrev)
+        newrev = newrev - 1
         found = 0 < newrev
 
         if (found) then

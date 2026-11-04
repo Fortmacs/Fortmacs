@@ -68,7 +68,7 @@ module newcomment_mod
     use editfns_mod, only: interactive_region, &
                            point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, char_before, &
                            line_beginning_position, line_end_position, delete_region, buffer_substring, &
-                           narrow_to_region, widen, region_beginning, region_end
+                           narrow_to_region, widen, region_beginning, region_end, char_to_string
     use cmds_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char
     use search_mod, only: re_search_forward, re_search_backward, looking_at, string_match, match_beginning, match_end, &
                           replace_match, regexp_quote, SEARCH_NOERROR, SEARCH_MOVE
@@ -1282,6 +1282,7 @@ contains
         integer(int64) :: moved, pt
         logical :: found
         type(status_type) :: st
+        character(len=:), allocatable :: text
 
         if (is_bol()) then
             ! comment-end = ""
@@ -1314,7 +1315,8 @@ contains
                    iand(syntax_code_at(point() - 1), d4%code) == 0 .or. &
                    iand(syntax_code_at(point() - 2), d3%code) == 0)) then
             call goto_char(point() - 2)
-            moved = skip_chars_backward(char_string(after()), st)
+            call char_to_string(int(after(), int32), text, st)
+            moved = skip_chars_backward(text, st)
             moved = skip_syntax_backward(" ")
         else
             ! No clue what's going on: maybe we're really not right after the
@@ -1337,21 +1339,6 @@ contains
         d = syntax_entry(c)
         if (d%code > 0) syntax_code_at = d%code
     end function syntax_code_at
-
-    !> The UTF-8 string of character C (empty for -1).  Not a port.
-    function char_string(c) result(s)
-        use character_mod, only: char_string_utf8 => char_string, MAX_MULTIBYTE_LENGTH
-        integer, intent(in) :: c
-        character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
-        integer(int32) :: nbytes
-        type(status_type) :: st
-
-        s = ""
-        if (c < 0) return
-        call char_string_utf8(int(c, int32), buffer, nbytes, st)
-        if (st%ok()) s = buffer(1:nbytes)
-    end function char_string
 
     ! ------------------------------------------------------------------
     ! Commands.

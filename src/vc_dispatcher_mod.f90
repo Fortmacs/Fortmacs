@@ -1627,13 +1627,13 @@ contains
 
     !> Compilation mode for buffers with output from VC commands.
     !> Sets `compilation_error_regexps' in accordance with the VC backend
-    !> (ERROR_REGEXP_TABLE, its vc-BACKEND-error-regexp-alist; none when
+    !> (ERROR_REGEXPS, its `vc_BACKEND_error_regexps'; none when
     !> absent).  Port of vc-dispatcher.el:vc-compilation-mode.
-    recursive subroutine vc_compilation_mode(status, error_regexp_table)
+    recursive subroutine vc_compilation_mode(status, error_regexps)
         use compile_mod, only: compilation_rule_type, compilation_set_mode_locals
         use modes_mod, only: major_modes
         type(status_type), intent(out) :: status
-        type(compilation_rule_type), intent(in), optional :: error_regexp_table(:)
+        type(compilation_rule_type), intent(in), optional :: error_regexps(:)
         type(compilation_rule_type) :: none(0)
         logical :: saved
 
@@ -1641,10 +1641,10 @@ contains
         call major_modes%vc_compilation_mode%begin(saved, status)
         if (.not. status%ok()) return
 
-        if (present(error_regexp_table)) then
-            call compilation_set_mode_locals(error_regexp_table=error_regexp_table)
+        if (present(error_regexps)) then
+            call compilation_set_mode_locals(error_regexps=error_regexps)
         else
-            call compilation_set_mode_locals(error_regexp_table=none)
+            call compilation_set_mode_locals(error_regexps=none)
         end if
 
         call major_modes%vc_compilation_mode%end(saved, status)

@@ -38,8 +38,7 @@ submodule(frame_mod) frame_cmds_mod
     use value_mod, only: value_type, make_list
     use buffer_mod, only: buffers, current_buffer, resolve_buffer, exchange_frame_buffers, is_buffer_live
     use window_mod, only: windows, window_leaves, select_window, set_window_buffer_internal, other_buffer, &
-                          delete_window_object, unshow_buffer, set_window_point, window_point, is_window_live, &
-                          same_handle
+                          delete_window_object, unshow_buffer, set_window_point, window_point, is_window_live
     use dispnew_mod, only: adjust_frame_glyphs, adjust_frame_size
     use xdisp_mod, only: init_frame_windows
     use xfaces_mod, only: recompute_basic_faces

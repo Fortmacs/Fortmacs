@@ -553,6 +553,7 @@ contains
         real(real64) :: newest, oldest, now, date
         integer(int64) :: opoint, shortage
         logical :: is_full, found
+        character(len=40) :: oldest_text, newest_text
 
         is_full = .false.
         if (present(full)) is_full = full
@@ -586,29 +587,17 @@ contains
         end if
 
         if (.not. status%ok()) return
+        ! %.1f: a field wide enough for the leading zero, then adjustl.
+        write (oldest_text, "(f40.1)") now - oldest
 
         if (is_full) then
-            call message("Redisplaying annotation...done (Spanned from "//days_string(now - oldest)//" to " &
-                         //days_string(now - newest)//" days old)")
+            write (newest_text, "(f40.1)") now - newest
+            call message("Redisplaying annotation...done (Spanned from "//trim(adjustl(oldest_text))//" to " &
+                         //trim(adjustl(newest_text))//" days old)")
         else
-            call message("Redisplaying annotation...done (Spanned to "//days_string(now - oldest)//" days old)")
+            call message("Redisplaying annotation...done (Spanned to "//trim(adjustl(oldest_text))//" days old)")
         end if
     end subroutine display_vc_annotate_autoscale
-
-    ! DAYS formatted with %.1f.  Not a port.
-    function days_string(days) result(s)
-        real(real64), intent(in) :: days
-        character(len=:), allocatable :: s
-        character(len=40) :: buffer
-
-        write (buffer, "(f0.1)") days
-        s = trim(buffer)
-        if (s(1:1) == ".") s = "0"//s
-
-        if (len(s) > 1) then
-            if (s(1:2) == "-.") s = "-0"//s(2:)
-        end if
-    end function days_string
 
     !> Highlight the output of \[vc_annotate].
     !> By default, the current buffer is highlighted, unless overridden by

@@ -36,7 +36,7 @@ module smerge_mode_mod
     use value_mod, only: value_type, make_keymap_ref, make_buffer_ref, make_list, vtag, xfixnum, V_INTEGER
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use commands_mod, only: commands
-    use data_mod, only: append_locals_clearer
+    use data_mod, only: append_locals_clearer, string_to_number
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, close_buffer, erase_buffer, buffer_modified_tick
@@ -1158,7 +1158,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: textbuf
         character(len=:), allocatable :: name1, name2, name3, othertext, header
-        integer(int64) :: line, m3b, startline, endline, nlines, otherlines, pos, shortage, n
+        integer(int64) :: line, m3b, startline, endline, nlines, otherlines, other_start, pos, shortage, n
         integer(int32) :: op
         logical :: found
         type(status_type) :: st
@@ -1201,7 +1201,7 @@ contains
             end if
 
             call char_after(op, found, match_beginning(3, st))
-            startline = number(1)
+            call string_to_number(match_string(1), startline)
             ! No clue why this is the way it is, but line numbers seem to be
             ! off-by-one for `a' ops.
             if (op == ichar("a")) startline = startline + 1
@@ -1209,7 +1209,8 @@ contains
             if (op == ichar("a")) then
                 endline = startline
             else if (match_end(2, st) /= 0) then
-                endline = number(2) + 1
+                call string_to_number(match_string(2), endline)
+                endline = endline + 1
             else
                 endline = startline + 1
             end if
@@ -1221,7 +1222,9 @@ contains
             else if (match_end(5, st) == 0) then
                 otherlines = 1
             else
-                otherlines = number(5) - number(4) + 1
+                call string_to_number(match_string(5), otherlines)
+                call string_to_number(match_string(4), other_start)
+                otherlines = otherlines - other_start + 1
             end if
 
             ! Skip header.
@@ -1266,20 +1269,6 @@ contains
         end do hunks
 
         if (is_buffer_live(textbuf)) call set_buffer(textbuf, st)
-
-    contains
-
-        ! (string-to-number (match-string K)) in the patch buffer.
-        integer(int64) function number(k)
-            integer, intent(in) :: k
-            character(len=:), allocatable :: digits
-            integer :: ios
-
-            digits = match_string(k)
-            number = 0
-            read (digits, *, iostat=ios) number
-            if (ios /= 0) number = 0
-        end function number
     end subroutine apply_smerge_resolution_patch
 
     !> TEXT with every run of spaces, tabs and newlines made one space:

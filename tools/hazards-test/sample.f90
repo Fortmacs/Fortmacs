@@ -1,5 +1,6 @@
 ! sample.f90 -- the fixture of tools/test-hazards.sh: components of
-! command_type that tools/hazards.awk must and must not report.
+! command_type and strings in array constructors that tools/hazards.awk
+! must and must not report.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -52,4 +53,10 @@ module sample
     type, public :: other_type
         type(value_type), allocatable :: events(:)
     end type other_type
+
+    ! Reported: a string longer than the constructor's length.
+    character(len=4), parameter :: short(2) = [character(len=4) :: "abcd", "abcde"]
+    ! Not reported: strings that fit (a doubled quote is one character).
+    character(len=4), parameter :: fit(3) = [character(len=4) :: "ab""c", 'abcd', &
+                                             "a"]
 end module sample

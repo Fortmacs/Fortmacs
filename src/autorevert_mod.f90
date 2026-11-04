@@ -423,26 +423,6 @@ contains
     ! Lists of buffers
     ! ------------------------------------------------------------------
 
-    !> (delq BUFFER LIST)  Not a port.
-    subroutine delq(buffer, list)
-        type(handle_type), intent(in) :: buffer
-        type(handle_type), allocatable, intent(inout) :: list(:)
-        type(handle_type), allocatable :: kept(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) return
-        allocate (kept(size(list)))
-        n = 0
-
-        do k = 1, size(list)
-            if (same_handle(list(k), buffer)) cycle
-            n = n + 1
-            kept(n) = list(k)
-        end do
-
-        list = kept(1:n)
-    end subroutine delq
-
     !> (push BUFFER LIST)  Not a port.
     subroutine prepend(buffer, list)
         type(handle_type), intent(in) :: buffer
@@ -477,10 +457,12 @@ contains
     subroutine auto_revert_remove_current_buffer(buffer)
         type(handle_type), intent(in), optional :: buffer
 
+        if (.not. allocated(auto_revert_mode_buffers)) return
+
         if (present(buffer)) then
-            call delq(buffer, auto_revert_mode_buffers)
+            auto_revert_mode_buffers = pack(auto_revert_mode_buffers,.not. same_handle(auto_revert_mode_buffers, buffer))
         else
-            call delq(current_buffer(), auto_revert_mode_buffers)
+            auto_revert_mode_buffers = pack(auto_revert_mode_buffers,.not. same_handle(auto_revert_mode_buffers, current_buffer()))
         end if
     end subroutine auto_revert_remove_current_buffer
 
@@ -1177,7 +1159,9 @@ contains
             list = inhibit_auto_revert_buffers
 
             do k = 1, size(list)
-                if (.not. is_buffer_live(list(k))) call delq(list(k), inhibit_auto_revert_buffers)
+                if (is_buffer_live(list(k))) cycle
+                inhibit_auto_revert_buffers = &
+                    pack(inhibit_auto_revert_buffers,.not. same_handle(inhibit_auto_revert_buffers, list(k)))
             end do
         end if
 
@@ -1185,7 +1169,10 @@ contains
         added = .not. has_handle(inhibit_auto_revert_buffers, buffer)
         if (added) call prepend(buffer, inhibit_auto_revert_buffers)
         call body(status)
-        if (added) call delq(buffer, inhibit_auto_revert_buffers)
+
+        if (added) then
+            inhibit_auto_revert_buffers = pack(inhibit_auto_revert_buffers,.not. same_handle(inhibit_auto_revert_buffers, buffer))
+        end if
     end subroutine inhibit_auto_revert
 
     !> Check if auto-revert is active in current buffer.  Port of

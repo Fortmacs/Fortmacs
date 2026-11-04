@@ -2,7 +2,7 @@
 
 - Module: crm_mod
 - Upstream: emacs-lisp/crm.el
-- State: complete
+- State: done
 
 ## Ported
 

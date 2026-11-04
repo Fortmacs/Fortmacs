@@ -130,6 +130,35 @@ FNR == 1 { block = ""; sig = ""; insig = 0; indecl = 0; base = FILENAME; sub(/.*
 # Submodules (their variables are not accessible) and the names in
 # `public ::` statements.
 /^submodule/ { submod[base] = 1 }
+# The startup value of an array component of a setting, assigned in its
+# init_ routine while still unallocated (`if (.not. allocated(x%commands))`
+# then `x%commands = [...]`): help shows it in the original value, in
+# the form the setting's other_value gives (`%commands = ["a", "b"]`).
+startvar != "" {
+    l = $0
+    if (match(l, "^[ \t]*" startvar "[ \t]*=[ \t]*\\[")) {
+        while (l ~ /&[ \t]*$/ && (getline nextl) > 0) {
+            sub(/[ \t]*&[ \t]*$/, " ", l)
+            sub(/^[ \t]*&?[ \t]*/, "", nextl)
+            l = l nextl
+        }
+        sub(/^[^[]*\[/, "", l)
+        sub(/^[^:"]*::/, "", l)
+        items = ""
+        while (match(l, /"[^"]*"/)) {
+            items = items (items == "" ? "" : ", ") substr(l, RSTART, RLENGTH)
+            l = substr(l, RSTART + RLENGTH)
+        }
+        split(startvar, sv, "%")
+        startdef[sv[1] SUBSEP base] = "%" sv[2] " = [" items "]"
+    }
+    startvar = ""
+}
+/^[ \t]*if[ \t]*\([ \t]*\.not\.[ \t]*allocated[ \t]*\([ \t]*[a-z0-9_]+%[a-z0-9_]+[ \t]*\)[ \t]*\)[ \t]*then/ {
+    startvar = $0
+    sub(/.*allocated[ \t]*\([ \t]*/, "", startvar)
+    sub(/[ \t]*\).*/, "", startvar)
+}
 /^[ \t]*public[ \t]*::/ { inpub = 1; l = $0; sub(/^[^:]*::/, "", l) }
 inpub {
     if (!(/^[ \t]*public[ \t]*::/)) l = $0
@@ -435,6 +464,9 @@ function print_variables(    i, hname, key, target) {
         hname = qh[i]
         if (hcount[hname] > 1 && hname != qn[i]) hname = qn[i]
         key = qk[i]
+        # A named state with a startup list (see startdef).
+        if ((key in startdef) && vtype[key] ~ /choice_setting_type\)/ && vinit[key] !~ /^(\.true\.|\.false\.|)$/)
+            vinit[key] = vinit[key] ", " startdef[key]
         target = (vtype[key] ~ /^procedure/) ? target_module(vinit[key], qf[i]) : ""
         printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\037%s\n", hname, qf[i], qn[i], vtype[key], \
             varr[key], vinit[key], target, vdoc[key]
@@ -563,6 +595,42 @@ function wrapped(s, piece,    last) {
     sub(/.*\n/, "", last)
     if (length(last) + length(piece) > 100) return s "&\n                " piece
     return s piece
+}
+
+# An array constructor of the N items ITEMS (Fortran text), with the type
+# specification SPEC ("character(len=W) :: ", or ""), several items a
+# line.  A list longer than 200 lines (the standard allows 255
+# continuation lines a statement) is first printed as parameter arrays
+# NAME_part_1, NAME_part_2, ... declared with DECL, and the constructor
+# joins them.
+function constructor(spec, decl, name, items, n,    nl, i, k, p, last, out, joined, line, size) {
+    nl = 0
+    line = ""
+    for (i = 1; i <= n; i++) {
+        if (line != "" && length(line) + length(items[i]) + 2 > 90) {
+            ctext[++nl] = line
+            cupto[nl] = i - 1
+            line = ""
+        }
+        line = line (line == "" ? "" : ", ") items[i]
+    }
+    ctext[++nl] = line
+    cupto[nl] = n
+    p = 0
+    joined = ""
+    for (k = 1; k <= nl; k += 200) {
+        last = (k + 199 < nl) ? k + 199 : nl
+        out = "[" spec "&\n"
+        for (i = k; i <= last; i++)
+            out = out "        " ctext[i] (i < last ? ", &\n" : "]")
+        if (nl <= 200) return out
+        size = cupto[last] - (k > 1 ? cupto[k - 1] : 0)
+        p++
+        printf "    %s :: %s_part_%d(%d) = %s\n", decl, name, p, size, out
+        joined = joined (p > 1 ? ", &\n        " : "&\n        ") name "_part_" p
+    }
+    print ""
+    return "[" joined "]"
 }
 
 # A string literal for s, in pieces of at most 90 characters, each
@@ -792,38 +860,36 @@ END {
     print "        logical :: user_option = .false."
     print "    end type doc_entry_type"
     print ""
+    # The name arrays, from the longest name so none is truncated.
     w = 1
-    for (i = 1; i <= nf; i++) if (length(fname[i]) > w) w = length(fname[i])
-    printf "    !> The documented functions, sorted.\n"
-    printf "    character(len=%d), parameter, public :: function_names(%d) = [character(len=%d) :: &\n", w, nf, w
-    # Several names a line, to stay within the 255 continuation lines
-    # of a statement.
-    line = ""
     for (i = 1; i <= nf; i++) {
-        item = q(fname[i]) (i < nf ? ", " : "]")
-        if (line != "" && length(line) + length(item) > 90) { printf "        %s&\n", line; line = "" }
-        line = line item
+        citem[i] = q(fname[i])
+        if (length(fname[i]) > w) w = length(fname[i])
     }
-    printf "        %s\n", line
+    spec = sprintf("character(len=%d)", w)
+    c = constructor(spec " :: ", spec ", parameter", "function_names", citem, nf)
+    printf "    !> The documented functions, sorted.\n"
+    printf "    %s, parameter, public :: function_names(%d) = %s\n", spec, nf, c
     print ""
     w = 1
-    for (i = 1; i <= nv; i++) if (length(vname[i]) > w) w = length(vname[i])
-    printf "    !> The documented variables, sorted.\n"
-    printf "    character(len=%d), parameter, public :: variable_names(%d) = [character(len=%d) :: &\n", w, nv, w
-    line = ""
     for (i = 1; i <= nv; i++) {
-        item = q(vname[i]) (i < nv ? ", " : "]")
-        if (line != "" && length(line) + length(item) > 90) { printf "        %s&\n", line; line = "" }
-        line = line item
+        citem[i] = q(vname[i])
+        if (length(vname[i]) > w) w = length(vname[i])
     }
-    printf "        %s\n", line
+    spec = sprintf("character(len=%d)", w)
+    c = constructor(spec " :: ", spec ", parameter", "variable_names", citem, nv)
+    printf "    !> The documented variables, sorted.\n"
+    printf "    %s, parameter, public :: variable_names(%d) = %s\n", spec, nv, c
     print ""
     w = 1
-    for (k = 1; k <= nu; k++) if (length(uname[k]) > w) w = length(uname[k])
+    for (k = 1; k <= nu; k++) {
+        citem[k] = q(uname[k])
+        if (length(uname[k]) > w) w = length(uname[k])
+    }
+    spec = sprintf("character(len=%d)", w)
+    c = constructor(spec " :: ", spec ", parameter", "user_option_names", citem, nu)
     printf "    !> The user options (tools/user-options), sorted.\n"
-    printf "    character(len=%d), parameter, public :: user_option_names(%d) = [character(len=%d) :: &\n", w, nu, w
-    for (k = 1; k <= nu; k++)
-        printf "        %s%s\n", q(uname[k]), (k < nu ? ", &" : "]")
+    printf "    %s, parameter, public :: user_option_names(%d) = %s\n", spec, nu, c
     print ""
     print "    character(len=*), parameter :: LF = achar(10)"
     print ""
@@ -880,7 +946,7 @@ END {
         if (vinit[i] != "") {
             init = vinit[i]
             sub(/_int(32|64)$/, "", init)
-            print "            entry%original = " q(init)
+            print "            entry%original = " lit(init, "                ")
         }
         if (ochoice(i)) {
             # A choice setting: a value of another kind (a procedure, a
@@ -1158,11 +1224,24 @@ END {
     print "        end select"
     print "    end subroutine set_user_option_choice"
     print ""
+    # The constants all have the length of the longest, so none is
+    # truncated.
+    cw = length(".false.")
+    for (k = 1; k <= nu; k++) {
+        i = vidx[uname[k]]
+        if (okind(i) != "OPTION_CHOICE") continue
+        n = split(venum[i], defs, ",")
+        for (m = 1; m <= n; m++) {
+            d = defs[m]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
+            if (length(d) > cw) cw = length(d)
+        }
+    }
     print "    !> The named constants of the enumerated user option called `name`"
-    print "    !> (in upper case) and their values; empty arrays for another name."
+    print "    !> (in upper case), all of one length, and their values; empty"
+    print "    !> arrays for another name."
     print "    subroutine user_option_constants(name, constants, values)"
     print "        character(len=*), intent(in) :: name"
-    print "        character(len=48), allocatable, intent(out) :: constants(:)"
+    print "        character(len=:), allocatable, intent(out) :: constants(:)"
     print "        integer(int64), allocatable, intent(out) :: values(:)"
     print ""
     print "        select case (name)"
@@ -1171,7 +1250,7 @@ END {
         if (okind(i) != "OPTION_CHOICE") continue
         print "        case (" q(vname[i]) ")"
         n = split(venum[i], defs, ",")
-        cl = "            constants = [character(len=48) :: "; vl = "            values = [integer(int64) :: "
+        cl = "            constants = [character(len=" cw ") :: "; vl = "            values = [integer(int64) :: "
         # A choice setting also takes .true. and .false..
         if (ochoice(i)) {
             cl = cl q(".true.") ", " q(".false.") ", "
@@ -1186,7 +1265,8 @@ END {
         print vl
     }
     print "        case default"
-    print "            allocate (constants(0), values(0))"
+    print "            allocate (character(len=" cw ") :: constants(0))"
+    print "            allocate (values(0))"
     print "        end select"
     print "    end subroutine user_option_constants"
     print ""

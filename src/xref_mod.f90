@@ -135,6 +135,8 @@ module xref_mod
     !> two states name in `%commands' (R6-39).  Not a port.
     type, extends(choice_setting_type), public :: xref_prompt_for_identifier_choice_setting_type
         character(len=64), allocatable :: commands(:)
+    contains
+        procedure :: other_value => xref_prompt_for_identifier_other_value
     end type xref_prompt_for_identifier_choice_setting_type
 
     !> Where a location is displayed (the DISPLAY_ACTION of
@@ -2883,13 +2885,7 @@ contains
         completion_ignore_case = backend%is_identifier_completion_case_ignored()
         call backend%identifier_completion_table(table, has_table)
         ! (substring prompt 0 (string-match "[ :]+\\'" prompt))
-        k = len_trim(prompt)
-
-        do while (k > 0)
-            if (prompt(k:k) /= " " .and. prompt(k:k) /= ":") exit
-            k = k - 1
-        end do
-
+        k = verify(prompt, " :", back=.true.)
         stem = prompt(1:k)
 
         if (has_def) then
@@ -3983,4 +3979,37 @@ contains
         commands%save_xref_edit_changes%execute => save_xref_edit_changes
         call append_locals_clearer(clear_xref_locals)
     end subroutine init_xref
+
+    !> `xref_prompt_for_identifier' as help shows it in the two states that
+    !> use `%commands' (upstream's list of commands): the state and the
+    !> commands (`XREF_PROMPT_FOR_IDENTIFIER_LISTED, %commands = ["a", "b"]');
+    !> "" in the states .true. and .false., which do not use them, so
+    !> `is_off()' is not changed by the commands.  Not a port.
+    function xref_prompt_for_identifier_other_value(self) result(text)
+        class(xref_prompt_for_identifier_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        integer :: k
+
+        text = ""
+
+        select case (self%choice)
+        case (XREF_PROMPT_FOR_IDENTIFIER_LISTED)
+            text = "XREF_PROMPT_FOR_IDENTIFIER_LISTED"
+        case (XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED)
+            text = "XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED"
+        case default
+            return
+        end select
+
+        text = text//", %commands = ["
+
+        if (allocated(self%commands)) then
+            do k = 1, size(self%commands)
+                if (k > 1) text = text//", "
+                text = text//'"'//trim(self%commands(k))//'"'
+            end do
+        end if
+
+        text = text//"]"
+    end function xref_prompt_for_identifier_other_value
 end module xref_mod

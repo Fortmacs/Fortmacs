@@ -38,6 +38,7 @@ module sendmail_mod
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_RAW
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_VOID_FUNCTION
+    use casefiddle_mod, only: downcase_string
     use handle_mod, only: handle_type
     use value_mod, only: value_type, command_procedure, make_buffer_ref, make_list, vtag, V_INTEGER, V_STRING
     use hooks_mod, only: hook_type
@@ -665,7 +666,7 @@ contains
         if (is_buffer_live(old)) call set_buffer(old, st)
         if (.not. status%ok()) return
 
-        select case (downcase_text(choice))
+        select case (downcase_string(choice))
         case ("transport")
             chosen => send_mail_with_sendmail
         case ("smtp")
@@ -1095,7 +1096,7 @@ contains
 
         if (found) then
             call buffer_substring(beginning, match_end(0, status) - 1, fieldname, status)
-            fieldname = downcase_text(fieldname)
+            fieldname = downcase_string(fieldname)
         end if
 
         shortage = forward_line(1_int64)
@@ -1144,19 +1145,6 @@ contains
         call destroy_marker(end, status)
         done = .true.
     end subroutine fill_mail_mode_paragraph
-
-    ! TEXT with ASCII letters in lower case.  Not a port.
-    function downcase_text(text) result(lower)
-        character(len=*), intent(in) :: text
-        character(len=:), allocatable :: lower
-        integer :: i
-
-        lower = text
-
-        do i = 1, len(lower)
-            if (lower(i:i) >= "A" .and. lower(i:i) <= "Z") lower(i:i) = achar(iachar(lower(i:i)) + 32)
-        end do
-    end function downcase_text
 
     ! ------------------------------------------------------------------
     ! Sending

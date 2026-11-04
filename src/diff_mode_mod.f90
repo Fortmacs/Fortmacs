@@ -80,6 +80,7 @@ module diff_mode_mod
     use easy_mmode_mod, only: easy_mmode_next, easy_mmode_prev
     use imenu_mod, only: imenu_patterns, imenu_pattern_type
     use string_type_mod, only: string_type, append_string
+    use data_mod, only: string_to_number
     implicit none(type, external)
     private
 
@@ -323,13 +324,6 @@ module diff_mode_mod
             implicit none(type, external)
         end function char_at_point
 
-        !> The value of the decimal number S (0 if none: string-to-number).
-        !> Not a port.
-        module integer(int64) function string_to_number(s) result(n)
-            implicit none(type, external)
-            character(len=*), intent(in) :: s
-        end function string_to_number
-
         !> Return the literal source text from HUNK as TEXT with OFFSET.
         !> If DESTP is false, TEXT is the source, otherwise the destination
         !> text.  CHAR_OFFSET is a char-offset in HUNK (negative for none),
@@ -552,8 +546,8 @@ contains
             if (trust .and. me(2) > 0) then
                 nold = 1
                 nnew = 1
-                if (len(match_string(2)) > 0) nold = string_to_number(match_string(2))
-                if (len(match_string(4)) > 0) nnew = string_to_number(match_string(4))
+                if (len(match_string(2)) > 0) call string_to_number(match_string(2), nold)
+                if (len(match_string(4)) > 0) call string_to_number(match_string(4), nnew)
                 saved = point()
 
                 if (diff_valid_unified_empty_line) then
@@ -1208,8 +1202,8 @@ contains
             return
         end if
 
-        start1 = string_to_number(match_string(1))
-        start2 = string_to_number(match_string(3))
+        call string_to_number(match_string(1), start1)
+        call string_to_number(match_string(3), start2)
         shortage = forward_line(1_int64)
         newstart1 = start1 + diff_count_matches("^[- "//TAB//"]", point(), pos)
         newstart2 = start2 + diff_count_matches("^[+ "//TAB//"]", point(), pos)
@@ -1228,7 +1222,7 @@ contains
     recursive subroutine diff_fixup_modifs(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
-        integer(int64) :: plus, minus, space, bang, saved, x
+        integer(int64) :: plus, minus, space, bang, saved, x, number
         integer(int32) :: c
         type(value_type) :: saved_inhibit
         character(len=:), allocatable :: old1, old2, new1, new2, new, old
@@ -1308,7 +1302,8 @@ contains
                     if (space + bang + plus > 0) then
                         old1 = match_string(1)
                         old2 = match_string(2)
-                        write (digits, "(i0)") space + bang + plus - 1 + string_to_number(old1)
+                        call string_to_number(old1, number)
+                        write (digits, "(i0)") space + bang + plus - 1 + number
                         new = trim(digits)
 
                         if (new /= old2 .or. len(new) /= len(old2)) then
@@ -1318,7 +1313,8 @@ contains
                 else if (at("\*\*\* \([0-9]+\),\(-?[0-9]*\) \*\*\*\*$")) then
                     if (space + bang + minus > 0) then
                         old = match_string(1)
-                        new = zero_padded(space + bang + minus - 1 + string_to_number(old), len(old))
+                        call string_to_number(old, number)
+                        new = zero_padded(space + bang + minus - 1 + number, len(old))
 
                         if (new /= old .or. len(new) /= len(old)) then
                             call replace_match(new, status, fixedcase=.true., literal=.true., subexp=2)
