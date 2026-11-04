@@ -1076,6 +1076,16 @@ name	kill_compilation	stop_compilation
 name	kill_grep	stop_grep
 name	compilation_always_kill	compilation_always_stop
 name	comint_kill_subjob	comint_stop_subjob
+# R6-43 (owner, 2026-11-04): "stop" ends a process, "suspend" pauses it
+# (SIGTSTP), so upstream's comint-stop-subjob and stop-process are
+# comint_suspend_subjob and suspend_process.  The Fortran names
+# comint_stop_subjob and stop_process belong to the ports of
+# comint-kill-subjob and kill-process, kept in the files that hold them.
+name	comint_stop_subjob	comint_suspend_subjob
+keep	comint_stop_subjob	src/comint_mod.f90 src/commands_mod.f90 src/docstrings_mod.f90 PORTING.md
+name	stop_process	suspend_process
+keep	stop_process	src/process_mod.f90 src/comint_mod.f90 src/docstrings_mod.f90 src/fortmacs.f90 src/simple_shell_mod.f90 test/test_process_mod.f90 PORTING.md README.md
+keep	ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS
 name	vc_dir_kill_dir_status_process	vc_dir_stop_dir_status_process
 name	kill_without_query	stop_without_query	src/process_mod.f90
 # Fortmacs exits (R6-21: exit_fortmacs, not exit_emacs).

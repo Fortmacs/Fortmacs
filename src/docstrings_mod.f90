@@ -4510,7 +4510,7 @@ contains
         case ("comint_stop_subjob")
             entry%file = "comint_mod.f90"
             entry%command = .true.
-            entry%doc = "Send stop signal to the current subjob."
+            entry%doc = "Send kill signal to the current subjob."
         case ("comint_strip_ctrl_m")
             entry%file = "comint_mod.f90"
             entry%fortran = "call comint_strip_ctrl_m(string, status)"

@@ -3376,8 +3376,8 @@ contains
         call interrupt_process(status, current_group=is_comint_pty())
     end subroutine comint_interrupt_subjob
 
-    !> Send stop signal to the current subjob.  Port of
-    !> comint.el:comint-stop-subjob.
+    !> Send kill signal to the current subjob.  Port of
+    !> comint.el:comint-kill-subjob.
     recursive subroutine comint_stop_subjob(status)
         type(status_type), intent(out) :: status
 

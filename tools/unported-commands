@@ -476,16 +476,12 @@ minibuffer.el	minibuffer-previous-line-completion	minibuffer_previous_line_compl
 minibuffer.el	minibuffer-scroll-other-window	minibuffer_scroll_other_window
 minibuffer.el	minibuffer-scroll-other-window-down	minibuffer_scroll_other_window_down
 minibuffer.el	self-insert-and-exit	self_insert_and_exit
-mule-cmds.el	activate-transient-input-method	activate_transient_input_method
-mule-cmds.el	describe-input-method	describe_input_method
 mule-cmds.el	describe-specified-language-support	describe_specified_language_support
 mule-cmds.el	highlight-confusing-reorderings	highlight_confusing_reorderings
 mule-cmds.el	mule-cmds--prefixed-command-pch	mule_cmds__prefixed_command_pch
 mule-cmds.el	search-unencodable-char	search_unencodable_char
-mule-cmds.el	set-input-method	set_input_method
 mule-cmds.el	setup-specified-language-environment	setup_specified_language_environment
 mule-cmds.el	toggle-enable-multibyte-characters	toggle_enable_multibyte_characters
-mule-cmds.el	toggle-input-method	toggle_input_method
 mule-cmds.el	view-hello-file	view_hello_file
 mule-diag.el	describe-current-coding-system-briefly	describe_current_coding_system_briefly
 mule-diag.el	describe-font	describe_font
