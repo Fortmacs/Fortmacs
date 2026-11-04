@@ -42,6 +42,7 @@ module css_mode_mod
     use buffer_mod, only: buffers, current, buffer_serial_live, current_buffer, buffer_list, set_buffer, is_buffer_live
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
                           forward_comment, skip_chars_forward, skip_chars_backward, char_syntax
@@ -62,7 +63,7 @@ module css_mode_mod
     use faces_mod, only: named_face_type, display_when, face_attrs, readable_foreground_color
     use color_mod, only: color_name_to_rgb, color_rgb_to_hex, color_hsl_to_rgb
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_KEEP
+                             FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_KEEP
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_default_fontify_region, &
                              font_lock_fontify_region_function_set_local
     use expression_motion_mod, only: forward_expression, backward_expression, down_group, cut_expression
@@ -84,7 +85,6 @@ module css_mode_mod
     use minibuffer_mod, only: completion_at_point_functions
     use regexp_opt_mod, only: regexp_opt
     use imenu_mod, only: imenu_prev_index_position_function, imenu_extract_index_name_function, imenu_space_replacement
-    use add_log_mod, only: add_log_current_subprogram_function
     implicit none(type, external)
     private
 
@@ -2662,30 +2662,18 @@ contains
         name = css_join_nested_selectors(parts)
     end function join_squeezed
 
-    !> Return the name of the CSS section at point (`found' false for
+    !> Return the name of the CSS section at point (unallocated for
     !> none).  Port of css-mode.el:css-current-defun-name.
-    recursive subroutine css_current_rule_name(name, found)
+    recursive subroutine css_current_rule_name(name)
         character(len=:), allocatable, intent(out) :: name
-        logical, intent(out) :: found
         integer(int64) :: opoint
+        logical :: found
 
-        name = ""
         opoint = point()
         call css_prev_index_position(found)
         if (found) call extract_css_index_name(name)
         call goto_char(opoint)
     end subroutine css_current_rule_name
-
-    !> `css_current_rule_name' as `add_log_current_subprogram_function'
-    !> (NAME unallocated for none).  Not a port.
-    recursive subroutine css_current_rule_name_adapter(name)
-        character(len=:), allocatable, intent(out) :: name
-        character(len=:), allocatable :: found_name
-        logical :: found
-
-        call css_current_rule_name(found_name, found)
-        if (found) name = found_name
-    end subroutine css_current_rule_name_adapter
 
     !> A helper for `css_lookup_symbol' that finds the symbol at point.
     !> Returns the symbol, a string, or `found' false if none found.  Port of
@@ -2812,8 +2800,8 @@ contains
         ! default face. This is done because the parens may sometimes
         ! receive generic string delimiter syntax (see
         ! `css_syntax_propertize_function').
-        h2(1) = h(1, "default", FONT_LOCK_OVERRIDE_YES)
-        h2(2) = h(2, "default", FONT_LOCK_OVERRIDE_YES)
+        h2(1) = h(1, "default", FONT_LOCK_OVERRIDE_REPLACE)
+        h2(2) = h(2, "default", FONT_LOCK_OVERRIDE_REPLACE)
         kw(8) = font_lock_keyword(KW8_REGEXP, highlights=h2)
     end function css_font_lock_keywords_of
 
@@ -3415,12 +3403,12 @@ contains
         call syntax_propertize_function%set_local(css_syntax_propertize_function)
         call fill_paragraph_function%set_local(css_fill_paragraph)
         call adaptive_fill_function%set_local(css_adaptive_fill)
-        call add_log_current_subprogram_function%set_local(css_current_rule_name_adapter)
         call smie_setup(css_smie_grammar, css_smie_rules, css_smie_forward_token, css_smie_backward_token)
         call font_lock_fontify_region_function_set_local(css_fontify_region)
         call completion_at_point_functions%prepend(css_completion_at_point, local=.true.)
         call imenu_prev_index_position_function%set_local(css_prev_index_position)
         call imenu_extract_index_name_function%set_local(extract_css_index_name)
+        call add_log_current_subprogram_function%set_local(css_current_rule_name)
         call major_modes%css_mode%end(saved, status)
     end subroutine css_mode
 

@@ -62,6 +62,7 @@ module python_mod
                           transient_mark_mode
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key, make_sparse_keymap, set_repeat_map
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
                           forward_comment, scan_groups, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
@@ -84,7 +85,7 @@ module python_mod
     use textprop_mod, only: put_text_property
     use xdisp_mod, only: message, tab_width
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, font_lock_keywords_type, &
-                             font_lock_keywords_level, FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_PREPEND
+                             font_lock_keywords_level, FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     use expression_motion_mod, only: forward_expression_function, forward_expression_default_function, &
                                      up_group, mark_subprogram, beginning_of_subprogram_function, &
@@ -98,7 +99,6 @@ module python_mod
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use grep_mod, only: grep_files_aliases, grep_files_alias_type, grep_find_ignored_directories, grep_ignore_type
     use imenu_mod, only: imenu_create_index_function, imenu_index_type
-    use add_log_mod, only: add_log_current_subprogram_function
     use which_func_mod, only: which_func_functions
     use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
@@ -849,7 +849,7 @@ contains
         !   "\\" "\'" "\a" "\b" "\f" "\n" "\r" "\t" "\v"
         !   "\ooo" character with octal value ooo
         !   "\xhh" character with hex value hh
-        h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_YES)
+        h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_REPLACE)
         call append(font_lock_keyword(matcher=bytes_escape_matcher, highlights=h1))
         ! escape sequences within string literals, the same as appear in bytes
         ! literals in addition to:
@@ -2667,6 +2667,15 @@ contains
             w2 = s(b:i - 1)
         end subroutine split2
     end subroutine python_info_current_definition
+
+    !> `python_info_current_definition' without the type of the subprogram:
+    !> Python mode's `add_log_current_subprogram_function'.  Not a port:
+    !> python.el gives that variable python-info-current-defun.
+    recursive subroutine get_python_current_definition(name)
+        character(len=:), allocatable, intent(out) :: name
+
+        call python_info_current_definition(name)
+    end subroutine get_python_current_definition
 
     !> Return true if current statement opens a block.  Port of
     !> python.el:python-info-statement-starts-block-p.
@@ -4618,8 +4627,8 @@ contains
         call normal_auto_fill_function%set_local(python_do_auto_fill)
         call beginning_of_subprogram_function%set_local(python_nav_beginning_of_definition)
         call end_of_subprogram_function%set_local(python_nav_end_of_definition_function)
+        call add_log_current_subprogram_function%set_local(get_python_current_definition)
         call post_self_insert_hook%append(python_indent_post_self_insert_function, local=.true.)
-        call add_log_current_subprogram_function%set_local(python_info_current_definition_adapter)
         if (.not. installed_grep_hook) call install_grep_settings()
         call major_modes%python_base_mode%end(saved, status)
     end subroutine python_base_mode
@@ -4689,14 +4698,6 @@ contains
         if (python_indent_guess_indent_offset_variable%value) call python_indent_guess_indent_offset()
         call major_modes%python_mode%end(saved, status)
     end subroutine python_mode
-
-    !> `python_info_current_definition' as `add_log_current_subprogram_function'.
-    !> Not a port.
-    recursive subroutine python_info_current_definition_adapter(name)
-        character(len=:), allocatable, intent(out) :: name
-
-        call python_info_current_definition(name)
-    end subroutine python_info_current_definition_adapter
 
     !> `python_info_current_definition' as a function of
     !> `which_func_functions'.  Not a port.

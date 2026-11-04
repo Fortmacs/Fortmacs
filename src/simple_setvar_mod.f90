@@ -30,8 +30,9 @@
 !> (optional sign and digits) for an integer one, a real literal for a
 !> real one, a character literal in double or single quotes (the quote
 !> doubled inside) for a string one, and one of the option's named
-!> constants for an enumerated one (as C-h v shows them; Fortran names
-!> are case-insensitive).  No expressions, other variables or function
+!> constants for an enumerated one, or `.true.', `.false.' or one of its
+!> named constants for a choice setting (as C-h v shows them; Fortran
+!> names are case-insensitive).  No expressions, other variables or function
 !> references are evaluated: this is not an expression evaluator, as
 !> Fortmacs has no run-time Lisp and no run-time Fortran either.  A value
 !> of another type is rejected with upstream's "Value `...' does not
@@ -227,6 +228,8 @@ contains
 
         annotation = ""
         if (.not. allocated(read_constants)) return
+        ! .true. and .false. are values themselves.
+        if (index(candidate, ".") == 1) return
         k = findloc(read_constants, candidate, dim=1)
         if (k == 0) return
         write (buffer, "(i0)") read_values(k)

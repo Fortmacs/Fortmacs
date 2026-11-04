@@ -37,7 +37,7 @@ module test_simple_electric_mod
     use frame_mod, only: selected_window_ref
     use window_mod, only: set_window_start
     use simple_mod, only: fundamental_mode, blink_matching_check_mismatch, blink_matching_paren, &
-                          BLINK_MATCHING_PAREN_NO, BLINK_MATCHING_PAREN_YES, newline_and_indent, &
+                          newline_and_indent, &
                           backward_delete_char_untabify, backward_delete_char_untabify_method, &
                           BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY
     use modes_mod, only: minor_modes
@@ -124,10 +124,10 @@ contains
         call check(error, last_message, "")
         call close_buffer(h, st)
         if (allocated(error)) return
-        blink_matching_paren = BLINK_MATCHING_PAREN_NO
+        blink_matching_paren = .false.
         call fresh(h, "(foo")
         call keys("]")
-        blink_matching_paren = BLINK_MATCHING_PAREN_YES
+        blink_matching_paren = .true.
         call check(error, last_message, "")
         call close_buffer(h, st)
     end subroutine test_messages

@@ -38,6 +38,9 @@ module commands_mod
         type(command_type) :: abort_minibuffers
         type(command_type) :: abort_recursive_edit
         type(command_type) :: activate_transient_input_method
+        type(command_type) :: add_change_log_entry
+        type(command_type) :: add_change_log_entry_other_window
+        type(command_type) :: add_diff_change_log_entries_other_window
         type(command_type) :: add_global_abbrev
         type(command_type) :: add_mode_abbrev
         type(command_type) :: ansi_color_for_comint_mode_filter
@@ -54,6 +57,7 @@ module commands_mod
         type(command_type) :: apropos_user_option
         type(command_type) :: apropos_variable
         type(command_type) :: async_shell_command
+        type(command_type) :: auto_combine_smerge
         type(command_type) :: auto_fill_mode
         type(command_type) :: auto_revert_mode
         type(command_type) :: auto_revert_set_timer
@@ -198,10 +202,12 @@ module commands_mod
         type(command_type) :: calendar_unmark
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
+        type(command_type) :: change_log_mode
         type(command_type) :: check_parens
         type(command_type) :: clear_all_abbrevs
         type(command_type) :: clear_rectangle
         type(command_type) :: close_buffer
+        type(command_type) :: combine_smerge_with_next
         type(command_type) :: comint_accumulate
         type(command_type) :: comint_append_output_to_file
         type(command_type) :: comint_backward_matching_input
@@ -272,10 +278,13 @@ module commands_mod
         type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
         type(command_type) :: compile_goto_error
+        type(command_type) :: complete_mail_abbrev_alias
         type(command_type) :: complete_name
         type(command_type) :: completion_at_point
         type(command_type) :: completion_help_at_point
         type(command_type) :: completion_in_region_mode
+        type(command_type) :: compose_mail
+        type(command_type) :: compose_mail_other_window
         type(command_type) :: conf_align_assignments
         type(command_type) :: conf_colon_mode
         type(command_type) :: conf_desktop_mode
@@ -322,6 +331,7 @@ module commands_mod
         type(command_type) :: dabbrev_expand
         type(command_type) :: default_indent_new_line
         type(command_type) :: define_global_abbrev
+        type(command_type) :: define_mail_abbrev
         type(command_type) :: define_mode_abbrev
         type(command_type) :: delete_all_space
         type(command_type) :: delete_backward_char
@@ -338,8 +348,13 @@ module commands_mod
         type(command_type) :: delete_pair
         type(command_type) :: delete_process
         type(command_type) :: delete_rectangle
+        type(command_type) :: delete_smerge_current
         type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
+        type(command_type) :: delete_window_down
+        type(command_type) :: delete_window_left
+        type(command_type) :: delete_window_right
+        type(command_type) :: delete_window_up
         type(command_type) :: describe_bindings
         type(command_type) :: describe_button
         type(command_type) :: describe_character_set
@@ -373,6 +388,9 @@ module commands_mod
         type(command_type) :: diff_mode
         type(command_type) :: diff_restrict_view
         type(command_type) :: diff_revert_and_cut_hunk
+        type(command_type) :: diff_smerge_base_lower
+        type(command_type) :: diff_smerge_base_upper
+        type(command_type) :: diff_smerge_upper_lower
         type(command_type) :: diff_split_hunk
         type(command_type) :: diff_test_hunk
         type(command_type) :: digit_argument
@@ -450,6 +468,9 @@ module commands_mod
         type(command_type) :: dired_why
         type(command_type) :: disable_command
         type(command_type) :: display_buffer_other_frame
+        type(command_type) :: display_vc_annotate_autoscale
+        type(command_type) :: display_vc_annotate_default
+        type(command_type) :: display_vc_annotate_select
         type(command_type) :: do_auto_fill
         type(command_type) :: down_group
         type(command_type) :: downcase_region
@@ -477,6 +498,7 @@ module commands_mod
         type(command_type) :: exit_recursive_edit
         type(command_type) :: expand_abbrev
         type(command_type) :: expand_region_abbrevs
+        type(command_type) :: extend_smerge
         type(command_type) :: f90_abbrev_help
         type(command_type) :: f90_abbrev_start
         type(command_type) :: f90_beginning_of_block
@@ -517,6 +539,7 @@ module commands_mod
         type(command_type) :: fill_paragraph
         type(command_type) :: fill_region
         type(command_type) :: fill_region_as_paragraph
+        type(command_type) :: find_change_log_entry_file
         type(command_type) :: find_file
         type(command_type) :: find_file_other_frame
         type(command_type) :: find_file_other_window
@@ -524,9 +547,18 @@ module commands_mod
         type(command_type) :: find_file_read_only_other_frame
         type(command_type) :: find_file_read_only_other_window
         type(command_type) :: find_grep
+        type(command_type) :: find_vc_annotate_revision_at_line
         type(command_type) :: first_error
         type(command_type) :: fixup_whitespace
         type(command_type) :: flush_lines
+        type(command_type) :: follow_delete_other_windows_and_split
+        type(command_type) :: follow_end_of_buffer
+        type(command_type) :: follow_first_window
+        type(command_type) :: follow_last_window
+        type(command_type) :: follow_mode
+        type(command_type) :: follow_switch_to_buffer
+        type(command_type) :: follow_switch_to_buffer_all
+        type(command_type) :: follow_switch_to_current_buffer_all
         type(command_type) :: font_lock_change_mode
         type(command_type) :: font_lock_debug_fontify
         type(command_type) :: font_lock_defontify
@@ -546,12 +578,14 @@ module commands_mod
         type(command_type) :: forward_sentence
         type(command_type) :: forward_word
         type(command_type) :: fundamental_mode
+        type(command_type) :: generate_log_edit_changelog_from_diff
         type(command_type) :: global_auto_revert_mode
         type(command_type) :: global_font_lock_mode
         type(command_type) :: global_font_lock_mode_enable_in_buffer
         type(command_type) :: goto_char
         type(command_type) :: goto_line
         type(command_type) :: goto_line_relative
+        type(command_type) :: goto_vc_annotate_line
         type(command_type) :: grep
         type(command_type) :: grep_change_to_grep_edit_mode
         type(command_type) :: grep_edit_mode
@@ -716,7 +750,6 @@ module commands_mod
         type(command_type) :: ibuffer_visit_buffer_other_window
         type(command_type) :: ibuffer_visit_buffer_other_window_noselect
         type(command_type) :: ignore
-        type(command_type) :: imenu
         type(command_type) :: increment_register
         type(command_type) :: indent_according_to_mode
         type(command_type) :: indent_for_tab_command
@@ -780,6 +813,9 @@ module commands_mod
         type(command_type) :: info_up
         type(command_type) :: info_virtual_index
         type(command_type) :: insert_abbrevs
+        type(command_type) :: insert_mail_abbrev_alias
+        type(command_type) :: insert_mail_disposition_notification_to
+        type(command_type) :: insert_mail_file
         type(command_type) :: insert_pair
         type(command_type) :: insert_parentheses
         type(command_type) :: insert_register
@@ -833,6 +869,11 @@ module commands_mod
         type(command_type) :: just_one_space
         type(command_type) :: justify_current_line
         type(command_type) :: keep_lines
+        type(command_type) :: keep_smerge_all
+        type(command_type) :: keep_smerge_base
+        type(command_type) :: keep_smerge_current
+        type(command_type) :: keep_smerge_lower
+        type(command_type) :: keep_smerge_upper
         type(command_type) :: keyboard_quit
         type(command_type) :: kmacro_add_counter
         type(command_type) :: kmacro_cycle_ring_next
@@ -893,6 +934,7 @@ module commands_mod
         type(command_type) :: log_edit_previous_comment
         type(command_type) :: log_edit_show_diff
         type(command_type) :: log_edit_show_files
+        type(command_type) :: log_view_annotate_version
         type(command_type) :: log_view_copy_revision
         type(command_type) :: log_view_diff
         type(command_type) :: log_view_diff_changeset
@@ -911,6 +953,23 @@ module commands_mod
         type(command_type) :: log_view_unmark_all_entries
         type(command_type) :: log_view_unmark_entry
         type(command_type) :: lossage_size
+        type(command_type) :: mail
+        type(command_type) :: mail_abbrev_end_of_buffer
+        type(command_type) :: mail_abbrev_next_line
+        type(command_type) :: mail_abbrevs_mode
+        type(command_type) :: mail_bcc
+        type(command_type) :: mail_cc
+        type(command_type) :: mail_dont_send
+        type(command_type) :: mail_fcc
+        type(command_type) :: mail_mail_followup_to
+        type(command_type) :: mail_mail_reply_to
+        type(command_type) :: mail_mode
+        type(command_type) :: mail_other_window
+        type(command_type) :: mail_reply_to
+        type(command_type) :: mail_signature
+        type(command_type) :: mail_subject
+        type(command_type) :: mail_text
+        type(command_type) :: mail_to
         type(command_type) :: make_frame_command
         type(command_type) :: makefile_automake_mode
         type(command_type) :: makefile_backslash_region
@@ -943,6 +1002,7 @@ module commands_mod
         type(command_type) :: mark_subprogram
         type(command_type) :: mark_whole_buffer
         type(command_type) :: mark_word
+        type(command_type) :: merge_mail_abbrevs
         type(command_type) :: messages_buffer_mode
         type(command_type) :: minibuffer_complete
         type(command_type) :: minibuffer_complete_and_exit
@@ -970,9 +1030,12 @@ module commands_mod
         type(command_type) :: next_buffer
         type(command_type) :: next_error
         type(command_type) :: next_error_no_select
+        type(command_type) :: next_follow_window
         type(command_type) :: next_history_element
         type(command_type) :: next_line
         type(command_type) :: next_line_or_history_element
+        type(command_type) :: next_smerge_conflict
+        type(command_type) :: next_vc_annotate_revision
         type(command_type) :: normal_mode
         type(command_type) :: number_to_register
         type(command_type) :: occur
@@ -993,6 +1056,8 @@ module commands_mod
         type(command_type) :: other_window
         type(command_type) :: other_window_backward
         type(command_type) :: paste
+        type(command_type) :: paste_mail_original
+        type(command_type) :: paste_mail_region
         type(command_type) :: paste_previous
         type(command_type) :: paste_rectangle
         type(command_type) :: point_to_register
@@ -1004,9 +1069,12 @@ module commands_mod
         type(command_type) :: previous_buffer
         type(command_type) :: previous_error
         type(command_type) :: previous_error_no_select
+        type(command_type) :: previous_follow_window
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
         type(command_type) :: previous_line_or_history_element
+        type(command_type) :: previous_smerge_conflict
+        type(command_type) :: previous_vc_annotate_revision
         type(command_type) :: process_menu_delete_process
         type(command_type) :: process_menu_mode
         type(command_type) :: prog_mode
@@ -1041,6 +1109,7 @@ module commands_mod
         type(command_type) :: query_replace
         type(command_type) :: query_replace_regexp
         type(command_type) :: quit_window
+        type(command_type) :: quote_mail_printable_region
         type(command_type) :: quoted_insert
         type(command_type) :: raise_expression
         type(command_type) :: re_search_backward
@@ -1053,7 +1122,9 @@ module commands_mod
         type(command_type) :: read_y_or_n_insert_n
         type(command_type) :: read_y_or_n_insert_other
         type(command_type) :: read_y_or_n_insert_y
+        type(command_type) :: rebuild_mail_abbrevs
         type(command_type) :: recenter
+        type(command_type) :: recenter_follow
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recentf
         type(command_type) :: recentf_cleanup
@@ -1073,7 +1144,9 @@ module commands_mod
         type(command_type) :: rectangle_previous_line
         type(command_type) :: rectangle_right_char
         type(command_type) :: recursive_edit
+        type(command_type) :: redo_window_change
         type(command_type) :: redraw_display
+        type(command_type) :: redraw_follow
         type(command_type) :: reindent_then_newline_and_indent
         type(command_type) :: repeat
         type(command_type) :: repeat_exit
@@ -1081,6 +1154,8 @@ module commands_mod
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
         type(command_type) :: reset_language_environment
+        type(command_type) :: resolve_smerge
+        type(command_type) :: resolve_smerge_all
         type(command_type) :: revert_buffer
         type(command_type) :: revert_buffer_with_coding_system
         type(command_type) :: rgrep
@@ -1098,6 +1173,10 @@ module commands_mod
         type(command_type) :: savehist_save
         type(command_type) :: scroll_down
         type(command_type) :: scroll_down_command
+        type(command_type) :: scroll_follow_down
+        type(command_type) :: scroll_follow_down_window
+        type(command_type) :: scroll_follow_up
+        type(command_type) :: scroll_follow_up_window
         type(command_type) :: scroll_other_window
         type(command_type) :: scroll_other_window_down
         type(command_type) :: scroll_up
@@ -1106,7 +1185,13 @@ module commands_mod
         type(command_type) :: search_backward
         type(command_type) :: search_forward
         type(command_type) :: select_frame_by_name
+        type(command_type) :: select_window_down
+        type(command_type) :: select_window_left
+        type(command_type) :: select_window_right
+        type(command_type) :: select_window_up
         type(command_type) :: self_insert_command
+        type(command_type) :: send_mail
+        type(command_type) :: send_mail_and_exit
         type(command_type) :: set_buffer_file_coding_system
         type(command_type) :: set_buffer_process_coding_system
         type(command_type) :: set_fill_column
@@ -1186,7 +1271,11 @@ module commands_mod
         type(command_type) :: shell_script_mode
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
+        type(command_type) :: show_vc_annotate_changeset_diff_revision_at_line
+        type(command_type) :: show_vc_annotate_diff_revision_at_line
+        type(command_type) :: show_vc_annotate_log_revision_at_line
         type(command_type) :: skeleton_pair_insert_maybe
+        type(command_type) :: smerge_mode
         type(command_type) :: smie_backward_expression_command
         type(command_type) :: smie_close_block
         type(command_type) :: smie_config_guess
@@ -1200,12 +1289,14 @@ module commands_mod
         type(command_type) :: split_window_below
         type(command_type) :: split_window_right
         type(command_type) :: start_kbd_macro
+        type(command_type) :: start_smerge_session
         type(command_type) :: stop_compilation
         type(command_type) :: stop_grep
         type(command_type) :: string_insert_rectangle
         type(command_type) :: string_rectangle
         type(command_type) :: suspend_fortmacs
         type(command_type) :: suspend_frame
+        type(command_type) :: swap_smerge
         type(command_type) :: switch_to_buffer
         type(command_type) :: switch_to_buffer_other_frame
         type(command_type) :: tab_to_tab_stop
@@ -1218,6 +1309,7 @@ module commands_mod
         type(command_type) :: tabulated_list_widen_current_column
         type(command_type) :: text_mode
         type(command_type) :: toggle_input_method
+        type(command_type) :: toggle_vc_annotate_annotation_visibility
         type(command_type) :: top_level
         type(command_type) :: transient_mark_mode
         type(command_type) :: transpose_chars
@@ -1235,6 +1327,7 @@ module commands_mod
         type(command_type) :: undo
         type(command_type) :: undo_only
         type(command_type) :: undo_redo
+        type(command_type) :: undo_window_change
         type(command_type) :: unexpand_abbrev
         type(command_type) :: unfill_paragraph
         type(command_type) :: universal_argument
@@ -1242,10 +1335,16 @@ module commands_mod
         type(command_type) :: universal_argument_more
         type(command_type) :: universal_coding_system_argument
         type(command_type) :: unix_sync
+        type(command_type) :: unquote_mail_printable_region
         type(command_type) :: up_group
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
+        type(command_type) :: vc_annotate
+        type(command_type) :: vc_annotate_mode
+        type(command_type) :: vc_annotate_revision_at_line
+        type(command_type) :: vc_annotate_revision_previous_to_line
+        type(command_type) :: vc_annotate_working_revision
         type(command_type) :: vc_clear_context
         type(command_type) :: vc_create_branch
         type(command_type) :: vc_create_repo
@@ -1283,6 +1382,9 @@ module commands_mod
         type(command_type) :: vc_git_log_edit_toggle_no_verify
         type(command_type) :: vc_git_log_edit_toggle_signoff
         type(command_type) :: vc_git_log_view_mode
+        type(command_type) :: vc_hg_log_edit_mode
+        type(command_type) :: vc_hg_log_edit_toggle_amend
+        type(command_type) :: vc_hg_log_view_mode
         type(command_type) :: vc_ignore
         type(command_type) :: vc_log_incoming
         type(command_type) :: vc_log_outgoing
@@ -1342,9 +1444,13 @@ module commands_mod
         type(command_type) :: what_line
         type(command_type) :: what_page
         type(command_type) :: where_is
-        type(command_type) :: which_function_mode
         type(command_type) :: widen
+        type(command_type) :: windmove_default_keybindings
+        type(command_type) :: windmove_delete_default_keybindings
+        type(command_type) :: windmove_mode
         type(command_type) :: window_configuration_to_register
+        type(command_type) :: window_divider_mode
+        type(command_type) :: winner_mode
         type(command_type) :: write_abbrev_file
         type(command_type) :: write_file
         type(command_type) :: zrgrep
@@ -1354,12 +1460,15 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1315) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1421) = [character(len=48) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
                                                                   "abort_recursive_edit", &
                                                                   "activate_transient_input_method", &
+                                                                  "add_change_log_entry", &
+                                                                  "add_change_log_entry_other_window", &
+                                                                  "add_diff_change_log_entries_other_window", &
                                                                   "add_global_abbrev", &
                                                                   "add_mode_abbrev", &
                                                                   "ansi_color_for_comint_mode_filter", &
@@ -1376,6 +1485,7 @@ module commands_mod
                                                                   "apropos_user_option", &
                                                                   "apropos_variable", &
                                                                   "async_shell_command", &
+                                                                  "auto_combine_smerge", &
                                                                   "auto_fill_mode", &
                                                                   "auto_revert_mode", &
                                                                   "auto_revert_set_timer", &
@@ -1520,10 +1630,12 @@ module commands_mod
                                                                   "calendar_unmark", &
                                                                   "capitalize_region", &
                                                                   "capitalize_word", &
+                                                                  "change_log_mode", &
                                                                   "check_parens", &
                                                                   "clear_all_abbrevs", &
                                                                   "clear_rectangle", &
                                                                   "close_buffer", &
+                                                                  "combine_smerge_with_next", &
                                                                   "comint_accumulate", &
                                                                   "comint_append_output_to_file", &
                                                                   "comint_backward_matching_input", &
@@ -1594,10 +1706,13 @@ module commands_mod
                                                                   "compilation_shell_minor_mode", &
                                                                   "compile", &
                                                                   "compile_goto_error", &
+                                                                  "complete_mail_abbrev_alias", &
                                                                   "complete_name", &
                                                                   "completion_at_point", &
                                                                   "completion_help_at_point", &
                                                                   "completion_in_region_mode", &
+                                                                  "compose_mail", &
+                                                                  "compose_mail_other_window", &
                                                                   "conf_align_assignments", &
                                                                   "conf_colon_mode", &
                                                                   "conf_desktop_mode", &
@@ -1644,6 +1759,7 @@ module commands_mod
                                                                   "dabbrev_expand", &
                                                                   "default_indent_new_line", &
                                                                   "define_global_abbrev", &
+                                                                  "define_mail_abbrev", &
                                                                   "define_mode_abbrev", &
                                                                   "delete_all_space", &
                                                                   "delete_backward_char", &
@@ -1660,8 +1776,13 @@ module commands_mod
                                                                   "delete_pair", &
                                                                   "delete_process", &
                                                                   "delete_rectangle", &
+                                                                  "delete_smerge_current", &
                                                                   "delete_whitespace_rectangle", &
                                                                   "delete_window", &
+                                                                  "delete_window_down", &
+                                                                  "delete_window_left", &
+                                                                  "delete_window_right", &
+                                                                  "delete_window_up", &
                                                                   "describe_bindings", &
                                                                   "describe_button", &
                                                                   "describe_character_set", &
@@ -1695,6 +1816,9 @@ module commands_mod
                                                                   "diff_mode", &
                                                                   "diff_restrict_view", &
                                                                   "diff_revert_and_cut_hunk", &
+                                                                  "diff_smerge_base_lower", &
+                                                                  "diff_smerge_base_upper", &
+                                                                  "diff_smerge_upper_lower", &
                                                                   "diff_split_hunk", &
                                                                   "diff_test_hunk", &
                                                                   "digit_argument", &
@@ -1772,6 +1896,9 @@ module commands_mod
                                                                   "dired_why", &
                                                                   "disable_command", &
                                                                   "display_buffer_other_frame", &
+                                                                  "display_vc_annotate_autoscale", &
+                                                                  "display_vc_annotate_default", &
+                                                                  "display_vc_annotate_select", &
                                                                   "do_auto_fill", &
                                                                   "down_group", &
                                                                   "downcase_region", &
@@ -1799,6 +1926,7 @@ module commands_mod
                                                                   "exit_recursive_edit", &
                                                                   "expand_abbrev", &
                                                                   "expand_region_abbrevs", &
+                                                                  "extend_smerge", &
                                                                   "f90_abbrev_help", &
                                                                   "f90_abbrev_start", &
                                                                   "f90_beginning_of_block", &
@@ -1839,6 +1967,7 @@ module commands_mod
                                                                   "fill_paragraph", &
                                                                   "fill_region", &
                                                                   "fill_region_as_paragraph", &
+                                                                  "find_change_log_entry_file", &
                                                                   "find_file", &
                                                                   "find_file_other_frame", &
                                                                   "find_file_other_window", &
@@ -1846,9 +1975,18 @@ module commands_mod
                                                                   "find_file_read_only_other_frame", &
                                                                   "find_file_read_only_other_window", &
                                                                   "find_grep", &
+                                                                  "find_vc_annotate_revision_at_line", &
                                                                   "first_error", &
                                                                   "fixup_whitespace", &
                                                                   "flush_lines", &
+                                                                  "follow_delete_other_windows_and_split", &
+                                                                  "follow_end_of_buffer", &
+                                                                  "follow_first_window", &
+                                                                  "follow_last_window", &
+                                                                  "follow_mode", &
+                                                                  "follow_switch_to_buffer", &
+                                                                  "follow_switch_to_buffer_all", &
+                                                                  "follow_switch_to_current_buffer_all", &
                                                                   "font_lock_change_mode", &
                                                                   "font_lock_debug_fontify", &
                                                                   "font_lock_defontify", &
@@ -1868,12 +2006,14 @@ module commands_mod
                                                                   "forward_sentence", &
                                                                   "forward_word", &
                                                                   "fundamental_mode", &
+                                                                  "generate_log_edit_changelog_from_diff", &
                                                                   "global_auto_revert_mode", &
                                                                   "global_font_lock_mode", &
                                                                   "global_font_lock_mode_enable_in_buffer", &
                                                                   "goto_char", &
                                                                   "goto_line", &
                                                                   "goto_line_relative", &
+                                                                  "goto_vc_annotate_line", &
                                                                   "grep", &
                                                                   "grep_change_to_grep_edit_mode", &
                                                                   "grep_edit_mode", &
@@ -2038,7 +2178,6 @@ module commands_mod
                                                                   "ibuffer_visit_buffer_other_window", &
                                                                   "ibuffer_visit_buffer_other_window_noselect", &
                                                                   "ignore", &
-                                                                  "imenu", &
                                                                   "increment_register", &
                                                                   "indent_according_to_mode", &
                                                                   "indent_for_tab_command", &
@@ -2102,6 +2241,9 @@ module commands_mod
                                                                   "info_up", &
                                                                   "info_virtual_index", &
                                                                   "insert_abbrevs", &
+                                                                  "insert_mail_abbrev_alias", &
+                                                                  "insert_mail_disposition_notification_to", &
+                                                                  "insert_mail_file", &
                                                                   "insert_pair", &
                                                                   "insert_parentheses", &
                                                                   "insert_register", &
@@ -2155,6 +2297,11 @@ module commands_mod
                                                                   "just_one_space", &
                                                                   "justify_current_line", &
                                                                   "keep_lines", &
+                                                                  "keep_smerge_all", &
+                                                                  "keep_smerge_base", &
+                                                                  "keep_smerge_current", &
+                                                                  "keep_smerge_lower", &
+                                                                  "keep_smerge_upper", &
                                                                   "keyboard_quit", &
                                                                   "kmacro_add_counter", &
                                                                   "kmacro_cycle_ring_next", &
@@ -2215,6 +2362,7 @@ module commands_mod
                                                                   "log_edit_previous_comment", &
                                                                   "log_edit_show_diff", &
                                                                   "log_edit_show_files", &
+                                                                  "log_view_annotate_version", &
                                                                   "log_view_copy_revision", &
                                                                   "log_view_diff", &
                                                                   "log_view_diff_changeset", &
@@ -2233,6 +2381,23 @@ module commands_mod
                                                                   "log_view_unmark_all_entries", &
                                                                   "log_view_unmark_entry", &
                                                                   "lossage_size", &
+                                                                  "mail", &
+                                                                  "mail_abbrev_end_of_buffer", &
+                                                                  "mail_abbrev_next_line", &
+                                                                  "mail_abbrevs_mode", &
+                                                                  "mail_bcc", &
+                                                                  "mail_cc", &
+                                                                  "mail_dont_send", &
+                                                                  "mail_fcc", &
+                                                                  "mail_mail_followup_to", &
+                                                                  "mail_mail_reply_to", &
+                                                                  "mail_mode", &
+                                                                  "mail_other_window", &
+                                                                  "mail_reply_to", &
+                                                                  "mail_signature", &
+                                                                  "mail_subject", &
+                                                                  "mail_text", &
+                                                                  "mail_to", &
                                                                   "make_frame_command", &
                                                                   "makefile_automake_mode", &
                                                                   "makefile_backslash_region", &
@@ -2265,6 +2430,7 @@ module commands_mod
                                                                   "mark_subprogram", &
                                                                   "mark_whole_buffer", &
                                                                   "mark_word", &
+                                                                  "merge_mail_abbrevs", &
                                                                   "messages_buffer_mode", &
                                                                   "minibuffer_complete", &
                                                                   "minibuffer_complete_and_exit", &
@@ -2292,9 +2458,12 @@ module commands_mod
                                                                   "next_buffer", &
                                                                   "next_error", &
                                                                   "next_error_no_select", &
+                                                                  "next_follow_window", &
                                                                   "next_history_element", &
                                                                   "next_line", &
                                                                   "next_line_or_history_element", &
+                                                                  "next_smerge_conflict", &
+                                                                  "next_vc_annotate_revision", &
                                                                   "normal_mode", &
                                                                   "number_to_register", &
                                                                   "occur", &
@@ -2315,6 +2484,8 @@ module commands_mod
                                                                   "other_window", &
                                                                   "other_window_backward", &
                                                                   "paste", &
+                                                                  "paste_mail_original", &
+                                                                  "paste_mail_region", &
                                                                   "paste_previous", &
                                                                   "paste_rectangle", &
                                                                   "point_to_register", &
@@ -2326,9 +2497,12 @@ module commands_mod
                                                                   "previous_buffer", &
                                                                   "previous_error", &
                                                                   "previous_error_no_select", &
+                                                                  "previous_follow_window", &
                                                                   "previous_history_element", &
                                                                   "previous_line", &
                                                                   "previous_line_or_history_element", &
+                                                                  "previous_smerge_conflict", &
+                                                                  "previous_vc_annotate_revision", &
                                                                   "process_menu_delete_process", &
                                                                   "process_menu_mode", &
                                                                   "prog_mode", &
@@ -2363,6 +2537,7 @@ module commands_mod
                                                                   "query_replace", &
                                                                   "query_replace_regexp", &
                                                                   "quit_window", &
+                                                                  "quote_mail_printable_region", &
                                                                   "quoted_insert", &
                                                                   "raise_expression", &
                                                                   "re_search_backward", &
@@ -2375,7 +2550,9 @@ module commands_mod
                                                                   "read_y_or_n_insert_n", &
                                                                   "read_y_or_n_insert_other", &
                                                                   "read_y_or_n_insert_y", &
+                                                                  "rebuild_mail_abbrevs", &
                                                                   "recenter", &
+                                                                  "recenter_follow", &
                                                                   "recenter_top_bottom", &
                                                                   "recentf", &
                                                                   "recentf_cleanup", &
@@ -2395,7 +2572,9 @@ module commands_mod
                                                                   "rectangle_previous_line", &
                                                                   "rectangle_right_char", &
                                                                   "recursive_edit", &
+                                                                  "redo_window_change", &
                                                                   "redraw_display", &
+                                                                  "redraw_follow", &
                                                                   "reindent_then_newline_and_indent", &
                                                                   "repeat", &
                                                                   "repeat_exit", &
@@ -2403,6 +2582,8 @@ module commands_mod
                                                                   "replace_regexp", &
                                                                   "replace_string", &
                                                                   "reset_language_environment", &
+                                                                  "resolve_smerge", &
+                                                                  "resolve_smerge_all", &
                                                                   "revert_buffer", &
                                                                   "revert_buffer_with_coding_system", &
                                                                   "rgrep", &
@@ -2420,6 +2601,10 @@ module commands_mod
                                                                   "savehist_save", &
                                                                   "scroll_down", &
                                                                   "scroll_down_command", &
+                                                                  "scroll_follow_down", &
+                                                                  "scroll_follow_down_window", &
+                                                                  "scroll_follow_up", &
+                                                                  "scroll_follow_up_window", &
                                                                   "scroll_other_window", &
                                                                   "scroll_other_window_down", &
                                                                   "scroll_up", &
@@ -2428,7 +2613,13 @@ module commands_mod
                                                                   "search_backward", &
                                                                   "search_forward", &
                                                                   "select_frame_by_name", &
+                                                                  "select_window_down", &
+                                                                  "select_window_left", &
+                                                                  "select_window_right", &
+                                                                  "select_window_up", &
                                                                   "self_insert_command", &
+                                                                  "send_mail", &
+                                                                  "send_mail_and_exit", &
                                                                   "set_buffer_file_coding_system", &
                                                                   "set_buffer_process_coding_system", &
                                                                   "set_fill_column", &
@@ -2508,7 +2699,11 @@ module commands_mod
                                                                   "shell_script_mode", &
                                                                   "show_paren_local_mode", &
                                                                   "show_paren_mode", &
+                                                                  "show_vc_annotate_changeset_diff_revision_at_line", &
+                                                                  "show_vc_annotate_diff_revision_at_line", &
+                                                                  "show_vc_annotate_log_revision_at_line", &
                                                                   "skeleton_pair_insert_maybe", &
+                                                                  "smerge_mode", &
                                                                   "smie_backward_expression_command", &
                                                                   "smie_close_block", &
                                                                   "smie_config_guess", &
@@ -2522,12 +2717,14 @@ module commands_mod
                                                                   "split_window_below", &
                                                                   "split_window_right", &
                                                                   "start_kbd_macro", &
+                                                                  "start_smerge_session", &
                                                                   "stop_compilation", &
                                                                   "stop_grep", &
                                                                   "string_insert_rectangle", &
                                                                   "string_rectangle", &
                                                                   "suspend_fortmacs", &
                                                                   "suspend_frame", &
+                                                                  "swap_smerge", &
                                                                   "switch_to_buffer", &
                                                                   "switch_to_buffer_other_frame", &
                                                                   "tab_to_tab_stop", &
@@ -2540,6 +2737,7 @@ module commands_mod
                                                                   "tabulated_list_widen_current_column", &
                                                                   "text_mode", &
                                                                   "toggle_input_method", &
+                                                                  "toggle_vc_annotate_annotation_visibility", &
                                                                   "top_level", &
                                                                   "transient_mark_mode", &
                                                                   "transpose_chars", &
@@ -2557,6 +2755,7 @@ module commands_mod
                                                                   "undo", &
                                                                   "undo_only", &
                                                                   "undo_redo", &
+                                                                  "undo_window_change", &
                                                                   "unexpand_abbrev", &
                                                                   "unfill_paragraph", &
                                                                   "universal_argument", &
@@ -2564,10 +2763,16 @@ module commands_mod
                                                                   "universal_argument_more", &
                                                                   "universal_coding_system_argument", &
                                                                   "unix_sync", &
+                                                                  "unquote_mail_printable_region", &
                                                                   "up_group", &
                                                                   "upcase_initials_region", &
                                                                   "upcase_region", &
                                                                   "upcase_word", &
+                                                                  "vc_annotate", &
+                                                                  "vc_annotate_mode", &
+                                                                  "vc_annotate_revision_at_line", &
+                                                                  "vc_annotate_revision_previous_to_line", &
+                                                                  "vc_annotate_working_revision", &
                                                                   "vc_clear_context", &
                                                                   "vc_create_branch", &
                                                                   "vc_create_repo", &
@@ -2605,6 +2810,9 @@ module commands_mod
                                                                   "vc_git_log_edit_toggle_no_verify", &
                                                                   "vc_git_log_edit_toggle_signoff", &
                                                                   "vc_git_log_view_mode", &
+                                                                  "vc_hg_log_edit_mode", &
+                                                                  "vc_hg_log_edit_toggle_amend", &
+                                                                  "vc_hg_log_view_mode", &
                                                                   "vc_ignore", &
                                                                   "vc_log_incoming", &
                                                                   "vc_log_outgoing", &
@@ -2664,9 +2872,13 @@ module commands_mod
                                                                   "what_line", &
                                                                   "what_page", &
                                                                   "where_is", &
-                                                                  "which_function_mode", &
                                                                   "widen", &
+                                                                  "windmove_default_keybindings", &
+                                                                  "windmove_delete_default_keybindings", &
+                                                                  "windmove_mode", &
                                                                   "window_configuration_to_register", &
+                                                                  "window_divider_mode", &
+                                                                  "winner_mode", &
                                                                   "write_abbrev_file", &
                                                                   "write_file", &
                                                                   "zrgrep"]
@@ -2692,6 +2904,12 @@ contains
             p => commands%abort_recursive_edit
         case ("activate_transient_input_method")
             p => commands%activate_transient_input_method
+        case ("add_change_log_entry")
+            p => commands%add_change_log_entry
+        case ("add_change_log_entry_other_window")
+            p => commands%add_change_log_entry_other_window
+        case ("add_diff_change_log_entries_other_window")
+            p => commands%add_diff_change_log_entries_other_window
         case ("add_global_abbrev")
             p => commands%add_global_abbrev
         case ("add_mode_abbrev")
@@ -2724,6 +2942,8 @@ contains
             p => commands%apropos_variable
         case ("async_shell_command")
             p => commands%async_shell_command
+        case ("auto_combine_smerge")
+            p => commands%auto_combine_smerge
         case ("auto_fill_mode")
             p => commands%auto_fill_mode
         case ("auto_revert_mode")
@@ -3012,6 +3232,8 @@ contains
             p => commands%capitalize_region
         case ("capitalize_word")
             p => commands%capitalize_word
+        case ("change_log_mode")
+            p => commands%change_log_mode
         case ("check_parens")
             p => commands%check_parens
         case ("clear_all_abbrevs")
@@ -3020,6 +3242,8 @@ contains
             p => commands%clear_rectangle
         case ("close_buffer")
             p => commands%close_buffer
+        case ("combine_smerge_with_next")
+            p => commands%combine_smerge_with_next
         case ("comint_accumulate")
             p => commands%comint_accumulate
         case ("comint_append_output_to_file")
@@ -3160,6 +3384,8 @@ contains
             p => commands%compile
         case ("compile_goto_error")
             p => commands%compile_goto_error
+        case ("complete_mail_abbrev_alias")
+            p => commands%complete_mail_abbrev_alias
         case ("complete_name")
             p => commands%complete_name
         case ("completion_at_point")
@@ -3168,6 +3394,10 @@ contains
             p => commands%completion_help_at_point
         case ("completion_in_region_mode")
             p => commands%completion_in_region_mode
+        case ("compose_mail")
+            p => commands%compose_mail
+        case ("compose_mail_other_window")
+            p => commands%compose_mail_other_window
         case ("conf_align_assignments")
             p => commands%conf_align_assignments
         case ("conf_colon_mode")
@@ -3260,6 +3490,8 @@ contains
             p => commands%default_indent_new_line
         case ("define_global_abbrev")
             p => commands%define_global_abbrev
+        case ("define_mail_abbrev")
+            p => commands%define_mail_abbrev
         case ("define_mode_abbrev")
             p => commands%define_mode_abbrev
         case ("delete_all_space")
@@ -3292,10 +3524,20 @@ contains
             p => commands%delete_process
         case ("delete_rectangle")
             p => commands%delete_rectangle
+        case ("delete_smerge_current")
+            p => commands%delete_smerge_current
         case ("delete_whitespace_rectangle")
             p => commands%delete_whitespace_rectangle
         case ("delete_window")
             p => commands%delete_window
+        case ("delete_window_down")
+            p => commands%delete_window_down
+        case ("delete_window_left")
+            p => commands%delete_window_left
+        case ("delete_window_right")
+            p => commands%delete_window_right
+        case ("delete_window_up")
+            p => commands%delete_window_up
         case ("describe_bindings")
             p => commands%describe_bindings
         case ("describe_button")
@@ -3362,6 +3604,12 @@ contains
             p => commands%diff_restrict_view
         case ("diff_revert_and_cut_hunk")
             p => commands%diff_revert_and_cut_hunk
+        case ("diff_smerge_base_lower")
+            p => commands%diff_smerge_base_lower
+        case ("diff_smerge_base_upper")
+            p => commands%diff_smerge_base_upper
+        case ("diff_smerge_upper_lower")
+            p => commands%diff_smerge_upper_lower
         case ("diff_split_hunk")
             p => commands%diff_split_hunk
         case ("diff_test_hunk")
@@ -3516,6 +3764,12 @@ contains
             p => commands%disable_command
         case ("display_buffer_other_frame")
             p => commands%display_buffer_other_frame
+        case ("display_vc_annotate_autoscale")
+            p => commands%display_vc_annotate_autoscale
+        case ("display_vc_annotate_default")
+            p => commands%display_vc_annotate_default
+        case ("display_vc_annotate_select")
+            p => commands%display_vc_annotate_select
         case ("do_auto_fill")
             p => commands%do_auto_fill
         case ("down_group")
@@ -3570,6 +3824,8 @@ contains
             p => commands%expand_abbrev
         case ("expand_region_abbrevs")
             p => commands%expand_region_abbrevs
+        case ("extend_smerge")
+            p => commands%extend_smerge
         case ("f90_abbrev_help")
             p => commands%f90_abbrev_help
         case ("f90_abbrev_start")
@@ -3650,6 +3906,8 @@ contains
             p => commands%fill_region
         case ("fill_region_as_paragraph")
             p => commands%fill_region_as_paragraph
+        case ("find_change_log_entry_file")
+            p => commands%find_change_log_entry_file
         case ("find_file")
             p => commands%find_file
         case ("find_file_other_frame")
@@ -3664,12 +3922,30 @@ contains
             p => commands%find_file_read_only_other_window
         case ("find_grep")
             p => commands%find_grep
+        case ("find_vc_annotate_revision_at_line")
+            p => commands%find_vc_annotate_revision_at_line
         case ("first_error")
             p => commands%first_error
         case ("fixup_whitespace")
             p => commands%fixup_whitespace
         case ("flush_lines")
             p => commands%flush_lines
+        case ("follow_delete_other_windows_and_split")
+            p => commands%follow_delete_other_windows_and_split
+        case ("follow_end_of_buffer")
+            p => commands%follow_end_of_buffer
+        case ("follow_first_window")
+            p => commands%follow_first_window
+        case ("follow_last_window")
+            p => commands%follow_last_window
+        case ("follow_mode")
+            p => commands%follow_mode
+        case ("follow_switch_to_buffer")
+            p => commands%follow_switch_to_buffer
+        case ("follow_switch_to_buffer_all")
+            p => commands%follow_switch_to_buffer_all
+        case ("follow_switch_to_current_buffer_all")
+            p => commands%follow_switch_to_current_buffer_all
         case ("font_lock_change_mode")
             p => commands%font_lock_change_mode
         case ("font_lock_debug_fontify")
@@ -3708,6 +3984,8 @@ contains
             p => commands%forward_word
         case ("fundamental_mode")
             p => commands%fundamental_mode
+        case ("generate_log_edit_changelog_from_diff")
+            p => commands%generate_log_edit_changelog_from_diff
         case ("global_auto_revert_mode")
             p => commands%global_auto_revert_mode
         case ("global_font_lock_mode")
@@ -3720,6 +3998,8 @@ contains
             p => commands%goto_line
         case ("goto_line_relative")
             p => commands%goto_line_relative
+        case ("goto_vc_annotate_line")
+            p => commands%goto_vc_annotate_line
         case ("grep")
             p => commands%grep
         case ("grep_change_to_grep_edit_mode")
@@ -4048,8 +4328,6 @@ contains
             p => commands%ibuffer_visit_buffer_other_window_noselect
         case ("ignore")
             p => commands%ignore
-        case ("imenu")
-            p => commands%imenu
         case ("increment_register")
             p => commands%increment_register
         case ("indent_according_to_mode")
@@ -4176,6 +4454,12 @@ contains
             p => commands%info_virtual_index
         case ("insert_abbrevs")
             p => commands%insert_abbrevs
+        case ("insert_mail_abbrev_alias")
+            p => commands%insert_mail_abbrev_alias
+        case ("insert_mail_disposition_notification_to")
+            p => commands%insert_mail_disposition_notification_to
+        case ("insert_mail_file")
+            p => commands%insert_mail_file
         case ("insert_pair")
             p => commands%insert_pair
         case ("insert_parentheses")
@@ -4282,6 +4566,16 @@ contains
             p => commands%justify_current_line
         case ("keep_lines")
             p => commands%keep_lines
+        case ("keep_smerge_all")
+            p => commands%keep_smerge_all
+        case ("keep_smerge_base")
+            p => commands%keep_smerge_base
+        case ("keep_smerge_current")
+            p => commands%keep_smerge_current
+        case ("keep_smerge_lower")
+            p => commands%keep_smerge_lower
+        case ("keep_smerge_upper")
+            p => commands%keep_smerge_upper
         case ("keyboard_quit")
             p => commands%keyboard_quit
         case ("kmacro_add_counter")
@@ -4402,6 +4696,8 @@ contains
             p => commands%log_edit_show_diff
         case ("log_edit_show_files")
             p => commands%log_edit_show_files
+        case ("log_view_annotate_version")
+            p => commands%log_view_annotate_version
         case ("log_view_copy_revision")
             p => commands%log_view_copy_revision
         case ("log_view_diff")
@@ -4438,6 +4734,40 @@ contains
             p => commands%log_view_unmark_entry
         case ("lossage_size")
             p => commands%lossage_size
+        case ("mail")
+            p => commands%mail
+        case ("mail_abbrev_end_of_buffer")
+            p => commands%mail_abbrev_end_of_buffer
+        case ("mail_abbrev_next_line")
+            p => commands%mail_abbrev_next_line
+        case ("mail_abbrevs_mode")
+            p => commands%mail_abbrevs_mode
+        case ("mail_bcc")
+            p => commands%mail_bcc
+        case ("mail_cc")
+            p => commands%mail_cc
+        case ("mail_dont_send")
+            p => commands%mail_dont_send
+        case ("mail_fcc")
+            p => commands%mail_fcc
+        case ("mail_mail_followup_to")
+            p => commands%mail_mail_followup_to
+        case ("mail_mail_reply_to")
+            p => commands%mail_mail_reply_to
+        case ("mail_mode")
+            p => commands%mail_mode
+        case ("mail_other_window")
+            p => commands%mail_other_window
+        case ("mail_reply_to")
+            p => commands%mail_reply_to
+        case ("mail_signature")
+            p => commands%mail_signature
+        case ("mail_subject")
+            p => commands%mail_subject
+        case ("mail_text")
+            p => commands%mail_text
+        case ("mail_to")
+            p => commands%mail_to
         case ("make_frame_command")
             p => commands%make_frame_command
         case ("makefile_automake_mode")
@@ -4502,6 +4832,8 @@ contains
             p => commands%mark_whole_buffer
         case ("mark_word")
             p => commands%mark_word
+        case ("merge_mail_abbrevs")
+            p => commands%merge_mail_abbrevs
         case ("messages_buffer_mode")
             p => commands%messages_buffer_mode
         case ("minibuffer_complete")
@@ -4556,12 +4888,18 @@ contains
             p => commands%next_error
         case ("next_error_no_select")
             p => commands%next_error_no_select
+        case ("next_follow_window")
+            p => commands%next_follow_window
         case ("next_history_element")
             p => commands%next_history_element
         case ("next_line")
             p => commands%next_line
         case ("next_line_or_history_element")
             p => commands%next_line_or_history_element
+        case ("next_smerge_conflict")
+            p => commands%next_smerge_conflict
+        case ("next_vc_annotate_revision")
+            p => commands%next_vc_annotate_revision
         case ("normal_mode")
             p => commands%normal_mode
         case ("number_to_register")
@@ -4602,6 +4940,10 @@ contains
             p => commands%other_window_backward
         case ("paste")
             p => commands%paste
+        case ("paste_mail_original")
+            p => commands%paste_mail_original
+        case ("paste_mail_region")
+            p => commands%paste_mail_region
         case ("paste_previous")
             p => commands%paste_previous
         case ("paste_rectangle")
@@ -4624,12 +4966,18 @@ contains
             p => commands%previous_error
         case ("previous_error_no_select")
             p => commands%previous_error_no_select
+        case ("previous_follow_window")
+            p => commands%previous_follow_window
         case ("previous_history_element")
             p => commands%previous_history_element
         case ("previous_line")
             p => commands%previous_line
         case ("previous_line_or_history_element")
             p => commands%previous_line_or_history_element
+        case ("previous_smerge_conflict")
+            p => commands%previous_smerge_conflict
+        case ("previous_vc_annotate_revision")
+            p => commands%previous_vc_annotate_revision
         case ("process_menu_delete_process")
             p => commands%process_menu_delete_process
         case ("process_menu_mode")
@@ -4698,6 +5046,8 @@ contains
             p => commands%query_replace_regexp
         case ("quit_window")
             p => commands%quit_window
+        case ("quote_mail_printable_region")
+            p => commands%quote_mail_printable_region
         case ("quoted_insert")
             p => commands%quoted_insert
         case ("raise_expression")
@@ -4722,8 +5072,12 @@ contains
             p => commands%read_y_or_n_insert_other
         case ("read_y_or_n_insert_y")
             p => commands%read_y_or_n_insert_y
+        case ("rebuild_mail_abbrevs")
+            p => commands%rebuild_mail_abbrevs
         case ("recenter")
             p => commands%recenter
+        case ("recenter_follow")
+            p => commands%recenter_follow
         case ("recenter_top_bottom")
             p => commands%recenter_top_bottom
         case ("recentf")
@@ -4762,8 +5116,12 @@ contains
             p => commands%rectangle_right_char
         case ("recursive_edit")
             p => commands%recursive_edit
+        case ("redo_window_change")
+            p => commands%redo_window_change
         case ("redraw_display")
             p => commands%redraw_display
+        case ("redraw_follow")
+            p => commands%redraw_follow
         case ("reindent_then_newline_and_indent")
             p => commands%reindent_then_newline_and_indent
         case ("repeat")
@@ -4778,6 +5136,10 @@ contains
             p => commands%replace_string
         case ("reset_language_environment")
             p => commands%reset_language_environment
+        case ("resolve_smerge")
+            p => commands%resolve_smerge
+        case ("resolve_smerge_all")
+            p => commands%resolve_smerge_all
         case ("revert_buffer")
             p => commands%revert_buffer
         case ("revert_buffer_with_coding_system")
@@ -4812,6 +5174,14 @@ contains
             p => commands%scroll_down
         case ("scroll_down_command")
             p => commands%scroll_down_command
+        case ("scroll_follow_down")
+            p => commands%scroll_follow_down
+        case ("scroll_follow_down_window")
+            p => commands%scroll_follow_down_window
+        case ("scroll_follow_up")
+            p => commands%scroll_follow_up
+        case ("scroll_follow_up_window")
+            p => commands%scroll_follow_up_window
         case ("scroll_other_window")
             p => commands%scroll_other_window
         case ("scroll_other_window_down")
@@ -4828,8 +5198,20 @@ contains
             p => commands%search_forward
         case ("select_frame_by_name")
             p => commands%select_frame_by_name
+        case ("select_window_down")
+            p => commands%select_window_down
+        case ("select_window_left")
+            p => commands%select_window_left
+        case ("select_window_right")
+            p => commands%select_window_right
+        case ("select_window_up")
+            p => commands%select_window_up
         case ("self_insert_command")
             p => commands%self_insert_command
+        case ("send_mail")
+            p => commands%send_mail
+        case ("send_mail_and_exit")
+            p => commands%send_mail_and_exit
         case ("set_buffer_file_coding_system")
             p => commands%set_buffer_file_coding_system
         case ("set_buffer_process_coding_system")
@@ -4988,8 +5370,16 @@ contains
             p => commands%show_paren_local_mode
         case ("show_paren_mode")
             p => commands%show_paren_mode
+        case ("show_vc_annotate_changeset_diff_revision_at_line")
+            p => commands%show_vc_annotate_changeset_diff_revision_at_line
+        case ("show_vc_annotate_diff_revision_at_line")
+            p => commands%show_vc_annotate_diff_revision_at_line
+        case ("show_vc_annotate_log_revision_at_line")
+            p => commands%show_vc_annotate_log_revision_at_line
         case ("skeleton_pair_insert_maybe")
             p => commands%skeleton_pair_insert_maybe
+        case ("smerge_mode")
+            p => commands%smerge_mode
         case ("smie_backward_expression_command")
             p => commands%smie_backward_expression_command
         case ("smie_close_block")
@@ -5016,6 +5406,8 @@ contains
             p => commands%split_window_right
         case ("start_kbd_macro")
             p => commands%start_kbd_macro
+        case ("start_smerge_session")
+            p => commands%start_smerge_session
         case ("stop_compilation")
             p => commands%stop_compilation
         case ("stop_grep")
@@ -5028,6 +5420,8 @@ contains
             p => commands%suspend_fortmacs
         case ("suspend_frame")
             p => commands%suspend_frame
+        case ("swap_smerge")
+            p => commands%swap_smerge
         case ("switch_to_buffer")
             p => commands%switch_to_buffer
         case ("switch_to_buffer_other_frame")
@@ -5052,6 +5446,8 @@ contains
             p => commands%text_mode
         case ("toggle_input_method")
             p => commands%toggle_input_method
+        case ("toggle_vc_annotate_annotation_visibility")
+            p => commands%toggle_vc_annotate_annotation_visibility
         case ("top_level")
             p => commands%top_level
         case ("transient_mark_mode")
@@ -5086,6 +5482,8 @@ contains
             p => commands%undo_only
         case ("undo_redo")
             p => commands%undo_redo
+        case ("undo_window_change")
+            p => commands%undo_window_change
         case ("unexpand_abbrev")
             p => commands%unexpand_abbrev
         case ("unfill_paragraph")
@@ -5100,6 +5498,8 @@ contains
             p => commands%universal_coding_system_argument
         case ("unix_sync")
             p => commands%unix_sync
+        case ("unquote_mail_printable_region")
+            p => commands%unquote_mail_printable_region
         case ("up_group")
             p => commands%up_group
         case ("upcase_initials_region")
@@ -5108,6 +5508,16 @@ contains
             p => commands%upcase_region
         case ("upcase_word")
             p => commands%upcase_word
+        case ("vc_annotate")
+            p => commands%vc_annotate
+        case ("vc_annotate_mode")
+            p => commands%vc_annotate_mode
+        case ("vc_annotate_revision_at_line")
+            p => commands%vc_annotate_revision_at_line
+        case ("vc_annotate_revision_previous_to_line")
+            p => commands%vc_annotate_revision_previous_to_line
+        case ("vc_annotate_working_revision")
+            p => commands%vc_annotate_working_revision
         case ("vc_clear_context")
             p => commands%vc_clear_context
         case ("vc_create_branch")
@@ -5182,6 +5592,12 @@ contains
             p => commands%vc_git_log_edit_toggle_signoff
         case ("vc_git_log_view_mode")
             p => commands%vc_git_log_view_mode
+        case ("vc_hg_log_edit_mode")
+            p => commands%vc_hg_log_edit_mode
+        case ("vc_hg_log_edit_toggle_amend")
+            p => commands%vc_hg_log_edit_toggle_amend
+        case ("vc_hg_log_view_mode")
+            p => commands%vc_hg_log_view_mode
         case ("vc_ignore")
             p => commands%vc_ignore
         case ("vc_log_incoming")
@@ -5300,12 +5716,20 @@ contains
             p => commands%what_page
         case ("where_is")
             p => commands%where_is
-        case ("which_function_mode")
-            p => commands%which_function_mode
         case ("widen")
             p => commands%widen
+        case ("windmove_default_keybindings")
+            p => commands%windmove_default_keybindings
+        case ("windmove_delete_default_keybindings")
+            p => commands%windmove_delete_default_keybindings
+        case ("windmove_mode")
+            p => commands%windmove_mode
         case ("window_configuration_to_register")
             p => commands%window_configuration_to_register
+        case ("window_divider_mode")
+            p => commands%window_divider_mode
+        case ("winner_mode")
+            p => commands%winner_mode
         case ("write_abbrev_file")
             p => commands%write_abbrev_file
         case ("write_file")

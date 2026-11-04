@@ -67,10 +67,11 @@ module font_core_mod
               font_lock_form_procedure, font_lock_function_procedure, major_mode_of_current, font_lock_properties_procedure
 
     !> Overrides of a highlight (OVERRIDE in `font_lock_keywords'): keep
-    !> an existing face (FONT_LOCK_OVERRIDE_NO), override it (FONT_LOCK_OVERRIDE_YES), keep it and add only where
+    !> an existing face (FONT_LOCK_OVERRIDE_NONE), replace it
+    !> (FONT_LOCK_OVERRIDE_REPLACE), keep it and add only where
     !> there is none (`keep'), merge before it (`prepend') or after it
     !> (`append').
-    integer, parameter, public :: FONT_LOCK_OVERRIDE_NO = 0, FONT_LOCK_OVERRIDE_YES = 1, FONT_LOCK_OVERRIDE_KEEP = 2, &
+    integer, parameter, public :: FONT_LOCK_OVERRIDE_NONE = 0, FONT_LOCK_OVERRIDE_REPLACE = 1, FONT_LOCK_OVERRIDE_KEEP = 2, &
                                   FONT_LOCK_OVERRIDE_PREPEND = 3, FONT_LOCK_OVERRIDE_APPEND = 4
 
     abstract interface
@@ -140,7 +141,7 @@ module font_core_mod
         integer :: subexp = 0
         character(len=:), allocatable :: face
         procedure(font_lock_face_procedure), pointer, nopass :: face_function => null()
-        integer :: override = FONT_LOCK_OVERRIDE_NO
+        integer :: override = FONT_LOCK_OVERRIDE_NONE
         logical :: laxmatch = .false.
         character(len=64), allocatable :: true_properties(:)
         character(len=64), allocatable :: nil_properties(:)

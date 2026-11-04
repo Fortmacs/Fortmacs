@@ -1,7 +1,7 @@
 ! window_config_mod.f90 -- window configurations.
 ! Ported from GNU Emacs 31.1 src/window.c (save_window_save,
 ! Fcurrent_window_configuration, Fset_window_configuration,
-! delete_all_child_windows).
+! delete_all_child_windows, compare_window_configurations).
 !
 ! Copyright (C) 1985-1987, 1993-1998, 2000-2026 Free Software Foundation,
 ! Inc.
@@ -136,6 +136,8 @@ contains
         config%current_buffer = current_buffer()
         config%minibuf_scroll_window = null_handle()
         if (minibuf_level > 0) config%minibuf_scroll_window = minibuffer_scroll_window
+        config%frame_cols = selected_frame%text_cols
+        config%frame_lines = selected_frame%text_lines
     end subroutine current_window_configuration
 
     !> The frame has its windows.  Not a port.
@@ -498,4 +500,88 @@ contains
         config%current_window = null_handle()
         config%current_buffer = null_handle()
     end subroutine destroy_window_configuration
+
+    module subroutine copy_window_configuration(config, copy)
+        type(window_configuration_type), intent(in) :: config
+        type(window_configuration_type), intent(out) :: copy
+        type(status_type) :: status
+        integer :: k
+
+        copy%root_window = config%root_window
+        copy%current_window = config%current_window
+        copy%current_buffer = config%current_buffer
+        copy%minibuf_scroll_window = config%minibuf_scroll_window
+        copy%frame_cols = config%frame_cols
+        copy%frame_lines = config%frame_lines
+        if (.not. allocated(config%saved)) return
+        allocate (copy%saved(size(config%saved)))
+
+        do k = 1, size(config%saved)
+            associate (p => config%saved(k), q => copy%saved(k))
+                q%window = p%window
+                q%buffer = p%buffer
+                q%left_col = p%left_col
+                q%top_line = p%top_line
+                q%total_cols = p%total_cols
+                q%total_lines = p%total_lines
+                q%hscroll = p%hscroll
+                q%dedicated = p%dedicated
+                q%divider = p%divider
+                q%normal_lines = p%normal_lines
+                q%normal_cols = p%normal_cols
+                q%parent = p%parent
+                q%prev = p%prev
+                q%start = null_handle()
+                q%pointm = null_handle()
+                if (p%start%index /= 0) call copy_saved_marker(p%start, p%buffer, q%start)
+                if (p%pointm%index /= 0) call copy_saved_marker(p%pointm, p%buffer, q%pointm)
+                if (wtable%is_live(p%window)) windows(p%window%index)%config_refs = windows(p%window%index)%config_refs + 1
+            end associate
+        end do
+
+    contains
+
+        !> A new marker M in BUFFER where marker FROM points.  Not a port.
+        subroutine copy_saved_marker(from, buffer, m)
+            type(handle_type), intent(in) :: from, buffer
+            type(handle_type), intent(out) :: m
+            integer(int64) :: pos
+
+            call make_marker(m)
+            call marker_position(from, pos, status)
+            if (.not. status%ok()) return
+            if (is_buffer_live(buffer)) call set_marker(m, pos, status, buffer)
+        end subroutine copy_saved_marker
+    end subroutine copy_window_configuration
+
+    module function is_window_configuration_equal(x, y) result(equal)
+        type(window_configuration_type), intent(in) :: x, y
+        logical :: equal
+        integer :: i
+
+        equal = .false.
+        if (.not. allocated(x%saved) .or. .not. allocated(y%saved)) return
+        ! Frame settings must match.
+        if (x%frame_cols /= y%frame_cols .or. x%frame_lines /= y%frame_lines) return
+        if (.not. same_handle(x%current_buffer, y%current_buffer)) return
+        ! Verify that the two configurations have the same number of windows.
+        if (size(x%saved) /= size(y%saved)) return
+
+        do i = 1, size(x%saved)
+            associate (sw1 => x%saved(i), sw2 => y%saved(i))
+                ! The "current" windows in the two configurations must
+                ! correspond to each other.
+                if (same_handle(x%current_window, sw1%window) .neqv. same_handle(y%current_window, sw2%window)) return
+                ! Windows' buffers must match.
+                if (.not. same_handle(sw1%buffer, sw2%buffer)) return
+                if (sw1%left_col /= sw2%left_col .or. sw1%top_line /= sw2%top_line .or. &
+                    sw1%total_cols /= sw2%total_cols .or. sw1%total_lines /= sw2%total_lines) return
+                ! The next two disjuncts check the window structure for
+                ! equality.
+                if (sw1%parent /= sw2%parent .or. sw1%prev /= sw2%prev) return
+            end associate
+        end do
+
+        equal = .true.
+    end function is_window_configuration_equal
 end submodule window_config_mod

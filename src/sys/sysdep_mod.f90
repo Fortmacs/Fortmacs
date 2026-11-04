@@ -53,7 +53,7 @@ module sysdep_mod
                              tm_type, c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_sync, &
                              c_fchmod, c_fchmodat, c_fchown, c_getgrgid, c_setpwent, c_getpwent, c_endpwent, &
                              c_setgrent, c_getgrent, c_endgrent, group_type, timespec_type, O_CREAT, O_EXCL, &
-                             O_TRUNC, RENAME_NOREPLACE, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP, &
+                             O_TRUNC, O_APPEND, RENAME_NOREPLACE, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP, &
                              c_setsid, c_kill, c_tcgetpgrp, c_ioctl_int, c_fcntl_int, SIGQUIT, SIGPIPE, &
                              TIOCSCTTY, F_SETFD, FD_CLOEXEC, F_GETFL, F_SETFL, O_NONBLOCK, EAGAIN, &
                              TCSANOW, OPOST, OLCUC, NLDLY, CRDLY, BSDLY, VTDLY, FFDLY, IUCLC, CSIZE, &
@@ -64,7 +64,7 @@ module sysdep_mod
                              IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
                              IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, &
                              IN_ALL_EVENTS, IN_MOVE, IN_CLOSE, c_tcdrain, c_ioctl_char, c_getpid, c_getpgrp, c_setpgid, &
-                             TIOCSTI, SIGTSTP
+                             TIOCSTI, SIGTSTP, SIGHUP
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
@@ -81,8 +81,8 @@ module sysdep_mod
               reset_sys_modes, get_tty_size, set_tty_size, fortmacs_read, &
               fortmacs_full_write, fortmacs_write, input_available
     public :: install_window_change_handler, window_change_pending, clear_window_change
-    public :: sys_suspend, stuff_char, SIGTSTP
-    public :: signal_disposition_type, ignore_signal, restore_signal, fortmacs_getpid, fortmacs_getpgrp, sys_setpgid
+    public :: sys_suspend, stuff_char, SIGTSTP, SIGHUP
+    public :: signal_disposition_type, ignore_signal, default_signal, restore_signal, fortmacs_getpid, fortmacs_getpgrp, sys_setpgid
     public :: install_interrupt_handler, interrupt_pending
     public :: open_pty, close_fd, is_tabs_safe, fortmacs_isatty
     public :: file_stat_type, fortmacs_open_read, fortmacs_creat, sys_access, sys_rename, &
@@ -101,7 +101,7 @@ module sysdep_mod
               fortmacs_set_umask, fortmacs_sync, &
               sys_fchmod, sys_chmod_at, sys_fchown, group_name_of_gid, user_name_of_uid, system_user_names, &
               system_group_names
-    public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
+    public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, O_APPEND, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
     public :: fortmacs_spawn_async, child_setup_tty, fortmacs_kill, ignore_sigpipe, fortmacs_write_nonblock, &
               set_nonblocking, fortmacs_dup_cloexec, inputs_available, fortmacs_num_processors, &
               fortmacs_clock_realtime, fortmacs_clock_process_cputime, sys_localtime, sys_mktime, sys_set_time_zone
@@ -124,8 +124,8 @@ module sysdep_mod
         character(len=:), allocatable :: name
     end type inotify_raw_event_type
 
-    !> How a signal was handled before `ignore_signal', so that
-    !> `restore_signal' can put it back.
+    !> How a signal was handled before `ignore_signal' or
+    !> `default_signal', so that `restore_signal' can put it back.
     type :: signal_disposition_type
         private
         type(c_funptr) :: handler = c_null_funptr
@@ -570,6 +570,16 @@ contains
 
         old%handler = c_signal(int(sig, c_int), transfer(1_c_intptr_t, c_null_funptr))
     end subroutine ignore_signal
+
+    !> Set signal `sig' to its default action, saving in `old' how it was
+    !> handled.  A child inherits an ignored signal through exec, but not
+    !> a handler, which exec puts back to the default.  Not a port.
+    subroutine default_signal(sig, old)
+        integer, intent(in) :: sig
+        type(signal_disposition_type), intent(out) :: old
+
+        old%handler = c_signal(int(sig, c_int), c_null_funptr)
+    end subroutine default_signal
 
     !> Handle signal `sig' again as `old' says.  Not a port.
     subroutine restore_signal(sig, old)

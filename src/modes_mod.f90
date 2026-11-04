@@ -71,6 +71,7 @@ module modes_mod
         type(major_mode_type) :: js_mode
         type(major_mode_type) :: log_edit_mode
         type(major_mode_type) :: log_view_mode
+        type(major_mode_type) :: mail_mode
         type(major_mode_type) :: makefile_automake_mode
         type(major_mode_type) :: makefile_bsdmake_mode
         type(major_mode_type) :: makefile_gmake_mode
@@ -93,10 +94,13 @@ module modes_mod
         type(major_mode_type) :: special_mode
         type(major_mode_type) :: tabulated_list_mode
         type(major_mode_type) :: text_mode
+        type(major_mode_type) :: vc_annotate_mode
         type(major_mode_type) :: vc_compilation_mode
         type(major_mode_type) :: vc_dir_mode
         type(major_mode_type) :: vc_git_log_edit_mode
         type(major_mode_type) :: vc_git_log_view_mode
+        type(major_mode_type) :: vc_hg_log_edit_mode
+        type(major_mode_type) :: vc_hg_log_view_mode
         type(major_mode_type) :: vc_svn_log_view_mode
     end type major_mode_table_type
 
@@ -114,11 +118,13 @@ module modes_mod
         type(minor_mode_type) :: electric_indent_mode
         type(minor_mode_type) :: electric_pair_local_mode
         type(minor_mode_type) :: electric_pair_mode
+        type(minor_mode_type) :: follow_mode
         type(minor_mode_type) :: font_lock_mode
         type(minor_mode_type) :: global_auto_revert_mode
         type(minor_mode_type) :: global_font_lock_mode
         type(minor_mode_type) :: ibuffer_auto_mode
         type(minor_mode_type) :: indent_tabs_mode
+        type(minor_mode_type) :: mail_abbrevs_mode
         type(minor_mode_type) :: read_only_mode
         type(minor_mode_type) :: read_passwd_mode
         type(minor_mode_type) :: recentf_mode
@@ -132,9 +138,12 @@ module modes_mod
         type(minor_mode_type) :: shell_dirtrack_mode
         type(minor_mode_type) :: show_paren_local_mode
         type(minor_mode_type) :: show_paren_mode
+        type(minor_mode_type) :: smerge_mode
         type(minor_mode_type) :: transient_mark_mode
         type(minor_mode_type) :: view_mode
-        type(minor_mode_type) :: which_function_mode
+        type(minor_mode_type) :: windmove_mode
+        type(minor_mode_type) :: window_divider_mode
+        type(minor_mode_type) :: winner_mode
     end type minor_mode_table_type
 
     !> The built-in major modes.

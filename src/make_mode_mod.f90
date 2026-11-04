@@ -54,6 +54,7 @@ module make_mode_mod
                           set_buffer, current_buffer, erase_buffer, close_buffer
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use derived_mod, only: is_derived_mode
     use keymap_mod, only: keymap_set
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, skip_chars_forward, &
@@ -80,7 +81,7 @@ module make_mode_mod
     use dired_mod, only: file_name_all_completions
     use callproc_mod, only: execute_process
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_PREPEND, &
+                             font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_PREPEND, &
                              FONT_LOCK_OVERRIDE_APPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     use regexp_opt_mod, only: regexp_opt, REGEXP_OPT_GROUP
@@ -94,7 +95,6 @@ module make_mode_mod
     use minibuffer_mod, only: completing_read, completion_at_point_functions
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use imenu_mod, only: imenu_patterns, imenu_pattern_type
-    use add_log_mod, only: add_log_current_subprogram_function
     use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
@@ -811,7 +811,7 @@ contains
             call append(font_lock_keyword("^[ "//TAB//"]+$", face="makefile_space"))
             ! Highlight shell comments that Make treats as commands,
             ! since these can fool people.
-            h1(1) = h(0, "makefile_space", FONT_LOCK_OVERRIDE_YES)
+            h1(1) = h(0, "makefile_space", FONT_LOCK_OVERRIDE_REPLACE)
             call append(font_lock_keyword("^"//TAB//"+#", highlights=h1))
             ! Highlight spaces that precede tabs.
             ! They can make a tab fail to be effective.
@@ -848,7 +848,7 @@ contains
                                        VA = "font_lock_variable_name_face", TY = "font_lock_type_face", &
                                        PERL = "makefile_makepp_perl", SH = "makefile_shell", TG = "makefile_targets"
         integer, parameter :: PREPEND = FONT_LOCK_OVERRIDE_PREPEND, APPEND = FONT_LOCK_OVERRIDE_APPEND, &
-                              T = FONT_LOCK_OVERRIDE_YES
+                              T = FONT_LOCK_OVERRIDE_REPLACE
         type(font_lock_keyword_type) :: extra(16)
         type(font_lock_keyword_type), allocatable :: base(:)
         type(font_lock_highlight_type) :: h1(1), h2(2), h3(3), a(1)

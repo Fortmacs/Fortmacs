@@ -30,18 +30,24 @@
 !> (`vc_git_log_edit_mode', with the Sign-Off and No-Verify headers).
 !> Tags and branches, pulling and pushing, and the incoming revision.
 !>
+!> Conflicts: visiting a conflicted file turns on Smerge mode
+!> (`vc_git_find_file_hook'), and saving it without conflict markers
+!> marks it resolved (`vc_git_resolve_conflicts').
+!>
+!> Annotating: `git blame' (`vc_git_annotate_command') and its lines, the
+!> next revision and the file name changes of a revision.
+!>
 !> Deferred: the backend functions of the deferred VC commands (log,
-!> annotate, dir-status, merging, stashes,
+!> dir-status, merging, stashes,
 !> working trees, region history, patches and checking in patches,
 !> asynchronous checkins, amending with \[vc_git_log_edit_toggle_amend]
-!> and the published-history checks it needs), `vc_git_find_file_hook'
-!> (Smerge mode for conflicts) and `vc_git_resolve_conflicts', the
+!> and the published-history checks it needs), the
 !> difftool path of `vc_git_diff' (`vc_git_diff_switches' VC_SWITCHES_UNSPECIFIED), the
 !> coding systems of Git's output (UTF-8 is used), remote directories
 !> and the other `vc_git_' options of those features.
 module vc_git_mod
-    use, intrinsic :: iso_fortran_env, only: int32, int64
-    use data_mod, only: number_to_string
+    use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use data_mod, only: number_to_string, choice_setting_type
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, xfixnum, vtag, V_INTEGER
@@ -62,8 +68,14 @@ module vc_git_mod
                             VC_UP_TO_DATE, VC_EDITED, &
                             VC_ADDED, VC_REMOVED, VC_CONFLICT, VC_MISSING, VC_IGNORED, VC_UNREGISTERED, &
                             VC_MODEL_IMPLICIT, VC_STATE_UNKNOWN, vc_state_name, vc_dir_entry_type, vc_dir_fileinfo_type, &
-                            vc_dir_update_procedure
-    use vc_dispatcher_mod, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
+                            vc_dir_update_procedure, vc_file_name_change_type, VC_REVISION_GRANULARITY_REPOSITORY
+    use vc_dispatcher_mod, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT, &
+                                 VC_OKSTATUS_ANY, vc_resynch_buffer, VC_NOQUERY_YES
+    use timefns_mod, only: time_type, decoded_time_type, encode_time, real, DECODED_TIME_DST_NO
+    use vc_hooks_mod, only: vc_resolve_conflicts
+    use vc_mod, only: message_vc_unresolved_conflicts
+    use files_mod, only: after_save_hook
+    use smerge_mode_mod, only: start_smerge_session
     use ewoc_mod, only: ewoc_part_type
     use vc_mod, only: vc_switches
     use vc_hooks_mod, only: VC_REVISION_GRANULARITY_REPOSITORY
@@ -84,7 +96,10 @@ module vc_git_mod
 
     public :: init_vc_git, vc_git_registered, vc_git_state, vc_git_working_revision, vc_git_mode_line_string, &
               vc_git_root, vc_git_command, vc_git_previous_revision, vc_git_revision_table, vc_git_symbolic_commit, &
-              vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version
+              vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version, vc_git_find_file_hook, &
+              vc_git_conflicted_files, get_vc_git_commands_in_progress
+    public :: vc_git_annotate_command, vc_git_annotate_time, extract_vc_git_annotate_revision_at_line, vc_git_next_revision, &
+              vc_git_file_name_changes
     public :: vc_git_branches, vc_git_branch_remotes, vc_git_create_tag, vc_git_retrieve_tag, vc_git_pull, vc_git_push, &
               vc_git_incoming_revision, vc_git_mergebase
 
@@ -92,6 +107,43 @@ module vc_git_mod
     !> If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches'.  If VC_SWITCHES_NONE, use no switches.
     !> Port of vc-git.el vc-git-diff-switches.
     type(vc_switches_type), target, public :: vc_git_diff_switches = vc_switches_type(kind=VC_SWITCHES_NONE)
+
+    !> Values of `vc_git_resolve_conflicts' besides .true. and .false.:
+    !> resolve and maybe unstage all files, use `vc_resolve_conflicts'.
+    integer, parameter, public :: VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE = 2, VC_GIT_RESOLVE_CONFLICTS_DEFAULT = 3
+
+    !> Whether to mark conflicted file as resolved upon saving.
+    !> That is performed after all conflict markers in it have been removed.
+    !>
+    !> If this is .true. and there are no more conflict markers in the file,
+    !> VC will mark the conflicts in the saved file as resolved.
+    !>
+    !> If the value is VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE, and no merge,
+    !> rebase or similar operation is in progress, then after the last
+    !> conflict is resolved, also clear the staging area.
+    !>
+    !> A value of VC_GIT_RESOLVE_CONFLICTS_DEFAULT means to use the value of
+    !> `vc_resolve_conflicts'.  Port of vc-git.el vc-git-resolve-conflicts.
+    type(choice_setting_type), public :: vc_git_resolve_conflicts = &
+                                         choice_setting_type(name="vc_git_resolve_conflicts", &
+                                                             choice=VC_GIT_RESOLVE_CONFLICTS_DEFAULT)
+
+    !> The Git commands in progress in a worktree (what
+    !> `get_vc_git_commands_in_progress' finds).
+    type, public :: vc_git_commands_in_progress_type
+        logical :: revert = .false., cherry_pick = .false., rebase = .false., am = .false., merge = .false., &
+                   bisect = .false.
+    end type vc_git_commands_in_progress_type
+
+    ! The backend's index in `vc_backends'.
+    integer :: git_backend = 0
+    !> String or list of strings specifying switches for Git blame under VC.
+    !> If VC_SWITCHES_UNSPECIFIED, use the value of `vc_annotate_switches'.  If VC_SWITCHES_NONE, use no switches.
+    !>
+    !> Tip: Set this to "-w" to make Git blame ignore whitespace when
+    !> comparing changes.  See Man page `git-blame' for more.  Port of
+    !> vc-git.el vc-git-annotate-switches.
+    type(vc_switches_type), target, public :: vc_git_annotate_switches
 
     !> Name of the Git executable (excluding any arguments).  Port of
     !> vc-git.el vc-git-program.
@@ -227,7 +279,7 @@ module vc_git_mod
     !> The version of Git (vc-git--program-version), "" until known.
     character(len=:), allocatable :: program_version
 
-    character, parameter :: NUL = achar(0), LF = achar(10)
+    character, parameter :: NUL = achar(0), LF = achar(10), TAB = achar(9)
 
     !> What `vc_git_branch_remotes' gives: the remote-tracking branches
     !> UPSTREAM (the configured upstream) and PUSH (of a distinct push
@@ -812,7 +864,7 @@ contains
         end if
 
         s = ""
-        if (vc_display_status /= VC_DISPLAY_STATUS_NO_BACKEND) s = "Git"
+        if (vc_display_status%choice /= VC_DISPLAY_STATUS_NO_BACKEND) s = "Git"
         s = s//indicator//disp_rev
         found = .true.
     end subroutine vc_git_mode_line_string
@@ -1675,16 +1727,19 @@ contains
 
     !> Move to the log entry for REVISION.
     !> REVISION may have the form BRANCH, BRANCH~N,
-    !> or BRANCH^ (where "^" can be repeated).  Port of
+    !> or BRANCH^ (where "^" can be repeated).  FOUND, when present, tells
+    !> whether the entry was found.  Port of
     !> vc-git.el:vc-git-show-log-entry.
-    recursive subroutine vc_git_show_log_entry(revision)
+    recursive subroutine show_vc_git_log_entry(revision, found)
         use search_mod, only: search_forward, string_match, match_end_in_string => match_end, &
                               match_beginning_in_string => match_beginning
         use cmds_mod, only: beginning_of_line
         character(len=*), intent(in) :: revision
-        integer(int64) :: found, count
+        logical, intent(out), optional :: found
+        integer(int64) :: pos, count
         type(status_type) :: st
 
+        pos = 0
         call goto_char(point_min())
 
         if (len(revision) > 0) then
@@ -1697,14 +1752,15 @@ contains
             end if
 
             if (count > 0) then
-                call search_forward(LF//"commit "//revision, found, st, noerror=SEARCH_NOERROR, count=count)
+                call search_forward(LF//"commit "//revision, pos, st, noerror=SEARCH_NOERROR, count=count)
             else
-                call search_forward(LF//"commit "//revision, found, st, noerror=SEARCH_NOERROR)
+                call search_forward(LF//"commit "//revision, pos, st, noerror=SEARCH_NOERROR)
             end if
         end if
 
+        if (present(found)) found = pos > 0
         call beginning_of_line()
-    end subroutine vc_git_show_log_entry
+    end subroutine show_vc_git_log_entry
 
     !> The expanded log entry of REVISION: its full log message.  Port of
     !> vc-git.el:vc-git-expanded-log-entry.
@@ -2516,36 +2572,50 @@ contains
         full = trim_right(out)//"/"
     end function vc_git_git_path
 
-    ! Return headers for Git commands in progress in this worktree.  Port of
-    ! vc-git.el:vc-git-dir--in-progress-headers with
-    ! vc-git--cmds-in-progress (the commands it shows).
-    subroutine vc_git_dir_in_progress_headers(parts)
-        type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
-        character(len=:), allocatable :: gitdir, f
-        type(status_type) :: st
-        logical :: bisect, rebase
+    !> The Git commands in progress in this worktree.  Port of
+    !> vc-git.el:vc-git--cmds-in-progress.
+    function get_vc_git_commands_in_progress() result(cmds)
+        type(vc_git_commands_in_progress_type) :: cmds
+        character(len=:), allocatable :: gitdir
 
         gitdir = vc_git_git_path()
         ! See contrib/completion/git-prompt.sh in git.git.
-        call expand_file_name("rebase-merge", f, st, gitdir)
-        rebase = is_file_directory(f)
+        cmds%revert = file_exists(in_gitdir("REVERT_HEAD"))
+        cmds%cherry_pick = file_exists(in_gitdir("CHERRY_PICK_HEAD"))
+        cmds%rebase = is_file_directory(in_gitdir("rebase-merge"))
+        if (.not. cmds%rebase) cmds%rebase = file_exists(in_gitdir("rebase-apply/rebasing"))
+        cmds%am = file_exists(in_gitdir("rebase-apply/applying"))
+        cmds%merge = file_exists(in_gitdir("MERGE_HEAD"))
+        cmds%bisect = file_exists(in_gitdir("BISECT_START"))
 
-        if (.not. rebase) then
-            call expand_file_name("rebase-apply/rebasing", f, st, gitdir)
-            rebase = file_exists(f)
-        end if
+    contains
 
-        call expand_file_name("BISECT_START", f, st, gitdir)
-        bisect = file_exists(f)
+        ! (expand-file-name NAME gitdir)
+        function in_gitdir(name) result(f)
+            character(len=*), intent(in) :: name
+            character(len=:), allocatable :: f
+            type(status_type) :: st
+
+            call expand_file_name(name, f, st, gitdir)
+        end function in_gitdir
+    end function get_vc_git_commands_in_progress
+
+    ! Return headers for Git commands in progress in this worktree.  Port of
+    ! vc-git.el:vc-git-dir--in-progress-headers.
+    subroutine vc_git_dir_in_progress_headers(parts)
+        type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
+        type(vc_git_commands_in_progress_type) :: cmds
+
+        cmds = get_vc_git_commands_in_progress()
 
         ! For now just a heading, key bindings can be added
         ! later for various bisect actions.
-        if (bisect) then
+        if (cmds%bisect) then
             call append_part(parts, "Bisect     : in progress", "vc_dir_status_warning")
             call append_part(parts, LF, "")
         end if
 
-        if (rebase) then
+        if (cmds%rebase) then
             call append_part(parts, "Rebase     : in progress", "vc_dir_status_warning")
             call append_part(parts, LF, "")
         end if
@@ -2571,6 +2641,429 @@ contains
         ! (string-join ... "\n"): no newline after the last header.
         if (size(parts) > 0) parts = parts(1:size(parts) - 1)
     end subroutine vc_git_dir_extra_headers
+
+    ! ------------------------------------------------------------------
+    ! Conflicts
+    ! ------------------------------------------------------------------
+
+    !> Return the list of files with conflicts in DIRECTORY.  Port of
+    !> vc-git.el:vc-git-conflicted-files.
+    subroutine vc_git_conflicted_files(directory, files)
+        character(len=*), intent(in) :: directory
+        type(string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable :: pushed(:)
+        character(len=:), allocatable :: output, line, state, file, full
+        type(status_type) :: st
+        integer :: i, j, k
+        logical :: ok
+
+        allocate (pushed(0))
+        call vc_git_execute_command_string(strings("status", "--porcelain", "--"), output, ok, directory)
+        i = 1
+
+        do while (i <= len(output))
+            j = index(output(i:), LF)
+
+            if (j == 0) then
+                line = output(i:)
+                i = len(output) + 1
+            else
+                line = output(i:i + j - 2)
+                i = i + j
+            end if
+
+            if (len(line) == 0) cycle
+
+            if (string_match("\([ MADRCU?!][ MADRCU?!]\) \(.+\)\(?: -> \(.+\)\)?", line, st) > 0) then
+                state = match_string(1, line)
+                file = match_string(2, line)
+
+                ! See git-status(1).
+                select case (state)
+                case ("AU", "UD", "UA", "DU", "AA", "UU")
+                    call expand_file_name(file, full, st, directory)
+                    call append_string(pushed, full)
+                case default
+                    continue
+                end select
+            end if
+        end do
+
+        ! Upstream adds each file at the front: the last line's file first.
+        allocate (files(0))
+
+        do k = size(pushed), 1, -1
+            call append_string(files, pushed(k)%text)
+        end do
+    end subroutine vc_git_conflicted_files
+
+    !> Call "git add" if the conflict markers have been removed.  Port of
+    !> vc-git.el:vc-git-resolve-when-done.
+    recursive subroutine resolve_vc_git_when_done(status)
+        type(status_type), intent(out) :: status
+        type(vc_git_commands_in_progress_type) :: cmds
+        type(string_type), allocatable :: none(:), conflicted(:)
+        character(len=:), allocatable :: file, root
+        integer(int64) :: here, found
+        logical :: has_root
+
+        status = status_type()
+        if (current == 0) return
+        if (.not. allocated(buffers(current)%filename)) return
+        file = buffers(current)%filename
+        here = point()
+        call goto_char(point_min())
+        call re_search_forward("^<<<<<<< ", found, status, noerror=SEARCH_NOERROR)
+
+        resolve: block
+            if (.not. status%ok()) exit resolve
+            if (found /= 0) exit resolve
+            call vc_git_command(0, strings(file), strings("add"), status)
+            if (.not. status%ok()) exit resolve
+
+            ! Doing a merge or rebase-like operation, so bug#20292
+            ! doesn't apply.
+            !
+            ! If we were to 'git reset' in the middle of a
+            ! cherry-pick, for example, it would effectively abort
+            ! the cherry-pick, losing the user's progress.
+            if (vc_git_resolve_conflicts%choice == VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE) then
+                cmds = get_vc_git_commands_in_progress()
+
+                if (.not. (cmds%merge .or. cmds%rebase .or. cmds%am .or. cmds%revert .or. cmds%cherry_pick)) then
+                    call vc_git_root(file, root, has_root)
+                    if (.not. has_root) root = ""
+                    call vc_git_conflicted_files(root, conflicted)
+
+                    if (size(conflicted) == 0) then
+                        allocate (none(0))
+                        call vc_git_command(0, none, strings("reset"), status)
+                        if (.not. status%ok()) exit resolve
+                    end if
+                end if
+            end if
+
+            call vc_resynch_buffer(file, buffer_directory(), status, keep=.true., noquery=VC_NOQUERY_YES)
+            if (.not. status%ok()) exit resolve
+            ! Remove the hook so that it is not called multiple times.
+            call after_save_hook%remove(resolve_vc_git_when_done, local=.true.)
+        end block resolve
+
+        call goto_char(here)
+    end subroutine resolve_vc_git_when_done
+
+    !> Activate `smerge_mode' if there is a conflict.  Port of
+    !> vc-git.el:vc-git-find-file-hook.
+    subroutine vc_git_find_file_hook()
+        character(len=:), allocatable :: file
+        integer(int64) :: here, found
+        type(status_type) :: st
+
+        if (current == 0) return
+        if (.not. allocated(buffers(current)%filename)) return
+        file = buffers(current)%filename
+        if (vc_state(file, git_backend) /= VC_CONFLICT) return
+        here = point()
+        call goto_char(point_min())
+        call re_search_forward("^<<<<<<< ", found, st, noerror=SEARCH_NOERROR)
+        call goto_char(here)
+        if (found == 0) return
+        call start_smerge_session(st)
+
+        if (.not. (vc_git_resolve_conflicts%is_off() .or. &
+                   (vc_git_resolve_conflicts%choice == VC_GIT_RESOLVE_CONFLICTS_DEFAULT .and. .not. vc_resolve_conflicts))) then
+            call after_save_hook%prepend(resolve_vc_git_when_done, local=.true.)
+        end if
+
+        call message_vc_unresolved_conflicts(file)
+    end subroutine vc_git_find_file_hook
+
+    ! Annotate (vc-annotate.el's backend functions)
+    ! ------------------------------------------------------------------
+    !> Start `git blame' of revision REV of FILE, its output in BUFFER.
+    !> Port of vc-git.el:vc-git-annotate-command (the output is decoded as
+    !> UTF-8: vc-git--asciify-coding-system is not needed).
+    recursive subroutine vc_git_annotate_command(file, buffer, rev, status)
+        character(len=*), intent(in) :: file
+        type(handle_type), intent(in) :: buffer
+        character(len=*), intent(in) :: rev
+        type(status_type), intent(out) :: status
+        type(string_type), allocatable :: flags(:), switches(:)
+        type(string_type) :: none(0)
+        character(len=:), allocatable :: name
+
+        name = file_relative_name(file)
+        flags = strings("blame", "--date=short")
+        call vc_switches(git_backend_index(), "annotate", switches)
+        call append_all(flags, switches)
+        call append_all(flags, strings(rev, "--", name))
+        call vc_git_command(VC_OKSTATUS_ASYNC, none, flags, status, buffer=buffer)
+    end subroutine vc_git_annotate_command
+
+    !> The time of the `git blame' line at point, as fractional days
+    !> (FOUND false if there is none), moving point past the annotation.
+    !> Port of vc-git.el:vc-git-annotate-time.
+    recursive subroutine vc_git_annotate_time(days, found)
+        real(real64), intent(out) :: days
+        logical, intent(out) :: found
+        type(decoded_time_type) :: decoded
+        type(time_type) :: encoded
+        type(status_type) :: st
+        character(len=:), allocatable :: date, time, zone
+        integer(int64) :: pos
+        logical :: has_time
+
+        days = 0
+        found = .false.
+        call re_search_forward("^[0-9a-f^]+[^()]+(.*?\([0-9]+-[0-9]+-[0-9]+\)" &
+                               //"\(?: \([0-9]+:[0-9]+:[0-9]+\) \([-+0-9]+\)\)? +[0-9]+) ", pos, st, &
+                               noerror=SEARCH_NOERROR)
+        if (.not. st%ok() .or. pos == 0) return
+        date = match_string(1)
+        time = match_string(2, matched=has_time)
+        zone = match_string(3)
+        ! (ignore-errors (iso8601-parse dt)), with decoded-time-set-defaults.
+        call parse_annotate_date(date, decoded, found)
+        if (.not. found) return
+
+        if (has_time) then
+            call parse_annotate_time(time, zone, decoded, found)
+            if (.not. found) return
+        end if
+
+        encoded = encode_time(decoded, status=st)
+        found = st%ok()
+        ! (vc-annotate-convert-time ...): fractional days.
+        if (found) days = real(encoded)/86400.0_real64
+    end subroutine vc_git_annotate_time
+
+    !> The year, month and day of DATE ("YYYY-MM-DD") in DECODED, local
+    !> time at midnight (FOUND false if DATE is not a date).  Port of
+    !> iso8601.el:iso8601-parse-date for the dates `git blame' prints, with
+    !> time-date.el:decoded-time-set-defaults.
+    subroutine parse_annotate_date(date, decoded, found)
+        character(len=*), intent(in) :: date
+        type(decoded_time_type), intent(out) :: decoded
+        logical, intent(out) :: found
+        integer :: first, second, ios
+
+        found = .false.
+        first = index(date, "-")
+        second = index(date, "-", back=.true.)
+        if (first <= 1 .or. second <= first + 1 .or. second == len(date)) return
+        read (date(1:first - 1), *, iostat=ios) decoded%year
+        if (ios /= 0) return
+        read (date(first + 1:second - 1), *, iostat=ios) decoded%month
+        if (ios /= 0) return
+        read (date(second + 1:), *, iostat=ios) decoded%day
+        if (ios /= 0) return
+        found = decoded%month >= 1 .and. decoded%month <= 12 .and. decoded%day >= 1 .and. decoded%day <= 31
+    end subroutine parse_annotate_date
+
+    !> Set the hour, minute and second of TIME ("HH:MM:SS") and the time
+    !> zone ZONE ("+HHMM", "+HH:MM" or "+HH") in DECODED (FOUND false if
+    !> they are not valid).  Port of iso8601.el:iso8601-parse-time and
+    !> iso8601.el:iso8601-parse-zone for the times `git blame' prints.
+    subroutine parse_annotate_time(time, zone, decoded, found)
+        character(len=*), intent(in) :: time, zone
+        type(decoded_time_type), intent(inout) :: decoded
+        logical, intent(out) :: found
+        character(len=:), allocatable :: digits
+        integer :: hours, minutes, ios
+        integer(int64) :: seconds
+
+        found = .false.
+        if (len(time) /= 8 .or. len(zone) < 3) return
+        if (time(3:3) /= ":" .or. time(6:6) /= ":") return
+        read (time(1:2), *, iostat=ios) decoded%hour
+        if (ios /= 0) return
+        read (time(4:5), *, iostat=ios) decoded%minute
+        if (ios /= 0) return
+        read (time(7:8), *, iostat=ios) seconds
+        if (ios /= 0) return
+        decoded%second = time_type(seconds=seconds)
+        if (zone(1:1) /= "+" .and. zone(1:1) /= "-") return
+        digits = zone(2:)
+        if (len(digits) == 5) digits = digits(1:2)//digits(4:5)
+        if (len(digits) /= 2 .and. len(digits) /= 4) return
+        if (verify(digits, "0123456789") /= 0) return
+        read (digits(1:2), *) hours
+        minutes = 0
+        if (len(digits) == 4) read (digits(3:4), *) minutes
+        decoded%zone = 3600*hours + 60*minutes
+        if (zone(1:1) == "-") decoded%zone = -decoded%zone
+        decoded%dst = DECODED_TIME_DST_NO
+        found = decoded%hour <= 24 .and. decoded%minute <= 59 .and. seconds <= 60
+    end subroutine parse_annotate_time
+
+    !> The revision of the `git blame' line at point, and the file it had
+    !> there when `git blame' names one ("" otherwise); FOUND false if the
+    !> line has none.  Port of
+    !> vc-git.el:vc-git-annotate-extract-revision-at-line.
+    recursive subroutine extract_vc_git_annotate_revision_at_line(revision, file, found)
+        use cmds_mod, only: beginning_of_line
+        character(len=:), allocatable, intent(out) :: revision, file
+        logical, intent(out) :: found
+        character(len=:), allocatable :: file_name, root
+        type(status_type) :: st
+        integer(int64) :: opoint
+        logical :: has_file, has_root
+
+        revision = ""
+        file = ""
+        opoint = point()
+        call beginning_of_line()
+        found = looking_at("\^?\([0-9a-f]+\) \(\([^(]+\) \)?", st)
+
+        if (found) then
+            revision = match_string(1)
+            file_name = match_string(2, matched=has_file)
+
+            if (has_file) then
+                ! Remove trailing whitespace from the file name.
+                file_name = trim(match_string(3))
+                call vc_git_root(buffer_directory(), root, has_root)
+                call expand_file_name(file_name, file, st, root)
+                if (.not. st%ok()) file = file_name
+            end if
+        end if
+
+        call goto_char(opoint)
+    end subroutine extract_vc_git_annotate_revision_at_line
+
+    !> Git-specific version of `vc_next_revision'.  Port of
+    !> vc-git.el:vc-git-next-revision.
+    subroutine vc_git_next_revision(file, rev, next, found)
+        use search_mod, only: search_forward
+        character(len=*), intent(in) :: file, rev
+        character(len=:), allocatable, intent(out) :: next
+        logical, intent(out) :: found
+        character(len=:), allocatable :: saved_dir, root, file_name, current_rev, sym
+        type(handle_type) :: old, tmp
+        type(status_type) :: st
+        integer(int64) :: shortage, p, pos
+        logical :: ok
+
+        next = ""
+        found = .false.
+        saved_dir = buffer_directory()
+        call vc_git_root(file, root, ok)
+        if (ok) call set_buffer_directory(root)
+        file_name = file_relative_name(file)
+        call temp_begin(old, tmp)
+        ok = vc_git_out_ok("rev-list", strings(maybe_abbrev(), "-1", rev, "--", file_name))
+
+        if (ok) then
+            call goto_char(point_max())
+            ok = is_bol()
+        end if
+
+        if (ok) then
+            shortage = forward_line(-1_int64)
+            ok = shortage == 0 .and. is_bob()
+        end if
+
+        if (ok) call buffer_substring(point(), point_max() - 1, current_rev, st)
+        call temp_end(old, tmp)
+
+        if (ok) then
+            call temp_begin(old, tmp)
+            ok = vc_git_out_ok("rev-list", strings(maybe_abbrev(), "HEAD", "--", file_name))
+
+            if (ok) then
+                call goto_char(point_min())
+                call search_forward(current_rev, pos, st, noerror=SEARCH_NOERROR)
+                ok = pos > 0
+            end if
+
+            if (ok) then
+                shortage = forward_line(-1_int64)
+                ok = shortage == 0
+            end if
+
+            if (ok) then
+                p = point()
+                shortage = forward_line(1_int64)
+                call buffer_substring(p, point() - 1, next, st)
+                found = st%ok()
+            end if
+
+            call temp_end(old, tmp)
+        end if
+
+        call set_buffer_directory(saved_dir)
+
+        if (found) then
+            call vc_git_symbolic_commit(next, sym, ok)
+            if (ok) next = sym
+        end if
+    end subroutine vc_git_next_revision
+
+    !> The files that revision REV added, deleted, copied or renamed, with
+    !> their names before and after it (none when
+    !> `vc_git_print_log_follow' is true).  Port of
+    !> vc-git.el:vc-git-file-name-changes.
+    recursive subroutine vc_git_file_name_changes(rev, changes)
+        character(len=*), intent(in) :: rev
+        type(vc_file_name_change_type), allocatable, intent(out) :: changes(:)
+        type(string_type) :: none(0)
+        type(vc_file_name_change_type) :: change
+        type(string_type), allocatable :: flags(:), switches(:)
+        type(handle_type) :: old, tmp
+        type(status_type) :: st
+        character(len=:), allocatable :: root, kind, name
+        integer(int64) :: pos
+        logical :: has_root
+
+        allocate (changes(0))
+        call vc_git_root(buffer_directory(), root, has_root)
+        call temp_begin(old, tmp)
+
+        if (.not. vc_git_print_log_follow) then
+            flags = strings("diff", "--name-status", "--diff-filter=ADCR", rev//"^", rev)
+            call vc_switches(git_backend_index(), "file_name_changes", switches)
+            call append_all(flags, switches)
+            call vc_git_command(VC_OKSTATUS_ANY, none, flags, st, current=.true.)
+        end if
+
+        call goto_char(point_min())
+
+        do
+            call re_search_forward("^\([ADCR]\)[0-9]*"//TAB//"\([^"//LF//TAB//"]+\)\(?:"//TAB//"\([^"//LF//TAB &
+                                   //"]+\)\)?", pos, st, noerror=SEARCH_NOERROR)
+            if (.not. st%ok() .or. pos == 0) exit
+            kind = match_string(1)
+            change = vc_file_name_change_type()
+
+            select case (kind)
+            case ("A")
+                change%new = expand_in(match_string(2))
+            case ("D")
+                change%old = expand_in(match_string(2))
+            case default
+                ! "C" and "R".
+                change%old = expand_in(match_string(2))
+                name = match_string(3)
+                change%new = expand_in(name)
+            end select
+
+            changes = [changes, change]
+        end do
+
+        call temp_end(old, tmp)
+
+    contains
+
+        ! (expand-file-name NAME root).
+        function expand_in(name) result(full)
+            character(len=*), intent(in) :: name
+            character(len=:), allocatable :: full
+            type(status_type) :: est
+
+            call expand_file_name(name, full, est, root)
+            if (.not. est%ok()) full = name
+        end function expand_in
+    end subroutine vc_git_file_name_changes
 
     ! ------------------------------------------------------------------
     ! Tags, branches, pulling and pushing
@@ -3015,6 +3508,7 @@ contains
         call init_root_log_format()
         call define_log_view_mode()
         call register_vc_backend("Git", k)
+        git_backend = k
 
         associate (b => vc_backends(k))
             b%checkin => vc_git_checkin
@@ -3046,10 +3540,17 @@ contains
             b%diff_switches => vc_git_diff_switches
             b%print_log => vc_git_print_log
             b%log_view_mode => vc_git_log_view_mode
-            b%show_log_entry => vc_git_show_log_entry
+            b%show_log_entry => show_vc_git_log_entry
             b%dir_status_files => vc_git_dir_status_files
             b%dir_extra_headers => vc_git_dir_extra_headers
             b%dir_printer => vc_git_dir_printer
+            b%find_file_hook => vc_git_find_file_hook
+            b%annotate_command => vc_git_annotate_command
+            b%annotate_time => vc_git_annotate_time
+            b%annotate_extract_revision_at_line => extract_vc_git_annotate_revision_at_line
+            b%next_revision => vc_git_next_revision
+            b%file_name_changes => vc_git_file_name_changes
+            b%annotate_switches => vc_git_annotate_switches
             b%revision_granularity = VC_REVISION_GRANULARITY_REPOSITORY
             b%update_on_retrieve_tag = .false.
             b%create_tag => vc_git_create_tag
