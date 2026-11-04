@@ -2399,6 +2399,35 @@ keep	clear_garbaged_frames
 # inverted (as shell_command_keep_output).
 name	no_redraw_on_reenter	redraw_after_suspend
 name	schars	count_characters
+# Step 48a: verb first in new procedure names, commands included (the
+# owner's decision relayed for this step; the names below are reported
+# for confirmation): smerge-mode.el's commands.
+name	smerge_keep_all	keep_smerge_all
+name	smerge_keep_base	keep_smerge_base
+name	smerge_keep_lower	keep_smerge_lower
+name	smerge_keep_upper	keep_smerge_upper
+name	smerge_keep_current	keep_smerge_current
+name	smerge_kill_current	delete_smerge_current
+name	smerge_combine_with_next	combine_smerge_with_next
+name	smerge_auto_combine	auto_combine_smerge
+name	smerge_resolve_all	resolve_smerge_all
+name	smerge_resolve	resolve_smerge
+name	smerge_swap	swap_smerge
+name	smerge_extend	extend_smerge
+name	smerge_diff_base_upper	diff_smerge_base_upper
+name	smerge_diff_base_lower	diff_smerge_base_lower
+name	smerge_diff_upper_lower	diff_smerge_upper_lower
+name	smerge_start_session	start_smerge_session
+# R6-40 (owner, 2026-11-04): a package command without a verb takes the
+# verb from what it does; n and p move to the next or previous conflict.
+name	smerge_next	next_smerge_conflict
+name	smerge_prev	previous_smerge_conflict
+# smerge-resolve-function (a variable) and its interface keep the
+# package prefix: the rename above is for the command.
+keep	smerge_resolve_function
+keep	smerge_resolve_function_set_local
+keep	smerge_resolve_procedure
+keep	smerge_auto_combine_max_separation
 # Verb first (the owner's decision of 2026-11-03, step 52a): a command or
 # procedure name starts with its verb.  The mail commands of
 # mail-utils.el, sendmail.el and mailabbrev.el (pending the owner's

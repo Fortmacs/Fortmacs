@@ -243,8 +243,9 @@ contains
         type(string_type) :: args(1)
 
         args(1)%text = "-q"
-        ! C-c is undefined without the init file, so "d" self-inserts.
-        call execute_on_pty(achar(3)//"d"//achar(24)//achar(3), st, args, sample_configure)
+        ! Without the init file C-c d is an undefined key (C-c is a prefix key, as
+        ! in Emacs), so it inserts nothing; the second "d" self-inserts.
+        call execute_on_pty(achar(3)//"dd"//achar(24)//achar(3), st, args, sample_configure)
         call check(error, st%ok(), "fortmacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "d")
         if (.not. allocated(error)) call check(error, tab_width%value == 8)

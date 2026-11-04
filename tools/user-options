@@ -610,6 +610,10 @@ show_paren_style
 show_paren_test_function
 show_paren_when_point_in_periphery
 show_paren_when_point_inside_paren
+smerge_auto_leave
+smerge_command_prefix
+smerge_diff_buffer_name
+smerge_diff_switches
 smie_blink_matching_inners
 smie_config
 smie_indent_basic
@@ -659,6 +663,7 @@ vc_follow_symlinks
 vc_git_annotate_switches
 vc_git_diff_switches
 vc_git_program
+vc_git_resolve_conflicts
 vc_git_revision_complete_only_branches
 vc_handled_backends
 vc_hg_diff_switches

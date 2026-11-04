@@ -718,6 +718,12 @@ simple.el	what-cursor-position	what_cursor_position
 simple.el	yank-from-kill-ring	paste_from_clipboard_history
 simple.el	yank-in-context	paste_in_context
 simple.el	zap-to-char	zap_to_char
+smerge-mode.el	smerge-ediff	smerge_ediff
+smerge-mode.el	smerge-makeup-conflict	smerge_makeup_conflict
+smerge-mode.el	smerge-popup-context-menu	smerge_popup_context_menu
+smerge-mode.el	smerge-refine	smerge_refine
+smerge-mode.el	smerge-refine-exchange-point	smerge_refine_exchange_point
+smerge-mode.el	smerge-vc-next-conflict	smerge_vc_next_conflict
 smie.el	smie-edebug	smie_edebug
 smie.el	smie-indent-line	smie_indent_line
 startup.el	display-about-screen	display_about_screen
