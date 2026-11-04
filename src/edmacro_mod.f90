@@ -34,7 +34,7 @@ module edmacro_mod
     use value_mod, only: value_type, xfixnum, xsymbol, xstring, symbols, vtag, V_ARRAY, list_elements, make_keymap_ref, &
                          make_symbol_ref, V_NULL, V_INTEGER, V_NAME, V_STRING
     use names_mod, only: intern_soft
-    use data_mod, only: number_to_string, value_eq
+    use data_mod, only: value_eq
     use character_mod, only: CHAR_ALT, CHAR_CTL, CHAR_HYPER, CHAR_META, CHAR_SUPER, CHAR_SHIFT, &
                              string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH
     use keymap_mod, only: current_active_maps, lookup_key, key_binding, is_keymap, is_keymap_live
@@ -72,6 +72,7 @@ contains
         type(value_type) :: b, bind, fk, first
         type(status_type) :: st
         character(len=:), allocatable :: prefix, desc, bind_name, text_chars
+        character(len=24) :: count_text
         integer(int64) :: n, pos, i, k, bind_len, text, tlen, times, p, j, maxkey, len_rest, ch, line_len
         logical :: one_line, verb, has_prefix, found, use_fkey, done, uarg, same
 
@@ -268,7 +269,11 @@ contains
                         end do
                     end if
 
-                    if (verb) bind_name = bind_name//" * "//number_to_string(text)
+                    if (verb) then
+                        write (count_text, '(" * ", i0)') text
+                        bind_name = bind_name//trim(count_text)
+                    end if
+
                     bind_len = text
                     done = .true.
                 end if
@@ -334,7 +339,8 @@ contains
                 end do
 
                 if (times > 1) then
-                    desc = number_to_string(times)//"*"//desc
+                    write (count_text, '(i0, "*")') times
+                    desc = trim(count_text)//desc
                     bind_len = bind_len*times
                 end if
             end if

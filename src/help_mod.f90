@@ -61,7 +61,7 @@ module help_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xhandle, list_elements, make_keymap_ref, V_NULL, V_INTEGER, V_NAME, V_STRING, &
                          V_KEYMAP
-    use data_mod, only: number_to_string, value_eq, symbol_name
+    use data_mod, only: value_eq, symbol_name
     use keymap_mod, only: make_sparse_keymap, is_keymap_live, destroy_keymap, keymap_set, define_key, key_parse, &
                           is_key_valid, key_description, where_is_internal, lookup_key, current_active_maps, &
                           overriding_terminal_local_map, active_minor_mode_of_map, current_global_map
@@ -95,7 +95,7 @@ module help_mod
     use callint_mod, only: is_command_defined, execute_interactively
     use data_mod, only: default_value
     use fns_mod, only: value_equal
-    use print_mod, only: fortran_repr
+    use print_mod, only: fortran_text
     use error_mod, only: FM_QUIT
     use faces_mod, only: display_supports_face_attributes_p, face_attrs
     implicit none(type, external)
@@ -1250,7 +1250,9 @@ contains
     !> (R6-25).  Port of part of help.el:help-for-help (its text).
     function help_for_help_text() result(text)
         character(len=:), allocatable :: text
+        character(len=72) :: lossage_text
 
+        write (lossage_text, '("Show last ", i0, " input keystrokes (lossage)")') lossage_size()
         text = "(Type "//"<PageDown>"//" or "//"<PageUp>"//" to scroll, "//"C-s"// &
                " to search, or \<help_map>\[help_quit] to exit.)"
         call section("Commands, Keys and Functions", &
@@ -1282,8 +1284,7 @@ contains
                      [character(len=72) :: "Extending Fortmacs with external packages", &
                       "Search for Fortmacs packages (see also \[list_packages])", "Describe a specific Fortmacs package", &
                       "", "Start the Fortmacs tutorial", "Display the quick help buffer.", &
-                      "Show recent messages (from echo area)", "Show last "//number_to_string(lossage_size())// &
-                      " input keystrokes (lossage)", "Show local help at point"])
+                      "Show recent messages (from echo area)", lossage_text, "Show local help at point"])
         call section("Miscellaneous", &
                      [character(len=40) :: "about_fortmacs", "view_fortmacs_faq", "C-n", &
                       "view_fortmacs_problems", "view_fortmacs_debugging", "", "describe_gnu_project", &
@@ -1924,7 +1925,7 @@ contains
         else if ((vtag(definition) == V_NAME .or. vtag(definition) == V_NULL)) then
             call symbol_name(definition, s, st)
         else
-            s = fortran_repr(definition)
+            s = fortran_text(definition)
         end if
     end function describe_command
 

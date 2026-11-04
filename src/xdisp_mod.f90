@@ -96,7 +96,7 @@ module xdisp_mod
                             get_char_property_and_overlay, next_char_property_change, &
                             next_single_char_property_change, text_prop_means_invisible, propertized_substring
     use itree_mod, only: overlays_in, overlay_start, overlay_end, overlay_get
-    use buffer_mod, only: current, set_buffer_internal
+    use buffer_mod, only: current, set_buffer_internal, header_line_format_type
     use buffer_mod, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
                           buf_fetch_byte, buf_next_char_len, is_buffer_modified, transient_mark_mode
     use marker_mod, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
@@ -120,8 +120,7 @@ module xdisp_mod
     use value_mod, only: value_type, xstring, list_elements, xfixnum, xhandle, string_intervals, vtag, V_INTEGER, &
                          V_STRING, V_ARRAY, V_WINDOW
     use intervals_mod, only: textget
-    use data_mod, only: buffer_local_value, integer_setting_type, append_locals_clearer, value_eq, choice_setting_type, &
-                        number_to_string
+    use data_mod, only: buffer_local_value, integer_setting_type, append_locals_clearer, value_eq, choice_setting_type
     use coding_mod, only: is_coding_system, coding_system_mnemonic, coding_system_eol_type_mnemonic, init_coding, &
                           buffer_file_coding_system
     use buffer_mod, only: get_buffer, get_or_make_buffer, set_buffer, is_buffer_live, temp_set_point_both, BEGINNING, BEGINNING_BYTE
@@ -141,6 +140,7 @@ module xdisp_mod
     public :: add_minor_mode_lighter, mode_line_modes, mode_line_modes_faces
     public :: set_mode_line_process, clear_mode_line_process, mode_line_process_text, append_mode_line_modes_entry, &
               mode_line_modes_prefix
+    public :: mode_line_misc_info_procedure, prepend_mode_line_misc_info, mode_line_misc_info_faces
     public :: redisplay_internal, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisibility
@@ -327,6 +327,27 @@ module xdisp_mod
 
     type(lighter_type), allocatable :: lighters(:)
     integer :: lighter_count = 0
+
+    abstract interface
+        !> An element of `mode_line_misc_info': SEGMENTS gets what it shows in
+        !> the mode line of WINDOW, whose buffer is current (nothing while
+        !> SEGMENTS has none).  Not a port.
+        recursive subroutine mode_line_misc_info_procedure(window, segments)
+            import :: handle_type, header_line_format_type
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+            type(header_line_format_type), intent(out) :: segments
+        end subroutine mode_line_misc_info_procedure
+    end interface
+
+    ! An element of `mode_line_misc_info'.
+    type :: misc_info_entry_type
+        procedure(mode_line_misc_info_procedure), pointer, nopass :: element => null()
+    end type misc_info_entry_type
+
+    ! Mode line information for miscellaneous purposes, shown after the
+    ! modes (bindings.el mode-line-misc-info: its elements in order).
+    type(misc_info_entry_type), allocatable :: misc_info_entries(:)
 
     !> One part of a `mode_line_process' construct: TEXT, in which "%s"
     !> stands for the status of the buffer's process (decode_mode_spec's
@@ -2629,7 +2650,7 @@ contains
     !> Port of xdisp.c:display_mode_element and xdisp.c:decode_mode_spec,
     !> in part.
     function mode_line_text(name, modified, read_only, position, line, width, modes, graphic, prefix, mule, vc, &
-                            identification) result(s)
+                            identification, misc) result(s)
         character(len=*), intent(in) :: name, position, line
         logical, intent(in) :: modified, read_only
         integer, intent(in) :: width
@@ -2643,6 +2664,9 @@ contains
         !> The buffer identification instead of NAME padded to 12 columns
         !> (`mode_line_identification').
         character(len=*), intent(in), optional :: identification
+        !> What mode-line-misc-info shows, after the modes
+        !> (`mode_line_misc_info_faces').
+        character(len=*), intent(in), optional :: misc
         character(len=:), allocatable :: s, coding
         character(len=1) :: star, plus
         logical :: gui
@@ -2697,6 +2721,7 @@ contains
         end if
 
         s = s//") "
+        if (present(misc)) s = s//misc
         if (.not. gui) s = s//repeat("-", max(0, width))
     end function mode_line_text
 
@@ -3298,15 +3323,15 @@ contains
         type(window_type), intent(in) :: w
         integer(int64), intent(in) :: bi, start, pt
         logical, intent(in) :: selected
-        character(len=:), allocatable :: text, modes, mule, id
+        character(len=:), allocatable :: text, modes, mule, id, misc
         type(glyph_type), allocatable :: row(:)
         integer(int32), allocatable :: chars(:)
-        type(face_span_type), allocatable :: spans(:), id_spans(:)
-        character(len=64), allocatable :: faces(:), id_faces(:)
+        type(face_span_type), allocatable :: spans(:), id_spans(:), misc_spans(:)
+        character(len=64), allocatable :: faces(:), id_faces(:), misc_faces(:)
         type(status_type) :: status
         type(glyph_row_type) :: line
         logical :: modified, gui
-        integer :: width, nmodes, ntext, k, offset, name_at, asc, desc, height
+        integer :: width, nmodes, ntext, nmisc, k, offset, name_at, asc, desc, height
         integer(int32) :: face_id
 
         call is_buffer_modified(w%buffer, modified, status)
@@ -3315,22 +3340,32 @@ contains
         mule = mode_line_mule_info(bi, gui)
         call mode_line_modes_faces(bi, modes, spans, faces)
         call mode_line_identification(bi, id, id_spans, id_faces)
+        call mode_line_misc_info_faces(bi, misc, misc_spans, misc_faces)
         text = mode_line_text(buffers(bi)%name, modified, buffers(bi)%read_only, &
                               mode_line_percent(bi, start, w%window_end_valid), &
                               mode_line_line(bi, start, pt, w%total_lines), width, modes, gui, &
-                              mode_line_modes_prefix(), mule, buffer_vc_mode(bi), id)
+                              mode_line_modes_prefix(), mule, buffer_vc_mode(bi), id, misc)
         face_id = MODE_LINE_INACTIVE_FACE_ID
         if (selected) face_id = MODE_LINE_ACTIVE_FACE_ID
-        ! The lighters with faces: the text ends with MODES, ") " and the
-        ! dashes of %-.
+        ! The lighters with faces: the text ends with MODES, ") ", the
+        ! misc info and the dashes of %-.
         call decode_string(modes, chars, nmodes)
+        call decode_string(misc, chars, nmisc)
         call decode_string(text, chars, ntext)
 
         if (gui) then
-            offset = ntext - 2 - nmodes
+            offset = ntext - nmisc
         else
-            offset = ntext - max(0, width) - 2 - nmodes
+            offset = ntext - max(0, width) - nmisc
         end if
+
+        do k = 1, size(misc_spans)
+            misc_spans(k)%first = misc_spans(k)%first + offset
+            misc_spans(k)%last = misc_spans(k)%last + offset
+            misc_spans(k)%face_id = merge_faces(f, trim(misc_faces(k)), 0_int32, face_id)
+        end do
+
+        offset = offset - 2 - nmodes
 
         do k = 1, size(spans)
             spans(k)%first = spans(k)%first + offset
@@ -3352,7 +3387,7 @@ contains
             id_spans(k)%face_id = merge_faces(f, trim(id_faces(k)), 0_int32, face_id)
         end do
 
-        spans = [id_spans, spans]
+        spans = [id_spans, spans, misc_spans]
 
         ! A buffer's own `mode_line_format' (a string).
         if (allocated(buffers(bi)%mode_line_format%segments)) then
@@ -3405,6 +3440,83 @@ contains
             m%glyphs(w%left_col + 1:w%left_col + w%total_cols) = row
         end associate
     end subroutine display_mode_line
+
+    !> Add ELEMENT at the front of `mode_line_misc_info' (once, however
+    !> often it is added), as add-to-list does.  Not a port.
+    subroutine prepend_mode_line_misc_info(element)
+        procedure(mode_line_misc_info_procedure) :: element
+        type(misc_info_entry_type) :: entry
+        integer :: k
+
+        if (.not. allocated(misc_info_entries)) allocate (misc_info_entries(0))
+
+        do k = 1, size(misc_info_entries)
+            if (associated(misc_info_entries(k)%element, element)) return
+        end do
+
+        entry%element => element
+        misc_info_entries = [entry, misc_info_entries]
+    end subroutine prepend_mode_line_misc_info
+
+    !> MISC, what mode-line-misc-info shows in the mode line of the window
+    !> being displayed (the selected window outside redisplay), showing buffer slot BI (its elements' segments with
+    !> BI current, as xdisp.c:display_mode_lines makes the window's buffer
+    !> current), with the characters SPANS(K)%FIRST to SPANS(K)%LAST of the
+    !> segments that have a face in face FACES(K).  Port of xdisp.c:display_mode_element
+    !> for bindings.el's mode-line-misc-info, in part.
+    subroutine mode_line_misc_info_faces(bi, misc, spans, faces)
+        integer(int64), intent(in) :: bi
+        character(len=:), allocatable, intent(out) :: misc
+        type(face_span_type), allocatable, intent(out) :: spans(:)
+        character(len=64), allocatable, intent(out) :: faces(:)
+        ! At most MAX_SPANS segments with a face are shown in theirs.
+        integer, parameter :: MAX_SPANS = 32
+        type(header_line_format_type) :: segments
+        type(face_span_type) :: all_spans(MAX_SPANS)
+        character(len=64) :: all_faces(MAX_SPANS)
+        type(handle_type) :: window
+        integer(int32), allocatable :: chars(:)
+        integer(int64) :: saved
+        integer :: k, i, n, before, nchars
+
+        misc = ""
+        allocate (spans(0))
+        allocate (faces(0))
+        n = 0
+        if (.not. allocated(misc_info_entries)) return
+        if (size(misc_info_entries) == 0) return
+        ! The window displayed, else (outside redisplay) the selected one.
+        window = displayed_window
+        if (window%index == 0) window = selected_window()
+        saved = current
+        if (bi /= current) call set_buffer_internal(bi)
+
+        do k = 1, size(misc_info_entries)
+            call misc_info_entries(k)%element(window, segments)
+            if (.not. allocated(segments%segments)) cycle
+
+            do i = 1, size(segments%segments)
+                call decode_string(misc, chars, before)
+                misc = misc//segments%segments(i)%text
+
+                if (len(segments%segments(i)%face) > 0 .and. n < MAX_SPANS) then
+                    call decode_string(misc, chars, nchars)
+                    n = n + 1
+                    all_spans(n) = face_span_type(first=before + 1, last=nchars)
+                    all_faces(n) = segments%segments(i)%face
+                end if
+            end do
+        end do
+
+        if (n > 0) then
+            spans = all_spans(1:n)
+            deallocate (faces)
+            allocate (faces(n))
+            faces(:) = all_faces(1:n)
+        end if
+
+        if (saved > 0 .and. saved /= current) call set_buffer_internal(saved)
+    end subroutine mode_line_misc_info_faces
 
     !> Draw the header line of window `w' (showing buffer slot `bi') at the
     !> top of the window: the segments of the buffer's
@@ -3905,7 +4017,7 @@ contains
     !> With ARGUMENTS, TEXT is a format control string, and ARGUMENTS are
     !> data to be formatted under control of the string.  Percent sign (%),
     !> grave accent (`) and apostrophe (') are then special in the format;
-    !> see `format' and `format_message' for details.  Without them, TEXT
+    !> see `format_text' and `format_message' for details.  Without them, TEXT
     !> is displayed as it is.
     !>
     !> If TEXT is the empty string, the function clears any existing
@@ -4509,9 +4621,14 @@ contains
     function message_log_max_other_value(self) result(text)
         class(message_log_max_choice_setting_type), intent(in) :: self
         character(len=:), allocatable :: text
+        character(len=32) :: component_text
 
         text = ""
-        if (self%lines >= 0) text = "%lines = "//number_to_string(self%lines)
+
+        if (self%lines >= 0) then
+            write (component_text, '("%lines = ", i0)') self%lines
+            text = trim(component_text)
+        end if
     end function message_log_max_other_value
 
     !> The assignment that sets the number or procedure `message_log_max' takes, for the error of a rejected

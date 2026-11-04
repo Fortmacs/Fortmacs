@@ -67,7 +67,7 @@ module mule_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xstring, make_list, vtag, V_STRING
     use character_mod, only: downcase_ascii, str_to_multibyte
-    use data_mod, only: number_to_string, forward_setting, default_value, set_default
+    use data_mod, only: forward_setting, default_value, set_default
     use fns_mod, only: put
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg
@@ -2156,6 +2156,7 @@ contains
         type(unencodable_type), allocatable :: bad(:)
         character(len=40) :: names(1)
         character(len=:), allocatable :: text, bufname, list_line, line
+        character(len=24) :: position_text
         integer(int64) :: p, firstpos
         integer :: k, j
         type(status_type) :: st
@@ -2175,7 +2176,8 @@ contains
 
                 do j = 1, min(11, size(bad(1)%positions))
                     p = bad(1)%positions(j)
-                    line = line//" ("//number_to_string(p)//" . "//char_at(p)//")"
+                    write (position_text, '(" (", i0, " .")') p
+                    line = line//trim(position_text)//" "//char_at(p)//")"
                     firstpos = min(firstpos, p)
                 end do
 
@@ -2443,6 +2445,7 @@ contains
         type(value_type) :: v
         type(status_type) :: vst
         integer :: k, j
+        character(len=16) :: number
 
         s = "Coding system for saving this buffer:"//LF//"  "
 
@@ -2463,7 +2466,8 @@ contains
         call coding_system_priority_list(prio)
 
         do k = 1, size(prio)
-            s = s//"  "//number_to_string(int(k, int64))//". "//prio(k)%name//" "
+            write (number, '("  ", i0, ".")') k
+            s = s//trim(number)//" "//prio(k)%name//" "
             call coding_system_aliases(prio(k)%name, aliases)
 
             if (size(aliases) > 0) then

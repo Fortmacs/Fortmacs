@@ -99,6 +99,8 @@ program tester
     use test_simple_shell_mod, only: collect_simple_shell_mod
     use test_compile_mod, only: collect_compile_mod
     use test_grep_mod, only: collect_grep_mod
+    use test_xref_mod, only: collect_xref_mod
+    use test_etags_mod, only: collect_etags_mod
     use test_ring_mod, only: collect_ring_mod
     use test_comint_mod, only: collect_comint_mod
     use test_shell_mod, only: collect_shell_mod
@@ -135,6 +137,8 @@ program tester
     use test_timer_mod, only: collect_timer_mod
     use test_itree_mod, only: collect_itree_mod
     use test_paren_mod, only: collect_paren_mod
+    use test_imenu_mod, only: collect_imenu_mod
+    use test_which_func_mod, only: collect_which_func_mod
     use test_electric_mod, only: collect_electric_mod
     use test_elec_pair_mod, only: collect_elec_pair_mod
     use test_simple_electric_mod, only: collect_simple_electric_mod
@@ -228,6 +232,8 @@ program tester
                  new_testsuite("simple_shell_mod", collect_simple_shell_mod), &
                  new_testsuite("compile_mod", collect_compile_mod), &
                  new_testsuite("grep_mod", collect_grep_mod), &
+                 new_testsuite("xref_mod", collect_xref_mod), &
+                 new_testsuite("etags_mod", collect_etags_mod), &
                  new_testsuite("ring_mod", collect_ring_mod), &
                  new_testsuite("comint_mod", collect_comint_mod), &
                  new_testsuite("shell_mod", collect_shell_mod), &
@@ -295,6 +301,8 @@ program tester
                  new_testsuite("timer_mod", collect_timer_mod), &
                  new_testsuite("itree_mod", collect_itree_mod), &
                  new_testsuite("paren_mod", collect_paren_mod), &
+                 new_testsuite("imenu_mod", collect_imenu_mod), &
+                 new_testsuite("which_func_mod", collect_which_func_mod), &
                  new_testsuite("electric_mod", collect_electric_mod), &
                  new_testsuite("elec_pair_mod", collect_elec_pair_mod), &
                  new_testsuite("simple_electric_mod", collect_simple_electric_mod), &

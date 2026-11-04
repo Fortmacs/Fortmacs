@@ -60,11 +60,11 @@ module editfns_mod
     use chartab_mod, only: char_table_subtype, char_table_ref
     use search_mod, only: scan_newline_from_point, find_before_next_newline, find_newline, case_fold_search
     use value_mod, only: value_type
-    use data_mod, only: number_to_string, value_eq
+    use data_mod, only: value_eq
     use textprop_mod, only: get_text_property, text_property_stickiness, &
                             next_single_char_property_change, previous_single_char_property_change, set_point_both, &
                             string_add_text_properties, extend_property_ranges, text_property_range_type
-    use print_mod, only: readable_repr, float_to_string, sprintf_float
+    use print_mod, only: readable_text, float_to_string, sprintf_float
     use error_mod, only: format_message
     implicit none(type, external)
     private
@@ -90,7 +90,7 @@ module editfns_mod
     public :: pos_bol, pos_eol, line_beginning_position, line_end_position
     public :: get_pos_property, find_field, field_beginning, field_end, field_string, field_string_no_properties, &
               delete_field, constrain_to_field
-    public :: format_message, ngettext, format, styled_format
+    public :: format_message, ngettext, format_text, styled_format
     public :: user_login_name, user_real_login_name, user_full_name, system_name, fortmacs_pid, group_name, group_real_gid
 
     !> The names editfns.c:init_editfns computes (Vuser_login_name,
@@ -212,7 +212,7 @@ module editfns_mod
         module procedure buffer_substring, propertized_buffer_substring
     end interface buffer_substring
 
-    !> Kinds of argument of `format' (format_argument_type's `tag').
+    !> Kinds of argument of `format_text' (format_argument_type's `tag').
     integer, parameter :: FORMAT_ARGUMENT_INTEGER = 1, FORMAT_ARGUMENT_REAL = 2, FORMAT_ARGUMENT_VALUE = 3
 
     !> The largest precision for which a %f conversion's last digit can
@@ -223,7 +223,7 @@ module editfns_mod
     !> on a 64-bit host).
     integer(int64), parameter :: STRING_BYTES_BOUND = 2_int64**61 - 1
 
-    !> One argument of `format': an integer, a real64 (float values are
+    !> One argument of `format_text': an integer, a real64 (float values are
     !> deferred) or a value (a string with its text properties, a name,
     !> a list, ...).
     type :: format_argument_type
@@ -233,14 +233,14 @@ module editfns_mod
         type(value_type) :: value
     end type format_argument_type
 
-    !> The arguments of `format', `styled_format' and xdisp_mod's
+    !> The arguments of `format_text', `styled_format' and xdisp_mod's
     !> `message', added in order with `append': an integer, a real64, a
     !> string or a value (a string with its text properties, a name, ...).
     !>
     !>     type(format_arguments_type) :: arguments
     !>     call arguments%append(count)
     !>     call arguments%append("files")
-    !>     call format("%d %s", arguments, text, status)
+    !>     call format_text("%d %s", arguments, text, status)
     type, public :: format_arguments_type
         private
         type(format_argument_type), allocatable :: arguments(:)
@@ -266,7 +266,7 @@ module editfns_mod
     end type format_spec_type
 
     !> Format a string out of a format-string and arguments (see
-    !> `format'); with MESSAGE true, as `format-message' (grave accents
+    !> `format_text'); with MESSAGE true, as `format-message' (grave accents
     !> and apostrophes of the format string become curved quotes).
     !> The specifics: a character format string gives the text alone, a
     !> string value (with text properties) a string value.
@@ -282,7 +282,8 @@ module editfns_mod
     !> The format control string may contain %-sequences meaning to substitute
     !> the next available argument, or the argument explicitly specified:
     !>
-    !> %s means produce a string argument.  Actually, produces any object as `princ' does.
+    !> %s means produce a string argument: the text of a string or a name as it
+    !>    is; any other object as `readable_text' gives it with NOESCAPE true.
     !> %d or %i means produce a signed number in decimal.
     !> %b means produce a number in binary.
     !> %B is like %b, but %#B uses upper case.
@@ -295,7 +296,8 @@ module editfns_mod
     !>    less than -4 or greater than or equal to the precision (default: 6);
     !>    otherwise it produces in decimal-point notation.
     !> %c means produce a number as a single character.
-    !> %S means produce any object as an expression (as `prin1' does).
+    !> %S means produce any object as `readable_text' gives it (its printed
+    !>    representation, which can be read back).
     !>
     !> The argument used for %d, %i, %o, %x, %e, %f, %g or %c must be a number.
     !> Use %% to put a single % into the output.
@@ -347,11 +349,13 @@ module editfns_mod
     !>
     !> The arguments are a `format_arguments_type'; a character format
     !> string gives the text alone, a string value one with its text
-    !> properties: `call format("%d %s", arguments, text, status)'.
-    !> Port of editfns.c:Fformat (the generic interface).
-    interface format
-        module procedure format_text, format_value
-    end interface format
+    !> properties: `call format_text("%d %s", arguments, text, status)'.
+    !> Port of editfns.c:Fformat (the generic interface; `format_text', as
+    !> FORMAT is a Fortran statement and gfortran rejects a local variable
+    !> named like a use-associated generic, R6-47).
+    interface format_text
+        module procedure format_text_string, format_text_value
+    end interface format_text
 
 contains
 
@@ -2553,6 +2557,7 @@ contains
         integer(int32) :: nlen, tolen
         character(len=MAX_MULTIBYTE_LENGTH) :: fromstr, tostr
         character(len=:), allocatable :: saved_filename
+        character(len=64) :: text
         logical :: no_undo, saved_undo, had_filename, rescan
 
         status = status_type()
@@ -2564,14 +2569,14 @@ contains
         if (.not. status%ok()) return
 
         if (.not. is_char_valid(fromchar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
-                           "expected integer (a character code), got "//number_to_string(int(fromchar, int64)))
+            write (text, '("expected integer (a character code), got ", i0)') fromchar
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, trim(text))
             return
         end if
 
         if (.not. is_char_valid(tochar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
-                           "expected integer (a character code), got "//number_to_string(int(tochar, int64)))
+            write (text, '("expected integer (a character code), got ", i0)') tochar
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, trim(text))
             return
         end if
 
@@ -3201,28 +3206,28 @@ contains
         call move_alloc(grown, self%arguments)
     end subroutine append_format_argument
 
-    !> `format' with a character format string: the text alone.
+    !> `format_text' with a character format string: the text alone.
     !> Port of editfns.c:Fformat.
-    subroutine format_text(string, arguments, result, status)
+    subroutine format_text_string(string, arguments, result, status)
         character(len=*), intent(in) :: string
         type(format_arguments_type), intent(in) :: arguments
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
 
         call styled_format_text(string, arguments, .false., result, status)
-    end subroutine format_text
+    end subroutine format_text_string
 
-    !> `format' with a string value as format string: a string value with
+    !> `format_text' with a string value as format string: a string value with
     !> the text properties of the format string and of the arguments.
     !> Port of editfns.c:Fformat.
-    subroutine format_value(string, arguments, result, status)
+    subroutine format_text_value(string, arguments, result, status)
         type(value_type), intent(in) :: string
         type(format_arguments_type), intent(in) :: arguments
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
 
         call styled_format_value(string, arguments, .false., result, status)
-    end subroutine format_value
+    end subroutine format_text_value
 
     !> `styled_format' with a character format string: the text alone.
     !> Port of editfns.c:styled_format.
@@ -3239,7 +3244,7 @@ contains
         if (status%ok()) result = xstring(v)
     end subroutine styled_format_text
 
-    !> Implement `format-message' if MESSAGE is true, `format' otherwise.
+    !> Implement `format-message' if MESSAGE is true, `format_text' otherwise.
     !> STRING is a string value; RESULT is a string value with the text
     !> properties of STRING (moved to where their text went) and of the
     !> string arguments of %s and %S (extended over their padding on the
@@ -3260,6 +3265,7 @@ contains
         integer(int32) :: c, clen
         logical :: minus_flag, plus_flag, space_flag, sharp_flag, zero_flag, precision_given, arg_intervals, fmt_props
         character :: conversion
+        character(len=20) :: digits
 
         if (vtag(string) /= V_STRING) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
@@ -3422,11 +3428,12 @@ contains
             if (conversion == "S" .or. (conversion == "s" .and. .not. (is_string_argument(arg) .or. is_name_argument(arg)))) then
                 select case (arg%tag)
                 case (FORMAT_ARGUMENT_INTEGER)
-                    text = number_to_string(arg%integer_number)
+                    write (digits, "(i0)") arg%integer_number
+                    text = trim(digits)
                 case (FORMAT_ARGUMENT_REAL)
                     text = float_to_string(arg%real_number)
                 case default
-                    text = readable_repr(arg%value, noescape=conversion == "s")
+                    text = readable_text(arg%value, noescape=conversion == "s")
                 end select
 
                 arg = format_argument_type()
@@ -3452,7 +3459,7 @@ contains
             end if
 
             if (is_name_argument(arg)) then
-                text = readable_repr(arg%value)
+                text = readable_text(arg%value)
                 arg%value = value_type(text=text)
             end if
 

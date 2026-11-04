@@ -25,7 +25,6 @@
 !> search in buffers.  A submodule of search_mod, because the regexp engine
 !> depends (through the syntax table) on modules that use search_mod.
 submodule(search_mod) search_regexp_mod
-    use data_mod, only: number_to_string
     use commands_mod, only: commands
     use regex_mod, only: re_pattern_buffer_type, re_registers_type, re_subject_type, re_compile_pattern, &
                          re_search, re_match, string_to_subject, buffer_to_subject
@@ -400,6 +399,7 @@ contains
     integer(int32) :: c, prevc, clen
     logical :: is_literal, some_multiletter_word, some_lowercase, some_uppercase, some_nonuppercase_initial
     character(len=:), allocatable :: text, piece, before, after, buftext
+    character(len=80) :: message_text
     integer(int64) :: i
 
     status = status_type()
@@ -422,8 +422,8 @@ contains
 
     if (sub < 0 .or. sub >= num_regs) then
         ! check_integer_range (subexp, 0, num_regs - 1).
-        call set_error(status, FM_ARGS_OUT_OF_RANGE, number_to_string(int(sub, int64))//", 0, "// &
-                       number_to_string(int(num_regs - 1, int64)))
+        write (message_text, '(i0, ", 0, ", i0)') sub, num_regs - 1
+        call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(message_text))
         return
     end if
 
@@ -640,13 +640,14 @@ contains
     subroutine missing()
         if (sub_start < 0) then
             if (present(subexp)) then
-                call set_error(status, FM_GENERIC_ERROR, "replace_match subexpression does not exist: "// &
-                               number_to_string(int(subexp, int64)))
+                write (message_text, '("replace_match subexpression does not exist: ", i0)') subexp
+                call set_error(status, FM_GENERIC_ERROR, trim(message_text))
             else
                 call set_error(status, FM_GENERIC_ERROR, "replace_match subexpression does not exist: .false.")
             end if
         else
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, number_to_string(sub_start)//", "//number_to_string(sub_end))
+            write (message_text, '(i0, ", ", i0)') sub_start, sub_end
+            call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(message_text))
         end if
     end subroutine missing
 

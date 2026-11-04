@@ -25,7 +25,6 @@
 !> lines whose beginning matches `page_delimiter'.
 module page_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use data_mod, only: number_to_string
     use callint_mod, only: PREFIX_NONE
     use error_mod, only: status_type
     use buffer_mod, only: buffers, current
@@ -256,17 +255,18 @@ contains
     recursive subroutine count_lines_page(status)
         type(status_type), intent(out) :: status
         integer(int64) :: total, before, after
+        character(len=80) :: text
 
         status = status_type()
         call page_count_lines_page(total, before, after)
 
         if (total == 1) then
-            call message("Page has "//number_to_string(total)//" line ("//number_to_string(before)//" + "// &
-                         number_to_string(after)//")")
+            write (text, '("Page has ", i0, " line (", i0, " + ", i0, ")")') total, before, after
         else
-            call message("Page has "//number_to_string(total)//" lines ("//number_to_string(before)//" + "// &
-                         number_to_string(after)//")")
+            write (text, '("Page has ", i0, " lines (", i0, " + ", i0, ")")') total, before, after
         end if
+
+        call message(trim(text))
     end subroutine count_lines_page
 
     !> The PAGE and LINE number of point (the line relative to the start
@@ -304,10 +304,12 @@ contains
     recursive subroutine what_page(status)
         type(status_type), intent(out) :: status
         integer(int64) :: page, line
+        character(len=64) :: text
 
         status = status_type()
         call page_what_page(page, line)
-        call message("Page "//number_to_string(page)//", line "//number_to_string(line))
+        write (text, '("Page ", i0, ", line ", i0)') page, line
+        call message(trim(text))
     end subroutine what_page
 
     recursive subroutine cmd_mark_page(status)

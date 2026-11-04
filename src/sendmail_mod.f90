@@ -1647,6 +1647,7 @@ contains
         logical :: failed, fcc_was_found, multibyte, saved_fold, found, has_errbuf
         integer(int64) :: moved, where_content_type, k, longest
         type(status_type) :: st
+        character(len=64) :: exit_text
 
         status = status_type()
         failed = .false.
@@ -1888,7 +1889,8 @@ contains
                 case (V_INTEGER)
                     if (result%a(1)%i /= 0) then
                         failed = .true.
-                        call set_error(status, FM_GENERIC_ERROR, "Sending...failed with exit value "//itoa(result%a(1)%i))
+                        write (exit_text, '("Sending...failed with exit value ", i0)') result%a(1)%i
+                        call set_error(status, FM_GENERIC_ERROR, trim(exit_text))
                         exit body
                     end if
                 case (V_STRING)
@@ -1972,16 +1974,6 @@ contains
         call narrow_to_region(marker_end(mb), marker_end(me), status)
         call goto_char(here)
     end subroutine resent_addresses
-
-    ! The decimal text of N.  Not a port.
-    function itoa(n) result(text)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: text
-        character(len=24) :: buffer
-
-        write (buffer, "(I0)") n
-        text = trim(buffer)
-    end function itoa
 
     !> Find and act on any Fcc: headers in the current message before HEADER_END.
     !> If a buffer is visiting the Fcc file, append to it before

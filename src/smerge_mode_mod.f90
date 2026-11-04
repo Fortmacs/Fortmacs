@@ -36,7 +36,7 @@ module smerge_mode_mod
     use value_mod, only: value_type, make_keymap_ref, make_buffer_ref, make_list, vtag, xfixnum, V_INTEGER
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use commands_mod, only: commands
-    use data_mod, only: append_locals_clearer, number_to_string
+    use data_mod, only: append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, close_buffer, erase_buffer, buffer_modified_tick
@@ -1576,6 +1576,7 @@ contains
         ! changes more than the whole lower part: REFINABLE.
         subroutine test_refinable(refinable)
             logical, intent(out) :: refinable
+            character(len=32) :: change_text
             integer :: rc
 
             refinable = .false.
@@ -1589,7 +1590,8 @@ contains
             call set_buffer(buffer, status)
             if (.not. status%ok()) return
             call goto_char(point_min())
-            refinable = .not. looking_at("1,"//number_to_string(nlines)//"c", status)
+            write (change_text, '("1,", i0, "c")') nlines
+            refinable = .not. looking_at(trim(change_text), status)
             call set_buffer(old, st)
         end subroutine test_refinable
 

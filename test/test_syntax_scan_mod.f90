@@ -152,12 +152,6 @@ contains
         if (same_state) same_state = all(a%open_parens == b%open_parens)
     end function same_state
 
-    character(len=24) function string(n)
-        integer(int64), intent(in) :: n
-
-        write (string, "(i0)") n
-    end function string
-
     ! ------------------------------------------------------------------
     ! syntax-tests.el
     ! ------------------------------------------------------------------
@@ -317,6 +311,7 @@ contains
         logical, intent(in) :: forw
         character(len=:), allocatable :: text, s
         integer :: i, l
+        character(len=24) :: point_text
 
         pos = 0
 
@@ -326,7 +321,8 @@ contains
         end if
 
         text = buffer_string()
-        s = trim(string(abs(n)))
+        write (point_text, "(i0)") abs(n)
+        s = trim(point_text)
         l = len(s)
 
         if (forw) then
@@ -379,10 +375,12 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: text, s
         integer :: i, l
+        character(len=24) :: point_text
 
         pos = 0
         text = buffer_string()
-        s = trim(string(n))
+        write (point_text, "(i0)") n
+        s = trim(point_text)
         l = len(s)
 
         do i = 1, len(text) - l + 1
@@ -414,13 +412,16 @@ contains
         integer(int64) :: stop_pos, last
         logical :: forw, got
         character(len=:), allocatable :: name
+        character(len=24) :: point_text
+        character(len=64) :: text_buffer
 
         call visit_comments_file(kind, table, error)
         if (allocated(error)) return
 
         do k = 1, size(start)
             forw = dirs(k:k) == "f"
-            name = "syntax-comments-"//section//"-"//dirs(k:k)//trim(string(int(abs(start(k)), int64)))
+            write (point_text, "(i0)") abs(start(k))
+            name = "syntax-comments-"//section//"-"//dirs(k:k)//trim(point_text)
             call goto_char(label_point(int(start(k), int64), forw))
 
             if (stop(k) == NONE) then
@@ -436,8 +437,8 @@ contains
             end if
 
             last = point()
-            call check(error, (got .eqv. res(k)) .and. last == stop_pos, name//": point "//trim(string(last))// &
-                       ", expected "//trim(string(stop_pos)))
+            write (text_buffer, '(": point ", i0, ", expected ", i0)') last, stop_pos
+            call check(error, (got .eqv. res(k)) .and. last == stop_pos, name//trim(text_buffer))
             if (allocated(error)) exit
         end do
 
@@ -458,13 +459,16 @@ contains
         integer(int64) :: start_pos, stop_pos, got
         logical :: forw
         character(len=:), allocatable :: name
+        character(len=24) :: point_text
+        character(len=64) :: text_buffer
 
         call visit_comments_file(kind, table, error)
         if (allocated(error)) return
 
         do k = 1, size(start)
             forw = dirs(k:k) == "f"
-            name = "syntax-br-comments-"//section//"-"//dirs(k:k)//trim(string(int(abs(start(k)), int64)))
+            write (point_text, "(i0)") abs(start(k))
+            name = "syntax-br-comments-"//section//"-"//dirs(k:k)//trim(point_text)
             start_pos = label_point(int(start(k), int64), forw)
 
             if (forw) then
@@ -480,8 +484,8 @@ contains
                     stop_pos = label_point(int(stop(k), int64),.not. forw)
                 end if
 
-                call check(error, st%ok() .and. got == stop_pos, name//": "//trim(string(got))//", expected "// &
-                           trim(string(stop_pos)))
+                write (text_buffer, '(": ", i0, ", expected ", i0)') got, stop_pos
+                call check(error, st%ok() .and. got == stop_pos, name//trim(text_buffer))
             else
                 call check(error, st%code == FM_SCAN_ERROR, name//": no scan-error")
             end if
@@ -507,12 +511,15 @@ contains
         integer :: k
         integer(int64) :: start_pos, open_pos, close_pos, stop_pos
         character(len=:), allocatable :: name
+        character(len=24) :: point_text
+        character(len=64) :: text_buffer
 
         call visit_comments_file(kind, table, error)
         if (allocated(error)) return
 
         do k = 1, size(start)
-            name = "syntax-pps-comments-"//section//"-"//trim(string(int(start(k), int64)))
+            write (point_text, "(i0)") start(k)
+            name = "syntax-pps-comments-"//section//"-"//trim(point_text)
             start_pos = label_point(int(start(k), int64), .true.)
             open_pos = label_midpoint(int(open (k), int64))
             close_pos = label_midpoint(int(close (k), int64))
@@ -525,17 +532,17 @@ contains
 
             call parse_partial_expression(start_pos, point_max(), s1, st, targetdepth=0_int64, &
                                           commentstop=COMMENTSTOP_SYNTAX_TABLE)
-            call check(error, point() == open_pos, name//": opener at "//trim(string(point()))//", expected "// &
-                       trim(string(open_pos)))
+            write (text_buffer, '(": opener at ", i0, ", expected ", i0)') point(), open_pos
+            call check(error, point() == open_pos, name//trim(text_buffer))
             if (allocated(error)) exit
             call parse_partial_expression(point(), point_max(), s2, st, targetdepth=0_int64, oldstate=s1, &
                                           commentstop=COMMENTSTOP_SYNTAX_TABLE)
-            call check(error, point() == close_pos, name//": closer at "//trim(string(point()))//", expected "// &
-                       trim(string(close_pos)))
+            write (text_buffer, '(": closer at ", i0, ", expected ", i0)') point(), close_pos
+            call check(error, point() == close_pos, name//trim(text_buffer))
             if (allocated(error)) exit
             call parse_partial_expression(point(), point_max(), s3, st, targetdepth=0_int64, oldstate=s2)
-            call check(error, point() == stop_pos, name//": stop at "//trim(string(point()))//", expected "// &
-                       trim(string(stop_pos)))
+            write (text_buffer, '(": stop at ", i0, ", expected ", i0)') point(), stop_pos
+            call check(error, point() == stop_pos, name//trim(text_buffer))
             if (allocated(error)) exit
         end do
 
@@ -691,15 +698,18 @@ contains
         type(status_type) :: st
         type(parse_state_type) :: s
         logical :: ok
+        character(len=24) :: point_text
 
         call temp_buffer("#| a #| b |# c |# x", table)
         call entry("#", ". 14", table)
         call entry("|", ". 23n", table)
         ok = forward_comment(1_int64)
-        call check(error, ok .and. point() == 18, "forward over the nested comment: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, ok .and. point() == 18, "forward over the nested comment: "//trim(point_text))
         if (allocated(error)) return
         ok = forward_comment(-1_int64)
-        call check(error, ok .and. point() == 1, "backward over it: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, ok .and. point() == 1, "backward over it: "//trim(point_text))
         if (allocated(error)) return
         call parse_partial_expression(1_int64, 9_int64, s, st)
         call check(error, s%incomment == 2 .and. s%comstr_start == 1, "nesting 2 inside the inner comment")
@@ -712,7 +722,8 @@ contains
         call entry("{", "< n", table)
         call entry("}", "> n", table)
         ok = forward_comment(1_int64)
-        call check(error, ok .and. point() == 14, "{ } nested: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, ok .and. point() == 14, "{ } nested: "//trim(point_text))
         if (allocated(error)) return
         ok = forward_comment(-1_int64)
         call check(error, ok .and. point() == 1)
@@ -727,6 +738,7 @@ contains
         type(parse_state_type) :: s
         integer(int64) :: pos
         logical :: ok
+        character(len=24) :: point_text
 
         call temp_buffer("a /* x /* y */ b // c"//achar(10)//"d /**/ /**/ e", table)
         call entry("/", ". 124b", table)
@@ -736,34 +748,42 @@ contains
         call goto_char(2_int64)
         ! /* x /* y */ is one comment: style a comments don't nest.
         ok = forward_comment(1_int64)
-        call check(error, ok .and. point() == 15, "block comment: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, ok .and. point() == 15, "block comment: "//trim(point_text))
         if (allocated(error)) return
         ok = forward_comment(1_int64)
-        call check(error,.not. ok .and. point() == 16, "b is no comment: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error,.not. ok .and. point() == 16, "b is no comment: "//trim(point_text))
         if (allocated(error)) return
         call goto_char(17_int64)
         ! A // comment ends with its newline.
         ok = forward_comment(1_int64)
-        call check(error, ok .and. point() == 23, "line comment: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, ok .and. point() == 23, "line comment: "//trim(point_text))
         if (allocated(error)) return
         ok = forward_comment(-1_int64)
-        call check(error, ok .and. point() == 18, "backward over the line comment: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, ok .and. point() == 18, "backward over the line comment: "//trim(point_text))
         if (allocated(error)) return
         call goto_char(15_int64)
         ok = forward_comment(-1_int64)
-        call check(error, ok .and. point() == 3, "backward over the block comment: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, ok .and. point() == 3, "backward over the block comment: "//trim(point_text))
         if (allocated(error)) return
         ! Two comments in a row, with whitespace.
         call goto_char(24_int64)
         ok = forward_comment(2_int64)
-        call check(error, ok .and. point() == 34, "two comments: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, ok .and. point() == 34, "two comments: "//trim(point_text))
         if (allocated(error)) return
         ok = forward_comment(-2_int64)
-        call check(error, ok .and. point() == 25, "two comments back: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, ok .and. point() == 25, "two comments back: "//trim(point_text))
         if (allocated(error)) return
         ! Expressions skip comments.
         pos = scan_expressions(24_int64, 1_int64, st)
-        call check(error, st%ok() .and. pos == point_max(), "scan_expressions over comments: "//trim(string(pos)))
+        write (point_text, "(i0)") pos
+        call check(error, st%ok() .and. pos == point_max(), "scan_expressions over comments: "//trim(point_text))
         if (allocated(error)) return
         ! The parse state inside each kind.
         call parse_partial_expression(1_int64, 6_int64, s, st)
@@ -778,7 +798,8 @@ contains
         if (allocated(error)) return
         ! COMMENTSTOP t stops after the start of a comment.
         call parse_partial_expression(1_int64, point_max(), s, st, commentstop=COMMENTSTOP_COMMENT)
-        call check(error, point() == 5 .and. s%incomment == -1, "commentstop: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, point() == 5 .and. s%incomment == -1, "commentstop: "//trim(point_text))
         call done_buffer(table)
     end subroutine test_c_comments
 
@@ -789,21 +810,25 @@ contains
         type(status_type) :: st
         integer(int64) :: pos, beginning, end
         character(len=:), allocatable :: message
+        character(len=24) :: point_text
 
         call temp_buffer("(a (b) ""c)"" d)", table)
         pos = scan_groups(1_int64, 1_int64, 0_int64, st)
-        call check(error, st%ok() .and. pos == 15, "forward over the list: "//trim(string(pos)))
+        write (point_text, "(i0)") pos
+        call check(error, st%ok() .and. pos == 15, "forward over the list: "//trim(point_text))
         if (allocated(error)) return
         pos = scan_groups(15_int64, -1_int64, 0_int64, st)
         call check(error, st%ok() .and. pos == 1)
         if (allocated(error)) return
         ! Up one level from inside (b): the end of the outer list.
         pos = scan_groups(3_int64, 1_int64, 1_int64, st)
-        call check(error, st%ok() .and. pos == 15, "up: "//trim(string(pos)))
+        write (point_text, "(i0)") pos
+        call check(error, st%ok() .and. pos == 15, "up: "//trim(point_text))
         if (allocated(error)) return
         ! Down one level.
         pos = scan_groups(1_int64, 1_int64, -1_int64, st)
-        call check(error, st%ok() .and. pos == 2, "down: "//trim(string(pos)))
+        write (point_text, "(i0)") pos
+        call check(error, st%ok() .and. pos == 2, "down: "//trim(point_text))
         if (allocated(error)) return
         ! Between lists at the end: nil.
         pos = scan_groups(15_int64, 1_int64, 0_int64, st)
@@ -831,28 +856,35 @@ contains
         type(handle_type) :: table
         type(status_type) :: st
         integer(int64) :: pos
+        character(len=24) :: point_text
 
         call temp_buffer("foo-bar ""x\""y"" 'baz a\ b", table)
         call entry("'", "'", table)
         pos = scan_expressions(1_int64, 1_int64, st)
-        call check(error, st%ok() .and. pos == 8, "a symbol: "//trim(string(pos)))
+        write (point_text, "(i0)") pos
+        call check(error, st%ok() .and. pos == 8, "a symbol: "//trim(point_text))
         if (allocated(error)) return
         pos = scan_expressions(8_int64, 1_int64, st)
-        call check(error, st%ok() .and. pos == 15, "a string with an escaped quote: "//trim(string(pos)))
+        write (point_text, "(i0)") pos
+        call check(error, st%ok() .and. pos == 15, "a string with an escaped quote: "//trim(point_text))
         if (allocated(error)) return
         pos = scan_expressions(15_int64, 1_int64, st)
-        call check(error, st%ok() .and. pos == 20, "a prefixed symbol: "//trim(string(pos)))
+        write (point_text, "(i0)") pos
+        call check(error, st%ok() .and. pos == 20, "a prefixed symbol: "//trim(point_text))
         if (allocated(error)) return
         pos = scan_expressions(20_int64, 1_int64, st)
-        call check(error, st%ok() .and. pos == 25, "an escaped space joins: "//trim(string(pos)))
+        write (point_text, "(i0)") pos
+        call check(error, st%ok() .and. pos == 25, "an escaped space joins: "//trim(point_text))
         if (allocated(error)) return
         pos = scan_expressions(25_int64, -1_int64, st)
-        call check(error, st%ok() .and. pos == 21, "back over a\ b: "//trim(string(pos)))
+        write (point_text, "(i0)") pos
+        call check(error, st%ok() .and. pos == 21, "back over a\ b: "//trim(point_text))
         if (allocated(error)) return
         ! forward-sexp backward skips the prefix too (backward-prefix-chars).
         call goto_char(20_int64)
         call forward_expression(-1_int64, st)
-        call check(error, st%ok() .and. point() == 16, "back over 'baz: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, st%ok() .and. point() == 16, "back over 'baz: "//trim(point_text))
         call done_buffer(table)
     end subroutine test_scan_expressions
 
@@ -862,6 +894,7 @@ contains
         type(handle_type) :: table
         type(status_type) :: st
         type(parse_state_type) :: s, s2
+        character(len=24) :: point_text
 
         call temp_buffer("(a (b ""c\", table)
         call parse_partial_expression(1_int64, point_max(), s, st)
@@ -876,11 +909,13 @@ contains
         if (allocated(error)) return
         ! TARGETDEPTH stops when the depth reaches it.
         call parse_partial_expression(1_int64, point_max(), s, st, targetdepth=2_int64)
-        call check(error, point() == 5 .and. s%depth == 2, "targetdepth: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, point() == 5 .and. s%depth == 2, "targetdepth: "//trim(point_text))
         if (allocated(error)) return
         ! STOPBEFORE stops at the start of an expression.
         call parse_partial_expression(2_int64, point_max(), s2, st, stopbefore=.true., oldstate=s)
-        call check(error, point() == 2 .and. s2%depth == 2, "stopbefore: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, point() == 2 .and. s2%depth == 2, "stopbefore: "//trim(point_text))
         if (allocated(error)) return
         ! A generic string fence.
         call temp_buffer("|a b| c", table)
@@ -913,15 +948,18 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: table
         type(status_type) :: st
+        character(len=24) :: point_text
 
         call temp_buffer("(a ""b c"" (d) e)", table)
         call goto_char(7_int64)
         ! Out of the string, then out of the list.
         call up_group(1_int64, st, .true., .true.)
-        call check(error, st%ok() .and. point() == 9, "up out of the string: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, st%ok() .and. point() == 9, "up out of the string: "//trim(point_text))
         if (allocated(error)) return
         call up_group(1_int64, st, .true., .true.)
-        call check(error, st%ok() .and. point() == 16, "up out of the list: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, st%ok() .and. point() == 16, "up out of the list: "//trim(point_text))
         if (allocated(error)) return
         call up_group(1_int64, st, .true., .true.)
         call check(error, st%code == FM_USER_ERROR .and. format_error(st) == "At top level", format_error(st))
@@ -931,7 +969,8 @@ contains
         if (allocated(error)) return
         call goto_char(12_int64)
         call backward_up_group(1_int64, st)
-        call check(error, st%ok() .and. point() == 10, "backward up: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, st%ok() .and. point() == 10, "backward up: "//trim(point_text))
         if (allocated(error)) return
         call goto_char(1_int64)
         call down_group(1_int64, st)
@@ -947,7 +986,8 @@ contains
         if (allocated(error)) return
         call goto_char(2_int64)
         call forward_group(1_int64, st)
-        call check(error, st%ok() .and. point() == 13, "forward-list: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, st%ok() .and. point() == 13, "forward-list: "//trim(point_text))
         if (allocated(error)) return
         call forward_group(1_int64, st, .true.)
         call check(error, format_error(st) == "No next group", format_error(st))
@@ -957,7 +997,8 @@ contains
         call check(error, format_error(st) == "No next expression", format_error(st))
         if (allocated(error)) return
         call backward_expression(1_int64, st, .true.)
-        call check(error, st%ok() .and. point() == 14, "backward-sexp: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, st%ok() .and. point() == 14, "backward-sexp: "//trim(point_text))
         if (allocated(error)) return
         call goto_char(10_int64)
         call cut_expression(1_int64, st)
@@ -972,22 +1013,26 @@ contains
         type(handle_type) :: table
         type(status_type) :: st
         type(value_type), allocatable :: evs(:)
+        character(len=24) :: point_text
 
         call temp_buffer("(a (b c) d) e", table)
         call key_parse("C-M-f", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error, point() == 12, "C-M-f: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, point() == 12, "C-M-f: "//trim(point_text))
         if (allocated(error)) return
         call key_parse("C-M-b C-M-d C-M-n", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error, point() == 9, "C-M-b C-M-d C-M-n: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, point() == 9, "C-M-b C-M-d C-M-n: "//trim(point_text))
         if (allocated(error)) return
         call key_parse("C-M-p C-M-d C-M-u", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error, point() == 4, "C-M-p C-M-d C-M-u: "//trim(string(point())))
+        write (point_text, "(i0)") point()
+        call check(error, point() == 4, "C-M-p C-M-d C-M-u: "//trim(point_text))
         if (allocated(error)) return
         call key_parse("C-M-@", evs, st)
         call unread_command_events(evs)

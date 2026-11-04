@@ -44,9 +44,7 @@
 !> skeleton per shell, chosen by `sh_skeleton_feature'.
 !>
 !> Deferred: `executable_interpret' (C-c C-x; needs `compilation_start' with a
-!> buffer name function and rule specifications), Imenu
-!> (`sh_imenu_generic_expression', and the Imenu candidates of
-!> completion), `outline_regexp', `escaped_string_quote' (with
+!> buffer name function and rule specifications), `outline_regexp', `escaped_string_quote' (with
 !> `paste_in_context'), the Flymake backend (`sh_shellcheck_flymake'), the
 !> `sh_shell' file-local variable (`hack_local_variables_hook'), the menu
 !> and `bash_ts_mode' (tree-sitter).
@@ -145,6 +143,8 @@ module sh_script_mod
     use callint_mod, only: prefix_arg_type
     use minibuf_mod, only: read_string
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
+    use imenu_mod, only: imenu_patterns, imenu_pattern_type, imenu_case_fold_search, imenu_index_type, &
+                         make_imenu_index
     use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
@@ -271,6 +271,22 @@ module sh_script_mod
         procedure :: current => current_string_feature
     end type sh_string_feature_type
 
+    !> One shell's entry of `sh_imenu_patterns'.
+    type, public :: sh_imenu_entry_type
+        character(len=:), allocatable :: shell
+        type(imenu_pattern_type), allocatable :: patterns(:)
+    end type sh_imenu_entry_type
+
+    !> A feature table whose values are Imenu generic expressions.
+    type, public :: sh_imenu_feature_type
+        type(sh_imenu_entry_type), allocatable :: entries(:)
+    contains
+        !> Set SHELL's entry to MATCHERS.
+        procedure :: append => imenu_feature_append
+        !> The value for the current shell.
+        procedure :: current => current_imenu_feature
+    end type sh_imenu_feature_type
+
     !> A syntax modification: CHAR gets SYNTAX.
     type, public :: sh_syntax_change_type
         integer :: char = 0
@@ -395,6 +411,11 @@ module sh_script_mod
     !> The executable file name for the shell being programmed.  Port of
     !> sh-script.el sh-shell-file.
     type(string_setting_type), target, public :: sh_shell_file = string_setting_type(name="sh_shell_file")
+
+    !> Regular expressions for recognizing shell function definitions,
+    !> per shell.  See `sh_feature' and `imenu_patterns'.  Port
+    !> of sh-script.el sh-imenu-generic-expression.
+    type(sh_imenu_feature_type), public :: sh_imenu_patterns
 
     !> Single argument string for the magic number.  See `sh_feature'.
     !> Port of sh-script.el sh-shell-arg.
@@ -1074,7 +1095,73 @@ contains
                                          "READNULLCMD", "REPORTTIME", "RPROMPT", "RPS1", "SAVEHIST", "SPROMPT", &
                                          "STTY", "TIMEFMT", "TMOUT", "TMPPREFIX", "varcmds", "watch", "WATCH", &
                                          "WATCHFMT", "WORDCHARS", "ZDOTDIR"], "ksh88")
+        call init_imenu_feature()
     end subroutine init_features
+
+    ! The entries of `sh_imenu_patterns'.  Port of
+    ! sh-script.el sh-imenu-generic-expression (its value).
+    subroutine init_imenu_feature()
+        ! The characters a mksh function name has none of.
+        character(len=*), parameter :: MKSH_NAME = "\([^]"//achar(0)//TAB//LF//" ""$&'();<=>\`|#*?[/]+\)"
+        type(imenu_pattern_type) :: patterns(2)
+
+        ! function FOO
+        ! function FOO()
+        patterns(1) = imenu_pattern_type(menu_title="", regexp="^\s-*function\s-+\([[:alpha:]_][[:alnum:]_]*\)"// &
+                                         "\s-*\(?:()\)?", subexpression=1)
+        ! FOO()
+        patterns(2) = imenu_pattern_type(menu_title="", regexp="^\s-*\([[:alpha:]_][[:alnum:]_]*\)\s-*()", &
+                                         subexpression=1)
+        call sh_imenu_patterns%append("sh", patterns)
+        ! The difference between the Bash regular expression and the sh regular
+        ! expression is that Bash also allows hyphens (-) in function names.
+        patterns(1) = imenu_pattern_type(menu_title="", regexp="^\s-*function\s-+\([[:alpha:]_][[:alnum:]_-]*\)"// &
+                                         "\s-*\(?:()\)?", subexpression=1)
+        patterns(2) = imenu_pattern_type(menu_title="", regexp="^\s-*\([[:alpha:]_][[:alnum:]_-]*\)\s-*()", &
+                                         subexpression=1)
+        call sh_imenu_patterns%append("bash", patterns)
+        patterns(1) = imenu_pattern_type(menu_title="", regexp="^\s-*function\s-+"//MKSH_NAME//"\s-*\(?:()\)?", &
+                                         subexpression=1)
+        patterns(2) = imenu_pattern_type(menu_title="", regexp="^\s-*"//MKSH_NAME//"\s-*()", subexpression=1)
+        call sh_imenu_patterns%append("mksh", patterns)
+    end subroutine init_imenu_feature
+
+    ! Not a port.
+    subroutine imenu_feature_append(self, shell, patterns)
+        class(sh_imenu_feature_type), intent(inout) :: self
+        character(len=*), intent(in) :: shell
+        type(imenu_pattern_type), intent(in) :: patterns(:)
+        type(sh_imenu_entry_type) :: entry
+
+        if (.not. allocated(self%entries)) allocate (self%entries(0))
+        entry%shell = shell
+        allocate (entry%patterns(size(patterns)))
+        entry%patterns(:) = patterns(:)
+        self%entries = [self%entries, entry]
+    end subroutine imenu_feature_append
+
+    !> Index the table by the current shell.  Port of
+    !> sh-script.el:sh-feature.
+    function current_imenu_feature(self) result(patterns)
+        class(sh_imenu_feature_type), intent(in) :: self
+        type(imenu_pattern_type), allocatable :: patterns(:)
+        character(len=16), allocatable :: shells(:)
+        integer :: k, i
+
+        allocate (patterns(0))
+        if (.not. allocated(self%entries)) return
+        allocate (shells(size(self%entries)))
+
+        do i = 1, size(self%entries)
+            shells(i) = self%entries(i)%shell
+        end do
+
+        k = sh_feature_shell(shells, current_shell())
+        if (k == 0) return
+        deallocate (patterns)
+        allocate (patterns(size(self%entries(k)%patterns)))
+        patterns(:) = self%entries(k)%patterns(:)
+    end function current_imenu_feature
 
     ! `sh_mode_syntax_table', `sh_base_mode_syntax_table' and
     ! `sh_mode_syntax_table_input'.  Not a port.
@@ -3481,6 +3568,7 @@ contains
         syntax(1)%syntax = "w"
         call font_lock_defaults%set_local(levels=levels, keywords_only=.false., case_fold=.false., syntax_modifications=syntax, &
                                           syntactic_face_function=sh_font_lock_syntactic_face_function)
+        call imenu_case_fold_search%set_local(.false.)
         ! Parse or insert magic number for exec, and set all variables depending
         ! on the shell thus determined.
         call sh_set_shell(sh_guess_shell(), status, .false., .false.)
@@ -3551,6 +3639,7 @@ contains
         if (allocated(locals(k)%variables)) deallocate (locals(k)%variables)
         allocate (locals(k)%variables(0))
         locals(k)%variables_initialized = .false.
+        call imenu_patterns%set_local(sh_imenu_patterns%current())
         e = syntax_input_index()
 
         if (e > 0) then
@@ -4639,36 +4728,47 @@ contains
     end subroutine exec_path_dirs
 
     !> The candidates of `sh_completion_at_point_function' for STRING
-    !> before a keyword position: the variables assigned before point
-    !> (with "="), the executables and the keywords.  Port of
-    !> sh-script.el:sh--cmd-completion-table-gen (Imenu is not loaded).
+    !> before a keyword position: the top-level names of the Imenu index,
+    !> the variables assigned before point (with "="), the executables and
+    !> the keywords.  Port of sh-script.el:sh--cmd-completion-table-gen.
     recursive function sh_cmd_completion_table_gen(string) result(candidates)
         character(len=*), intent(in) :: string
         type(value_type) :: candidates
         type(value_type), allocatable :: items(:)
         type(value_type) :: vars, files
+        type(imenu_index_type) :: index
         character(len=:), allocatable :: dirs(:)
+        integer, allocatable :: top(:)
         type(status_type) :: st
-        integer(int64) :: k, nv, nf
+        integer(int64) :: k, nv, nf, ni
         integer :: j
 
+        ! The names of the Imenu index (none where it is unavailable).
+        call make_imenu_index(index, st)
+        allocate (top(0))
+        if (st%ok()) top = index%children(0)
+        ni = size(top)
         vars = sh_vars_before_point()
         call exec_path_dirs(dirs)
         call locate_file_completion_table(dirs, [""], string, COMPLETE_ALL, files, st)
         nv = list_length(vars)
         nf = list_length(files)
-        allocate (items(nv + nf + size(sh_completion_keywords)))
+        allocate (items(ni + nv + nf + size(sh_completion_keywords)))
+
+        do k = 1, ni
+            items(k) = value_type(text=index%entries(top(k))%name)
+        end do
 
         do k = 1, nv
-            items(k) = value_type(text=xstring(list_elt(vars, k))//"=")
+            items(ni + k) = value_type(text=xstring(list_elt(vars, k))//"=")
         end do
 
         do k = 1, nf
-            items(nv + k) = list_elt(files, k)
+            items(ni + nv + k) = list_elt(files, k)
         end do
 
         do j = 1, size(sh_completion_keywords)
-            items(nv + nf + j) = value_type(text=trim(sh_completion_keywords(j)))
+            items(ni + nv + nf + j) = value_type(text=trim(sh_completion_keywords(j)))
         end do
 
         candidates = make_list(items)

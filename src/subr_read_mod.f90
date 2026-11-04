@@ -31,7 +31,7 @@ submodule(subr_mod) subr_read_mod
     use keyboard_mod, only: sit_for, this_command, real_this_command, abort_recursive_edit, exit_recursive_edit, &
                             recursive_edit, top_level, lossage_size
     use keymap_mod, only: set_keymap_parent, define_key_range, destroy_keymap
-    use data_mod, only: number_to_string, value_eq
+    use data_mod, only: value_eq
     use character_mod, only: MAX_CHAR
     use value_mod, only: value_type, vtag, V_INTEGER
     use insdel_mod, only: insert
@@ -67,6 +67,7 @@ contains
 
     module procedure read_number
     character(len=:), allocatable :: full, string, histvar, def1
+    character(len=20) :: digits
     type(string_type), allocatable :: defs(:)
     integer :: k, ndefs
     logical :: have, first_nil
@@ -90,10 +91,12 @@ contains
 
     do k = 1, ndefs
         if (present(defaults)) then
-            defs(k)%text = number_to_string(defaults(k))
+            write (digits, "(i0)") defaults(k)
         else
-            defs(k)%text = number_to_string(default)
+            write (digits, "(i0)") default
         end if
+
+        defs(k)%text = trim(digits)
     end do
 
     if (ndefs > 0 .and. .not. first_nil) then

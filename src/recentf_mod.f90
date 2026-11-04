@@ -50,7 +50,7 @@ module recentf_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
-    use data_mod, only: set, symbol_value, choice_setting_type, number_to_string
+    use data_mod, only: set, symbol_value, choice_setting_type
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
     use commands_mod, only: commands
@@ -918,9 +918,14 @@ contains
     function recentf_auto_cleanup_other_value(self) result(text)
         class(recentf_auto_cleanup_choice_setting_type), intent(in) :: self
         character(len=:), allocatable :: text
+        character(len=32) :: component_text
 
         text = ""
-        if (self%seconds >= 0) text = "%seconds = "//number_to_string(self%seconds)
+
+        if (self%seconds >= 0) then
+            write (component_text, '("%seconds = ", i0)') self%seconds
+            text = trim(component_text)
+        end if
     end function recentf_auto_cleanup_other_value
 
     !> The assignment that sets the number or procedure `recentf_auto_cleanup' takes, for the error of a rejected

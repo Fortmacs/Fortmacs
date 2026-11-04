@@ -68,7 +68,7 @@ module bookmark_mod
                          FM_FILE_ERROR, FM_BOOKMARK_ERROR_NO_FILENAME, format_message
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
-    use data_mod, only: append_locals_clearer, history_setting_type, forward_setting, choice_setting_type, number_to_string
+    use data_mod, only: append_locals_clearer, history_setting_type, forward_setting, choice_setting_type
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
     use commands_mod, only: commands
@@ -4100,9 +4100,14 @@ contains
     function bookmark_save_flag_other_value(self) result(text)
         class(bookmark_save_flag_choice_setting_type), intent(in) :: self
         character(len=:), allocatable :: text
+        character(len=32) :: component_text
 
         text = ""
-        if (self%modifications >= 0) text = "%modifications = "//number_to_string(self%modifications)
+
+        if (self%modifications >= 0) then
+            write (component_text, '("%modifications = ", i0)') self%modifications
+            text = trim(component_text)
+        end if
     end function bookmark_save_flag_other_value
 
     !> The assignment that sets the number or procedure `bookmark_save_flag' takes, for the error of a rejected
