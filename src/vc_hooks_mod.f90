@@ -36,7 +36,7 @@
 !> reverting (VC-Dir), `vc_use_incoming_outgoing_prefixes' and the
 !> C-x v keys of the commands not ported yet.
 module vc_hooks_mod
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_VC_NOT_SUPPORTED
     use handle_mod, only: handle_type
@@ -416,11 +416,12 @@ module vc_hooks_mod
             character(len=*), intent(in) :: file
             type(vc_dir_entry_type), intent(inout) :: entry
         end subroutine vc_status_fileinfo_extra_procedure
-        !> A backend's `show_log_entry': move to the log entry for REVISION.
-        !> Not a port.
-        recursive subroutine vc_show_log_entry_procedure(revision)
+        !> A backend's `show_log_entry': move to the log entry for REVISION
+        !> (FOUND, when present, tells whether it was found).  Not a port.
+        recursive subroutine vc_show_log_entry_procedure(revision, found)
             implicit none(type, external)
             character(len=*), intent(in) :: revision
+            logical, intent(out), optional :: found
         end subroutine vc_show_log_entry_procedure
         !> A backend's `checkin' of FILES with COMMENT (REV, the new
         !> revision, for the backends that take one).  Not a port.
@@ -438,6 +439,13 @@ module vc_hooks_mod
     !> kept per file (VC_REVISION_GRANULARITY_FILE) or for the whole
     !> repository (VC_REVISION_GRANULARITY_REPOSITORY).
     integer, parameter, public :: VC_REVISION_GRANULARITY_FILE = 0, VC_REVISION_GRANULARITY_REPOSITORY = 1
+
+    !> One entry of a backend's `file_name_changes': a file's OLD name and
+    !> its NEW name in a revision (OLD unallocated for an added file, NEW
+    !> unallocated for a deleted one).
+    type, public :: vc_file_name_change_type
+        character(len=:), allocatable :: old, new
+    end type vc_file_name_change_type
 
     abstract interface
         !> A backend's `create_tag': in DIR, make a tag called NAME, or a
@@ -491,6 +499,42 @@ module vc_hooks_mod
             character(len=:), allocatable, intent(out) :: base
             type(status_type), intent(out) :: status
         end subroutine vc_mergebase_procedure
+        !> A backend's `annotate_command': start the command annotating
+        !> revision REV of FILE, its output in BUFFER.  Not a port.
+        recursive subroutine vc_annotate_command_procedure(file, buffer, rev, status)
+            import :: handle_type, status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: file
+            type(handle_type), intent(in) :: buffer
+            character(len=*), intent(in) :: rev
+            type(status_type), intent(out) :: status
+        end subroutine vc_annotate_command_procedure
+        !> A backend's `annotate_time': the time of the annotated line at
+        !> point as fractional days, moving point past its annotation
+        !> (FOUND false if there is none).  Not a port.
+        recursive subroutine vc_annotate_time_procedure(days, found)
+            import :: real64
+            implicit none(type, external)
+            real(real64), intent(out) :: days
+            logical, intent(out) :: found
+        end subroutine vc_annotate_time_procedure
+        !> A backend's `annotate_extract_revision_at_line': the REVISION of
+        !> the annotated line at point and, if the backend gives one, the
+        !> FILE it had there ("" otherwise); FOUND false if there is none.
+        !> Not a port.
+        recursive subroutine vc_annotate_revision_procedure(revision, file, found)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: revision, file
+            logical, intent(out) :: found
+        end subroutine vc_annotate_revision_procedure
+        !> A backend's `file_name_changes' of revision REV: the files it
+        !> added, deleted, copied or renamed.  Not a port.
+        recursive subroutine vc_file_name_changes_procedure(rev, changes)
+            import :: vc_file_name_change_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: rev
+            type(vc_file_name_change_type), allocatable, intent(out) :: changes(:)
+        end subroutine vc_file_name_changes_procedure
     end interface
 
     !> A VC backend: its name (as in `vc_handled_backends') and the
@@ -552,6 +596,14 @@ module vc_hooks_mod
         type(vc_switches_type), pointer :: diff_switches => null()
         !> vc-BACKEND-register-switches, if the backend has it.
         type(vc_switches_type), pointer :: register_switches => null()
+        ! VC-Annotate (vc-annotate.el).
+        procedure(vc_annotate_command_procedure), pointer, nopass :: annotate_command => null()
+        procedure(vc_annotate_time_procedure), pointer, nopass :: annotate_time => null()
+        procedure(vc_annotate_revision_procedure), pointer, nopass :: annotate_extract_revision_at_line => null()
+        procedure(vc_previous_revision_procedure), pointer, nopass :: next_revision => null()
+        procedure(vc_file_name_changes_procedure), pointer, nopass :: file_name_changes => null()
+        !> vc-BACKEND-annotate-switches, if the backend has it.
+        type(vc_switches_type), pointer :: annotate_switches => null()
     end type vc_backend_type
 
     !> The capacity of `vc_backends' (upstream's vc-handled-backends has 8).

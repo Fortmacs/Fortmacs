@@ -139,6 +139,7 @@ program tester
     use test_simple_electric_mod, only: collect_simple_electric_mod
     use test_vc_mod, only: collect_vc_mod
     use test_vc_hg_mod, only: collect_vc_hg_mod
+    use test_vc_annotate_mod, only: collect_vc_annotate_mod
     use test_vc_svn_mod, only: collect_vc_svn_mod
     use test_log_edit_mod, only: collect_log_edit_mod
     use test_add_log_mod, only: collect_add_log_mod
@@ -297,6 +298,7 @@ program tester
                  new_testsuite("simple_electric_mod", collect_simple_electric_mod), &
                  new_testsuite("vc_mod", collect_vc_mod), &
                  new_testsuite("vc_hg_mod", collect_vc_hg_mod), &
+                 new_testsuite("vc_annotate_mod", collect_vc_annotate_mod), &
                  new_testsuite("vc_svn_mod", collect_vc_svn_mod), &
                  new_testsuite("log_edit_mod", collect_log_edit_mod), &
                  new_testsuite("add_log_mod", collect_add_log_mod), &

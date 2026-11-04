@@ -1784,6 +1784,7 @@ contains
             b%delete_files => vc_hg_delete_files
             b%rename_file => vc_hg_rename_file
             b%previous_revision => vc_hg_previous_revision
+            b%next_revision => vc_hg_next_revision
             b%revision_completion_table => vc_hg_revision_table
             b%create_repo => vc_hg_create_repo
             b%checkin => vc_hg_checkin
