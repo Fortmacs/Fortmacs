@@ -2591,6 +2591,29 @@ name	button_activate	activate_button
 # call hash_random_bytes(SECURE_HASH_SHA512, 100_int64, hash, status)
 # (fns_mod); no name entry, as iv-auto is a symbol argument, not a name.
 
+# R6-17/R6-40 (owner, 2026-11-03/04): verb first, then the package word, then
+# the rest, in every new command and procedure name (step 47a, vc-annotate.el
+# and its Git slots).  vc_annotate itself starts a job and keeps upstream's order;
+# the names without a verb wait for the owner (listed in PR #236).
+name	vc_annotate_toggle_annotation_visibility	toggle_vc_annotate_annotation_visibility
+keep	vc_annotate_display_mode
+name	vc_annotate_display_default	display_vc_annotate_default
+name	vc_annotate_display_autoscale	display_vc_annotate_autoscale
+name	vc_annotate_display_select	display_vc_annotate_select
+name	vc_annotate_display	display_vc_annotate
+name	vc_annotate_prev_revision	previous_vc_annotate_revision
+name	vc_annotate_next_revision	next_vc_annotate_revision
+name	vc_annotate_find_revision_at_line	find_vc_annotate_revision_at_line
+name	vc_annotate_show_log_revision_at_line	show_vc_annotate_log_revision_at_line
+name	vc_annotate_show_diff_revision_at_line	show_vc_annotate_diff_revision_at_line
+name	vc_annotate_show_changeset_diff_revision_at_line	show_vc_annotate_changeset_diff_revision_at_line
+name	vc_annotate_warp_revision	warp_vc_annotate_revision
+name	vc_annotate_goto_line	goto_vc_annotate_line
+name	vc_annotate_extract_revision_at_line	extract_vc_annotate_revision_at_line
+name	vc_annotate_convert_time	convert_vc_annotate_time
+name	vc_git_show_log_entry	show_vc_git_log_entry
+name	vc_git_annotate_extract_revision_at_line	extract_vc_git_annotate_revision_at_line
+
 # R6-40 (owner, 2026-11-04): a package command without a verb takes the verb
 # from what it does (follow-scroll-up is scroll_follow_up); R6-17: verb first,
 # then the package word, in the new helpers too (step 45c, follow.el).  The
