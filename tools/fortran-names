@@ -2410,8 +2410,6 @@ name	mail_send	send_mail
 keep	mail_send_hook
 keep	mail_send_nonascii
 keep	mail_send_actions
-keep	MAIL_SEND_NONASCII_NO
-keep	MAIL_SEND_NONASCII_YES
 keep	MAIL_SEND_NONASCII_ASK
 keep	MAIL_SEND_NONASCII_MIME
 name	mail_yank_original	paste_mail_original

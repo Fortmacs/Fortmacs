@@ -44,7 +44,7 @@ module test_files_mod
                          save_buffer, basic_save_buffer, make_backup_file_name, &
                          normal_backup_enable_test_function, save_some_buffers, &
                          save_buffers_exit_fortmacs, temporary_file_directory, create_directory, require_final_newline, &
-                         FINAL_NEWLINE_NO, FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT, find_file_run_dired, create_temp_file
+                         FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT, find_file_run_dired, create_temp_file
     use subr_mod, only: read_y_or_n
     use map_ynp_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK, YNP_ACT
     use fortmacs_mod, only: command_line_1
@@ -772,7 +772,7 @@ contains
             if (allocated(error)) exit body
             call check(error, buffer_string() == "xyz"//LF, "added to the buffer")
             if (allocated(error)) exit body
-            require_final_newline = FINAL_NEWLINE_NO
+            require_final_newline = .false.
             call find_file(path("nl/f"), st)
             call insert("f", st)
             call type_keys("y")
@@ -791,7 +791,7 @@ contains
             call check(error, buffer_string() == "v"//LF, "visit")
         end block body
 
-        require_final_newline = FINAL_NEWLINE_NO
+        require_final_newline = .false.
         call find_file_noselect(path("x"), buffer, st)
         if (st%ok()) call close_buffer(buffer, st)
         call find_file_noselect(path("nl/f"), buffer, st)

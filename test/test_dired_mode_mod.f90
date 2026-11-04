@@ -29,7 +29,7 @@ module test_dired_mode_mod
     use bindings_mod, only: init_bindings
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, xstring, vtag, V_STRING
+    use value_mod, only: value_type, xstring, vtag, V_STRING, choice_type
     use textprop_mod, only: get_text_property
     use buffer_mod, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, close_buffer, current_buffer, &
                           is_buffer_live, erase_buffer
@@ -52,6 +52,7 @@ module test_dired_mode_mod
                               dired_free_space, DIRED_FREE_SPACE_SEPARATE, &
                               DIRED_LOCALP_ABSOLUTE, DIRED_LOCALP_RELATIVE, DIRED_LOCALP_NO_DIR, DIRED_ARG_NONE
     use string_type_mod, only: string_type
+    use data_mod, only: choice_state
     implicit none(type, external)
     private
 
@@ -813,14 +814,14 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: text
-        integer :: saved
+        type(choice_type) :: saved
 
         call setup()
         call make_file("foo", "")
         call make_file("bar", "")
         call get_or_make_buffer("files-tests--insert-directory", buffer, st)
         call set_buffer(buffer, st)
-        saved = dired_free_space
+        saved = choice_state(dired_free_space)
         dired_free_space = DIRED_FREE_SPACE_SEPARATE
         call dired_insert_directory(tdir(), "-l", st)
         dired_free_space = saved

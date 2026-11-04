@@ -47,7 +47,7 @@ module test_bookmark_mod
     use subr_mod, only: history_delete_duplicates
     use bindings_mod, only: init_bindings
     use bookmark_mod, only: bookmark_type, bookmarks, bookmark_default_file, bookmark_bookmarks_timestamp, &
-                            bookmark_save_flag, BOOKMARK_SAVE_FLAG_NO, bookmark_use_annotations, &
+                            bookmark_save_flag, bookmark_use_annotations, &
                             bookmark_make_record_function, bookmark_all_names, bookmark_get_bookmark, &
                             bookmark_set_name, bookmark_get_filename, bookmark_set_filename, bookmark_get_position, &
                             bookmark_set_position, bookmark_get_front_context_string, &
@@ -186,7 +186,7 @@ contains
         bookmark_bookmarks_timestamp%mtime_known = found
         bookmark_bookmarks_timestamp%mtime_sec = stat%mtime_sec
         bookmark_bookmarks_timestamp%mtime_nsec = stat%mtime_nsec
-        bookmark_save_flag = BOOKMARK_SAVE_FLAG_NO
+        bookmark_save_flag = .false.
         bookmark_use_annotations = .false.
     end subroutine use_default_file
 

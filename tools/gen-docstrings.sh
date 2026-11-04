@@ -279,6 +279,21 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
                 init = substr(rest, RSTART, RLENGTH)
                 sub(/value[ \t]*=[ \t]*/, "", init)
             }
+            # A choice setting: its value= argument (.false. when none), or
+            # its choice= argument; a setting with a component of another
+            # kind set in its constructor (`lines=1000') shows that.
+            if (type ~ /choice_setting_type\)/ && init == "") init = ".false."
+            if (type ~ /choice_setting_type\)/ && match(rest, /choice[ \t]*=[ \t]*[^,)]+/)) {
+                init = substr(rest, RSTART, RLENGTH)
+                sub(/choice[ \t]*=[ \t]*/, "", init)
+                sub(/[ \t]+$/, "", init)
+            }
+            if (match(rest, /(^|[(, ])(lines|seconds|level|char|modifications)[ \t]*=[ \t]*[^,)]+/)) {
+                init = substr(rest, RSTART, RLENGTH)
+                sub(/^[(, ]/, "", init)
+                sub(/[ \t]*=[ \t]*/, " = ", init)
+                init = "%" init
+            }
         } else if (type ~ /^type/) {
             # Other derived types have no printed value to compare.
             init = ""
@@ -519,16 +534,19 @@ find src -name '*.f90' ! -name docstrings_mod.f90 | sort |
     LC_ALL=C sort -t "$(printf '\037')" -k1,1 -k2,2 >"$tmp.records"
 
 # The named constants of enumerated settings (integer variables whose
-# value is one of a set of parameters, like search_upper_case).
+# value is one of a set of parameters, like search_upper_case): one
+# record per parameter statement, the settings its comment names
+# ("Values of `x' and `y'") then the statement, separated by \037.
 # A declaration continued over several lines is joined into one.
 find src -name '*.f90' ! -name docstrings_mod.f90 | sort |
     xargs awk '
         cont { sub(/^[ \t]*/, ""); line = line $0 }
+        !cont && /^[ \t]*!>/ { c = $0; while (match(c, /`[a-z][a-z0-9_]*\x27/)) { names = names " " substr(c, RSTART + 1, RLENGTH - 2); c = substr(c, RSTART + RLENGTH) } ; next }
         !cont && /integer, parameter, public ::/ { line = $0 }
-        !cont && !/integer, parameter, public ::/ { next }
+        !cont && !/integer, parameter, public ::/ { names = ""; next }
         {
             cont = sub(/[ \t]*&[ \t]*$/, " ", line)
-            if (!cont) print line
+            if (!cont) { print names "\037" line; names = "" }
         }' >"$tmp.params" || true
 
 # The user options (tools/user-options), without comments.
@@ -564,7 +582,7 @@ function lit(s, ind,    out) {
 function okind(i,    t) {
     t = vtype[i]
     if (varr[i]) return "OPTION_NONE"
-    if (venum[i] != "" && (t ~ /^integer/ || t ~ /integer_setting_type\)/)) return "OPTION_CHOICE"
+    if (venum[i] != "" && (t ~ /^integer/ || t ~ /(integer|choice)_setting_type\)/)) return "OPTION_CHOICE"
     if (t ~ /logical_setting_type\)/ || t ~ /^logical/) return "OPTION_LOGICAL"
     if (t ~ /integer_setting_type\)/ || t ~ /^integer/) return "OPTION_INTEGER"
     if (t ~ /^real/) return "OPTION_REAL"
@@ -573,7 +591,23 @@ function okind(i,    t) {
 }
 
 # Whether variable i is a setting object (it can have buffer-local values).
-function osetting(i) { return vtype[i] ~ /(logical|integer|string)_setting_type\)/ }
+function osetting(i) { return vtype[i] ~ /(logical|integer|string|choice)_setting_type\)/ }
+
+# Whether variable i is a choice setting (.true., .false. and named
+# constants), and whether it is one with a procedure component (an
+# extension of choice_setting_type).
+function ochoice(i) { return vtype[i] ~ /choice_setting_type\)/ }
+function okinds(i) { return vtype[i] ~ /[a-z]_(choice|integer|logical|string)_setting_type\)/ }
+
+# The named constants of a choice setting whose default is .true. or
+# .false.: the parameter statement whose comment names it ("Values of
+# x"), else the one whose constants start with the setting name; ""
+# if none.
+function choice_group(name,    c) {
+    if (name in vgroup) return vgroup[name]
+    for (c in group) if (index(c, toupper(name) "_") == 1) return group[c]
+    return ""
+}
 
 # Fortran statements assigning `val` to variable i, given buffer-locally
 # when `local` is true and the variable is a setting object.
@@ -607,6 +641,10 @@ BEGIN {
     nu = 0
     while ((getline l < uopts) > 0) { uopt[l] = 1; nu++; uname[nu] = l }
     while ((getline l < params) > 0) {
+        split(l, rec, "\037")
+        l = rec[2]; sub(/.*::/, "", l)
+        nn = split(rec[1], setting_names, " ")
+        for (i = 1; i <= nn; i++) if (setting_names[i] != "") vgroup[setting_names[i]] = l
         sub(/.*::/, "", l)
         n = split(l, defs, ",")
         for (i = 1; i <= n; i++) {
@@ -636,7 +674,19 @@ $1 == "V" {
         mods["callint_mod.f90"] = mods["callint_mod.f90"] (mods["callint_mod.f90"] == "" ? "" : ", ") "prefix_arg_repr"
     if ($5 ~ /indent_line_setting_type\)/ && !named_indent++)
         mods["indent_mod.f90"] = mods["indent_mod.f90"] (mods["indent_mod.f90"] == "" ? "" : ", ") "indent_line_function_name"
-    if ($7 ~ /^[A-Z][A-Z0-9_]*$/ && ($7 in group)) {
+    # A choice setting: the reserved choices, and its named constants
+    # found by its name when its default is .true. or .false..
+    if ($5 ~ /choice_setting_type\)/) {
+        cg = ($7 in group) ? group[$7] : choice_group($4)
+        if (cg != "") {
+            venum[nv] = cg
+            n = split(cg, defs, ",")
+            for (i = 1; i <= n; i++) {
+                d = defs[i]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
+                mods[$3] = mods[$3] ", " d
+            }
+        }
+    } else if ($7 ~ /^[A-Z][A-Z0-9_]*$/ && ($7 in group)) {
         venum[nv] = group[$7]
         n = split(group[$7], defs, ",")
         for (i = 1; i <= n; i++) {
@@ -826,7 +876,29 @@ END {
             sub(/_int(32|64)$/, "", init)
             print "            entry%original = " q(init)
         }
-        if (venum[i] != "") {
+        if (ochoice(i)) {
+            # A choice setting: a value of another kind (a procedure, a
+            # number, a string), the named constant of its choice, or
+            # .true./.false..
+            ind = "            "
+            if (okinds(i)) {
+                print "            entry%value = " vfort[i] "%other_value()"
+                print ""
+                print "            if (len(entry%value) == 0) then"
+                ind = "                "
+            }
+            print ind "select case (" vfort[i] "%choice)"
+            n = (venum[i] == "") ? 0 : split(venum[i], defs, ",")
+            for (k = 1; k <= n; k++) {
+                d = defs[k]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
+                print ind "case (" d ")"
+                print ind "    entry%value = " q(d)
+            }
+            print ind "case default"
+            print ind "    entry%value = repr(" vfort[i] "%value)"
+            print ind "end select"
+            if (okinds(i)) print "            end if"
+        } else if (venum[i] != "") {
             # The value of a setting object is its value component.
             ex = vfort[i]
             if (vtype[i] ~ /_setting_type\)/) ex = ex "%value"
@@ -847,7 +919,13 @@ END {
             # prefix argument its structure constructor.  Other derived types
             # (hooks, keymaps, syntax tables) have no printed representation
             # yet: help leaves the value out.
-            if (vtype[i] ~ /(integer|logical)_setting_type\)/) print "            entry%value = repr(" vfort[i] "%value)"
+            if (vtype[i] ~ /(integer|logical)_setting_type\)/ && okinds(i)) {
+                print "            entry%value = " vfort[i] "%other_value()"
+                print ""
+                print "            if (len(entry%value) == 0) then"
+                print "                entry%value = repr(" vfort[i] "%value)"
+                print "            end if"
+            } else if (vtype[i] ~ /(integer|logical)_setting_type\)/) print "            entry%value = repr(" vfort[i] "%value)"
             else if (vtype[i] ~ /string_setting_type\)/) {
                 print "            if (allocated(" vfort[i] "%value)) then"
                 print "                entry%value = repr(" vfort[i] "%value)"
@@ -1016,8 +1094,9 @@ END {
     print "    end subroutine set_user_option_string"
     print ""
     print "    !> Set the enumerated user option called `name` to its named constant"
-    print "    !> `constant` (in upper case), buffer-locally if `local` (a setting"
-    print "    !> object); `ok` is false if `constant` is not one of its constants."
+    print "    !> `constant` (in upper case; .TRUE. or .FALSE. for a choice setting),"
+    print "    !> buffer-locally if `local` (a setting object); `ok` is false if"
+    print "    !> `constant` is not one of its constants."
     print "    subroutine set_user_option_choice(name, constant, local, ok)"
     print "        character(len=*), intent(in) :: name, constant"
     print "        logical, intent(in) :: local"
@@ -1031,6 +1110,12 @@ END {
         if (okind(i) != "OPTION_CHOICE") continue
         print "        case (" q(vname[i]) ")"
         print "            select case (constant)"
+        if (ochoice(i)) {
+            print "            case (\".TRUE.\")"
+            print oassign(i, ".true.", "                ")
+            print "            case (\".FALSE.\")"
+            print oassign(i, ".false.", "                ")
+        }
         n = split(venum[i], defs, ",")
         for (m = 1; m <= n; m++) {
             d = defs[m]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
@@ -1060,6 +1145,11 @@ END {
         print "        case (" q(vname[i]) ")"
         n = split(venum[i], defs, ",")
         cl = "            constants = [character(len=48) :: "; vl = "            values = [integer(int64) :: "
+        # A choice setting also takes .true. and .false..
+        if (ochoice(i)) {
+            cl = cl q(".true.") ", " q(".false.") ", "
+            vl = vl "1_int64, 0_int64, "
+        }
         for (m = 1; m <= n; m++) {
             d = defs[m]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
             cl = wrapped(cl, q(toupper(d)) (m < n ? ", " : "]"))

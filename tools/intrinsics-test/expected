@@ -2,6 +2,9 @@ sample.f90:13: intrinsics: constant: SCROLL_NIL
 sample.f90:13: intrinsics: constant: SCROLL_T
 sample.f90:14: intrinsics: constant: CHECK_TRUE
 sample.f90:14: intrinsics: constant: CHECK_FALSE
+sample.f90:14: intrinsics: yes-no: CHECK_NO
+sample.f90:15: intrinsics: yes-no: COMPILATION_SCROLL_NO
+sample.f90:15: intrinsics: yes-no: COMPILATION_SCROLL_YES
 sample.f90:18: intrinsics: vector: colors_vector
 sample.f90:22: intrinsics: interactive: command_type%interactive
 sample.f90:27: intrinsics: command-state: this_command
@@ -13,6 +16,7 @@ sample.f90:48: intrinsics: constant: DABBREV_ON
 sample.f90:48: intrinsics: constant: SAVE_ABBREVS_NEVER
 sample.f90:49: intrinsics: constant: KMACRO_REPEAT_DISABLED
 sample.f90:49: intrinsics: constant: RECENTF_NO_LIMIT
+sample.f90:50: intrinsics: yes-no: DABBREV_NO
 sample.f90:54: intrinsics: interface: filter_proc
 sample.f90:54: intrinsics: abbreviation: filter_proc
 sample.f90:58: intrinsics: interface: completion_predicate

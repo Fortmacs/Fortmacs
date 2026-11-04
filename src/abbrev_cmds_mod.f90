@@ -1254,14 +1254,14 @@ contains
 
     ! Query mode.
     if (query) then
-        result = save_abbrevs /= SAVE_ABBREVS_NO .and. abbrevs_changed
+        result = .not. save_abbrevs%is_off() .and. abbrevs_changed
         return
     end if
 
     result = .false.
-    if (save_abbrevs == SAVE_ABBREVS_NO .or. .not. abbrevs_changed) return
+    if (save_abbrevs%is_off() .or. .not. abbrevs_changed) return
 
-    if (arg .or. save_abbrevs == SAVE_ABBREVS_SILENTLY) then
+    if (arg .or. save_abbrevs%choice == SAVE_ABBREVS_SILENTLY) then
         save = .true.
     else
         call read_y_or_n("Save abbrevs in "//abbrev_file()//"? ", save, status)

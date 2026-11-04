@@ -39,10 +39,10 @@ module test_sendmail_mod
     use startup_mod, only: user_mail_address
     use simple_mod, only: mail_user_agent, compose_mail
     use sendmail_mod, only: mail, mail_cc, mail_subject, mail_to, insert_mail_from_field, send_mail, send_mail_with_sendmail, &
-                            mail_signature, set_up_mail_with_from, mail_signature_variable, mail_signature_text, &
+                            mail_signature, set_up_mail_with_from, mail_signature_variable, &
                             mail_from_style, send_mail_function, sendmail_program, mail_archive_file_name, &
-                            sendmail_user_agent, mail_header_end, mail_text_start, MAIL_SIGNATURE_NO, &
-                            MAIL_SIGNATURE_STRING, MAIL_FROM_STYLE_SIMPLE, MAIL_FROM_STYLE_ANGLES, MAIL_NOERASE_NO
+                            sendmail_user_agent, mail_header_end, mail_text_start, &
+                            MAIL_FROM_STYLE_SIMPLE, MAIL_FROM_STYLE_ANGLES, MAIL_NOERASE_NO
     implicit none(type, external)
     private
 
@@ -85,7 +85,7 @@ contains
 
         call init_bindings()
         set_up_mail_with_from = .false.
-        mail_signature_variable = MAIL_SIGNATURE_NO
+        mail_signature_variable = .false.
         mail_from_style = MAIL_FROM_STYLE_SIMPLE
         user_mail_address = "king@grassland.com"
         send_mail_function => send_mail_with_sendmail
@@ -243,8 +243,7 @@ contains
         type(status_type) :: st
 
         call set_up()
-        mail_signature_variable = MAIL_SIGNATURE_STRING
-        mail_signature_text = LF//LF//"-- "//LF//"Elvis"
+        mail_signature_variable%text = LF//LF//"-- "//LF//"Elvis"
         call mail(st, MAIL_NOERASE_NO, to="joe@x")
         call check(error, st%ok(), format_error(st))
 
@@ -257,7 +256,7 @@ contains
 
         if (.not. allocated(error)) call check(error, point() == len("To: joe@x"//LF//"Subject: "//LF//SEPARATOR//LF) + 1, &
                                                "point is not at the text")
-        mail_signature_variable = MAIL_SIGNATURE_NO
+        mail_signature_variable = .false.
         call leave()
     end subroutine test_signature
 

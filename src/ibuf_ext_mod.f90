@@ -60,7 +60,7 @@ submodule(ibuffer_mod) ibuf_ext_mod
     use fileio_mod, only: file_exists, file_name_nondirectory, file_name_directory, write_region
     use files_mod, only: file_relative_name, create_temp_file, revert_buffer
     use subr_mod, only: shell_quote_argument
-    use diff_mod, only: diff_check_labels, diff_sentinel, diff_command, diff_switches, diff_use_labels, DIFF_USE_LABELS_YES
+    use diff_mod, only: diff_check_labels, diff_sentinel, diff_command, diff_switches, diff_use_labels
     use diff_mode_mod, only: diff_mode
     use window_mod, only: pop_to_buffer_same_window
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
@@ -755,7 +755,7 @@ contains
         status = status_type()
         buffer = get_buffer(shell_command_buffer_name)
         if (.not. is_buffer_live(buffer)) return
-        if (shell_command_keep_output%value /= 0) return
+        if (.not. shell_command_keep_output%is_off()) return
         old = current_buffer()
         call set_buffer(buffer, st)
         if (buffer_size() /= 0) call erase_buffer(st)
@@ -1599,7 +1599,7 @@ contains
             if (len(diff_switches) > 0) command = command//" "//diff_switches
         end if
 
-        if (diff_use_labels == DIFF_USE_LABELS_YES) then
+        if (diff_use_labels%value) then
             command = command//" --label "//shell_quote_argument(old)//" --label " &
                       //shell_quote_argument("#<buffer "//buffers(buffer%index)%name//">")
         end if

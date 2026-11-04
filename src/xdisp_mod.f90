@@ -120,7 +120,8 @@ module xdisp_mod
     use value_mod, only: value_type, xstring, list_elements, xfixnum, xhandle, string_intervals, vtag, V_INTEGER, &
                          V_STRING, V_ARRAY, V_WINDOW
     use intervals_mod, only: textget
-    use data_mod, only: buffer_local_value, integer_setting_type, append_locals_clearer, value_eq
+    use data_mod, only: buffer_local_value, integer_setting_type, append_locals_clearer, value_eq, choice_setting_type, &
+                        number_to_string
     use coding_mod, only: is_coding_system, coding_system_mnemonic, coding_system_eol_type_mnemonic, init_coding, &
                           buffer_file_coding_system
     use buffer_mod, only: get_buffer, get_or_make_buffer, set_buffer, is_buffer_live, temp_set_point_both, BEGINNING, BEGINNING_BYTE
@@ -207,15 +208,23 @@ module xdisp_mod
     !> Values of `invisibility': hidden, and replaced by an ellipsis.
     integer, parameter, public :: INVISIBLE_HIDDEN = 1, INVISIBLE_ELLIPSIS = 2
 
-    !> Values of `message_log_max' other than a number of lines.
-    integer(int64), parameter, public :: MESSAGE_LOG_MAX_NO = -1, MESSAGE_LOG_MAX_UNLIMITED = -2
+    !> The setting `message_log_max': .false., .true. or a number of lines
+    !> (R6-39: `message_log_max%lines = 500'; negative when no number is
+    !> set).  Not a port.
+    type, extends(choice_setting_type), public :: message_log_max_choice_setting_type
+        integer(int64) :: lines = -1
+    contains
+        procedure :: clear_kinds => message_log_max_clear_kinds
+        procedure :: other_value => message_log_max_other_value
+    end type message_log_max_choice_setting_type
 
-    !> Maximum number of lines to keep in the message log buffer.
-    !> If MESSAGE_LOG_MAX_NO, disable message logging.  If
-    !> MESSAGE_LOG_MAX_UNLIMITED, log messages but don't truncate the buffer
-    !> when it becomes large.  Port of xdisp.c message-log-max (named
-    !> constants for none and no limit).
-    integer(int64), public :: message_log_max = 1000
+    !> Maximum number of lines to keep in the message log buffer
+    !> (`message_log_max%lines').
+    !> If .false., disable message logging.  If .true., log messages but
+    !> don't truncate the buffer
+    !> when it becomes large.  Port of xdisp.c message-log-max.
+    type(message_log_max_choice_setting_type), public :: message_log_max = &
+                                                         message_log_max_choice_setting_type(name="message_log_max", lines=1000)
 
     !> The name of the buffer where messages are logged.  xdisp.c
     !> messages-buffer-name.
@@ -3967,7 +3976,7 @@ contains
 
     !> Like `message', without logging the text in *Messages*: as
     !> upstream's `message' with `message_log_max' bound to
-    !> MESSAGE_LOG_MAX_NO, or the echo-area prompts of read-key-sequence.
+    !> `%lines = 0', or the echo-area prompts of read-key-sequence.
     !> Port of xdisp.c:message3_nolog (with xdisp.c:message1_nolog and
     !> xdisp.c:message3_frame_nolog).
     subroutine message_nolog(text)
@@ -4006,7 +4015,7 @@ contains
         logical :: newbuffer, point_at_end, zv_at_end, old_inhibit
         character(len=24) :: dupstr
 
-        if (message_log_max == MESSAGE_LOG_MAX_NO) return
+        if (message_log_max%is_off()) return
         oldbuf = current_buffer()
         ! Ensure the Messages buffer exists, and switch to it.  If we
         ! created it, set the major-mode.
@@ -4069,9 +4078,9 @@ contains
 
             ! If we have more than the desired maximum number of lines in
             ! the *Messages* buffer now, delete the oldest ones.
-            if (message_log_max >= 0) then
+            if (message_log_max%lines >= 0) then
                 call scan_newline(buffers(current)%text%z, buffers(current)%text%z_byte, BEGINNING, BEGINNING_BYTE, &
-                                  -message_log_max - 1)
+                                  -message_log_max%lines - 1)
                 call del_range_both(BEGINNING, BEGINNING_BYTE, buffers(current)%pt, buffers(current)%pt_byte, .false., st)
             end if
 
@@ -4485,4 +4494,22 @@ contains
         call bidi_unshelve_cache(itb_data, .false.)
         if (from_pos <= found .and. found < to_pos) pos = found
     end function bidi_find_overridden_directionality
+
+    !> Forget the lines of `message_log_max', as any assignment to it does.
+    !> Not a port.
+    subroutine message_log_max_clear_kinds(self)
+        class(message_log_max_choice_setting_type), intent(inout) :: self
+
+        self%lines = -1
+    end subroutine message_log_max_clear_kinds
+
+    !> The lines of `message_log_max' as help shows it (`%lines = N'); "" when
+    !> none is set.  Not a port.
+    function message_log_max_other_value(self) result(text)
+        class(message_log_max_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (self%lines >= 0) text = "%lines = "//number_to_string(self%lines)
+    end function message_log_max_other_value
 end module xdisp_mod
