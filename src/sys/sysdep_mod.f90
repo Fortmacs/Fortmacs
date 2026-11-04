@@ -53,7 +53,7 @@ module sysdep_mod
                              tm_type, c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_sync, &
                              c_fchmod, c_fchmodat, c_fchown, c_getgrgid, c_setpwent, c_getpwent, c_endpwent, &
                              c_setgrent, c_getgrent, c_endgrent, group_type, timespec_type, O_CREAT, O_EXCL, &
-                             O_TRUNC, RENAME_NOREPLACE, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP, &
+                             O_TRUNC, O_APPEND, RENAME_NOREPLACE, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP, &
                              c_setsid, c_kill, c_tcgetpgrp, c_ioctl_int, c_fcntl_int, SIGQUIT, SIGPIPE, &
                              TIOCSCTTY, F_SETFD, FD_CLOEXEC, F_GETFL, F_SETFL, O_NONBLOCK, EAGAIN, &
                              TCSANOW, OPOST, OLCUC, NLDLY, CRDLY, BSDLY, VTDLY, FFDLY, IUCLC, CSIZE, &
@@ -101,7 +101,7 @@ module sysdep_mod
               fortmacs_set_umask, fortmacs_sync, &
               sys_fchmod, sys_chmod_at, sys_fchown, group_name_of_gid, user_name_of_uid, system_user_names, &
               system_group_names
-    public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
+    public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, O_APPEND, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
     public :: fortmacs_spawn_async, child_setup_tty, fortmacs_kill, ignore_sigpipe, fortmacs_write_nonblock, &
               set_nonblocking, fortmacs_dup_cloexec, inputs_available, fortmacs_num_processors, &
               fortmacs_clock_realtime, fortmacs_clock_process_cputime, sys_localtime, sys_mktime, sys_set_time_zone
