@@ -59,7 +59,7 @@ submodule(ediff_util_mod) ediff_util_session_mod
                               ediff_char_to_buffer_type, ediff_buffer_type_name, set_ediff_overlay_face, move_ediff_overlay, &
                               ediff_background_face, paint_ediff_background_regions, check_ediff_control_buffer, &
                               close_ediff_buffer_carefully, ediff_use_faces, ediff_highlight_all_diffs, ediff_keep_variants, &
-                              ediff_make_buffers_readonly_at_startup, ediff_no_fortmacs_help_in_control_buffer, &
+                              ediff_make_buffers_readonly_at_startup, ediff_fortmacs_help_in_control_buffer, &
                               ediff_before_flag_bol, ediff_before_flag_mol, ediff_after_flag_eol, ediff_after_flag_mol, &
                               ediff_temp_file_mode, ediff_coding_system_for_write, ediff_before_setup_hook, &
                               ediff_startup_hook, ediff_select_hook, ediff_unselect_hook, ediff_prepare_buffer_hook, &
@@ -118,24 +118,26 @@ contains
     ! Select WINDOW (if live) for a while, saving the selected window and
     ! the current buffer in OLD_WINDOW and OLD_BUFFER.  Not a port: the
     ! entry of with-selected-window.
-    recursive subroutine select_window_begin(window, old_window, old_buffer)
+    recursive subroutine select_window_begin(window, old_window, old_buffer, status)
         type(handle_type), intent(in) :: window
         type(handle_type), intent(out) :: old_window, old_buffer
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
 
         old_window = selected_frame%selected_window
         old_buffer = current_buffer()
-        call select_window(window, st, norecord=.true.)
+        call select_window(window, status, norecord=.true.)
     end subroutine select_window_begin
 
     ! Select OLD_WINDOW again and make OLD_BUFFER current.  Not a port:
     ! the exit of with-selected-window.
-    recursive subroutine select_window_end(old_window, old_buffer)
+    recursive subroutine select_window_end(old_window, old_buffer, status)
         type(handle_type), intent(in) :: old_window, old_buffer
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
 
-        if (is_window_live(old_window)) call select_window(old_window, st, norecord=.true.)
-        if (is_buffer_live(old_buffer)) call set_buffer(old_buffer, st)
+        status = status_type()
+        if (is_window_live(old_window)) call select_window(old_window, status, norecord=.true.)
+        if (.not. status%ok()) return
+        if (is_buffer_live(old_buffer)) call set_buffer(old_buffer, status)
     end subroutine select_window_end
 
     ! The message of an invalid difference number N (counted from 0) of
@@ -174,64 +176,77 @@ contains
     ! (`ediff_mode_map') and use it.  Port of
     ! ediff-util.el:ediff-setup-keymap with ediff-set-keys (the keys of
     ! the deferred commands are not bound).
-    recursive subroutine set_up_ediff_keymap(k)
+    recursive subroutine set_up_ediff_keymap(k, status)
         integer, intent(in) :: k
+        type(status_type), intent(out) :: status
         type(handle_type) :: map
-        type(status_type) :: st
         character(len=1) :: digit
         integer :: d
 
+        status = status_type()
         call make_sparse_keymap(map)
         ediff_sessions(k)%keymap = map
         ! (suppress-keymap ediff-mode-map)
-        call keymap_set(map, "<remap> <self_insert_command>", "undefined", st)
-        call keymap_set(map, "-", "negative_argument", st)
+        call bind("<remap> <self_insert_command>", "undefined")
+        call bind("-", "negative_argument")
 
         do d = 0, 9
             write (digit, "(i1)") d
-            call keymap_set(map, digit, "digit_argument", st)
+            call bind(digit, "digit_argument")
         end do
 
-        call keymap_set(map, "p", "previous_ediff_difference", st)
-        call keymap_set(map, "DEL", "previous_ediff_difference", st)
-        call keymap_set(map, "<delete>", "previous_ediff_difference", st)
-        if (ediff_no_fortmacs_help_in_control_buffer) call keymap_set(map, "C-h", "previous_ediff_difference", st)
-        call keymap_set(map, "<backspace>", "previous_ediff_difference", st)
-        call keymap_set(map, "S-SPC", "previous_ediff_difference", st)
-        call keymap_set(map, "n", "next_ediff_difference", st)
-        call keymap_set(map, "SPC", "next_ediff_difference", st)
-        call keymap_set(map, "j", "jump_to_ediff_difference", st)
-        call keymap_set(map, "g a", "jump_to_ediff_difference_at_point", st)
-        call keymap_set(map, "g b", "jump_to_ediff_difference_at_point", st)
-        call keymap_set(map, "q", "quit_ediff", st)
-        call keymap_set(map, "C-l", "recenter_ediff", st)
-        call keymap_set(map, "|", "toggle_ediff_split", st)
-        call keymap_set(map, "h", "toggle_ediff_highlighting", st)
-        call keymap_set(map, "?", "toggle_ediff_help", st)
-        call keymap_set(map, "!", "update_ediff_diffs", st)
+        call bind("p", "previous_ediff_difference")
+        call bind("DEL", "previous_ediff_difference")
+        call bind("<delete>", "previous_ediff_difference")
+        if (.not. ediff_fortmacs_help_in_control_buffer) call bind("C-h", "previous_ediff_difference")
+        call bind("<backspace>", "previous_ediff_difference")
+        call bind("S-SPC", "previous_ediff_difference")
+        call bind("n", "next_ediff_difference")
+        call bind("SPC", "next_ediff_difference")
+        call bind("j", "jump_to_ediff_difference")
+        call bind("g a", "jump_to_ediff_difference_at_point")
+        call bind("g b", "jump_to_ediff_difference_at_point")
+        call bind("q", "quit_ediff")
+        call bind("C-l", "recenter_ediff")
+        call bind("|", "toggle_ediff_split")
+        call bind("h", "toggle_ediff_highlighting")
+        call bind("?", "toggle_ediff_help")
+        call bind("!", "update_ediff_diffs")
 
         if (ediff_sessions(k)%three_way_comparison_job) then
-            call keymap_set(map, "a b", "copy_ediff_a_to_b", st)
-            call keymap_set(map, "b a", "copy_ediff_b_to_a", st)
-            call keymap_set(map, "a c", "copy_ediff_a_to_c", st)
-            call keymap_set(map, "b c", "copy_ediff_b_to_c", st)
-            call keymap_set(map, "c a", "copy_ediff_c_to_a", st)
-            call keymap_set(map, "c b", "copy_ediff_c_to_b", st)
-            call keymap_set(map, "r a", "restore_ediff_diff", st)
-            call keymap_set(map, "r b", "restore_ediff_diff", st)
-            call keymap_set(map, "r c", "restore_ediff_diff", st)
+            call bind("a b", "copy_ediff_a_to_b")
+            call bind("b a", "copy_ediff_b_to_a")
+            call bind("a c", "copy_ediff_a_to_c")
+            call bind("b c", "copy_ediff_b_to_c")
+            call bind("c a", "copy_ediff_c_to_a")
+            call bind("c b", "copy_ediff_c_to_b")
+            call bind("r a", "restore_ediff_diff")
+            call bind("r b", "restore_ediff_diff")
+            call bind("r c", "restore_ediff_diff")
         else
             ! 2-way comparison.
-            call keymap_set(map, "a", "copy_ediff_a_to_b", st)
-            call keymap_set(map, "b", "copy_ediff_b_to_a", st)
-            call keymap_set(map, "r a", "restore_ediff_diff", st)
-            call keymap_set(map, "r b", "restore_ediff_diff", st)
+            call bind("a", "copy_ediff_a_to_b")
+            call bind("b", "copy_ediff_b_to_a")
+            call bind("r a", "restore_ediff_diff")
+            call bind("r b", "restore_ediff_diff")
         end if
 
-        call keymap_set(map, "# c", "toggle_ediff_ignore_case", st)
-        if (ediff_sessions(k)%three_way_job) call keymap_set(map, "g c", "jump_to_ediff_difference_at_point", st)
-        call use_local_map(map, st)
-        call ediff_keymap_setup_hook%execute(st)
+        call bind("# c", "toggle_ediff_ignore_case")
+        if (ediff_sessions(k)%three_way_job) call bind("g c", "jump_to_ediff_difference_at_point")
+        if (.not. status%ok()) return
+        call use_local_map(map, status)
+        if (.not. status%ok()) return
+        call ediff_keymap_setup_hook%execute(status)
+
+    contains
+
+        ! Bind KEY to COMMAND in the map unless an earlier binding failed.
+        subroutine bind(key, command)
+            character(len=*), intent(in) :: key, command
+
+            if (.not. status%ok()) return
+            call keymap_set(map, key, command, status)
+        end subroutine bind
     end subroutine set_up_ediff_keymap
 
     ! ------------------------------------------------------------------
@@ -329,19 +344,23 @@ contains
 
         do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
             call make_ediff_bullet_proof_overlay(0_int64, 0_int64, ediff_sessions(k)%buffers(t), &
-                                                 ediff_sessions(k)%wide_bounds(t), whole=.true.)
+                                                 ediff_sessions(k)%wide_bounds(t), status, whole=.true.)
+            if (.not. status%ok()) return
         end do
 
         ! This has effect only on ediff-windows/regions.
         ediff_sessions(k)%visible_bounds = ediff_sessions(k)%wide_bounds
-        call set_up_ediff_keymap(k)
+        call set_up_ediff_keymap(k, status)
+        if (.not. status%ok()) return
         ediff_sessions(k)%narrow_bounds = ediff_sessions(k)%wide_bounds
 
         ! These won't run if there are errors in diff.
         do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
             if (t == EDIFF_BUFFER_TYPE_C .and. .not. ediff_sessions(k)%three_way_job) exit
-            call set_buffer(ediff_sessions(k)%buffers(t), st)
-            call ediff_prepare_buffer_hook%execute(st)
+            call set_buffer(ediff_sessions(k)%buffers(t), status)
+            if (.not. status%ok()) return
+            call ediff_prepare_buffer_hook%execute(status)
+            if (.not. status%ok()) return
             if (ediff_sessions(k)%merge_job .and. t /= EDIFF_BUFFER_TYPE_C) buffers(current)%read_only = .true.
 
             if (ediff_make_buffers_readonly_at_startup) then
@@ -351,7 +370,8 @@ contains
             end if
         end do
 
-        call set_buffer(control_buffer, st)
+        call set_buffer(control_buffer, status)
+        if (.not. status%ok()) return
 
         ! The following must be after setting up ediff-narrow-bounds.
         if (ediff_sessions(k)%diff3_job) then
@@ -361,12 +381,17 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call set_buffer(control_buffer, st)
+        call set_buffer(control_buffer, status)
+        if (.not. status%ok()) return
         ediff_sessions(k)%number_of_differences = size(ediff_sessions(k)%differences, 2)
         ediff_sessions(k)%current_difference = -1
-        call make_ediff_current_diff_overlay(k, EDIFF_BUFFER_TYPE_A)
-        call make_ediff_current_diff_overlay(k, EDIFF_BUFFER_TYPE_B)
-        if (ediff_sessions(k)%three_way_job) call make_ediff_current_diff_overlay(k, EDIFF_BUFFER_TYPE_C)
+
+        do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
+            if (t == EDIFF_BUFFER_TYPE_C .and. .not. ediff_sessions(k)%three_way_job) exit
+            call make_ediff_current_diff_overlay(k, t, status)
+            if (.not. status%ok()) return
+        end do
+
         call set_up_ediff_windows(buffer_a, buffer_b, buffer_c, control_buffer, status)
         if (.not. status%ok()) return
 
@@ -375,85 +400,109 @@ contains
             if (t == EDIFF_BUFFER_TYPE_C .and. .not. ediff_sessions(k)%three_way_job) exit
             if (.not. is_window_live(ediff_sessions(k)%windows(t))) cycle
             shift = overlay_start(ediff_sessions(k)%narrow_bounds(t))
-            call select_window_begin(ediff_sessions(k)%windows(t), old_window, old_buffer)
-            call goto_char(shift)
-            call select_window_end(old_window, old_buffer)
+            call select_window_begin(ediff_sessions(k)%windows(t), old_window, old_buffer, status)
+            if (status%ok()) call goto_char(shift)
+            ! Select the old window again, keeping the first error.
+            call select_window_end(old_window, old_buffer, st)
+            if (status%ok()) status = st
+            if (.not. status%ok()) return
         end do
 
         if (ediff_select_control_window_on_setup .and. is_window_live(ediff_sessions(k)%control_window)) then
-            call select_window(ediff_sessions(k)%control_window, st)
+            call select_window(ediff_sessions(k)%control_window, status)
+            if (.not. status%ok()) return
         end if
 
-        call set_buffer(control_buffer, st)
-        call make_ediff_region_visible(k)
+        call set_buffer(control_buffer, status)
+        if (.not. status%ok()) return
+        call make_ediff_region_visible(k, status)
+        if (.not. status%ok()) return
 
         if (present(startup_hooks)) then
             call startup_hooks%execute(status)
             if (.not. status%ok()) return
         end if
 
-        call set_buffer(control_buffer, st)
+        call set_buffer(control_buffer, status)
+        if (.not. status%ok()) return
         call refresh_ediff_mode_lines(k)
         buffers(current)%read_only = .true.
         call ediff_startup_hook%execute(status)
-        if (is_buffer_live(old)) call set_buffer(old, st)
+
+        ! Make the old buffer current again, keeping the first error.
+        if (is_buffer_live(old)) then
+            call set_buffer(old, st)
+            if (status%ok()) status = st
+        end if
     end subroutine set_up_ediff
 
-    recursive module subroutine set_up_ediff_control_buffer(k, control_buffer)
+    recursive module subroutine set_up_ediff_control_buffer(k, control_buffer, status)
         integer, intent(in) :: k
         type(handle_type), intent(in) :: control_buffer
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
         type(handle_type) :: window, parent, root
         integer :: root_height
         integer(int64) :: moved
 
         window = selected_frame%selected_window
-        call set_buffer(control_buffer, st)
+        call set_buffer(control_buffer, status)
+        if (.not. status%ok()) return
 
         if (windows(window%index)%dedicated == 0) then
-            call switch_to_buffer(buffers(current)%name, st)
-            call set_buffer(control_buffer, st)
+            call switch_to_buffer(buffers(current)%name, status)
+            if (.not. status%ok()) return
+            call set_buffer(control_buffer, status)
+            if (.not. status%ok()) return
         end if
 
         call erase_control_buffer()
-        call set_ediff_help_message(k)
-        call set_buffer(control_buffer, st)
-        call insert(ediff_sessions(k)%help_message, st)
-        parent = window_parent(window, st)
+        if (.not. status%ok()) return
+        call set_ediff_help_message(k, status)
+        if (.not. status%ok()) return
+        call set_buffer(control_buffer, status)
+        if (.not. status%ok()) return
+        call insert(ediff_sessions(k)%help_message, status)
+        if (.not. status%ok()) return
+        parent = window_parent(window, status)
+        if (.not. status%ok()) return
 
         ! Emulate the behavior of Emacs 27: fit the window, but to at most
         ! half the frame (the lower window of a split gets the residue
         ! line).
-        if (st%ok() .and. parent%index /= 0) then
+        if (parent%index /= 0) then
             if (is_pos_visible_in_window(point_min(), window)) then
-                root = frame_root_window(window, st)
-                if (st%ok()) root_height = window_total_height(root, st)
-                if (st%ok()) call fit_window_to_buffer(window, (root_height + 1)/2)
+                root = frame_root_window(window, status)
+                if (.not. status%ok()) return
+                root_height = window_total_height(root, status)
+                if (.not. status%ok()) return
+                call fit_window_to_buffer(window, (root_height + 1)/2)
             end if
         end if
 
-        call indent_ediff_help_message(k)
-        call set_ediff_help_overlays()
+        call indent_ediff_help_message(k, status)
+        if (.not. status%ok()) return
+        call set_ediff_help_overlays(status)
+        if (.not. status%ok()) return
         call restore_buffer_modified(.false.)
         call refresh_ediff_mode_lines(k)
         ediff_sessions(k)%control_window = selected_frame%selected_window
         ediff_sessions(k)%window_config_saved = ediff_window_config(k)
-        call set_window_dedication(selected_frame%selected_window, DEDICATED_WEAK, st)
+        call set_window_dedication(selected_frame%selected_window, DEDICATED_WEAK, status)
+        if (.not. status%ok()) return
         call goto_char(point_min())
         ! (skip-chars-forward ediff-whitespace)
-        moved = skip_chars_forward(" "//LF//achar(9)//achar(12)//achar(13)//char(194)//char(160), st)
+        moved = skip_chars_forward(" "//LF//achar(9)//achar(12)//achar(13)//char(194)//char(160), status)
 
     contains
 
         ! (erase-buffer) in the read-only control buffer.
         subroutine erase_control_buffer()
             use buffer_mod, only: erase_buffer
-            type(status_type) :: st2
             logical :: saved
 
             saved = buffers(current)%read_only
             buffers(current)%read_only = .false.
-            call erase_buffer(st2)
+            call erase_buffer(status)
             buffers(current)%read_only = saved
         end subroutine erase_control_buffer
     end subroutine set_up_ediff_control_buffer
@@ -476,8 +525,10 @@ contains
         call enter_ediff_buffer(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_A), status)
         if (.not. status%ok()) return
         point_a = point()
-        call set_buffer(old, st)
-        call unselect_and_select_ediff_difference(k, -1)
+        call set_buffer(old, status)
+        if (.not. status%ok()) return
+        call unselect_and_select_ediff_difference(k, -1, status)
+        if (.not. status%ok()) return
         call make_temp(EDIFF_BUFFER_TYPE_A, file_a)
         if (.not. status%ok()) return
         call make_temp(EDIFF_BUFFER_TYPE_B, file_b)
@@ -492,23 +543,35 @@ contains
         call clear_ediff_differences(k)
         ! Invalidate the replaced regions.
         if (allocated(ediff_sessions(k)%replaced_regions)) deallocate (ediff_sessions(k)%replaced_regions)
-        call set_buffer(ediff_sessions(k)%control_buffer, st)
+        call set_buffer(ediff_sessions(k)%control_buffer, status)
 
-        if (ediff_sessions(k)%diff3_job) then
-            call set_up_ediff_diff_regions3(k, file_a, file_b, file_c, status)
-        else
-            call set_up_ediff_diff_regions(k, file_a, file_b, status)
+        if (status%ok()) then
+            if (ediff_sessions(k)%diff3_job) then
+                call set_up_ediff_diff_regions3(k, file_a, file_b, file_c, status)
+            else
+                call set_up_ediff_diff_regions(k, file_a, file_b, status)
+            end if
         end if
 
+        ! Delete the temporary files, keeping the first error.
         call delete_file(file_a, st)
+        if (status%ok()) status = st
         call delete_file(file_b, st)
-        if (len(file_c) > 0) call delete_file(file_c, st)
+        if (status%ok()) status = st
+
+        if (len(file_c) > 0) then
+            call delete_file(file_c, st)
+            if (status%ok()) status = st
+        end if
+
         if (.not. status%ok()) return
         ediff_sessions(k)%number_of_differences = size(ediff_sessions(k)%differences, 2)
-        call set_buffer(ediff_sessions(k)%control_buffer, st)
+        call set_buffer(ediff_sessions(k)%control_buffer, status)
+        if (.not. status%ok()) return
         call ediff_diff_at_point(k, EDIFF_BUFFER_TYPE_A, diff_no, status, pos=point_a)
         if (.not. status%ok()) return
         call jump_to_ediff_difference(int(diff_no, int64), status)
+        if (.not. status%ok()) return
         call message("")
 
     contains
@@ -553,6 +616,7 @@ contains
         type(handle_type) :: control
         type(status_type) :: st
         logical :: saved, all_live
+        integer :: t
 
         status = status_type()
         control = ediff_sessions(k)%control_buffer
@@ -574,65 +638,92 @@ contains
             call message(EDIFF_KILLED_VITAL_BUFFER)
         end if
 
+        ! Make the control buffer current again, keeping the first error.
         if (is_buffer_live(control)) then
             call set_buffer(control, st)
-            buffers(current)%read_only = saved
+            if (st%ok()) buffers(current)%read_only = saved
+            if (status%ok()) status = st
         end if
 
         if (.not. status%ok()) return
         ! Set visibility range appropriate to this invocation of Ediff.
-        call make_ediff_region_visible(k)
+        call make_ediff_region_visible(k, status)
+        if (.not. status%ok()) return
 
         ! Redisplay whatever buffers are showing, if there is a selected
         ! difference.
         if (all_live) then
-            if (.not. no_rehighlight) call select_ediff_difference(k, ediff_sessions(k)%current_difference)
-            call recenter_ediff_one_window(k, EDIFF_BUFFER_TYPE_A)
-            call recenter_ediff_one_window(k, EDIFF_BUFFER_TYPE_B)
-            if (ediff_sessions(k)%three_way_job) call recenter_ediff_one_window(k, EDIFF_BUFFER_TYPE_C)
+            if (.not. no_rehighlight) then
+                call select_ediff_difference(k, ediff_sessions(k)%current_difference, status)
+                if (.not. status%ok()) return
+            end if
+
+            do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
+                if (t == EDIFF_BUFFER_TYPE_C .and. .not. ediff_sessions(k)%three_way_job) exit
+                call recenter_ediff_one_window(k, t, status)
+                if (.not. status%ok()) return
+            end do
         end if
 
-        if (.not. no_rehighlight) call restore_ediff_highlighting(k)
-        if (is_buffer_live(control)) call set_buffer(control, st)
+        if (.not. no_rehighlight) then
+            call restore_ediff_highlighting(k, status)
+            if (.not. status%ok()) return
+        end if
+
+        if (is_buffer_live(control)) then
+            call set_buffer(control, status)
+            if (.not. status%ok()) return
+        end if
+
         call refresh_ediff_mode_lines(k)
     end subroutine recenter_ediff_session
 
     ! Show the current difference of session K in the window of
     ! BUFFER_TYPE, without changing the selected window.  Port of
     ! ediff-util.el:ediff-recenter-one-window.
-    recursive subroutine recenter_ediff_one_window(k, buffer_type)
+    recursive subroutine recenter_ediff_one_window(k, buffer_type, status)
         integer, intent(in) :: k, buffer_type
+        type(status_type), intent(out) :: status
         type(handle_type) :: window, old_window, old_buffer, control
         type(status_type) :: st
         integer(int64) :: beginning, end
 
+        status = status_type()
         if (.not. is_valid_difference(k)) return
         ! Context must be saved before switching to windows A/B/C.
         control = ediff_sessions(k)%control_buffer
         window = ediff_sessions(k)%windows(buffer_type)
         if (.not. is_window_live(window)) return
-        call get_ediff_diff_position(k, buffer_type, .false., beginning, st)
-        if (.not. st%ok()) return
-        call get_ediff_diff_position(k, buffer_type, .true., end, st)
-        if (.not. st%ok()) return
-        call select_window_begin(window, old_window, old_buffer)
-        call deactivate_mark()
-        call position_ediff_region(beginning, end, beginning)
-        call select_window_end(old_window, old_buffer)
-        call set_buffer(control, st)
+        call get_ediff_diff_position(k, buffer_type, .false., beginning, status)
+        if (.not. status%ok()) return
+        call get_ediff_diff_position(k, buffer_type, .true., end, status)
+        if (.not. status%ok()) return
+        call select_window_begin(window, old_window, old_buffer, status)
+
+        if (status%ok()) then
+            call deactivate_mark()
+            call position_ediff_region(beginning, end, beginning, status)
+        end if
+
+        ! Select the old window again, keeping the first error.
+        call select_window_end(old_window, old_buffer, st)
+        if (status%ok()) status = st
+        if (.not. status%ok()) return
+        call set_buffer(control, status)
     end subroutine recenter_ediff_one_window
 
     ! Show BEGINNING to END in the selected window, centered when it
     ! fits, and put point at POS.  Port of ediff-util.el:ediff-position-region
     ! (windows jobs are deferred).
-    recursive subroutine position_ediff_region(beginning, end_in, pos)
+    recursive subroutine position_ediff_region(beginning, end_in, pos, status)
         integer(int64), intent(in) :: beginning, end_in, pos
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
         integer(int64) :: end, lines, prev_point, line
         integer :: height
 
         end = min(end_in, point_max())
-        call set_window_start(windows(selected_frame%selected_window%index), beginning, st)
+        call set_window_start(windows(selected_frame%selected_window%index), beginning, status)
+        if (.not. status%ok()) return
 
         if (is_pos_visible_in_window(end, selected_frame%selected_window)) then
             ! Determine the number of lines that the region occupies.
@@ -640,7 +731,8 @@ contains
             prev_point = 0
 
             do
-                call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, lines), line, st)
+                call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, lines), line, status)
+                if (.not. status%ok()) return
                 if (.not. end > point()) exit
                 ! `end' may be beyond the window bottom, so check that we
                 ! are making progress.
@@ -651,8 +743,10 @@ contains
 
             ! And position the beginning on the right line.
             call goto_char(beginning)
-            height = window_total_height(selected_frame%selected_window, st)
-            if (st%ok()) call recenter(prefix_arg_type(PREFIX_NUMBER, (1 + max(height - 1 - lines, 1_int64))/2), .false., st)
+            height = window_total_height(selected_frame%selected_window, status)
+            if (.not. status%ok()) return
+            call recenter(prefix_arg_type(PREFIX_NUMBER, (1 + max(height - 1 - lines, 1_int64))/2), .false., status)
+            if (.not. status%ok()) return
         end if
 
         call goto_char(pos)
@@ -682,7 +776,8 @@ contains
 
         call check_ediff_control_buffer(k, status)
         if (.not. status%ok()) return
-        call unselect_and_select_ediff_difference(k, ediff_sessions(k)%current_difference, UNSELECT_ONLY)
+        call unselect_and_select_ediff_difference(k, ediff_sessions(k)%current_difference, status, UNSELECT_ONLY)
+        if (.not. status%ok()) return
         faces = has_ediff_face_support()
 
         ! Cycle through highlighting.
@@ -709,10 +804,11 @@ contains
                 s%highlight_all_diffs = .true.
             end if
 
-            call paint_ediff_background_regions(k,.not. (s%use_faces .and. s%highlight_all_diffs))
+            call paint_ediff_background_regions(k,.not. (s%use_faces .and. s%highlight_all_diffs), status)
         end associate
 
-        call unselect_and_select_ediff_difference(k, ediff_sessions(k)%current_difference, SELECT_ONLY)
+        if (.not. status%ok()) return
+        call unselect_and_select_ediff_difference(k, ediff_sessions(k)%current_difference, status, SELECT_ONLY)
     end subroutine toggle_ediff_highlighting
 
     recursive module subroutine toggle_ediff_help(status)
@@ -722,7 +818,8 @@ contains
         call check_ediff_control_buffer(k, status)
         if (.not. status%ok()) return
         ediff_sessions(k)%use_long_help_message = .not. ediff_sessions(k)%use_long_help_message
-        call set_ediff_help_message(k)
+        call set_ediff_help_message(k, status)
+        if (.not. status%ok()) return
         ! Force redisplay.
         ediff_sessions(k)%window_config_saved = ""
         call recenter_ediff_session(k, .true., status)
@@ -746,12 +843,13 @@ contains
         if (ediff_sessions(k)%current_difference < ediff_sessions(k)%number_of_differences) then
             n = int(min(int(ediff_sessions(k)%number_of_differences, int64), &
                         ediff_sessions(k)%current_difference + count))
-            call make_ediff_region_visible(k)
+            call make_ediff_region_visible(k, status)
+            if (.not. status%ok()) return
             call message("")
-            call unselect_and_select_ediff_difference(k, n)
+            call unselect_and_select_ediff_difference(k, n, status)
         else
-            call make_ediff_region_visible(k)
-            call set_error(status, FM_USER_ERROR, "At end of the difference list")
+            call make_ediff_region_visible(k, status)
+            if (status%ok()) call set_error(status, FM_USER_ERROR, "At end of the difference list")
         end if
     end subroutine next_ediff_difference
 
@@ -768,12 +866,13 @@ contains
 
         if (ediff_sessions(k)%current_difference > -1) then
             n = int(max(-1_int64, ediff_sessions(k)%current_difference - count))
-            call make_ediff_region_visible(k)
+            call make_ediff_region_visible(k, status)
+            if (.not. status%ok()) return
             call message("")
-            call unselect_and_select_ediff_difference(k, n)
+            call unselect_and_select_ediff_difference(k, n, status)
         else
-            call make_ediff_region_visible(k)
-            call set_error(status, FM_USER_ERROR, "At beginning of the difference list")
+            call make_ediff_region_visible(k, status)
+            if (status%ok()) call set_error(status, FM_USER_ERROR, "At beginning of the difference list")
         end if
     end subroutine previous_ediff_difference
 
@@ -796,7 +895,7 @@ contains
         ! -1 is allowed by ediff-unselect-and-select-difference --- it is
         ! the position before the first one.
         if (n >= -1 .and. n <= ediff_sessions(k)%number_of_differences) then
-            call unselect_and_select_ediff_difference(k, n)
+            call unselect_and_select_ediff_difference(k, n, status)
         else
             call set_error(status, FM_GENERIC_ERROR, bad_diff_number(k, n))
         end if
@@ -819,7 +918,8 @@ contains
         call enter_ediff_buffer(buffer, status)
         if (.not. status%ok()) return
         pt = point()
-        call set_buffer(old, st)
+        call set_buffer(old, status)
+        if (.not. status%ok()) return
 
         if (arg) then
             call ediff_diff_at_point(k, buffer_type, diff_no, status, which_diff=1)
@@ -831,9 +931,11 @@ contains
         past_last_diff = ediff_sessions(k)%number_of_differences < diff_no
 
         if (past_last_diff) then
-            call set_buffer(buffer, st)
+            call set_buffer(buffer, status)
+            if (.not. status%ok()) return
             beginning = point_max()
-            call set_buffer(old, st)
+            call set_buffer(old, status)
+            if (.not. status%ok()) return
             call jump_to_ediff_difference(-1_int64, status)
         else
             call get_ediff_diff_position(k, buffer_type, .false., beginning, status, diff_no - 1)
@@ -848,11 +950,19 @@ contains
 
         do t = 1, 3
             if (.not. is_window_live(wind(t))) cycle
-            call select_window_begin(wind(t), old_window, old_buffer)
-            if (past_last_diff) call goto_char(point_max())
-            call backward_char(st, shift)
-            call recenter(prefix_arg_type(PREFIX_NONE, 0_int64), .false., st)
-            call select_window_end(old_window, old_buffer)
+            call select_window_begin(wind(t), old_window, old_buffer, status)
+
+            if (status%ok()) then
+                if (past_last_diff) call goto_char(point_max())
+                ! Its error is ignored, as upstream's ignore-errors does.
+                call backward_char(st, shift)
+                call recenter(prefix_arg_type(PREFIX_NONE, 0_int64), .false., status)
+            end if
+
+            ! Select the old window again, keeping the first error.
+            call select_window_end(old_window, old_buffer, st)
+            if (status%ok()) status = st
+            if (.not. status%ok()) return
         end do
     end subroutine jump_to_ediff_difference_at_point
 
@@ -888,6 +998,7 @@ contains
             call get_ediff_diff_position(k, buffer_type, .false., beginning, status, diff_no)
             if (status%ok()) call get_ediff_diff_position(k, buffer_type, .true., end, status, diff_no)
 
+            ! Make the old buffer current again, keeping the first error.
             if (.not. status%ok()) then
                 call set_buffer(old, st)
                 return
@@ -909,7 +1020,7 @@ contains
             diff_no = diff_no + 1
         end if
 
-        call set_buffer(old, st)
+        call set_buffer(old, status)
     end subroutine ediff_diff_at_point
 
     ! ------------------------------------------------------------------
@@ -959,7 +1070,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: batch_invocation
         type(handle_type) :: to_buffer, old
-        type(status_type) :: st
+        type(status_type) :: st, restore_status
         character(len=:), allocatable :: reg_to_copy, reg_to_delete, messg
         integer(int64) :: reg_to_delete_beginning, reg_to_delete_end
         logical :: batch, saved
@@ -988,16 +1099,22 @@ contains
                 if (.not. status%ok()) return
             end if
 
+            ! An error here is shown, as upstream's condition-case does.
             old = current_buffer()
             call set_buffer(to_buffer, st)
-            call goto_char(reg_to_delete_end)
-            call insert(reg_to_copy, st)
+
+            if (st%ok()) then
+                call goto_char(reg_to_delete_end)
+                call insert(reg_to_copy, st)
+            end if
 
             if (st%ok() .and. reg_to_delete_end > reg_to_delete_beginning) then
                 call delete_region(reg_to_delete_beginning, reg_to_delete_end, st)
             end if
 
-            call set_buffer(old, st)
+            ! Make the old buffer current again, keeping the first error.
+            call set_buffer(old, restore_status)
+            if (st%ok()) st = restore_status
 
             if (st%ok()) then
                 if (.not. batch) call save_ediff_diff_region(k, n, to_type, reg_to_delete, messg)
@@ -1085,7 +1202,7 @@ contains
         integer, intent(in) :: k, n, buffer_type
         type(status_type), intent(out) :: status
         type(handle_type) :: old
-        type(status_type) :: st
+        type(status_type) :: st, restore_status
         character(len=:), allocatable :: saved_diff
         type(ediff_replaced_region_type), allocatable :: rest(:)
         integer(int64) :: reg_beginning, reg_end
@@ -1111,6 +1228,7 @@ contains
         if (.not. status%ok()) return
         call get_ediff_diff_position(k, buffer_type, .true., reg_end, status, n)
         if (.not. status%ok()) return
+        ! An error here is shown, as upstream's condition-case does.
         old = current_buffer()
         call enter_ediff_buffer(ediff_sessions(k)%buffers(buffer_type), st)
 
@@ -1120,8 +1238,10 @@ contains
             if (st%ok() .and. reg_end > reg_beginning) call delete_region(reg_beginning, reg_end, st)
         end if
 
+        ! Make the old buffer current again, keeping the first error.
+        call set_buffer(old, restore_status)
+        if (st%ok()) st = restore_status
         recovered = st%ok()
-        call set_buffer(old, st)
 
         if (.not. recovered) then
             call message("pop_ediff_diff: "//format_error(st))
@@ -1166,7 +1286,6 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in) :: reverse_default_keep_variants
         type(handle_type) :: control
-        type(status_type) :: st
         character(len=:), allocatable :: group
         logical :: answer
         integer :: k
@@ -1181,7 +1300,8 @@ contains
         call message("")
         if (.not. answer) return
         this_command => commands%quit_ediff
-        call set_buffer(control, st)
+        call set_buffer(control, status)
+        if (.not. status%ok()) return
         call quit_ediff_session(k, reverse_default_keep_variants, status)
     end subroutine quit_ediff
 
@@ -1189,18 +1309,18 @@ contains
         integer, intent(in) :: k
         logical, intent(in) :: reverse_default_keep_variants
         type(status_type), intent(out) :: status
-        type(status_type) :: st
         logical :: keep_variants
         integer :: t
 
-        status = status_type()
-        call unhighlight_ediff_diffs_totally(k)
+        call unhighlight_ediff_diffs_totally(k, status)
+        if (.not. status%ok()) return
         call clear_ediff_differences(k)
         ! Restore the visibility range.  This affects only
         ! ediff-*-regions/windows.
         ediff_sessions(k)%visible_bounds = ediff_sessions(k)%wide_bounds
         ! Apply selective display to narrow or widen.
-        call make_ediff_region_visible(k)
+        call make_ediff_region_visible(k, status)
+        if (.not. status%ok()) return
 
         do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
             if (is_overlay(ediff_sessions(k)%wide_bounds(t))) call destroy_overlay(ediff_sessions(k)%wide_bounds(t))
@@ -1209,7 +1329,8 @@ contains
             ediff_sessions(k)%visible_bounds(t) = null_handle()
         end do
 
-        call ediff_cleanup_hook%execute(st)
+        call ediff_cleanup_hook%execute(status)
+        if (.not. status%ok()) return
         ! reverse-default-keep-variants is t if the user quits with a
         ! prefix arg.
         keep_variants = ediff_sessions(k)%keep_variants
@@ -1240,23 +1361,38 @@ contains
         control_buffer = ediff_sessions(k)%control_buffer
         control_window = get_ediff_visible_buffer_window(control_buffer)
         three_way_job = ediff_sessions(k)%three_way_job
-        call close_ediff_buffer_carefully(ediff_sessions(k)%diff_buffer)
-        call close_ediff_buffer_carefully(get_buffer(" *ediff-tmp*"))
-        call close_ediff_buffer_carefully(ediff_sessions(k)%error_buffer)
-        call close_ediff_buffer_carefully(get_buffer(" *ediff-message*"))
-        call close_ediff_buffer_carefully(get_buffer("*ediff-debug*"))
-        ! Delete control window.
-        if (is_window_live(control_window)) call delete_window(control_window, st)
-        call destroy_keymap(ediff_sessions(k)%keymap, st)
-        call drop_ediff_session(k)
-        call close_ediff_buffer_carefully(control_buffer)
+        call close_ediff_buffer_carefully(ediff_sessions(k)%diff_buffer, status)
+        if (.not. status%ok()) return
+        call close_ediff_buffer_carefully(get_buffer(" *ediff-tmp*"), status)
+        if (.not. status%ok()) return
+        call close_ediff_buffer_carefully(ediff_sessions(k)%error_buffer, status)
+        if (.not. status%ok()) return
+        call close_ediff_buffer_carefully(get_buffer(" *ediff-message*"), status)
+        if (.not. status%ok()) return
+        call close_ediff_buffer_carefully(get_buffer("*ediff-debug*"), status)
+        if (.not. status%ok()) return
 
-        ! Display only if not visible.
+        ! Delete control window.
+        if (is_window_live(control_window)) then
+            call delete_window(control_window, status)
+            if (.not. status%ok()) return
+        end if
+
+        call destroy_keymap(ediff_sessions(k)%keymap, status)
+        if (.not. status%ok()) return
+        call drop_ediff_session(k)
+        call close_ediff_buffer_carefully(control_buffer, status)
+        if (.not. status%ok()) return
+
+        ! Display only if not visible.  The errors of showing the buffers
+        ! are ignored, as upstream's condition-case does.
         if (.not. is_window_live(get_ediff_visible_buffer_window(buff_b)) .and. is_buffer_live(buff_b)) then
             call switch_to_buffer(buffers(buff_b%index)%name, st)
         end if
 
         if (.not. is_window_live(get_ediff_visible_buffer_window(buff_a)) .and. is_buffer_live(buff_a)) then
+            st = status_type()
+
             if (is_window_live(get_ediff_visible_buffer_window(buff_b)) .and. associated(ediff_split_window_function)) then
                 call ediff_split_window_function(new, st)
             end if
@@ -1327,7 +1463,7 @@ contains
             if (.not. status%ok() .or. .not. answer) return
         end if
 
-        call close_ediff_buffer_carefully(buffer)
+        call close_ediff_buffer_carefully(buffer, status)
     end subroutine dispose_of_ediff_variant
 
     ! ------------------------------------------------------------------
@@ -1337,61 +1473,66 @@ contains
     ! Select difference N of session K: highlight it and run
     ! `ediff_select_hook'.  Port of ediff-util.el:ediff-select-difference
     ! (fine differences are deferred).
-    recursive subroutine select_ediff_difference(k, n)
+    recursive subroutine select_ediff_difference(k, n, status)
         integer, intent(in) :: k, n
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
         integer :: t
 
+        status = status_type()
         if (.not. is_buffer_live(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_A))) return
         if (.not. is_buffer_live(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_B))) return
         if (.not. is_valid_difference(k, n)) return
 
         if (has_ediff_face_support() .and. ediff_sessions(k)%use_faces) then
             do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_ANCESTOR
-                call highlight_ediff_diff_in_one_buffer(k, n, t)
+                call highlight_ediff_diff_in_one_buffer(k, n, t, status)
+                if (.not. status%ok()) return
             end do
         else if (ediff_sessions(k)%highlighting_style == EDIFF_HIGHLIGHTING_STYLE_ASCII) then
-            call place_ediff_flags_in_buffer(k, EDIFF_BUFFER_TYPE_A, n)
-            call place_ediff_flags_in_buffer(k, EDIFF_BUFFER_TYPE_B, n)
-            if (ediff_sessions(k)%three_way_job) call place_ediff_flags_in_buffer(k, EDIFF_BUFFER_TYPE_C, n)
+            do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
+                if (t == EDIFF_BUFFER_TYPE_C .and. .not. ediff_sessions(k)%three_way_job) exit
+                call place_ediff_flags_in_buffer(k, t, n, status)
+                if (.not. status%ok()) return
+            end do
         end if
 
         ! Set current difference here so the hook will be able to refer to
         ! it.
         ediff_sessions(k)%current_difference = n
-        call ediff_select_hook%execute(st)
+        call ediff_select_hook%execute(status)
     end subroutine select_ediff_difference
 
     ! Unselect difference N of session K by removing the ASCII flags or
     ! the highlighting.  Port of ediff-util.el:ediff-unselect-difference.
-    recursive subroutine unselect_ediff_difference(k, n)
+    recursive subroutine unselect_ediff_difference(k, n, status)
         integer, intent(in) :: k, n
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
         integer :: t
 
+        status = status_type()
         if (.not. is_valid_difference(k, n)) return
 
         if (has_ediff_face_support() .and. ediff_sessions(k)%use_faces) then
             do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_ANCESTOR
-                call unhighlight_ediff_diff_in_one_buffer(k, t)
+                call unhighlight_ediff_diff_in_one_buffer(k, t, status)
+                if (.not. status%ok()) return
             end do
         else if (ediff_sessions(k)%highlighting_style == EDIFF_HIGHLIGHTING_STYLE_ASCII) then
-            call remove_ediff_flags(ediff_sessions(k)%differences(EDIFF_BUFFER_TYPE_A, n + 1)%overlay)
-            call remove_ediff_flags(ediff_sessions(k)%differences(EDIFF_BUFFER_TYPE_B, n + 1)%overlay)
-
-            if (ediff_sessions(k)%three_way_job) then
-                call remove_ediff_flags(ediff_sessions(k)%differences(EDIFF_BUFFER_TYPE_C, n + 1)%overlay)
-            end if
+            do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
+                if (t == EDIFF_BUFFER_TYPE_C .and. .not. ediff_sessions(k)%three_way_job) exit
+                call remove_ediff_flags(ediff_sessions(k)%differences(t, n + 1)%overlay, status)
+                if (.not. status%ok()) return
+            end do
         end if
 
-        call ediff_unselect_hook%execute(st)
+        call ediff_unselect_hook%execute(status)
     end subroutine unselect_ediff_difference
 
-    recursive module subroutine unselect_and_select_ediff_difference(k, n, flag, no_recenter)
+    recursive module subroutine unselect_and_select_ediff_difference(k, n, status, flag, no_recenter)
         integer, intent(in) :: k, n
+        type(status_type), intent(out) :: status
         integer, intent(in), optional :: flag
         logical, intent(in), optional :: no_recenter
-        type(status_type) :: st
         integer :: saved, how
         logical :: recentering
 
@@ -1399,63 +1540,85 @@ contains
         if (present(flag)) how = flag
         recentering = .true.
         if (present(no_recenter)) recentering = .not. no_recenter
+        status = status_type()
 
         if (recentering) then
             ! Recenter on difference N without highlighting it again.
             saved = ediff_sessions(k)%current_difference
             ediff_sessions(k)%current_difference = n
-            call recenter_ediff_session(k, .true., st)
+            call recenter_ediff_session(k, .true., status)
             ediff_sessions(k)%current_difference = saved
+            if (.not. status%ok()) return
         end if
 
-        if (how /= SELECT_ONLY) call unselect_ediff_difference(k, ediff_sessions(k)%current_difference)
-        if (how /= UNSELECT_ONLY) call select_ediff_difference(k, n)
+        if (how /= SELECT_ONLY) then
+            call unselect_ediff_difference(k, ediff_sessions(k)%current_difference, status)
+            if (.not. status%ok()) return
+        end if
+
+        if (how /= UNSELECT_ONLY) then
+            call select_ediff_difference(k, n, status)
+            if (.not. status%ok()) return
+        end if
+
         ! Need to set current diff here even though it is also set in
         ! select_ediff_difference because it might not be called if
         ! unselect-only is specified.
         ediff_sessions(k)%current_difference = n
-        if (is_buffer_live(ediff_sessions(k)%control_buffer)) call set_buffer(ediff_sessions(k)%control_buffer, st)
+
+        if (is_buffer_live(ediff_sessions(k)%control_buffer)) then
+            call set_buffer(ediff_sessions(k)%control_buffer, status)
+            if (.not. status%ok()) return
+        end if
+
         call refresh_ediff_mode_lines(k)
     end subroutine unselect_and_select_ediff_difference
 
     ! Highlight difference N of session K in BUFFER_TYPE with the current
     ! difference overlay.  Port of
     ! ediff-util.el:ediff-highlight-diff-in-one-buffer.
-    recursive subroutine highlight_ediff_diff_in_one_buffer(k, n, buffer_type)
+    recursive subroutine highlight_ediff_diff_in_one_buffer(k, n, buffer_type, status)
         integer, intent(in) :: k, n, buffer_type
+        type(status_type), intent(out) :: status
         type(handle_type) :: buffer, old
-        type(status_type) :: st
         integer(int64) :: last, beginning, end, end_hilit
 
+        status = status_type()
         buffer = ediff_sessions(k)%buffers(buffer_type)
         if (.not. is_buffer_live(buffer)) return
         if (.not. allocated(ediff_sessions(k)%differences)) return
         old = current_buffer()
-        call set_buffer(buffer, st)
+        call set_buffer(buffer, status)
+        if (.not. status%ok()) return
         last = point_max()
-        call set_buffer(old, st)
-        call get_ediff_diff_position(k, buffer_type, .false., beginning, st, n)
-        if (.not. st%ok()) return
-        call get_ediff_diff_position(k, buffer_type, .true., end, st, n)
-        if (.not. st%ok()) return
+        call set_buffer(old, status)
+        if (.not. status%ok()) return
+        call get_ediff_diff_position(k, buffer_type, .false., beginning, status, n)
+        if (.not. status%ok()) return
+        call get_ediff_diff_position(k, buffer_type, .true., end, status, n)
+        if (.not. status%ok()) return
         end_hilit = end
         if (beginning == end) end_hilit = end + 1
         end_hilit = min(last, end_hilit)
-        call move_ediff_overlay(ediff_sessions(k)%current_diff_overlays(buffer_type), beginning, end_hilit)
+        call move_ediff_overlay(ediff_sessions(k)%current_diff_overlays(buffer_type), beginning, end_hilit, status)
+        if (.not. status%ok()) return
         ! Unhighlight the background overlay for diff n so it won't
         ! interfere with the current diff overlay.
-        call set_ediff_overlay_face(ediff_sessions(k)%differences(buffer_type, n + 1)%overlay, "")
+        call set_ediff_overlay_face(ediff_sessions(k)%differences(buffer_type, n + 1)%overlay, "", status)
     end subroutine highlight_ediff_diff_in_one_buffer
 
     ! Remove the current difference overlay of session K in BUFFER_TYPE
     ! and give the difference its background face again.  Port of
     ! ediff-util.el:ediff-unhighlight-diff-in-one-buffer.
-    recursive subroutine unhighlight_ediff_diff_in_one_buffer(k, buffer_type)
+    recursive subroutine unhighlight_ediff_diff_in_one_buffer(k, buffer_type, status)
         integer, intent(in) :: k, buffer_type
+        type(status_type), intent(out) :: status
         integer :: n
 
+        status = status_type()
         if (.not. is_buffer_live(ediff_sessions(k)%buffers(buffer_type))) return
-        call move_ediff_overlay(ediff_sessions(k)%current_diff_overlays(buffer_type), 1_int64, 1_int64)
+        call move_ediff_overlay(ediff_sessions(k)%current_diff_overlays(buffer_type), 1_int64, 1_int64, status)
+        if (.not. status%ok()) return
         n = ediff_sessions(k)%current_difference
         if (.not. is_valid_difference(k, n)) return
 
@@ -1463,9 +1626,9 @@ contains
         ! difference region.
         if (has_ediff_face_support() .and. ediff_sessions(k)%use_faces .and. ediff_sessions(k)%highlight_all_diffs) then
             call set_ediff_overlay_face(ediff_sessions(k)%differences(buffer_type, n + 1)%overlay, &
-                                        ediff_background_face(buffer_type, n))
+                                        ediff_background_face(buffer_type, n), status)
         else
-            call set_ediff_overlay_face(ediff_sessions(k)%differences(buffer_type, n + 1)%overlay, "")
+            call set_ediff_overlay_face(ediff_sessions(k)%differences(buffer_type, n + 1)%overlay, "", status)
         end if
     end subroutine unhighlight_ediff_diff_in_one_buffer
 
@@ -1473,15 +1636,18 @@ contains
     ! to their original form.  Port of
     ! ediff-util.el:ediff-unhighlight-diffs-totally with
     ! ediff-unhighlight-diffs-totally-in-one-buffer.
-    recursive subroutine unhighlight_ediff_diffs_totally(k)
+    recursive subroutine unhighlight_ediff_diffs_totally(k, status)
         integer, intent(in) :: k
+        type(status_type), intent(out) :: status
         integer :: t
 
         do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_ANCESTOR
-            call unselect_and_select_ediff_difference(k, -1)
+            call unselect_and_select_ediff_difference(k, -1, status)
+            if (.not. status%ok()) return
 
             if (has_ediff_face_support() .and. ediff_sessions(k)%use_faces) then
-                call paint_ediff_background_regions(k, .true.)
+                call paint_ediff_background_regions(k, .true., status)
+                if (.not. status%ok()) return
 
                 if (is_overlay(ediff_sessions(k)%current_diff_overlays(t))) then
                     call destroy_overlay(ediff_sessions(k)%current_diff_overlays(t))
@@ -1495,57 +1661,63 @@ contains
     ! Put the ASCII flags around difference N of session K in BUFFER_TYPE.
     ! Port of ediff-util.el:ediff-place-flags-in-buffer with
     ! ediff-place-flags-in-buffer1.
-    recursive subroutine place_ediff_flags_in_buffer(k, buffer_type, n)
+    recursive subroutine place_ediff_flags_in_buffer(k, buffer_type, n, status)
         integer, intent(in) :: k, buffer_type, n
+        type(status_type), intent(out) :: status
         type(handle_type) :: old, overlay
         type(status_type) :: st
         integer(int64) :: before, after
         logical :: ascii
 
+        status = status_type()
         if (.not. is_buffer_live(ediff_sessions(k)%buffers(buffer_type))) return
         overlay = ediff_sessions(k)%differences(buffer_type, n + 1)%overlay
         ascii = ediff_sessions(k)%highlighting_style == EDIFF_HIGHLIGHTING_STYLE_ASCII
-        call get_ediff_diff_position(k, buffer_type, .false., before, st, n)
-        if (.not. st%ok()) return
+        call get_ediff_diff_position(k, buffer_type, .false., before, status, n)
+        if (.not. status%ok()) return
         old = current_buffer()
-        call set_buffer(ediff_sessions(k)%buffers(buffer_type), st)
+        call set_buffer(ediff_sessions(k)%buffers(buffer_type), status)
+        if (.not. status%ok()) return
         ! Insert flag before the difference.
         call goto_char(before)
 
         if (.not. ascii) then
-            call overlay_put(overlay, "before_string", value_type(), st)
+            call overlay_put(overlay, "before_string", value_type(), status)
         else if (is_bol()) then
-            call overlay_put(overlay, "before_string", value_type(text=ediff_before_flag_bol), st)
+            call overlay_put(overlay, "before_string", value_type(text=ediff_before_flag_bol), status)
         else
-            call overlay_put(overlay, "before_string", value_type(text=ediff_before_flag_mol), st)
+            call overlay_put(overlay, "before_string", value_type(text=ediff_before_flag_mol), status)
         end if
 
         ! Insert the flag after the difference.
-        call get_ediff_diff_position(k, buffer_type, .true., after, st, n)
+        if (status%ok()) call get_ediff_diff_position(k, buffer_type, .true., after, status, n)
 
-        if (st%ok()) then
+        if (status%ok()) then
             call goto_char(after)
 
             if (.not. ascii) then
-                call overlay_put(overlay, "after_string", value_type(), st)
+                call overlay_put(overlay, "after_string", value_type(), status)
             else if (is_bol()) then
-                call overlay_put(overlay, "after_string", value_type(text=ediff_after_flag_eol), st)
+                call overlay_put(overlay, "after_string", value_type(text=ediff_after_flag_eol), status)
             else
-                call overlay_put(overlay, "after_string", value_type(text=ediff_after_flag_mol), st)
+                call overlay_put(overlay, "after_string", value_type(text=ediff_after_flag_mol), status)
             end if
         end if
 
+        ! Make the old buffer current again, keeping the first error.
         call set_buffer(old, st)
+        if (status%ok()) status = st
     end subroutine place_ediff_flags_in_buffer
 
     ! Remove the ASCII flags of OVERLAY.  Port of
     ! ediff-util.el:ediff-remove-flags-from-buffer.
-    subroutine remove_ediff_flags(overlay)
+    subroutine remove_ediff_flags(overlay, status)
         type(handle_type), intent(in) :: overlay
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
 
-        call overlay_put(overlay, "before_string", value_type(), st)
-        call overlay_put(overlay, "after_string", value_type(), st)
+        call overlay_put(overlay, "before_string", value_type(), status)
+        if (.not. status%ok()) return
+        call overlay_put(overlay, "after_string", value_type(), status)
     end subroutine remove_ediff_flags
 
     recursive module subroutine get_ediff_diff_position(k, buffer_type, at_end, position, status, n)
@@ -1615,21 +1787,27 @@ contains
         call enter_ediff_buffer(ediff_sessions(k)%buffers(buffer_type), status)
         if (.not. status%ok()) return
         call buffer_substring(s, e, text, status)
+        ! Make the old buffer current again, keeping the first error.
         call set_buffer(old, st)
+        if (status%ok()) status = st
     end subroutine get_ediff_region_contents
 
     ! Restore highlighting to what it should be according to
     ! `ediff_use_faces', the highlighting style and
     ! `ediff_highlight_all_diffs'.  Port of
     ! ediff-util.el:ediff-restore-highlighting.
-    recursive subroutine restore_ediff_highlighting(k)
+    recursive subroutine restore_ediff_highlighting(k, status)
         integer, intent(in) :: k
+        type(status_type), intent(out) :: status
+
+        status = status_type()
 
         if (has_ediff_face_support() .and. ediff_sessions(k)%use_faces .and. ediff_sessions(k)%highlight_all_diffs) then
-            call paint_ediff_background_regions(k, .false.)
+            call paint_ediff_background_regions(k, .false., status)
+            if (.not. status%ok()) return
         end if
 
-        call select_ediff_difference(k, ediff_sessions(k)%current_difference)
+        call select_ediff_difference(k, ediff_sessions(k)%current_difference, status)
     end subroutine restore_ediff_highlighting
 
     ! Delete the difference overlays of session K so they won't slow down
@@ -1657,26 +1835,32 @@ contains
     ! Make the current difference overlay of session K in BUFFER_TYPE,
     ! when the display has faces.  Port of
     ! ediff-util.el:ediff-make-current-diff-overlay.
-    recursive subroutine make_ediff_current_diff_overlay(k, buffer_type)
+    recursive subroutine make_ediff_current_diff_overlay(k, buffer_type, status)
         integer, intent(in) :: k, buffer_type
+        type(status_type), intent(out) :: status
         integer(int64) :: pos
 
+        status = status_type()
         if (.not. has_ediff_face_support()) return
         ! (point-max) of the control buffer.
         pos = point_max()
         call make_ediff_bullet_proof_overlay(pos, pos, ediff_sessions(k)%buffers(buffer_type), &
-                                             ediff_sessions(k)%current_diff_overlays(buffer_type))
+                                             ediff_sessions(k)%current_diff_overlays(buffer_type), status)
+        if (.not. status%ok()) return
         call set_ediff_overlay_face(ediff_sessions(k)%current_diff_overlays(buffer_type), &
-                                    trim(EDIFF_CURRENT_DIFF_FACES(buffer_type)))
+                                    trim(EDIFF_CURRENT_DIFF_FACES(buffer_type)), status)
     end subroutine make_ediff_current_diff_overlay
 
     ! Narrow buffers A, B (and C) of session K to the visible bounds.
     ! Port of ediff-util.el:ediff-visible-region.
-    recursive subroutine make_ediff_region_visible(k)
+    recursive subroutine make_ediff_region_visible(k, status)
         integer, intent(in) :: k
+        type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(status_type) :: st
         integer :: t
+
+        status = status_type()
 
         associate (b => ediff_sessions(k)%buffers)
             if (same_handle(b(EDIFF_BUFFER_TYPE_A), b(EDIFF_BUFFER_TYPE_B))) return
@@ -1694,13 +1878,16 @@ contains
 
             associate (overlay => ediff_sessions(k)%visible_bounds(t))
                 if (.not. is_buffer_live(overlay_buffer(overlay))) cycle
-                call enter_ediff_buffer(ediff_sessions(k)%buffers(t), st)
-                if (.not. st%ok()) cycle
-                call narrow_to_region(overlay_start(overlay), overlay_end(overlay), st)
+                call enter_ediff_buffer(ediff_sessions(k)%buffers(t), status)
+                if (status%ok()) call narrow_to_region(overlay_start(overlay), overlay_end(overlay), status)
             end associate
+
+            if (.not. status%ok()) exit
         end do
 
+        ! Make the old buffer current again, keeping the first error.
         call set_buffer(old, st)
+        if (status%ok()) status = st
 
     contains
 
@@ -1792,7 +1979,9 @@ contains
             call coding_system_for_write%clear()
         end if
 
+        ! Make the old buffer current again, keeping the first error.
         call set_buffer(old, st)
+        if (status%ok()) status = st
         if (.not. status%ok()) return
         call set_file_modes(f, int(ediff_temp_file_mode, kind(0)), status)
         if (.not. status%ok()) return
@@ -1818,6 +2007,7 @@ contains
             if (.not. status%ok()) return
 
             if (answer) then
+                ! An error is shown, as upstream's condition-case does.
                 call save_buffer(1_int64, .false., st)
 
                 if (.not. st%ok()) then

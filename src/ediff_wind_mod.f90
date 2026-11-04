@@ -97,8 +97,7 @@ contains
     recursive subroutine set_up_ediff_windows(buffer_a, buffer_b, buffer_c, control_buffer, status)
         type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_c, control_buffer
         type(status_type), intent(out) :: status
-        type(status_type) :: st
-        logical :: in_minibuffer
+        logical :: in_minibuffer, kept
 
         call ediff_before_setup_windows_hook%execute(status)
         if (.not. status%ok()) return
@@ -106,9 +105,16 @@ contains
         ! delete all other windows.
         in_minibuffer = is_window_minibuffer(selected_frame%selected_window, status)
         if (.not. status%ok()) return
-        if (in_minibuffer) call other_window(1_int64, st)
 
-        if (.not. is_ediff_window_config_kept(control_buffer)) then
+        if (in_minibuffer) then
+            call other_window(1_int64, status)
+            if (.not. status%ok()) return
+        end if
+
+        kept = is_ediff_window_config_kept(control_buffer, status)
+        if (.not. status%ok()) return
+
+        if (.not. kept) then
             ! In case user did a no-no on a tty.
             if (.not. associated(selected_frame%rif) .or. .not. associated(ediff_window_setup_function)) then
                 call set_up_ediff_windows_plain(buffer_a, buffer_b, buffer_c, control_buffer, status)
@@ -165,7 +171,8 @@ contains
         call delete_other_windows(selected_frame%selected_window, status)
         if (.not. status%ok()) return
         ! Set up wind-A, wind-B and if necessary wind-C.
-        call set_window_dedication(selected_frame%selected_window, DEDICATED_NONE, st)
+        call set_window_dedication(selected_frame%selected_window, DEDICATED_NONE, status)
+        if (.not. status%ok()) return
         wind_a = selected_frame%selected_window
         call set_window_buffer(wind_a, buffer_a, status)
         if (.not. status%ok()) return
@@ -188,7 +195,7 @@ contains
         ediff_sessions(k)%windows(EDIFF_BUFFER_TYPE_C) = wind_c
         ! The control buffer in a new window at the bottom of the frame
         ! (display-buffer-in-direction, direction bottom); if making a new
-        ! window fails, reuse an existing one.
+        ! window fails, reuse an existing one (its error is not passed on).
         call split_window(selected_frame%root_window, 0, .false., .false., control_window, st)
 
         if (st%ok()) then
@@ -200,7 +207,7 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call set_up_ediff_control_buffer(k, control_buffer)
+        call set_up_ediff_control_buffer(k, control_buffer, status)
     end subroutine set_up_ediff_windows_plain_compare
 
     !> The session of control buffer BUFFER, 0 if none.  Not a port.
@@ -289,11 +296,13 @@ contains
     !> Whether the windows of the session of CONTROL_BUFFER are still as
     !> Ediff set them up, so they need not be set up again.  Port of
     !> ediff-wind.el:ediff-keep-window-config.
-    logical function is_ediff_window_config_kept(control_buffer) result(kept)
+    logical function is_ediff_window_config_kept(control_buffer, status) result(kept)
         type(handle_type), intent(in) :: control_buffer
-        type(status_type) :: st
-        integer :: k
+        type(status_type), intent(out) :: status
+        type(handle_type) :: shown
+        integer :: k, t
 
+        status = status_type()
         kept = .false.
         if (.not. is_buffer_live(control_buffer)) return
         if (.not. same_handle(current_buffer(), control_buffer)) return
@@ -306,13 +315,13 @@ contains
             if (.not. is_window_live(s%windows(EDIFF_BUFFER_TYPE_B))) return
             ! If buffer C is defined then take it into account.
             if (s%three_way_job .and. .not. is_window_live(s%windows(EDIFF_BUFFER_TYPE_C))) return
-            if (.not. same_handle(window_buffer(s%windows(EDIFF_BUFFER_TYPE_A), st), s%buffers(EDIFF_BUFFER_TYPE_A))) return
-            if (.not. same_handle(window_buffer(s%windows(EDIFF_BUFFER_TYPE_B), st), s%buffers(EDIFF_BUFFER_TYPE_B))) return
 
-            if (s%three_way_job) then
-                if (.not. same_handle(window_buffer(s%windows(EDIFF_BUFFER_TYPE_C), st), &
-                                      s%buffers(EDIFF_BUFFER_TYPE_C))) return
-            end if
+            do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
+                if (t == EDIFF_BUFFER_TYPE_C .and. .not. s%three_way_job) exit
+                shown = window_buffer(s%windows(t), status)
+                if (.not. status%ok()) return
+                if (.not. same_handle(shown, s%buffers(t))) return
+            end do
 
             if (.not. allocated(s%window_config_saved)) return
             kept = s%window_config_saved == ediff_window_config(k)

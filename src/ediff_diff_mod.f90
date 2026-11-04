@@ -151,13 +151,14 @@ contains
         type(status_type), intent(out) :: status
         type(ediff_diff_record_type), allocatable :: records(:)
         integer :: code
-        type(status_type) :: st
-
-        status = status_type()
+        logical :: matched
 
         ! Looking for '-c', '-i', '-u', or 'c', 'i', 'u' among clustered
         ! non-long options.
-        if (string_matches("^-[ciu]\| -[ciu]\|\(^\| \)-[^- ]+[ciu]", ediff_diff_options, st)) then
+        matched = string_matches("^-[ciu]\| -[ciu]\|\(^\| \)-[^- ]+[ciu]", ediff_diff_options, status)
+        if (.not. status%ok()) return
+
+        if (matched) then
             call set_error(status, FM_GENERIC_ERROR, &
                            format_message("Options `-c', `-u', and `-i' are not allowed in `ediff_diff_options'"))
             return
@@ -175,7 +176,7 @@ contains
         if (.not. status%ok()) return
         call extract_ediff_diffs(k, ediff_sessions(k)%diff_buffer, records, status)
         if (.not. status%ok()) return
-        call convert_ediff_diffs_to_overlays(k, records)
+        call convert_ediff_diffs_to_overlays(k, records, status)
     end subroutine set_up_ediff_diff_regions
 
     !> Run the diff program on FILE1 and FILE2 and put the output in
@@ -189,7 +190,6 @@ contains
         integer, intent(out) :: code
         type(status_type), intent(out) :: status
         type(handle_type) :: old
-        type(status_type) :: st
 
         status = status_type()
         code = 1
@@ -208,9 +208,10 @@ contains
         if (.not. status%ok()) return
         call message("")
         old = current_buffer()
-        call set_buffer(diff_buffer, st)
+        call set_buffer(diff_buffer, status)
+        if (.not. status%ok()) return
         code = int(buffer_size())
-        call set_buffer(old, st)
+        call set_buffer(old, status)
     end subroutine make_ediff_diff2_buffer
 
     !> Copy the output in DIFF_BUFFER that does not match OK_REGEXP into
@@ -236,40 +237,57 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call set_buffer(diff_buffer, st)
+        call set_buffer(diff_buffer, status)
+        if (.not. status%ok()) return
         text = buffer_string()
         diff_name = buffers(current)%name
-        call set_buffer(ediff_sessions(k)%error_buffer, st)
-        buffers(current)%undo_enabled = .false.
-        call erase_buffer(st)
-        call insert(text, st)
-        call goto_char(point_min())
-        call flush_lines(ok_regexp, deleted, st)
+        call set_buffer(ediff_sessions(k)%error_buffer, status)
+
+        if (status%ok()) then
+            buffers(current)%undo_enabled = .false.
+            call erase_buffer(status)
+        end if
+
+        if (status%ok()) call insert(text, status)
+
+        if (status%ok()) then
+            call goto_char(point_min())
+            call flush_lines(ok_regexp, deleted, status)
+        end if
+
         size = buffer_size()
         error_name = buffers(current)%name
+        ! Make the old buffer current again, keeping the first error.
         call set_buffer(old, st)
+        if (status%ok()) status = st
+        if (.not. status%ok()) return
 
         ! If diff reports errors, show them then quit.
         if (size /= 0) then
             control = ediff_sessions(k)%control_buffer
-            call switch_to_buffer(error_name, st)
-            call close_ediff_buffer_carefully(control)
+            call switch_to_buffer(error_name, status)
+            if (.not. status%ok()) return
+            call close_ediff_buffer_carefully(control, status)
+            if (.not. status%ok()) return
             call set_error(status, FM_USER_ERROR, "Errors in diff output.  Diff output is in #<buffer "//diff_name//">")
         end if
     end subroutine prepare_ediff_error_list
 
-    !> The point in buffer BUFFER LINES lines after FROM (point-min if
-    !> FROM is 0).  Not a port: (goto-char FROM) (forward-line LINES) in
-    !> ediff-extract-diffs.
-    recursive integer(int64) function line_position(buffer, from, lines) result(pos)
+    !> Give in POS the point in buffer BUFFER LINES lines after FROM
+    !> (point-min if FROM is 0).  Not a port: (goto-char FROM)
+    !> (forward-line LINES) in ediff-extract-diffs.
+    recursive subroutine get_line_position(buffer, from, lines, pos, status)
         type(handle_type), intent(in) :: buffer
         integer(int64), intent(in) :: from, lines
+        integer(int64), intent(out) :: pos
+        type(status_type), intent(out) :: status
         type(handle_type) :: old
-        type(status_type) :: st
         integer(int64) :: shortage
 
+        pos = 0
         old = current_buffer()
-        call set_buffer(buffer, st)
+        call set_buffer(buffer, status)
+        if (.not. status%ok()) return
 
         if (from == 0) then
             call goto_char(point_min())
@@ -279,8 +297,8 @@ contains
 
         shortage = forward_line(lines)
         pos = point()
-        call set_buffer(old, st)
-    end function line_position
+        call set_buffer(old, status)
+    end subroutine get_line_position
 
     !> The integer group N of the last match in the current buffer
     !> matched, or DEFAULT if it did not match.  Not a port:
@@ -329,12 +347,14 @@ contains
         b_prev_pt = narrow_start(k, EDIFF_BUFFER_TYPE_B)
         c_prev_pt = 0
         old = current_buffer()
-        call set_buffer(diff_buffer, st)
+        call set_buffer(diff_buffer, status)
+        if (.not. status%ok()) return
         call goto_char(point_min())
 
         do
-            call re_search_forward(EDIFF_MATCH_DIFF_LINE, found, st, noerror=SEARCH_NOERROR)
-            if (.not. st%ok() .or. found == 0) exit
+            call re_search_forward(EDIFF_MATCH_DIFF_LINE, found, status, noerror=SEARCH_NOERROR)
+            if (.not. status%ok()) exit
+            if (found == 0) exit
             a_begin = matched_number(1, 0_int64)
             a_end = matched_number(3, a_begin)
             diff_type = match_string(4)
@@ -361,21 +381,28 @@ contains
             c_end = a_end
             ! Else convert lines to points.
             record = ediff_diff_record_type()
-            record%beginning(EDIFF_BUFFER_TYPE_A) = line_position(buffer_a, a_prev_pt, a_begin - a_prev)
-            record%end(EDIFF_BUFFER_TYPE_A) = line_position(buffer_a, record%beginning(EDIFF_BUFFER_TYPE_A), &
-                                                            a_end - a_begin)
+            call get_line_position(buffer_a, a_prev_pt, a_begin - a_prev, record%beginning(EDIFF_BUFFER_TYPE_A), status)
+            if (.not. status%ok()) exit
+            call get_line_position(buffer_a, record%beginning(EDIFF_BUFFER_TYPE_A), a_end - a_begin, &
+                                   record%end(EDIFF_BUFFER_TYPE_A), status)
+            if (.not. status%ok()) exit
             a_prev = a_end
             a_prev_pt = record%end(EDIFF_BUFFER_TYPE_A)
-            record%beginning(EDIFF_BUFFER_TYPE_B) = line_position(buffer_b, b_prev_pt, b_begin - b_prev)
-            record%end(EDIFF_BUFFER_TYPE_B) = line_position(buffer_b, record%beginning(EDIFF_BUFFER_TYPE_B), &
-                                                            b_end - b_begin)
+            call get_line_position(buffer_b, b_prev_pt, b_begin - b_prev, record%beginning(EDIFF_BUFFER_TYPE_B), status)
+            if (.not. status%ok()) exit
+            call get_line_position(buffer_b, record%beginning(EDIFF_BUFFER_TYPE_B), b_end - b_begin, &
+                                   record%end(EDIFF_BUFFER_TYPE_B), status)
+            if (.not. status%ok()) exit
             b_prev = b_end
             b_prev_pt = record%end(EDIFF_BUFFER_TYPE_B)
 
             if (is_buffer_live(buffer_c)) then
-                record%beginning(EDIFF_BUFFER_TYPE_C) = line_position(buffer_c, c_prev_pt, c_begin - c_prev)
-                record%end(EDIFF_BUFFER_TYPE_C) = line_position(buffer_c, record%beginning(EDIFF_BUFFER_TYPE_C), &
-                                                                c_end - c_begin)
+                call get_line_position(buffer_c, c_prev_pt, c_begin - c_prev, record%beginning(EDIFF_BUFFER_TYPE_C), &
+                                       status)
+                if (.not. status%ok()) exit
+                call get_line_position(buffer_c, record%beginning(EDIFF_BUFFER_TYPE_C), c_end - c_begin, &
+                                       record%end(EDIFF_BUFFER_TYPE_C), status)
+                if (.not. status%ok()) exit
                 c_prev = c_end
                 c_prev_pt = record%end(EDIFF_BUFFER_TYPE_C)
                 ! State of diff: shows which buff is different from the
@@ -384,10 +411,13 @@ contains
             end if
 
             records = [records, record]
-            call set_buffer(diff_buffer, st)
+            call set_buffer(diff_buffer, status)
+            if (.not. status%ok()) exit
         end do
 
+        ! Make the old buffer current again, keeping the first error.
         call set_buffer(old, st)
+        if (status%ok()) status = st
     end subroutine extract_ediff_diffs
 
     !> Where the narrow bounds of session K begin in BUFFER_TYPE.
@@ -405,18 +435,26 @@ contains
     !> of session K, and record them in its difference vectors.  Port of
     !> ediff-diff.el:ediff-convert-diffs-to-overlays (the state of merge
     !> regions is deferred with merging).
-    recursive subroutine convert_ediff_diffs_to_overlays(k, records)
+    recursive subroutine convert_ediff_diffs_to_overlays(k, records, status)
         integer, intent(in) :: k
         type(ediff_diff_record_type), intent(in) :: records(:)
+        type(status_type), intent(out) :: status
 
         if (allocated(ediff_sessions(k)%differences)) deallocate (ediff_sessions(k)%differences)
         allocate (ediff_sessions(k)%differences(4, size(records)))
-        call set_ediff_diff_overlays_in_one_buffer(k, EDIFF_BUFFER_TYPE_A, records)
-        call set_ediff_diff_overlays_in_one_buffer(k, EDIFF_BUFFER_TYPE_B, records)
-        if (ediff_sessions(k)%three_way_job) call set_ediff_diff_overlays_in_one_buffer(k, EDIFF_BUFFER_TYPE_C, records)
+        call set_ediff_diff_overlays_in_one_buffer(k, EDIFF_BUFFER_TYPE_A, records, status)
+        if (.not. status%ok()) return
+        call set_ediff_diff_overlays_in_one_buffer(k, EDIFF_BUFFER_TYPE_B, records, status)
+        if (.not. status%ok()) return
+
+        if (ediff_sessions(k)%three_way_job) then
+            call set_ediff_diff_overlays_in_one_buffer(k, EDIFF_BUFFER_TYPE_C, records, status)
+            if (.not. status%ok()) return
+        end if
 
         if (ediff_sessions(k)%merge_with_ancestor_job) then
-            call set_ediff_diff_overlays_in_one_buffer(k, EDIFF_BUFFER_TYPE_ANCESTOR, records)
+            call set_ediff_diff_overlays_in_one_buffer(k, EDIFF_BUFFER_TYPE_ANCESTOR, records, status)
+            if (.not. status%ok()) return
         end if
 
         call message("Processing difference regions ... done")
@@ -425,14 +463,16 @@ contains
     !> Make the overlays of RECORDS in the BUFFER_TYPE buffer of session K.
     !> Port of ediff-diff.el:ediff-set-diff-overlays-in-one-buffer (word
     !> numbers are deferred).
-    recursive subroutine set_ediff_diff_overlays_in_one_buffer(k, buffer_type, records)
+    recursive subroutine set_ediff_diff_overlays_in_one_buffer(k, buffer_type, records, status)
         integer, intent(in) :: k, buffer_type
         type(ediff_diff_record_type), intent(in) :: records(:)
+        type(status_type), intent(out) :: status
         type(handle_type) :: buffer, overlay
         integer :: current_diff, state, others(3), j
         character(len=:), allocatable :: state_of_diff
         character(len=96) :: progress
 
+        status = status_type()
         buffer = ediff_sessions(k)%buffers(buffer_type)
 
         do current_diff = 0, size(records) - 1
@@ -449,12 +489,15 @@ contains
 
                 ! Put overlays at appropriate places in buffer.
                 call make_ediff_bullet_proof_overlay(record%beginning(buffer_type), record%end(buffer_type), buffer, &
-                                                     overlay)
+                                                     overlay, status)
             end associate
+
+            if (.not. status%ok()) return
 
             if (has_ediff_face_support() .and. ediff_sessions(k)%use_faces .and. &
                 ediff_sessions(k)%highlight_all_diffs) then
-                call set_ediff_overlay_face(overlay, ediff_background_face(buffer_type, current_diff))
+                call set_ediff_overlay_face(overlay, ediff_background_face(buffer_type, current_diff), status)
+                if (.not. status%ok()) return
             end if
 
             if (modulo(current_diff, 10) == 0) then
@@ -476,9 +519,8 @@ contains
         character(len=*), intent(in) :: file
         integer(int64), intent(out) :: beginning, end
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, found, x
+        integer(int64) :: opoint, found, x, second
         character(len=:), allocatable :: kind
-        type(status_type) :: st
 
         ! This save-excursion allows ediff-get-diff3-group to be called
         ! for the various groups of lines (1, 2, 3) in any order, and for
@@ -495,6 +537,13 @@ contains
             return
         end if
 
+        second = match_beginning(2, status)
+
+        if (.not. status%ok()) then
+            call goto_char(opoint)
+            return
+        end if
+
         call beginning_of_line(2_int64)
         kind = match_string(4)
         x = matched_number(1, 0_int64)
@@ -503,7 +552,7 @@ contains
         if (kind == "c") then
             beginning = x
 
-            if (match_beginning(2, st) > 0) then
+            if (second > 0) then
                 ! It has two numbers.
                 end = matched_number(3, 0_int64) + 1
             else
@@ -545,12 +594,14 @@ contains
         group = ["1", "3", "2"]
         if (three_way_comp) group = ["1", "2", "3"]
         old = current_buffer()
-        call set_buffer(diff_buffer, st)
+        call set_buffer(diff_buffer, status)
+        if (.not. status%ok()) return
         call goto_char(point_min())
 
         do
-            call re_search_forward(EDIFF_MATCH_DIFF3_LINE, found, st, noerror=SEARCH_NOERROR)
-            if (.not. st%ok() .or. found == 0) exit
+            call re_search_forward(EDIFF_MATCH_DIFF3_LINE, found, status, noerror=SEARCH_NOERROR)
+            if (.not. status%ok()) exit
+            if (found == 0) exit
             agreement = match_string(1)
             ! Leave point after matched line.
             call beginning_of_line(2_int64)
@@ -560,23 +611,25 @@ contains
 
             do t = 1, 3
                 call get_ediff_diff3_group(group(t), beginning(t), end(t), status)
-
-                if (.not. status%ok()) then
-                    call set_buffer(old, st)
-                    return
-                end if
+                if (.not. status%ok()) exit
             end do
 
+            if (.not. status%ok()) exit
             record = ediff_diff_record_type()
 
             ! Compute the regions: convert lines to points.
             do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
-                record%beginning(t) = line_position(ediff_sessions(k)%buffers(t), prev_pt(t), beginning(t) - prev(t))
-                record%end(t) = line_position(ediff_sessions(k)%buffers(t), record%beginning(t), end(t) - beginning(t))
+                call get_line_position(ediff_sessions(k)%buffers(t), prev_pt(t), beginning(t) - prev(t), &
+                                       record%beginning(t), status)
+                if (.not. status%ok()) exit
+                call get_line_position(ediff_sessions(k)%buffers(t), record%beginning(t), end(t) - beginning(t), &
+                                       record%end(t), status)
+                if (.not. status%ok()) exit
                 prev(t) = end(t)
                 prev_pt(t) = record%end(t)
             end do
 
+            if (.not. status%ok()) exit
             record%state_of_ancestor = beginning(3) == end(3)
 
             if (agreement == group(1)) then
@@ -588,10 +641,13 @@ contains
             end if
 
             records = [records, record]
-            call set_buffer(diff_buffer, st)
+            call set_buffer(diff_buffer, status)
+            if (.not. status%ok()) exit
         end do
 
+        ! Make the old buffer current again, keeping the first error.
         call set_buffer(old, st)
+        if (status%ok()) status = st
     end subroutine extract_ediff_diffs3
 
     !> Generate the difference regions and overlays of session K for three
@@ -603,12 +659,13 @@ contains
         character(len=*), intent(in) :: file_a, file_b, file_c
         type(status_type), intent(out) :: status
         type(ediff_diff_record_type), allocatable :: records(:)
-        type(status_type) :: st
-
-        status = status_type()
+        logical :: matched
 
         ! Looking for '-i' or a 'i' among clustered non-long options.
-        if (string_matches("^-i\| -i\|\(^\| \)-[^- ]+i", ediff_diff_options, st)) then
+        matched = string_matches("^-i\| -i\|\(^\| \)-[^- ]+i", ediff_diff_options, status)
+        if (.not. status%ok()) return
+
+        if (matched) then
             call set_error(status, FM_GENERIC_ERROR, format_message("Option `-i' is not allowed in `ediff_diff3_options'"))
             return
         end if
@@ -627,7 +684,7 @@ contains
         call extract_ediff_diffs3(k, ediff_sessions(k)%diff_buffer, ediff_sessions(k)%three_way_comparison_job, &
                                   records, status)
         if (.not. status%ok()) return
-        call convert_ediff_diffs_to_overlays(k, records)
+        call convert_ediff_diffs_to_overlays(k, records, status)
     end subroutine set_up_ediff_diff_regions3
 
     !> Execute the diff PROGRAM.
@@ -695,7 +752,13 @@ contains
         old = current_buffer()
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
-        call erase_buffer(st)
+        call erase_buffer(status)
+
+        if (.not. status%ok()) then
+            call set_buffer(old, st)
+            return
+        end if
+
         ! default-directory may be on some remote machine or a
         ! non-existing dir.
         olddir = "/"
@@ -724,7 +787,9 @@ contains
         end if
 
         buffers(current)%directory = olddir
+        ! Make the old buffer current again, keeping the first error.
         call set_buffer(old, st)
+        if (status%ok()) status = st
         call set_match_data(data)
 
     contains

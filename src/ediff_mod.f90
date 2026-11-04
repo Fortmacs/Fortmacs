@@ -199,7 +199,12 @@ contains
         call widen()
         ! Plain file---just check that the file matches the buffer.
         call verify_ediff_file_buffer(status)
-        if (is_buffer_live(old)) call set_buffer(old, st)
+
+        ! Make the old buffer current again, keeping the first error.
+        if (is_buffer_live(old)) then
+            call set_buffer(old, st)
+            if (status%ok()) status = st
+        end if
     end subroutine find_ediff_file
 
     !> Visit the files and set up the session.  Port of
@@ -305,7 +310,12 @@ contains
         saved_file_name = "FILE="//file_name
         major = buffers(current)%major_mode
         saved_file_buffer = get_buffer(saved_file_name)
-        if (is_buffer_live(saved_file_buffer)) call close_buffer(saved_file_buffer, st)
+
+        if (is_buffer_live(saved_file_buffer)) then
+            call close_buffer(saved_file_buffer, status)
+            if (.not. status%ok()) return
+        end if
+
         call get_or_make_buffer(saved_file_name, saved_file_buffer, status)
         if (.not. status%ok()) return
         call set_buffer(saved_file_buffer, status)
@@ -321,7 +331,9 @@ contains
             end if
         end if
 
+        ! Make the old buffer current again, keeping the first error.
         call set_buffer(this, st)
+        if (status%ok()) status = st
         if (.not. status%ok()) return
         call ediff_buffers(saved_file_buffer, this, status, startup_hooks)
     end subroutine ediff_current_file
@@ -430,6 +442,7 @@ contains
             call set_up_ediff(buffer_a, file_a, buffer_b, file_b, buffer_c, file_c, job_name, control, status, startup_hooks)
         end if
 
+        ! Delete the temporary files, keeping the first error.
         if (allocated(file_a)) call delete_temp(file_a)
         if (allocated(file_b)) call delete_temp(file_b)
         if (len(file_c) > 0) call delete_temp(file_c)
@@ -448,11 +461,14 @@ contains
             end if
         end subroutine make_temp
 
-        ! Delete FILE if it exists.
+        ! Delete FILE if it exists; its error goes to STATUS unless an
+        ! error is already recorded there.
         subroutine delete_temp(file)
             character(len=*), intent(in) :: file
 
-            if (file_exists(file)) call delete_file(file, st)
+            if (.not. file_exists(file)) return
+            call delete_file(file, st)
+            if (status%ok()) status = st
         end subroutine delete_temp
     end subroutine ediff_buffers_internal
 
@@ -483,7 +499,6 @@ contains
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: dir, expanded
-        type(status_type) :: st
 
         if (ediff_use_last_dir) then
             dir = ""
@@ -492,8 +507,10 @@ contains
             dir = file_name_directory(file)
         end if
 
-        call expand_file_name(file_name_nondirectory(file), expanded, st, dir)
-        if (st%ok()) call add_to_history("file_name_history", abbreviate_file_name(expanded))
+        call expand_file_name(file_name_nondirectory(file), expanded, status, dir)
+        if (.not. status%ok()) return
+        call add_to_history("file_name_history", abbreviate_file_name(expanded), status=status)
+        if (.not. status%ok()) return
         call read_ediff_file_name(prompt, dir, get_ediff_default_file_name(file), result, status)
     end subroutine read_next_file
 

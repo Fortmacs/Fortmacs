@@ -39,7 +39,8 @@ module test_ediff_util_mod
     use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, create_directory_internal, &
                           write_region
     use files_mod, only: delete_directory, find_file_noselect
-    use ediff_init_mod, only: ediff_sessions, ediff_session_index, EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B
+    use ediff_init_mod, only: ediff_sessions, ediff_session_index, ediff_fortmacs_help_in_control_buffer, &
+                              EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B
     use ediff_util_mod, only: next_ediff_difference, previous_ediff_difference, jump_to_ediff_difference, &
                               copy_ediff_diff_to_diff, restore_ediff_diff, quit_ediff_session, toggle_ediff_help, &
                               ediff_unique_buffer_name
@@ -68,6 +69,7 @@ contains
                     new_unittest("ediff-copy-and-restore", test_copy_and_restore), &
                     new_unittest("ediff-copy-all", test_copy_all), &
                     new_unittest("ediff-keys", test_keys), &
+                    new_unittest("ediff-help-key", test_help_key), &
                     new_unittest("ediff-toggle-help", test_toggle_help), &
                     new_unittest("ediff-files", test_files), &
                     new_unittest("ediff-quit", test_quit) &
@@ -378,6 +380,30 @@ contains
 
         call end_session(a, b)
     end subroutine test_keys
+
+    !> With `ediff_fortmacs_help_in_control_buffer' .false., C-h moves to
+    !> the previous difference.
+    subroutine test_help_key(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: a, b
+        type(status_type) :: st
+        integer :: k
+
+        if (.not. has_diff(error)) return
+        ediff_fortmacs_help_in_control_buffer = .false.
+        call start_session(a, b, k, st)
+        ediff_fortmacs_help_in_control_buffer = .true.
+
+        body: block
+            call check(error, st%ok(), format_error(st))
+            if (allocated(error)) exit body
+            call kbd_store_bytes("nn"//achar(8))
+            call command_loop(st)
+            call check(error, ediff_sessions(k)%current_difference, 0)
+        end block body
+
+        call end_session(a, b)
+    end subroutine test_help_key
 
     !> ? shows the long help message, and ? again the brief one.
     subroutine test_toggle_help(error)

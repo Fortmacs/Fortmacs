@@ -252,10 +252,11 @@ module ediff_init_mod
     !> ediff-show-ancestor.
     logical, public :: ediff_show_ancestor = .true.
 
-    !> .true. means C-h should not invoke Fortmacs help in control buffer.
-    !> Instead, C-h would jump to previous difference.  Port of
-    !> ediff-init.el ediff-no-emacs-help-in-control-buffer.
-    logical, public :: ediff_no_fortmacs_help_in_control_buffer = .false.
+    !> If .true., C-h invokes Fortmacs help in the control buffer.
+    !> If .false., C-h jumps to the previous difference instead.  Port of
+    !> ediff-init.el ediff-no-emacs-help-in-control-buffer (named
+    !> positively, the value inverted).
+    logical, public :: ediff_fortmacs_help_in_control_buffer = .true.
 
     !> Mode for Ediff temporary files.  Port of ediff-init.el
     !> ediff-temp-file-mode.
@@ -473,10 +474,12 @@ contains
     !> Give OVERLAY the face named FACE ("" for none).  Port of
     !> ediff-init.el:ediff-set-overlay-face (the `help-echo' text is
     !> deferred with the mouse).
-    subroutine set_ediff_overlay_face(overlay, face)
+    subroutine set_ediff_overlay_face(overlay, face, status)
         type(handle_type), intent(in) :: overlay
         character(len=*), intent(in) :: face
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
+
+        status = status_type()
 
         if (.not. is_buffer_live(overlay_buffer(overlay))) then
             call delete_overlay(overlay)
@@ -484,23 +487,24 @@ contains
         end if
 
         if (len(face) == 0) then
-            call overlay_put(overlay, "face", value_type(), st)
+            call overlay_put(overlay, "face", value_type(), status)
         else
-            call overlay_put(overlay, "face", value_type(name=face), st)
+            call overlay_put(overlay, "face", value_type(name=face), status)
         end if
     end subroutine set_ediff_overlay_face
 
     !> If OVERLAY's buffer exists, move OVERLAY to BEGINNING-END; delete it
     !> otherwise.  Port of ediff-init.el:ediff-move-overlay.
-    subroutine move_ediff_overlay(overlay, beginning, end)
+    subroutine move_ediff_overlay(overlay, beginning, end, status)
         type(handle_type), intent(in) :: overlay
         integer(int64), intent(in) :: beginning, end
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
 
+        status = status_type()
         if (.not. is_overlay(overlay)) return
 
         if (is_buffer_live(overlay_buffer(overlay))) then
-            call move_overlay(overlay, beginning, end, st)
+            call move_overlay(overlay, beginning, end, status)
         else
             call delete_overlay(overlay)
         end if
@@ -526,11 +530,13 @@ contains
     !> buffers, or with UNHIGHLIGHT remove them.  Port of
     !> ediff-init.el:ediff-paint-background-regions with
     !> ediff-paint-background-regions-in-one-buffer.
-    subroutine paint_ediff_background_regions(k, unhighlight)
+    subroutine paint_ediff_background_regions(k, unhighlight, status)
         integer, intent(in) :: k
         logical, intent(in) :: unhighlight
+        type(status_type), intent(out) :: status
         integer :: buffer_type, n
 
+        status = status_type()
         if (.not. allocated(ediff_sessions(k)%differences)) return
 
         do buffer_type = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_ANCESTOR
@@ -540,11 +546,13 @@ contains
                     if (.not. is_buffer_live(overlay_buffer(overlay))) cycle
 
                     if (unhighlight) then
-                        call set_ediff_overlay_face(overlay, "")
+                        call set_ediff_overlay_face(overlay, "", status)
                     else
-                        call set_ediff_overlay_face(overlay, ediff_background_face(buffer_type, n - 1))
+                        call set_ediff_overlay_face(overlay, ediff_background_face(buffer_type, n - 1), status)
                     end if
                 end associate
+
+                if (.not. status%ok()) return
             end do
         end do
     end subroutine paint_ediff_background_regions
@@ -569,11 +577,12 @@ contains
 
     !> Kill buffer BUFFER if it exists.  Port of
     !> ediff-init.el:ediff-kill-buffer-carefully.
-    recursive subroutine close_ediff_buffer_carefully(buffer)
+    recursive subroutine close_ediff_buffer_carefully(buffer, status)
         type(handle_type), intent(in) :: buffer
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
 
-        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
+        status = status_type()
+        if (is_buffer_live(buffer)) call close_buffer(buffer, status)
     end subroutine close_ediff_buffer_carefully
 
     !> Define the faces of ediff-init.el.  Not a port.

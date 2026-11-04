@@ -111,27 +111,30 @@ contains
     !> control buffer) with an overlay whose `ediff_help_info' property
     !> is the command's key, highlighted under the mouse.  Port of
     !> ediff-help.el:ediff-set-help-overlays.
-    subroutine set_ediff_help_overlays()
+    subroutine set_ediff_help_overlays(status)
+        type(status_type), intent(out) :: status
         integer(int64) :: found, beginning, end
         type(handle_type) :: overlay
-        type(status_type) :: st
         character(len=:), allocatable :: cmd
 
         call goto_char(point_min())
 
         do
-            call re_search_forward(" *\([^ "//achar(9)//LF//"|]+\||\) +-[^|"//LF//"]+", found, st, &
+            call re_search_forward(" *\([^ "//achar(9)//LF//"|]+\||\) +-[^|"//LF//"]+", found, status, &
                                    noerror=SEARCH_NOERROR)
-            if (.not. st%ok() .or. found == 0) exit
-            beginning = match_beginning(1, st)
-            if (.not. st%ok()) exit
-            end = match_end(0, st)
-            if (.not. st%ok()) exit
+            if (.not. status%ok()) return
+            if (found == 0) exit
+            beginning = match_beginning(1, status)
+            if (.not. status%ok()) return
+            end = match_end(0, status)
+            if (.not. status%ok()) return
             cmd = match_string(1)
-            call make_overlay(overlay, beginning, end, st)
-            if (.not. st%ok()) exit
-            call overlay_put(overlay, "mouse_face", value_type(name=HIGHLIGHT_FACE), st)
-            call overlay_put(overlay, "ediff_help_info", value_type(text=cmd), st)
+            call make_overlay(overlay, beginning, end, status)
+            if (.not. status%ok()) return
+            call overlay_put(overlay, "mouse_face", value_type(name=HIGHLIGHT_FACE), status)
+            if (.not. status%ok()) return
+            call overlay_put(overlay, "ediff_help_info", value_type(text=cmd), status)
+            if (.not. status%ok()) return
         end do
     end subroutine set_ediff_help_overlays
 
@@ -153,20 +156,26 @@ contains
     !> Center the help message in the control window: indent each line of
     !> the current buffer by half the room the window leaves.  Port of
     !> ediff-help.el:ediff-indent-help-message.
-    subroutine indent_ediff_help_message(k)
+    subroutine indent_ediff_help_message(k, status)
         integer, intent(in) :: k
+        type(status_type), intent(out) :: status
         integer(int64) :: opoint, shortage
         integer :: shift, width
-        type(status_type) :: st
 
-        width = window_body_width(selected_frame%selected_window, st)
-        if (.not. st%ok()) return
+        width = window_body_width(selected_frame%selected_window, status)
+        if (.not. status%ok()) return
         shift = max(0, width - ediff_help_message_line_length(k))/2
         opoint = point()
         call goto_char(point_min())
 
         do while (point() < point_max())
-            call insert(repeat(" ", shift), st)
+            call insert(repeat(" ", shift), status)
+
+            if (.not. status%ok()) then
+                call goto_char(opoint)
+                return
+            end if
+
             call beginning_of_line(1_int64)
             shortage = forward_line(1_int64)
         end do
@@ -180,9 +189,9 @@ contains
     !> Port of ediff-help.el:ediff-set-help-message (the user's message
     !> functions and the word-mode, narrowing and merge messages are
     !> deferred with those jobs).
-    recursive subroutine set_ediff_help_message(k)
+    recursive subroutine set_ediff_help_message(k, status)
         integer, intent(in) :: k
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
 
         if (ediff_sessions(k)%diff3_job) then
             ediff_sessions(k)%long_help_message = EDIFF_LONG_HELP_MESSAGE_HEAD//EDIFF_LONG_HELP_MESSAGE_COMPARE3// &
@@ -201,6 +210,6 @@ contains
             ediff_sessions(k)%help_message = ediff_sessions(k)%brief_help_message
         end if
 
-        call ediff_display_help_hook%execute(st)
+        call ediff_display_help_hook%execute(status)
     end subroutine set_ediff_help_message
 end module ediff_help_mod

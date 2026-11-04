@@ -78,10 +78,11 @@ module ediff_util_mod
         !> session K: show the help message, fit the window, mark the help
         !> text and remember the window configuration.  Port of
         !> ediff-util.el:ediff-setup-control-buffer.
-        recursive module subroutine set_up_ediff_control_buffer(k, control_buffer)
+        recursive module subroutine set_up_ediff_control_buffer(k, control_buffer, status)
             implicit none(type, external)
             integer, intent(in) :: k
             type(handle_type), intent(in) :: control_buffer
+            type(status_type), intent(out) :: status
         end subroutine set_up_ediff_control_buffer
 
         !> Ediff mode controls all operations in a single Ediff session.
@@ -275,9 +276,10 @@ module ediff_util_mod
         !> unless NO_RECENTER.  Port of
         !> ediff-util.el:ediff-unselect-and-select-difference (FLAG
         !> `select-only' or `unselect-only').
-        recursive module subroutine unselect_and_select_ediff_difference(k, n, flag, no_recenter)
+        recursive module subroutine unselect_and_select_ediff_difference(k, n, status, flag, no_recenter)
             implicit none(type, external)
             integer, intent(in) :: k, n
+            type(status_type), intent(out) :: status
             integer, intent(in), optional :: flag
             logical, intent(in), optional :: no_recenter
         end subroutine unselect_and_select_ediff_difference
@@ -397,18 +399,21 @@ contains
     !> null handle if BUFFER is not live.  Port of
     !> ediff-util.el:ediff-make-bullet-proof-overlay (the bounds given
     !> as positions, or as (point-min) and (point-max) with WHOLE).
-    recursive subroutine make_ediff_bullet_proof_overlay(beginning, end, buffer, overlay, whole)
+    recursive subroutine make_ediff_bullet_proof_overlay(beginning, end, buffer, overlay, status, whole)
         integer(int64), intent(in) :: beginning, end
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: overlay
+        type(status_type), intent(out) :: status
         logical, intent(in), optional :: whole
         type(handle_type) :: old
         type(status_type) :: st
         integer(int64) :: b, e
 
+        status = status_type()
         if (.not. is_buffer_live(buffer)) return
         old = current_buffer()
-        call set_buffer(buffer, st)
+        call set_buffer(buffer, status)
+        if (.not. status%ok()) return
         b = beginning
         e = end
 
@@ -420,7 +425,9 @@ contains
         end if
 
         ! Advance front and rear of the overlay.
-        call make_overlay(overlay, b, e, st, buffer=buffer, rear_advance=.true.)
+        call make_overlay(overlay, b, e, status, buffer=buffer, rear_advance=.true.)
+        ! Make the old buffer current again, keeping the first error.
         call set_buffer(old, st)
+        if (status%ok()) status = st
     end subroutine make_ediff_bullet_proof_overlay
 end module ediff_util_mod
