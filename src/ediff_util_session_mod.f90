@@ -23,11 +23,12 @@
 ! The procedures of ediff_util_mod that use ediff_wind_mod and
 ! ediff_diff_mod (which use ediff_util_mod), with the commands.
 submodule(ediff_util_mod) ediff_util_session_mod
-    use error_mod, only: set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, FM_QUIT
     use handle_mod, only: null_handle
     use value_mod, only: value_type, vtag, xfixnum, V_INTEGER
     use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, buffer_list, is_buffer_modified, &
-                          header_line_format_type
+                          header_line_format_type, restore_buffer_modified
+    use syntax_mod, only: skip_chars_forward
     use data_mod, only: clear_all_local_variables
     use editfns_mod, only: point, goto_char, is_bol, buffer_substring, delete_region, narrow_to_region
     use insdel_mod, only: insert
@@ -53,29 +54,24 @@ submodule(ediff_util_mod) ediff_util_session_mod
     use coding_mod, only: coding_system_for_write
     use dispnew_mod, only: ding
     use xdisp_mod, only: message
-    use ediff_init_mod, only: ediff_sessions, ediff_session_type, ediff_saved_region_type, ediff_session_index, &
+    use ediff_init_mod, only: ediff_sessions, ediff_session_type, ediff_replaced_region_type, ediff_session_index, &
                               make_ediff_session_entry, drop_ediff_session, has_ediff_face_support, is_ediff_buffer_job, &
                               ediff_char_to_buffer_type, ediff_buffer_type_name, set_ediff_overlay_face, move_ediff_overlay, &
                               ediff_background_face, paint_ediff_background_regions, check_ediff_control_buffer, &
                               close_ediff_buffer_carefully, ediff_use_faces, ediff_highlight_all_diffs, ediff_keep_variants, &
-                              ediff_make_buffers_readonly_at_startup, ediff_no_emacs_help_in_control_buffer, &
+                              ediff_make_buffers_readonly_at_startup, ediff_no_fortmacs_help_in_control_buffer, &
                               ediff_before_flag_bol, ediff_before_flag_mol, ediff_after_flag_eol, ediff_after_flag_mol, &
                               ediff_temp_file_mode, ediff_coding_system_for_write, ediff_before_setup_hook, &
                               ediff_startup_hook, ediff_select_hook, ediff_unselect_hook, ediff_prepare_buffer_hook, &
                               ediff_mode_hook, ediff_keymap_setup_hook, ediff_quit_hook, ediff_cleanup_hook, &
                               EDIFF_CURRENT_DIFF_FACES, EDIFF_KILLED_VITAL_BUFFER, EDIFF_NO_DIFFERENCES, &
                               EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B, EDIFF_BUFFER_TYPE_C, EDIFF_BUFFER_TYPE_ANCESTOR, &
-                              EDIFF_JOB_NAME_FILES3, EDIFF_JOB_NAME_BUFFERS3, EDIFF_JOB_NAME_MERGE_FILES, &
-                              EDIFF_JOB_NAME_MERGE_BUFFERS, EDIFF_JOB_NAME_MERGE_FILES_WITH_ANCESTOR, &
-                              EDIFF_JOB_NAME_MERGE_BUFFERS_WITH_ANCESTOR, EDIFF_JOB_NAME_MERGE_REVISIONS, &
-                              EDIFF_JOB_NAME_MERGE_REVISIONS_WITH_ANCESTOR, EDIFF_JOB_NAME_WINDOWS_WORDWISE, &
-                              EDIFF_JOB_NAME_WINDOWS_LINEWISE, EDIFF_JOB_NAME_REGIONS_WORDWISE, &
-                              EDIFF_JOB_NAME_REGIONS_LINEWISE, EDIFF_HIGHLIGHTING_STYLE_FACE, &
-                              EDIFF_HIGHLIGHTING_STYLE_ASCII, EDIFF_HIGHLIGHTING_STYLE_NO
+                              EDIFF_HIGHLIGHTING_STYLE_FACE, &
+                              EDIFF_HIGHLIGHTING_STYLE_ASCII, EDIFF_HIGHLIGHTING_STYLE_NONE
     use ediff_help_mod, only: ediff_use_long_help_message, set_ediff_help_message, indent_ediff_help_message, &
                               set_ediff_help_overlays
     use ediff_wind_mod, only: ediff_split_window_function, set_up_ediff_windows, refresh_ediff_mode_lines, &
-                              ediff_get_visible_buffer_window, ediff_window_config
+                              get_ediff_visible_buffer_window, ediff_window_config
     use ediff_diff_mod, only: set_up_ediff_diff_regions, set_up_ediff_diff_regions3, set_ediff_actual_diff_options, &
                               ediff_actual_diff_options
     implicit none(type, external)
@@ -148,11 +144,13 @@ contains
         integer, intent(in) :: k, n
         character(len=:), allocatable :: text
         character(len=:), allocatable :: name
+        character(len=80) :: numbers
 
         name = "null()"
         if (associated(this_command)) name = trim(this_command%name)
-        text = name//": Bad diff region number, "//number_to_string(n + 1)//".  Valid numbers are 1 to "// &
-               number_to_string(ediff_sessions(k)%number_of_differences)
+        write (numbers, '(": Bad diff region number, ", i0, ".  Valid numbers are 1 to ", i0)') n + 1, &
+            ediff_sessions(k)%number_of_differences
+        text = name//trim(numbers)
     end function bad_diff_number
 
     ! ------------------------------------------------------------------
@@ -197,7 +195,7 @@ contains
         call keymap_set(map, "p", "previous_ediff_difference", st)
         call keymap_set(map, "DEL", "previous_ediff_difference", st)
         call keymap_set(map, "<delete>", "previous_ediff_difference", st)
-        if (ediff_no_emacs_help_in_control_buffer) call keymap_set(map, "C-h", "previous_ediff_difference", st)
+        if (ediff_no_fortmacs_help_in_control_buffer) call keymap_set(map, "C-h", "previous_ediff_difference", st)
         call keymap_set(map, "<backspace>", "previous_ediff_difference", st)
         call keymap_set(map, "S-SPC", "previous_ediff_difference", st)
         call keymap_set(map, "n", "next_ediff_difference", st)
@@ -244,7 +242,7 @@ contains
                                              control_buffer, status, startup_hooks)
         type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_c
         character(len=*), intent(in) :: file_a, file_b, file_c
-        integer, intent(in) :: job_name
+        type(command_type), pointer, intent(in) :: job_name
         type(handle_type), intent(out) :: control_buffer
         type(status_type), intent(out) :: status
         type(hook_type), intent(inout), optional :: startup_hooks
@@ -293,22 +291,14 @@ contains
             end if
 
             ! Unwrap set up parameters passed as argument.
-            s%job_name = job_name
-            ! Set variables classifying the current ediff job.
-            s%three_way_comparison_job = any(job_name == [EDIFF_JOB_NAME_FILES3, EDIFF_JOB_NAME_BUFFERS3])
-            s%merge_job = any(job_name == [EDIFF_JOB_NAME_MERGE_FILES, EDIFF_JOB_NAME_MERGE_BUFFERS, &
-                                           EDIFF_JOB_NAME_MERGE_FILES_WITH_ANCESTOR, &
-                                           EDIFF_JOB_NAME_MERGE_BUFFERS_WITH_ANCESTOR, EDIFF_JOB_NAME_MERGE_REVISIONS, &
-                                           EDIFF_JOB_NAME_MERGE_REVISIONS_WITH_ANCESTOR])
-            s%merge_with_ancestor_job = any(job_name == [EDIFF_JOB_NAME_MERGE_FILES_WITH_ANCESTOR, &
-                                                         EDIFF_JOB_NAME_MERGE_BUFFERS_WITH_ANCESTOR, &
-                                                         EDIFF_JOB_NAME_MERGE_REVISIONS_WITH_ANCESTOR])
+            s%job_name => job_name
+            ! Set variables classifying the current ediff job.  The merge,
+            ! window and region jobs are Deferred (docs/status/ediff_mod.md):
+            ! their classes stay .false.
+            s%three_way_comparison_job = associated(job_name, commands%ediff_files3) .or. &
+                                         associated(job_name, commands%ediff_buffers3)
             s%three_way_job = s%three_way_comparison_job .or. s%merge_job
             s%diff3_job = s%three_way_comparison_job .or. s%merge_with_ancestor_job
-            s%windows_job = any(job_name == [EDIFF_JOB_NAME_WINDOWS_WORDWISE, EDIFF_JOB_NAME_WINDOWS_LINEWISE])
-            s%word_mode_job = any(job_name == [EDIFF_JOB_NAME_WINDOWS_WORDWISE, EDIFF_JOB_NAME_REGIONS_WORDWISE])
-            s%narrow_job = s%windows_job .or. any(job_name == [EDIFF_JOB_NAME_REGIONS_WORDWISE, &
-                                                               EDIFF_JOB_NAME_REGIONS_LINEWISE])
             ! Don't delete variants in case of ediff-buffer-* jobs without
             ! asking.  This is because one may lose work---dangerous.
             if (is_ediff_buffer_job(job_name)) s%keep_variants = .true.
@@ -413,8 +403,9 @@ contains
         integer, intent(in) :: k
         type(handle_type), intent(in) :: control_buffer
         type(status_type) :: st
-        type(handle_type) :: window, parent
+        type(handle_type) :: window, parent, root
         integer :: root_height
+        integer(int64) :: moved
 
         window = selected_frame%selected_window
         call set_buffer(control_buffer, st)
@@ -424,7 +415,6 @@ contains
             call set_buffer(control_buffer, st)
         end if
 
-        ! (let ((window-min-height 2)) ...)
         call erase_control_buffer()
         call set_ediff_help_message(k)
         call set_buffer(control_buffer, st)
@@ -434,22 +424,24 @@ contains
         ! Emulate the behavior of Emacs 27: fit the window, but to at most
         ! half the frame (the lower window of a split gets the residue
         ! line).
-        if (is_window_valid_handle(parent)) then
+        if (st%ok() .and. parent%index /= 0) then
             if (is_pos_visible_in_window(point_min(), window)) then
-                root_height = window_total_height(frame_root_window(window, st), st)
-                call fit_window_to_buffer(window, (root_height + 1)/2)
+                root = frame_root_window(window, st)
+                if (st%ok()) root_height = window_total_height(root, st)
+                if (st%ok()) call fit_window_to_buffer(window, (root_height + 1)/2)
             end if
         end if
 
         call indent_ediff_help_message(k)
         call set_ediff_help_overlays()
-        call set_buffer_unmodified()
+        call restore_buffer_modified(.false.)
         call refresh_ediff_mode_lines(k)
         ediff_sessions(k)%control_window = selected_frame%selected_window
         ediff_sessions(k)%window_config_saved = ediff_window_config(k)
         call set_window_dedication(selected_frame%selected_window, DEDICATED_WEAK, st)
         call goto_char(point_min())
-        call skip_whitespace_forward()
+        ! (skip-chars-forward ediff-whitespace)
+        moved = skip_chars_forward(" "//LF//achar(9)//achar(12)//achar(13)//char(194)//char(160), st)
 
     contains
 
@@ -464,29 +456,6 @@ contains
             call erase_buffer(st2)
             buffers(current)%read_only = saved
         end subroutine erase_control_buffer
-
-        ! Whether H is a window.
-        logical function is_window_valid_handle(h)
-            type(handle_type), intent(in) :: h
-
-            is_window_valid_handle = h%index /= 0
-        end function is_window_valid_handle
-
-        ! (set-buffer-modified-p nil)
-        subroutine set_buffer_unmodified()
-            use buffer_mod, only: restore_buffer_modified
-
-            call restore_buffer_modified(.false.)
-        end subroutine set_buffer_unmodified
-
-        ! (skip-chars-forward ediff-whitespace)
-        subroutine skip_whitespace_forward()
-            use syntax_mod, only: skip_chars_forward
-            integer(int64) :: moved
-            type(status_type) :: st3
-
-            moved = skip_chars_forward(" "//LF//achar(9)//achar(12)//achar(13)//char(194)//char(160), st3)
-        end subroutine skip_whitespace_forward
     end subroutine set_up_ediff_control_buffer
 
     ! ------------------------------------------------------------------
@@ -521,8 +490,8 @@ contains
         end if
 
         call clear_ediff_differences(k)
-        ! Invalidate saved killed diff regions.
-        if (allocated(ediff_sessions(k)%saved_regions)) deallocate (ediff_sessions(k)%saved_regions)
+        ! Invalidate the replaced regions.
+        if (allocated(ediff_sessions(k)%replaced_regions)) deallocate (ediff_sessions(k)%replaced_regions)
         call set_buffer(ediff_sessions(k)%control_buffer, st)
 
         if (ediff_sessions(k)%diff3_job) then
@@ -591,7 +560,7 @@ contains
                    is_buffer_live(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_B))
         if (ediff_sessions(k)%three_way_job) all_live = all_live .and. &
                                                         is_buffer_live(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_C))
-        ! (let (buffer-read-only) ...)
+        ! The control buffer is writable while the windows are set up.
         saved = buffers(current)%read_only
         buffers(current)%read_only = .false.
 
@@ -683,7 +652,7 @@ contains
             ! And position the beginning on the right line.
             call goto_char(beginning)
             height = window_total_height(selected_frame%selected_window, st)
-            call recenter(prefix_arg_type(PREFIX_NUMBER, (1 + max(height - 1 - lines, 1_int64))/2), .false., st)
+            if (st%ok()) call recenter(prefix_arg_type(PREFIX_NUMBER, (1 + max(height - 1 - lines, 1_int64))/2), .false., st)
         end if
 
         call goto_char(pos)
@@ -723,17 +692,17 @@ contains
                 s%highlight_all_diffs = .false.
                 s%highlighting_style = EDIFF_HIGHLIGHTING_STYLE_FACE
             else if ((s%use_faces .and. faces .and. s%highlighting_style == EDIFF_HIGHLIGHTING_STYLE_FACE) .or. &
-                     (.not. faces .and. s%highlighting_style == EDIFF_HIGHLIGHTING_STYLE_NO)) then
+                     (.not. faces .and. s%highlighting_style == EDIFF_HIGHLIGHTING_STYLE_NONE)) then
                 call message("Highlighting with ASCII flags")
                 s%highlighting_style = EDIFF_HIGHLIGHTING_STYLE_ASCII
                 s%highlight_all_diffs = .false.
                 s%use_faces = .false.
             else if (s%highlighting_style == EDIFF_HIGHLIGHTING_STYLE_ASCII) then
                 call message("ASCII highlighting flags removed")
-                s%highlighting_style = EDIFF_HIGHLIGHTING_STYLE_NO
+                s%highlighting_style = EDIFF_HIGHLIGHTING_STYLE_NONE
                 s%highlight_all_diffs = .false.
             else if (faces) then
-                ! Catch-all for cases with face support.
+                ! The other cases with face support.
                 call message("Re-highlighting all difference regions")
                 s%use_faces = .true.
                 s%highlighting_style = EDIFF_HIGHLIGHTING_STYLE_FACE
@@ -1049,46 +1018,48 @@ contains
     end subroutine copy_ediff_diff
 
     ! Save TEXT, the old difference N of BUFFER_TYPE in session K (in the
-    ! session's `ediff_killed_diffs_alist'), and give in MESSG what was
+    ! session's `replaced_regions'), and give in MESSG what was
     ! saved.  Port of ediff-util.el:ediff-save-diff-region.
     subroutine save_ediff_diff_region(k, n, buffer_type, text, messg)
         integer, intent(in) :: k, n, buffer_type
         character(len=*), intent(in) :: text
         character(len=:), allocatable, intent(out) :: messg
-        type(ediff_saved_region_type) :: entry
+        type(ediff_replaced_region_type) :: entry
         integer :: j
         character(len=:), allocatable :: recover
+        character(len=20) :: digits
 
-        j = saved_region_index(k, n, buffer_type)
+        j = replaced_region_index(k, n, buffer_type)
 
         if (j > 0) then
-            ediff_sessions(k)%saved_regions(j)%text = text
+            ediff_sessions(k)%replaced_regions(j)%text = text
         else
             entry%n = n
             entry%buffer_type = buffer_type
             entry%text = text
-            if (.not. allocated(ediff_sessions(k)%saved_regions)) allocate (ediff_sessions(k)%saved_regions(0))
-            ediff_sessions(k)%saved_regions = [ediff_sessions(k)%saved_regions, entry]
+            if (.not. allocated(ediff_sessions(k)%replaced_regions)) allocate (ediff_sessions(k)%replaced_regions(0))
+            ediff_sessions(k)%replaced_regions = [ediff_sessions(k)%replaced_regions, entry]
         end if
 
         recover = ""
         if (.not. ediff_sessions(k)%merge_job) recover = char(ichar(ediff_buffer_type_name(buffer_type)) + 32)
-        messg = "Saving old diff region #"//number_to_string(n + 1)//" of buffer "// &
+        write (digits, "(i0)") n + 1
+        messg = "Saving old diff region #"//trim(digits)//" of buffer "// &
                 ediff_buffer_type_name(buffer_type)//format_message(".  To recover, type `r")//recover//format_message("'")
         call message(messg)
     end subroutine save_ediff_diff_region
 
-    ! The index of the saved region of difference N of BUFFER_TYPE in
-    ! session K, 0 if none.  Not a port: (assoc buf (cdr (assoc n
-    ! ediff-killed-diffs-alist))).
-    integer function saved_region_index(k, n, buffer_type) result(j)
+    ! The index of the replaced region of difference N of BUFFER_TYPE in
+    ! session K, 0 if none.  Not a port: the lookup in
+    ! ediff-killed-diffs-alist that ediff-util.el does inline.
+    integer function replaced_region_index(k, n, buffer_type) result(j)
         integer, intent(in) :: k, n, buffer_type
 
         j = 0
-        if (.not. allocated(ediff_sessions(k)%saved_regions)) return
-        j = findloc(ediff_sessions(k)%saved_regions%n == n .and. &
-                    ediff_sessions(k)%saved_regions%buffer_type == buffer_type, .true., dim=1)
-    end function saved_region_index
+        if (.not. allocated(ediff_sessions(k)%replaced_regions)) return
+        j = findloc(ediff_sessions(k)%replaced_regions%n == n .and. &
+                    ediff_sessions(k)%replaced_regions%buffer_type == buffer_type, .true., dim=1)
+    end function replaced_region_index
 
     ! Whether difference N of BUFFER_TYPE may be saved: if it was saved
     ! before, ask; "Quit" if the user declines.  Port of
@@ -1097,13 +1068,15 @@ contains
         integer, intent(in) :: k, n, buffer_type
         type(status_type), intent(out) :: status
         logical :: answer
+        character(len=20) :: digits
 
         status = status_type()
-        if (saved_region_index(k, n, buffer_type) == 0) return
-        call read_yes_or_no("You've previously copied diff region "//number_to_string(n + 1)//" to buffer "// &
+        if (replaced_region_index(k, n, buffer_type) == 0) return
+        write (digits, "(i0)") n + 1
+        call read_yes_or_no("You've previously copied diff region "//trim(digits)//" to buffer "// &
                             ediff_buffer_type_name(buffer_type)//".  Confirm? ", answer, status)
         if (.not. status%ok()) return
-        if (.not. answer) call set_error(status, FM_GENERIC_ERROR, "Quit")
+        if (.not. answer) call set_error(status, FM_QUIT)
     end subroutine test_ediff_save_region
 
     ! Pop last killed Nth diff region from buffer BUFFER_TYPE.  Port of
@@ -1114,17 +1087,19 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         character(len=:), allocatable :: saved_diff
-        type(ediff_saved_region_type), allocatable :: rest(:)
+        type(ediff_replaced_region_type), allocatable :: rest(:)
         integer(int64) :: reg_beginning, reg_end
         integer :: i, j
         logical :: recovered
+        character(len=20) :: digits
 
-        j = saved_region_index(k, n, buffer_type)
+        write (digits, "(i0)") n + 1
+        j = replaced_region_index(k, n, buffer_type)
 
         if (j > 0) then
-            saved_diff = ediff_sessions(k)%saved_regions(j)%text
+            saved_diff = ediff_sessions(k)%replaced_regions(j)%text
         else if (ediff_sessions(k)%number_of_differences > 0) then
-            call set_error(status, FM_USER_ERROR, "Nothing saved for diff "//number_to_string(n + 1)//" in buffer "// &
+            call set_error(status, FM_USER_ERROR, "Nothing saved for diff "//trim(digits)//" in buffer "// &
                            ediff_buffer_type_name(buffer_type))
             return
         else
@@ -1156,9 +1131,9 @@ contains
         call refresh_ediff_mode_lines(k)
 
         if (recovered) then
-            rest = pack(ediff_sessions(k)%saved_regions, [(i /= j, i=1, size(ediff_sessions(k)%saved_regions))])
-            call move_alloc(rest, ediff_sessions(k)%saved_regions)
-            call message("Diff region "//number_to_string(n + 1)//" in buffer "//ediff_buffer_type_name(buffer_type)// &
+            rest = pack(ediff_sessions(k)%replaced_regions, [(i /= j, i=1, size(ediff_sessions(k)%replaced_regions))])
+            call move_alloc(rest, ediff_sessions(k)%replaced_regions)
+            call message("Diff region "//trim(digits)//" in buffer "//ediff_buffer_type_name(buffer_type)// &
                          " restored")
         end if
     end subroutine pop_ediff_diff
@@ -1263,7 +1238,7 @@ contains
         buff_b = ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_B)
         buff_c = ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_C)
         control_buffer = ediff_sessions(k)%control_buffer
-        control_window = ediff_get_visible_buffer_window(control_buffer)
+        control_window = get_ediff_visible_buffer_window(control_buffer)
         three_way_job = ediff_sessions(k)%three_way_job
         call close_ediff_buffer_carefully(ediff_sessions(k)%diff_buffer)
         call close_ediff_buffer_carefully(get_buffer(" *ediff-tmp*"))
@@ -1277,12 +1252,12 @@ contains
         call close_ediff_buffer_carefully(control_buffer)
 
         ! Display only if not visible.
-        if (.not. is_window_live(ediff_get_visible_buffer_window(buff_b)) .and. is_buffer_live(buff_b)) then
+        if (.not. is_window_live(get_ediff_visible_buffer_window(buff_b)) .and. is_buffer_live(buff_b)) then
             call switch_to_buffer(buffers(buff_b%index)%name, st)
         end if
 
-        if (.not. is_window_live(ediff_get_visible_buffer_window(buff_a)) .and. is_buffer_live(buff_a)) then
-            if (is_window_live(ediff_get_visible_buffer_window(buff_b)) .and. associated(ediff_split_window_function)) then
+        if (.not. is_window_live(get_ediff_visible_buffer_window(buff_a)) .and. is_buffer_live(buff_a)) then
+            if (is_window_live(get_ediff_visible_buffer_window(buff_b)) .and. associated(ediff_split_window_function)) then
                 call ediff_split_window_function(new, st)
             end if
 
@@ -1290,11 +1265,11 @@ contains
         end if
 
         if (three_way_job .and. is_buffer_live(buff_c)) then
-            if (.not. is_window_live(ediff_get_visible_buffer_window(buff_c))) then
+            if (.not. is_window_live(get_ediff_visible_buffer_window(buff_c))) then
                 st = status_type()
 
-                if (is_window_live(ediff_get_visible_buffer_window(buff_a)) .or. &
-                    is_window_live(ediff_get_visible_buffer_window(buff_b))) then
+                if (is_window_live(get_ediff_visible_buffer_window(buff_a)) .or. &
+                    is_window_live(get_ediff_visible_buffer_window(buff_b))) then
                     if (associated(ediff_split_window_function)) call ediff_split_window_function(new, st)
                 end if
 
@@ -1321,7 +1296,7 @@ contains
         call dispose_of_ediff_variant(buffers_of(EDIFF_BUFFER_TYPE_B), EDIFF_BUFFER_TYPE_B, ask, keep_variants, status)
         if (.not. status%ok()) return
 
-        ! Don't del buf C if merging--del ancestor buf instead.
+        ! When merging, the ancestor buffer is disposed of instead of buffer C.
         if (ediff_sessions(k)%merge_job) then
             call dispose_of_ediff_variant(buffers_of(EDIFF_BUFFER_TYPE_ANCESTOR), EDIFF_BUFFER_TYPE_ANCESTOR, ask, &
                                           keep_variants, status)
@@ -1426,8 +1401,7 @@ contains
         if (present(no_recenter)) recentering = .not. no_recenter
 
         if (recentering) then
-            ! (let ((ediff-current-difference n)) (ediff-recenter
-            ! 'no-rehighlight))
+            ! Recenter on difference N without highlighting it again.
             saved = ediff_sessions(k)%current_difference
             ediff_sessions(k)%current_difference = n
             call recenter_ediff_session(k, .true., st)
@@ -1835,7 +1809,8 @@ contains
         ! First check if the file has been modified since the buffer
         ! visited it.
         if (is_visited_file_modtime_current()) then
-            call is_buffer_modified(current_buffer(), modified, st)
+            call is_buffer_modified(current_buffer(), modified, status)
+            if (.not. status%ok()) return
             if (.not. modified) return
             ! If buffer is not obsolete and is modified, offer to save.
             call read_yes_or_no("Buffer "//buffers(current)%name//" has been modified.  Save it in file "// &
@@ -1900,7 +1875,7 @@ contains
             bname = buffers(all_buffers(j)%index)%name
             is_dired = buffers(all_buffers(j)%index)%major_mode == "dired_mode"
             if (any(excluded == bname)) cycle
-            if (.not. is_window_live(ediff_get_visible_buffer_window(all_buffers(j)))) cycle
+            if (.not. is_window_live(get_ediff_visible_buffer_window(all_buffers(j)))) cycle
 
             if (all_buffers(j)%index == preferred_buffer%index) then
                 name = bname

@@ -35,7 +35,8 @@ module ediff_init_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type
+    use value_mod, only: value_type, command_type
+    use commands_mod, only: commands
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_live, buffer_serial_live, close_buffer
     use hooks_mod, only: hook_type
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
@@ -52,7 +53,7 @@ module ediff_init_mod
               make_ediff_session_entry, drop_ediff_session, init_ediff_init
 
     ! ------------------------------------------------------------------
-    ! Buffer types and job names
+    ! Buffer types
     ! ------------------------------------------------------------------
 
     !> The buffer types of an Ediff session: buffer A, buffer B, buffer C
@@ -61,21 +62,10 @@ module ediff_init_mod
     integer, parameter, public :: EDIFF_BUFFER_TYPE_A = 1, EDIFF_BUFFER_TYPE_B = 2, EDIFF_BUFFER_TYPE_C = 3, &
                                   EDIFF_BUFFER_TYPE_ANCESTOR = 4
 
-    !> The kinds of Ediff job, `ediff_job_name' upstream: the command that
-    !> started the session.
-    integer, parameter, public :: EDIFF_JOB_NAME_FILES = 1, EDIFF_JOB_NAME_FILES3 = 2, EDIFF_JOB_NAME_BUFFERS = 3, &
-                                  EDIFF_JOB_NAME_BUFFERS3 = 4, EDIFF_JOB_NAME_MERGE_FILES = 5, &
-                                  EDIFF_JOB_NAME_MERGE_BUFFERS = 6, EDIFF_JOB_NAME_MERGE_FILES_WITH_ANCESTOR = 7, &
-                                  EDIFF_JOB_NAME_MERGE_BUFFERS_WITH_ANCESTOR = 8, EDIFF_JOB_NAME_MERGE_REVISIONS = 9, &
-                                  EDIFF_JOB_NAME_MERGE_REVISIONS_WITH_ANCESTOR = 10, &
-                                  EDIFF_JOB_NAME_WINDOWS_WORDWISE = 11, EDIFF_JOB_NAME_WINDOWS_LINEWISE = 12, &
-                                  EDIFF_JOB_NAME_REGIONS_WORDWISE = 13, EDIFF_JOB_NAME_REGIONS_LINEWISE = 14, &
-                                  EDIFF_JOB_NAME_REVISION = 15, EDIFF_JOB_NAME_PATCH = 16
-
     !> The highlighting styles of a session (`ediff_highlighting_style'):
     !> faces, ASCII flags, or none (on a dumb terminal only).
     integer, parameter, public :: EDIFF_HIGHLIGHTING_STYLE_FACE = 1, EDIFF_HIGHLIGHTING_STYLE_ASCII = 2, &
-                                  EDIFF_HIGHLIGHTING_STYLE_NO = 3
+                                  EDIFF_HIGHLIGHTING_STYLE_NONE = 3
 
     ! ------------------------------------------------------------------
     ! Error messages
@@ -116,14 +106,14 @@ module ediff_init_mod
         character(len=12) :: state_of_diff = ""
     end type ediff_difference_type
 
-    !> An old difference region saved before a copy replaced it (an
-    !> entry of upstream's `ediff-killed-diffs-alist'): difference N
+    !> An old difference region a copy replaced (an entry of upstream's
+    !> `ediff-killed-diffs-alist'): difference N
     !> (counted from 0) of buffer type BUFFER_TYPE held TEXT.
-    type, public :: ediff_saved_region_type
+    type, public :: ediff_replaced_region_type
         integer :: n = -1
         integer :: buffer_type = 0
         character(len=:), allocatable :: text
-    end type ediff_saved_region_type
+    end type ediff_replaced_region_type
 
     !> One Ediff session, upstream's local variables of the control
     !> buffer.  Differences are counted from 0, as upstream counts them
@@ -139,8 +129,9 @@ module ediff_init_mod
         !> `ediff_window_a', `_b', `_c', `_ancestor', by buffer type, and
         !> `ediff_control_window'.
         type(handle_type) :: windows(4), control_window
-        !> `ediff_job_name' (EDIFF_JOB_NAME_*).
-        integer :: job_name = EDIFF_JOB_NAME_FILES
+        !> The command that started the session (upstream's `ediff-job-name'
+        !> as commands%ediff_files, commands%ediff_buffers3, ...).
+        type(command_type), pointer :: job_name => null()
         !> The classification of the job (`ediff_3way_comparison_job',
         !> `ediff_merge_job', ...), set by `set_up_ediff'.
         logical :: three_way_comparison_job = .false., merge_job = .false., merge_with_ancestor_job = .false., &
@@ -163,8 +154,8 @@ module ediff_init_mod
         !> `ediff_meta_buffer': the session group this session belongs to
         !> (none until ediff-mult.el is ported).
         type(handle_type) :: meta_buffer
-        !> `ediff_killed_diffs_alist': the regions copies replaced.
-        type(ediff_saved_region_type), allocatable :: saved_regions(:)
+        !> The regions copies replaced (upstream's `ediff-killed-diffs-alist').
+        type(ediff_replaced_region_type), allocatable :: replaced_regions(:)
         !> `ediff_highlighting_style' (EDIFF_HIGHLIGHTING_STYLE_*).
         integer :: highlighting_style = EDIFF_HIGHLIGHTING_STYLE_ASCII
         !> The session's own values of `ediff_use_faces',
@@ -264,7 +255,7 @@ module ediff_init_mod
     !> .true. means C-h should not invoke Fortmacs help in control buffer.
     !> Instead, C-h would jump to previous difference.  Port of
     !> ediff-init.el ediff-no-emacs-help-in-control-buffer.
-    logical, public :: ediff_no_emacs_help_in_control_buffer = .false.
+    logical, public :: ediff_no_fortmacs_help_in_control_buffer = .false.
 
     !> Mode for Ediff temporary files.  Port of ediff-init.el
     !> ediff-temp-file-mode.
@@ -433,14 +424,14 @@ contains
                                  selected_frame%tty%tn_max_colors > 0
     end function has_ediff_face_support
 
-    !> Whether a job of kind JOB_NAME compares buffers (its name has
-    !> "buffer" in it upstream).  Not a port: the test
-    !> (string-match "buffer" (symbol-name ediff-job-name)).
-    pure logical function is_ediff_buffer_job(job_name)
-        integer, intent(in) :: job_name
+    !> Whether the job JOB_NAME compares buffers (its name has "buffer"
+    !> in it upstream; the merge jobs are Deferred, see
+    !> docs/status/ediff_init_mod.md).  Not a port: ediff-util.el and
+    !> ediff-diff.el test (string-match "buffer" (symbol-name ediff-job-name)).
+    logical function is_ediff_buffer_job(job_name)
+        type(command_type), pointer, intent(in) :: job_name
 
-        is_ediff_buffer_job = any(job_name == [EDIFF_JOB_NAME_BUFFERS, EDIFF_JOB_NAME_BUFFERS3, &
-                                               EDIFF_JOB_NAME_MERGE_BUFFERS, EDIFF_JOB_NAME_MERGE_BUFFERS_WITH_ANCESTOR])
+        is_ediff_buffer_job = associated(job_name, commands%ediff_buffers) .or. associated(job_name, commands%ediff_buffers3)
     end function is_ediff_buffer_job
 
     !> The buffer type a key names: a or A is buffer A, b or B buffer B,

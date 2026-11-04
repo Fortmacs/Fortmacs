@@ -233,7 +233,7 @@ ediff_keep_variants
 ediff_keymap_setup_hook
 ediff_make_buffers_readonly_at_startup
 ediff_mode_hook
-ediff_no_emacs_help_in_control_buffer
+ediff_no_fortmacs_help_in_control_buffer
 ediff_prepare_buffer_hook
 ediff_quit_hook
 ediff_select_hook

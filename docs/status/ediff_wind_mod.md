@@ -22,8 +22,7 @@ the multiframe setup and control frames (`ediff-setup-windows-multiframe` and it
 the merge layout (`ediff-setup-windows-plain-merge`, `ediff-merge-split-window-function`, `ediff-select-lowest-window`),
 `ediff-make-wide-display`,
 `window-combination-resize` (in 3-way jobs, B and C share what the first split gave B),
-the mode lines of buffers A,
-B and C,
+the mode lines of buffers A, B and C,
 windows jobs,
 `ediff-skip-unsuitable-frames`,
 `ediff-get-window-by-clicking`

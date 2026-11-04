@@ -2438,6 +2438,13 @@ name	ediff_copy_b_to_a	copy_ediff_b_to_a
 name	ediff_copy_b_to_c	copy_ediff_b_to_c
 name	ediff_copy_c_to_a	copy_ediff_c_to_a
 name	ediff_copy_c_to_b	copy_ediff_c_to_b
+# R6-17 (verb first; word order only, decided by rule and reported in the PR):
+# ediff.el and ediff-wind.el helpers whose verb was not first.
+name	ediff_find_file	find_ediff_file
+name	ediff_get_default_file_name	get_ediff_default_file_name
+name	ediff_get_visible_buffer_window	get_ediff_visible_buffer_window
+# R6-21: Emacs help in this option's name means this program's help.
+name	ediff_no_emacs_help_in_control_buffer	ediff_no_fortmacs_help_in_control_buffer
 # Step 48a: verb first in new procedure names, commands included (the
 # owner's decision relayed for this step; the names below are reported
 # for confirmation): smerge-mode.el's commands.

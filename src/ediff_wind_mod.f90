@@ -33,7 +33,6 @@ module ediff_wind_mod
                           set_window_dedication, get_buffer_window, is_window_live, is_window_minibuffer, other_window, &
                           window_buffer, same_handle, pop_to_buffer, split_window_below, split_window_right, DEDICATED_NONE
     use frame_mod, only: selected_frame
-    use data_mod, only: number_to_string
     use ediff_init_mod, only: ediff_sessions, ediff_split_window_procedure, ediff_before_setup_windows_hook, &
                               ediff_after_setup_windows_hook, EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B, &
                               EDIFF_BUFFER_TYPE_C, EDIFF_BUFFER_TYPE_ANCESTOR
@@ -43,7 +42,7 @@ module ediff_wind_mod
 
     public :: ediff_window_setup_procedure, set_up_ediff_windows, set_up_ediff_windows_default, set_up_ediff_windows_plain, &
               set_up_ediff_windows_plain_compare, refresh_ediff_mode_lines, make_ediff_wide_control_buffer_id, &
-              ediff_get_visible_buffer_window, is_ediff_window_config_kept, ediff_window_config, init_ediff_wind
+              get_ediff_visible_buffer_window, is_ediff_window_config_kept, ediff_window_config, init_ediff_wind
 
     abstract interface
         !> A function that sets up the windows of an Ediff session
@@ -99,12 +98,15 @@ contains
         type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_c, control_buffer
         type(status_type), intent(out) :: status
         type(status_type) :: st
+        logical :: in_minibuffer
 
         call ediff_before_setup_windows_hook%execute(status)
         if (.not. status%ok()) return
         ! Make sure we are not in the minibuffer window when we try to
         ! delete all other windows.
-        if (is_window_minibuffer(selected_frame%selected_window, st)) call other_window(1_int64, st)
+        in_minibuffer = is_window_minibuffer(selected_frame%selected_window, status)
+        if (.not. status%ok()) return
+        if (in_minibuffer) call other_window(1_int64, st)
 
         if (.not. is_ediff_window_config_kept(control_buffer)) then
             ! In case user did a no-no on a tty.
@@ -230,33 +232,32 @@ contains
     function make_ediff_wide_control_buffer_id(k) result(id)
         integer, intent(in) :: k
         type(header_line_format_type) :: id
-        character(len=:), allocatable :: where
+        character(len=64) :: position
 
         associate (s => ediff_sessions(k))
             if (s%current_difference < 0) then
-                where = "At start of "//number_to_string(s%number_of_differences)//" diffs"
+                write (position, '("At start of ", i0, " diffs")') s%number_of_differences
             else if (s%current_difference >= s%number_of_differences) then
-                where = "At end of "//number_to_string(s%number_of_differences)//" diffs"
+                write (position, '("At end of ", i0, " diffs")') s%number_of_differences
             else
-                where = "diff "//number_to_string(s%current_difference + 1)//" of "// &
-                        number_to_string(s%number_of_differences)
+                write (position, '("diff ", i0, " of ", i0)') s%current_difference + 1, s%number_of_differences
             end if
         end associate
 
         call id%append("%b   ")
-        call id%append(where, "mode_line_buffer_id")
+        call id%append(trim(position), "mode_line_buffer_id")
     end function make_ediff_wide_control_buffer_id
 
     !> A window of the selected frame showing BUFFER, the null handle if
     !> none (or BUFFER is not live).  Port of
     !> ediff-wind.el:ediff-get-visible-buffer-window.
-    function ediff_get_visible_buffer_window(buffer) result(window)
+    function get_ediff_visible_buffer_window(buffer) result(window)
         type(handle_type), intent(in) :: buffer
         type(handle_type) :: window
 
         window = null_handle()
         if (is_buffer_live(buffer)) window = get_buffer_window(buffer)
-    end function ediff_get_visible_buffer_window
+    end function get_ediff_visible_buffer_window
 
     !> What `ediff_window_config_saved' records of session K: its windows,
     !> split function and display.  Not a port: the string
@@ -266,13 +267,14 @@ contains
         integer, intent(in) :: k
         character(len=:), allocatable :: config
         integer :: t
+        character(len=240) :: windows_text
 
         associate (s => ediff_sessions(k))
-            config = window_id(s%control_window)
-
-            do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_ANCESTOR
-                config = config//window_id(s%windows(t))
-            end do
+            ! The control window, then the windows by buffer type.
+            write (windows_text, '(5("#<window ", i0, ".", i0, ">"))') s%control_window%index, &
+                s%control_window%generation, (s%windows(t)%index, s%windows(t)%generation, &
+                                              t=EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_ANCESTOR)
+            config = trim(windows_text)
 
             if (associated(s%split_window_function, split_window_right)) then
                 config = config//"split_window_right"
@@ -282,16 +284,6 @@ contains
                 config = config//"a procedure"
             end if
         end associate
-
-    contains
-
-        ! The window W as one field.
-        function window_id(w) result(id)
-            type(handle_type), intent(in) :: w
-            character(len=:), allocatable :: id
-
-            id = "#<window "//number_to_string(w%index)//"."//number_to_string(w%generation)//">"
-        end function window_id
     end function ediff_window_config
 
     !> Whether the windows of the session of CONTROL_BUFFER are still as

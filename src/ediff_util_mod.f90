@@ -35,11 +35,11 @@
 module ediff_util_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
+    use value_mod, only: command_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_buffer, is_buffer_live, set_buffer, current_buffer
     use hooks_mod, only: hook_type
     use callint_mod, only: prefix_arg_type
-    use data_mod, only: number_to_string
     use editfns_mod, only: point_min, point_max
     use itree_mod, only: make_overlay
     implicit none(type, external)
@@ -59,8 +59,8 @@ module ediff_util_mod
         !> BUFFER_C) BUFFER_C, whose contents diff reads from FILE_A, FILE_B
         !> and FILE_C: make the control buffer in Ediff mode, compute the
         !> difference regions, set up the windows and run STARTUP_HOOKS and
-        !> `ediff_startup_hook'.  JOB_NAME (EDIFF_JOB_NAME_*) is the kind of
-        !> job.  CONTROL_BUFFER is the control buffer.  Port of
+        !> `ediff_startup_hook'.  JOB_NAME (a command, as commands%ediff_files) is
+        !> the kind of job.  CONTROL_BUFFER is the control buffer.  Port of
         !> ediff-util.el:ediff-setup (the merge jobs and MERGE-BUFFER-FILE
         !> are deferred; SETUP-PARAMETERS is JOB_NAME).
         recursive module subroutine set_up_ediff(buffer_a, file_a, buffer_b, file_b, buffer_c, file_c, job_name, &
@@ -68,7 +68,7 @@ module ediff_util_mod
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_c
             character(len=*), intent(in) :: file_a, file_b, file_c
-            integer, intent(in) :: job_name
+            type(command_type), pointer, intent(in) :: job_name
             type(handle_type), intent(out) :: control_buffer
             type(status_type), intent(out) :: status
             type(hook_type), intent(inout), optional :: startup_hooks
@@ -378,13 +378,15 @@ contains
         character(len=*), intent(in) :: prefix, suffix
         character(len=:), allocatable :: name
         integer :: n
+        character(len=20) :: digits
 
         name = prefix//suffix
         if (.not. is_buffer_live(get_buffer(name))) return
         n = 2
 
         do
-            name = prefix//"<"//number_to_string(n)//">"//suffix
+            write (digits, "(i0)") n
+            name = prefix//"<"//trim(digits)//">"//suffix
             if (.not. is_buffer_live(get_buffer(name))) return
             n = n + 1
         end do

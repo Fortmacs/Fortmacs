@@ -21,11 +21,7 @@ STARTUP-HOOKS as a `hook_type`
 
 ## Deferred
 
-the directory,
-window,
-region,
-merge,
-patch and revision jobs (`ediff-directories`, `-directories3`, `-directory-revisions`, `ediff-windows-wordwise`/`-linewise`, `ediff-regions-wordwise`/`-linewise`, `ediff-merge-files` and the other `ediff-merge-*`, `ediff-patch-file`/`-buffer`, `ediff-revision`; the next PR does merging and ediff-mult.el),
+the directory, window, region, merge, patch and revision jobs (`ediff-directories`, `-directories3`, `-directory-revisions`, `ediff-windows-wordwise`/`-linewise`, `ediff-regions-wordwise`/`-linewise`, `ediff-merge-files` and the other `ediff-merge-*`, `ediff-patch-file`/`-buffer`, `ediff-revision`; the next PR does merging and ediff-mult.el),
 `ediff-version`,
 `ediff-documentation` (the Ediff manual),
 the `*-command` functions of the command line,

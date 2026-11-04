@@ -31,13 +31,13 @@ module ediff_diff_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, list, make_list
+    use value_mod, only: value_type, list, make_list, command_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, erase_buffer
     use editfns_mod, only: point, goto_char, point_min, point_max, buffer_substring, buffer_string, buffer_size
     use insdel_mod, only: insert
     use cmds_mod, only: forward_line, beginning_of_line
     use search_mod, only: re_search_forward, match_beginning, match_end, match_data, set_match_data, SEARCH_NOERROR
-    use subr_mod, only: string_matches
+    use subr_mod, only: string_matches, match_string
     use replace_mod, only: flush_lines
     use callproc_mod, only: execute_process
     use coding_mod, only: coding_system_for_read
@@ -45,7 +45,6 @@ module ediff_diff_mod
     use files_mod, only: file_name_unquote
     use window_mod, only: switch_to_buffer
     use xdisp_mod, only: message
-    use data_mod, only: number_to_string
     use ediff_init_mod, only: ediff_sessions, ediff_difference_type, has_ediff_face_support, set_ediff_overlay_face, &
                               ediff_background_face, ediff_buffer_type_name, is_ediff_buffer_job, &
                               check_ediff_control_buffer, close_ediff_buffer_carefully, ediff_coding_system_for_read, &
@@ -289,15 +288,13 @@ contains
     recursive integer(int64) function matched_number(n, default) result(value)
         integer, intent(in) :: n
         integer(int64), intent(in) :: default
-        type(status_type) :: st
         character(len=:), allocatable :: text
-        integer(int64) :: b
+        logical :: matched
         integer :: ios
 
         value = default
-        b = match_beginning(n, st)
-        if (.not. st%ok() .or. b <= 0) return
-        call buffer_substring(b, match_end(n, st), text, st)
+        text = match_string(n, matched=matched)
+        if (.not. matched) return
         read (text, *, iostat=ios) value
         if (ios /= 0) value = 0
     end function matched_number
@@ -340,7 +337,7 @@ contains
             if (.not. st%ok() .or. found == 0) exit
             a_begin = matched_number(1, 0_int64)
             a_end = matched_number(3, a_begin)
-            call buffer_substring(match_beginning(4, st), match_end(4, st), diff_type, st)
+            diff_type = match_string(4)
             b_begin = matched_number(5, 0_int64)
             b_end = matched_number(7, b_begin)
 
@@ -434,6 +431,7 @@ contains
         type(handle_type) :: buffer, overlay
         integer :: current_diff, state, others(3), j
         character(len=:), allocatable :: state_of_diff
+        character(len=96) :: progress
 
         buffer = ediff_sessions(k)%buffers(buffer_type)
 
@@ -460,8 +458,9 @@ contains
             end if
 
             if (modulo(current_diff, 10) == 0) then
-                call message("Buffer "//ediff_buffer_type_name(buffer_type)//": Processing difference region "// &
-                             number_to_string(current_diff)//" of "//number_to_string(size(records)))
+                write (progress, '("Buffer ", a, ": Processing difference region ", i0, " of ", i0)') &
+                    ediff_buffer_type_name(buffer_type), current_diff, size(records)
+                call message(trim(progress))
             end if
 
             ! Record all overlays for this difference.
@@ -497,7 +496,7 @@ contains
         end if
 
         call beginning_of_line(2_int64)
-        call buffer_substring(match_beginning(4, st), match_end(4, st), kind, st)
+        kind = match_string(4)
         x = matched_number(1, 0_int64)
 
         ! Treatment depends on whether it is an "a" group or a "c" group.
@@ -552,7 +551,7 @@ contains
         do
             call re_search_forward(EDIFF_MATCH_DIFF3_LINE, found, st, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found == 0) exit
-            call buffer_substring(match_beginning(1, st), match_end(1, st), agreement, st)
+            agreement = match_string(1)
             ! Leave point after matched line.
             call beginning_of_line(2_int64)
             ! If the files A and B are the same and not 3way-comparison,
@@ -641,7 +640,7 @@ contains
     !>
     !> FILE1, FILE2 and FILE3 are the filenames to pass to PROGRAM; absent
     !> and "" ones are ignored.  JOB_NAME is the kind of job
-    !> (EDIFF_JOB_NAME_*; none if absent): for a buffer job the output is
+    !> (a command, as commands%ediff_buffers; none if absent): for a buffer job the output is
     !> read with `ediff_coding_system_for_write', and only then is
     !> "--binary" passed.  Port of ediff-diff.el:ediff-exec-process (always
     !> synchronous: SYNCH is only false for the custom diff of `D', which is
@@ -650,7 +649,7 @@ contains
         character(len=*), intent(in) :: program, options
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: job_name
+        type(command_type), pointer, intent(in), optional :: job_name
         character(len=*), intent(in), optional :: file1, file2, file3
         type(value_type) :: result, item
         type(value_type), allocatable :: argv(:)
@@ -668,12 +667,10 @@ contains
         i = 1
 
         ! The options, split at white space.
-        do while (i <= len(options))
-            if (scan(options(i:i), " "//achar(9)//LF) > 0) then
-                i = i + 1
-                cycle
-            end if
-
+        do
+            j = verify(options(i:), " "//achar(9)//LF)
+            if (j == 0) exit
+            i = i + j - 1
             j = scan(options(i:), " "//achar(9)//LF)
 
             if (j == 0) then

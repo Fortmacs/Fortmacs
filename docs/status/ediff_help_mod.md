@@ -19,8 +19,7 @@
 
 ## Deferred
 
-the word-mode,
-narrow and merge messages (with those jobs),
+the word-mode, narrow and merge messages (with those jobs),
 `ediff-brief-help-message-function` and `ediff-long-help-message-function`,
 `ediff-help-region-map` (mouse-2),
 `ediff-help-for-quick-help` (the Ediff manual),

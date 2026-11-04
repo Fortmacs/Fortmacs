@@ -30,7 +30,8 @@ module ediff_help_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use buffer_mod, only: buffers, current
-    use editfns_mod, only: point, goto_char, point_min, point_max, buffer_substring
+    use editfns_mod, only: point, goto_char, point_min, point_max
+    use subr_mod, only: match_string
     use insdel_mod, only: insert
     use cmds_mod, only: forward_line, end_of_line, beginning_of_line
     use indent_mod, only: current_column
@@ -66,7 +67,7 @@ module ediff_help_mod
                                            "For help on a specific command:  Click Button 2 over it; or"//LF// &
                                            "              "//achar(9)//achar(9)//achar(9)//" Put the cursor over it and type RET."
 
-    ! The help tables keep upstream's words and columns (buf).
+    ! The help tables keep upstream's words and columns.
     ! fortran-names: off
     !> Help message usually used for 3-way comparison.
     !> Normally, not a user option.  See `ediff_help_message' for details.
@@ -123,8 +124,10 @@ contains
                                    noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found == 0) exit
             beginning = match_beginning(1, st)
+            if (.not. st%ok()) exit
             end = match_end(0, st)
-            call buffer_substring(beginning, match_end(1, st), cmd, st)
+            if (.not. st%ok()) exit
+            cmd = match_string(1)
             call make_overlay(overlay, beginning, end, st)
             if (.not. st%ok()) exit
             call overlay_put(overlay, "mouse_face", value_type(name=HIGHLIGHT_FACE), st)
@@ -153,10 +156,12 @@ contains
     subroutine indent_ediff_help_message(k)
         integer, intent(in) :: k
         integer(int64) :: opoint, shortage
-        integer :: shift
+        integer :: shift, width
         type(status_type) :: st
 
-        shift = max(0, window_body_width(selected_frame%selected_window, st) - ediff_help_message_line_length(k))/2
+        width = window_body_width(selected_frame%selected_window, st)
+        if (.not. st%ok()) return
+        shift = max(0, width - ediff_help_message_line_length(k))/2
         opoint = point()
         call goto_char(point_min())
 

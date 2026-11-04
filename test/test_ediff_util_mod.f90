@@ -36,7 +36,7 @@ module test_ediff_util_mod
     use bindings_mod, only: init_bindings
     use frame_mod, only: selected_frame
     use window_mod, only: window_buffer, is_window_live
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, is_file_directory, create_directory_internal, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, create_directory_internal, &
                           write_region
     use files_mod, only: delete_directory, find_file_noselect
     use ediff_init_mod, only: ediff_sessions, ediff_session_index, EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B
@@ -44,6 +44,7 @@ module test_ediff_util_mod
                               copy_ediff_diff_to_diff, restore_ediff_diff, quit_ediff_session, toggle_ediff_help, &
                               ediff_unique_buffer_name
     use ediff_mod, only: ediff_buffers, ediff_files
+    use commands_mod, only: commands
     implicit none(type, external)
     private
 
@@ -233,6 +234,11 @@ contains
             call check(error, selected_frame%selected_window%index, ediff_sessions(k)%control_window%index)
             if (allocated(error)) exit body
             call check(error, index(text_of(current_buffer()), "Type ? for help") > 0, text_of(current_buffer()))
+            if (allocated(error)) exit body
+            ! The job name is the command that started the session.
+            call check(error, associated(ediff_sessions(k)%job_name, commands%ediff_buffers), "job ediff_buffers")
+            if (allocated(error)) exit body
+            call check(error,.not. ediff_sessions(k)%three_way_comparison_job, "a 2-way job")
         end block body
 
         call end_session(a, b)
@@ -299,6 +305,13 @@ contains
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, text_of(b), "1"//LF//"A"//LF//"3"//LF//"b"//LF//"5"//LF//"C"//LF//"7"//LF)
+            if (allocated(error)) exit body
+            ! The replaced region is kept: difference 2 (1 counted from 0) of B.
+            call check(error, size(ediff_sessions(k)%replaced_regions), 1)
+            if (allocated(error)) exit body
+            call check(error, ediff_sessions(k)%replaced_regions(1)%n, 1)
+            if (allocated(error)) exit body
+            call check(error, ediff_sessions(k)%replaced_regions(1)%text, "B"//LF)
             if (allocated(error)) exit body
             call restore_ediff_diff(prefix_arg_type(PREFIX_NONE, 0_int64), "b", st)
             call check(error, st%ok(), format_error(st))
@@ -404,7 +417,7 @@ contains
         if (.not. has_diff(error)) return
         call setup()
         call init_fileio()
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
         if (is_file_directory(dir)) call delete_directory(dir, st, .true.)
         call create_directory_internal(dir, st)
         call make_file(dir//"old.txt", "one"//LF//"two"//LF)
@@ -419,6 +432,8 @@ contains
             call check(error, k > 0, "a session")
             if (allocated(error)) exit body
             call check(error, ediff_sessions(k)%number_of_differences, 1)
+            if (allocated(error)) exit body
+            call check(error, associated(ediff_sessions(k)%job_name, commands%ediff_files), "job ediff_files")
         end block body
 
         call find_file_noselect(dir//"old.txt", a, st)
