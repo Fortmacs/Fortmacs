@@ -55,7 +55,8 @@ module test_window_mod
                           window_tab_line_height, window_hscroll, window_dedication, set_window_dedication, &
                           window_use_time, window_bump_use_time, next_window, previous_window, window_list, &
                           window_list_1, window_part_at, window_at, force_window_update, MINIBUF_YES, MINIBUF_NO, &
-                          ON_TEXT, ON_VERTICAL_BORDER, ON_MODE_LINE, ON_NOTHING, DEDICATED_NONE
+                          ON_TEXT, ON_VERTICAL_BORDER, ON_MODE_LINE, ON_NOTHING, DEDICATED_NONE, window_end, &
+                          is_pos_visible_in_window, window_scroll_functions, split_window
     use simple_mod, only: goal_column
     use keyboard_mod, only: this_command, last_command, kbd_store_bytes, command_loop, &
                             discard_input
@@ -65,6 +66,12 @@ module test_window_mod
     private
 
     public :: collect_window_mod
+
+    !> The calls of `record_scroll' (a window_scroll_functions function):
+    !> how many, and the last window and start.
+    integer :: scroll_calls = 0
+    type(handle_type) :: scroll_window
+    integer(int64) :: scroll_start = 0
 
 contains
 
@@ -95,7 +102,9 @@ contains
                     new_unittest("bury-buffer-dedicated", test_bury_dedicated), &
                     new_unittest("window-accessors", test_window_accessors), &
                     new_unittest("next-window", test_next_window), &
-                    new_unittest("coordinates-in-window-p", test_coordinates_in_window) &
+                    new_unittest("coordinates-in-window-p", test_coordinates_in_window), &
+                    new_unittest("window-end", test_window_end), &
+                    new_unittest("window-scroll-functions", test_window_scroll_functions) &
                     ]
     end subroutine collect_window_mod
 
@@ -959,4 +968,66 @@ contains
                    is_null(window_at(-1, 0)), "window-at")
         call leave_frame()
     end subroutine test_coordinates_in_window
+
+    !> window_end: where the display ends, the end of the text when it
+    !> shows; with UPDATE computed, else as redisplay recorded it.
+    subroutine test_window_end(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+
+        call enter(h)
+        call check(error, window_end(selected_frame%selected_window, st, update=.true.) == line(11), "from the start")
+        if (allocated(error)) return
+        call check(error, is_pos_visible_in_window(line(11) - 1, selected_frame%selected_window) .and. &
+                   .not. is_pos_visible_in_window(line(11), selected_frame%selected_window), "visible")
+        if (allocated(error)) return
+        ! The text ends in the window: its end.
+        call set_window_start(win(), line(25), st)
+        call check(error, window_end(selected_frame%selected_window, st, update=.true.) == line(31), "to the end")
+        if (allocated(error)) return
+        call check(error, is_pos_visible_in_window(line(31), selected_frame%selected_window) .and. &
+                   is_pos_visible_in_window(line(30) + 3, selected_frame%selected_window), "the end visible")
+        if (allocated(error)) return
+        ! Without UPDATE: where the last redisplay ended, counted from the
+        ! end of the text.
+        windows(selected_frame%selected_window%index)%window_end_pos = 7
+        call check(error, window_end(selected_frame%selected_window, st) == line(30), "recorded")
+        call leave(h)
+    end subroutine test_window_end
+
+    !> A function of `window_scroll_functions'.
+    subroutine record_scroll(window, pos, status)
+        type(handle_type), intent(in) :: window
+        integer(int64), intent(in) :: pos
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        scroll_calls = scroll_calls + 1
+        scroll_window = window
+        scroll_start = pos
+    end subroutine record_scroll
+
+    !> set_window_buffer and split_window run `window_scroll_functions'
+    !> for the window, with its start.
+    subroutine test_window_scroll_functions(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, new
+        type(status_type) :: st
+
+        call enter(h)
+        call window_scroll_functions%append(record_scroll)
+        scroll_calls = 0
+        call set_window_start(win(), line(3), st)
+        call set_window_buffer(selected_frame%selected_window, h, st)
+        call check(error, scroll_calls == 1 .and. same_window(scroll_window, selected_frame%selected_window) .and. &
+                   scroll_start == window_start(win()), "set_window_buffer")
+        if (allocated(error)) return
+        scroll_calls = 0
+        call split_window(selected_frame%selected_window, 0, .false., .false., new, st)
+        ! (Once as the new window gets its buffer, once by split-window.)
+        call check(error, st%ok() .and. scroll_calls == 2 .and. same_window(scroll_window, new), "split_window")
+        call window_scroll_functions%remove(record_scroll)
+        call leave(h)
+    end subroutine test_window_scroll_functions
 end module test_window_mod

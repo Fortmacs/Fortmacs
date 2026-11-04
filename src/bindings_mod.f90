@@ -101,6 +101,7 @@ module bindings_mod
     use jit_lock_mod, only: init_jit_lock
     use dired_mode_mod, only: init_dired_mode, dired_mode_map
     use view_mod, only: init_view
+    use follow_mod, only: init_follow
     use process_mod, only: init_process, begin_asynch_code, end_asynch_code
     use compile_mod, only: init_compile, compilation_mode_map
     use grep_mod, only: init_grep
@@ -114,6 +115,8 @@ module bindings_mod
     use shell_mod, only: init_shell, shell_mode_map
     use rect_mod, only: init_rect
     use savehist_mod, only: init_savehist
+    use winner_mod, only: init_winner
+    use windmove_mod, only: init_windmove
     use saveplace_mod, only: init_saveplace
     use recentf_mod, only: init_recentf
     use tabulated_list_mod, only: init_tabulated_list
@@ -375,6 +378,8 @@ contains
         call init_diff()
         call init_rect()
         call init_savehist()
+        call init_winner()
+        call init_windmove()
         call init_saveplace()
         call init_recentf()
         call init_tabulated_list()
@@ -755,6 +760,7 @@ contains
         call init_vc_git()
         call init_vc_annotate()
         call init_view()
+        call init_follow()
         call init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map)
         ! Mail: mail-utils.el, sendmail.el, mailabbrev.el and simple.el's
         ! compose-mail, with their keys from bindings.el.

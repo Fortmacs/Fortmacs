@@ -603,7 +603,7 @@ contains
 
         if (is_buffer_live(old)) call set_buffer(old, st)
         if (.not. status%ok()) return
-        table%window_height => fit_preview_window
+        table%window_height%procedure => fit_preview_window
         call temp_buffer_window_show(buffer_handle, window, status, [DISPLAY_ACTION_AT_BOTTOM], table)
     end subroutine register_preview
 
