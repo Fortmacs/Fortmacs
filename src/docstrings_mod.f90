@@ -614,6 +614,10 @@ module docstrings_mod
                           vc_git_log_edit_summary_target_warning, vc_git_log_switches, vc_git_print_log_follow, &
                           vc_git_program, vc_git_revision_complete_only_branches, vc_git_root_log_format, &
                           vc_git_shortlog_switches, vc_git_use_literal_pathspecs
+    use vc_hg_mod, only: vc_hg_diff_switches, vc_hg_global_switches, vc_hg_log_edit_mode_map, &
+                         vc_hg_log_format, vc_hg_log_graph, vc_hg_log_switches, vc_hg_program, vc_hg_revert_switches, &
+                         vc_hg_root_log_format, vc_hg_symbolic_revision_styles, &
+                         vc_hg_use_file_version_for_mode_line_version
     use vc_hooks_mod, only: vc_consult_headers, vc_create_backup_files, vc_dir_buffers, &
                             vc_directory_exclusions, vc_display_status, VC_DISPLAY_STATUS_NO_BACKEND, vc_follow_symlinks, &
                             VC_FOLLOW_SYMLINKS_ASK, vc_handled_backends, vc_ignore_dir_regexp, vc_prefix_map, &
@@ -677,7 +681,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1739) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1742) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -1177,7 +1181,8 @@ module docstrings_mod
                                              "vc_dir_root_next_action", "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", &
                                           "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                     "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
-                                         "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_log_incoming", &
+                                                  "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_hg_log_edit_mode", &
+                                             "vc_hg_log_edit_toggle_amend", "vc_hg_log_view_mode", "vc_ignore", "vc_log_incoming", &
                                                                     "vc_log_outgoing", "vc_next_action", "vc_print_branch_log", &
                                                         "vc_print_fileset_branch_log", "vc_print_log", "vc_print_root_branch_log", &
                                                      "vc_print_root_log", "vc_pull", "vc_push", "vc_refresh_state", "vc_register", &
@@ -1202,7 +1207,7 @@ module docstrings_mod
                                                   "window_in_direction", "winner_mode", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1548) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1559) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1718,8 +1723,12 @@ module docstrings_mod
                                                                "vc_git_log_switches", "vc_git_print_log_follow", "vc_git_program", &
                                                                "vc_git_revision_complete_only_branches", "vc_git_root_log_format", &
                                                 "vc_git_shortlog_switches", "vc_git_use_literal_pathspecs", "vc_handled_backends", &
-                                                          "vc_ignore_dir_regexp", "vc_log_finish_functions", "vc_log_short_style", &
-                                           "vc_log_show_limit", "vc_logentry_check_hook", "vc_prefix_map", "vc_register_switches", &
+                                                        "vc_hg_diff_switches", "vc_hg_global_switches", "vc_hg_log_edit_mode_map", &
+                                                     "vc_hg_log_format", "vc_hg_log_graph", "vc_hg_log_switches", "vc_hg_program", &
+                                               "vc_hg_revert_switches", "vc_hg_root_log_format", "vc_hg_symbolic_revision_styles", &
+                                                           "vc_hg_use_file_version_for_mode_line_version", "vc_ignore_dir_regexp", &
+                                                             "vc_log_finish_functions", "vc_log_short_style", "vc_log_show_limit", &
+                                                                "vc_logentry_check_hook", "vc_prefix_map", "vc_register_switches", &
                                                             "vc_resolve_conflicts", "vc_retrieve_tag_hook", "vc_revert_show_diff", &
                                           "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_svn_diff_switches", &
                                                            "vc_svn_global_switches", "vc_svn_program", "vc_svn_register_switches", &
@@ -1737,7 +1746,7 @@ module docstrings_mod
                                                                     "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(679) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(687) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -2389,6 +2398,14 @@ module docstrings_mod
                                                                       "vc_git_program", &
                                                                       "vc_git_revision_complete_only_branches", &
                                                                       "vc_handled_backends", &
+                                                                      "vc_hg_diff_switches", &
+                                                                      "vc_hg_global_switches", &
+                                                                      "vc_hg_log_switches", &
+                                                                      "vc_hg_program", &
+                                                                      "vc_hg_revert_switches", &
+                                                                      "vc_hg_root_log_format", &
+                                                                      "vc_hg_symbolic_revision_styles", &
+                                                                      "vc_hg_use_file_version_for_mode_line_version", &
                                                                       "vc_ignore_dir_regexp", &
                                                                       "vc_log_show_limit", &
                                                                       "vc_create_backup_files", &
@@ -18146,6 +18163,20 @@ contains
             entry%file = "vc_git_mod.f90"
             entry%command = .true.
             entry%doc = "Major mode for Git logs."
+        case ("vc_hg_log_edit_mode")
+            entry%file = "vc_hg_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for editing Hg log messages."//LF// &
+                        "It is based on `log_edit_mode', and has Hg-specific extensions."
+        case ("vc_hg_log_edit_toggle_amend")
+            entry%file = "vc_hg_mod.f90"
+            entry%command = .true.
+            entry%doc = "Toggle whether this will amend the previous commit."//LF// &
+                        "If toggling on, also insert its message into the buffer."
+        case ("vc_hg_log_view_mode")
+            entry%file = "vc_hg_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for Hg logs."
         case ("vc_ignore")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -34624,6 +34655,105 @@ contains
                         "Removing an entry from the list prevents VC from being activated"//LF// &
                         "when visiting a file managed by that backend."//LF// &
                         "An empty list disables VC altogether."
+        case ("vc_hg_diff_switches")
+            entry%file = "vc_hg_mod.f90"
+            entry%fortran = "vc_hg_diff_switches"
+            entry%user_option = .true.
+            entry%doc = "String or list of strings specifying switches for Hg diff under VC."//LF// &
+                        "If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches'.  If VC_SWITCHES_NONE, use"// &
+                        " no switches."
+        case ("vc_hg_global_switches")
+            entry%file = "vc_hg_mod.f90"
+            entry%fortran = "vc_hg_global_switches"
+            entry%user_option = .true.
+            entry%doc = "String or list of strings: global switches to pass to any Hg"//LF// &
+                        "command (VC_SWITCHES_LIST; the other kinds pass none)."
+        case ("vc_hg_log_edit_mode_map")
+            entry%file = "vc_hg_mod.f90"
+            entry%fortran = "vc_hg_log_edit_mode_map"
+            entry%doc = "Keymap of `vc_hg_log_edit_mode'."
+        case ("vc_hg_log_format")
+            entry%file = "vc_hg_mod.f90"
+            entry%fortran = "vc_hg_log_format"
+
+            if (allocated(vc_hg_log_format)) then
+                entry%value = repr(vc_hg_log_format)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Mercurial log template for `vc_hg_print_log' long format."
+        case ("vc_hg_log_graph")
+            entry%file = "vc_hg_mod.f90"
+            entry%fortran = "vc_hg_log_graph"
+            entry%original = ".false."
+            entry%value = repr(vc_hg_log_graph)
+            entry%doc = "If true, use `--graph' in the short log output."
+        case ("vc_hg_log_switches")
+            entry%file = "vc_hg_mod.f90"
+            entry%fortran = "vc_hg_log_switches"
+            entry%user_option = .true.
+            entry%doc = "String or list of strings specifying switches for hg log under VC"//LF// &
+                        "(VC_SWITCHES_LIST; the other kinds pass none)."
+        case ("vc_hg_program")
+            entry%file = "vc_hg_mod.f90"
+            entry%fortran = "vc_hg_program"
+            entry%user_option = .true.
+
+            if (allocated(vc_hg_program)) then
+                entry%value = repr(vc_hg_program)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Name of the Mercurial executable (excluding any arguments)."
+        case ("vc_hg_revert_switches")
+            entry%file = "vc_hg_mod.f90"
+            entry%fortran = "vc_hg_revert_switches"
+            entry%user_option = .true.
+            entry%doc = "String or list of strings specifying switches for hg revert under VC"//LF// &
+                        "(VC_SWITCHES_LIST; the other kinds pass none)."
+        case ("vc_hg_root_log_format")
+            entry%file = "vc_hg_mod.f90"
+            entry%fortran = "vc_hg_root_log_format"
+            entry%user_option = .true.
+            entry%doc = "Mercurial log template for `vc_hg_print_log' short format."//LF// &
+                        "This should be a TEMPLATE, a REGEXP and KEYWORDS, where TEMPLATE"//LF// &
+                        "is the ""--template"" argument string to pass to Mercurial,"//LF// &
+                        "REGEXP is a regular expression matching the resulting Mercurial"//LF// &
+                        "output, and KEYWORDS is a list of `font_lock_keywords' for"//LF// &
+                        "highlighting the Log View buffer."
+        case ("vc_hg_symbolic_revision_styles")
+            entry%file = "vc_hg_mod.f90"
+            entry%fortran = "vc_hg_symbolic_revision_styles"
+            entry%user_option = .true.
+            entry%doc = "List of ways to present versions symbolically."//LF// &
+                        "The version that we use is the first one that successfully"//LF// &
+                        "produces a string."//LF// &
+                        ""//LF// &
+                        "Each entry in the list can be either:"//LF// &
+                        ""//LF// &
+                        "- VC_HG_SYMBOLIC_REVISION_STYLES_ACTIVE_BOOKMARK, which indicates"//LF// &
+                        "that we should use the active bookmark if one exists.  A template can"//LF// &
+                        "supply this information as well, but this kind is handled entirely"//LF// &
+                        "inside Fortmacs and so is more efficient than using the generic"//LF// &
+                        "Mercurial mechanism."//LF// &
+                        ""//LF// &
+                        "- VC_HG_SYMBOLIC_REVISION_STYLES_TEMPLATE, with the Mercurial"//LF// &
+                        "template to supply to ""hg parent"".  ""hg help template"" may be useful"//LF// &
+                        "reading."//LF// &
+                        ""//LF// &
+                        "If no list entry produces a useful revision, ""???"" is shown."
+        case ("vc_hg_use_file_version_for_mode_line_version")
+            entry%file = "vc_hg_mod.f90"
+            entry%fortran = "vc_hg_use_file_version_for_mode_line_version"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(vc_hg_use_file_version_for_mode_line_version)
+            entry%doc = "When enabled, the modeline contains revision information for the visited file."//LF// &
+                        "When not, the revision in the modeline is for the repository"//LF// &
+                        "working copy.  .false. is the much faster setting for"//LF// &
+                        "large repositories."
         case ("vc_ignore_dir_regexp")
             entry%file = "vc_hooks_mod.f90"
             entry%fortran = "vc_ignore_dir_regexp"
@@ -36420,6 +36550,10 @@ contains
             kind = OPTION_STRING
         case ("vc_git_revision_complete_only_branches")
             kind = OPTION_LOGICAL
+        case ("vc_hg_program")
+            kind = OPTION_STRING
+        case ("vc_hg_use_file_version_for_mode_line_version")
+            kind = OPTION_LOGICAL
         case ("vc_ignore_dir_regexp")
             kind = OPTION_STRING
         case ("vc_log_show_limit")
@@ -37202,6 +37336,8 @@ contains
             vc_find_revision_no_save = v
         case ("vc_git_revision_complete_only_branches")
             vc_git_revision_complete_only_branches = v
+        case ("vc_hg_use_file_version_for_mode_line_version")
+            vc_hg_use_file_version_for_mode_line_version = v
         case ("vc_create_backup_files")
             vc_create_backup_files = v
         case ("vc_resolve_conflicts")
@@ -38216,6 +38352,8 @@ contains
             vc_annotate_very_old_color = v
         case ("vc_git_program")
             vc_git_program = v
+        case ("vc_hg_program")
+            vc_hg_program = v
         case ("vc_ignore_dir_regexp")
             vc_ignore_dir_regexp = v
         case ("winner_boring_buffers_regexp")

@@ -773,6 +773,8 @@ vc-git.el	vc-git-stash-pop-at-point	vc_git_stash_pop_at_point
 vc-git.el	vc-git-stash-show	vc_git_stash_show
 vc-git.el	vc-git-stash-show-at-point	vc_git_stash_show_at_point
 vc-git.el	vc-git-stash-snapshot	vc_git_stash_snapshot
+vc-hg.el	vc-hg-pull	vc_hg_pull
+vc-hg.el	vc-hg-push	vc_hg_push
 vc-hooks.el	vc-mode-line	vc_mode_line
 vc.el	vc-add-working-tree	vc_add_working_tree
 vc.el	vc-apply-root-to-other-working-tree	vc_apply_root_to_other_working_tree
