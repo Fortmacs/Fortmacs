@@ -351,6 +351,10 @@ module commands_mod
         type(command_type) :: delete_smerge_current
         type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
+        type(command_type) :: delete_window_down
+        type(command_type) :: delete_window_left
+        type(command_type) :: delete_window_right
+        type(command_type) :: delete_window_up
         type(command_type) :: describe_bindings
         type(command_type) :: describe_button
         type(command_type) :: describe_character_set
@@ -1121,6 +1125,7 @@ module commands_mod
         type(command_type) :: rectangle_previous_line
         type(command_type) :: rectangle_right_char
         type(command_type) :: recursive_edit
+        type(command_type) :: redo_window_change
         type(command_type) :: redraw_display
         type(command_type) :: reindent_then_newline_and_indent
         type(command_type) :: repeat
@@ -1156,6 +1161,10 @@ module commands_mod
         type(command_type) :: search_backward
         type(command_type) :: search_forward
         type(command_type) :: select_frame_by_name
+        type(command_type) :: select_window_down
+        type(command_type) :: select_window_left
+        type(command_type) :: select_window_right
+        type(command_type) :: select_window_up
         type(command_type) :: self_insert_command
         type(command_type) :: send_mail
         type(command_type) :: send_mail_and_exit
@@ -1290,6 +1299,7 @@ module commands_mod
         type(command_type) :: undo
         type(command_type) :: undo_only
         type(command_type) :: undo_redo
+        type(command_type) :: undo_window_change
         type(command_type) :: unexpand_abbrev
         type(command_type) :: unfill_paragraph
         type(command_type) :: universal_argument
@@ -1399,7 +1409,11 @@ module commands_mod
         type(command_type) :: what_page
         type(command_type) :: where_is
         type(command_type) :: widen
+        type(command_type) :: windmove_default_keybindings
+        type(command_type) :: windmove_delete_default_keybindings
+        type(command_type) :: windmove_mode
         type(command_type) :: window_configuration_to_register
+        type(command_type) :: winner_mode
         type(command_type) :: write_abbrev_file
         type(command_type) :: write_file
         type(command_type) :: zrgrep
@@ -1409,7 +1423,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1370) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1384) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1728,6 +1742,10 @@ module commands_mod
                                                                   "delete_smerge_current", &
                                                                   "delete_whitespace_rectangle", &
                                                                   "delete_window", &
+                                                                  "delete_window_down", &
+                                                                  "delete_window_left", &
+                                                                  "delete_window_right", &
+                                                                  "delete_window_up", &
                                                                   "describe_bindings", &
                                                                   "describe_button", &
                                                                   "describe_character_set", &
@@ -2498,6 +2516,7 @@ module commands_mod
                                                                   "rectangle_previous_line", &
                                                                   "rectangle_right_char", &
                                                                   "recursive_edit", &
+                                                                  "redo_window_change", &
                                                                   "redraw_display", &
                                                                   "reindent_then_newline_and_indent", &
                                                                   "repeat", &
@@ -2533,6 +2552,10 @@ module commands_mod
                                                                   "search_backward", &
                                                                   "search_forward", &
                                                                   "select_frame_by_name", &
+                                                                  "select_window_down", &
+                                                                  "select_window_left", &
+                                                                  "select_window_right", &
+                                                                  "select_window_up", &
                                                                   "self_insert_command", &
                                                                   "send_mail", &
                                                                   "send_mail_and_exit", &
@@ -2667,6 +2690,7 @@ module commands_mod
                                                                   "undo", &
                                                                   "undo_only", &
                                                                   "undo_redo", &
+                                                                  "undo_window_change", &
                                                                   "unexpand_abbrev", &
                                                                   "unfill_paragraph", &
                                                                   "universal_argument", &
@@ -2776,7 +2800,11 @@ module commands_mod
                                                                   "what_page", &
                                                                   "where_is", &
                                                                   "widen", &
+                                                                  "windmove_default_keybindings", &
+                                                                  "windmove_delete_default_keybindings", &
+                                                                  "windmove_mode", &
                                                                   "window_configuration_to_register", &
+                                                                  "winner_mode", &
                                                                   "write_abbrev_file", &
                                                                   "write_file", &
                                                                   "zrgrep"]
@@ -3428,6 +3456,14 @@ contains
             p => commands%delete_whitespace_rectangle
         case ("delete_window")
             p => commands%delete_window
+        case ("delete_window_down")
+            p => commands%delete_window_down
+        case ("delete_window_left")
+            p => commands%delete_window_left
+        case ("delete_window_right")
+            p => commands%delete_window_right
+        case ("delete_window_up")
+            p => commands%delete_window_up
         case ("describe_bindings")
             p => commands%describe_bindings
         case ("describe_button")
@@ -4968,6 +5004,8 @@ contains
             p => commands%rectangle_right_char
         case ("recursive_edit")
             p => commands%recursive_edit
+        case ("redo_window_change")
+            p => commands%redo_window_change
         case ("redraw_display")
             p => commands%redraw_display
         case ("reindent_then_newline_and_indent")
@@ -5038,6 +5076,14 @@ contains
             p => commands%search_forward
         case ("select_frame_by_name")
             p => commands%select_frame_by_name
+        case ("select_window_down")
+            p => commands%select_window_down
+        case ("select_window_left")
+            p => commands%select_window_left
+        case ("select_window_right")
+            p => commands%select_window_right
+        case ("select_window_up")
+            p => commands%select_window_up
         case ("self_insert_command")
             p => commands%self_insert_command
         case ("send_mail")
@@ -5306,6 +5352,8 @@ contains
             p => commands%undo_only
         case ("undo_redo")
             p => commands%undo_redo
+        case ("undo_window_change")
+            p => commands%undo_window_change
         case ("unexpand_abbrev")
             p => commands%unexpand_abbrev
         case ("unfill_paragraph")
@@ -5524,8 +5572,16 @@ contains
             p => commands%where_is
         case ("widen")
             p => commands%widen
+        case ("windmove_default_keybindings")
+            p => commands%windmove_default_keybindings
+        case ("windmove_delete_default_keybindings")
+            p => commands%windmove_delete_default_keybindings
+        case ("windmove_mode")
+            p => commands%windmove_mode
         case ("window_configuration_to_register")
             p => commands%window_configuration_to_register
+        case ("winner_mode")
+            p => commands%winner_mode
         case ("write_abbrev_file")
             p => commands%write_abbrev_file
         case ("write_file")
