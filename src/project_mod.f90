@@ -53,7 +53,7 @@ module project_mod
     use editfns_mod, only: buffer_string, buffer_substring_no_properties
     use fns_mod, only: count_characters, read_yes_or_no, is_string_less
     use search_mod, only: string_match, re_search_forward, SEARCH_NOERROR, match_beginning, match_end, regexp_quote
-    use subr_mod, only: shell_quote_argument, match_string, is_version_less_or_equal, bounds_of_identifier_at_point
+    use subr_mod, only: shell_quote_argument, match_string, bounds_of_identifier_at_point, version_type, version, operator(<=)
     use string_type_mod, only: string_type, append_string
     use fileio_mod, only: expand_file_name, file_name_as_directory, directory_file_name, file_name_directory, &
                           file_name_nondirectory, is_file_directory, file_exists, is_file_name_absolute, &
@@ -1695,15 +1695,17 @@ contains
         type(string_type) :: none(0)
         type(string_type), allocatable :: submodules(:), sub_files(:), kept(:)
         type(handle_type) :: old, tmp
-        character(len=:), allocatable :: directory, gitver, text, i, module
+        character(len=:), allocatable :: directory, text, i, module
+        type(version_type) :: git_version
         logical :: dedup, saved_literal, new_enough, sparse
         integer :: k, j, pt, nul
 
         allocate (files(0))
         status = status_type()
-        gitver = vc_git_program_version()
-        new_enough = is_version_less_or_equal("2.13", gitver, status)
+        git_version = version(vc_git_program_version())
+        status = git_version%status
         if (.not. status%ok()) return
+        new_enough = version("2.13") <= git_version
 
         if (size(extra_ignores) > 0 .and. .not. new_enough) then
             ! Need newer Git to use negative pathspec like we do.
@@ -1713,10 +1715,8 @@ contains
 
         call expand_file_name(file_name_as_directory(dir), directory, status)
         if (.not. status%ok()) return
-        dedup = is_version_less_or_equal("2.31", gitver, status)
-        if (.not. status%ok()) return
-        sparse = is_version_less_or_equal("2.35", gitver, status)
-        if (.not. status%ok()) return
+        dedup = version("2.31") <= git_version
+        sparse = version("2.35") <= git_version
         allocate (args(0))
         call append_arg("ls-files")
         call append_arg("-z")
