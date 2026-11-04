@@ -37,8 +37,8 @@
 !> The known projects are saved in `project_list_file' in namelist syntax
 !> (namelist_mod).  The commands are on C-x p (`project_prefix_map').
 !>
-!> The status of the port (what is Deferred) is in PORTING.md's row for
-!> project_mod.
+!> The status of the port (what is Deferred) is in
+!> docs/status/project_mod.md.
 module project_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use commands_mod, only: commands
