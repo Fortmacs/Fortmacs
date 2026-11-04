@@ -292,7 +292,12 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    48. Smerge mode (conflict markers, `vc-git-resolve-conflicts`) and
        Ediff, as PRs: 48a Smerge mode (smerge-mode.el, vc-git.el's
        conflict hooks) — done (core: refinement, Ediff and the menus are
-       Deferred; see smerge_mode_mod); 48b Ediff.
+       Deferred; see smerge_mode_mod); 48b Ediff core: comparing two and
+       three files or buffers on one terminal frame (ediff.el,
+       ediff-util.el, ediff-diff.el, ediff-init.el, ediff-wind.el,
+       ediff-help.el; see docs/status/ediff_mod.md) — done; 48c merging
+       (ediff-merg.el, `ediff-merge-*`) and session groups (ediff-mult.el);
+       then revisions (ediff-vers.el) and patches (ediff-ptch.el).
    49. Projects and cross-references: project.el (C-x p), xref.el and
        etags.el (M-., M-?, M-,) — 49a partial (docs/status/xref_mod.md and
        etags_mod.md), Imenu and `which-function-mode`.

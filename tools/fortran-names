@@ -2413,6 +2413,40 @@ keep	clear_garbaged_frames
 # inverted (as shell_command_keep_output).
 name	no_redraw_on_reenter	redraw_after_suspend
 name	schars	count_characters
+# Step 48b (owner's decision for new code: verb first, commands included;
+# applied by Claude, reported in the PR): Ediff's control-buffer commands.
+name	ediff_next_difference	next_ediff_difference
+name	ediff_previous_difference	previous_ediff_difference
+name	ediff_jump_to_difference	jump_to_ediff_difference
+name	ediff_quit	quit_ediff
+# The hook keeps its name (a hook, not the command).
+keep	ediff_quit_hook
+name	ediff_recenter	recenter_ediff
+name	ediff_toggle_split	toggle_ediff_split
+# hilit spelled out (no abbreviations).
+name	ediff_toggle_hilit	toggle_ediff_highlighting
+name	ediff_toggle_help	toggle_ediff_help
+name	ediff_update_diffs	update_ediff_diffs
+name	ediff_diff_to_diff	copy_ediff_diff_to_diff
+# The new name contains the old run: kept whole.
+keep	copy_ediff_diff_to_diff
+name	ediff_restore_diff	restore_ediff_diff
+name	ediff_toggle_ignore_case	toggle_ediff_ignore_case
+name	ediff_copy_a_to_b	copy_ediff_a_to_b
+name	ediff_copy_a_to_c	copy_ediff_a_to_c
+name	ediff_copy_b_to_a	copy_ediff_b_to_a
+name	ediff_copy_b_to_c	copy_ediff_b_to_c
+name	ediff_copy_c_to_a	copy_ediff_c_to_a
+name	ediff_copy_c_to_b	copy_ediff_c_to_b
+# R6-17 (verb first; word order only, decided by rule and reported in the PR):
+# ediff.el and ediff-wind.el helpers whose verb was not first.
+name	ediff_find_file	find_ediff_file
+name	ediff_get_default_file_name	get_ediff_default_file_name
+name	ediff_get_visible_buffer_window	get_ediff_visible_buffer_window
+# Step 42e (owner's decision): options are named positively, the value
+# inverted (as shell_command_keep_output); R6-21: Emacs help in this
+# option's name means this program's help.
+name	ediff_no_emacs_help_in_control_buffer	ediff_fortmacs_help_in_control_buffer
 # Step 48a: verb first in new procedure names, commands included (the
 # owner's decision relayed for this step; the names below are reported
 # for confirmation): smerge-mode.el's commands.

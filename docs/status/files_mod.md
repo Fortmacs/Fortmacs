@@ -6,6 +6,7 @@
 
 ## Ported
 
+`file-name-unquote` (local names),
 `buffer-stale-function` and `buffer-stale--default-function` (`fast` as `BUFFER_STALE_FAST`),
 `buffer-auto-revert-by-notification`,
 `mounted-file-systems`,
