@@ -61,7 +61,7 @@ module simple_mod
     use xdisp_mod, only: message, invisibility
     use frame_mod, only: selected_frame, selected_window_ref
     use window_mod, only: window_type, window_start, window_body_lines, recenter
-    use subr_mod, only: add_to_history, defvar_nil
+    use subr_mod, only: add_to_history, defvar_nil, mail_user_agent_type, mail_switch_procedure
     use editfns_mod, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
                            is_bol, constrain_to_field, pos_eol, point_min, is_bob, is_eob, buffer_substring, &
                            delete_region, mark_marker, mark_position, region_beginning, region_end, pos_bol
@@ -115,6 +115,29 @@ module simple_mod
     procedure(redisplay_procedure), pointer, public :: kmacro_keyboard_quit_hook => null()
 
     public :: execute_extended_command, read_extended_command
+    public :: compose_mail, compose_mail_other_window, init_simple_mail
+
+    !> Your preference for a mail composition package.
+    !> Various Fortmacs packages (e.g. Reporter) require you to compose an
+    !> outgoing email message.  This variable lets you specify which
+    !> mail-sending package you prefer.
+    !>
+    !> Valid values include:
+    !>
+    !>   `message_user_agent'  -- use the Message package.
+    !>                            See Info node `(message)'.
+    !>   `sendmail_user_agent' -- use the Mail package.
+    !>                            See Info node `(emacs)Sending Mail'.
+    !>
+    !> You may also define your own agent to be used as value for this
+    !> variable using `define_mail_user_agent'.
+    !>
+    !> See also `read_mail_command' concerning reading mail.  Port of
+    !> simple.el mail-user-agent (a pointer to the agent; its default,
+    !> `message_user_agent', comes with message.el, so until then it is
+    !> null and the configuration sets `mail_user_agent =>
+    !> sendmail_user_agent').
+    type(mail_user_agent_type), pointer, public :: mail_user_agent => null()
     public :: async_shell_command, shell_command_sentinel
     public :: set_next_error_function, has_next_error_function, is_next_error_buffer, next_error_find_buffer, &
               next_error, next_error_internal, next_error_found, init_simple_next_error
@@ -878,6 +901,52 @@ module simple_mod
         module subroutine init_simple_process()
             implicit none(type, external)
         end subroutine init_simple_process
+
+        !> Start composing a mail message to send.
+        !> This uses the user's chosen mail composition package
+        !> as selected with the variable `mail_user_agent'.
+        !> The optional arguments TO and SUBJECT specify recipients
+        !> and the initial Subject field, respectively.
+        !>
+        !> By default, if an unsent message is already being composed, this
+        !> command will ask whether to erase the unsent message, and will not
+        !> start a new message if the user doesn't allow erasing.  However, if
+        !> CONTINUE is true, it means to continue editing a message already
+        !> being composed without asking.  Interactively, CONTINUE is the prefix
+        !> argument.
+        !>
+        !> SWITCH_FUNCTION, if present, is a procedure to use to
+        !> switch to and display the buffer used for mail composition.
+        !> Port of simple.el:compose-mail (OTHER-HEADERS, YANK-ACTION,
+        !> SEND-ACTIONS and RETURN-ACTION come with their users, Rmail and
+        !> Reporter; the warning about Mail mode settings comes with
+        !> `message_user_agent').  (In simple_mail_mod.)
+        recursive module subroutine compose_mail(status, to, subject, continue, switch_function)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: to, subject
+            logical, intent(in), optional :: continue
+            procedure(mail_switch_procedure), optional :: switch_function
+        end subroutine compose_mail
+
+        !> Like \[compose_mail], but edit the outgoing message in another window.
+        !> If this command needs to split the current window, it by default obeys
+        !> the user options `split_height_threshold' and `split_width_threshold',
+        !> when it decides whether to split the window horizontally or vertically.
+        !> Port of simple.el:compose-mail-other-window.  (In
+        !> simple_mail_mod.)
+        recursive module subroutine compose_mail_other_window(status, to, subject, continue)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: to, subject
+            logical, intent(in), optional :: continue
+        end subroutine compose_mail_other_window
+
+        !> Register `compose_mail' and `compose_mail_other_window'.  (In
+        !> simple_mail_mod.)  Not a port.
+        module subroutine init_simple_mail()
+            implicit none(type, external)
+        end subroutine init_simple_mail
 
         !> Momentarily highlight the beginning of the expression before point.
         !> Port of simple.el:blink-matching-open.  (In simple_electric_mod,

@@ -28,7 +28,7 @@ module test_sh_script_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_mod, only: status_type
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
+    use value_mod, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY, choice_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insdel_mod, only: insert
     use editfns_mod, only: point, point_min, point_max, goto_char, buffer_string
@@ -40,6 +40,7 @@ module test_sh_script_mod
     use indent_mod, only: indent_region, indent_for_tab_command
     use font_lock_mod, only: font_lock_ensure
     use syntax_mod, only: parse_state_type, syntax_ppss, ST_STRING_STYLE
+    use data_mod, only: choice_state
     use sh_script_mod, only: sh_mode, sh_indent_supported_here, sh_indent_for_continuation, &
                              sh_indent_after_continuation, sh_smie_default_backward_token, sh_set_shell, &
                              sh_builtins, sh_canonicalize_shell, sh_shell, &
@@ -214,9 +215,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer :: saved
+        type(choice_type) :: saved
 
-        saved = sh_indent_after_continuation
+        saved = choice_state(sh_indent_after_continuation)
         call script("for f \"//LF//"in a; do \"//LF//"toto; \"//LF//"done"//LF, h)
 
         checks: block

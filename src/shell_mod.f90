@@ -334,7 +334,7 @@ module shell_mod
     type(logical_setting_type), public :: shell_completion_execonly = &
                                           logical_setting_type(name="shell_completion_execonly", value=.true.)
 
-    !> If not COMINT_AUTOEXPAND_NO, expand input command history
+    !> If not .false., expand input command history
     !> references on completion.  This mirrors the optional behavior of
     !> tcsh (its autoexpand and histlit).
     !>

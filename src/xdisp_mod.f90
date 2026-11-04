@@ -3889,7 +3889,7 @@ contains
 
     !> Like `message', without logging the text in *Messages*: as
     !> upstream's `message' with `message_log_max' bound to
-    !> MESSAGE_LOG_MAX_NO, or the echo-area prompts of read-key-sequence.
+    !> `%lines = 0', or the echo-area prompts of read-key-sequence.
     !> Port of xdisp.c:message3_nolog (with xdisp.c:message1_nolog and
     !> xdisp.c:message3_frame_nolog).
     subroutine message_nolog(text)

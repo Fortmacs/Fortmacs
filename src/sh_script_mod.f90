@@ -45,8 +45,7 @@
 !> Deferred: `executable_interpret' (C-c C-x; needs `compilation_start' with a
 !> buffer name function and rule specifications), Imenu
 !> (`sh_imenu_generic_expression', and the Imenu candidates of
-!> completion), `add_log_current_subprogram_function' (`sh_current_function_name'
-!> is here), `outline_regexp', `escaped_string_quote' (with
+!> completion), `outline_regexp', `escaped_string_quote' (with
 !> `paste_in_context'), the Flymake backend (`sh_shellcheck_flymake'), the
 !> `sh_shell' file-local variable (`hack_local_variables_hook'), the menu
 !> and `bash_ts_mode' (tree-sitter).
@@ -64,6 +63,7 @@ module sh_script_mod
                           get_or_make_buffer
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key
     use syntax_mod, only: copy_syntax_table, make_syntax_table, modify_syntax_entry, is_syntax_table_live, destroy_syntax_table, &
                           set_syntax_table, syntax_descriptor_type, string_to_syntax, parse_state_type, syntax_ppss, &
@@ -3368,6 +3368,7 @@ contains
                                                 "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
                                                 "]*\(([ "//TAB//"]*)\)?\)[ "//TAB//"]*")
         call completion_at_point_functions%prepend(sh_completion_at_point_function, local=.true.)
+        call add_log_current_subprogram_function%set_local(sh_current_function_name)
         call major_modes%sh_base_mode%end(saved, status)
     end subroutine sh_base_mode
 
@@ -4340,8 +4341,8 @@ contains
     !> Find the name of function or variable at point.
     !> For use in `add_log_current_subprogram_function' (unallocated for none).
     !> Port of sh-script.el:sh-current-defun-name.
-    function sh_current_function_name() result(name)
-        character(len=:), allocatable :: name
+    recursive subroutine sh_current_function_name(name)
+        character(len=:), allocatable, intent(out) :: name
         type(status_type) :: st
         integer(int64) :: here, found
         integer :: n
@@ -4367,7 +4368,7 @@ contains
         end if
 
         call goto_char(here)
-    end function sh_current_function_name
+    end subroutine sh_current_function_name
 
     !> Make a regexp which matches WORD as a word.
     !> This specifically excludes an occurrence of WORD followed by

@@ -109,9 +109,9 @@ module repeat_mod
     !>
     !> You can also set the component `repeat_check_key' of the command.
     !> This component can override the value of this variable.
-    !> When the variable value is true, but the component is `REPEAT_CHECK_KEY_NO',
+    !> When the variable value is true, but the component is .false.,
     !> then don't check the last key.  Also when the variable value is false,
-    !> but the component is `REPEAT_CHECK_KEY_YES', then check the last key.
+    !> but the component is .true., then check the last key.
     !> Port of repeat.el repeat-check-key.
     logical, public :: repeat_check_key = .true.
 

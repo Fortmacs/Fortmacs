@@ -265,7 +265,7 @@ contains
     !> to put the output in some other buffer.  If OUTPUT_BUFFER is a
     !> buffer or buffer name, erase that buffer and insert the output
     !> there; a value of `shell_command_keep_output' other than
-    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents the buffer from being
+    !> .false. or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents the buffer from being
     !> erased.  If INSERT_HERE is true (which happens
     !> interactively when the prefix argument is given), insert the output
     !> in current buffer after point leaving mark after it.  This cannot be
@@ -854,7 +854,7 @@ contains
     !> Optional OUTPUT_BUFFER (or OUTPUT_BUFFER_NAME) specifies where to
     !> put the command's output: erase that buffer and insert the output
     !> there; a value of `shell_command_keep_output' other than
-    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents erasing the buffer.  If
+    !> .false. or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents erasing the buffer.  If
     !> absent, use the buffer
     !> specified by
     !> `shell_command_buffer_name'.  A true INSERT_HERE means to insert the

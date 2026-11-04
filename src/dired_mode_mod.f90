@@ -5945,11 +5945,11 @@ contains
     ! ------------------------------------------------------------------
 
     !> Delete FILE or directory (possibly recursively if RECURSIVE is
-    !> not DIRED_RECURSIVE_NO).  RECURSIVE determines what to do with a
+    !> not .false.).  RECURSIVE determines what to do with a
     !> non-empty directory.  The effect of its possible values is:
     !>
-    !>   DIRED_RECURSIVE_NO  -- do not delete.
-    !>   DIRED_RECURSIVE_YES -- delete recursively without asking.
+    !>   .false.                -- do not delete.
+    !>   .true.                 -- delete recursively without asking.
     !>   DIRED_RECURSIVE_TOP    -- ask for each directory at top level.
     !>   Anything else          -- ask for each sub-directory.
     !>
