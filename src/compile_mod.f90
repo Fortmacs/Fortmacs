@@ -1171,7 +1171,7 @@ contains
     !> Give the current buffer its own values of the compilation variables,
     !> as the body of a mode made by define-compilation-mode does with
     !> `set_local' (after `compilation_mode' has run as its parent):
-    !> `compilation_error_regexp_names' as the rules ERROR_REGEXP_TABLE,
+    !> `compilation_error_regexp_names' as the rules ERROR_REGEXPS,
     !> `compilation_directory_matcher', `compilation_transform_file_matches',
     !> `compilation_error' (the word for a message, "error" by default),
     !> `compilation_mode_font_lock_keywords' (MODE_FONT_LOCK_KEYWORDS: what
@@ -1181,10 +1181,10 @@ contains
     !> (`compilation_error_face', `compilation_scroll_output',
     !> `compilation_first_column' and so on) take `set_local' directly.
     !> Cf. compile.el:define-compilation-mode.  Not a port.
-    subroutine compilation_set_mode_locals(error_regexp_table, directory_matcher, transform_file_match_table, &
+    subroutine compilation_set_mode_locals(error_regexps, directory_matcher, transform_file_match_table, &
                                            error, mode_font_lock_keywords, mode_line_errors, process_setup_function, &
                                            exit_message_function)
-        type(compilation_rule_type), intent(in), optional :: error_regexp_table(:)
+        type(compilation_rule_type), intent(in), optional :: error_regexps(:)
         type(compilation_directory_matcher_type), intent(in), optional :: directory_matcher
         type(compilation_transform_type), intent(in), optional :: transform_file_match_table(:)
         character(len=*), intent(in), optional :: error
@@ -1197,12 +1197,12 @@ contains
 
         call make_current_entry(k)
 
-        if (present(error_regexp_table)) then
+        if (present(error_regexps)) then
             compilation_buffers(k)%has_rules = .true.
-            allocate (compilation_buffers(k)%rules(size(error_regexp_table)))
+            allocate (compilation_buffers(k)%rules(size(error_regexps)))
 
-            do i = 1, size(error_regexp_table)
-                compilation_buffers(k)%rules(i) = error_regexp_table(i)
+            do i = 1, size(error_regexps)
+                compilation_buffers(k)%rules(i) = error_regexps(i)
             end do
         end if
 

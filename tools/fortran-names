@@ -1277,6 +1277,8 @@ name	ewoc_create	make_ewoc
 # exist), display_buffer_rules, dired_compress_file_commands.
 name	compilation_error_regexp_alist_alist	compilation_error_regexps
 name	compilation_error_regexp_table	compilation_error_regexps
+name	error_regexp_alist	error_regexps
+name	error_regexp_table	error_regexps
 name	display_alist_type	display_action_parameters_type
 name	display_action_table_type	display_action_parameters_type
 name	auto_coding_regexp_alist	auto_coding_regexps
