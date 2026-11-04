@@ -417,14 +417,14 @@ module comint_mod
                                                   logical_setting_type(name="comint_use_prompt_regexp", value=.false.)
 
     !> Values of `comint_input_autoexpand' besides .true. and .false.
-    integer, parameter, public :: COMINT_AUTOEXPAND_INPUT = 2, COMINT_AUTOEXPAND_HISTORY = 3
+    integer, parameter, public :: COMINT_INPUT_AUTOEXPAND_INPUT = 2, COMINT_INPUT_AUTOEXPAND_HISTORY = 3
 
     !> If true, expand input command history
     !> references on completion.  This mirrors the optional behavior of
     !> tcsh (its autoexpand and histlist).
     !>
-    !> If the value is COMINT_AUTOEXPAND_INPUT, then the expansion is seen
-    !> on input.  If the value is COMINT_AUTOEXPAND_HISTORY, then the
+    !> If the value is COMINT_INPUT_AUTOEXPAND_INPUT, then the expansion is seen
+    !> on input.  If the value is COMINT_INPUT_AUTOEXPAND_HISTORY, then the
     !> expansion is only when inserting into the buffer's input ring.
     !> See also `comint_magic_space' and `completion_at_point'.
     !>
@@ -2310,7 +2310,7 @@ contains
             intxt = copy
         end if
 
-        if (comint_input_autoexpand%choice /= COMINT_AUTOEXPAND_INPUT) then
+        if (comint_input_autoexpand%choice /= COMINT_INPUT_AUTOEXPAND_INPUT) then
             ! Just whatever's already there.
             input = intxt
         else
@@ -2319,7 +2319,7 @@ contains
             call buffer_substring(pm, point(), input, st)
         end if
 
-        if (comint_input_autoexpand%choice /= COMINT_AUTOEXPAND_HISTORY) then
+        if (comint_input_autoexpand%choice /= COMINT_INPUT_AUTOEXPAND_HISTORY) then
             history = input
         else
             ! This is messy 'cos ultimately the original functions used do

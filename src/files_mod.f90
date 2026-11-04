@@ -110,6 +110,7 @@ module files_mod
     !> files.el auto-mode-interpreter-regexp.
     character(len=:), allocatable, public :: auto_mode_interpreter_regexp
     public :: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, after_find_file, file_chase_links
+    public :: set_require_final_newline_from_mode
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_test_function, is_file_ownership_preserved
     public :: save_some_buffers, save_buffers_exit_fortmacs, temporary_file_directory
@@ -686,16 +687,16 @@ module files_mod
     !> make-backup-files.
     logical, public :: create_backup_files = .true.
 
-    !> Values of `require_final_newline' and `mode_require_final_newline'
-    !> besides .true. and .false.
-    integer, parameter, public :: FINAL_NEWLINE_VISIT = 2, FINAL_NEWLINE_VISIT_SAVE = 3, FINAL_NEWLINE_ASK = 4
+    !> Values of `require_final_newline' besides .true. and .false.
+    integer, parameter, public :: REQUIRE_FINAL_NEWLINE_VISIT = 2, REQUIRE_FINAL_NEWLINE_VISIT_SAVE = 3, &
+                                  REQUIRE_FINAL_NEWLINE_ASK = 4
 
     !> Whether to add a newline automatically at the end of the file.
     !>
     !> A value of .true. means do this only when the file is about to be saved.
-    !> A value of FINAL_NEWLINE_VISIT means do this right after the file is visited.
-    !> A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
-    !> A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
+    !> A value of REQUIRE_FINAL_NEWLINE_VISIT means do this right after the file is visited.
+    !> A value of REQUIRE_FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
+    !> A value of REQUIRE_FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
     !> A value of .false. means don't add newlines.
     !>
     !> Certain major modes set this locally to the value obtained
@@ -744,22 +745,25 @@ module files_mod
     !> vc-hooks.el:vc-after-save, set by vc_hooks_mod.
     procedure(vc_save_procedure), pointer, public :: vc_after_save_hook => null()
 
+    !> Values of `mode_require_final_newline' besides .true. and .false.
+    integer, parameter, public :: MODE_REQUIRE_FINAL_NEWLINE_VISIT = 2, MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE = 3, &
+                                  MODE_REQUIRE_FINAL_NEWLINE_ASK = 4
+
     !> Whether to add a newline at end of file, in certain major modes.
     !> Those modes set `require_final_newline' to this value when you enable them.
     !> They do so because they are often used for files that are supposed
     !> to end in newlines, and the question is how to arrange that.
     !>
     !> A value of .true. means do this only when the file is about to be saved.
-    !> A value of FINAL_NEWLINE_VISIT means do this right after the file is visited.
-    !> A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
-    !> A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
+    !> A value of MODE_REQUIRE_FINAL_NEWLINE_VISIT means do this right after the file is visited.
+    !> A value of MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
+    !> A value of MODE_REQUIRE_FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
     !>
     !> A value of .false. means do not add newlines.  That is a risky choice in this
     !> variable since this value is used for modes for files that ought to have
     !> final newlines.  So if you set this to .false., you must explicitly check and
     !> add a final newline, whenever you save a file that really needs one.
-    !> Port of files.el mode-require-final-newline (values as for
-    !> `require_final_newline').
+    !> Port of files.el mode-require-final-newline.
     type(choice_setting_type), public :: mode_require_final_newline = &
                                          choice_setting_type(name="mode_require_final_newline", value=.true.)
 
@@ -1363,8 +1367,8 @@ contains
         call normal_mode(st, .true.)
 
         ! If requested, add a newline at the end of the file.
-        if (require_final_newline%choice == FINAL_NEWLINE_VISIT .or. &
-            require_final_newline%choice == FINAL_NEWLINE_VISIT_SAVE) then
+        if (require_final_newline%choice == REQUIRE_FINAL_NEWLINE_VISIT .or. &
+            require_final_newline%choice == REQUIRE_FINAL_NEWLINE_VISIT_SAVE) then
             if (missing_final_newline()) call insert_final_newline(st)
         end if
 
@@ -1749,6 +1753,23 @@ contains
         call after_save_hook%execute(status)
     end subroutine basic_save_buffer
 
+    !> Give the current buffer its own `require_final_newline', the state
+    !> of `mode_require_final_newline', as the major modes that ask for a
+    !> final newline do (text-mode.el:text-mode, prog-mode.el:prog-mode);
+    !> each option has its own named constants, mapped here.  Not a port.
+    subroutine set_require_final_newline_from_mode()
+        select case (mode_require_final_newline%choice)
+        case (MODE_REQUIRE_FINAL_NEWLINE_VISIT)
+            call require_final_newline%set_local(REQUIRE_FINAL_NEWLINE_VISIT)
+        case (MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE)
+            call require_final_newline%set_local(REQUIRE_FINAL_NEWLINE_VISIT_SAVE)
+        case (MODE_REQUIRE_FINAL_NEWLINE_ASK)
+            call require_final_newline%set_local(REQUIRE_FINAL_NEWLINE_ASK)
+        case default
+            call require_final_newline%set_local(mode_require_final_newline%value)
+        end select
+    end subroutine set_require_final_newline_from_mode
+
     !> Add a newline at the end of the current buffer if
     !> `require_final_newline' says so (asking if it is neither t nor
     !> visit-save).  Port of part of files.el:basic-save-buffer.
@@ -1761,7 +1782,7 @@ contains
 
         if (require_final_newline%is_off()) then
             add = .false.
-        else if (require_final_newline%value .or. require_final_newline%choice == FINAL_NEWLINE_VISIT_SAVE) then
+        else if (require_final_newline%value .or. require_final_newline%choice == REQUIRE_FINAL_NEWLINE_VISIT_SAVE) then
             add = .true.
         else
             call read_y_or_n("Buffer "//buffers(current)%name//" does not end in newline.  Add one? ", add, status)
