@@ -50,7 +50,7 @@
 !> `major_mode' other than Fundamental mode in `set_buffer_major_mode'.
 submodule(simple_mod) simple_shell_mod
     use value_mod, only: xstring, xfixnum, make_buffer_ref, vtag, V_STRING, value_type
-    use data_mod, only: integer_setting_type, logical_setting_type
+    use data_mod, only: integer_setting_type, logical_setting_type, choice_setting_type
     use buffer_mod, only: get_buffer, get_or_make_buffer, set_buffer, current_buffer, is_buffer_live, erase_buffer, &
                           generate_new_buffer_name, rename_buffer
     use search_mod, only: string_match
@@ -131,17 +131,19 @@ contains
         buffers(current)%read_only = .false.
         pos = 0
 
-        select case (shell_command_keep_output%value)
-        case (SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT)
-            if (.not. output_to_current_buffer) pos = point()
-        case (SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT)
-            if (.not. output_to_current_buffer) pos = point_max()
-        case (SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT)
-            call erase_buffer(st)
-        case (SHELL_COMMAND_KEEP_OUTPUT_NO)
+        if (shell_command_keep_output%is_off()) then
             if (.not. output_to_current_buffer) call erase_buffer(st)
-        case default
-        end select
+        else
+            select case (shell_command_keep_output%choice)
+            case (SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT)
+                if (.not. output_to_current_buffer) pos = point()
+            case (SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT)
+                if (.not. output_to_current_buffer) pos = point_max()
+            case (SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT)
+                call erase_buffer(st)
+            case default
+            end select
+        end if
 
         if (pos /= 0) then
             call goto_char(point_max())
@@ -162,7 +164,7 @@ contains
         integer(int64) :: pos, pmax
         integer :: k
 
-        if (shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_NO) return
+        if (shell_command_keep_output%is_off()) return
         pos = 0
 
         if (allocated(shell_command_saved_pos)) then
@@ -187,9 +189,9 @@ contains
         ! The first time we run a command in a freshly created buffer we
         ! have not saved positions yet; advance to `point_max', so that
         ! successive commands know where to start.
-        if (pos == 0 .or. .not. (shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT &
-                                 .or. shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT &
-                                 .or. shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT)) pos = pmax
+        if (pos == 0 .or. .not. (shell_command_keep_output%choice == SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT &
+                                 .or. shell_command_keep_output%choice == SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT &
+                                 .or. shell_command_keep_output%choice == SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT)) pos = pmax
 
         ! Set point in the window displaying buffer, if any; otherwise in the
         ! buffer.
@@ -263,7 +265,7 @@ contains
     !> to put the output in some other buffer.  If OUTPUT_BUFFER is a
     !> buffer or buffer name, erase that buffer and insert the output
     !> there; a value of `shell_command_keep_output' other than
-    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents the buffer from being
+    !> .false. or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents the buffer from being
     !> erased.  If INSERT_HERE is true (which happens
     !> interactively when the prefix argument is given), insert the output
     !> in current buffer after point leaving mark after it.  This cannot be
@@ -852,7 +854,7 @@ contains
     !> Optional OUTPUT_BUFFER (or OUTPUT_BUFFER_NAME) specifies where to
     !> put the command's output: erase that buffer and insert the output
     !> there; a value of `shell_command_keep_output' other than
-    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents erasing the buffer.  If
+    !> .false. or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents erasing the buffer.  If
     !> absent, use the buffer
     !> specified by
     !> `shell_command_buffer_name'.  A true INSERT_HERE means to insert the
@@ -932,8 +934,8 @@ contains
         use_current = same_buffer(buffer, current_buffer())
 
         if (use_current) then
-            use_current = shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_NO .or. &
-                          shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT
+            use_current = shell_command_keep_output%is_off() .or. &
+                          shell_command_keep_output%choice == SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT
 
             if (.not. use_current) then
                 use_current = .not. same_buffer(buffer, get_buffer(shell_command_buffer_name)) .and. &

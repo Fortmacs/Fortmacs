@@ -35,6 +35,7 @@ module map_ynp_mod
     use error_mod, only: status_type, set_error, FM_QUIT
     use value_mod, only: value_type, command_type
     use handle_mod, only: handle_type
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -46,12 +47,12 @@ module map_ynp_mod
     !> the prompt it returns), or act on it without asking (YNP_SKIP, YNP_ASK and YNP_ACT).
     integer, parameter :: YNP_SKIP = 0, YNP_ASK = 1, YNP_ACT = 2
 
-    !> Values of `read_answer_short'.
-    integer, parameter, public :: READ_ANSWER_SHORT_NO = 0, READ_ANSWER_SHORT_YES = 1, READ_ANSWER_SHORT_AUTO = 2
+    !> Values of `read_answer_short' besides .true. and .false.
+    integer, parameter, public :: READ_ANSWER_SHORT_AUTO = 2
 
     !> Whether the `read_answer' function accepts single-character answers.
-    !> If READ_ANSWER_SHORT_YES, accept short (single key-press) answers to the
-    !> question.  If READ_ANSWER_SHORT_NO, require long answers.  If
+    !> If .true., accept short (single key-press) answers to the
+    !> question.  If .false., require long answers.  If
     !> READ_ANSWER_SHORT_AUTO, accept short answers if
     !> `use_short_answers' is true.
     !>
@@ -59,10 +60,9 @@ module map_ynp_mod
     !> commonly-used `read_yes_or_no' function; it only affects calls to
     !> the `read_answer' function.  To control whether `read_yes_or_no'
     !> requires a long or a short answer, see the `use_short_answers'
-    !> variable.  Port of map-ynp.el read-answer-short
-    !> (READ_ANSWER_SHORT_NO, READ_ANSWER_SHORT_YES or
-    !> READ_ANSWER_SHORT_AUTO).
-    integer, public :: read_answer_short = READ_ANSWER_SHORT_AUTO
+    !> variable.  Port of map-ynp.el read-answer-short.
+    type(choice_setting_type), public :: read_answer_short = &
+                                         choice_setting_type(name="read_answer_short", choice=READ_ANSWER_SHORT_AUTO)
 
     !> One answer of `read_answer': LONG-ANSWER, a complete answer;
     !> SHORT-ANSWER, its one-character abbreviation (a character code);

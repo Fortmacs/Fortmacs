@@ -39,6 +39,7 @@ module windmove_mod
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
     use value_mod, only: value_type, list_elements
+    use data_mod, only: logical_setting_type
     use keymap_mod, only: keymap_set, define_key, where_is_internal, key_modifiers_type
     use buffer_mod, only: close_buffer
     use minibuf_mod, only: minibuf_level
@@ -58,7 +59,7 @@ module windmove_mod
     abstract interface
         !> A function `windmove_do_window_select' calls to make a window when
         !> there is none in DIRECTION as seen from WINDOW (see
-        !> `windmove_create_window_function'): ARG is the numeric prefix
+        !> `windmove_create_window%procedure'): ARG is the numeric prefix
         !> argument (absent for none).  It returns in NEW the window to select, or sets
         !> NO_SELECT to select none.
         subroutine windmove_create_window_procedure(direction, window, new, no_select, status, arg)
@@ -73,6 +74,15 @@ module windmove_mod
         end subroutine windmove_create_window_procedure
     end interface
 
+    !> The setting `windmove_create_window': a logical setting whose value
+    !> can also be a procedure (R6-37), set with `=>'.  Not a port.
+    type, extends(logical_setting_type), public :: windmove_create_window_logical_setting_type
+        procedure(windmove_create_window_procedure), pointer, nopass :: procedure => null()
+    contains
+        procedure :: clear_kinds => windmove_create_window_clear_kinds
+        procedure :: other_value => windmove_create_window_other_value
+    end type windmove_create_window_logical_setting_type
+
     !> Whether movement off the edge of the frame wraps around.
     !> If this variable is set to true, moving left from the leftmost window in
     !> a frame will find the rightmost one, and similarly for the other
@@ -85,18 +95,15 @@ module windmove_mod
     !> a frame will create a new window on the left, and similarly for the other
     !> directions.
     !> This variable may also be a function to be called in this circumstance
-    !> by `windmove_do_window_select' (`windmove_create_window_function').
-    !> Port of windmove.el windmove-create-window (t).
-    logical, public :: windmove_create_window = .false.
-
-    !> The function `windmove_do_window_select' calls in the circumstance
-    !> of `windmove_create_window', which see (null for none).  The function
-    !> should accept then as argument the DIRECTION targeted, a numeric prefix
-    !> ARG and a WINDOW corresponding to the currently selected window.  It
-    !> should also return a valid window that `windmove_do_window_select'
-    !> will select, or NO_SELECT to ignore that final selection.  Port of
-    !> windmove.el windmove-create-window (a function).
-    procedure(windmove_create_window_procedure), pointer, public :: windmove_create_window_function => null()
+    !> by `windmove_do_window_select': point `windmove_create_window%procedure'
+    !> at it.  The function should accept then as argument the DIRECTION
+    !> targeted, a numeric prefix ARG and a WINDOW corresponding to the
+    !> currently selected window.  It should also return a valid window
+    !> that `windmove_do_window_select' will select, or NO_SELECT to
+    !> ignore that final selection.
+    !> Port of windmove.el windmove-create-window.
+    type(windmove_create_window_logical_setting_type), public :: windmove_create_window = &
+                                                          windmove_create_window_logical_setting_type(name="windmove_create_window")
 
     !> Whether the windmove commands are allowed to target all type of windows.
     !> If this variable is set to true, all windmove commands will
@@ -169,7 +176,7 @@ contains
     !> Move to the window at direction DIRECTION as seen from WINDOW.
     !> DIRECTION, ARG, and WINDOW are handled as by `windmove_find_other_window'.
     !> If no window is at direction DIRECTION, an error condition occurs.
-    !> If `windmove_create_window_function' is set, call that function with
+    !> If `windmove_create_window%procedure' is set, call that function with
     !> DIRECTION, ARG and WINDOW.  If `windmove_create_window' is true, try
     !> to create a new window in direction DIRECTION instead.  Port of
     !> windmove.el:windmove-do-window-select (repeating a command to
@@ -187,7 +194,7 @@ contains
         other_window = windmove_find_other_window(direction, arg, window)
 
         ! Create window if needed.
-        if ((windmove_create_window .or. associated(windmove_create_window_function)) .and. &
+        if ((windmove_create_window%value .or. associated(windmove_create_window%procedure)) .and. &
             (other_window%index == 0 .or. is_inactive_minibuffer_window(other_window))) then
             if (present(window)) then
                 w = window
@@ -195,8 +202,8 @@ contains
                 w = selected_frame%selected_window
             end if
 
-            if (associated(windmove_create_window_function)) then
-                call windmove_create_window_function(direction, w, other_window, no_select, status, arg)
+            if (associated(windmove_create_window%procedure)) then
+                call windmove_create_window%procedure(direction, w, other_window, no_select, status, arg)
             else
                 call split_window(w, 0, .false., direction == DIRECTION_LEFT .or. direction == DIRECTION_RIGHT, &
                                   other_window, status, &
@@ -519,4 +526,23 @@ contains
         commands%delete_window_down%execute => delete_window_down
         commands%windmove_delete_default_keybindings%execute => cmd_windmove_delete_default_keybindings
     end subroutine init_windmove
+
+    !> Forget the procedure of `windmove_create_window', as any assignment
+    !> to it does.  Not a port.
+    subroutine windmove_create_window_clear_kinds(self)
+        class(windmove_create_window_logical_setting_type), intent(inout) :: self
+
+        nullify (self%procedure)
+    end subroutine windmove_create_window_clear_kinds
+
+    !> The procedure of `windmove_create_window' as help shows it.
+    !> Not a port.
+    !> port.
+    function windmove_create_window_other_value(self) result(text)
+        class(windmove_create_window_logical_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (associated(self%procedure)) text = "a procedure set by the configuration"
+    end function windmove_create_window_other_value
 end module windmove_mod

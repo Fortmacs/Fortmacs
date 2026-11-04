@@ -71,7 +71,7 @@ module sendmail_mod
     use abbrev_mod, only: expand_abbrev
     use modes_mod, only: major_modes
     use keymap_mod, only: keymap_set
-    use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_NO
+    use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_NONE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     use text_mode_mod, only: text_mode_syntax_table, init_text_mode
     use window_mod, only: pop_to_buffer_same_window, switch_to_buffer_other_window, bury_buffer, other_buffer, &
@@ -88,7 +88,7 @@ module sendmail_mod
     use callproc_mod, only: execute_process_region
     use mail_utils_mod, only: get_mail_field, strip_mail_quoted_names, parse_mail_comma_list, is_mail_file_babyl, &
                               mail_rfc822_date
-    use data_mod, only: append_locals_clearer
+    use data_mod, only: append_locals_clearer, choice_setting_type
     implicit none(type, external)
     private
 
@@ -110,16 +110,11 @@ module sendmail_mod
     integer, parameter, public :: MAIL_FROM_STYLE_SIMPLE = 0, MAIL_FROM_STYLE_PARENS = 1, MAIL_FROM_STYLE_ANGLES = 2, &
                                   MAIL_FROM_STYLE_DEFAULT = 3, MAIL_FROM_STYLE_SYSTEM_DEFAULT = 4
 
-    !> Values of `mail_send_nonascii'.
-    integer, parameter, public :: MAIL_SEND_NONASCII_NO = 0, MAIL_SEND_NONASCII_YES = 1, MAIL_SEND_NONASCII_ASK = 2, &
-                                  MAIL_SEND_NONASCII_MIME = 3
-
-    !> Values of `mail_signature_variable': none (MAIL_SIGNATURE_NO),
-    !> the file `mail_signature_file' (MAIL_SIGNATURE_YES), the text
-    !> `mail_signature_text' (MAIL_SIGNATURE_STRING), or what the procedure
-    !> `mail_signature_function' inserts (MAIL_SIGNATURE_PROCEDURE).
-    integer, parameter, public :: MAIL_SIGNATURE_NO = 0, MAIL_SIGNATURE_YES = 1, MAIL_SIGNATURE_STRING = 2, &
-                                  MAIL_SIGNATURE_PROCEDURE = 3
+    !> Values of `mail_send_nonascii' besides .true. (allow non-ASCII
+    !> characters) and .false. (don't): ask the user each time
+    !> (MAIL_SEND_NONASCII_ASK), or add a MIME header if none is present
+    !> (MAIL_SEND_NONASCII_MIME).
+    integer, parameter, public :: MAIL_SEND_NONASCII_ASK = 2, MAIL_SEND_NONASCII_MIME = 3
 
     !> Values of NOERASE for `mail': erase an existing modified *mail*
     !> buffer after asking (MAIL_NOERASE_NO), make a new mail buffer
@@ -259,6 +254,20 @@ module sendmail_mod
     !> mail-citation-prefix-regexp.
     character(len=:), allocatable, public :: mail_citation_prefix_regexp
 
+    !> The setting `mail_signature_variable': .true. inserts the file
+    !> `mail_signature_file', .false. nothing; its text (`%text') or
+    !> procedure (`%procedure', set with `=>') is inserted or called instead
+    !> (R6-39, R6-37).  Not a port.
+    type, extends(choice_setting_type), public :: mail_signature_variable_choice_setting_type
+        !> The signature to insert (upstream's string value).
+        character(len=:), allocatable :: text
+        !> What to call to insert a signature (upstream's expression value).
+        procedure(command_procedure), pointer, nopass :: procedure => null()
+    contains
+        procedure :: clear_kinds => mail_signature_variable_clear_kinds
+        procedure :: other_value => mail_signature_variable_other_value
+    end type mail_signature_variable_choice_setting_type
+
     !> Keymap of `mail_mode'.  Port of sendmail.el mail-mode-map.
     type(handle_type), public :: mail_mode_map
 
@@ -267,28 +276,20 @@ module sendmail_mod
     type(handle_type), public :: mail_mode_syntax_table
 
     !> Text inserted at end of mail buffer when a message is initialized.
-    !> If MAIL_SIGNATURE_NO, no signature is inserted.
-    !> If MAIL_SIGNATURE_YES, it means to insert the contents of the file
+    !> If .false., no signature is inserted.
+    !> If .true., it means to insert the contents of the file
     !> `mail_signature_file'.
-    !> If MAIL_SIGNATURE_STRING, the string `mail_signature_text' is inserted.
+    !> If its text is set (`mail_signature_variable%text = "..."'), that
+    !> string is inserted.
     !>  (To make a proper signature, the string should begin with a blank
     !>  line and "-- " and a newline, which is the standard way to delimit
     !>  a signature in a message.)
-    !> If MAIL_SIGNATURE_PROCEDURE, the procedure `mail_signature_function'
-    !> is called, and should insert whatever you want to insert.  Port of
+    !> If its procedure is set (`mail_signature_variable%procedure => f'),
+    !> it is called, and should insert whatever you want to insert.  Port of
     !> sendmail.el mail-signature (named so beside the command
     !> `mail_signature').
-    integer, public :: mail_signature_variable = MAIL_SIGNATURE_YES
-
-    !> The signature `mail_signature_variable' MAIL_SIGNATURE_STRING
-    !> inserts.  Not a port: the string value of upstream's
-    !> mail-signature.
-    character(len=:), allocatable, public :: mail_signature_text
-
-    !> The procedure `mail_signature_variable' MAIL_SIGNATURE_PROCEDURE
-    !> calls to insert a signature.  Not a port: the expression value of
-    !> upstream's mail-signature.
-    procedure(command_procedure), pointer, public :: mail_signature_function => null()
+    type(mail_signature_variable_choice_setting_type), public :: mail_signature_variable = &
+                                           mail_signature_variable_choice_setting_type(name="mail_signature_variable", value=.true.)
 
     !> File containing the text inserted at end of mail buffer.  Port of
     !> sendmail.el mail-signature-file.
@@ -306,15 +307,16 @@ module sendmail_mod
     character(len=:), allocatable, public :: mail_default_headers
 
     !> Specify whether to allow sending non-ASCII characters in mail.
-    !> If MAIL_SEND_NONASCII_YES, that means do allow it.
-    !> MAIL_SEND_NONASCII_NO means don't allow it.
+    !> If .true., that means do allow it.
+    !> .false. means don't allow it.
     !> MAIL_SEND_NONASCII_ASK means ask the user each time.
     !> MAIL_SEND_NONASCII_MIME means add an appropriate MIME header if none
     !> already present.  The default is MAIL_SEND_NONASCII_MIME.
     !> Including non-ASCII characters in a mail message can be problematical
     !> for the recipient, who may not know how to decode them properly.
     !> Port of sendmail.el mail-send-nonascii.
-    integer, public :: mail_send_nonascii = MAIL_SEND_NONASCII_MIME
+    type(choice_setting_type), public :: mail_send_nonascii = &
+                                         choice_setting_type(name="mail_send_nonascii", choice=MAIL_SEND_NONASCII_MIME)
 
     !> Ask MTA for notification of failed, delayed or successful delivery
     !> (an array of "failure", "delay" and "success").
@@ -811,7 +813,7 @@ contains
             to_position = 0
             if (present(to)) to_position = point()
 
-            if (mail_signature_variable /= MAIL_SIGNATURE_NO) then
+            if (.not. mail_signature_variable%is_off()) then
                 call mail_signature(status, .true.)
                 if (.not. status%ok()) exit body
             end if
@@ -940,9 +942,9 @@ contains
 
         keywords(4) = font_lock_keyword("^"//separator//"$", face="font_lock_warning_face")
         ! Use MATCH-ANCHORED to effectively anchor the regexp left side.
-        h2(1) = font_lock_highlight(1, face="font_lock_comment_delimiter_face", override=FONT_LOCK_OVERRIDE_NO, &
+        h2(1) = font_lock_highlight(1, face="font_lock_comment_delimiter_face", override=FONT_LOCK_OVERRIDE_NONE, &
                                     laxmatch=.true.)
-        h2(2) = font_lock_highlight(5, face="font_lock_comment_face", override=FONT_LOCK_OVERRIDE_NO, laxmatch=.true.)
+        h2(2) = font_lock_highlight(5, face="font_lock_comment_face", override=FONT_LOCK_OVERRIDE_NONE, laxmatch=.true.)
         a(1) = font_lock_anchored(h2, regexp="\=[ "//TAB//"]*"// &
                                   "\(\(\(["//cite_prefix//"]+["//cite_suffix//"]*\)?"// &
                                   "\("//cite_chars//"[ "//TAB//"]*\)\)+\)"// &
@@ -1305,12 +1307,12 @@ contains
             call goto_char(opoint)
         end if
 
-        if (mail_send_nonascii /= MAIL_SEND_NONASCII_YES .and. mail_send_nonascii /= MAIL_SEND_NONASCII_MIME) then
+        if (.not. mail_send_nonascii%value .and. mail_send_nonascii%choice /= MAIL_SEND_NONASCII_MIME) then
             call goto_char(point_min())
             moved = skip_chars_forward(achar(0)//"-"//achar(127), status)
 
             if (point() /= point_max()) then
-                if (mail_send_nonascii == MAIL_SEND_NONASCII_ASK) then
+                if (mail_send_nonascii%choice == MAIL_SEND_NONASCII_ASK) then
                     found = ask("Message contains non-ASCII characters; send anyway? ", status)
                     if (.not. status%ok()) return
                     if (.not. found) call set_error(status, FM_GENERIC_ERROR, "Aborted")
@@ -1768,7 +1770,7 @@ contains
             if (search_regexp("^Content-type:", status, mpos(delimline))) where_content_type = point()
             call goto_char(point_min())
 
-            if (mail_send_nonascii == MAIL_SEND_NONASCII_MIME) then
+            if (mail_send_nonascii%choice == MAIL_SEND_NONASCII_MIME) then
                 found = search_regexp("^MIME-version:", status, mpos(delimline))
 
                 if (.not. found) then
@@ -2386,11 +2388,10 @@ contains
     ! ------------------------------------------------------------------
 
     !> Sign letter with signature.
-    !> If the variable `mail_signature_variable' is MAIL_SIGNATURE_STRING,
-    !> inserts `mail_signature_text'.
-    !> If it is MAIL_SIGNATURE_YES or MAIL_SIGNATURE_NO, inserts the
+    !> If the variable `mail_signature_variable' has its text set,
+    !> inserts that text; if it has its procedure set, calls it.
+    !> Otherwise (.true. or .false.), inserts the
     !> contents of the file `mail_signature_file'.
-    !> Otherwise, calls `mail_signature_function'.
     !> ATPOINT means insert at point rather than the end.  Port of
     !> sendmail.el:mail-signature.
     recursive subroutine mail_signature(status, atpoint, interactive)
@@ -2404,7 +2405,7 @@ contains
         status = status_type()
         at = .false.
         if (present(atpoint)) at = atpoint
-        from_file = mail_signature_variable == MAIL_SIGNATURE_YES .or. mail_signature_variable == MAIL_SIGNATURE_NO
+        from_file = .not. (allocated(mail_signature_variable%text) .or. associated(mail_signature_variable%procedure))
 
         ! Test for an unreadable file here, before we delete trailing
         ! whitespace, so that we don't modify the buffer needlessly.
@@ -2427,16 +2428,15 @@ contains
         end if
 
         if (status%ok()) then
-            select case (mail_signature_variable)
-            case (MAIL_SIGNATURE_STRING)
-                if (allocated(mail_signature_text)) call insert(mail_signature_text, status)
-            case (MAIL_SIGNATURE_PROCEDURE)
-                if (associated(mail_signature_function)) call mail_signature_function(status)
-            case default
+            if (allocated(mail_signature_variable%text)) then
+                call insert(mail_signature_variable%text, status)
+            else if (associated(mail_signature_variable%procedure)) then
+                call mail_signature_variable%procedure(status)
+            else
                 call insert(LF//LF//"-- "//LF, status)
                 if (status%ok()) call expand_file_name(mail_signature_file, file, status)
                 if (status%ok()) call insert_file_contents(file, .false., inserted, status)
-            end select
+            end if
         end if
 
         call goto_char(marker_end(here))
@@ -2974,4 +2974,24 @@ contains
                                         hook=mail_send_hook)
         call append_locals_clearer(clear_sendmail_locals)
     end subroutine init_sendmail
+
+    !> Forget the text and procedure of `mail_signature_variable', as any
+    !> assignment to it does.  Not a port.
+    subroutine mail_signature_variable_clear_kinds(self)
+        class(mail_signature_variable_choice_setting_type), intent(inout) :: self
+
+        if (allocated(self%text)) deallocate (self%text)
+        nullify (self%procedure)
+    end subroutine mail_signature_variable_clear_kinds
+
+    !> The text or procedure of `mail_signature_variable' as help shows it
+    !> (`%text = "..."'); "" when neither is set.  Not a port.
+    function mail_signature_variable_other_value(self) result(text)
+        class(mail_signature_variable_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (allocated(self%text)) text = "%text = """//self%text//""""
+        if (associated(self%procedure)) text = "a procedure set by the configuration"
+    end function mail_signature_variable_other_value
 end module sendmail_mod

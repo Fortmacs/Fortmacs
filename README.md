@@ -120,6 +120,7 @@ names, help and internals are Fortran-first.
   "One word per meaning", has the full list.
 - Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
   names the Fortran file a definition lives in.
+- Settings read plainly. `.true.` and `.false.` mean what the option's name says, with no knowledge of Emacs assumed: `dired_recursive_deletes = .true.` deletes directories recursively, where Emacs's `t` means "ask for each directory"; that state is the named constant `DIRED_RECURSIVE_ASK`. Options whose Emacs values hide their meaning are renamed so that their values read plainly.
 - There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
   `ielm`, and `*scratch*` starts in Fundamental mode. Changing the
   configuration means rebuilding.
