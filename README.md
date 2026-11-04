@@ -159,7 +159,12 @@ Fortmacs now has `commands%upcase_region%disabled = .false.`. It also let
 Lisp terms slip into Fortran names unremarked, such as <!-- fortran-names: keep -->
 `beginning_of_defun`, `forward_sexp` and `auto_mode_alist`; the renames <!-- fortran-names: keep -->
 are recorded in PORTING.md, and a check in CI keeps them from coming
-back. In return it:
+back. It also wrapped Fortran statements in Lisp-shaped helpers:
+`number_to_string`, a port of Emacs's function, stood in about 150 places
+for Fortran's own `write (text, "(i0)") n` until a review caught it; that
+too is now checked. Such corrections are ongoing: each case is found in
+review, the rule is written down and a check added, so the model is taught
+one case at a time. In return it:
 
 - reads C, Elisp and Fortran, porting each function with a citation to its
   source and porting Emacs's tests with it;

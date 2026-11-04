@@ -52,7 +52,7 @@ module vc_mod
                          FM_VC_NOT_SUPPORTED, FM_FILE_ALREADY_EXISTS
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list
-    use data_mod, only: number_to_string, symbol_value, set, append_locals_clearer
+    use data_mod, only: symbol_value, set, append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
                           get_file_buffer, buffer_list, close_buffer, generate_new_buffer_name, restore_buffer_modified, &
@@ -2300,6 +2300,7 @@ contains
         type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: flist(:)
+        character(len=80) :: text
         integer :: k
 
         status = status_type()
@@ -2326,8 +2327,8 @@ contains
         end do
 
         if (size(files) > 1) then
-            call message("Conflicts have been resolved in "//number_to_string(size(files))//" files.  "// &
-                         "Type C-x v v to check in changes.")
+            write (text, '("Conflicts have been resolved in ", i0, " files.  Type C-x v v to check in changes.")') size(files)
+            call message(trim(text))
         else
             call message("Conflicts have been resolved in this file.  Type C-x v v to check in changes.")
         end if
@@ -3096,6 +3097,7 @@ contains
         type(handle_type) :: diff_buffer, buffer
         type(status_type) :: st
         character(len=:), allocatable :: names, string
+        character(len=24) :: count_text
         logical :: queried, yes, changes, show
         integer :: k
 
@@ -3165,7 +3167,8 @@ contains
                 if (size(fs%files) == 1) then
                     string = "1 file"
                 else
-                    string = number_to_string(size(fs%files))//" files"
+                    write (count_text, '(i0, " files")') size(fs%files)
+                    string = trim(count_text)
                 end if
             end if
 
@@ -3378,6 +3381,7 @@ contains
         type(handle_type) :: buffer, old
         type(status_type) :: st
         character(len=:), allocatable :: saved, root
+        character(len=64) :: prompt
         logical :: yes, found
         integer, allocatable :: backends(:)
         integer :: k, j, b, state
@@ -3431,7 +3435,8 @@ contains
 
         if (.not. opt(noconfirm)) then
             if (size(files) > 1) then
-                call read_y_or_n("Really want to delete these "//number_to_string(size(files))//" files? ", yes, status)
+                write (prompt, '("Really want to delete these ", i0, " files?")') size(files)
+                call read_y_or_n(trim(prompt)//" ", yes, status)
             else
                 call read_y_or_n("Really want to delete "//file_name_nondirectory(files(1)%text)//"? ", yes, status)
             end if

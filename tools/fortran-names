@@ -604,9 +604,10 @@ name	PROPERTY_NO	REPEAT_CHECK_KEY_NO
 name	help_form	help_procedure
 
 # B7: the printed representation of a value (prin1-to-string), and of a
-# string (prin1's string case); help shows values with fortran_repr.
-name	prin1_to_string	readable_repr
-name	prin1_string	quoted_repr
+# string (prin1's string case); help shows values with fortran_text
+# (R6-48 replaced B7's readable_repr and quoted_repr).
+name	prin1_to_string	readable_text
+name	prin1_string	quoted_text
 
 # C5-6: what a register holds.
 name	register_value_type	register_contents_type
@@ -2602,6 +2603,33 @@ name	button_activate	activate_button
 # (the hash of LENGTH random bytes) is its own subroutine,
 # call hash_random_bytes(SECURE_HASH_SHA512, 100_int64, hash, status)
 # (fns_mod); no name entry, as iv-auto is a symbol argument, not a name.
+# R6-47 (owner's decision, 2026-11-04): editfns_mod's port of Fformat is
+# format_text (format_message keeps its name): FORMAT is a Fortran
+# statement, and gfortran rejects a local variable named like a
+# use-associated generic.  Renamed by hand, with no name entry: a name
+# entry for `format' would rename every identifier part and prose word
+# `format' in the tree (FORMAT statements, `write (x, format)', "the
+# format string"), and a scoped one every identifier starting with it
+# (format_message, format_arguments_type).
+# R6-48: repr is Python's word; a value's text is _text.  The longer
+# names are tried first, so `repr' alone (docstrings_mod's generic,
+# value_text) does not reach them; tools/gen-docstrings.sh is kept and
+# changed by hand.
+name	readable_repr	readable_text
+name	quoted_repr	quoted_text
+name	fortran_repr	fortran_text
+name	marker_repr	marker_text
+name	prefix_arg_repr	prefix_arg_text
+name	kind_repr	kind_text
+name	method_repr	method_text
+name	trace_repr	trace_text
+name	result_repr	result_text
+name	keymap_entry_repr	keymap_entry_text
+name	rules_repr	rules_text
+name	rule_repr	rule_text
+name	register_value_repr	register_value_text
+name	buffer_repr	buffer_text
+name	repr	value_text
 
 # R6-17/R6-40 (owner's decisions, 2026-11-03 and 2026-11-04): a procedure's
 # name, a command's included, starts with its verb and says what the

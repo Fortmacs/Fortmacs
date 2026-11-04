@@ -25,7 +25,6 @@
 !> `format-seconds', `time-subtract' and the other time functions).
 module time_date_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use data_mod, only: number_to_string
     implicit none(type, external)
     private
 
@@ -83,6 +82,7 @@ contains
         real(real64) :: round_to, cnt, cnt_pre, cnt_val
         character(len=:), allocatable :: padding
         character(len=64) :: buffer
+        character(len=16) :: format
 
         how = SECONDS_TO_STRING_PLAIN
         if (present(readable)) how = readable
@@ -166,7 +166,8 @@ contains
             end if
 
             if (isfloatp) then
-                write (buffer, "(f0."//number_to_string(digits)//")") cnt_val
+                write (format, '("(f0.", i0, ")")') digits
+                write (buffer, format) cnt_val
                 buffer = adjustl(buffer)
                 if (buffer(1:1) == ".") buffer = "0"//buffer(1:len(buffer) - 1)
             else

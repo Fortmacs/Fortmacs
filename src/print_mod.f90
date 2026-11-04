@@ -20,11 +20,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The printed representation of a value, as `prin1' writes it, and as
-!> Fortran (`fortran_repr'), which help shows for a variable holding a value.
+!> Fortran (`fortran_text'), which help shows for a variable holding a value.
 !>
 !> Floats (real64 values: float values are deferred) are written by
 !> `float_to_string', and `sprintf_float' writes them as C's printf
-!> does for `format'.
+!> does for `format_text'.
 !>
 !> Deferred: print streams, `print_length' and `print_level',
 !> escaping in symbol names, circular structure, the text properties of
@@ -46,9 +46,9 @@ module print_mod
     implicit none(type, external)
     private
 
-    public :: readable_repr, quoted_repr, marker_repr, fortran_repr, fortran_string, float_to_string, sprintf_float
+    public :: readable_text, quoted_text, marker_text, fortran_text, fortran_string, float_to_string, sprintf_float
 
-    !> C's printf with a conversion %e, %f or %g (`format' uses it):
+    !> C's printf with a conversion %e, %f or %g (`format_text' uses it):
     !> a real64 value, or an integer written exactly (as upstream writes
     !> one as a long double).  Not a port.
     interface sprintf_float
@@ -62,7 +62,7 @@ contains
     !> escaping each double quote and backslash in them, unless NOESCAPE
     !> is present and true: then they are written as they are, as
     !> `princ' does.  Port of print.c:Fprin1_to_string.
-    recursive function readable_repr(object, noescape) result(s)
+    recursive function readable_text(object, noescape) result(s)
         type(value_type), intent(in) :: object
         logical, intent(in), optional :: noescape
         character(len=:), allocatable :: s
@@ -91,7 +91,7 @@ contains
             if (raw) then
                 s = text
             else
-                s = quoted_repr(text)
+                s = quoted_text(text)
             end if
         case (V_ARRAY)
             call list_elements(object, elems)
@@ -99,7 +99,7 @@ contains
 
             do k = 1, size(elems)
                 if (k > 1) s = s//" "
-                s = s//readable_repr(elems(k), raw)
+                s = s//readable_text(elems(k), raw)
             end do
 
             s = s//")"
@@ -112,7 +112,7 @@ contains
                 s = "#<closed buffer>"
             end if
         case (V_MARKER)
-            s = marker_repr(xhandle(object))
+            s = marker_text(xhandle(object))
         case (V_KEYMAP)
             if (is_keymap_live(xhandle(object)) .and. .not. is_keymap_full(xhandle(object))) then
                 s = "("//keymap_elements(xhandle(object))//")"
@@ -122,15 +122,15 @@ contains
         case default
             s = "#<unknown>"
         end select
-    end function readable_repr
+    end function readable_text
 
     !> OBJECT written as Fortran, as help shows a value: .false. for nil,
     !> .true. for t, integers, strings as Fortran literals (doubling each
     !> double quote), other symbols by name (as named constants are
     !> written), lists as array constructors; buffers, markers and keymaps,
-    !> which have no Fortran notation, as `readable_repr' gives them.
+    !> which have no Fortran notation, as `readable_text' gives them.
     !> (Ours: Fortmacs shows values as Fortran, not as Lisp.)  Not a port.
-    recursive function fortran_repr(object) result(s)
+    recursive function fortran_text(object) result(s)
         type(value_type), intent(in) :: object
         character(len=:), allocatable :: s
         type(value_type), allocatable :: elems(:)
@@ -156,14 +156,14 @@ contains
 
             do k = 1, size(elems)
                 if (k > 1) s = s//", "
-                s = s//fortran_repr(elems(k))
+                s = s//fortran_text(elems(k))
             end do
 
             s = s//"]"
         case default
-            s = readable_repr(object)
+            s = readable_text(object)
         end select
-    end function fortran_repr
+    end function fortran_text
 
     !> The string TEXT as a Fortran literal: in double quotes, each double
     !> quote doubled.  (Ours: how help and error messages show a string.)
@@ -186,7 +186,7 @@ contains
     !> The printed representation of the string TEXT, as `prin1' writes
     !> it: in double quotes, a backslash escaping each double quote and
     !> backslash.  Port of the string case of print.c:print_object.
-    pure function quoted_repr(text) result(s)
+    pure function quoted_text(text) result(s)
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: s
         integer :: k
@@ -199,12 +199,12 @@ contains
         end do
 
         s = s//""""
-    end function quoted_repr
+    end function quoted_text
 
     !> "#<marker at N in BUFFER>", "#<marker in no buffer>", after
     !> "(moves after insertion) " for that insertion type.  Port of
     !> print.c:print_vectorlike (the marker case).
-    function marker_repr(m) result(s)
+    function marker_text(m) result(s)
         type(handle_type), intent(in) :: m
         character(len=:), allocatable :: s
         character(len=:), allocatable :: name
@@ -231,7 +231,7 @@ contains
         end if
 
         s = s//">"
-    end function marker_repr
+    end function marker_text
 
     !> The name of the buffer in registry slot `slot'.  Not a port.
     subroutine marker_buffer_name(slot, name)
@@ -261,15 +261,15 @@ contains
         do k = 1, size(range_from)
             write (a, "(i0)") range_from(k)
             write (b, "(i0)") range_to(k)
-            s = s//" "//keymap_entry_repr("("//trim(a)//" . "//trim(b)//")", range_bindings(k))
+            s = s//" "//keymap_entry_text("("//trim(a)//" . "//trim(b)//")", range_bindings(k))
         end do
 
         do k = 1, size(events)
-            s = s//" "//keymap_entry_repr(readable_repr(events(k)), bindings(k))
+            s = s//" "//keymap_entry_text(readable_text(events(k)), bindings(k))
         end do
 
         prompt = keymap_own_prompt(km)
-        if (vtag(prompt) /= V_NULL) s = s//" "//readable_repr(prompt)
+        if (vtag(prompt) /= V_NULL) s = s//" "//readable_text(prompt)
         parent = keymap_parent(km)
 
         if (is_keymap_live(parent)) then
@@ -286,7 +286,7 @@ contains
     !> ELEMENTS...)" for an array or a keymap, else "(EVENT . BINDING)" as
     !> upstream prints it.
     !> Not a port.
-    recursive function keymap_entry_repr(event, binding) result(s)
+    recursive function keymap_entry_text(event, binding) result(s)
         character(len=*), intent(in) :: event
         type(value_type), intent(in) :: binding
         character(len=:), allocatable :: s
@@ -296,7 +296,7 @@ contains
         case (V_NULL)
             s = "("//event//")"
         case (V_ARRAY)
-            inner = readable_repr(binding)
+            inner = readable_text(binding)
             s = "("//event//" "//inner(2:)
         case (V_KEYMAP)
             if (is_keymap_live(xhandle(binding)) .and. .not. is_keymap_full(xhandle(binding))) then
@@ -305,9 +305,9 @@ contains
                 s = "("//event//" . #<keymap>)"
             end if
         case default
-            s = "("//event//" . "//readable_repr(binding)//")"
+            s = "("//event//" . "//readable_text(binding)//")"
         end select
-    end function keymap_entry_repr
+    end function keymap_entry_text
 
     ! ------------------------------------------------------------------
     ! Floats

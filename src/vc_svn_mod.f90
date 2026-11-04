@@ -30,7 +30,6 @@
 !> Deferred: see the vc_svn_mod row of PORTING.md.
 module vc_svn_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, &
@@ -413,12 +412,17 @@ contains
         character(len=:), allocatable, intent(out) :: prev
         logical, intent(out) :: found
         integer(int64) :: newrev
+        character(len=20) :: digits
 
         prev = ""
         if (len(file) < 0) prev = ""
         newrev = string_to_number(rev) - 1
         found = 0 < newrev
-        if (found) prev = number_to_string(newrev)
+
+        if (found) then
+            write (digits, "(i0)") newrev
+            prev = trim(digits)
+        end if
     end subroutine vc_svn_previous_revision
 
     !> The revisions of FILES, from `svn log -q'.  Port of
@@ -775,12 +779,14 @@ contains
         ! The --diff and --limit options.
         subroutine append_options(list)
             type(string_type), allocatable, intent(inout) :: list(:)
+            character(len=20) :: digits
 
             if (vc_log_view_type() == VC_LOG_VIEW_WITH_DIFF) call append_string(list, "--diff")
 
             if (limit%kind == VC_LIMIT_NUMBER) then
                 call append_string(list, "--limit")
-                call append_string(list, number_to_string(limit%n))
+                write (digits, "(i0)") limit%n
+                call append_string(list, trim(digits))
             else if (limit%kind == VC_LIMIT_REVISION) then
                 call append_string(list, "--limit")
                 call append_string(list, limit%revision)

@@ -47,7 +47,7 @@ module make_mode_mod
     use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xstring, make_list, list, list_length, list_elt, vtag, V_INTEGER
-    use data_mod, only: number_to_string, integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
+    use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
                         append_locals_clearer
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, execute_interactively
@@ -1601,6 +1601,7 @@ contains
         type(status_type), intent(out) :: status
         type(make_state_type), pointer :: s
         character(len=:), allocatable :: target_name
+        character(len=32) :: line_text
         integer(int64) :: opoint, start, moved, shortage
         logical :: found, has_prereqs
         type(status_type) :: st
@@ -1626,7 +1627,8 @@ contains
                 has_prereqs = .not. looking_at(":["//TAB//" ]*$", st)
 
                 if (makefile_remember_target(target_name, has_prereqs)) then
-                    call message("Picked up target """//target_name//""" from line "//number_to_string(line_number_at_pos()))
+                    write (line_text, '(""" from line ", i0)') line_number_at_pos()
+                    call message("Picked up target """//target_name//trim(line_text))
                 end if
 
                 moved = skip_chars_forward(" "//TAB, st)
@@ -1647,6 +1649,7 @@ contains
         type(status_type), intent(out) :: status
         type(make_state_type), pointer :: s
         character(len=:), allocatable :: macro_name
+        character(len=32) :: line_text
         integer(int64) :: opoint, start, moved, shortage, found
         type(status_type) :: st
 
@@ -1667,7 +1670,8 @@ contains
             call buffer_substring(start, point(), macro_name, st)
 
             if (makefile_remember_macro(macro_name)) then
-                call message("Picked up macro """//macro_name//""" from line "//number_to_string(line_number_at_pos()))
+                write (line_text, '(""" from line ", i0)') line_number_at_pos()
+                call message("Picked up macro """//macro_name//trim(line_text))
             end if
 
             shortage = forward_line()
@@ -2393,6 +2397,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: opoint, found
         type(status_type) :: st
+        character(len=40) :: line_text
         logical :: ok
 
         status = status_type()
@@ -2403,7 +2408,8 @@ contains
         call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR)
 
         if (st%ok() .and. found > 0) then
-            call read_y_or_n(prompt//number_to_string(count_lines(point_min(), point()))//".  Save anyway?", ok, status)
+            write (line_text, '(i0, ".  Save anyway?")') count_lines(point_min(), point())
+            call read_y_or_n(prompt//trim(line_text), ok, status)
             done = .not. ok
         end if
 
