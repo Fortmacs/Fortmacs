@@ -13,11 +13,8 @@ abbrev.el	define-abbrevs	define_abbrevs
 abbrev.el	edit-abbrevs-redefine	edit_abbrevs_redefine
 abbrev.el	quietly-read-abbrev-file	quietly_read_abbrev_file
 abbrev.el	read-abbrev-file	read_abbrev_file
-add-log.el	add-change-log-entry	add_change_log_entry
-add-log.el	add-change-log-entry-other-window	add_change_log_entry_other_window
 add-log.el	add-log-edit-next-comment	add_log_edit_next_comment
 add-log.el	add-log-edit-prev-comment	add_log_edit_prev_comment
-add-log.el	change-log-find-file	change_log_find_file
 add-log.el	change-log-goto-source	change_log_goto_source
 add-log.el	change-log-merge	change_log_merge
 add-log.el	change-log-next-error	change_log_next_error
@@ -61,7 +58,6 @@ comint.el	comint-redirect-send-command-to-process	comint_redirect_send_command_t
 compile.el	compilation-goto-in-progress-buffer	compilation_goto_in_progress_buffer
 crm.el	completing-read-multiple	completing_read_multiple
 css-mode.el	css-lookup-symbol	css_lookup_symbol
-diff-mode.el	diff-add-change-log-entries-other-window	diff_add_change_log_entries_other_window
 diff-mode.el	diff-context->unified	diff_context_unified
 diff-mode.el	diff-delete-trailing-whitespace	diff_delete_trailing_whitespace
 diff-mode.el	diff-ediff-patch	diff_ediff_patch
@@ -378,7 +374,6 @@ lisp.el	lisp-complete-symbol	lisp_complete_symbol
 lisp.el	move-past-close-and-reindent	move_past_close_and_reindent
 log-edit.el	log-edit-add-to-changelog	log_edit_add_to_changelog
 log-edit.el	log-edit-comment-to-change-log	log_edit_comment_to_change_log
-log-edit.el	log-edit-generate-changelog-from-diff	log_edit_generate_changelog_from_diff
 log-edit.el	log-edit-maybe-show-diff	log_edit_maybe_show_diff
 log-view.el	log-view-annotate-version	log_view_annotate_version
 log-view.el	log-view-delete-revisions	log_view_delete_revisions
@@ -476,16 +471,12 @@ minibuffer.el	minibuffer-previous-line-completion	minibuffer_previous_line_compl
 minibuffer.el	minibuffer-scroll-other-window	minibuffer_scroll_other_window
 minibuffer.el	minibuffer-scroll-other-window-down	minibuffer_scroll_other_window_down
 minibuffer.el	self-insert-and-exit	self_insert_and_exit
-mule-cmds.el	activate-transient-input-method	activate_transient_input_method
-mule-cmds.el	describe-input-method	describe_input_method
 mule-cmds.el	describe-specified-language-support	describe_specified_language_support
 mule-cmds.el	highlight-confusing-reorderings	highlight_confusing_reorderings
 mule-cmds.el	mule-cmds--prefixed-command-pch	mule_cmds__prefixed_command_pch
 mule-cmds.el	search-unencodable-char	search_unencodable_char
-mule-cmds.el	set-input-method	set_input_method
 mule-cmds.el	setup-specified-language-environment	setup_specified_language_environment
 mule-cmds.el	toggle-enable-multibyte-characters	toggle_enable_multibyte_characters
-mule-cmds.el	toggle-input-method	toggle_input_method
 mule-cmds.el	view-hello-file	view_hello_file
 mule-diag.el	describe-current-coding-system-briefly	describe_current_coding_system_briefly
 mule-diag.el	describe-font	describe_font
