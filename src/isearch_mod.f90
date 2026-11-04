@@ -73,6 +73,7 @@ module isearch_mod
     use simple_mod, only: push_mark, current_clipboard_entry
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -95,17 +96,18 @@ module isearch_mod
     !> M-c: fold even when the string has upper-case letters).
     integer, parameter, public :: CASE_FOLD_NO = 0, CASE_FOLD_YES = 1, CASE_FOLD_FORCED = 2
 
-    !> Values of `search_upper_case': SEARCH_UPPER_CASE_NO, SEARCH_UPPER_CASE_YES and SEARCH_UPPER_CASE_NOT_PASTED.
-    integer, parameter, public :: SEARCH_UPPER_CASE_NO = 0, SEARCH_UPPER_CASE_YES = 1, SEARCH_UPPER_CASE_NOT_PASTED = 2
+    !> Values of `search_upper_case' besides .true. and .false.
+    integer, parameter, public :: SEARCH_UPPER_CASE_NOT_PASTED = 2
 
-    !> If not SEARCH_UPPER_CASE_NO, upper case chars disable case fold searching.
+    !> If true, upper case chars disable case fold searching.
     !> That is, upper and lower case chars must match exactly.
     !> This applies no matter where the chars come from, but does not
     !> apply to chars in regexps that are prefixed with `\'.
     !> If this value is SEARCH_UPPER_CASE_NOT_PASTED, text pasted into the search string
     !> in Isearch mode is always downcased.  Port of isearch.el
     !> search-upper-case.
-    integer, public :: search_upper_case = SEARCH_UPPER_CASE_NOT_PASTED
+    type(choice_setting_type), public :: search_upper_case = &
+                                         choice_setting_type(name="search_upper_case", choice=SEARCH_UPPER_CASE_NOT_PASTED)
 
     !> True means random control characters terminate incremental
     !> search.  (Only true and false: `edit', `append', `move' and
@@ -1359,7 +1361,7 @@ contains
         logical :: saved_fold, found, retry
         integer(int64) :: mb, me
 
-        if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+        if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
             isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
                                              is_isearch_no_upper_case(isearch_string, isearch_regexp))
         end if
@@ -1524,7 +1526,7 @@ contains
             ! the match does not extend past search origin.
             fold = isearch_case_fold_search /= CASE_FOLD_NO
 
-            if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+            if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
                 fold = is_isearch_no_upper_case(isearch_string, isearch_regexp)
             end if
 
@@ -1533,7 +1535,7 @@ contains
                 if (allocated(isearch_error)) deallocate (isearch_error)
                 isearch_other_end = mend
 
-                if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+                if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
                     isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
                                                      is_isearch_no_upper_case(isearch_string, isearch_regexp))
                 end if
@@ -1959,7 +1961,7 @@ contains
         s = string
 
         ! Downcase the string if not supposed to case-fold pasted strings.
-        if (isearch_case_fold_search /= CASE_FOLD_NO .and. search_upper_case == SEARCH_UPPER_CASE_NOT_PASTED) then
+        if (isearch_case_fold_search /= CASE_FOLD_NO .and. search_upper_case%choice == SEARCH_UPPER_CASE_NOT_PASTED) then
             s = downcase_string(s)
         end if
 

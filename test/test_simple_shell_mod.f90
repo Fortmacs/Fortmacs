@@ -35,7 +35,7 @@ module test_simple_shell_mod
     use callint_mod, only: prefix_arg
     use bindings_mod, only: init_bindings
     use simple_mod, only: shell_command, shell_command_on_region, shell_command_keep_output, push_mark, &
-                          deactivate_mark, shell_command_buffer_name, SHELL_COMMAND_KEEP_OUTPUT_NO, &
+                          deactivate_mark, shell_command_buffer_name, &
                           SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, &
                           SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, &
                           SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT
@@ -45,7 +45,8 @@ module test_simple_shell_mod
 
     public :: collect_simple_shell_mod
 
-    integer, parameter :: SAVE_POS(5) = [SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, SHELL_COMMAND_KEEP_OUTPUT_NO, &
+    ! (0 stands for .false., the erase-unless-current state.)
+    integer, parameter :: SAVE_POS(5) = [SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, 0, &
                                          SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, &
                                          SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT]
 
@@ -150,7 +151,7 @@ contains
                 else
                     if (SAVE_POS(k) == SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT) then
                         expected = string
-                    else if (SAVE_POS(k) == SHELL_COMMAND_KEEP_OUTPUT_NO) then
+                    else if (SAVE_POS(k) == 0) then
                         if (output_is_current) then
                             expected = string//string
                         else
@@ -170,7 +171,7 @@ contains
             if (allocated(error)) exit
         end do
 
-        shell_command_keep_output = SHELL_COMMAND_KEEP_OUTPUT_NO
+        shell_command_keep_output = .false.
         call close_buffer(caller, st)
         if (is_buffer_live(output)) call close_buffer(output, st)
     end subroutine with_dont_erase_buffer

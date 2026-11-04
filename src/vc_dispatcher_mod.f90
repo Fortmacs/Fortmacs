@@ -60,6 +60,7 @@ module vc_dispatcher_mod
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffer_serial_live
     use string_type_mod, only: string_type
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -74,14 +75,15 @@ module vc_dispatcher_mod
     public :: VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ANY, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
               VC_NOQUERY_NO, VC_NOQUERY_YES, VC_NOQUERY_UNLESS_MODIFIED
 
-    !> Values of `vc_command_messages' (VC_COMMAND_MESSAGES_NO, VC_COMMAND_MESSAGES_YES, VC_COMMAND_MESSAGES_LOG).
-    integer, parameter, public :: VC_COMMAND_MESSAGES_NO = 0, VC_COMMAND_MESSAGES_YES = 1, VC_COMMAND_MESSAGES_LOG = 2
+    !> Values of `vc_command_messages' besides .true. and .false.
+    integer, parameter, public :: VC_COMMAND_MESSAGES_LOG = 2
 
     !> If true, display and log messages about running back-end commands.
     !> If the value is VC_COMMAND_MESSAGES_LOG, messages about running VC back-end commands are
     !> logged in the *Messages* buffer, but not displayed.  Port of
     !> vc-dispatcher.el vc-command-messages.
-    integer, public :: vc_command_messages = VC_COMMAND_MESSAGES_NO
+    type(choice_setting_type), public :: vc_command_messages = &
+                                         choice_setting_type(name="vc_command_messages")
 
     !> If true, treat user as expert; suppress yes-no prompts on some things.
     !> Port of vc-dispatcher.el vc-suppress-confirm.
@@ -833,7 +835,7 @@ contains
     subroutine vc_command_message(text)
         character(len=*), intent(in) :: text
 
-        if (vc_command_messages /= VC_COMMAND_MESSAGES_NO) call message(text)
+        if (.not. vc_command_messages%is_off()) call message(text)
     end subroutine vc_command_message
 
     !> Execute an inferior command, notifying user and checking for errors.

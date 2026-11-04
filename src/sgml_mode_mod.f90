@@ -37,7 +37,7 @@
 !> Deferred: the completion at point of `html_tags' (html-mode--complete-at-point),
 !> `sgml_tags_invisible' (cursor sensors), `sgml_electric_tag_pair_mode'
 !> (text clones), `sgml_show_context', facemenu, tildify, Imenu,
-!> outline and add-log variables, `sgml_comment_indent_new_line',
+!> outline variables, `sgml_comment_indent_new_line',
 !> the buffer-local `adaptive_fill_regexp', `fill_nobreak_functions' and
 !> `sentence_end_base', the classes and IDs of HTML buffers (libxml),
 !> yank-media handlers, `html_autoview_mode' and `browse_url_of_buffer'.
@@ -53,6 +53,7 @@ module sgml_mode_mod
     use buffer_mod, only: buffers, current, buffer_serial_live
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set
     use keyboard_mod, only: last_command_event, this_command, sit_for
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
@@ -114,6 +115,7 @@ module sgml_mode_mod
     use data_mod, only: history_setting_type
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     use string_type_mod, only: string_type, append_string
+    use data_mod, only: choice_setting_type, choice_state
     implicit none(type, external)
     private
 
@@ -348,12 +350,12 @@ module sgml_mode_mod
     integer, parameter, public :: SGML_END_TAG_NONE = 0, SGML_END_TAG_DEFAULT = 1, SGML_END_TAG_NO = 2, &
                                   SGML_END_TAG_NEWLINES = 3, SGML_END_TAG_SKELETON = 4
 
-    !> Values of `sgml_quick_keys' and `html_quick_keys': disabled
-    !> (QUICK_KEYS_NO), enabled (QUICK_KEYS_YES), enabled and indent when
+    !> Values of `sgml_quick_keys' and `html_quick_keys' besides disabled
+    !> (.false.) and enabled (.true.): enabled and indent when
     !> closing tags (QUICK_KEYS_INDENT), closing the tag at `/'
     !> (QUICK_KEYS_CLOSE); QUICK_KEYS_DEFAULT, for `html_quick_keys' only,
     !> takes the value of `sgml_quick_keys'.
-    integer, parameter, public :: QUICK_KEYS_NO = 0, QUICK_KEYS_YES = 1, QUICK_KEYS_INDENT = 2, QUICK_KEYS_CLOSE = 3, &
+    integer, parameter, public :: QUICK_KEYS_INDENT = 2, QUICK_KEYS_CLOSE = 3, &
                                   QUICK_KEYS_DEFAULT = -1
 
     !> An entry of a tag's attribute list in `sgml_tags': an attribute NAME
@@ -425,17 +427,19 @@ module sgml_mode_mod
     !> sgml-mode.el html-tag-help.
     type(sgml_tag_help_type), allocatable, public :: html_tag_help(:)
 
-    !> Use <, >, &, /, SPC and `sgml_specials' keys "electrically" when not
-    !> QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Fortmacs will
+    !> Use <, >, &, /, SPC and `sgml_specials' keys "electrically" when
+    !> true.  By setting the option to QUICK_KEYS_INDENT, Fortmacs will
     !> eagerly reindent the current line when you manually close a tag.
     !> Port of sgml-mode.el sgml-quick-keys (its key bindings are made when
     !> SGML mode first runs, as loading sgml-mode.el makes them).
-    integer, public :: sgml_quick_keys = QUICK_KEYS_NO
+    type(choice_setting_type), public :: sgml_quick_keys = &
+                                         choice_setting_type(name="sgml_quick_keys")
 
-    !> Use C-c X combinations for quick insertion of frequent tags when not
-    !> QUICK_KEYS_NO.  This defaults to `sgml_quick_keys', which see.  Port
+    !> Use C-c X combinations for quick insertion of frequent tags when
+    !> true.  This defaults to `sgml_quick_keys', which see.  Port
     !> of sgml-mode.el html-quick-keys.
-    integer, public :: html_quick_keys = QUICK_KEYS_DEFAULT
+    type(choice_setting_type), public :: html_quick_keys = &
+                                         choice_setting_type(name="html_quick_keys", choice=QUICK_KEYS_DEFAULT)
 
     !> Default value for `skeleton_transformation_function' in SGML mode.
     !> Port of sgml-mode.el sgml-transformation-function (null for identity;
@@ -1043,7 +1047,7 @@ contains
     end subroutine sgml_comment_indent
 
     !> Insert ARG slash characters.
-    !> Behaves electrically if `sgml_quick_keys' is not QUICK_KEYS_NO.  Port of
+    !> Behaves electrically if `sgml_quick_keys' is true.  Port of
     !> sgml-mode.el:sgml-slash.
     recursive subroutine sgml_slash(arg, status)
         integer(int64), intent(in) :: arg
@@ -1054,10 +1058,10 @@ contains
 
         if (.not. (before_char_at(point()) == iachar("<") .and. arg == 1)) then
             call sgml_slash_matching(arg, status)
-        else if (sgml_quick_keys == QUICK_KEYS_INDENT) then
+        else if (sgml_quick_keys%choice == QUICK_KEYS_INDENT) then
             call insert("/", status)
             call indent_according_to_mode(status)
-        else if (sgml_quick_keys == QUICK_KEYS_CLOSE) then
+        else if (sgml_quick_keys%choice == QUICK_KEYS_CLOSE) then
             call delete_char(-1_int64, status)
             if (status%ok()) call sgml_close_tag(status)
         else
@@ -2606,19 +2610,16 @@ contains
         end do
     end subroutine sort_strings
 
-    !> Return the name of the last HTML title or heading (`found' false for
+    !> Return the name of the last HTML title or heading (unallocated for
     !> none).  Port of sgml-mode.el:html-current-defun-name.
-    recursive subroutine html_current_heading_name(name, found)
+    recursive subroutine html_current_heading_name(name)
         character(len=:), allocatable, intent(out) :: name
-        logical, intent(out) :: found
         type(status_type) :: st
         integer(int64) :: opoint, pos
 
-        name = ""
         opoint = point()
         call re_search_backward(HTML_SUBPROGRAM_REGEXP, pos, st, noerror=SEARCH_NOERROR)
-        found = pos > 0
-        if (found) name = match_string_no_properties(1)
+        if (st%ok() .and. pos > 0) name = match_string_no_properties(1)
         call goto_char(opoint)
     end subroutine html_current_heading_name
 
@@ -2844,6 +2845,7 @@ contains
         ! sgml-empty-tags and sgml-unclosed-tags.
         call make_local_entry(k)
         locals(k)%html = .true.
+        call add_log_current_subprogram_function%set_local(html_current_heading_name)
         call major_modes%html_mode%end(saved, status)
     end subroutine html_mode
 
@@ -3746,7 +3748,7 @@ contains
                                                                                         "html_id_anchor", "html_image", "html_span"]
         integer :: i
 
-        if (sgml_quick_keys /= QUICK_KEYS_NO) then
+        if (.not. sgml_quick_keys%is_off()) then
             call keymap_set(sgml_mode_map, "&", "sgml_name_char", st)
             call keymap_set(sgml_mode_map, "<", "sgml_tag", st)
             call keymap_set(sgml_mode_map, "SPC", "sgml_auto_attributes", st)
@@ -3755,11 +3757,11 @@ contains
             if (any(sgml_specials == iachar("'"))) call keymap_set(sgml_mode_map, "'", "sgml_name_self", st)
         end if
 
-        html_quick_keys_default: if (html_quick_keys == QUICK_KEYS_DEFAULT) then
-            html_quick_keys = sgml_quick_keys
+        html_quick_keys_default: if (html_quick_keys%choice == QUICK_KEYS_DEFAULT) then
+            html_quick_keys = choice_state(sgml_quick_keys)
         end if html_quick_keys_default
 
-        if (html_quick_keys /= QUICK_KEYS_NO) then
+        if (.not. html_quick_keys%is_off()) then
             do i = 1, size(html_keys)
                 call keymap_set(html_mode_map, trim(html_keys(i)), trim(html_commands(i)), st)
             end do

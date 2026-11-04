@@ -179,7 +179,8 @@ contains
     ! (vc-run-delayed ...) of `vc-log-internal-common': set up the buttons
     ! (deferred), go to the working revision, and run
     ! `vc_log_finish_functions'.  Port of the delayed part of
-    ! vc.el:vc-log-internal-common.
+    ! vc.el:vc-log-internal-common, with vc.el:vc-default-show-log-entry
+    ! for the backends without a `show_log_entry'.
     recursive subroutine log_finish(action, status)
         type(vc_action_type), intent(in) :: action
         type(status_type), intent(out) :: status

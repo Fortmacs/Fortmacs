@@ -175,6 +175,21 @@ module keymap_mod
         type(handle_type) :: map
     end type key_list_type
 
+    !> A set of key modifiers a user passes to a procedure that binds keys
+    !> (R6-41): each component true adds that modifier to the key, in
+    !> the order of key descriptions (A-, C-, H-, M-, S-, s-).
+    !> `key_modifiers_type()' is no modifier; `key_modifiers_type(meta=.true.,
+    !> shift=.true.)' is M-S-.  An absent argument means the procedure's
+    !> own default.
+    type, public :: key_modifiers_type
+        logical :: alt = .false.
+        logical :: control = .false.
+        logical :: hyper = .false.
+        logical :: meta = .false.
+        logical :: shift = .false.
+        logical :: super = .false.
+    end type key_modifiers_type
+
     !> State of one access_keymap_1 scan.
     type :: access_state_type
         !> The binding found so far; meaningful when `found' (else Qunbound).

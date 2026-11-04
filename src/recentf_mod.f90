@@ -50,7 +50,7 @@ module recentf_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
-    use data_mod, only: set, symbol_value
+    use data_mod, only: set, symbol_value, choice_setting_type
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
     use commands_mod, only: commands
@@ -185,25 +185,33 @@ module recentf_mod
     !> of recentf.el recentf-menu-action.
     procedure(recentf_action_procedure), pointer, public :: recentf_menu_action => find_file
 
-    !> Values of `recentf_auto_cleanup' other than a number of seconds.
-    integer, parameter, public :: RECENTF_AUTO_CLEANUP_MODE = -1, RECENTF_AUTO_CLEANUP_NO = -2
+    !> The setting `recentf_auto_cleanup': .false., .true. or a number of
+    !> seconds (R6-39: `recentf_auto_cleanup%seconds = 300'; negative
+    !> when no number is set).  Not a port.
+    type, extends(choice_setting_type), public :: recentf_auto_cleanup_choice_setting_type
+        integer :: seconds = -1
+    contains
+        procedure :: clear_kinds => recentf_auto_cleanup_clear_kinds
+        procedure :: other_value => recentf_auto_cleanup_other_value
+    end type recentf_auto_cleanup_choice_setting_type
 
     !> Define when to automatically cleanup the recent list.
     !> That is, remove duplicates, non-kept, and excluded files.
     !>
     !> The following values can be set:
     !>
-    !> - RECENTF_AUTO_CLEANUP_MODE
+    !> - .true.
     !>     Cleanup when turning the mode on (default).
-    !> - RECENTF_AUTO_CLEANUP_NO
+    !> - .false.
     !>     Never cleanup the list automatically.
-    !> - A number
+    !> - A number of seconds (`recentf_auto_cleanup%seconds')
     !>     Cleanup each time Fortmacs has been idle that number of seconds.
     !>
     !> See also the command `recentf_cleanup', that can be used to
     !> manually cleanup the list.  Port of recentf.el recentf-auto-cleanup
     !> (a time string is Deferred).
-    integer, public :: recentf_auto_cleanup = RECENTF_AUTO_CLEANUP_MODE
+    type(recentf_auto_cleanup_choice_setting_type), public :: recentf_auto_cleanup = &
+                                                 recentf_auto_cleanup_choice_setting_type(name="recentf_auto_cleanup", value=.true.)
 
     !> True means to initialize `file_name_history' with the recent list.
     !> If `file_name_history' is not empty, do nothing.  Port of
@@ -508,11 +516,11 @@ contains
         recentf_auto_cleanup_timer = handle_type()
         if (.not. minor_modes%recentf_mode%enabled()) return
 
-        if (recentf_auto_cleanup == RECENTF_AUTO_CLEANUP_MODE) then
-            call recentf_cleanup()
-        else if (recentf_auto_cleanup > 0) then
-            call execute_with_idle_timer(recentf_auto_cleanup_timer, real(recentf_auto_cleanup, real64), .true., &
+        if (recentf_auto_cleanup%seconds > 0) then
+            call execute_with_idle_timer(recentf_auto_cleanup_timer, real(recentf_auto_cleanup%seconds, real64), .true., &
                                          recentf_cleanup_adapter, st)
+        else if (recentf_auto_cleanup%value) then
+            call recentf_cleanup()
         end if
     end subroutine execute_recentf_auto_cleanup
 
@@ -895,4 +903,27 @@ contains
         commands%recentf_load_list%execute => cmd_recentf_load_list
         commands%recentf_cleanup%execute => recentf_cleanup_adapter
     end subroutine init_recentf
+
+    !> Forget the seconds of `recentf_auto_cleanup', as any assignment to it does.
+    !> Not a port.
+    subroutine recentf_auto_cleanup_clear_kinds(self)
+        class(recentf_auto_cleanup_choice_setting_type), intent(inout) :: self
+
+        self%seconds = -1
+    end subroutine recentf_auto_cleanup_clear_kinds
+
+    !> The seconds of `recentf_auto_cleanup' as help shows it (`%seconds = N'); "" when
+    !> none is set.  Not a port.
+    function recentf_auto_cleanup_other_value(self) result(text)
+        class(recentf_auto_cleanup_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        character(len=32) :: component_text
+
+        text = ""
+
+        if (self%seconds >= 0) then
+            write (component_text, '("%seconds = ", i0)') self%seconds
+            text = trim(component_text)
+        end if
+    end function recentf_auto_cleanup_other_value
 end module recentf_mod

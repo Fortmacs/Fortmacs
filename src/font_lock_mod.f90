@@ -68,14 +68,14 @@ module font_lock_mod
     use font_core_mod, only: font_lock_defaults, font_lock_defaults_type, font_lock_keyword_type, &
                              font_lock_highlight_type, font_lock_match_highlight_type, font_lock_keywords_type, &
                              font_lock_mode_internal_hook, font_lock_specified_test, font_lock_initial_fontify_hook, &
-                             font_lock_mode_enabled, FONT_LOCK_OVERRIDE_NO, FONT_LOCK_OVERRIDE_YES, &
+                             font_lock_mode_enabled, FONT_LOCK_OVERRIDE_NONE, FONT_LOCK_OVERRIDE_REPLACE, &
                              FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, &
                              font_lock_face_procedure, font_lock_matcher_procedure, font_lock_form_procedure, &
                              major_mode_of_current, &
                              font_lock_properties_procedure
     use syntax_mod, only: parse_state_type, parse_partial_expression, syntax_ppss, COMMENTSTOP_SYNTAX_TABLE
     use subr_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, looking_back
-    use data_mod, only: string_setting_type, forward_setting
+    use data_mod, only: string_setting_type, forward_setting, choice_setting_type
     use newcomment_mod, only: comment_start, comment_start_skip, comment_end_skip, comment_normalize_vars
     use insdel_mod, only: after_change_functions
     use jit_lock_mod, only: jit_lock_register, jit_lock_unregister, jit_lock_refontify, jit_lock_fontify_now, &
@@ -112,18 +112,26 @@ module font_lock_mod
               font_lock_remove_face_from_text_property, font_lock_keyword, font_lock_highlight, &
               font_lock_anchored, font_lock_fontified, font_lock_keywords_of_buffer, set_font_lock_keywords
 
-    !> `font_lock_maximum_decoration' for the maximum decoration available.
-    integer, parameter, public :: FONT_LOCK_MAXIMUM_DECORATION_MAX = huge(0)
+    !> The setting `font_lock_maximum_decoration': .false., .true. or a
+    !> level (R6-39: `font_lock_maximum_decoration%level = 1'; negative
+    !> when no level is set).  Not a port.
+    type, extends(choice_setting_type), public :: font_lock_maximum_decoration_choice_setting_type
+        integer :: level = -1
+    contains
+        procedure :: clear_kinds => font_lock_maximum_decoration_clear_kinds
+        procedure :: other_value => font_lock_maximum_decoration_other_value
+    end type font_lock_maximum_decoration_choice_setting_type
 
     !> Maximum decoration level for fontification.
-    !> If 0, use the default decoration (typically the minimum available).
-    !> If FONT_LOCK_MAXIMUM_DECORATION_MAX (the default), use the maximum decoration
+    !> If .false., use the default decoration (typically the minimum available).
+    !> If .true. (the default), use the maximum decoration
     !> available.
-    !> If a number, use that level of decoration (or if not available the
+    !> If `font_lock_maximum_decoration%level' is a number, use that level of decoration (or if not available the
     !> maximum).  The higher the number, the more decoration is done.
     !> Port of font-lock.el:font-lock-maximum-decoration (the table form,
     !> by major mode, is deferred).
-    integer, public :: font_lock_maximum_decoration = FONT_LOCK_MAXIMUM_DECORATION_MAX
+    type(font_lock_maximum_decoration_choice_setting_type), public :: font_lock_maximum_decoration = &
+                                 font_lock_maximum_decoration_choice_setting_type(name="font_lock_maximum_decoration", value=.true.)
 
     !> If true, means show status messages for buffer fontification.  Port of
     !> font-lock.el:font-lock-verbose (the size threshold form is
@@ -354,7 +362,7 @@ contains
 
     !> A MATCH-HIGHLIGHT: give subexpression SUBEXP of the match the face
     !> FACE (or the face FACE_FUNCTION names), combined with existing
-    !> fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NO by default),
+    !> fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NONE by default),
     !> LAXMATCH if SUBEXP need not match.  Not a port.
     function font_lock_highlight(subexp, face, override, laxmatch, face_function, true_properties, nil_properties, &
                                  display, properties_function) result(h)
@@ -854,7 +862,14 @@ contains
             ! font-lock-choose-keywords.
             if (allocated(defaults%levels)) then
                 if (size(defaults%levels) > 0) then
-                    level = min(font_lock_maximum_decoration, size(defaults%levels) - 1)
+                    if (font_lock_maximum_decoration%level >= 0) then
+                        level = min(font_lock_maximum_decoration%level, size(defaults%levels) - 1)
+                    else if (font_lock_maximum_decoration%value) then
+                        level = size(defaults%levels) - 1
+                    else
+                        level = 0
+                    end if
+
                     level = max(level, 0)
 
                     if (associated(defaults%levels(level + 1)%function)) then
@@ -1724,17 +1739,17 @@ contains
         val = value_type()
         if (len(face) > 0) val = value_type(name=face)
 
-        if (.not. allocated(val%a) .and. highlight%override /= FONT_LOCK_OVERRIDE_YES) then
+        if (.not. allocated(val%a) .and. highlight%override /= FONT_LOCK_OVERRIDE_REPLACE) then
             ! If `val' is nil, don't do anything.
             return
         end if
 
         select case (highlight%override)
-        case (FONT_LOCK_OVERRIDE_NO)
+        case (FONT_LOCK_OVERRIDE_NONE)
             ! Cannot override existing fontification.
             call text_property_not_all(start, end, value_type(name="face"), value_type(), pos, found, status)
             if (.not. found .and. status%ok()) call put_text_property(start, end, value_type(name="face"), val, status)
-        case (FONT_LOCK_OVERRIDE_YES)
+        case (FONT_LOCK_OVERRIDE_REPLACE)
             ! Override existing fontification.
             call put_text_property(start, end, value_type(name="face"), val, status)
         case (FONT_LOCK_OVERRIDE_PREPEND)
@@ -2316,4 +2331,27 @@ contains
         call f%define("font_lock_misc_punctuation_face", "Font Lock mode face used to highlight miscellaneous punctuation.")
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_punctuation_face"))
     end subroutine init_font_lock_faces
+
+    !> Forget the level of `font_lock_maximum_decoration', as any assignment to it does.
+    !> Not a port.
+    subroutine font_lock_maximum_decoration_clear_kinds(self)
+        class(font_lock_maximum_decoration_choice_setting_type), intent(inout) :: self
+
+        self%level = -1
+    end subroutine font_lock_maximum_decoration_clear_kinds
+
+    !> The level of `font_lock_maximum_decoration' as help shows it (`%level = N'); "" when
+    !> none is set.  Not a port.
+    function font_lock_maximum_decoration_other_value(self) result(text)
+        class(font_lock_maximum_decoration_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        character(len=32) :: component_text
+
+        text = ""
+
+        if (self%level >= 0) then
+            write (component_text, '("%level = ", i0)') self%level
+            text = trim(component_text)
+        end if
+    end function font_lock_maximum_decoration_other_value
 end module font_lock_mod

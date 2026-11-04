@@ -91,7 +91,7 @@ module shell_mod
                           comint_arguments, comint_substitute_in_file_name, comint_input_ring_length, &
                           set_comint_get_old_input, comint_next_prompt, comint_previous_prompt, init_comint
     use compile_mod, only: cd
-    use data_mod, only: integer_setting_type
+    use data_mod, only: choice_setting_type
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     use value_mod, only: make_list, list_elements, value_type
     use hooks_mod, only: capf_hook_type, capf_entry_type
@@ -112,7 +112,7 @@ module shell_mod
                           comint_c_a_p_replace_by_expanded_history, comint_match_partial_filename, comint_quote_filename, &
                           comint_directory, set_comint_completion_fignore, set_comint_quote_functions, &
                           comint_completion_addsuffix, comint_input_autoexpand, COMINT_AUTOEXPAND_HISTORY, &
-                          COMINT_AUTOEXPAND_NO, COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, &
+                          COMINT_AUTOEXPAND_INPUT, &
                           comint_completion_fignore, comint_line_beginning_position
     use pcomplete_mod, only: pcomplete_match, pcomplete_thrown, pcomplete_here, pcomplete_entries, pcomplete_ignore, &
                              pcomplete_completions_at_point, pcomplete_parse_arguments_function, &
@@ -124,7 +124,7 @@ module shell_mod
 
     !> The values of `shell_input_autoexpand' (those of
     !> `comint_input_autoexpand').
-    public :: COMINT_AUTOEXPAND_NO, COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY
+    public :: COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY
     public :: shell_command_completion, shell_environment_variable_completion
     public :: shell, shell_mode, shell_command_mode, init_shell, shell_get_old_input, shell_directory_tracker, &
               shell_unquote_argument, shell_unquote_argument_internal, shell_parse_pcomplete_arguments, &
@@ -334,7 +334,7 @@ module shell_mod
     type(logical_setting_type), public :: shell_completion_execonly = &
                                           logical_setting_type(name="shell_completion_execonly", value=.true.)
 
-    !> If not COMINT_AUTOEXPAND_NO, expand input command history
+    !> If not .false., expand input command history
     !> references on completion.  This mirrors the optional behavior of
     !> tcsh (its autoexpand and histlit).
     !>
@@ -345,8 +345,8 @@ module shell_mod
     !>
     !> This variable supplies a default for `comint_input_autoexpand', for
     !> Shell mode only.  Port of shell.el shell-input-autoexpand.
-    type(integer_setting_type), public :: shell_input_autoexpand = &
-                                          integer_setting_type(name="shell_input_autoexpand", value=COMINT_AUTOEXPAND_HISTORY)
+    type(choice_setting_type), public :: shell_input_autoexpand = &
+                                         choice_setting_type(name="shell_input_autoexpand", choice=COMINT_AUTOEXPAND_HISTORY)
 
     ! The closures of the completion data: the commands of
     ! shell--command-completion-data, the suffix of
@@ -1470,7 +1470,7 @@ contains
         call pcomplete_default_completion_function%set_local(pcomplete_ignore)
         ! Do not expand remote file names.
         call pcomplete_remote_file_ignore%set_local(.true.)
-        call comint_input_autoexpand%set_local(shell_input_autoexpand%value)
+        call comint_input_autoexpand%set_local(shell_input_autoexpand)
         ! Not needed in shell-mode because it's inherited from comint-mode,
         ! but placed here for read-shell-command.
         call completion_at_point_functions%prepend(comint_completion_at_point, local=.true.)

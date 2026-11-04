@@ -128,7 +128,7 @@ contains
     procedure(blink_matching_check_procedure), pointer :: check
 
     status = status_type()
-    if (is_bob() .or. blink_matching_paren == BLINK_MATCHING_PAREN_NO) return
+    if (is_bob() .or. blink_matching_paren%is_off()) return
     oldpos = point()
     ! (save-excursion (save-restriction ...))
     savedb = buffers(current)%begv
@@ -186,7 +186,7 @@ contains
     end if
 
     if (blinkpos == 0) return
-    visible = blink_matching_paren == BLINK_MATCHING_PAREN_JUMP_OFFSCREEN
+    visible = blink_matching_paren%choice == BLINK_MATCHING_PAREN_JUMP_OFFSCREEN
     if (.not. visible) visible = window_pos_visible_p(blinkpos, selected_window())
 
     if (visible) then
@@ -195,8 +195,8 @@ contains
         ! is true.
         if (.not. blink_matching_paren_on_screen .or. minor_modes%show_paren_mode%state%value) return
 
-        if (blink_matching_paren == BLINK_MATCHING_PAREN_JUMP .or. &
-            blink_matching_paren == BLINK_MATCHING_PAREN_JUMP_OFFSCREEN) then
+        if (blink_matching_paren%choice == BLINK_MATCHING_PAREN_JUMP .or. &
+            blink_matching_paren%choice == BLINK_MATCHING_PAREN_JUMP_OFFSCREEN) then
             opoint = point()
             call goto_char(blinkpos)
             call sit_for(int(blink_matching_delay*1000, int32))
@@ -451,7 +451,7 @@ contains
         return
     end if
 
-    if (backward_delete_char_untabify_method == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY) then
+    if (backward_delete_char_untabify_method%choice == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY) then
         count = arg
         call copy_marker_at(point(), here, .false., st)
 
@@ -481,8 +481,8 @@ contains
     end if
 
     skip = ""
-    if (backward_delete_char_untabify_method == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY) skip = " "//TAB
-    if (backward_delete_char_untabify_method == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL) skip = " "//TAB//LF//achar(13)
+    if (backward_delete_char_untabify_method%choice == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY) skip = " "//TAB
+    if (backward_delete_char_untabify_method%choice == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL) skip = " "//TAB//LF//achar(13)
     n = arg
 
     if (len(skip) > 0) then

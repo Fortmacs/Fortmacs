@@ -25,8 +25,12 @@
 !> Each frame has its own windows, its own minibuffer window and its
 !> own buffer lists.  A submodule of frame_mod, so that frame_mod stays
 !> below the display modules it needs (dispnew_mod, xdisp_mod,
-!> xfaces_mod).  What is left out is listed in PORTING.md's frame_mod
-!> row.
+!> xfaces_mod).  Also frame.el's Window Divider mode, a minor mode
+!> (easy_mmode_mod, which depends on frame_mod, hence the submodule): it
+!> sets the divider widths of every frame and of new ones
+!> (`default_frame'); a terminal frame stores them as parameters but draws
+!> no dividers, as upstream on a text terminal.  What is left out is
+!> listed in PORTING.md's frame_mod row.
 submodule(frame_mod) frame_cmds_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
@@ -42,6 +46,7 @@ submodule(frame_mod) frame_cmds_mod
     use minibuf_mod, only: minibuf_level, nth_minibuffer, read_string, completion_list_table
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use commands_mod, only: commands
+    use modes_mod, only: minor_modes
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE
     implicit none(type, external)
 
@@ -583,6 +588,54 @@ contains
         call set_frame_name(name, status)
     end subroutine cmd_set_frame_name
 
+    ! ------------------------------------------------------------------
+    ! Window Divider mode
+    ! ------------------------------------------------------------------
+
+    recursive module subroutine window_divider_mode(status)
+        type(status_type), intent(out) :: status
+
+        call minor_modes%window_divider_mode%command(status)
+    end subroutine window_divider_mode
+
+    !> The body of Window Divider mode.  Port of
+    !> frame.el:window-divider-mode in part.
+    subroutine window_divider_mode_body(enable, status)
+        logical, intent(in) :: enable
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call window_divider_mode_apply(enable)
+    end subroutine window_divider_mode_body
+
+    module subroutine window_divider_mode_apply(enable)
+        logical, intent(in) :: enable
+        integer :: bottom, right
+
+        bottom = 0
+        right = 0
+
+        if (enable) then
+            if (window_divider_default_places == WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY .or. &
+                window_divider_default_places == WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT) then
+                bottom = window_divider_default_bottom_width
+            end if
+
+            if (window_divider_default_places == WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY .or. &
+                window_divider_default_places == WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT) then
+                right = window_divider_default_right_width
+            end if
+        end if
+
+        ! modify-all-frames-parameters: the frame (a terminal frame only
+        ! stores them: frame.c:Fmodify_frame_parameters) and new frames,
+        ! where a width of 0 is left out (the default).
+        selected_frame%parameters%bottom_divider_width = bottom
+        selected_frame%parameters%right_divider_width = right
+        default_frame%bottom_divider_width = max(0, bottom)
+        default_frame%right_divider_width = max(0, right)
+    end subroutine window_divider_mode_apply
+
     !> Register the frame commands.  Not a port.
     module subroutine init_frame_commands()
         commands%make_frame_command%execute => cmd_make_frame_command
@@ -591,5 +644,8 @@ contains
         commands%delete_other_frames%execute => cmd_delete_other_frames
         commands%select_frame_by_name%execute => cmd_select_frame_by_name
         commands%set_frame_name%execute => cmd_set_frame_name
+        call minor_modes%window_divider_mode%define("window_divider_mode", global=.true., &
+                                                    hook=window_divider_mode_hook, body=window_divider_mode_body)
+        commands%window_divider_mode%execute => window_divider_mode
     end subroutine init_frame_commands
 end submodule frame_cmds_mod

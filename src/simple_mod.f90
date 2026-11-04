@@ -61,7 +61,7 @@ module simple_mod
     use xdisp_mod, only: message, invisibility
     use frame_mod, only: selected_frame, selected_window_ref
     use window_mod, only: window_type, window_start, window_body_lines, recenter
-    use subr_mod, only: add_to_history, defvar_nil
+    use subr_mod, only: add_to_history, defvar_nil, mail_user_agent_type, mail_switch_procedure
     use editfns_mod, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
                            is_bol, constrain_to_field, pos_eol, point_min, is_bob, is_eob, buffer_substring, &
                            delete_region, mark_marker, mark_position, region_beginning, region_end, pos_bol
@@ -106,6 +106,7 @@ module simple_mod
                             local_function_key_map, unread_command_events
     use keyboard_mod, only: defining_kbd_macro, DEFINING_KBD_MACRO_NO, redisplay_procedure, deactivate_mark_function, &
                             ascii_character, prefix_command_update
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -114,6 +115,29 @@ module simple_mod
     procedure(redisplay_procedure), pointer, public :: kmacro_keyboard_quit_hook => null()
 
     public :: execute_extended_command, read_extended_command
+    public :: compose_mail, compose_mail_other_window, init_simple_mail
+
+    !> Your preference for a mail composition package.
+    !> Various Fortmacs packages (e.g. Reporter) require you to compose an
+    !> outgoing email message.  This variable lets you specify which
+    !> mail-sending package you prefer.
+    !>
+    !> Valid values include:
+    !>
+    !>   `message_user_agent'  -- use the Message package.
+    !>                            See Info node `(message)'.
+    !>   `sendmail_user_agent' -- use the Mail package.
+    !>                            See Info node `(emacs)Sending Mail'.
+    !>
+    !> You may also define your own agent to be used as value for this
+    !> variable using `define_mail_user_agent'.
+    !>
+    !> See also `read_mail_command' concerning reading mail.  Port of
+    !> simple.el mail-user-agent (a pointer to the agent; its default,
+    !> `message_user_agent', comes with message.el, so until then it is
+    !> null and the configuration sets `mail_user_agent =>
+    !> sendmail_user_agent').
+    type(mail_user_agent_type), pointer, public :: mail_user_agent => null()
     public :: async_shell_command, shell_command_sentinel
     public :: set_next_error_function, has_next_error_function, is_next_error_buffer, next_error_find_buffer, &
               next_error, next_error_internal, next_error_found, init_simple_next_error
@@ -878,6 +902,52 @@ module simple_mod
             implicit none(type, external)
         end subroutine init_simple_process
 
+        !> Start composing a mail message to send.
+        !> This uses the user's chosen mail composition package
+        !> as selected with the variable `mail_user_agent'.
+        !> The optional arguments TO and SUBJECT specify recipients
+        !> and the initial Subject field, respectively.
+        !>
+        !> By default, if an unsent message is already being composed, this
+        !> command will ask whether to erase the unsent message, and will not
+        !> start a new message if the user doesn't allow erasing.  However, if
+        !> CONTINUE is true, it means to continue editing a message already
+        !> being composed without asking.  Interactively, CONTINUE is the prefix
+        !> argument.
+        !>
+        !> SWITCH_FUNCTION, if present, is a procedure to use to
+        !> switch to and display the buffer used for mail composition.
+        !> Port of simple.el:compose-mail (OTHER-HEADERS, YANK-ACTION,
+        !> SEND-ACTIONS and RETURN-ACTION come with their users, Rmail and
+        !> Reporter; the warning about Mail mode settings comes with
+        !> `message_user_agent').  (In simple_mail_mod.)
+        recursive module subroutine compose_mail(status, to, subject, continue, switch_function)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: to, subject
+            logical, intent(in), optional :: continue
+            procedure(mail_switch_procedure), optional :: switch_function
+        end subroutine compose_mail
+
+        !> Like \[compose_mail], but edit the outgoing message in another window.
+        !> If this command needs to split the current window, it by default obeys
+        !> the user options `split_height_threshold' and `split_width_threshold',
+        !> when it decides whether to split the window horizontally or vertically.
+        !> Port of simple.el:compose-mail-other-window.  (In
+        !> simple_mail_mod.)
+        recursive module subroutine compose_mail_other_window(status, to, subject, continue)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: to, subject
+            logical, intent(in), optional :: continue
+        end subroutine compose_mail_other_window
+
+        !> Register `compose_mail' and `compose_mail_other_window'.  (In
+        !> simple_mail_mod.)  Not a port.
+        module subroutine init_simple_mail()
+            implicit none(type, external)
+        end subroutine init_simple_mail
+
         !> Momentarily highlight the beginning of the expression before point.
         !> Port of simple.el:blink-matching-open.  (In simple_electric_mod,
         !> for paren_mod.)
@@ -998,20 +1068,20 @@ module simple_mod
     type(logical_setting_type), public :: shell_command_prompt_show_cwd = &
                                           logical_setting_type(name="shell_command_prompt_show_cwd", value=.false.)
 
-    !> Values of `shell_command_keep_output' (see there).
-    integer, parameter, public :: SHELL_COMMAND_KEEP_OUTPUT_NO = 0, SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT = 1, &
-                                  SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT = 2, &
-                                  SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT = 3, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT = 4
+    !> Values of `shell_command_keep_output' besides .true. and .false.
+    integer, parameter, public :: SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT = 2, &
+                                  SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT = 3, &
+                                  SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT = 4, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT = 5
 
-    !> Whether to erase the output buffer before executing shell command.
+    !> Whether to keep the output buffer before executing shell command.
     !>
-    !> SHELL_COMMAND_KEEP_OUTPUT_NO erases the output buffer before execution of the
+    !> .false. erases the output buffer before execution of the
     !> shell command, except when the output buffer is the current one.
     !>
     !> SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT ensures the output buffer is erased before
     !> execution of the shell command even if it is the current buffer.
     !>
-    !> Other values prevent the output buffer from being erased; they
+    !> .true. keeps the output buffer as it is.  The other values keep it too; they
     !> also reposition point in the shell output buffer after execution of the
     !> shell command, except when the output buffer is the current buffer.
     !>
@@ -1019,11 +1089,9 @@ module simple_mod
     !> output, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT sets point at the end of the last
     !> output, and SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT restores the buffer position as it
     !> was before the shell command.  Port of simple.el shell-command-dont-erase-buffer
-    !> (SHELL_COMMAND_KEEP_OUTPUT_NO, SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT,
-    !> SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT
-    !> and SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT).
-    type(integer_setting_type), public :: shell_command_keep_output = &
-                                          integer_setting_type(name="shell_command_keep_output", value=SHELL_COMMAND_KEEP_OUTPUT_NO)
+    !> (its default, erasing the output, is .false.).
+    type(choice_setting_type), public :: shell_command_keep_output = &
+                                         choice_setting_type(name="shell_command_keep_output")
 
     !> Values of `async_shell_command_buffer' (see there).
     integer, parameter, public :: ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS = 0, &
@@ -1262,9 +1330,8 @@ module simple_mod
     !> copy-region-blink-delay.
     real, public :: copy_region_blink_delay = 1.0
 
-    !> Values of `blink_matching_paren'.
-    integer, parameter, public :: BLINK_MATCHING_PAREN_NO = 0, BLINK_MATCHING_PAREN_YES = 1, &
-                                  BLINK_MATCHING_PAREN_JUMP = 2, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN = 3
+    !> Values of `blink_matching_paren' besides .true. and .false.
+    integer, parameter, public :: BLINK_MATCHING_PAREN_JUMP = 2, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN = 3
 
     !> True means show matching open-paren when close-paren is inserted.
     !> If this is true, then when you type a closing delimiter, such as a
@@ -1273,7 +1340,7 @@ module simple_mod
     !>
     !> The valid values are:
     !>
-    !>   `BLINK_MATCHING_PAREN_YES'               Highlight the matching open-paren if it is visible
+    !>   .true.                                 Highlight the matching open-paren if it is visible
     !>                                          in the window, otherwise show the text with matching
     !>                                          open-paren in the echo area.  This is the default.
     !>   `BLINK_MATCHING_PAREN_JUMP'            If the matching open-paren is visible in the window,
@@ -1281,30 +1348,31 @@ module simple_mod
     !>                                          the text with matching open-paren in the echo area.
     !>   `BLINK_MATCHING_PAREN_JUMP_OFFSCREEN'  Briefly move cursor to the matching open-paren
     !>                                          even if it is not visible in the window.
-    !>   `BLINK_MATCHING_PAREN_NO'             Don't show the matching open-paren.
+    !>   .false.                                Don't show the matching open-paren.
     !>
     !> Port of simple.el blink-matching-paren.
-    integer, public :: blink_matching_paren = BLINK_MATCHING_PAREN_YES
+    type(choice_setting_type), public :: blink_matching_paren = &
+                                         choice_setting_type(name="blink_matching_paren", value=.true.)
 
-    !> Values of `backward_delete_char_untabify_method'.
-    integer, parameter, public :: BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE = 0, &
-                               BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY = 1, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY = 2, &
-                                  BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL = 3
+    !> Values of `backward_delete_char_untabify_method' besides .false.
+    integer, parameter, public :: BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY = 2, &
+                                  BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY = 3, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL = 4
 
     !> The method for untabifying when deleting backward.
     !> Can be `BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY' -- turn a tab to many spaces, then delete one space;
     !>        `BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY' -- delete all whitespace, both tabs and spaces;
     !>        `BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL' -- delete all whitespace, including tabs, spaces and newlines;
-    !>        `BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE' -- just delete one character.
+    !>        .false. -- just delete one character.
     !> Port of simple.el backward-delete-char-untabify-method.
-    integer, public :: backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY
+    type(choice_setting_type), public :: backward_delete_char_untabify_method = &
+              choice_setting_type(name="backward_delete_char_untabify_method", choice=BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY)
 
     !> True means show matching open-paren when it is on screen.
     !> If false, don't show it (but the open-paren can still be shown
     !> in the echo area when it is off screen).
     !>
     !> This variable has no effect if `blink_matching_paren' is
-    !> `BLINK_MATCHING_PAREN_NO'.  (In that case, the open-paren is never
+    !> .false.  (In that case, the open-paren is never
     !> shown.)  It is also ignored if `show_paren_mode' is enabled.  Port
     !> of simple.el blink-matching-paren-on-screen.
     logical, public :: blink_matching_paren_on_screen = .true.
@@ -5584,16 +5652,19 @@ contains
 
     !> The position after the end of the text `w' (showing the current
     !> buffer) displays from its start: the start of the first line below
-    !> its last screen line.  Port of window.c:Fwindow_end with UPDATE
-    !> .true. (line-based, as on a text terminal).
+    !> its last screen line, or the end of the text when that shows.
+    !> Port of window.c:Fwindow_end with UPDATE .true. (line-based, as on a
+    !> text terminal).
     integer(int64) function window_end_updated(w) result(pos)
         type(window_type), intent(in) :: w
         integer(int64) :: opoint, moved
 
         opoint = point()
         call goto_char(max(point_min(), min(window_start(w), point_max())))
-        call vertical_motion(int(window_body_lines(w), int64), moved)
+        call vertical_motion(int(window_body_lines(w), int64), moved, window=w)
         pos = point()
+        ! move_it_past_eol: past the end of the last line shown.
+        if (moved < window_body_lines(w)) pos = point_max()
         call goto_char(opoint)
     end function window_end_updated
 

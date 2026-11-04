@@ -25,17 +25,17 @@
 !> M-s), the list of files to be committed (`log_edit_show_files'), the
 !> diff (`log_edit_show_diff'), the message template and its headers
 !> (`log_edit_set_header', `log_edit_extract_headers'), and log messages
-!> taken from ChangeLog entries (`log_edit_insert_changelog').
+!> taken from ChangeLog entries (`log_edit_insert_changelog') or
+!> generated from the diff (\[generate_log_edit_changelog_from_diff]).
 !>
 !> The variables that upstream's `log-edit' takes as PARAMS (the
 !> function listing the files, the diff function, the VC backend) are
 !> arguments of `log_edit' here; the caller's own buffer-local values
 !> are set by its SET_PARAMS procedure.
 !>
-!> Deferred: `log_edit_generate_changelog_from_diff' (C-c C-w, needing
-!> `diff_add_log_current_subprograms'), `log_edit_add_to_changelog' and
-!> `log_edit_comment_to_change_log' (needing `add_change_log_entry'),
-!> the BUFFER argument of `log_edit' (PCL-CVS) and so
+!> Deferred: upstream's `log-edit-add-to-changelog' and
+!> `log-edit-comment-to-change-log' (their verb-first names wait for the
+!> owner), the BUFFER argument of `log_edit' (PCL-CVS) and so
 !> `log_edit_parent_buffer', `log_edit_maybe_show_diff' (needing
 !> `display_buffer_overriding_action'), `log_edit_diff_patch' (patches),
 !> the menu and the tool bar,
@@ -93,7 +93,7 @@ module log_edit_mod
     use keymap_mod, only: keymap_set
     use faces_mod, only: named_face_type, display_when, face_attrs
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             FONT_LOCK_OVERRIDE_YES
+                             FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     use pcvs_util_mod, only: cvs_insert_strings
     use add_log_mod, only: find_change_log, add_log_find_changelog_buffer, change_log_mode, change_log_default_name, &
@@ -103,6 +103,7 @@ module log_edit_mod
     use startup_mod, only: user_mail_address_value
     use page_mod, only: forward_page
     use string_type_mod, only: string_type, append_string
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -114,14 +115,14 @@ module log_edit_mod
               log_edit_comment_search_backward, log_edit_comment_search_forward, log_edit_set_common_indentation, &
               log_edit_font_lock_keywords, log_edit_vc_backend, log_edit_diff_fileset, &
               log_edit_done_strip_cvs_lines, log_edit_fill_entry, set_log_edit_callback, set_log_edit_vc_backend, &
+              generate_log_edit_changelog_from_diff, &
               init_log_edit
 
-    !> Values of `log_edit_confirm'.
-    integer, parameter, public :: LOG_EDIT_CONFIRM_NO = 0, LOG_EDIT_CONFIRM_YES = 1, LOG_EDIT_CONFIRM_CHANGED = 2
+    !> Values of `log_edit_confirm' besides .true. and .false.
+    integer, parameter, public :: LOG_EDIT_CONFIRM_CHANGED = 2
 
-    !> Values of `log_edit_require_final_newline'.
-    integer, parameter, public :: LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO = 0, LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT = 1, &
-                                  LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK = 2
+    !> Values of `log_edit_require_final_newline' besides .true. and .false.
+    integer, parameter, public :: LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK = 2
 
     !> Kinds of the entries of HEADERS for `log_edit_extract_headers': a
     !> command line option given the value (CMDARG), a function of the
@@ -173,18 +174,20 @@ module log_edit_mod
     !> If LOG_EDIT_CONFIRM_CHANGED, only request confirmation if the list
     !> of files has changed since the beginning of the `log_edit' session.
     !> Port of log-edit.el log-edit-confirm.
-    integer, public :: log_edit_confirm = LOG_EDIT_CONFIRM_CHANGED
+    type(choice_setting_type), public :: log_edit_confirm = &
+                                         choice_setting_type(name="log_edit_confirm", choice=LOG_EDIT_CONFIRM_CHANGED)
 
     !> If true, don't hide the buffer after `log_edit_done'.  Port of
     !> log-edit.el log-edit-keep-buffer.
     logical, public :: log_edit_keep_buffer = .false.
 
     !> Enforce a newline at the end of commit log messages.
-    !> Enforce it silently if LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT, query if
-    !> LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK and don't do anything if
-    !> LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO.  Port of log-edit.el
+    !> Enforce it silently if .true., query if
+    !> LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK and don't do anything if .false.
+    !> Port of log-edit.el
     !> log-edit-require-final-newline.
-    integer, public :: log_edit_require_final_newline = LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT
+    type(choice_setting_type), public :: log_edit_require_final_newline = &
+                                         choice_setting_type(name="log_edit_require_final_newline", value=.true.)
 
     !> True means `log_edit' should invert the meaning of its SETUP arg.
     !> If SETUP is forced, this variable has no effect.  Port of
@@ -348,6 +351,22 @@ module log_edit_mod
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine log_edit_mode_help
+
+        !> Insert a VC commit log message by looking at the current diffs.
+        !> This command is intended to be used in the "*vc-log*" buffer.
+        !> This command will generate ChangeLog entries listing the modified
+        !> files and functions changed in those files, based on the diffs
+        !> you are about to commit.  You can then add a description for each
+        !> change where needed, and use \[fill_paragraph] to join consecutive function
+        !> names into a single entry where they all share the same description.
+        !> Should you need to look at the diffs themselves, they can be found
+        !> in the "*vc-diff*" buffer produced by this command.  Port of
+        !> log-edit.el:log-edit-generate-changelog-from-diff.  (In
+        !> log_edit_vc_mod.)
+        recursive module subroutine generate_log_edit_changelog_from_diff(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine generate_log_edit_changelog_from_diff
     end interface
 
 contains
@@ -891,17 +910,17 @@ contains
         ! Rather than
         !   * foo.el (bla, bli,
         !   blo, blu): Toto.
-        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(3) = font_lock_keyword(regexp="^[ "//achar(9)//"]*\(?:\* .*\)?\(([^"//achar(10)//")]*,\s-*\)$", &
                                         highlights=h)
         ! Change Log entries should use present tense.
         keywords(4) = font_lock_keyword(regexp="):[ "//achar(9)//achar(10)//"]*[[:alpha:]]+\(ed\)\>", highlights=h)
         ! Change log entries start with a capital letter.
-        h(1) = font_lock_highlight(0, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(0, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(5) = font_lock_keyword(regexp="): [a-z]", highlights=h)
-        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(6) = font_lock_keyword(regexp="[^[:upper:]]\(\. [[:upper:]]\)", highlights=h)
-        h(1) = font_lock_highlight(0, face_function=gnu_punctuate_face, override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(0, face_function=gnu_punctuate_face, override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(7) = font_lock_keyword(regexp="^(", highlights=h)
     end subroutine log_edit_font_lock_keywords
 
@@ -1147,9 +1166,9 @@ contains
             call char_before(c, found, point_max())
 
             if (c /= 10) then
-                add = log_edit_require_final_newline == LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT
+                add = log_edit_require_final_newline%value
 
-                if (.not. add .and. log_edit_require_final_newline /= LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO) then
+                if (.not. add .and. .not. log_edit_require_final_newline%is_off()) then
                     call read_y_or_n("Buffer "//buffers(current)%name//" does not end in newline.  Add one? ", add, status)
                     if (.not. status%ok()) return
                 end if
@@ -1168,10 +1187,10 @@ contains
         win = get_buffer_window(get_buffer(LOG_EDIT_FILES_BUF))
         yes = .true.
 
-        if (log_edit_confirm /= LOG_EDIT_CONFIRM_NO) then
+        if (.not. log_edit_confirm%is_off()) then
             same = .false.
 
-            if (log_edit_confirm == LOG_EDIT_CONFIRM_CHANGED) then
+            if (log_edit_confirm%choice == LOG_EDIT_CONFIRM_CHANGED) then
                 call log_edit_files(files)
                 ! An unset `log_edit_initial_files' is nil, the empty list.
                 same = size(files) == 0
@@ -1341,7 +1360,7 @@ contains
 
         if (status%ok()) then
             table%inhibit_same_window = .true.
-            table%window_height => shrink_window
+            table%window_height%procedure => shrink_window
             ! (dedicated . t)
             saved_dedicated = display_buffer_mark_dedicated
             display_buffer_mark_dedicated = DEDICATED_STRONG
@@ -2841,10 +2860,12 @@ contains
         commands%log_edit_insert_filenames%execute => cmd_log_edit_insert_filenames
         commands%log_edit_insert_filenames_without_changelog%execute => cmd_log_edit_insert_filenames_without_changelog
         commands%log_edit_diff_fileset%execute => cmd_log_edit_diff_fileset
+        commands%generate_log_edit_changelog_from_diff%execute => generate_log_edit_changelog_from_diff
         call keymap_set(log_edit_mode_map, "C-c C-c", "log_edit_done", st)
         call keymap_set(log_edit_mode_map, "C-c C-a", "log_edit_insert_changelog", st)
         call keymap_set(log_edit_mode_map, "C-c C-d", "log_edit_show_diff", st)
         call keymap_set(log_edit_mode_map, "C-c C-f", "log_edit_show_files", st)
+        call keymap_set(log_edit_mode_map, "C-c C-w", "generate_log_edit_changelog_from_diff", st)
         call keymap_set(log_edit_mode_map, "C-c C-k", "log_edit_close_buffer", st)
         call keymap_set(log_edit_mode_map, "M-n", "log_edit_next_comment", st)
         call keymap_set(log_edit_mode_map, "M-p", "log_edit_previous_comment", st)

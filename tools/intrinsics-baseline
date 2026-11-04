@@ -38,3 +38,40 @@ src/textprop_mod.f90:run_position:verb
 src/textprop_mod.f90:run_prop:verb
 # The Unicode bidi class ON (Other Neutral), not a switch: kept.
 src/bidi_mod.f90:NEUTRAL_ON:constant
+# yes-no (R6-38, 2026-11-04): the _YES and _NO constants still in the code:
+# internal enumerations (arguments, return values, record fields, face
+# attribute states, a Unicode category).
+src/character_mod.f90:UNICODE_CATEGORY_NO:yes-no
+src/faces_mod.f90:FACE_NO:yes-no
+src/faces_mod.f90:FACE_YES:yes-no
+src/files_mod.f90:BUFFER_STALE_NO:yes-no
+src/files_mod.f90:BUFFER_STALE_YES:yes-no
+src/grep_mod.f90:DIRECTORIES_SKIP_NO:yes-no
+src/grep_mod.f90:DIRECTORIES_SKIP_YES:yes-no
+src/ibuf_macs_mod.f90:IBUFFER_MODIFIER_NO:yes-no
+src/ibuf_macs_mod.f90:IBUFFER_MODIFIER_YES:yes-no
+src/ibuffer_mod.f90:IBUFFER_SHRINK_NO:yes-no
+src/ibuffer_mod.f90:IBUFFER_SHRINK_YES:yes-no
+src/isearch_mod.f90:ADJUSTED_NO:yes-no
+src/isearch_mod.f90:CASE_FOLD_NO:yes-no
+src/isearch_mod.f90:CASE_FOLD_YES:yes-no
+src/keyboard_mod.f90:DEFINING_KBD_MACRO_NO:yes-no
+src/keyboard_mod.f90:DEFINING_KBD_MACRO_YES:yes-no
+src/kmacro_mod.f90:KMACRO_REPEAT_NO:yes-no
+src/kmacro_mod.f90:KMACRO_REPEAT_YES:yes-no
+src/minibuffer_mod.f90:REQUIRE_MATCH_NO:yes-no
+src/minibuffer_mod.f90:REQUIRE_MATCH_YES:yes-no
+src/replace_mod.f90:AGAIN_NO:yes-no
+src/sendmail_mod.f90:MAIL_NOERASE_NO:yes-no
+src/sendmail_mod.f90:MAIL_NOERASE_YES:yes-no
+src/sgml_mode_mod.f90:SGML_END_TAG_NO:yes-no
+src/smie_mod.f90:SMIE_RULE_YES:yes-no
+src/syntax_mod.f90:COMMENTSTOP_NO:yes-no
+src/timefns_mod.f90:DECODED_TIME_DST_NO:yes-no
+src/timefns_mod.f90:DECODED_TIME_DST_YES:yes-no
+src/vc_dispatcher_mod.f90:VC_NOQUERY_NO:yes-no
+src/vc_dispatcher_mod.f90:VC_NOQUERY_YES:yes-no
+src/window_display_mod.f90:DELETABLE_NO:yes-no
+src/window_display_mod.f90:DELETABLE_YES:yes-no
+src/window_mod.f90:MINIBUF_NO:yes-no
+src/window_mod.f90:MINIBUF_YES:yes-no

@@ -68,8 +68,10 @@ module bindings_mod
     use vc_mod, only: init_vc
     use vc_svn_mod, only: init_vc_svn
     use vc_git_mod, only: init_vc_git
+    use vc_hg_mod, only: init_vc_hg
     use log_view_mod, only: init_log_view
     use vc_dir_mod, only: init_vc_dir
+    use vc_annotate_mod, only: init_vc_annotate
     use autorevert_mod, only: init_autorevert
     use repeat_mod, only: init_repeat
     use help_mod, only: init_help, register_keymap_name, help_map
@@ -100,10 +102,13 @@ module bindings_mod
     use jit_lock_mod, only: init_jit_lock
     use dired_mode_mod, only: init_dired_mode, dired_mode_map
     use view_mod, only: init_view
+    use follow_mod, only: init_follow
     use process_mod, only: init_process, begin_asynch_code, end_asynch_code
     use compile_mod, only: init_compile, compilation_mode_map
     use grep_mod, only: init_grep
     use diff_mode_mod, only: init_diff_mode
+    use smerge_mode_mod, only: init_smerge_mode
+    use add_log_mod, only: init_add_log
     use diff_mod, only: init_diff
     use comint_mod, only: init_comint, comint_mode_map
     use pcomplete_mod, only: init_pcomplete
@@ -112,6 +117,8 @@ module bindings_mod
     use shell_mod, only: init_shell, shell_mode_map
     use rect_mod, only: init_rect
     use savehist_mod, only: init_savehist
+    use winner_mod, only: init_winner
+    use windmove_mod, only: init_windmove
     use saveplace_mod, only: init_saveplace
     use recentf_mod, only: init_recentf
     use tabulated_list_mod, only: init_tabulated_list
@@ -131,6 +138,10 @@ module bindings_mod
     use electric_mod, only: init_electric
     use elec_pair_mod, only: init_elec_pair
     use newcomment_mod, only: init_newcomment
+    use mail_utils_mod, only: init_mail_utils
+    use sendmail_mod, only: init_sendmail, mail_mode_map
+    use mailabbrev_mod, only: init_mailabbrev
+    use simple_mod, only: init_simple_mail
     use modes_mod, only: minor_modes
     implicit none(type, external)
     private
@@ -369,6 +380,8 @@ contains
         call init_diff()
         call init_rect()
         call init_savehist()
+        call init_winner()
+        call init_windmove()
         call init_saveplace()
         call init_recentf()
         call init_tabulated_list()
@@ -746,9 +759,23 @@ contains
         call init_autorevert()
         call init_repeat()
         call init_vc_svn()
+        call init_smerge_mode()
         call init_vc_git()
+        call init_vc_hg()
+        call init_vc_annotate()
         call init_view()
+        call init_follow()
         call init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map)
+        ! Mail: mail-utils.el, sendmail.el, mailabbrev.el and simple.el's
+        ! compose-mail, with their keys from bindings.el.
+        call init_mail_utils()
+        call init_sendmail()
+        call init_mailabbrev()
+        call init_simple_mail()
+        call bind(ctl_x_map, "m", "compose_mail")
+        call bind(ctl_x_4_map, "m", "compose_mail_other_window")
+        ! add-log.el: (define-key ctl-x-4-map "a" 'add-change-log-entry-other-window)
+        call init_add_log(ctl_x_4_map)
         call init_isearch(global_map)
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
         ! then its keys from bindings.el.
@@ -795,6 +822,7 @@ contains
         call register_keymap_name("compilation_mode_map", compilation_mode_map)
         call register_keymap_name("comint_mode_map", comint_mode_map)
         call register_keymap_name("shell_mode_map", shell_mode_map)
+        call register_keymap_name("mail_mode_map", mail_mode_map)
         call register_keymap_name("goto_map", goto_map)
         call register_keymap_name("narrow_map", narrow_map)
         call register_keymap_name("search_map", search_map)

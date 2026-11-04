@@ -107,6 +107,7 @@ program tester
     use test_dired_mode_mod, only: collect_dired_mode_mod
     use test_dired_aux_mod, only: collect_dired_aux_mod
     use test_diff_mode_mod, only: collect_diff_mode_mod
+    use test_smerge_mode_mod, only: collect_smerge_mode_mod
     use test_view_mod, only: collect_view_mod
     use test_files_copy_mod, only: collect_files_copy_mod
     use test_casetab_mod, only: collect_casetab_mod
@@ -116,6 +117,7 @@ program tester
     use test_search_mod, only: collect_search_mod
     use test_isearch_mod, only: collect_isearch_mod
     use test_window_mod, only: collect_window_mod
+    use test_window_sides_mod, only: collect_window_sides_mod
     use test_frame_mod, only: collect_frame_mod
     use test_undo_mod, only: collect_undo_mod
     use test_simple_mod, only: collect_simple_mod
@@ -137,21 +139,30 @@ program tester
     use test_elec_pair_mod, only: collect_elec_pair_mod
     use test_simple_electric_mod, only: collect_simple_electric_mod
     use test_vc_mod, only: collect_vc_mod
+    use test_vc_hg_mod, only: collect_vc_hg_mod
+    use test_vc_annotate_mod, only: collect_vc_annotate_mod
     use test_vc_svn_mod, only: collect_vc_svn_mod
     use test_log_edit_mod, only: collect_log_edit_mod
+    use test_add_log_mod, only: collect_add_log_mod
     use test_ewoc_mod, only: collect_ewoc_mod
     use test_inotify_mod, only: collect_inotify_mod
     use test_filenotify_mod, only: collect_filenotify_mod
     use test_autorevert_mod, only: collect_autorevert_mod
     use test_repeat_mod, only: collect_repeat_mod
+    use test_follow_mod, only: collect_follow_mod
     use test_namelist_mod, only: collect_namelist_mod
     use test_savehist_mod, only: collect_savehist_mod
+    use test_winner_mod, only: collect_winner_mod
+    use test_windmove_mod, only: collect_windmove_mod
     use test_saveplace_mod, only: collect_saveplace_mod
     use test_recentf_mod, only: collect_recentf_mod
     use test_bookmark_mod, only: collect_bookmark_mod
     use test_info_mod, only: collect_info_mod
     use test_info_look_mod, only: collect_info_look_mod
     use test_pcomplete_mod, only: collect_pcomplete_mod
+    use test_mail_utils_mod, only: collect_mail_utils_mod
+    use test_mailabbrev_mod, only: collect_mailabbrev_mod
+    use test_sendmail_mod, only: collect_sendmail_mod
     use test_ansi_color_mod, only: collect_ansi_color_mod
     use test_buff_menu_mod, only: collect_buff_menu_mod
     use test_calendar_mod, only: collect_calendar_mod
@@ -225,6 +236,7 @@ program tester
                  new_testsuite("dired_mode_mod", collect_dired_mode_mod), &
                  new_testsuite("dired_aux_mod", collect_dired_aux_mod), &
                  new_testsuite("diff_mode_mod", collect_diff_mode_mod), &
+                 new_testsuite("smerge_mode_mod", collect_smerge_mode_mod), &
                  new_testsuite("view_mod", collect_view_mod), &
                  new_testsuite("files_copy_mod", collect_files_copy_mod), &
                  new_testsuite("casetab_mod", collect_casetab_mod), &
@@ -234,6 +246,7 @@ program tester
                  new_testsuite("search_mod", collect_search_mod), &
                  new_testsuite("isearch_mod", collect_isearch_mod), &
                  new_testsuite("window_mod", collect_window_mod), &
+                 new_testsuite("window_sides_mod", collect_window_sides_mod), &
                  new_testsuite("frame_mod", collect_frame_mod), &
                  new_testsuite("undo_mod", collect_undo_mod), &
                  new_testsuite("simple_mod", collect_simple_mod), &
@@ -286,15 +299,21 @@ program tester
                  new_testsuite("elec_pair_mod", collect_elec_pair_mod), &
                  new_testsuite("simple_electric_mod", collect_simple_electric_mod), &
                  new_testsuite("vc_mod", collect_vc_mod), &
+                 new_testsuite("vc_hg_mod", collect_vc_hg_mod), &
+                 new_testsuite("vc_annotate_mod", collect_vc_annotate_mod), &
                  new_testsuite("vc_svn_mod", collect_vc_svn_mod), &
                  new_testsuite("log_edit_mod", collect_log_edit_mod), &
+                 new_testsuite("add_log_mod", collect_add_log_mod), &
                  new_testsuite("ewoc_mod", collect_ewoc_mod), &
                  new_testsuite("inotify_mod", collect_inotify_mod), &
                  new_testsuite("filenotify_mod", collect_filenotify_mod), &
                  new_testsuite("autorevert_mod", collect_autorevert_mod), &
                  new_testsuite("repeat_mod", collect_repeat_mod), &
+                 new_testsuite("follow_mod", collect_follow_mod), &
                  new_testsuite("namelist_mod", collect_namelist_mod), &
                  new_testsuite("savehist_mod", collect_savehist_mod), &
+                 new_testsuite("winner_mod", collect_winner_mod), &
+                 new_testsuite("windmove_mod", collect_windmove_mod), &
                  new_testsuite("saveplace_mod", collect_saveplace_mod), &
                  new_testsuite("recentf_mod", collect_recentf_mod), &
                  new_testsuite("bookmark_mod", collect_bookmark_mod), &
@@ -308,7 +327,10 @@ program tester
                  new_testsuite("info_mod", collect_info_mod), &
                  new_testsuite("info_look_mod", collect_info_look_mod), &
                  new_testsuite("ansi_color_mod", collect_ansi_color_mod), &
-                 new_testsuite("pcomplete_mod", collect_pcomplete_mod) &
+                 new_testsuite("pcomplete_mod", collect_pcomplete_mod), &
+                 new_testsuite("mail_utils_mod", collect_mail_utils_mod), &
+                 new_testsuite("mailabbrev_mod", collect_mailabbrev_mod), &
+                 new_testsuite("sendmail_mod", collect_sendmail_mod) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)
