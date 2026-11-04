@@ -27,7 +27,7 @@
 !> completion, committing, logs (`vc_svn_log_view_mode') and the VC-Dir
 !> states (`svn status -u') and headers.
 !>
-!> Deferred: see the vc_svn_mod row of PORTING.md.
+!> Deferred: see docs/status/vc_svn_mod.md.
 module vc_svn_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR

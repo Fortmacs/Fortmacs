@@ -29,7 +29,7 @@
 !> and `vc_annotate_very_old_color' get their defaults, which depend on
 !> the frame, when `vc_annotate' is first used (when upstream loads
 !> vc-annotate.el), unless the configuration set them.  What is not
-!> ported yet is listed in PORTING.md's vc_annotate_mod row.
+!> ported yet is listed in docs/status/vc_annotate_mod.md.
 module vc_annotate_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR

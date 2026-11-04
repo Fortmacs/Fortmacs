@@ -2406,7 +2406,7 @@ keep	new_size_pending
 name	garbaged	needs_redraw
 # dired.el's docstring of dired-revert: a buffer's text, not a frame.
 keep	"garbaged buffers"
-# xdisp.c's function, named in PORTING.md's xdisp_mod row.
+# xdisp.c's function, named in docs/status/xdisp_mod.md.
 keep	clear_garbaged_frames
 # Step 42e (owner's decision): options are named positively, the value
 # inverted (as shell_command_keep_output).

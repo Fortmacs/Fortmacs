@@ -33,7 +33,7 @@
 !> The part that looks at a Diff buffer is in the submodule
 !> add_log_diff_mod.
 !>
-!> Deferred: see PORTING.md's status table (the add_log_mod row).
+!> Deferred: see docs/status/add_log_mod.md.
 module add_log_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type
@@ -1409,8 +1409,8 @@ contains
     !>
     !> \{change_log_mode_map}
     !>
-    !> Port of add-log.el:change-log-mode (the settings PORTING.md's
-    !> add_log_mod row lists are deferred).
+    !> Port of add-log.el:change-log-mode (the settings docs/status/add_log_mod.md
+    !> lists are deferred).
     recursive subroutine change_log_mode(status)
         type(status_type), intent(out) :: status
         type(font_lock_keyword_type), allocatable :: keywords(:)

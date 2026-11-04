@@ -28,8 +28,7 @@
 !> matches in them; `find_tag', `list_tags', `apropos_tags' and
 !> `complete_tag' are the older commands.
 !>
-!> What is not ported yet is listed in the etags_mod row of PORTING.md's
-!> status table.
+!> What is not ported yet is listed in docs/status/etags_mod.md.
 module etags_mod
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_mod, only: status_type, set_error, FM_USER_ERROR, FM_GENERIC_ERROR, FM_FILE_MISSING

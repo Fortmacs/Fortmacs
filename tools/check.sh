@@ -179,11 +179,14 @@ if $style; then
 
     # American spelling (CLAUDE.md): tools/spelling.awk.  The session logs
     # (docs/log) are dated records and are not checked.
-    if ! awk -f tools/spelling.awk tools/american-spelling README.md CLAUDE.md PORTING.md \
+    if ! awk -f tools/spelling.awk tools/american-spelling README.md CLAUDE.md PORTING.md docs/status/*.md \
         $(find $DIRS -name '*.f90' ! -name docstrings_mod.f90 | sort) tools/*.sh tools/*.awk; then
         echo "British spellings: use the American ones (or keep the text in tools/american-spelling)" >&2
         exit 1
     fi
+
+    # The status files of the modules (PORTING.md, "Status"): their format.
+    tools/status.sh --check
 
     # Lisp candidates (PORTING.md, "Fortran-first decision guide"): Lisp
     # vocabulary in the lines this branch adds.  It only warns.
