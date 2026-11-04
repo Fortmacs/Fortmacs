@@ -23,8 +23,8 @@
 #
 # Applies the table to each PATH (a file, or every file under a
 # directory), relative to the current directory; with no PATH, to the
-# repository's src, test, app and tools, docs/init.f90, fpm.toml,
-# PORTING.md and README.md.  A file of an old name is renamed (with
+# repository's src, test, app and tools, docs/init.f90, docs/status,
+# fpm.toml, PORTING.md and README.md.  A file of an old name is renamed (with
 # `git mv' when git tracks it), then its contents are.  Citations and
 # other upstream names are kept (see the table's header).  Running it
 # again changes nothing.  Afterwards run the generators (tools/gen-*.sh)
@@ -65,7 +65,7 @@ fi
 
 if [ $# -eq 0 ]; then
     cd "$here/.."
-    set -- src test app tools docs/init.f90 fpm.toml PORTING.md README.md
+    set -- src test app tools docs/init.f90 docs/status fpm.toml PORTING.md README.md
 fi
 
 # The files under the PATHs, one per line, without the table's own.

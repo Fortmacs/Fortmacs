@@ -24,7 +24,7 @@
 !> windows of the selected window's chain are aligned, each starting
 !> where the one before it ends, and a window showing point is selected.
 !> A window chain is ordered by the windows' top edges, then their left
-!> edges.  What is not ported yet is in PORTING.md's follow_mod row.
+!> edges.  What is not ported yet is in docs/status/follow_mod.md.
 module follow_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER

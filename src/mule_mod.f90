@@ -3768,7 +3768,7 @@ contains
         buffers(current)%mode_line_buffer_identification = id
         call tab_width%set_local(4_int64)
         ! The `charset' text property upstream puts on the buffer is Deferred
-        ! with the other `charset' properties (PORTING.md, coding_mod row).
+        ! with the other `charset' properties (docs/status/coding_mod.md).
     end subroutine list_charset_chars_body
 
     recursive subroutine cmd_list_charset_chars(status)

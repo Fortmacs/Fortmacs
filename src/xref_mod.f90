@@ -32,8 +32,7 @@
 !> with grep for other modules (project.el's commands), and `show_xrefs'
 !> shows what an `xref_fetcher_type' fetches.
 !>
-!> What is not ported yet is listed in the xref_mod row of PORTING.md's
-!> status table.
+!> What is not ported yet is listed in docs/status/xref_mod.md.
 module xref_mod
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_mod, only: status_type, set_error, format_error, FM_USER_ERROR, FM_GENERIC_ERROR
