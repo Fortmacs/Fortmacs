@@ -773,7 +773,7 @@ END {
     print "    character(len=*), parameter :: LF = achar(10)"
     print ""
     print "    interface repr"
-    print "        module procedure repr_logical, repr_integer, repr_int64, repr_int64s, repr_integers, repr_real, repr_string, repr_strings"
+    print "        module procedure repr_logical, repr_int64s, repr_integers, repr_real, repr_string, repr_strings"
     print "    end interface repr"
     print ""
     print "contains"
@@ -809,6 +809,7 @@ END {
     print "        character(len=*), intent(in) :: name"
     print "        type(doc_entry_type), intent(out) :: entry"
     print "        logical, intent(out) :: found"
+    print "        character(len=21) :: digits"
     print ""
     print "        found = .true."
     print "        entry%original = \"\""
@@ -837,7 +838,12 @@ END {
                 print "                entry%value = " q(d)
             }
             print "            case default"
-            print "                entry%value = repr(" ex ")"
+            if (vtype[i] ~ /^integer/ || vtype[i] ~ /integer_setting_type\)/) {
+                # An integer outside its named constants: its decimal text
+                # (an internal write, PORTING.md "Numbers to text").
+                print "                write (digits, \"(i0)\") " ex
+                print "                entry%value = trim(digits)"
+            } else print "                entry%value = repr(" ex ")"
             print "            end select"
         } else {
             # Values as Fortran: a string or array that is not allocated
@@ -846,7 +852,10 @@ END {
             # prefix argument its structure constructor.  Other derived types
             # (hooks, keymaps, syntax tables) have no printed representation
             # yet: help leaves the value out.
-            if (vtype[i] ~ /(integer|logical)_setting_type\)/) print "            entry%value = repr(" vfort[i] "%value)"
+            if (vtype[i] ~ /integer_setting_type\)/) {
+                print "            write (digits, \"(i0)\") " vfort[i] "%value"
+                print "            entry%value = trim(digits)"
+            } else if (vtype[i] ~ /logical_setting_type\)/) print "            entry%value = repr(" vfort[i] "%value)"
             else if (vtype[i] ~ /string_setting_type\)/) {
                 print "            if (allocated(" vfort[i] "%value)) then"
                 print "                entry%value = repr(" vfort[i] "%value)"
@@ -901,6 +910,9 @@ END {
                 print "            else"
                 print "                entry%value = \"unallocated\""
                 print "            end if"
+            } else if (vtype[i] ~ /^integer/ && !varr[i]) {
+                print "            write (digits, \"(i0)\") " vfort[i]
+                print "            entry%value = trim(digits)"
             } else if (vtype[i] !~ /^type/) print "            entry%value = repr(" vfort[i] ")"
         }
         print "            entry%doc = " docexpr(vdoc[i], "                        ")
@@ -1080,15 +1092,6 @@ END {
     print "        s = trim(s)"
     print "    end function repr_logical"
     print ""
-    print "    function repr_integer(v) result(s)"
-    print "        integer, intent(in) :: v"
-    print "        character(len=:), allocatable :: s"
-    print "        character(len=12) :: digits"
-    print ""
-    print "        write (digits, \"(i0)\") v"
-    print "        s = trim(digits)"
-    print "    end function repr_integer"
-    print ""
     print "    ! A real with at least one digit"
     print "    ! after the point, no trailing zeros."
     print "    function repr_real(v) result(s)"
@@ -1108,26 +1111,19 @@ END {
     print "        end if"
     print "    end function repr_real"
     print ""
-    print "    function repr_int64(v) result(s)"
-    print "        integer(int64), intent(in) :: v"
-    print "        character(len=:), allocatable :: s"
-    print "        character(len=21) :: digits"
-    print ""
-    print "        write (digits, \"(i0)\") v"
-    print "        s = trim(digits)"
-    print "    end function repr_int64"
-    print ""
     print "    !> An array of integers as a Fortran array constructor."
     print "    function repr_int64s(v) result(s)"
     print "        integer(int64), intent(in) :: v(:)"
     print "        character(len=:), allocatable :: s"
+    print "        character(len=21) :: digits"
     print "        integer :: i"
     print ""
     print "        s = \"[\""
     print ""
     print "        do i = 1, size(v)"
     print "            if (i > 1) s = s//\", \""
-    print "            s = s//repr_int64(v(i))"
+    print "            write (digits, \"(i0)\") v(i)"
+    print "            s = s//trim(digits)"
     print "        end do"
     print ""
     print "        s = s//\"]\""
@@ -1137,13 +1133,15 @@ END {
     print "    function repr_integers(v) result(s)"
     print "        integer, intent(in) :: v(:)"
     print "        character(len=:), allocatable :: s"
+    print "        character(len=12) :: digits"
     print "        integer :: i"
     print ""
     print "        s = \"[\""
     print ""
     print "        do i = 1, size(v)"
     print "            if (i > 1) s = s//\", \""
-    print "            s = s//repr_integer(v(i))"
+    print "            write (digits, \"(i0)\") v(i)"
+    print "            s = s//trim(digits)"
     print "        end do"
     print ""
     print "        s = s//\"]\""

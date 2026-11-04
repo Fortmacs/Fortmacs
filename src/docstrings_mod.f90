@@ -2310,7 +2310,7 @@ module docstrings_mod
     character(len=*), parameter :: LF = achar(10)
 
     interface repr
-        module procedure repr_logical, repr_integer, repr_int64, repr_int64s, repr_integers, repr_real, repr_string, repr_strings
+        module procedure repr_logical, repr_int64s, repr_integers, repr_real, repr_string, repr_strings
     end interface repr
 
 contains
@@ -17971,6 +17971,7 @@ contains
         character(len=*), intent(in) :: name
         type(doc_entry_type), intent(out) :: entry
         logical, intent(out) :: found
+        character(len=21) :: digits
 
         found = .true.
         entry%original = ""
@@ -18195,7 +18196,8 @@ contains
             entry%file = "undo_mod.f90"
             entry%fortran = "amalgamating_undo_limit"
             entry%original = "20"
-            entry%value = repr(amalgamating_undo_limit)
+            write (digits, "(i0)") amalgamating_undo_limit
+            entry%value = trim(digits)
             entry%doc = "The maximum number of changes to possibly amalgamate when undoing"//LF// &
                         "changes.  The `undo' command will normally consider ""similar"""//LF// &
                         "changes (like inserting characters) to be part of the same change."
@@ -18260,7 +18262,8 @@ contains
             case (ANSI_COLOR_YES)
                 entry%value = "ANSI_COLOR_YES"
             case default
-                entry%value = repr(ansi_color_for_comint_mode%value)
+                write (digits, "(i0)") ansi_color_for_comint_mode%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Determines what to do with comint output."//LF// &
@@ -18291,7 +18294,8 @@ contains
             case (ANSI_COLOR_YES)
                 entry%value = "ANSI_COLOR_YES"
             case default
-                entry%value = repr(ansi_color_for_compilation_mode%value)
+                write (digits, "(i0)") ansi_color_for_compilation_mode%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Determines what to do with compilation output."//LF// &
@@ -18383,7 +18387,8 @@ contains
             case (ASYNC_SHELL_COMMAND_BUFFER_RENAME_BUFFER)
                 entry%value = "ASYNC_SHELL_COMMAND_BUFFER_RENAME_BUFFER"
             case default
-                entry%value = repr(async_shell_command_buffer%value)
+                write (digits, "(i0)") async_shell_command_buffer%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "What to do when the output buffer is used by another shell command."//LF// &
@@ -18426,7 +18431,8 @@ contains
             entry%fortran = "async_shell_command_width"
             entry%user_option = .true.
             entry%original = "-1"
-            entry%value = repr(async_shell_command_width%value)
+            write (digits, "(i0)") async_shell_command_width%value
+            entry%value = trim(digits)
             entry%doc = "Number of display columns available for asynchronous shell command"//LF// &
                         "output.  If negative, use the shell default number (usually 80"//LF// &
                         "columns).  If a natural number, tell the shell to use that number"//LF// &
@@ -18675,7 +18681,8 @@ contains
             case (BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL)
                 entry%value = "BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL"
             case default
-                entry%value = repr(backward_delete_char_untabify_method)
+                write (digits, "(i0)") backward_delete_char_untabify_method
+                entry%value = trim(digits)
             end select
 
             entry%doc = "The method for untabifying when deleting backward."//LF// &
@@ -18774,7 +18781,8 @@ contains
             case (BLINK_MATCHING_PAREN_JUMP_OFFSCREEN)
                 entry%value = "BLINK_MATCHING_PAREN_JUMP_OFFSCREEN"
             case default
-                entry%value = repr(blink_matching_paren)
+                write (digits, "(i0)") blink_matching_paren
+                entry%value = trim(digits)
             end select
 
             entry%doc = "True means show matching open-paren when close-paren is inserted."//LF// &
@@ -18804,7 +18812,8 @@ contains
             entry%fortran = "blink_matching_paren_distance"
             entry%user_option = .true.
             entry%original = "100*1024"
-            entry%value = repr(blink_matching_paren_distance)
+            write (digits, "(i0)") blink_matching_paren_distance
+            entry%value = trim(digits)
             entry%doc = "If not negative, maximum distance to search backwards for matching"//LF// &
                         "open-paren.  If negative, search stops at the beginning of the"//LF// &
                         "accessible portion of the buffer."
@@ -18880,7 +18889,8 @@ contains
             entry%fortran = "bookmark_bmenu_file_column"
             entry%user_option = .true.
             entry%original = "30"
-            entry%value = repr(bookmark_bmenu_file_column)
+            write (digits, "(i0)") bookmark_bmenu_file_column
+            entry%value = trim(digits)
             entry%doc = "Column at which to display filenames in a buffer listing bookmarks."//LF// &
                         "You can toggle whether files are shown with"//LF// &
                         "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_toggle_filenames]."
@@ -18905,7 +18915,8 @@ contains
             entry%fortran = "bookmark_bmenu_type_column_width"
             entry%user_option = .true.
             entry%original = "8"
-            entry%value = repr(bookmark_bmenu_type_column_width)
+            write (digits, "(i0)") bookmark_bmenu_type_column_width
+            entry%value = trim(digits)
             entry%doc = "Column width for bookmark type in a buffer listing bookmarks."
         case ("bookmark_bookmarks_timestamp")
             entry%file = "bookmark_mod.f90"
@@ -19058,7 +19069,8 @@ contains
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmark_paste_point"
             entry%original = "0"
-            entry%value = repr(bookmark_paste_point)
+            write (digits, "(i0)") bookmark_paste_point
+            entry%value = trim(digits)
             entry%doc = "The next point from which to pull source text for"//LF// &
                         "`bookmark_paste_word' (0 for none).  This point is in"//LF// &
                         "`bookmark_current_buffer'."
@@ -19074,7 +19086,8 @@ contains
             case (BOOKMARK_SAVE_FLAG_ON_EXIT)
                 entry%value = "BOOKMARK_SAVE_FLAG_ON_EXIT"
             case default
-                entry%value = repr(bookmark_save_flag)
+                write (digits, "(i0)") bookmark_save_flag
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Controls when Fortmacs saves bookmarks to a file."//LF// &
@@ -19105,7 +19118,8 @@ contains
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmark_search_size"
             entry%original = "16"
-            entry%value = repr(bookmark_search_size)
+            write (digits, "(i0)") bookmark_search_size
+            entry%value = trim(digits)
             entry%doc = "Length of the context strings recorded on either side of a"//LF// &
                         "bookmark."
         case ("bookmark_sort_flag")
@@ -19122,7 +19136,8 @@ contains
             case (BOOKMARK_SORT_FLAG_LAST_MODIFIED)
                 entry%value = "BOOKMARK_SORT_FLAG_LAST_MODIFIED"
             case default
-                entry%value = repr(bookmark_sort_flag)
+                write (digits, "(i0)") bookmark_sort_flag
+                entry%value = trim(digits)
             end select
 
             entry%doc = "This controls the bookmark display sorting."//LF// &
@@ -19159,7 +19174,8 @@ contains
             case (BOOKMARK_VERSION_CONTROL_NOSPECIAL)
                 entry%value = "BOOKMARK_VERSION_CONTROL_NOSPECIAL"
             case default
-                entry%value = repr(bookmark_version_control)
+                write (digits, "(i0)") bookmark_version_control
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether or not to make numbered backups of the bookmark file."//LF// &
@@ -19181,7 +19197,8 @@ contains
             case (BOOKMARK_WATCH_BOOKMARK_FILE_SILENT)
                 entry%value = "BOOKMARK_WATCH_BOOKMARK_FILE_SILENT"
             case default
-                entry%value = repr(bookmark_watch_bookmark_file)
+                write (digits, "(i0)") bookmark_watch_bookmark_file
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If BOOKMARK_WATCH_BOOKMARK_FILE_ASK, reload the default bookmark file"//LF// &
@@ -19205,7 +19222,8 @@ contains
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmarks_modification_count"
             entry%original = "0"
-            entry%value = repr(bookmarks_modification_count)
+            write (digits, "(i0)") bookmarks_modification_count
+            entry%value = trim(digits)
             entry%doc = "Number of modifications to bookmark list since it was last saved."
         case ("buffer_auto_revert_by_notification")
             entry%file = "files_mod.f90"
@@ -19294,14 +19312,16 @@ contains
             entry%fortran = "buffer_menu_mode_width"
             entry%user_option = .true.
             entry%original = "16"
-            entry%value = repr(buffer_menu_mode_width)
+            write (digits, "(i0)") buffer_menu_mode_width
+            entry%value = trim(digits)
             entry%doc = "Width of mode name column in the Buffer Menu."
         case ("buffer_menu_name_width")
             entry%file = "buff_menu_mod.f90"
             entry%fortran = "buffer_menu_name_width"
             entry%user_option = .true.
             entry%original = "19"
-            entry%value = repr(buffer_menu_name_width)
+            write (digits, "(i0)") buffer_menu_name_width
+            entry%value = trim(digits)
             entry%doc = "Width of buffer name column in the Buffer Menu, used while"//LF// &
                         "`buffer_menu_name_width_function' is null."
         case ("buffer_menu_name_width_function")
@@ -19326,7 +19346,8 @@ contains
             entry%fortran = "buffer_menu_size_width"
             entry%user_option = .true.
             entry%original = "7"
-            entry%value = repr(buffer_menu_size_width)
+            write (digits, "(i0)") buffer_menu_size_width
+            entry%value = trim(digits)
             entry%doc = "Width of buffer size column in the Buffer Menu."
         case ("buffer_menu_use_frame_buffer_list")
             entry%file = "buff_menu_mod.f90"
@@ -19371,7 +19392,8 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_abbrev_length"
             entry%original = "3"
-            entry%value = repr(calendar_abbrev_length)
+            write (digits, "(i0)") calendar_abbrev_length
+            entry%value = trim(digits)
             entry%doc = "Default length of abbreviations to use for day and month names."//LF// &
                         "If you change this without using customize after the calendar has loaded,"//LF// &
                         "then you may also want to change `calendar_day_abbrevs' and"//LF// &
@@ -19386,7 +19408,8 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_column_width"
             entry%original = "3"
-            entry%value = repr(calendar_column_width)
+            write (digits, "(i0)") calendar_column_width
+            entry%value = trim(digits)
             entry%doc = "Width of each day column in the calendar.  Minimum value is 3."
         case ("calendar_date_echo_text")
             entry%file = "calendar_mod.f90"
@@ -19415,7 +19438,8 @@ contains
             case (CALENDAR_DATE_STYLE_ISO)
                 entry%value = "CALENDAR_DATE_STYLE_ISO"
             case default
-                entry%value = repr(calendar_date_style)
+                write (digits, "(i0)") calendar_date_style
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Your preferred style for writing dates."//LF// &
@@ -19441,7 +19465,8 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_day_digit_width"
             entry%original = "2"
-            entry%value = repr(calendar_day_digit_width)
+            write (digits, "(i0)") calendar_day_digit_width
+            entry%value = trim(digits)
             entry%doc = "Width of the day digits in the calendar.  Minimum value is 2."
         case ("calendar_day_header_array")
             entry%file = "calendar_mod.f90"
@@ -19459,7 +19484,8 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_day_header_width"
             entry%original = "2"
-            entry%value = repr(calendar_day_header_width)
+            write (digits, "(i0)") calendar_day_header_width
+            entry%value = trim(digits)
             entry%doc = "Width of the day column headers in the calendar."//LF// &
                         "Must be at least one less than `calendar_column_width'."
         case ("calendar_day_name_array")
@@ -19492,7 +19518,8 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_intermonth_spacing"
             entry%original = "4"
-            entry%value = repr(calendar_intermonth_spacing)
+            write (digits, "(i0)") calendar_intermonth_spacing
+            entry%value = trim(digits)
             entry%doc = "Space between months in the calendar.  Minimum value is 1."
         case ("calendar_intermonth_text")
             entry%file = "calendar_mod.f90"
@@ -19514,13 +19541,15 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_left_margin"
             entry%original = "5"
-            entry%value = repr(calendar_left_margin)
+            write (digits, "(i0)") calendar_left_margin
+            entry%value = trim(digits)
             entry%doc = "Empty space to the left of the first month in the calendar."
         case ("calendar_minimum_window_height")
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_minimum_window_height"
             entry%original = "8"
-            entry%value = repr(calendar_minimum_window_height)
+            write (digits, "(i0)") calendar_minimum_window_height
+            entry%value = trim(digits)
             entry%doc = "Minimum height `calendar_generate_window' should use for calendar window."
         case ("calendar_mode_hook")
             entry%file = "calendar_mod.f90"
@@ -19546,7 +19575,8 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_month_digit_width"
             entry%original = "0"
-            entry%value = repr(calendar_month_digit_width)
+            write (digits, "(i0)") calendar_month_digit_width
+            entry%value = trim(digits)
             entry%doc = "Width of the region with numbers in each month in the calendar."
         case ("calendar_month_header")
             entry%file = "calendar_mod.f90"
@@ -19563,7 +19593,8 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_month_width"
             entry%original = "0"
-            entry%value = repr(calendar_month_width)
+            write (digits, "(i0)") calendar_month_width
+            entry%value = trim(digits)
             entry%doc = "Full width of each month in the calendar."
         case ("calendar_move_hook")
             entry%file = "calendar_mod.f90"
@@ -19578,7 +19609,8 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_offset"
             entry%original = "0"
-            entry%value = repr(calendar_offset)
+            write (digits, "(i0)") calendar_offset
+            entry%value = trim(digits)
             entry%doc = "The offset of the principal month from the center of the calendar window."//LF// &
                         "0 means the principal month is in the center (default), -1 means on the left,"//LF// &
                         "+1 means on the right.  Larger (or smaller) values push the principal month off"//LF// &
@@ -19598,7 +19630,8 @@ contains
             case (CALENDAR_RECENTER_LAST_OP_LAST)
                 entry%value = "CALENDAR_RECENTER_LAST_OP_LAST"
             case default
-                entry%value = repr(calendar_recenter_last_op)
+                write (digits, "(i0)") calendar_recenter_last_op
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Last calendar recenter operation performed."
@@ -19611,7 +19644,8 @@ contains
             case (CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE)
                 entry%value = "CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE"
             case default
-                entry%value = repr(calendar_split_width_threshold)
+                write (digits, "(i0)") calendar_split_width_threshold
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Value to use for `split_width_threshold' when creating a calendar."//LF// &
@@ -19642,14 +19676,16 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_total_months"
             entry%original = "3"
-            entry%value = repr(calendar_total_months)
+            write (digits, "(i0)") calendar_total_months
+            entry%value = trim(digits)
             entry%doc = "Number of months displayed in the calendar."//LF// &
                         "It is made buffer-local automatically in calendar-mode buffers."
         case ("calendar_week_start_day")
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_week_start_day"
             entry%original = "0"
-            entry%value = repr(calendar_week_start_day)
+            write (digits, "(i0)") calendar_week_start_day
+            entry%value = trim(digits)
             entry%doc = "The day of the week on which a week in the calendar begins."//LF// &
                         "0 means Sunday (default), 1 means Monday, and so on."//LF// &
                         ""//LF// &
@@ -19777,13 +19813,15 @@ contains
             entry%fortran = "clipboard_history_max"
             entry%user_option = .true.
             entry%original = "120"
-            entry%value = repr(clipboard_history_max)
+            write (digits, "(i0)") clipboard_history_max
+            entry%value = trim(digits)
             entry%doc = "Maximum length of clipboard history before oldest elements are thrown away."
         case ("clipboard_history_paste_pointer")
             entry%file = "simple_mod.f90"
             entry%fortran = "clipboard_history_paste_pointer"
             entry%original = "1"
-            entry%value = repr(clipboard_history_paste_pointer)
+            write (digits, "(i0)") clipboard_history_paste_pointer
+            entry%value = trim(digits)
             entry%doc = "The place in the clipboard history of the last thing pasted, as an"//LF// &
                         "index into `clipboard_history' (1 for its first element)."
         case ("close_buffer_hook")
@@ -19855,7 +19893,8 @@ contains
             entry%fortran = "comint_buffer_maximum_size"
             entry%user_option = .true.
             entry%original = "1024"
-            entry%value = repr(comint_buffer_maximum_size%value)
+            write (digits, "(i0)") comint_buffer_maximum_size%value
+            entry%value = trim(digits)
             entry%doc = "The maximum size in lines for Comint buffers."//LF// &
                         "Comint buffers are truncated from the top to be no greater than this"//LF// &
                         "number, if the function `comint_truncate_buffer' is on"//LF// &
@@ -20015,7 +20054,8 @@ contains
             case (COMINT_HISTORY_ISEARCH_ALWAYS)
                 entry%value = "COMINT_HISTORY_ISEARCH_ALWAYS"
             case default
-                entry%value = repr(comint_history_isearch%value)
+                write (digits, "(i0)") comint_history_isearch%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If not COMINT_HISTORY_ISEARCH_NO, Isearch in input history only,"//LF// &
@@ -20050,7 +20090,8 @@ contains
             case (COMINT_AUTOEXPAND_HISTORY)
                 entry%value = "COMINT_AUTOEXPAND_HISTORY"
             case default
-                entry%value = repr(comint_input_autoexpand%value)
+                write (digits, "(i0)") comint_input_autoexpand%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If not COMINT_AUTOEXPAND_NO, expand input command history"//LF// &
@@ -20135,7 +20176,8 @@ contains
             entry%fortran = "comint_input_ring_size"
             entry%user_option = .true.
             entry%original = "500"
-            entry%value = repr(comint_input_ring_size%value)
+            write (digits, "(i0)") comint_input_ring_size%value
+            entry%value = trim(digits)
             entry%doc = "Size of the input history ring in `comint_mode'."
         case ("comint_input_sender_no_newline")
             entry%file = "comint_mod.f90"
@@ -20179,7 +20221,8 @@ contains
             case (COMINT_MOVE_POINT_FOR_MATCHING_INPUT_END_OF_LINE)
                 entry%value = "COMINT_MOVE_POINT_FOR_MATCHING_INPUT_END_OF_LINE"
             case default
-                entry%value = repr(comint_move_point_for_matching_input%value)
+                write (digits, "(i0)") comint_move_point_for_matching_input%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Controls where to place point after matching input."//LF// &
@@ -20209,7 +20252,8 @@ contains
             case (COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS)
                 entry%value = "COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS"
             case default
-                entry%value = repr(comint_move_point_for_output%value)
+                write (digits, "(i0)") comint_move_point_for_output%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Controls whether interpreter output moves point to the end of the"//LF// &
@@ -20281,7 +20325,8 @@ contains
             entry%file = "comint_mod.f90"
             entry%fortran = "comint_password_prompt_max_length"
             entry%original = "256"
-            entry%value = repr(comint_password_prompt_max_length)
+            write (digits, "(i0)") comint_password_prompt_max_length
+            entry%value = trim(digits)
             entry%doc = "The maximum amount of text to examine when matching password"//LF// &
                         "prompts.  This is used by `comint_watch_for_password_prompt' to"//LF// &
                         "reduce the amount of time spent searching for password prompts."
@@ -20421,7 +20466,8 @@ contains
             case (COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS)
                 entry%value = "COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS"
             case default
-                entry%value = repr(comint_scroll_to_bottom_on_input%value)
+                write (digits, "(i0)") comint_scroll_to_bottom_on_input%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Controls whether input to interpreter causes window to scroll."//LF// &
@@ -20485,7 +20531,8 @@ contains
             entry%file = "newcomment_mod.f90"
             entry%fortran = "comment_add"
             entry%original = "0"
-            entry%value = repr(comment_add%value)
+            write (digits, "(i0)") comment_add%value
+            entry%value = trim(digits)
             entry%doc = "How many more comment chars should be inserted by `comment_region'."//LF// &
                         "This determines the default value of the numeric argument of `comment_region'."//LF// &
                         "The `plain' comment style doubles this value."//LF// &
@@ -20505,7 +20552,8 @@ contains
             entry%fortran = "comment_column"
             entry%user_option = .true.
             entry%original = "32"
-            entry%value = repr(comment_column%value)
+            write (digits, "(i0)") comment_column%value
+            entry%value = trim(digits)
             entry%doc = "Column to indent right-margin comments to."//LF// &
                         "Each mode may establish a different default value for this variable; you"//LF// &
                         "can set the value for a particular mode using that mode's hook."//LF// &
@@ -20554,7 +20602,8 @@ contains
             case (COMMENT_EMPTY_LINES_EOL)
                 entry%value = "COMMENT_EMPTY_LINES_EOL"
             case default
-                entry%value = repr(comment_empty_lines%value)
+                write (digits, "(i0)") comment_empty_lines%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If COMMENT_EMPTY_LINES_NO, `comment_region' does not comment out"//LF// &
@@ -20597,7 +20646,8 @@ contains
             entry%fortran = "comment_fill_column"
             entry%user_option = .true.
             entry%original = "-1"
-            entry%value = repr(comment_fill_column%value)
+            write (digits, "(i0)") comment_fill_column%value
+            entry%value = trim(digits)
             entry%doc = "Column to use for `comment_indent'.  If negative, use"//LF// &
                         "`fill_column' instead."
         case ("comment_indent_function")
@@ -20615,7 +20665,8 @@ contains
             entry%fortran = "comment_inline_offset"
             entry%user_option = .true.
             entry%original = "1"
-            entry%value = repr(comment_inline_offset%value)
+            write (digits, "(i0)") comment_inline_offset%value
+            entry%value = trim(digits)
             entry%doc = "Inline comments have to be preceded by at least this many spaces."//LF// &
                         "This is useful when style-conventions require a certain minimal offset."//LF// &
                         "Python's PEP8 for example recommends two spaces, so you could do:"//LF// &
@@ -20789,7 +20840,8 @@ contains
             case (COMMENT_STYLE_BOX_MULTI)
                 entry%value = "COMMENT_STYLE_BOX_MULTI"
             case default
-                entry%value = repr(comment_style%value)
+                write (digits, "(i0)") comment_style%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Style to be used for `comment_region'."//LF// &
@@ -20818,7 +20870,8 @@ contains
             case (COMMENT_USE_SYNTAX_UNDECIDED)
                 entry%value = "COMMENT_USE_SYNTAX_UNDECIDED"
             case default
-                entry%value = repr(comment_use_syntax%value)
+                write (digits, "(i0)") comment_use_syntax%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "True if syntax-tables can be used instead of regexps."//LF// &
@@ -20871,7 +20924,8 @@ contains
             case (COMPILATION_CONTEXT_LINES_NO_SCROLL)
                 entry%value = "COMPILATION_CONTEXT_LINES_NO_SCROLL"
             case default
-                entry%value = repr(compilation_context_lines%value)
+                write (digits, "(i0)") compilation_context_lines%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Display this many lines of leading context before the current"//LF// &
@@ -20946,7 +21000,8 @@ contains
             entry%file = "compile_mod.f90"
             entry%fortran = "compilation_error_count_found"
             entry%original = "0"
-            entry%value = repr(compilation_error_count_found)
+            write (digits, "(i0)") compilation_error_count_found
+            entry%value = trim(digits)
             entry%doc = "The number of errors found so far (the value of buffers without a"//LF// &
                         "count of their own; compilation buffers have one)."
         case ("compilation_error_face")
@@ -21057,14 +21112,16 @@ contains
             entry%file = "compile_mod.f90"
             entry%fortran = "compilation_filter_start"
             entry%original = "0"
-            entry%value = repr(compilation_filter_start)
+            write (digits, "(i0)") compilation_filter_start
+            entry%value = trim(digits)
             entry%doc = "Position of the start of the text inserted by `compilation_filter'."//LF// &
                         "This is bound before running `compilation_filter_hook'."
         case ("compilation_first_column")
             entry%file = "compile_mod.f90"
             entry%fortran = "compilation_first_column"
             entry%original = "1"
-            entry%value = repr(compilation_first_column%value)
+            write (digits, "(i0)") compilation_first_column%value
+            entry%value = trim(digits)
             entry%doc = "This is how compilers number the first column, usually 1 or 0."//LF// &
                         "If this is buffer-local in the destination buffer, Fortmacs obeys"//LF// &
                         "that value, otherwise it uses the value in the *compilation*"//LF// &
@@ -21073,7 +21130,8 @@ contains
             entry%file = "compile_mod.f90"
             entry%fortran = "compilation_info_count_found"
             entry%original = "0"
-            entry%value = repr(compilation_info_count_found)
+            write (digits, "(i0)") compilation_info_count_found
+            entry%value = trim(digits)
             entry%doc = "The number of informational messages found so far."
         case ("compilation_info_face")
             entry%file = "compile_mod.f90"
@@ -21167,7 +21225,8 @@ contains
             case (COMPILATION_SCROLL_OUTPUT_FIRST_ERROR)
                 entry%value = "COMPILATION_SCROLL_OUTPUT_FIRST_ERROR"
             case default
-                entry%value = repr(compilation_scroll_output%value)
+                write (digits, "(i0)") compilation_scroll_output%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "True to scroll the *compilation* buffer window as output appears."//LF// &
@@ -21200,7 +21259,8 @@ contains
             entry%fortran = "compilation_skip_threshold"
             entry%user_option = .true.
             entry%original = "1"
-            entry%value = repr(compilation_skip_threshold%value)
+            write (digits, "(i0)") compilation_skip_threshold%value
+            entry%value = trim(digits)
             entry%doc = "Compilation motion commands skip less important messages."//LF// &
                         "The value can be either 2 -- skip anything less than error, 1 --"//LF// &
                         "skip anything less than warning or 0 -- don't skip any messages."//LF// &
@@ -21239,7 +21299,8 @@ contains
             entry%file = "compile_mod.f90"
             entry%fortran = "compilation_warning_count_found"
             entry%original = "0"
-            entry%value = repr(compilation_warning_count_found)
+            write (digits, "(i0)") compilation_warning_count_found
+            entry%value = trim(digits)
             entry%doc = "The number of warnings found so far."
         case ("compilation_warning_face")
             entry%file = "compile_mod.f90"
@@ -21496,14 +21557,16 @@ contains
             entry%fortran = "completions_max_height"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(completions_max_height)
+            write (digits, "(i0)") completions_max_height
+            entry%value = trim(digits)
             entry%doc = "Maximum height for *Completions* buffer window (0 for no maximum)."
         case ("conf_assignment_column")
             entry%file = "conf_mode_mod.f90"
             entry%fortran = "conf_assignment_column"
             entry%user_option = .true.
             entry%original = "24"
-            entry%value = repr(conf_assignment_column%value)
+            write (digits, "(i0)") conf_assignment_column%value
+            entry%value = trim(digits)
             entry%doc = "Align assignments to this column by default with \[conf_align_assignments]."//LF// &
                         "If this number is negative, the `=' comes before the whitespace.  Use 0 to"//LF// &
                         "not align (only setting space according to `conf_assignment_space')."
@@ -21544,7 +21607,8 @@ contains
             entry%fortran = "conf_colon_assignment_column"
             entry%user_option = .true.
             entry%original = "-24"
-            entry%value = repr(conf_colon_assignment_column%value)
+            write (digits, "(i0)") conf_colon_assignment_column%value
+            entry%value = trim(digits)
             entry%doc = "Value for `conf_assignment_column' in Java properties buffers."
         case ("conf_colon_assignment_space")
             entry%file = "conf_mode_mod.f90"
@@ -21578,7 +21642,8 @@ contains
             entry%fortran = "conf_javaprop_assignment_column"
             entry%user_option = .true.
             entry%original = "32"
-            entry%value = repr(conf_javaprop_assignment_column%value)
+            write (digits, "(i0)") conf_javaprop_assignment_column%value
+            entry%value = trim(digits)
             entry%doc = "Value for `conf_assignment_column' in Java properties buffers."
         case ("conf_javaprop_font_lock_keywords")
             entry%file = "conf_mode_mod.f90"
@@ -21829,7 +21894,8 @@ contains
             entry%fortran = "css_indent_offset"
             entry%user_option = .true.
             entry%original = "4"
-            entry%value = repr(css_indent_offset%value)
+            write (digits, "(i0)") css_indent_offset%value
+            entry%value = trim(digits)
             entry%doc = "Basic size of one indentation step."
         case ("css_lookup_url_format")
             entry%file = "css_mode_mod.f90"
@@ -22056,7 +22122,8 @@ contains
             case (DABBREV_ASK)
                 entry%value = "DABBREV_ASK"
             case default
-                entry%value = repr(dabbrev_case_distinction)
+                write (digits, "(i0)") dabbrev_case_distinction
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether dabbrev treats expansions as the same if they differ in case."//LF// &
@@ -22086,7 +22153,8 @@ contains
             case (DABBREV_ASK)
                 entry%value = "DABBREV_ASK"
             case default
-                entry%value = repr(dabbrev_case_fold_search)
+                write (digits, "(i0)") dabbrev_case_fold_search
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Control whether dabbrev searches should ignore case."//LF// &
@@ -22112,7 +22180,8 @@ contains
             case (DABBREV_ASK)
                 entry%value = "DABBREV_ASK"
             case default
-                entry%value = repr(dabbrev_case_replace)
+                write (digits, "(i0)") dabbrev_case_replace
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether dabbrev applies the abbreviations's case pattern to the expansion."//LF// &
@@ -22158,7 +22227,8 @@ contains
             case (DABBREV_ASK)
                 entry%value = "DABBREV_ASK"
             case default
-                entry%value = repr(dabbrev_check_other_buffers)
+                write (digits, "(i0)") dabbrev_check_other_buffers
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Should \[dabbrev_expand] look in other buffers?"//LF// &
@@ -22331,7 +22401,8 @@ contains
             case (DEFAULT_JUSTIFICATION_CURRENT)
                 entry%value = "DEFAULT_JUSTIFICATION_CURRENT"
             case default
-                entry%value = repr(default_justification)
+                write (digits, "(i0)") default_justification
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Method of justifying text not otherwise specified."//LF// &
@@ -22409,7 +22480,8 @@ contains
             case (DEFINING_KBD_MACRO_APPEND)
                 entry%value = "DEFINING_KBD_MACRO_APPEND"
             case default
-                entry%value = repr(defining_kbd_macro)
+                write (digits, "(i0)") defining_kbd_macro
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Not `DEFINING_KBD_MACRO_NO' while a keyboard macro is being defined."//LF// &
@@ -22564,7 +22636,8 @@ contains
             case (DIFF_USE_LABELS_CHECK)
                 entry%value = "DIFF_USE_LABELS_CHECK"
             case default
-                entry%value = repr(diff_use_labels)
+                write (digits, "(i0)") diff_use_labels
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether `diff_command' understands the ""--label"" option."//LF// &
@@ -22762,7 +22835,8 @@ contains
             case (DIRED_CREATE_DESTINATION_DIRS_ASK)
                 entry%value = "DIRED_CREATE_DESTINATION_DIRS_ASK"
             case default
-                entry%value = repr(dired_create_destination_dirs)
+                write (digits, "(i0)") dired_create_destination_dirs
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether Dired should create destination dirs when copying/moving files."//LF// &
@@ -22869,7 +22943,8 @@ contains
             case (DIRED_DWIM_TARGET_RECENT)
                 entry%value = "DIRED_DWIM_TARGET_RECENT"
             case default
-                entry%value = repr(dired_dwim_target)
+                write (digits, "(i0)") dired_dwim_target
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If set, Dired tries to guess a default target directory."//LF// &
@@ -22912,7 +22987,8 @@ contains
             case (DIRED_FREE_SPACE_FIRST)
                 entry%value = "DIRED_FREE_SPACE_FIRST"
             case default
-                entry%value = repr(dired_free_space)
+                write (digits, "(i0)") dired_free_space
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether and how to display the disk space usage info in Dired buffers."//LF// &
@@ -23085,7 +23161,8 @@ contains
             case (DIRED_MARK_REGION_LINE)
                 entry%value = "DIRED_MARK_REGION_LINE"
             case default
-                entry%value = repr(dired_mark_region)
+                write (digits, "(i0)") dired_mark_region
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Defines what commands that mark files do with the active region."//LF// &
@@ -23157,7 +23234,8 @@ contains
             case (DIRED_MOVEMENT_STYLE_BOUNDED_FILES)
                 entry%value = "DIRED_MOVEMENT_STYLE_BOUNDED_FILES"
             case default
-                entry%value = repr(dired_movement_style)
+                write (digits, "(i0)") dired_movement_style
+                entry%value = trim(digits)
             end select
 
             entry%doc = "A value other than DIRED_MOVEMENT_STYLE_PLAIN means point skips empty"//LF// &
@@ -23221,7 +23299,8 @@ contains
             case (DIRED_RECURSIVE_ASK)
                 entry%value = "DIRED_RECURSIVE_ASK"
             case default
-                entry%value = repr(dired_recursive_copies)
+                write (digits, "(i0)") dired_recursive_copies
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether Dired copies directories recursively."//LF// &
@@ -23245,7 +23324,8 @@ contains
             case (DIRED_RECURSIVE_ASK)
                 entry%value = "DIRED_RECURSIVE_ASK"
             case default
-                entry%value = repr(dired_recursive_deletes)
+                write (digits, "(i0)") dired_recursive_deletes
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether Dired deletes directories recursively."//LF// &
@@ -23283,7 +23363,8 @@ contains
             case (DIRED_SWITCHES_IN_MODE_LINE_AS_IS)
                 entry%value = "DIRED_SWITCHES_IN_MODE_LINE_AS_IS"
             case default
-                entry%value = repr(dired_switches_in_mode_line)
+                write (digits, "(i0)") dired_switches_in_mode_line
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How to indicate `dired_actual_switches' in mode-line."//LF// &
@@ -23346,7 +23427,8 @@ contains
             case (DIRED_USE_LS_DIRED_UNSPECIFIED)
                 entry%value = "DIRED_USE_LS_DIRED_UNSPECIFIED"
             case default
-                entry%value = repr(dired_use_ls_dired)
+                write (digits, "(i0)") dired_use_ls_dired
+                entry%value = trim(digits)
             end select
 
             entry%doc = "DIRED_USE_LS_DIRED_YES means Dired should pass the ""--dired"" option to ""ls""."//LF// &
@@ -23411,7 +23493,8 @@ contains
             case (DEDICATED_STRONG)
                 entry%value = "DEDICATED_STRONG"
             case default
-                entry%value = repr(display_buffer_mark_dedicated)
+                write (digits, "(i0)") display_buffer_mark_dedicated
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If not DEDICATED_NONE, `display_buffer' marks the windows it creates as"//LF// &
@@ -23630,7 +23713,8 @@ contains
             case (ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP)
                 entry%value = "ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP"
             case default
-                entry%value = repr(electric_pair_skip_whitespace)
+                write (digits, "(i0)") electric_pair_skip_whitespace
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether typing a closing delimiter moves point over whitespace."//LF// &
@@ -23803,7 +23887,8 @@ contains
             entry%fortran = "executable_chmod"
             entry%user_option = .true.
             entry%original = "73"
-            entry%value = repr(executable_chmod)
+            write (digits, "(i0)") executable_chmod
+            entry%value = trim(digits)
             entry%doc = "After saving, if the file is not executable, set this mode."//LF// &
                         "This mode passed to `set_file_modes' is taken absolutely when negative, or"//LF// &
                         "relative to the files existing modes.  Do nothing if this is"//LF// &
@@ -23874,7 +23959,8 @@ contains
             case (EXECUTABLE_QUERY_ALWAYS)
                 entry%value = "EXECUTABLE_QUERY_ALWAYS"
             case default
-                entry%value = repr(executable_query)
+                write (digits, "(i0)") executable_query
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If true (not `EXECUTABLE_QUERY_NO'), ask user before changing an"//LF// &
@@ -23933,7 +24019,8 @@ contains
             entry%fortran = "f90_associate_indent"
             entry%user_option = .true.
             entry%original = "2"
-            entry%value = repr(f90_associate_indent%value)
+            write (digits, "(i0)") f90_associate_indent%value
+            entry%value = trim(digits)
             entry%doc = "Extra indentation applied to ASSOCIATE blocks."
         case ("f90_auto_keyword_case")
             entry%file = "f90_mod.f90"
@@ -23951,7 +24038,8 @@ contains
             case (F90_AUTO_KEYWORD_CASE_CAPITALIZE_WORD)
                 entry%value = "F90_AUTO_KEYWORD_CASE_CAPITALIZE_WORD"
             case default
-                entry%value = repr(f90_auto_keyword_case%value)
+                write (digits, "(i0)") f90_auto_keyword_case%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Automatic case conversion of keywords."//LF// &
@@ -24002,7 +24090,8 @@ contains
             entry%file = "f90_mod.f90"
             entry%fortran = "f90_cache_position"
             entry%original = "0"
-            entry%value = repr(f90_cache_position)
+            write (digits, "(i0)") f90_cache_position
+            entry%value = trim(digits)
             entry%doc = "Temporary position used to speed up region operations (0 for none)."
         case ("f90_comment_region")
             entry%file = "f90_mod.f90"
@@ -24032,14 +24121,16 @@ contains
             entry%fortran = "f90_continuation_indent"
             entry%user_option = .true.
             entry%original = "5"
-            entry%value = repr(f90_continuation_indent%value)
+            write (digits, "(i0)") f90_continuation_indent%value
+            entry%value = trim(digits)
             entry%doc = "Extra indentation applied to continuation lines."
         case ("f90_critical_indent")
             entry%file = "f90_mod.f90"
             entry%fortran = "f90_critical_indent"
             entry%user_option = .true.
             entry%original = "2"
-            entry%value = repr(f90_critical_indent%value)
+            write (digits, "(i0)") f90_critical_indent%value
+            entry%value = trim(digits)
             entry%doc = "Extra indentation applied to BLOCK, CRITICAL blocks."
         case ("f90_directive_comment_regexp")
             entry%file = "f90_mod.f90"
@@ -24058,7 +24149,8 @@ contains
             entry%fortran = "f90_do_indent"
             entry%user_option = .true.
             entry%original = "3"
-            entry%value = repr(f90_do_indent%value)
+            write (digits, "(i0)") f90_do_indent%value
+            entry%value = trim(digits)
             entry%doc = "Extra indentation applied to DO blocks."
         case ("f90_end_block_regexp")
             entry%file = "f90_mod.f90"
@@ -24120,7 +24212,8 @@ contains
             entry%fortran = "f90_if_indent"
             entry%user_option = .true.
             entry%original = "3"
-            entry%value = repr(f90_if_indent%value)
+            write (digits, "(i0)") f90_if_indent%value
+            entry%value = trim(digits)
             entry%doc = "Extra indentation applied to IF, SELECT CASE, WHERE and FORALL blocks."
         case ("f90_indented_comment_regexp")
             entry%file = "f90_mod.f90"
@@ -24234,7 +24327,8 @@ contains
             entry%fortran = "f90_program_indent"
             entry%user_option = .true.
             entry%original = "2"
-            entry%value = repr(f90_program_indent%value)
+            write (digits, "(i0)") f90_program_indent%value
+            entry%value = trim(digits)
             entry%doc = "Extra indentation applied to PROGRAM, MODULE, SUBROUTINE, FUNCTION blocks."
         case ("f90_smart_end")
             entry%file = "f90_mod.f90"
@@ -24250,7 +24344,8 @@ contains
             case (F90_SMART_END_NO_BLINK)
                 entry%value = "F90_SMART_END_NO_BLINK"
             case default
-                entry%value = repr(f90_smart_end%value)
+                write (digits, "(i0)") f90_smart_end%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Qualification of END statements according to the matching block start."//LF// &
@@ -24296,7 +24391,8 @@ contains
             entry%fortran = "f90_type_indent"
             entry%user_option = .true.
             entry%original = "3"
-            entry%value = repr(f90_type_indent%value)
+            write (digits, "(i0)") f90_type_indent%value
+            entry%value = trim(digits)
             entry%doc = "Extra indentation applied to TYPE, ENUM, INTERFACE and BLOCK DATA blocks."
         case ("faces")
             entry%file = "face_table_mod.f90"
@@ -24316,7 +24412,8 @@ contains
             entry%fortran = "fill_column"
             entry%user_option = .true.
             entry%original = "70"
-            entry%value = repr(fill_column%value)
+            write (digits, "(i0)") fill_column%value
+            entry%value = trim(digits)
             entry%doc = "Column beyond which automatic line-wrapping should happen."//LF// &
                         "It is used by filling commands, such as `fill_region' and `fill_paragraph',"//LF// &
                         "and by `auto_fill_mode', which see."//LF// &
@@ -24502,7 +24599,8 @@ contains
             case (FONT_LOCK_MAXIMUM_DECORATION_MAX)
                 entry%value = "FONT_LOCK_MAXIMUM_DECORATION_MAX"
             case default
-                entry%value = repr(font_lock_maximum_decoration)
+                write (digits, "(i0)") font_lock_maximum_decoration
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Maximum decoration level for fontification."//LF// &
@@ -24526,7 +24624,8 @@ contains
             case (FONT_LOCK_SUPPORT_MODE_JIT_LOCK)
                 entry%value = "FONT_LOCK_SUPPORT_MODE_JIT_LOCK"
             case default
-                entry%value = repr(font_lock_support_mode)
+                write (digits, "(i0)") font_lock_support_mode
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Support mode for Font Lock mode."//LF// &
@@ -24660,7 +24759,8 @@ contains
             entry%fortran = "goal_column"
             entry%user_option = .true.
             entry%original = "-1"
-            entry%value = repr(goal_column)
+            write (digits, "(i0)") goal_column
+            entry%value = trim(digits)
             entry%doc = "Semipermanent goal column for vertical motion, or -1 for none."//LF// &
                         "A setting other than -1 overrides the variable"//LF// &
                         "`line_move_visual', which see."
@@ -24690,7 +24790,8 @@ contains
             entry%fortran = "grep_command_position"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(grep_command_position)
+            write (digits, "(i0)") grep_command_position
+            entry%value = trim(digits)
             entry%doc = "Where to put point when prompting for a grep command."//LF// &
                         "This controls the placement of point in the minibuffer when Fortmacs"//LF// &
                         "prompts for the grep command.  If 0, put point at the end of the"//LF// &
@@ -24795,7 +24896,8 @@ contains
             entry%file = "grep_mod.f90"
             entry%fortran = "grep_find_command_position"
             entry%original = "0"
-            entry%value = repr(grep_find_command_position)
+            write (digits, "(i0)") grep_find_command_position
+            entry%value = trim(digits)
             entry%doc = "The POSITION of `grep_find_command' when it has the form (COMMAND"//LF// &
                         ". POSITION), 0 for none."
         case ("grep_find_history")
@@ -24860,7 +24962,8 @@ contains
             case (GREP_FIND_USE_XARGS_OTHER)
                 entry%value = "GREP_FIND_USE_XARGS_OTHER"
             case default
-                entry%value = repr(grep_find_use_xargs)
+                write (digits, "(i0)") grep_find_use_xargs
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How to invoke find and grep."//LF// &
@@ -24877,7 +24980,8 @@ contains
             entry%file = "grep_mod.f90"
             entry%fortran = "grep_first_column"
             entry%original = "0"
-            entry%value = repr(grep_first_column)
+            write (digits, "(i0)") grep_first_column
+            entry%value = trim(digits)
             entry%doc = "Value to use for `compilation_first_column' in grep buffers."
         case ("grep_heading")
             entry%file = "grep_mod.f90"
@@ -24917,7 +25021,8 @@ contains
             case (GREP_HIGHLIGHT_MATCHES_AUTO)
                 entry%value = "GREP_HIGHLIGHT_MATCHES_AUTO"
             case default
-                entry%value = repr(grep_highlight_matches)
+                write (digits, "(i0)") grep_highlight_matches
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Use special markers to highlight grep matches."//LF// &
@@ -25062,7 +25167,8 @@ contains
             case (GREP_SAVE_BUFFERS_ASK)
                 entry%value = "GREP_SAVE_BUFFERS_ASK"
             case default
-                entry%value = repr(grep_save_buffers)
+                write (digits, "(i0)") grep_save_buffers
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If not GREP_SAVE_BUFFERS_NO, save buffers before running the grep"//LF// &
@@ -25143,7 +25249,8 @@ contains
             case (GREP_USE_NULL_DEVICE_AUTO_DETECT)
                 entry%value = "GREP_USE_NULL_DEVICE_AUTO_DETECT"
             case default
-                entry%value = repr(grep_use_null_device)
+                write (digits, "(i0)") grep_use_null_device
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If GREP_USE_NULL_DEVICE_YES, append the value of `null_device' to `grep' commands."//LF// &
@@ -25168,7 +25275,8 @@ contains
             case (GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT)
                 entry%value = "GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT"
             case default
-                entry%value = repr(grep_use_null_filename_separator)
+                write (digits, "(i0)") grep_use_null_filename_separator
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If true (GREP_USE_NULL_FILENAME_SEPARATOR_YES), use `grep''s `--null' option."//LF// &
@@ -25183,7 +25291,8 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "help_char"
             entry%original = "8"
-            entry%value = repr(help_char)
+            write (digits, "(i0)") help_char
+            entry%value = trim(digits)
             entry%doc = "Character to recognize as meaning Help."//LF// &
                         "When it is read, call `help_procedure', and display the result if it's a string."//LF// &
                         "If the value of `help_procedure' is null, this char can be read normally."
@@ -25267,7 +25376,8 @@ contains
             entry%fortran = "history_length"
             entry%user_option = .true.
             entry%original = "100"
-            entry%value = repr(history_length)
+            write (digits, "(i0)") history_length
+            entry%value = trim(digits)
             entry%doc = "Maximum length of history lists before truncation takes place."//LF// &
                         "A number means truncate to that length; truncation deletes old"//LF// &
                         "elements, and is done just after inserting a new element."//LF// &
@@ -25306,7 +25416,8 @@ contains
             case (QUICK_KEYS_DEFAULT)
                 entry%value = "QUICK_KEYS_DEFAULT"
             case default
-                entry%value = repr(html_quick_keys)
+                write (digits, "(i0)") html_quick_keys
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Use C-c X combinations for quick insertion of frequent tags when not"//LF// &
@@ -25337,7 +25448,8 @@ contains
             case (IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI)
                 entry%value = "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI"
             case default
-                entry%value = repr(ibuffer_always_show_last_buffer)
+                write (digits, "(i0)") ibuffer_always_show_last_buffer
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If not IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, always display the previous buffer:"//LF// &
@@ -25723,7 +25835,8 @@ contains
             entry%fortran = "ibuffer_old_time"
             entry%user_option = .true.
             entry%original = "72"
-            entry%value = repr(ibuffer_old_time)
+            write (digits, "(i0)") ibuffer_old_time
+            entry%value = trim(digits)
             entry%doc = "The number of hours before a buffer is considered ""old""."
         case ("ibuffer_read_only_char")
             entry%file = "ibuffer_mod.f90"
@@ -25817,7 +25930,8 @@ contains
             case (IBUFFER_USE_HEADER_LINE_TITLE)
                 entry%value = "IBUFFER_USE_HEADER_LINE_TITLE"
             case default
-                entry%value = repr(ibuffer_use_header_line)
+                write (digits, "(i0)") ibuffer_use_header_line
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If not IBUFFER_USE_HEADER_LINE_NO, display a header line."//LF// &
@@ -25886,7 +26000,8 @@ contains
             entry%fortran = "info_breadcrumbs_depth"
             entry%user_option = .true.
             entry%original = "4"
-            entry%value = repr(info_breadcrumbs_depth)
+            write (digits, "(i0)") info_breadcrumbs_depth
+            entry%value = trim(digits)
             entry%doc = "Depth of breadcrumbs to display.  0 means do not display"//LF// &
                         "breadcrumbs."
         case ("info_default_directories")
@@ -25959,7 +26074,8 @@ contains
             entry%fortran = "info_fontify_maximum_menu_size"
             entry%user_option = .true.
             entry%original = "400000"
-            entry%value = repr(info_fontify_maximum_menu_size)
+            write (digits, "(i0)") info_fontify_maximum_menu_size
+            entry%value = trim(digits)
             entry%doc = "Maximum size of menu to fontify if `font_lock_mode' is true."//LF// &
                         "Set to INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE to disable node"//LF// &
                         "fontification; set to INFO_FONTIFY_MAXIMUM_MENU_SIZE_UNLIMITED for no"//LF// &
@@ -25996,7 +26112,8 @@ contains
             case (INFO_HIDE_NOTE_REFERENCES_TAG)
                 entry%value = "INFO_HIDE_NOTE_REFERENCES_TAG"
             case default
-                entry%value = repr(info_hide_note_references)
+                write (digits, "(i0)") info_hide_note_references
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If true, hide the tag and section reference in *note and * menu"//LF// &
@@ -26521,7 +26638,8 @@ contains
             case (ISPELL_CHECK_COMMENTS_EXCLUSIVE)
                 entry%value = "ISPELL_CHECK_COMMENTS_EXCLUSIVE"
             case default
-                entry%value = repr(ispell_check_comments)
+                write (digits, "(i0)") ispell_check_comments
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Spelling of comments checked when ISPELL_CHECK_COMMENTS_YES."//LF// &
@@ -26538,7 +26656,8 @@ contains
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_choices_win_default_height"
             entry%original = "2"
-            entry%value = repr(ispell_choices_win_default_height)
+            write (digits, "(i0)") ispell_choices_win_default_height
+            entry%value = trim(digits)
             entry%doc = "The default size of the `*Choices*' window, including the mode line."//LF// &
                         "Must be greater than 1."
         case ("ispell_complete_word_dict")
@@ -26706,7 +26825,8 @@ contains
             case (ISPELL_HELP_IN_BUFFER_YES)
                 entry%value = "ISPELL_HELP_IN_BUFFER_YES"
             case default
-                entry%value = repr(ispell_help_in_buffer)
+                write (digits, "(i0)") ispell_help_in_buffer
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether to display interactive keymap help in a buffer."//LF// &
@@ -26743,7 +26863,8 @@ contains
             case (ISPELL_HIGHLIGHT_BLOCK)
                 entry%value = "ISPELL_HIGHLIGHT_BLOCK"
             case default
-                entry%value = repr(ispell_highlight)
+                write (digits, "(i0)") ispell_highlight
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Highlight spelling errors when not ISPELL_HIGHLIGHT_NO."//LF// &
@@ -26872,7 +26993,8 @@ contains
             case (ISPELL_PARSER_NROFF)
                 entry%value = "ISPELL_PARSER_NROFF"
             case default
-                entry%value = repr(ispell_parser%value)
+                write (digits, "(i0)") ispell_parser%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Indicates whether ispell should parse the current buffer as TeX Code."//LF// &
@@ -26987,7 +27109,8 @@ contains
             case (ISPELL_SKIP_HTML_USE_MODE_NAME)
                 entry%value = "ISPELL_SKIP_HTML_USE_MODE_NAME"
             case default
-                entry%value = repr(ispell_skip_html%value)
+                write (digits, "(i0)") ispell_skip_html%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Indicates whether ispell should skip spell checking of SGML markup."//LF// &
@@ -27068,7 +27191,8 @@ contains
             entry%fortran = "jit_lock_chunk_size"
             entry%user_option = .true.
             entry%original = "1500"
-            entry%value = repr(jit_lock_chunk_size)
+            write (digits, "(i0)") jit_lock_chunk_size
+            entry%value = trim(digits)
             entry%doc = "Jit-lock asks to fontify chunks of at most this many characters at"//LF// &
                         "a time."//LF// &
                         ""//LF// &
@@ -27121,7 +27245,8 @@ contains
             entry%fortran = "js_curly_indent_offset"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(js_curly_indent_offset%value)
+            write (digits, "(i0)") js_curly_indent_offset%value
+            entry%value = trim(digits)
             entry%doc = "Number of additional spaces for indenting expressions in curly"//LF// &
                         "braces.  The value must be no less than minus `js_indent_level'."
         case ("js_enabled_frameworks")
@@ -27143,7 +27268,8 @@ contains
             entry%fortran = "js_expr_indent_offset"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(js_expr_indent_offset%value)
+            write (digits, "(i0)") js_expr_indent_offset%value
+            entry%value = trim(digits)
             entry%doc = "Number of additional spaces for indenting continued expressions."//LF// &
                         "The value must be no less than minus `js_indent_level'."
         case ("js_flat_functions")
@@ -27175,7 +27301,8 @@ contains
             case (JS_INDENT_FIRST_INIT_DYNAMIC)
                 entry%value = "JS_INDENT_FIRST_INIT_DYNAMIC"
             case default
-                entry%value = repr(js_indent_first_init%value)
+                write (digits, "(i0)") js_indent_first_init%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "True means specially indent the first variable declaration's"//LF// &
@@ -27221,7 +27348,8 @@ contains
             entry%fortran = "js_indent_level"
             entry%user_option = .true.
             entry%original = "4"
-            entry%value = repr(js_indent_level%value)
+            write (digits, "(i0)") js_indent_level%value
+            entry%value = trim(digits)
             entry%doc = "Number of spaces for each indentation step in `js_mode'."
         case ("js_json_mode_hook")
             entry%file = "js_mod.f90"
@@ -27248,7 +27376,8 @@ contains
             entry%fortran = "js_paren_indent_offset"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(js_paren_indent_offset%value)
+            write (digits, "(i0)") js_paren_indent_offset%value
+            entry%value = trim(digits)
             entry%doc = "Number of additional spaces for indenting expressions in"//LF// &
                         "parentheses.  The value must be no less than minus"//LF// &
                         "`js_indent_level'."
@@ -27257,7 +27386,8 @@ contains
             entry%fortran = "js_square_indent_offset"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(js_square_indent_offset%value)
+            write (digits, "(i0)") js_square_indent_offset%value
+            entry%value = trim(digits)
             entry%doc = "Number of additional spaces for indenting expressions in square"//LF// &
                         "braces.  The value must be no less than minus `js_indent_level'."
         case ("js_switch_indent_offset")
@@ -27265,7 +27395,8 @@ contains
             entry%fortran = "js_switch_indent_offset"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(js_switch_indent_offset%value)
+            write (digits, "(i0)") js_switch_indent_offset%value
+            entry%value = trim(digits)
             entry%doc = "Number of additional spaces for indenting the contents of a switch"//LF// &
                         "block.  The value must not be negative."
         case ("kbd_macro_termination_hook")
@@ -27298,7 +27429,8 @@ contains
             entry%file = "kmacro_mod.f90"
             entry%fortran = "kmacro_counter"
             entry%original = "0"
-            entry%value = repr(kmacro_counter)
+            write (digits, "(i0)") kmacro_counter
+            entry%value = trim(digits)
             entry%doc = "Current keyboard macro counter."//LF// &
                         ""//LF// &
                         "This is normally initialized to zero when the macro is defined,"//LF// &
@@ -27333,7 +27465,8 @@ contains
             entry%file = "kmacro_mod.f90"
             entry%fortran = "kmacro_counter_value_start"
             entry%original = "0"
-            entry%value = repr(kmacro_counter_value_start)
+            write (digits, "(i0)") kmacro_counter_value_start
+            entry%value = trim(digits)
             entry%doc = "Macro counter at start of macro execution."
         case ("kmacro_default_counter_format")
             entry%file = "kmacro_mod.f90"
@@ -27371,7 +27504,8 @@ contains
             case (KMACRO_EXECUTE_REPEAT_KEY_LAST)
                 entry%value = "KMACRO_EXECUTE_REPEAT_KEY_LAST"
             case default
-                entry%value = repr(kmacro_execute_repeat_key)
+                write (digits, "(i0)") kmacro_execute_repeat_key
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Allow repeating macro call using last key or a specific key."//LF// &
@@ -27404,7 +27538,8 @@ contains
             entry%file = "kmacro_mod.f90"
             entry%fortran = "kmacro_last_counter"
             entry%original = "0"
-            entry%value = repr(kmacro_last_counter)
+            write (digits, "(i0)") kmacro_last_counter
+            entry%value = trim(digits)
             entry%doc = "Last counter inserted by key macro."
         case ("kmacro_repeat_no_prefix")
             entry%file = "kmacro_mod.f90"
@@ -27426,7 +27561,8 @@ contains
             entry%fortran = "kmacro_ring_max"
             entry%user_option = .true.
             entry%original = "8"
-            entry%value = repr(kmacro_ring_max)
+            write (digits, "(i0)") kmacro_ring_max
+            entry%value = trim(digits)
             entry%doc = "Maximum number of keyboard macros to save in macro ring."
         case ("last_abbrev")
             entry%file = "abbrev_mod.f90"
@@ -27436,7 +27572,8 @@ contains
             entry%file = "abbrev_mod.f90"
             entry%fortran = "last_abbrev_location"
             entry%original = "0"
-            entry%value = repr(last_abbrev_location)
+            write (digits, "(i0)") last_abbrev_location
+            entry%value = trim(digits)
             entry%doc = "The location of the start of the last abbrev that was expanded."
         case ("last_abbrev_text")
             entry%file = "abbrev_mod.f90"
@@ -27511,7 +27648,8 @@ contains
             entry%fortran = "left_margin"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(left_margin%value)
+            write (digits, "(i0)") left_margin%value
+            entry%value = trim(digits)
             entry%doc = "Column for the default `indent_line_function' to indent to."//LF// &
                         "Linefeed indents to this column in Fundamental mode."
         case ("line_move_ignore_invisible")
@@ -27588,7 +27726,8 @@ contains
             entry%fortran = "list_matching_lines_default_context_lines"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(list_matching_lines_default_context_lines)
+            write (digits, "(i0)") list_matching_lines_default_context_lines
+            entry%value = trim(digits)
             entry%doc = "Default number of context lines included around"//LF// &
                         "`list_matching_lines' matches.  A negative number means to include"//LF// &
                         "that many lines before the match.  A positive number means to"//LF// &
@@ -27733,7 +27872,8 @@ contains
             entry%file = "log_edit_mod.f90"
             entry%fortran = "log_edit_common_indent"
             entry%original = "0"
-            entry%value = repr(log_edit_common_indent)
+            write (digits, "(i0)") log_edit_common_indent
+            entry%value = trim(digits)
             entry%doc = "Minimum indentation to use in `log_edit_set_common_indentation'."
         case ("log_edit_confirm")
             entry%file = "log_edit_mod.f90"
@@ -27748,7 +27888,8 @@ contains
             case (LOG_EDIT_CONFIRM_CHANGED)
                 entry%value = "LOG_EDIT_CONFIRM_CHANGED"
             case default
-                entry%value = repr(log_edit_confirm)
+                write (digits, "(i0)") log_edit_confirm
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If true, `log_edit_done' will request confirmation."//LF// &
@@ -27801,7 +27942,8 @@ contains
             case (LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK)
                 entry%value = "LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK"
             case default
-                entry%value = repr(log_edit_require_final_newline)
+                write (digits, "(i0)") log_edit_require_final_newline
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Enforce a newline at the end of commit log messages."//LF// &
@@ -27886,7 +28028,8 @@ contains
             entry%fortran = "makefile_backslash_column"
             entry%user_option = .true.
             entry%original = "48"
-            entry%value = repr(makefile_backslash_column%value)
+            write (digits, "(i0)") makefile_backslash_column%value
+            entry%value = trim(digits)
             entry%doc = "Column in which `makefile_backslash_region' inserts backslashes."
         case ("makefile_brave_make")
             entry%file = "make_mode_mod.f90"
@@ -28174,7 +28317,8 @@ contains
             entry%fortran = "mark_ring_max"
             entry%user_option = .true.
             entry%original = "16"
-            entry%value = repr(mark_ring_max)
+            write (digits, "(i0)") mark_ring_max
+            entry%value = trim(digits)
             entry%doc = "Maximum size of mark ring.  Start discarding off end if gets this"//LF// &
                         "big."
         case ("match")
@@ -28186,7 +28330,8 @@ contains
             entry%fortran = "message_log_max"
             entry%user_option = .true.
             entry%original = "1000"
-            entry%value = repr(message_log_max)
+            write (digits, "(i0)") message_log_max
+            entry%value = trim(digits)
             entry%doc = "Maximum number of lines to keep in the message log buffer."//LF// &
                         "If MESSAGE_LOG_MAX_NO, disable message logging.  If"//LF// &
                         "MESSAGE_LOG_MAX_UNLIMITED, log messages but don't truncate the buffer"//LF// &
@@ -28217,7 +28362,8 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "minibuffer_message_timeout"
             entry%original = "2"
-            entry%value = repr(minibuffer_message_timeout)
+            write (digits, "(i0)") minibuffer_message_timeout
+            entry%value = trim(digits)
             entry%doc = "How long to display an echo-area message when the minibuffer is active."//LF// &
                         "If the value is a number, it should be specified in seconds."
         case ("minibuffer_scroll_window")
@@ -28248,7 +28394,8 @@ contains
             case (FINAL_NEWLINE_ASK)
                 entry%value = "FINAL_NEWLINE_ASK"
             case default
-                entry%value = repr(mode_require_final_newline%value)
+                write (digits, "(i0)") mode_require_final_newline%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether to add a newline at end of file, in certain major modes."//LF// &
@@ -28319,7 +28466,8 @@ contains
             entry%fortran = "next_screen_context_lines"
             entry%user_option = .true.
             entry%original = "2"
-            entry%value = repr(next_screen_context_lines)
+            write (digits, "(i0)") next_screen_context_lines
+            entry%value = trim(digits)
             entry%doc = "Number of lines of continuity when scrolling by screenfuls."
         case ("normal_auto_fill_function")
             entry%file = "simple_mod.f90"
@@ -28337,7 +28485,8 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "num_input_keys"
             entry%original = "0"
-            entry%value = repr(num_input_keys)
+            write (digits, "(i0)") num_input_keys
+            entry%value = trim(digits)
             entry%doc = "Number of complete key sequences read as input so far."//LF// &
                         "This includes key sequences read from keyboard macros."//LF// &
                         "The number is effectively the number of interactive command"//LF// &
@@ -28346,7 +28495,8 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "num_nonmacro_input_events"
             entry%original = "0"
-            entry%value = repr(num_nonmacro_input_events)
+            write (digits, "(i0)") num_nonmacro_input_events
+            entry%value = trim(digits)
             entry%doc = "Number of input events read from the keyboard so far."//LF// &
                         "This does not include events generated by keyboard macros."
         case ("occur_collect_regexp_history")
@@ -28734,7 +28884,8 @@ contains
             entry%file = "simple_mod.f90"
             entry%fortran = "pending_undo_entries"
             entry%original = "0"
-            entry%value = repr(pending_undo_entries)
+            write (digits, "(i0)") pending_undo_entries
+            entry%value = trim(digits)
             entry%doc = "Within a run of consecutive undo commands, the position in the"//LF// &
                         "undo list of the changes remaining to be undone; -1 if we undid all"//LF// &
                         "the way to the end of it."
@@ -28882,7 +29033,8 @@ contains
             case (PYTHON_FILL_DOCSTRING_STYLE_SYMMETRIC)
                 entry%value = "PYTHON_FILL_DOCSTRING_STYLE_SYMMETRIC"
             case default
-                entry%value = repr(python_fill_docstring_style%value)
+                write (digits, "(i0)") python_fill_docstring_style%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Style used to fill docstrings."//LF// &
@@ -29046,7 +29198,8 @@ contains
             entry%fortran = "python_indent_def_block_scale"
             entry%user_option = .true.
             entry%original = "2"
-            entry%value = repr(python_indent_def_block_scale%value)
+            write (digits, "(i0)") python_indent_def_block_scale%value
+            entry%value = trim(digits)
             entry%doc = "Multiplier applied to indentation inside multi-line blocks."//LF// &
                         "The indentation in parens in the block header will be the current"//LF// &
                         "indentation plus `python_indent_offset' multiplied by this"//LF// &
@@ -29090,7 +29243,8 @@ contains
             entry%fortran = "python_indent_offset"
             entry%user_option = .true.
             entry%original = "4"
-            entry%value = repr(python_indent_offset%value)
+            write (digits, "(i0)") python_indent_offset%value
+            entry%value = trim(digits)
             entry%doc = "Default indentation offset for Python."
         case ("python_indent_repeat_map")
             entry%file = "python_mod.f90"
@@ -29230,7 +29384,8 @@ contains
             case (READ_ANSWER_SHORT_AUTO)
                 entry%value = "READ_ANSWER_SHORT_AUTO"
             case default
-                entry%value = repr(read_answer_short)
+                write (digits, "(i0)") read_answer_short
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether the `read_answer' function accepts single-character answers."//LF// &
@@ -29270,7 +29425,8 @@ contains
             entry%file = "minibuf_mod.f90"
             entry%fortran = "read_hide_char"
             entry%original = "-1"
-            entry%value = repr(read_hide_char)
+            write (digits, "(i0)") read_hide_char
+            entry%value = trim(digits)
             entry%doc = "Whether to hide input characters in noninteractive mode."//LF// &
                         "If not -1, it must be a character, which will be used to mask the"//LF// &
                         "input characters.  This variable should never be set globally."//LF// &
@@ -29299,7 +29455,8 @@ contains
             entry%fortran = "read_quoted_char_radix"
             entry%user_option = .true.
             entry%original = "8"
-            entry%value = repr(read_quoted_char_radix)
+            write (digits, "(i0)") read_quoted_char_radix
+            entry%value = trim(digits)
             entry%doc = "Radix for \[quoted_insert] and other uses of `read_quoted_char'."//LF// &
                         "Supported radix values are 8, 10 and 16."
         case ("read_y_or_n_history_variable")
@@ -29339,7 +29496,8 @@ contains
             case (RECENTF_AUTO_CLEANUP_NO)
                 entry%value = "RECENTF_AUTO_CLEANUP_NO"
             case default
-                entry%value = repr(recentf_auto_cleanup)
+                write (digits, "(i0)") recentf_auto_cleanup
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Define when to automatically cleanup the recent list."//LF// &
@@ -29360,7 +29518,8 @@ contains
             entry%file = "recentf_mod.f90"
             entry%fortran = "recentf_autosave_interval"
             entry%original = "0"
-            entry%value = repr(recentf_autosave_interval)
+            write (digits, "(i0)") recentf_autosave_interval
+            entry%value = trim(digits)
             entry%doc = "The interval between auto saves of recently opened files, in"//LF// &
                         "seconds.  If set to 0, disables timer-based auto saving."
         case ("recentf_exclude")
@@ -29419,7 +29578,8 @@ contains
             entry%file = "recentf_mod.f90"
             entry%fortran = "recentf_max_saved_items"
             entry%original = "25"
-            entry%value = repr(recentf_max_saved_items)
+            write (digits, "(i0)") recentf_max_saved_items
+            entry%value = trim(digits)
             entry%doc = "Maximum number of items of the recent list that will be saved."//LF// &
                         "RECENTF_MAX_SAVED_ITEMS_UNLIMITED means to save the whole list."//LF// &
                         "See the command `recentf_save_list'."
@@ -29463,7 +29623,8 @@ contains
             entry%file = "recentf_mod.f90"
             entry%fortran = "recentf_save_file_modes"
             entry%original = "384"
-            entry%value = repr(recentf_save_file_modes)
+            write (digits, "(i0)") recentf_save_file_modes
+            entry%value = trim(digits)
             entry%doc = "Mode bits of recentf save file, as an integer, or -1."//LF// &
                         "If not -1, after writing `recentf_save_file', set its mode bits to"//LF// &
                         "this value.  This is decimal, not octal.  The default is 384 (0600"//LF// &
@@ -29512,7 +29673,8 @@ contains
             entry%fortran = "regexp_search_ring_max"
             entry%user_option = .true.
             entry%original = "16"
-            entry%value = repr(regexp_search_ring_max)
+            write (digits, "(i0)") regexp_search_ring_max
+            entry%value = trim(digits)
             entry%doc = "Maximum length of regexp search ring before oldest elements are"//LF// &
                         "thrown away."
         case ("region_extract_function")
@@ -29556,7 +29718,8 @@ contains
             entry%fortran = "register_separator"
             entry%user_option = .true.
             entry%original = "-1"
-            entry%value = repr(register_separator)
+            write (digits, "(i0)") register_separator
+            entry%value = trim(digits)
             entry%doc = "Register containing the text to put between collected texts, or -1"//LF// &
                         "if none."//LF// &
                         ""//LF// &
@@ -29660,7 +29823,8 @@ contains
             entry%file = "repeat_mod.f90"
             entry%fortran = "repeat_num_input_keys_at_repeat"
             entry%original = "-1"
-            entry%value = repr(repeat_num_input_keys_at_repeat)
+            write (digits, "(i0)") repeat_num_input_keys_at_repeat
+            entry%value = trim(digits)
             entry%doc = "# key sequences read in Fortmacs session when `repeat' last invoked."
         case ("repeat_on_final_keystroke")
             entry%file = "repeat_mod.f90"
@@ -29702,7 +29866,8 @@ contains
             entry%file = "replace_mod.f90"
             entry%fortran = "replace_count"
             entry%original = "0"
-            entry%value = repr(replace_count)
+            write (digits, "(i0)") replace_count
+            entry%value = trim(digits)
             entry%doc = "Number of replacements done so far."//LF// &
                         "See `replace_regexp'."
         case ("replace_lax_whitespace")
@@ -29743,7 +29908,8 @@ contains
             case (FINAL_NEWLINE_ASK)
                 entry%value = "FINAL_NEWLINE_ASK"
             case default
-                entry%value = repr(require_final_newline%value)
+                write (digits, "(i0)") require_final_newline%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether to add a newline automatically at the end of the file."//LF// &
@@ -29827,7 +29993,8 @@ contains
             case (SAVE_ABBREVS_SILENTLY)
                 entry%value = "SAVE_ABBREVS_SILENTLY"
             case default
-                entry%value = repr(save_abbrevs)
+                write (digits, "(i0)") save_abbrevs
+                entry%value = trim(digits)
             end select
 
             entry%doc = "True means save word abbrevs too when files are saved."//LF// &
@@ -29848,7 +30015,8 @@ contains
             entry%file = "saveplace_mod.f90"
             entry%fortran = "save_place_autosave_interval"
             entry%original = "0"
-            entry%value = repr(save_place_autosave_interval)
+            write (digits, "(i0)") save_place_autosave_interval
+            entry%value = trim(digits)
             entry%doc = "The interval between auto saves of buffer places, in seconds."//LF// &
                         "If set to 0, disables timer-based auto saving."
         case ("save_place_file")
@@ -29895,7 +30063,8 @@ contains
             entry%file = "saveplace_mod.f90"
             entry%fortran = "save_place_limit"
             entry%original = "400"
-            entry%value = repr(save_place_limit)
+            write (digits, "(i0)") save_place_limit
+            entry%value = trim(digits)
             entry%doc = "Maximum number of entries to retain in the list; SAVE_PLACE_LIMIT_UNLIMITED"//LF// &
                         "means no limit."
         case ("save_place_loaded")
@@ -29955,7 +30124,8 @@ contains
             case (SAVE_PLACE_VERSION_CONTROL_NOSPECIAL)
                 entry%value = "SAVE_PLACE_VERSION_CONTROL_NOSPECIAL"
             case default
-                entry%value = repr(save_place_version_control)
+                write (digits, "(i0)") save_place_version_control
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Controls whether to make numbered backups of master `save_place'"//LF// &
@@ -30025,7 +30195,8 @@ contains
             entry%file = "savehist_mod.f90"
             entry%fortran = "savehist_autosave_interval"
             entry%original = "5*60"
-            entry%value = repr(savehist_autosave_interval)
+            write (digits, "(i0)") savehist_autosave_interval
+            entry%value = trim(digits)
             entry%doc = "The interval between autosaves of minibuffer history, in seconds."//LF// &
                         "If set to 0, disables timer-based autosaving."
         case ("savehist_coding_system")
@@ -30058,7 +30229,8 @@ contains
             entry%file = "savehist_mod.f90"
             entry%fortran = "savehist_file_modes"
             entry%original = "384"
-            entry%value = repr(savehist_file_modes)
+            write (digits, "(i0)") savehist_file_modes
+            entry%value = trim(digits)
             entry%doc = "Default permissions of the history file."//LF// &
                         "This is decimal, not octal.  The default is 384 (0600 in octal)."//LF// &
                         "Set to -1 to use the default permissions that Fortmacs uses,"//LF// &
@@ -30162,7 +30334,8 @@ contains
             entry%fortran = "search_ring_max"
             entry%user_option = .true.
             entry%original = "16"
-            entry%value = repr(search_ring_max)
+            write (digits, "(i0)") search_ring_max
+            entry%value = trim(digits)
             entry%doc = "Maximum length of search ring before oldest elements are"//LF// &
                         "thrown away."
         case ("search_spaces_regexp")
@@ -30191,7 +30364,8 @@ contains
             case (SEARCH_UPPER_CASE_NOT_PASTED)
                 entry%value = "SEARCH_UPPER_CASE_NOT_PASTED"
             case default
-                entry%value = repr(search_upper_case)
+                write (digits, "(i0)") search_upper_case
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If not SEARCH_UPPER_CASE_NO, upper case chars disable case fold searching."//LF// &
@@ -30356,7 +30530,8 @@ contains
             entry%fortran = "sgml_attribute_offset"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(sgml_attribute_offset%value)
+            write (digits, "(i0)") sgml_attribute_offset%value
+            entry%value = trim(digits)
             entry%doc = "Specifies a delta for attribute indentation in `sgml_indent_line'."//LF// &
                         ""//LF// &
                         "When 0, attribute indentation looks like this:"//LF// &
@@ -30375,7 +30550,8 @@ contains
             entry%fortran = "sgml_basic_offset"
             entry%user_option = .true.
             entry%original = "2"
-            entry%value = repr(sgml_basic_offset%value)
+            write (digits, "(i0)") sgml_basic_offset%value
+            entry%value = trim(digits)
             entry%doc = "Specifies the basic indentation level for `sgml_indent_line'."
         case ("sgml_char_names")
             entry%file = "sgml_mode_mod.f90"
@@ -30425,7 +30601,8 @@ contains
             case (QUICK_KEYS_DEFAULT)
                 entry%value = "QUICK_KEYS_DEFAULT"
             case default
-                entry%value = repr(sgml_quick_keys)
+                write (digits, "(i0)") sgml_quick_keys
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Use <, >, &, /, SPC and `sgml_specials' keys ""electrically"" when not"//LF// &
@@ -30436,7 +30613,8 @@ contains
             entry%fortran = "sgml_slash_distance"
             entry%user_option = .true.
             entry%original = "1000"
-            entry%value = repr(sgml_slash_distance%value)
+            write (digits, "(i0)") sgml_slash_distance%value
+            entry%value = trim(digits)
             entry%doc = "If positive, is the maximum distance to search for matching `/'"//LF// &
                         "(0 or less: no limit)."
         case ("sgml_specials")
@@ -30612,7 +30790,8 @@ contains
             entry%fortran = "sh_backslash_column"
             entry%user_option = .true.
             entry%original = "48"
-            entry%value = repr(sh_backslash_column)
+            write (digits, "(i0)") sh_backslash_column
+            entry%value = trim(digits)
             entry%doc = "Column in which `sh_backslash_region' inserts backslashes."
         case ("sh_base_mode_hook")
             entry%file = "sh_script_mod.f90"
@@ -30627,7 +30806,8 @@ contains
             entry%fortran = "sh_basic_offset"
             entry%user_option = .true.
             entry%original = "4"
-            entry%value = repr(sh_basic_offset%value)
+            write (digits, "(i0)") sh_basic_offset%value
+            entry%value = trim(digits)
             entry%doc = "The default indentation increment."//LF// &
                         "This value is used for the `+' and `-' values in an indentation variable."
         case ("sh_beginning_of_command")
@@ -30725,7 +30905,8 @@ contains
             case (SH_SLASH)
                 entry%value = "SH_SLASH"
             case default
-                entry%value = repr(sh_indent_after_case%value)
+                write (digits, "(i0)") sh_indent_after_case%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How much to indent a statement relative to the `case' statement."//LF// &
@@ -30744,7 +30925,8 @@ contains
             case (SH_INDENT_AFTER_CONTINUATION_ALWAYS)
                 entry%value = "SH_INDENT_AFTER_CONTINUATION_ALWAYS"
             case default
-                entry%value = repr(sh_indent_after_continuation)
+                write (digits, "(i0)") sh_indent_after_continuation
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If true, indent relative to the continued line's beginning."//LF// &
@@ -30788,7 +30970,8 @@ contains
             case (SH_SLASH)
                 entry%value = "SH_SLASH"
             case default
-                entry%value = repr(sh_indent_after_do%value)
+                write (digits, "(i0)") sh_indent_after_do%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How much to indent a line after a `do' statement."//LF// &
@@ -30800,7 +30983,8 @@ contains
             entry%fortran = "sh_indent_after_done"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(sh_indent_after_done%value)
+            write (digits, "(i0)") sh_indent_after_done%value
+            entry%value = trim(digits)
             entry%doc = "How much to indent a statement after a `done' keyword."//LF// &
                         "Normally this is 0, which aligns the `done' to the matching"//LF// &
                         "looping construct line."//LF// &
@@ -30826,7 +31010,8 @@ contains
             case (SH_SLASH)
                 entry%value = "SH_SLASH"
             case default
-                entry%value = repr(sh_indent_after_else%value)
+                write (digits, "(i0)") sh_indent_after_else%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How much to indent a statement after an `else' statement."
@@ -30850,7 +31035,8 @@ contains
             case (SH_SLASH)
                 entry%value = "SH_SLASH"
             case default
-                entry%value = repr(sh_indent_after_function%value)
+                write (digits, "(i0)") sh_indent_after_function%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How much to indent after a function line."
@@ -30874,7 +31060,8 @@ contains
             case (SH_SLASH)
                 entry%value = "SH_SLASH"
             case default
-                entry%value = repr(sh_indent_after_if%value)
+                write (digits, "(i0)") sh_indent_after_if%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How much to indent a statement after an `if' statement."//LF// &
@@ -30900,7 +31087,8 @@ contains
             case (SH_SLASH)
                 entry%value = "SH_SLASH"
             case default
-                entry%value = repr(sh_indent_after_loop_construct%value)
+                write (digits, "(i0)") sh_indent_after_loop_construct%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How much to indent a statement after a loop construct."//LF// &
@@ -30928,7 +31116,8 @@ contains
             case (SH_SLASH)
                 entry%value = "SH_SLASH"
             case default
-                entry%value = repr(sh_indent_after_open%value)
+                write (digits, "(i0)") sh_indent_after_open%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How much to indent after a line with an opening parenthesis or brace."//LF// &
@@ -30953,7 +31142,8 @@ contains
             case (SH_SLASH)
                 entry%value = "SH_SLASH"
             case default
-                entry%value = repr(sh_indent_after_switch%value)
+                write (digits, "(i0)") sh_indent_after_switch%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How much to indent a `case' statement relative to the `switch' statement."//LF// &
@@ -30978,7 +31168,8 @@ contains
             case (SH_SLASH)
                 entry%value = "SH_SLASH"
             case default
-                entry%value = repr(sh_indent_for_case_alt%value)
+                write (digits, "(i0)") sh_indent_for_case_alt%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How much to indent statements after the case label."//LF// &
@@ -31003,7 +31194,8 @@ contains
             case (SH_SLASH)
                 entry%value = "SH_SLASH"
             case default
-                entry%value = repr(sh_indent_for_case_label%value)
+                write (digits, "(i0)") sh_indent_for_case_label%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How much to indent a case label statement."//LF// &
@@ -31028,7 +31220,8 @@ contains
             case (SH_SLASH)
                 entry%value = "SH_SLASH"
             case default
-                entry%value = repr(sh_indent_for_continuation%value)
+                write (digits, "(i0)") sh_indent_for_continuation%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "How much to indent for a continuation statement."
@@ -31037,7 +31230,8 @@ contains
             entry%fortran = "sh_indent_for_do"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(sh_indent_for_do%value)
+            write (digits, "(i0)") sh_indent_for_do%value
+            entry%value = trim(digits)
             entry%doc = "How much to indent a `do' statement."//LF// &
                         "This is relative to the statement before the `do', typically a"//LF// &
                         "`while', `until', `for', `repeat' or `select' statement."
@@ -31046,21 +31240,24 @@ contains
             entry%fortran = "sh_indent_for_done"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(sh_indent_for_done%value)
+            write (digits, "(i0)") sh_indent_for_done%value
+            entry%value = trim(digits)
             entry%doc = "How much to indent a `done' relative to its matching stmt.  Usually 0."
         case ("sh_indent_for_fi")
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_indent_for_fi"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(sh_indent_for_fi%value)
+            write (digits, "(i0)") sh_indent_for_fi%value
+            entry%value = trim(digits)
             entry%doc = "How much to indent a `fi' relative to its `if'.  Usually 0."
         case ("sh_indent_for_then")
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_indent_for_then"
             entry%user_option = .true.
             entry%original = "0"
-            entry%value = repr(sh_indent_for_then%value)
+            write (digits, "(i0)") sh_indent_for_then%value
+            entry%value = trim(digits)
             entry%doc = "How much to indent a `then' relative to its `if'."
         case ("sh_indent_statement_after_and")
             entry%file = "sh_script_mod.f90"
@@ -31127,7 +31324,8 @@ contains
             entry%fortran = "sh_remember_variable_min"
             entry%user_option = .true.
             entry%original = "3"
-            entry%value = repr(sh_remember_variable_min)
+            write (digits, "(i0)") sh_remember_variable_min
+            entry%value = trim(digits)
             entry%doc = "Don't remember variables less than this length for completing reads."
         case ("sh_set_shell_hook")
             entry%file = "sh_script_mod.f90"
@@ -31239,7 +31437,8 @@ contains
             case (SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT)
                 entry%value = "SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT"
             case default
-                entry%value = repr(shell_command_keep_output%value)
+                write (digits, "(i0)") shell_command_keep_output%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether to erase the output buffer before executing shell command."//LF// &
@@ -31493,7 +31692,8 @@ contains
             case (COMINT_AUTOEXPAND_HISTORY)
                 entry%value = "COMINT_AUTOEXPAND_HISTORY"
             case default
-                entry%value = repr(shell_input_autoexpand%value)
+                write (digits, "(i0)") shell_input_autoexpand%value
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If not COMINT_AUTOEXPAND_NO, expand input command history"//LF// &
@@ -31661,7 +31861,8 @@ contains
             case (SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH)
                 entry%value = "SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH"
             case default
-                entry%value = repr(show_paren_not_in_comments_or_strings)
+                write (digits, "(i0)") show_paren_not_in_comments_or_strings
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If `SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL', never highlight parens inside"//LF// &
@@ -31674,7 +31875,8 @@ contains
             entry%fortran = "show_paren_priority"
             entry%user_option = .true.
             entry%original = "1000"
-            entry%value = repr(show_paren_priority)
+            write (digits, "(i0)") show_paren_priority
+            entry%value = trim(digits)
             entry%doc = "Priority of paren highlighting overlays."
         case ("show_paren_ring_bell_on_mismatch")
             entry%file = "paren_mod.f90"
@@ -31697,7 +31899,8 @@ contains
             case (SHOW_PAREN_STYLE_MIXED)
                 entry%value = "SHOW_PAREN_STYLE_MIXED"
             case default
-                entry%value = repr(show_paren_style)
+                write (digits, "(i0)") show_paren_style
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Style used when showing a matching paren."//LF// &
@@ -31965,7 +32168,8 @@ contains
             entry%fortran = "smie_indent_basic"
             entry%user_option = .true.
             entry%original = "4"
-            entry%value = repr(smie_indent_basic)
+            write (digits, "(i0)") smie_indent_basic
+            entry%value = trim(digits)
             entry%doc = "Basic amount of indentation."
         case ("smie_indent_functions")
             entry%file = "smie_mod.f90"
@@ -31978,7 +32182,8 @@ contains
             entry%file = "smie_mod.f90"
             entry%fortran = "smie_rule_separator_outdent"
             entry%original = "2"
-            entry%value = repr(smie_rule_separator_outdent)
+            write (digits, "(i0)") smie_rule_separator_outdent
+            entry%value = trim(digits)
             entry%doc = "How far a separator is outdented when nothing follows it on its"//LF// &
                         "line."
         case ("smie_rules_function")
@@ -32044,7 +32249,8 @@ contains
             entry%fortran = "split_height_threshold"
             entry%user_option = .true.
             entry%original = "80"
-            entry%value = repr(split_height_threshold)
+            write (digits, "(i0)") split_height_threshold
+            entry%value = trim(digits)
             entry%doc = "Minimum height for splitting windows sensibly."//LF// &
                         "If this is an integer, `split_window_sensibly' may split a window"//LF// &
                         "vertically only if it has at least this many lines.  If, however, a"//LF// &
@@ -32056,7 +32262,8 @@ contains
             entry%fortran = "split_width_threshold"
             entry%user_option = .true.
             entry%original = "150"
-            entry%value = repr(split_width_threshold)
+            write (digits, "(i0)") split_width_threshold
+            entry%value = trim(digits)
             entry%doc = "Minimum width for splitting windows sensibly."//LF// &
                         "If this is an integer, `split_window_sensibly' may split a window"//LF// &
                         "horizontally only if it has at least this many columns."
@@ -32074,7 +32281,8 @@ contains
             case (SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL)
                 entry%value = "SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL"
             case default
-                entry%value = repr(split_window_preferred_direction)
+                write (digits, "(i0)") split_window_preferred_direction
+                entry%value = trim(digits)
             end select
 
             entry%doc = "The first direction tried when Fortmacs needs to split a window."//LF// &
@@ -32094,7 +32302,8 @@ contains
             entry%fortran = "standard_indent"
             entry%user_option = .true.
             entry%original = "4"
-            entry%value = repr(standard_indent%value)
+            write (digits, "(i0)") standard_indent%value
+            entry%value = trim(digits)
             entry%doc = "Default number of columns for margin-changing functions to indent."
         case ("string_rectangle_history")
             entry%file = "rect_mod.f90"
@@ -32150,7 +32359,8 @@ contains
             entry%file = "syntax_propertize_mod.f90"
             entry%fortran = "syntax_ppss_max_span"
             entry%original = "20000"
-            entry%value = repr(syntax_ppss_max_span)
+            write (digits, "(i0)") syntax_ppss_max_span
+            entry%value = trim(digits)
             entry%doc = "Threshold below which cache info is deemed unnecessary."//LF// &
                         "We try to make sure that cache entries are at least this far apart"//LF// &
                         "from each other, to avoid keeping too much useless info."
@@ -32162,20 +32372,23 @@ contains
             entry%file = "syntax_propertize_mod.f90"
             entry%fortran = "syntax_propertize_chunk_size"
             entry%original = "500"
-            entry%value = repr(syntax_propertize_chunk_size)
+            write (digits, "(i0)") syntax_propertize_chunk_size
+            entry%value = trim(digits)
             entry%doc = "How far `syntax_propertize' goes at least."
         case ("syntax_propertize_chunks")
             entry%file = "syntax_propertize_mod.f90"
             entry%fortran = "syntax_propertize_chunks"
             entry%original = "2000"
-            entry%value = repr(syntax_propertize_chunks)
+            write (digits, "(i0)") syntax_propertize_chunks
+            entry%value = trim(digits)
             entry%doc = "How far ahead of the position the syntax scanner needs"//LF// &
                         "`internal_syntax_propertize_function' propertizes."
         case ("syntax_propertize_done")
             entry%file = "syntax_mod.f90"
             entry%fortran = "syntax_propertize_done"
             entry%original = "-1"
-            entry%value = repr(syntax_propertize_done%value)
+            write (digits, "(i0)") syntax_propertize_done%value
+            entry%value = trim(digits)
             entry%doc = "Position up to which syntax-table properties have been set."
         case ("syntax_propertize_extend_region_functions")
             entry%file = "syntax_propertize_mod.f90"
@@ -32216,7 +32429,8 @@ contains
             entry%file = "syntax_propertize_mod.f90"
             entry%fortran = "syntax_wholeline_max"
             entry%original = "10000"
-            entry%value = repr(syntax_wholeline_max)
+            write (digits, "(i0)") syntax_wholeline_max
+            entry%value = trim(digits)
             entry%doc = "Maximum line length for syntax operations."//LF// &
                         "If lines are longer than that, syntax operations will treat them as chunks"//LF// &
                         "of this size.  Misfontification may then occur."//LF// &
@@ -32276,7 +32490,8 @@ contains
             entry%fortran = "tab_width"
             entry%user_option = .true.
             entry%original = "8"
-            entry%value = repr(tab_width%value)
+            write (digits, "(i0)") tab_width%value
+            entry%value = trim(digits)
             entry%doc = "Distance between tab stops (for display of tab characters), in columns."//LF// &
                         "This controls the width of a TAB character on display."//LF// &
                         "The value should be a positive integer."
@@ -32398,7 +32613,8 @@ contains
             entry%fortran = "timer_max_repeats"
             entry%user_option = .true.
             entry%original = "10"
-            entry%value = repr(timer_max_repeats)
+            write (digits, "(i0)") timer_max_repeats
+            entry%value = trim(digits)
             entry%doc = "Maximum number of times to repeat a timer, if many repeats are delayed."//LF// &
                         "Timer invocations can be delayed because Fortmacs is suspended or busy,"//LF// &
                         "or because the system's time changes.  If such an occurrence makes it"//LF// &
@@ -32439,7 +32655,8 @@ contains
             entry%fortran = "truncate_partial_width_windows"
             entry%user_option = .true.
             entry%original = "50"
-            entry%value = repr(truncate_partial_width_windows)
+            write (digits, "(i0)") truncate_partial_width_windows
+            entry%value = trim(digits)
             entry%doc = "A nonzero value means truncate lines in windows narrower than the frame."//LF// &
                         "For a value other than huge(0), truncate lines in each window narrower than the"//LF// &
                         "full frame width, provided the total window width in column units is less"//LF// &
@@ -32621,7 +32838,8 @@ contains
             case (VC_COMMAND_MESSAGES_LOG)
                 entry%value = "VC_COMMAND_MESSAGES_LOG"
             case default
-                entry%value = repr(vc_command_messages)
+                write (digits, "(i0)") vc_command_messages
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If true, display and log messages about running back-end commands."//LF// &
@@ -32702,7 +32920,8 @@ contains
             case (VC_DIR_ALLOW_MASS_MARK_CHANGES_YES)
                 entry%value = "VC_DIR_ALLOW_MASS_MARK_CHANGES_YES"
             case default
-                entry%value = repr(vc_dir_allow_mass_mark_changes)
+                write (digits, "(i0)") vc_dir_allow_mass_mark_changes
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If true, VC-Dir commands may mark or unmark many items at once."//LF// &
@@ -32738,7 +32957,8 @@ contains
             case (VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT)
                 entry%value = "VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT"
             case default
-                entry%value = repr(vc_dir_auto_hide_up_to_date)
+                write (digits, "(i0)") vc_dir_auto_hide_up_to_date
+                entry%value = trim(digits)
             end select
 
             entry%doc = "Whether VC-Dir auto-removes `up-to-date'/`ignored' files from display."//LF// &
@@ -32809,7 +33029,8 @@ contains
             case (VC_DISPLAY_STATUS_NO_BACKEND)
                 entry%value = "VC_DISPLAY_STATUS_NO_BACKEND"
             case default
-                entry%value = repr(vc_display_status)
+                write (digits, "(i0)") vc_display_status
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If true, display revision number and lock status in mode line."//LF// &
@@ -32842,7 +33063,8 @@ contains
             case (VC_FOLLOW_SYMLINKS_ASK)
                 entry%value = "VC_FOLLOW_SYMLINKS_ASK"
             case default
-                entry%value = repr(vc_follow_symlinks)
+                write (digits, "(i0)") vc_follow_symlinks
+                entry%value = trim(digits)
             end select
 
             entry%doc = "What to do if visiting a symbolic link to a file under version control."//LF// &
@@ -32872,7 +33094,8 @@ contains
             entry%file = "vc_git_mod.f90"
             entry%fortran = "vc_git_log_edit_summary_max_len"
             entry%original = "68"
-            entry%value = repr(vc_git_log_edit_summary_max_len)
+            write (digits, "(i0)") vc_git_log_edit_summary_max_len
+            entry%value = trim(digits)
             entry%doc = "Maximum length for Git commit summary lines."//LF// &
                         "If a number, characters in summary lines beyond this length are"//LF// &
                         "displayed in the `vc_git_log_edit_summary_max_warning' face."//LF// &
@@ -32892,7 +33115,8 @@ contains
             entry%file = "vc_git_mod.f90"
             entry%fortran = "vc_git_log_edit_summary_target_len"
             entry%original = "-1"
-            entry%value = repr(vc_git_log_edit_summary_target_len)
+            write (digits, "(i0)") vc_git_log_edit_summary_target_len
+            entry%value = trim(digits)
             entry%doc = "Target length for Git commit summary lines."//LF// &
                         "If a number, characters in Summary: lines beyond this length are"//LF// &
                         "displayed in the `vc_git_log_edit_summary_target_warning' face."//LF// &
@@ -33022,7 +33246,8 @@ contains
             entry%fortran = "vc_log_show_limit"
             entry%user_option = .true.
             entry%original = "500"
-            entry%value = repr(vc_log_show_limit)
+            write (digits, "(i0)") vc_log_show_limit
+            entry%value = trim(digits)
             entry%doc = "Limit the number of items shown by the VC log commands."//LF// &
                         "Zero means unlimited."//LF// &
                         "Not all VC backends are able to support this feature."
@@ -33077,7 +33302,8 @@ contains
             case (VC_REVERT_SHOW_DIFF_KILL)
                 entry%value = "VC_REVERT_SHOW_DIFF_KILL"
             case default
-                entry%value = repr(vc_revert_show_diff)
+                write (digits, "(i0)") vc_revert_show_diff
+                entry%value = trim(digits)
             end select
 
             entry%doc = "If true, `vc_revert' shows a `vc_diff' buffer before querying."//LF// &
@@ -33088,7 +33314,8 @@ contains
             entry%file = "vc_dispatcher_mod.f90"
             entry%fortran = "vc_sentinel_movepoint"
             entry%original = "0"
-            entry%value = repr(vc_sentinel_movepoint)
+            write (digits, "(i0)") vc_sentinel_movepoint
+            entry%value = trim(digits)
             entry%doc = "Where a sentinel wants point to go afterwards (0 for none)."
         case ("vc_state_base")
             entry%file = "vc_hooks_mod.f90"
@@ -33224,7 +33451,8 @@ contains
             entry%fortran = "window_min_height"
             entry%user_option = .true.
             entry%original = "4"
-            entry%value = repr(window_min_height)
+            write (digits, "(i0)") window_min_height
+            entry%value = trim(digits)
             entry%doc = "The minimum total height, in lines, of any window."//LF// &
                         "The value has to accommodate one text line, a mode and header line,"//LF// &
                         "a horizontal scroll bar and a bottom divider, if present.  A value"//LF// &
@@ -33234,7 +33462,8 @@ contains
             entry%fortran = "window_min_width"
             entry%user_option = .true.
             entry%original = "10"
-            entry%value = repr(window_min_width)
+            write (digits, "(i0)") window_min_width
+            entry%value = trim(digits)
             entry%doc = "The minimum total width, in columns, of any window."//LF// &
                         "The value has to accommodate two text columns as well as margins,"//LF// &
                         "fringes, a scroll bar and a right divider, if present.  A value less"//LF// &
@@ -38235,15 +38464,6 @@ contains
         s = trim(s)
     end function repr_logical
 
-    function repr_integer(v) result(s)
-        integer, intent(in) :: v
-        character(len=:), allocatable :: s
-        character(len=12) :: digits
-
-        write (digits, "(i0)") v
-        s = trim(digits)
-    end function repr_integer
-
     ! A real with at least one digit
     ! after the point, no trailing zeros.
     function repr_real(v) result(s)
@@ -38266,26 +38486,19 @@ contains
         end if
     end function repr_real
 
-    function repr_int64(v) result(s)
-        integer(int64), intent(in) :: v
-        character(len=:), allocatable :: s
-        character(len=21) :: digits
-
-        write (digits, "(i0)") v
-        s = trim(digits)
-    end function repr_int64
-
     !> An array of integers as a Fortran array constructor.
     function repr_int64s(v) result(s)
         integer(int64), intent(in) :: v(:)
         character(len=:), allocatable :: s
+        character(len=21) :: digits
         integer :: i
 
         s = "["
 
         do i = 1, size(v)
             if (i > 1) s = s//", "
-            s = s//repr_int64(v(i))
+            write (digits, "(i0)") v(i)
+            s = s//trim(digits)
         end do
 
         s = s//"]"
@@ -38295,13 +38508,15 @@ contains
     function repr_integers(v) result(s)
         integer, intent(in) :: v(:)
         character(len=:), allocatable :: s
+        character(len=12) :: digits
         integer :: i
 
         s = "["
 
         do i = 1, size(v)
             if (i > 1) s = s//", "
-            s = s//repr_integer(v(i))
+            write (digits, "(i0)") v(i)
+            s = s//trim(digits)
         end do
 
         s = s//"]"

@@ -1046,9 +1046,9 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
 - **write-wrapper**: a function or subroutine whose executable part is a
   `write` into a local buffer followed by `trim` of it (`write (buffer,
   "(i0)") n` then `text = trim(buffer)`), or one `write` into its result
-  (R6-44, see "Numbers to text" below); the integer specifics of the
-  generated docstrings_mod's `repr` generic (the Fortran literal of a
-  setting's value of any type) are in the baseline, awaiting a decision.
+  (R6-44, see "Numbers to text" below); the generated docstrings_mod
+  writes an integer setting's value inline (tools/gen-docstrings.sh), its
+  `repr` generic keeps only the other types.
 - **number-text**: a reference to a procedure named `number_to_string`,
   `int_text`, `integer_text`, `itoa`, `int_str`, `int2str` or
   `to_string` (R6-44, R6-45).
