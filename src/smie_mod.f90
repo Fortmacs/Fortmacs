@@ -61,7 +61,7 @@ module smie_mod
     use value_mod, only: command_procedure, xfixnum, vtag, V_INTEGER
     use data_mod, only: append_locals_clearer, function_setting_default
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, line_beginning_position, &
-                           line_end_position, buffer_substring, char_after, char_before
+                           line_end_position, buffer_substring, char_after, char_before, char_to_string
     use cmds_mod, only: forward_line, forward_char, beginning_of_line, post_self_insert_hook
     use insdel_mod, only: insert
     use syntax_mod, only: forward_comment, skip_syntax_forward, skip_syntax_backward, skip_chars_forward, &
@@ -2331,30 +2331,14 @@ contains
         type(syntax_descriptor_type) :: d
         integer(int32) :: c
         logical :: found
+        type(status_type) :: st
 
         s = ""
         call char_after(c, found, pos)
         if (.not. found) return
         d = syntax_entry_at(int(c), pos)
-        if (d%match >= 0) s = char_text(d%match)
+        if (d%match >= 0) call char_to_string(int(d%match, int32), s, st)
     end function matching_char
-
-    ! The UTF-8 text of character C.  Not a port.
-    function char_text(c) result(s)
-        integer, intent(in) :: c
-        character(len=:), allocatable :: s
-
-        if (c < 128) then
-            s = achar(c)
-        else if (c < 2048) then
-            s = achar(192 + c/64)//achar(128 + iand(c, 63))
-        else if (c < 65536) then
-            s = achar(224 + c/4096)//achar(128 + iand(c/64, 63))//achar(128 + iand(c, 63))
-        else
-            s = achar(240 + c/262144)//achar(128 + iand(c/4096, 63))//achar(128 + iand(c/64, 63))// &
-                achar(128 + iand(c, 63))
-        end if
-    end function char_text
 
     ! The characters of the UTF-8 string S.  Not a port.
     function string_chars_of(s) result(cs)
@@ -4755,10 +4739,11 @@ contains
         procedure(smie_token_procedure), optional :: forward_token, backward_token
         type(string_type), allocatable :: closers(:)
         type(string_type) :: tmp
-        character(len=:), allocatable :: closer, trig
+        character(len=:), allocatable :: closer, trig, text
         integer, allocatable :: trigs(:), cs(:)
         integer :: k, i, j
         logical :: dup
+        type(status_type) :: st
 
         if (current == 0) return
         call make_local_entry(k)
@@ -4832,7 +4817,9 @@ contains
                 if (trigs(j) == trigs(i)) dup = .true.
             end do
 
-            if (.not. dup) trig = trig//char_text(trigs(i))
+            if (dup) cycle
+            call char_to_string(int(trigs(i), int32), text, st)
+            trig = trig//text
         end do
 
         call make_local_entry(k)

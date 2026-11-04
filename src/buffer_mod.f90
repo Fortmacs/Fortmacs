@@ -43,7 +43,7 @@ module buffer_mod
     use value_mod, only: vtag, V_NULL
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                          FM_BUFFER_READ_ONLY, FM_INVALID_HANDLE
-    use handle_mod, only: handle_type, slot_table_type, null_handle
+    use handle_mod, only: handle_type, slot_table_type, null_handle, has_handle, same_handle
     use timefns_mod, only: time_type
     use value_mod, only: value_type, make_symbol_ref
     use names_mod, only: intern
@@ -901,8 +901,8 @@ contains
         end if
 
         do k = 1, size(general)
-            if (in_list(frame_buffers, general(k))) cycle
-            if (in_list(frame_buried, general(k))) cycle
+            if (has_handle(frame_buffers, general(k))) cycle
+            if (has_handle(frame_buried, general(k))) cycle
             n = n + 1
             list(n) = general(k)
         end do
@@ -927,44 +927,13 @@ contains
         end if
     end function frame_seen_buffers
 
-    !> Whether `h' is in `list'.  Not a port.
-    logical function in_list(list, h)
-        type(handle_type), allocatable, intent(in) :: list(:)
-        type(handle_type), intent(in) :: h
-
-        in_list = .false.
-        if (.not. allocated(list)) return
-        in_list = any(list%index == h%index .and. list%generation == h%generation)
-    end function in_list
-
-    !> `list' without `h'.  Not a port.
-    subroutine list_delq(list, h)
-        type(handle_type), allocatable, intent(inout) :: list(:)
-        type(handle_type), intent(in) :: h
-        type(handle_type), allocatable :: kept(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-
-        do k = 1, n
-            if (list(k)%index == h%index .and. list(k)%generation == h%generation) then
-                allocate (kept(n - 1))
-                kept(1:k - 1) = list(1:k - 1)
-                kept(k:n - 1) = list(k + 1:n)
-                call move_alloc(kept, list)
-                return
-            end if
-        end do
-    end subroutine list_delq
-
     !> Move H to the front of LIST (removing it elsewhere).  Not a port.
     subroutine move_to_front(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
 
-        call list_delq(list, h)
-        list = [h, list]
+        if (.not. allocated(list)) allocate (list(0))
+        list = [h, pack(list,.not. same_handle(list, h))]
     end subroutine move_to_front
 
     !> Move BUFFER to the end of the buffer list.  Port of
@@ -983,7 +952,7 @@ contains
         end do
 
         ! Update buffer lists of selected frame.
-        call list_delq(frame_buffers, h)
+        if (allocated(frame_buffers)) frame_buffers = pack(frame_buffers,.not. same_handle(frame_buffers, h))
         call move_to_front(frame_buried, h)
         call execute_buffer_list_update_hook(h%index, status)
     end subroutine bury_buffer_internal
@@ -993,8 +962,8 @@ contains
     subroutine frames_discard_buffer(h)
         type(handle_type), intent(in) :: h
 
-        call list_delq(frame_buffers, h)
-        call list_delq(frame_buried, h)
+        if (allocated(frame_buffers)) frame_buffers = pack(frame_buffers,.not. same_handle(frame_buffers, h))
+        if (allocated(frame_buried)) frame_buried = pack(frame_buried,.not. same_handle(frame_buried, h))
     end subroutine frames_discard_buffer
 
     !> Exchange the selected frame's buffer lists (frame.h buffer_list and
@@ -1066,7 +1035,7 @@ contains
 
         ! Update buffer list of selected frame.
         call move_to_front(frame_buffers, h)
-        call list_delq(frame_buried, h)
+        if (allocated(frame_buried)) frame_buried = pack(frame_buried,.not. same_handle(frame_buried, h))
         call execute_buffer_list_update_hook(h%index, status)
     end subroutine record_buffer
 

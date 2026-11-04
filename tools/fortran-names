@@ -2705,3 +2705,14 @@ name	window_make_major_side_window	make_major_side_window
 keep	window_sides_check_failed
 name	window_sides_check	check_window_sides
 name	window_child_count	count_window_children
+# Owner, 2026-11-04 (lisp-slips): subr.el version< and version<= are the
+# logical functions is_version_less and is_version_less_or_equal in
+# subr_mod; the names of the private copies they replace (version_less,
+# version_le, is_version_le) are renamed to them.  The new names and
+# is_string_version_less hold version_less, so they are kept.
+name	is_version_le	is_version_less_or_equal
+name	version_le	is_version_less_or_equal
+name	version_less	is_version_less
+keep	is_version_less
+keep	is_version_less_or_equal
+keep	is_string_version_less

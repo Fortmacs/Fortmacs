@@ -107,15 +107,6 @@ contains
         call string_char_and_length(string, string_index_to_offset(string, k) + 1, c, clen)
     end function char_at
 
-    ! The string of character C.  Not a port.
-    function char_text(c) result(text)
-        integer(int32), intent(in) :: c
-        character(len=:), allocatable :: text
-        type(status_type) :: st
-
-        call char_to_string(c, text, st)
-    end function char_text
-
     ! A marker at point (save-excursion).  Not a port.
     function marker_here() result(m)
         type(handle_type) :: m
@@ -253,18 +244,20 @@ contains
         type(restriction_type) :: r
         type(handle_type) :: here
         character(len=16) :: hex
+        character(len=:), allocatable :: low, high
 
         saved = match_data()
         here = marker_here()
         call restriction_begin(r)
         call goto_char(beginning)
         call narrow_to_region(beginning, end, status)
+        ! The raw bytes 128..255 (a unibyte \200-\377 range upstream).
+        if (status%ok()) call char_to_string(byte8_to_char(128), low, status)
+        if (status%ok()) call char_to_string(byte8_to_char(255), high, status)
 
         if (status%ok()) then
-            ! The raw bytes 128..255 (a unibyte \200-\377 range upstream).
             do
-                call re_search_forward("[?=""]\|["//char_text(byte8_to_char(128))//"-"//char_text(byte8_to_char(255))//"]", &
-                                       found, status, noerror=SEARCH_NOERROR)
+                call re_search_forward("[?=""]\|["//low//"-"//high//"]", found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok() .or. found == 0) exit
                 call char_before(c, ok)
                 write (hex, '("=", z0.2)') c
@@ -309,7 +302,7 @@ contains
         character(len=*), intent(in) :: string_in
         logical, intent(in), optional :: wrapper
         character(len=:), allocatable :: result
-        character(len=:), allocatable :: string
+        character(len=:), allocatable :: string, text
         integer(int64) :: i, m, b
         integer(int64), allocatable :: saved(:)
         type(status_type) :: st
@@ -331,8 +324,9 @@ contains
             b = match_beginning(1, st)
 
             if (char_at(string, b) /= 10) then
-                result = result//char_text(16*unquote_mail_printable_hexdigit(char_at(string, b)) &
-                                           + unquote_mail_printable_hexdigit(char_at(string, b + 1)))
+                call char_to_string(16*unquote_mail_printable_hexdigit(char_at(string, b)) &
+                                    + unquote_mail_printable_hexdigit(char_at(string, b + 1)), text, st)
+                result = result//text
             end if
 
             i = match_end(0, st)
@@ -362,6 +356,7 @@ contains
         integer(int32) :: c1, c2, code
         logical :: failed, ok, matched
         type(status_type) :: st
+        character(len=:), allocatable :: text
         type(restriction_type) :: r
         type(handle_type) :: here
 
@@ -412,9 +407,11 @@ contains
                         ! insert-byte will insert this as a
                         ! corresponding eight-bit character.
                         if (code >= 128) code = byte8_to_char(code)
-                        if (status%ok()) call insert(char_text(code), status)
+                        if (status%ok()) call char_to_string(code, text, status)
+                        if (status%ok()) call insert(text, status)
                     else
-                        call replace_match(char_text(code), status, fixedcase=.true., literal=.true.)
+                        call char_to_string(code, text, status)
+                        if (status%ok()) call replace_match(text, status, fixedcase=.true., literal=.true.)
                     end if
                 else if (opt(noerror)) then
                     failed = .true.

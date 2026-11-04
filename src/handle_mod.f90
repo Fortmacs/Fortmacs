@@ -40,7 +40,7 @@ module handle_mod
     implicit none(type, external)
     private
 
-    public :: handle_type, slot_table_type, null_handle, has_handle
+    public :: handle_type, slot_table_type, null_handle, has_handle, same_handle
 
     !> Reference to a slot.  Index 0 is the null handle.
     type :: handle_type
@@ -84,6 +84,14 @@ contains
         has_handle = .false.
         if (allocated(list)) has_handle = any(list%index == h%index .and. list%generation == h%generation)
     end function has_handle
+
+    !> Whether `a' and `b' are the same buffer (or window) handle.
+    !> Not a port.
+    elemental logical function same_handle(a, b)
+        type(handle_type), intent(in) :: a, b
+
+        same_handle = a%index == b%index .and. a%generation == b%generation
+    end function same_handle
 
     !> The null handle, which never resolves.
     pure function null_handle() result(h)

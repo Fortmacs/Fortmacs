@@ -77,7 +77,7 @@ module info_mod
     use search_mod, only: looking_at, string_match, search_forward, search_backward, re_search_forward, &
                           re_search_backward, match_beginning, match_end, replace_match, regexp_quote, &
                           string_index_to_offset, case_fold_search, search_spaces_regexp, SEARCH_NOERROR, SEARCH_MOVE
-    use subr_mod, only: match_string_no_properties, looking_back, read_y_or_n
+    use subr_mod, only: match_string_no_properties, looking_back, read_y_or_n, is_version_less
     use syntax_mod, only: skip_chars_forward, skip_chars_backward, copy_syntax_table, modify_syntax_entry, &
                           is_syntax_table_live, skip_syntax_backward
     use casefiddle_mod, only: downcase_string, capitalize_string
@@ -1589,6 +1589,8 @@ contains
         character(len=:), allocatable :: version
         integer(int64) :: opoint
         integer :: i
+        type(status_type) :: st
+        logical :: less
 
         if (.not. allocated(cookies_cache)) allocate (cookies_cache(0))
 
@@ -1609,7 +1611,10 @@ contains
             if (refwd("\(?:makeinfo\|texi2any\)[ "//LF//"]version[ "//LF//"]\([0-9]+.[0-9]+\)", &
                       line_beginning_position(4_int64))) then
                 version = match_string_no_properties(1)
-                found = .not. version_less(version, "4.7")
+                less = is_version_less(version, "4.7", st)
+                ! Invalid version syntax is an error condition upstream;
+                ! this function reports none, and gives false.
+                if (st%ok()) found = .not. less
             end if
 
             call goto_char(opoint)
@@ -1619,49 +1624,6 @@ contains
         cookies%supports = found
         cookies_cache = [cookies, cookies_cache]
     end function file_supports_index_cookies
-
-    ! (version< A B) for versions made of numbers and dots.  Not a port.
-    logical function version_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: i, j, na, nb, va, vb
-
-        i = 1
-        j = 1
-        version_less = .false.
-
-        do
-            call next_number(a, i, va, na)
-            call next_number(b, j, vb, nb)
-            if (na == 0 .and. nb == 0) return
-
-            if (va /= vb) then
-                version_less = va < vb
-                return
-            end if
-        end do
-
-    contains
-
-        ! The number at POS of S (0 if none, NDIGITS 0), skipping the dot
-        ! after it.
-        subroutine next_number(s, pos, v, ndigits)
-            character(len=*), intent(in) :: s
-            integer, intent(inout) :: pos
-            integer, intent(out) :: v, ndigits
-
-            v = 0
-            ndigits = 0
-
-            do while (pos <= len(s))
-                if (s(pos:pos) < "0" .or. s(pos:pos) > "9") exit
-                v = v*10 + iachar(s(pos:pos)) - iachar("0")
-                ndigits = ndigits + 1
-                pos = pos + 1
-            end do
-
-            if (pos <= len(s)) pos = pos + 1
-        end subroutine next_number
-    end function version_less
 
     ! Compute a directory list suitable for Info.  Port of
     ! info.el:Info--default-directory-list.

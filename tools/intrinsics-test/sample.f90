@@ -329,4 +329,19 @@ contains
 
         read (s, *) n
     end function string_to_number
+
+    !> A private copy of version<= (subr_mod holds the port).
+    logical function version_le(a, b)
+        character(len=*), intent(in) :: a, b
+
+        version_le = a <= b
+    end function version_le
+
+    !> A private copy of delq (pack is the intrinsic).
+    subroutine list_delq(list, h)
+        integer, allocatable, intent(inout) :: list(:)
+        integer, intent(in) :: h
+
+        list = pack(list, list /= h)
+    end subroutine list_delq
 end module sample
