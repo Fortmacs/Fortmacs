@@ -2,8 +2,9 @@
 #
 # Fortmacs is Fortran-first: where upstream names a thing with a Lisp
 # term, Fortmacs uses a Fortran word.  Every term, name and file entry
-# below was confirmed by the project owner individually; do not add one
-# without that.
+# below was confirmed by the owner, by an existing rule (decided and
+# reported), or by the decision panel (CLAUDE.md); do not add one
+# otherwise.
 # tools/fortran-names.sh applies this table (to this tree, to branches
 # written before an entry existed, and to code freshly ported from a new
 # upstream version), and tools/check.sh fails on what it would still
@@ -41,7 +42,7 @@
 #   Every keep entry says why in a comment above it.
 #
 # Matching ignores case and keeps it: ERROR_REGEXP_ALIST becomes
-# ERROR_REGEXP_TABLE, "Sexp" becomes "Expression".  Upstream names are
+# ERROR_REGEXPS, "Sexp" becomes "Expression".  Upstream names are
 # never renamed: FILE.el:NAME, FILE.c:NAME and FILE.h:NAME citations,
 # hyphenated names (forward-sexp), C names (Fscan_lists, Vfoo_alist),
 # upper-case C predicate macros (CHAR_HEAD_P, for a name ending in p),
@@ -429,7 +430,8 @@ name	full_directory_p	full_directory
 name	string_collate_lessp	is_string_collate_less
 
 # A1: named constants say what nil and t mean for their setting (_NO and
-# _YES for plain off/on, _ALWAYS for "always", or the meaning itself).
+# _YES for plain off/on, which since R6-38 are .false. and .true. of a
+# choice setting; _ALWAYS for "always", or the meaning itself).
 # isearch's CASE_FOLD_YES (upstream `yes') became CASE_FOLD_FORCED by
 # hand first; kmacro's REPEAT reads positively (upstream NO-REPEAT nil is
 # KMACRO_REPEAT_YES).
