@@ -105,6 +105,7 @@ module bindings_mod
     use compile_mod, only: init_compile, compilation_mode_map
     use grep_mod, only: init_grep
     use diff_mode_mod, only: init_diff_mode
+    use add_log_mod, only: init_add_log
     use diff_mod, only: init_diff
     use comint_mod, only: init_comint, comint_mode_map
     use pcomplete_mod, only: init_pcomplete
@@ -751,6 +752,8 @@ contains
         call init_vc_annotate()
         call init_view()
         call init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map)
+        ! add-log.el: (define-key ctl-x-4-map "a" 'add-change-log-entry-other-window)
+        call init_add_log(ctl_x_4_map)
         call init_isearch(global_map)
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
         ! then its keys from bindings.el.

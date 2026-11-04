@@ -38,6 +38,9 @@ module commands_mod
         type(command_type) :: abort_minibuffers
         type(command_type) :: abort_recursive_edit
         type(command_type) :: activate_transient_input_method
+        type(command_type) :: add_change_log_entry
+        type(command_type) :: add_change_log_entry_other_window
+        type(command_type) :: add_diff_change_log_entries_other_window
         type(command_type) :: add_global_abbrev
         type(command_type) :: add_mode_abbrev
         type(command_type) :: ansi_color_for_comint_mode_filter
@@ -198,6 +201,7 @@ module commands_mod
         type(command_type) :: calendar_unmark
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
+        type(command_type) :: change_log_mode
         type(command_type) :: check_parens
         type(command_type) :: clear_all_abbrevs
         type(command_type) :: clear_rectangle
@@ -520,6 +524,7 @@ module commands_mod
         type(command_type) :: fill_paragraph
         type(command_type) :: fill_region
         type(command_type) :: fill_region_as_paragraph
+        type(command_type) :: find_change_log_entry_file
         type(command_type) :: find_file
         type(command_type) :: find_file_other_frame
         type(command_type) :: find_file_other_window
@@ -550,6 +555,7 @@ module commands_mod
         type(command_type) :: forward_sentence
         type(command_type) :: forward_word
         type(command_type) :: fundamental_mode
+        type(command_type) :: generate_log_edit_changelog_from_diff
         type(command_type) :: global_auto_revert_mode
         type(command_type) :: global_font_lock_mode
         type(command_type) :: global_font_lock_mode_enable_in_buffer
@@ -1369,12 +1375,15 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1330) = [character(len=48) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1336) = [character(len=48) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
                                                                   "abort_recursive_edit", &
                                                                   "activate_transient_input_method", &
+                                                                  "add_change_log_entry", &
+                                                                  "add_change_log_entry_other_window", &
+                                                                  "add_diff_change_log_entries_other_window", &
                                                                   "add_global_abbrev", &
                                                                   "add_mode_abbrev", &
                                                                   "ansi_color_for_comint_mode_filter", &
@@ -1535,6 +1544,7 @@ module commands_mod
                                                                   "calendar_unmark", &
                                                                   "capitalize_region", &
                                                                   "capitalize_word", &
+                                                                  "change_log_mode", &
                                                                   "check_parens", &
                                                                   "clear_all_abbrevs", &
                                                                   "clear_rectangle", &
@@ -1857,6 +1867,7 @@ module commands_mod
                                                                   "fill_paragraph", &
                                                                   "fill_region", &
                                                                   "fill_region_as_paragraph", &
+                                                                  "find_change_log_entry_file", &
                                                                   "find_file", &
                                                                   "find_file_other_frame", &
                                                                   "find_file_other_window", &
@@ -1887,6 +1898,7 @@ module commands_mod
                                                                   "forward_sentence", &
                                                                   "forward_word", &
                                                                   "fundamental_mode", &
+                                                                  "generate_log_edit_changelog_from_diff", &
                                                                   "global_auto_revert_mode", &
                                                                   "global_font_lock_mode", &
                                                                   "global_font_lock_mode_enable_in_buffer", &
@@ -2722,6 +2734,12 @@ contains
             p => commands%abort_recursive_edit
         case ("activate_transient_input_method")
             p => commands%activate_transient_input_method
+        case ("add_change_log_entry")
+            p => commands%add_change_log_entry
+        case ("add_change_log_entry_other_window")
+            p => commands%add_change_log_entry_other_window
+        case ("add_diff_change_log_entries_other_window")
+            p => commands%add_diff_change_log_entries_other_window
         case ("add_global_abbrev")
             p => commands%add_global_abbrev
         case ("add_mode_abbrev")
@@ -3042,6 +3060,8 @@ contains
             p => commands%capitalize_region
         case ("capitalize_word")
             p => commands%capitalize_word
+        case ("change_log_mode")
+            p => commands%change_log_mode
         case ("check_parens")
             p => commands%check_parens
         case ("clear_all_abbrevs")
@@ -3686,6 +3706,8 @@ contains
             p => commands%fill_region
         case ("fill_region_as_paragraph")
             p => commands%fill_region_as_paragraph
+        case ("find_change_log_entry_file")
+            p => commands%find_change_log_entry_file
         case ("find_file")
             p => commands%find_file
         case ("find_file_other_frame")
@@ -3746,6 +3768,8 @@ contains
             p => commands%forward_word
         case ("fundamental_mode")
             p => commands%fundamental_mode
+        case ("generate_log_edit_changelog_from_diff")
+            p => commands%generate_log_edit_changelog_from_diff
         case ("global_auto_revert_mode")
             p => commands%global_auto_revert_mode
         case ("global_font_lock_mode")

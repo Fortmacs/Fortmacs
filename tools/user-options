@@ -16,6 +16,10 @@ abbrev_mode
 adaptive_fill_first_line_regexp
 adaptive_fill_mode
 adaptive_fill_regexp
+add_log_always_start_new_record
+add_log_current_subprogram_header_regexp
+add_log_file_name_function
+add_log_keep_changes_together
 add_log_time_format
 after_save_hook
 ansi_color_bold_is_bright
@@ -71,6 +75,7 @@ buffer_menu_use_header_line
 case_fold_search
 case_replace
 change_major_mode_with_file_name
+change_log_version_info_enabled
 colon_double_space
 comint_buffer_maximum_size
 comint_completion_addsuffix
@@ -164,6 +169,7 @@ delete_active_region
 delete_exited_processes
 delete_pair_blink_delay
 delete_pair_push_mark
+diff_add_log_use_relative_names
 diff_advance_after_apply_hunk
 diff_ask_before_revert_and_cut_hunk
 diff_command

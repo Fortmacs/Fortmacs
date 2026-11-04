@@ -34,7 +34,7 @@
 !> Deferred: the F90 menu, Imenu (`f90_imenu_generic_expression',
 !> `f90_add_imenu_menu', `f90_imenu_type_matcher'), Hideshow
 !> (`hs_block_start_regexp' with `f90_start_block_regexp' and
-!> `f90_end_block_regexp'), Add Log (`f90_current_subprogram'), `f90_backslash_not_special'
+!> `f90_end_block_regexp'), `f90_backslash_not_special'
 !> (obsolete), the `delete_selection' property of
 !> `f90_electric_insert', and `f90_cache_position' as a buffer-local
 !> variable (it is set only while a region command runs).
@@ -53,6 +53,7 @@ module f90_mod
                           fill_column, auto_fill_function, is_buffer_modified, restore_buffer_modified, erase_buffer
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, make_sparse_keymap, define_key
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, parse_partial_expression, &
                           parse_state_type, scan_groups, skip_chars_forward, skip_chars_backward, forward_word
@@ -86,7 +87,7 @@ module f90_mod
     implicit none(type, external)
     private
 
-    public :: init_f90, f90_mode, f90_block_type
+    public :: init_f90, f90_mode, f90_block_type, f90_current_subprogram
     public :: f90_in_string, f90_in_comment, f90_line_continued, f90_current_indentation, f90_indent_to, &
               f90_looking_at_do, f90_looking_at_select_case, f90_looking_at_if_then, f90_looking_at_associate, &
               f90_looking_at_critical, f90_looking_at_end_critical, f90_looking_at_where_or_forall, &
@@ -1961,6 +1962,19 @@ contains
         call restore_case(saved)
     end function f90_beginning_of_subprogram
 
+    !> Function to use for `add_log_current_subprogram_function' in F90 mode.
+    !> Port of f90.el:f90-current-defun.
+    recursive subroutine f90_current_subprogram(name)
+        character(len=:), allocatable, intent(out) :: name
+        type(f90_block_type) :: b
+        integer(int64) :: opoint
+
+        opoint = point()
+        b = f90_beginning_of_subprogram()
+        if (allocated(b%name)) name = b%name
+        call goto_char(opoint)
+    end subroutine f90_current_subprogram
+
     !> Move point to the beginning of the current subprogram (the command).
     !> Port of f90.el:f90-beginning-of-subprogram.
     subroutine cmd_f90_beginning_of_subprogram(status)
@@ -3815,6 +3829,7 @@ contains
         call fill_paragraph_function%set_local(f90_fill_paragraph)
         call beginning_of_subprogram_function%set_local(f90_subprogram_start)
         call end_of_subprogram_function%set_local(f90_subprogram_end)
+        call add_log_current_subprogram_function%set_local(f90_current_subprogram)
         levels(1) = font_lock_keywords_level(f90_font_lock_keywords)
         levels(2) = font_lock_keywords_level(f90_font_lock_keywords_1)
         levels(3) = font_lock_keywords_level(f90_font_lock_keywords_2)
