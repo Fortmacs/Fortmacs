@@ -292,7 +292,12 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    48. Smerge mode (conflict markers, `vc-git-resolve-conflicts`) and
        Ediff, as PRs: 48a Smerge mode (smerge-mode.el, vc-git.el's
        conflict hooks) — done (core: refinement, Ediff and the menus are
-       Deferred; see smerge_mode_mod); 48b Ediff.
+       Deferred; see smerge_mode_mod); 48b Ediff core: comparing two and
+       three files or buffers on one terminal frame (ediff.el,
+       ediff-util.el, ediff-diff.el, ediff-init.el, ediff-wind.el,
+       ediff-help.el; see docs/status/ediff_mod.md) — done; 48c merging
+       (ediff-merg.el, `ediff-merge-*`) and session groups (ediff-mult.el);
+       then revisions (ediff-vers.el) and patches (ediff-ptch.el).
    49. Projects and cross-references: project.el (C-x p), xref.el and
        etags.el (M-., M-?, M-,) — 49a partial (docs/status/xref_mod.md and
        etags_mod.md), 49b partial (docs/status/project_mod.md), Imenu and
@@ -1612,6 +1617,17 @@ statement or the comment line above it.  Checked:
 - `implicit-none`: `implicit none (type, external)` everywhere.
 - `stop`: errors return a status; `stop` only in a main program.
 - `obsolete`: no `common`, `equivalence` or `goto`.
+- `continuation-limit`: a statement of more than 255 continuation lines
+  (the standard's limit; gfortran only warns): a long array constructor
+  is split into parameter arrays `NAME_part_1`, `NAME_part_2`, ... that
+  the constructor joins, as the generators do (tools/gen-commands.sh,
+  gen-docstrings.sh, gen-tty-colors.sh, gen-unicategory.sh).
+- `truncated-literal`: a string longer than the length of its array
+  constructor's type specification (`[character(len=N) :: ...]`), which
+  gfortran truncates without a word (term_xterm_mod's `kp-separator`
+  read as `kp-separato`, fortmacs_mod's `--no-blinking-cursor` as
+  `--no-blinking-cu`): size the length from the longest string, as the
+  generators do.
 
 Checked by hand on every PR's diff (no script can tell):
 

@@ -110,6 +110,8 @@ program tester
     use test_dired_mode_mod, only: collect_dired_mode_mod
     use test_dired_aux_mod, only: collect_dired_aux_mod
     use test_diff_mode_mod, only: collect_diff_mode_mod
+    use test_ediff_diff_mod, only: collect_ediff_diff_mod
+    use test_ediff_util_mod, only: collect_ediff_util_mod
     use test_smerge_mode_mod, only: collect_smerge_mode_mod
     use test_view_mod, only: collect_view_mod
     use test_files_copy_mod, only: collect_files_copy_mod
@@ -245,6 +247,8 @@ program tester
                  new_testsuite("dired_mode_mod", collect_dired_mode_mod), &
                  new_testsuite("dired_aux_mod", collect_dired_aux_mod), &
                  new_testsuite("diff_mode_mod", collect_diff_mode_mod), &
+                 new_testsuite("ediff_diff_mod", collect_ediff_diff_mod), &
+                 new_testsuite("ediff_util_mod", collect_ediff_util_mod), &
                  new_testsuite("smerge_mode_mod", collect_smerge_mode_mod), &
                  new_testsuite("view_mod", collect_view_mod), &
                  new_testsuite("files_copy_mod", collect_files_copy_mod), &

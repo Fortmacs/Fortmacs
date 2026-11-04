@@ -109,7 +109,8 @@ module files_mod
     !> associated with that interpreter in `interpreter_modes'.  Port of
     !> files.el auto-mode-interpreter-regexp.
     character(len=:), allocatable, public :: auto_mode_interpreter_regexp
-    public :: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, after_find_file, file_chase_links
+    public :: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, file_name_unquote, after_find_file, &
+              file_chase_links
     public :: set_require_final_newline_from_mode
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_test_function, is_file_ownership_preserved
@@ -1242,6 +1243,23 @@ contains
             abbrev = "~"//filename(n + 1:)
         end if
     end function abbreviate_file_name
+
+    !> Remove quotation prefix "/:" from file NAME, if any.  Port of
+    !> files.el:file-name-unquote (local file names: remote ones and TOP
+    !> wait for file name handlers).
+    pure function file_name_unquote(name) result(unquoted)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable :: unquoted
+
+        unquoted = name
+        if (index(name, "/:") /= 1) return
+
+        if (len(name) == 2) then
+            unquoted = "/"
+        else
+            unquoted = name(3:)
+        end if
+    end function file_name_unquote
 
     !> A new buffer named after `filename' (sans directory), made unique
     !> with "<N>"; a leading space gets a "|" before it.

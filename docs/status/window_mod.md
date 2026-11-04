@@ -6,6 +6,7 @@
 
 ## Ported
 
+`split-window-below` and `split-window-right` as functions (`ediff_split_window_function`'s values),
 `struct window` (subset: buffer, start and point markers, geometry, cursor, hscroll, prev/next buffers, `quit-restore`/`quit-restore-prev`, dedication),
 `set-window-buffer` (unshow_buffer, last window start),
 `window-start`,
