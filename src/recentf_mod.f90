@@ -66,7 +66,7 @@ module recentf_mod
     use config_mod, only: state_directory
     use coding_mod, only: coding_system_for_write
     use search_mod, only: string_match
-    use keyboard_mod, only: exit_emacs_hook
+    use keyboard_mod, only: exit_fortmacs_hook
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use minibuf_table_mod, only: completion_table_type, TABLE_LIST
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
@@ -249,7 +249,7 @@ contains
     !> Return true if `recentf_mode' is currently enabled.  Port of
     !> recentf.el:recentf-enabled-p.
     logical function is_recentf_enabled()
-        is_recentf_enabled = exit_emacs_hook%member(recentf_save_list_adapter)
+        is_recentf_enabled = exit_fortmacs_hook%member(recentf_save_list_adapter)
     end function is_recentf_enabled
 
     !> Whether to ignore FILE_NAME due to its file-name extension.
@@ -859,11 +859,11 @@ contains
         if (enable) then
             call find_file_hook%prepend(recentf_track_opened_file)
             call close_buffer_hook%prepend(recentf_track_closed_file)
-            call exit_emacs_hook%prepend(recentf_save_list_adapter)
+            call exit_fortmacs_hook%prepend(recentf_save_list_adapter)
         else
             call find_file_hook%remove(recentf_track_opened_file)
             call close_buffer_hook%remove(recentf_track_closed_file)
-            call exit_emacs_hook%remove(recentf_save_list_adapter)
+            call exit_fortmacs_hook%remove(recentf_save_list_adapter)
         end if
     end subroutine recentf_mode_body
 

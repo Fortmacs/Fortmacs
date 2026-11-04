@@ -1,5 +1,5 @@
-! test_regex_emacs_mod.f90 -- tests for regular expressions
-! (regex_emacs_mod, and the regexp half of search_mod).
+! test_regex_mod.f90 -- tests for regular expressions
+! (regex_mod, and the regexp half of search_mod).
 ! Ports GNU Emacs 31.1 test/src/regex-emacs-tests.el in part; the others
 ! are not ported yet.
 !
@@ -32,7 +32,7 @@
 !> regex-tests-TESTS, regex-tests-BOOST and regex-tests-PCRE with copies
 !> of their data files (in test/regex-resources).  String indices are 1-based here (upstream's
 !> plus one).  Own tests for the search functions.
-module test_regex_emacs_mod
+module test_regex_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error, FM_INVALID_REGEXP, FM_SEARCH_FAILED
@@ -49,7 +49,7 @@ module test_regex_emacs_mod
     implicit none(type, external)
     private
 
-    public :: collect_regex_emacs_mod
+    public :: collect_regex_mod
 
     !> Regex that matches an even number of \\ characters
     !> (regex-tests-re-even-escapes).
@@ -58,7 +58,7 @@ module test_regex_emacs_mod
 contains
 
     !> Collect all exported unit tests.
-    subroutine collect_regex_emacs_mod(testsuite)
+    subroutine collect_regex_mod(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
@@ -90,7 +90,7 @@ contains
                     new_unittest("match-string-and-friends", test_match_string), &
                     new_unittest("looking-back", test_looking_back) &
                     ]
-    end subroutine collect_regex_emacs_mod
+    end subroutine collect_regex_mod
 
     !> `string-match`, failing the test on an error; 0 for nil.
     integer(int64) function sm(regexp, string)
@@ -1380,4 +1380,4 @@ contains
 
         call leave(h)
     end subroutine test_looking_back
-end module test_regex_emacs_mod
+end module test_regex_mod

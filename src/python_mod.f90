@@ -104,8 +104,8 @@ module python_mod
     implicit none(type, external)
     private
 
-    public :: python_imenu_create_index, python_imenu_format_item_label, python_imenu_format_parent_item_label, &
-              python_imenu_format_parent_item_jump_label, python_imenu_label_procedure
+    public :: create_python_imenu_index, format_python_imenu_item_label, format_python_imenu_parent_item_label, &
+              format_python_imenu_parent_item_jump_label, python_imenu_label_procedure
     public :: init_python, python_base_mode, python_mode, python_syntax_context, python_syntax_context_type, &
               is_python_syntax_comment_or_string, is_python_syntax_closing_paren, python_font_lock_syntactic_face_function, &
               python_syntax_count_quotes, python_syntax_stringify, python_indent_guess_indent_offset, &
@@ -165,7 +165,7 @@ module python_mod
     !> If true, enable Python 2 support.
     !> Currently only affects highlighting.
     !>
-    !> After customizing this variable, you must restart Emacs for it to take
+    !> After customizing this variable, you must restart Fortmacs for it to take
     !> effect.  Port of python.el python-2-support.
     type(logical_setting_type), target, public :: python_2_support = logical_setting_type(name="python_2_support", value=.false.)
 
@@ -408,7 +408,7 @@ module python_mod
     !> python.el python-imenu-format-parent-item-jump-label-function.
     procedure(python_imenu_label_procedure), pointer, public :: python_imenu_format_parent_item_jump_label_function => null()
 
-    ! A node of the tree `python_imenu_create_index' builds: an item
+    ! A node of the tree `create_python_imenu_index' builds: an item
     ! LABEL at POS, or (PARENT) a submenu LABEL holding its jump item
     ! JUMP_LABEL at POS and the nodes CHILDREN.
     type :: imenu_node_type
@@ -630,15 +630,15 @@ contains
         call forward_setting(python_2_support)
 
         if (.not. associated(python_imenu_format_item_label_function)) then
-            python_imenu_format_item_label_function => python_imenu_format_item_label
+            python_imenu_format_item_label_function => format_python_imenu_item_label
         end if
 
         if (.not. associated(python_imenu_format_parent_item_label_function)) then
-            python_imenu_format_parent_item_label_function => python_imenu_format_parent_item_label
+            python_imenu_format_parent_item_label_function => format_python_imenu_parent_item_label
         end if
 
         if (.not. associated(python_imenu_format_parent_item_jump_label_function)) then
-            python_imenu_format_parent_item_jump_label_function => python_imenu_format_parent_item_jump_label
+            python_imenu_format_parent_item_jump_label_function => format_python_imenu_parent_item_jump_label
         end if
 
         call forward_setting(python_indent_offset)
@@ -4684,7 +4684,7 @@ contains
         levels(4) = font_lock_keywords_level(python_font_lock_keywords_maximum_decoration)
         call font_lock_defaults%set_local(levels=levels, syntactic_face_function=python_font_lock_syntactic_face_function)
         call syntax_propertize_function%set_local(python_syntax_propertize_function)
-        call imenu_create_index_function%set_local(python_imenu_create_index)
+        call imenu_create_index_function%set_local(create_python_imenu_index)
         call which_func_functions%prepend(python_which_func_adapter, local=.true.)
         if (python_indent_guess_indent_offset_variable%value) call python_indent_guess_indent_offset()
         call major_modes%python_mode%end(saved, status)
@@ -4714,26 +4714,26 @@ contains
 
     !> Return Imenu label for single node using TYPE and NAME.  Port of
     !> python.el:python-imenu-format-item-label.
-    subroutine python_imenu_format_item_label(type, name, label)
+    subroutine format_python_imenu_item_label(type, name, label)
         character(len=*), intent(in) :: type, name
         character(len=:), allocatable, intent(out) :: label
 
         label = name//" ("//type//")"
-    end subroutine python_imenu_format_item_label
+    end subroutine format_python_imenu_item_label
 
     !> Return Imenu label for parent node using TYPE and NAME.  Port of
     !> python.el:python-imenu-format-parent-item-label.
-    subroutine python_imenu_format_parent_item_label(type, name, label)
+    subroutine format_python_imenu_parent_item_label(type, name, label)
         character(len=*), intent(in) :: type, name
         character(len=:), allocatable, intent(out) :: label
 
-        call python_imenu_format_item_label(type, name, label)
+        call format_python_imenu_item_label(type, name, label)
         label = label//"..."
-    end subroutine python_imenu_format_parent_item_label
+    end subroutine format_python_imenu_parent_item_label
 
     !> Return Imenu label for parent node jump using TYPE and NAME.  Port of
     !> python.el:python-imenu-format-parent-item-jump-label.
-    subroutine python_imenu_format_parent_item_jump_label(type, name, label)
+    subroutine format_python_imenu_parent_item_jump_label(type, name, label)
         character(len=*), intent(in) :: type, name
         character(len=:), allocatable, intent(out) :: label
 
@@ -4744,7 +4744,7 @@ contains
         else
             label = "*function definition*"
         end if
-    end subroutine python_imenu_format_parent_item_jump_label
+    end subroutine format_python_imenu_parent_item_jump_label
 
     !> Return tree Imenu index for the current Python buffer.
     !> Change `python_imenu_format_item_label_function',
@@ -4752,7 +4752,7 @@ contains
     !> `python_imenu_format_parent_item_jump_label_function' to
     !> customize how labels are formatted.  Port of
     !> python.el:python-imenu-create-index.
-    recursive subroutine python_imenu_create_index(index, status)
+    recursive subroutine create_python_imenu_index(index, status)
         type(imenu_index_type), intent(out) :: index
         type(status_type), intent(out) :: status
         type(imenu_node_type), allocatable :: nodes(:)
@@ -4909,7 +4909,7 @@ contains
                 call index%append(nodes(k)%label, entry, position=nodes(k)%pos, parent=parent)
             end if
         end subroutine append_node
-    end subroutine python_imenu_create_index
+    end subroutine create_python_imenu_index
 
     ! ------------------------------------------------------------------
     ! Commands

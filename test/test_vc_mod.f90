@@ -43,7 +43,7 @@ module test_vc_mod
     use insdel_mod, only: insert
     use editfns_mod, only: buffer_string, point, point_min, goto_char, is_bob
     use search_mod, only: re_search_forward, SEARCH_NOERROR
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                           create_directory_internal, write_region, expand_file_name
     use files_mod, only: delete_directory, find_file_noselect, executable_find
     use callproc_mod, only: execute_process
@@ -105,7 +105,11 @@ contains
                     new_unittest("vc-git-print-log", test_print_log), &
                     new_unittest("vc-git-print-root-log", test_print_root_log), &
                     new_unittest("vc-dir-git", test_vc_dir), &
-                    new_unittest("vc-git-revert", test_revert) &
+                    new_unittest("vc-git-revert", test_revert), &
+                    new_unittest("vc-git-test-branch-remotes", test_branch_remotes), &
+                    new_unittest("vc-git-tags-and-branches", test_tags_and_branches), &
+                    new_unittest("vc-git-branch-logs", test_branch_logs), &
+                    new_unittest("vc-git-push-pull-incoming-outgoing", test_push_pull) &
                     ]
     end subroutine collect_vc_mod
 
@@ -138,14 +142,14 @@ contains
 
         call get_or_make_buffer(generate_new_buffer_name(" *vc-test*"), h, st)
         call set_buffer(h, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
     end subroutine temp_buffer
 
     !> The test repository directory.
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     !> Whether git is available (else the test is skipped).
@@ -170,7 +174,7 @@ contains
         call vc_clear_context()
         vc_handled_backends = [character(len=8) :: "Git"]
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        call create_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
+        call create_directory_internal(file_name_as_directory(fortmacs_wd)//"build", st)
         call create_directory_internal(tdir(), st)
         call temp_buffer(h)
         buffers(current)%directory = tdir()
@@ -213,6 +217,17 @@ contains
     subroutine git(a1, a2, a3, a4, a5, a6)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4, a5, a6
+        character(len=:), allocatable :: out
+
+        call git_at(tdir(), out, a1, a2, a3, a4, a5, a6)
+    end subroutine git
+
+    !> Run git with ARGS in directory DIR, its output (standard error
+    !> included) given as OUT.  A failure is reported as `git' does.
+    subroutine git_at(dir, out, a1, a2, a3, a4, a5, a6)
+        character(len=*), intent(in) :: dir, a1
+        character(len=:), allocatable, intent(out) :: out
+        character(len=*), intent(in), optional :: a2, a3, a4, a5, a6
         type(value_type) :: args(10)
         type(value_type) :: result
         type(handle_type) :: old, h
@@ -234,8 +249,9 @@ contains
         if (present(a6)) call append(a6)
         old = current_buffer()
         call temp_buffer(h)
-        buffers(current)%directory = tdir()
+        buffers(current)%directory = dir
         call execute_process("git", result, st, destination=value_type(.true.), args=make_list(args(1:n)))
+        out = buffer_string()
 
         if (.not. st%ok()) then
             write (error_unit, "(a)") "git "//a1//": "//format_error(st)
@@ -254,7 +270,21 @@ contains
             n = n + 1
             args(n) = value_type(text=a)
         end subroutine append
-    end subroutine git
+    end subroutine git_at
+
+    !> The output of git with ARGS in the test directory, without its final
+    !> newline.
+    function git_output(a1, a2, a3) result(out)
+        character(len=*), intent(in) :: a1
+        character(len=*), intent(in), optional :: a2, a3
+        character(len=:), allocatable :: out
+
+        call git_at(tdir(), out, a1, a2, a3)
+
+        if (len(out) > 0) then
+            if (out(len(out):) == achar(10)) out = out(1:len(out) - 1)
+        end if
+    end function git_output
 
     !> The Git backend's index.
     integer function git_b()
@@ -732,7 +762,7 @@ contains
             ! `default_directory' except for the meaning of OLD and NEW if
             ! they are relative file names.
             saved = buffers(current)%directory
-            buffers(current)%directory = file_name_as_directory(emacs_wd)//"build/"
+            buffers(current)%directory = file_name_as_directory(fortmacs_wd)//"build/"
             call vc_rename_file("test-vc/foo", "test-vc/bar", st)
             buffers(current)%directory = saved
             call check(error, st%ok(), "rename: "//format_error(st))
@@ -1380,4 +1410,295 @@ contains
 
         call teardown(h)
     end subroutine test_revert
+
+    ! ------------------------------------------------------------------
+    ! Tags, branches, pulling and pushing
+    ! ------------------------------------------------------------------
+
+    !> Queue TEXT as input events (for the minibuffer).
+    subroutine type_text(text)
+        use keyboard_mod, only: unread_command_events
+        character(len=*), intent(in) :: text
+        type(value_type), allocatable :: evs(:)
+        integer :: i
+
+        allocate (evs(len(text)))
+
+        do i = 1, len(text)
+            evs(i) = value_type(int(iachar(text(i:i)), int64))
+        end do
+
+        call unread_command_events(evs)
+    end subroutine type_text
+
+    !> Port of vc-git-tests.el vc-git-test-branch-remotes: the remote
+    !> branches of `vc_git_branch_remotes' as the configuration changes.
+    subroutine test_branch_remotes(error)
+        use vc_git_mod, only: vc_git_branch_remotes, vc_git_branch_remotes_type
+        type(error_type), allocatable, intent(out) :: error
+        type(vc_git_branch_remotes_type) :: remotes
+        type(handle_type) :: h, buffer
+        type(status_type) :: st
+
+        if (.not. has_git(error)) return
+        call committed_file(h, buffer, st)
+
+        body: block
+            call check(error, st%ok(), "visit: "//format_error(st))
+            if (allocated(error)) exit body
+            call vc_git_branch_remotes(remotes)
+            call check(error,.not. allocated(remotes%upstream) .and. .not. allocated(remotes%push), "none")
+            if (allocated(error)) exit body
+            call git("config", "branch.main.remote", "origin")
+            call vc_git_branch_remotes(remotes)
+            call check(error,.not. allocated(remotes%upstream) .and. .not. allocated(remotes%push), "remote only")
+            if (allocated(error)) exit body
+            call git("config", "branch.main.merge", "main")
+            call vc_git_branch_remotes(remotes)
+            call check(error, allocated(remotes%upstream) .and. .not. allocated(remotes%push), "upstream")
+            if (allocated(error)) exit body
+            call git("config", "branch.main.pushRemote", "fork")
+            call vc_git_branch_remotes(remotes)
+            call check(error, allocated(remotes%upstream) .and. allocated(remotes%push), "push remote")
+            if (allocated(error)) exit body
+            call check(error, remotes%push, "fork/main")
+            if (allocated(error)) exit body
+            call git("config", "--unset", "branch.main.pushRemote")
+            call git("config", "remote.pushDefault", "fork")
+            call vc_git_branch_remotes(remotes)
+            call check(error, allocated(remotes%upstream) .and. allocated(remotes%push), "push default")
+            if (allocated(error)) exit body
+            call check(error, remotes%push, "fork/main")
+            if (allocated(error)) exit body
+            call git("config", "remote.pushDefault", "origin")
+            call vc_git_branch_remotes(remotes)
+            call check(error, allocated(remotes%upstream) .and. .not. allocated(remotes%push), "push default origin")
+        end block body
+
+        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
+        call teardown(h)
+    end subroutine test_branch_remotes
+
+    !> C-x v s makes a tag, C-x v b c a branch (from the start point
+    !> read, here the default), C-x v b s switches back and C-x v r
+    !> retrieves the tag; a tag is not made over modified files when the
+    !> user says no.
+    subroutine test_tags_and_branches(error)
+        use vc_mod, only: vc_create_tag, vc_create_branch, vc_switch_branch, vc_retrieve_tag
+        use vc_git_mod, only: vc_git_branches
+        use error_mod, only: FM_USER_ERROR
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, buffer
+        type(status_type) :: st
+        type(string_type), allocatable :: branches(:)
+        character(len=:), allocatable :: tagged
+
+        if (.not. has_git(error)) return
+        call two_commits(h, buffer, st)
+
+        body: block
+            call check(error, st%ok(), "visit: "//format_error(st))
+            if (allocated(error)) exit body
+            call set_buffer(buffer, st)
+            call vc_create_tag(tdir(), "v1", .false., st)
+            call check(error, st%ok(), "create tag: "//format_error(st))
+            if (allocated(error)) exit body
+            call check(error, git_output("tag"), "v1")
+            if (allocated(error)) exit body
+            tagged = git_output("rev-parse", "v1")
+            ! C-x v b c: the start point defaults to the current branch.
+            call type_text(achar(13))
+            call vc_create_branch(tdir(), "feature", st)
+            call check(error, st%ok(), "create branch: "//format_error(st))
+            if (allocated(error)) exit body
+            call vc_git_branches(branches)
+            call check(error, allocated(branches(1)%text), "a current branch")
+            if (allocated(error)) exit body
+            call check(error, branches(1)%text, "feature")
+            if (allocated(error)) exit body
+            call check(error, size(branches) == 2, "two branches")
+            if (allocated(error)) exit body
+            call check(error, branches(2)%text, "main")
+            if (allocated(error)) exit body
+            ! C-x v b s.
+            call vc_switch_branch(tdir(), "main", st)
+            call check(error, st%ok(), "switch branch: "//format_error(st))
+            if (allocated(error)) exit body
+            call vc_git_branches(branches)
+            call check(error, branches(1)%text, "main")
+            if (allocated(error)) exit body
+            ! A branch needs a name.
+            call vc_retrieve_tag(tdir(), "", st, .true.)
+            call check(error, condition_matches(st%code, FM_USER_ERROR), "branch name required")
+            if (allocated(error)) exit body
+            ! A new commit, then C-x v r back to the tag.
+            call write_file(tdir()//"a.txt", "one"//achar(10)//"four"//achar(10))
+            call git("commit", "-q", "-a", "-m", "third")
+            call vc_retrieve_tag(tdir(), "v1", st)
+            call check(error, st%ok(), "retrieve tag: "//format_error(st))
+            if (allocated(error)) exit body
+            call check(error, git_output("rev-parse", "HEAD"), tagged)
+            if (allocated(error)) exit body
+            ! Modified files: the tag is made only if the user says so.
+            call write_file(tdir()//"a.txt", "changed"//achar(10))
+            call type_text("n")
+            call vc_create_tag(tdir(), "v2", .false., st)
+            call check(error, condition_matches(st%code, FM_USER_ERROR), "modified files: "//format_error(st))
+            if (allocated(error)) exit body
+            call check(error, git_output("tag"), "v1")
+        end block body
+
+        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
+        call teardown(h)
+    end subroutine test_tags_and_branches
+
+    !> C-x v b L logs another branch from its tip; C-x v b l logs the
+    !> current file on it.
+    subroutine test_branch_logs(error)
+        use vc_mod, only: vc_print_root_branch_log, vc_print_fileset_branch_log
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, buffer, log
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+
+        if (.not. has_git(error)) return
+        call two_commits(h, buffer, st)
+
+        body: block
+            call check(error, st%ok(), "visit: "//format_error(st))
+            if (allocated(error)) exit body
+            call git("branch", "other")
+            call write_file(tdir()//"a.txt", "one"//achar(10)//"four"//achar(10))
+            call git("commit", "-q", "-a", "-m", "third")
+            call set_buffer(buffer, st)
+            call vc_print_root_branch_log("other", st)
+            call check(error, st%ok(), "root branch log: "//format_error(st))
+            if (allocated(error)) exit body
+            log = get_buffer("*vc-change-log*")
+            call wait_buffer_process(log)
+            call set_buffer(log, st)
+            text = buffer_string()
+            call check(error, index(text, "second") > 0 .and. index(text, "third") == 0, text)
+            if (allocated(error)) exit body
+            call set_buffer(buffer, st)
+            call vc_print_fileset_branch_log("main", st)
+            call check(error, st%ok(), "fileset branch log: "//format_error(st))
+            if (allocated(error)) exit body
+            call wait_buffer_process(log)
+            call set_buffer(log, st)
+            text = buffer_string()
+            call check(error, index(text, "third") > 0 .and. index(text, "init") > 0, text)
+            if (allocated(error)) exit body
+            call close_buffer(log, st)
+        end block body
+
+        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
+        call teardown(h)
+    end subroutine test_branch_logs
+
+    !> With a bare remote and a second clone: C-x v O shows the commits
+    !> not pushed yet, C-x v P pushes them (in VC-Compilation mode),
+    !> C-x v I shows the commits pushed from the other clone and C-x v +
+    !> pulls them.
+    subroutine test_push_pull(error)
+        use vc_mod, only: vc_root_log_outgoing, vc_root_log_incoming, vc_push, vc_pull
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, buffer, log, out
+        type(status_type) :: st
+        character(len=:), allocatable :: text, remote, clone, junk
+
+        if (.not. has_git(error)) return
+        remote = file_name_as_directory(fortmacs_wd)//"build/test-vc-remote.git"
+        clone = file_name_as_directory(file_name_as_directory(fortmacs_wd)//"build/test-vc-clone")
+        if (is_file_directory(remote)) call delete_directory(remote, st, .true.)
+        if (is_file_directory(clone)) call delete_directory(clone, st, .true.)
+        call two_commits(h, buffer, st)
+
+        body: block
+            call check(error, st%ok(), "visit: "//format_error(st))
+            if (allocated(error)) exit body
+            call git_at(file_name_as_directory(fortmacs_wd), junk, "init", "-q", "--bare", remote)
+            call git("remote", "add", "origin", remote)
+            call git("push", "-q", "-u", "origin", "main")
+            ! An outgoing commit.
+            call write_file(tdir()//"a.txt", "one"//achar(10)//"four"//achar(10))
+            call git("commit", "-q", "-a", "-m", "third")
+            call set_buffer(buffer, st)
+            call vc_root_log_outgoing(st)
+            call check(error, st%ok(), "outgoing: "//format_error(st))
+            if (allocated(error)) exit body
+            log = get_buffer("*vc-outgoing*")
+            call wait_buffer_process(log)
+            call set_buffer(log, st)
+            text = buffer_string()
+            call check(error, index(text, "third") > 0 .and. index(text, "second") == 0, text)
+            if (allocated(error)) exit body
+            call check(error, buffers(current)%major_mode, "vc_git_log_view_mode")
+            if (allocated(error)) exit body
+            call close_buffer(log, st)
+            ! C-x v P.
+            call set_buffer(buffer, st)
+            call vc_push(.false., st)
+            call check(error, st%ok(), "push: "//format_error(st))
+            if (allocated(error)) exit body
+            out = get_buffer("*vc-git : "//tdir()//"*")
+            call check(error, is_buffer_live(out), "the *vc-git* buffer")
+            if (allocated(error)) exit body
+            call wait_buffer_process(out)
+            call set_buffer(out, st)
+            text = buffer_string()
+            call check(error, index(text, "Running 'git push'...") == 1 .and. index(text, "Finished in ") > 0, text)
+            if (allocated(error)) exit body
+            call check(error, buffers(current)%major_mode, "vc_compilation_mode")
+            if (allocated(error)) exit body
+            call check(error, buffers(current)%mode_name, "VC-Compilation")
+            if (allocated(error)) exit body
+            call check(error, git_output("rev-parse", "origin/main"), git_output("rev-parse", "HEAD"))
+            if (allocated(error)) exit body
+            ! Nothing outgoing now.
+            call set_buffer(buffer, st)
+            call vc_root_log_outgoing(st)
+            log = get_buffer("*vc-outgoing*")
+            call wait_buffer_process(log)
+            call set_buffer(log, st)
+            text = buffer_string()
+            call check(error, st%ok() .and. index(text, "third") == 0, "after the push: "//format_error(st)//text)
+            if (allocated(error)) exit body
+            call close_buffer(log, st)
+            ! A commit pushed from another clone is incoming.
+            call git_at(file_name_as_directory(fortmacs_wd), junk, "clone", "-q", "-b", "main", remote, clone)
+            call write_file(clone//"a.txt", "one"//achar(10)//"five"//achar(10))
+            call git_at(clone, junk, "commit", "-q", "-a", "-m", "fourth")
+            call git_at(clone, junk, "push", "-q")
+            call set_buffer(buffer, st)
+            call vc_root_log_incoming(st)
+            call check(error, st%ok(), "incoming: "//format_error(st))
+            if (allocated(error)) exit body
+            log = get_buffer("*vc-incoming*")
+            call wait_buffer_process(log)
+            call set_buffer(log, st)
+            text = buffer_string()
+            call check(error, index(text, "fourth") > 0 .and. index(text, "third") == 0, text)
+            if (allocated(error)) exit body
+            call close_buffer(log, st)
+            ! C-x v +.
+            call set_buffer(buffer, st)
+            call vc_pull(.false., st)
+            call check(error, st%ok(), "pull: "//format_error(st))
+            if (allocated(error)) exit body
+            call wait_buffer_process(out)
+            call set_buffer(out, st)
+            text = buffer_string()
+            call check(error, index(text, "Running 'git pull --stat'...") > 0, text)
+            if (allocated(error)) exit body
+            call check(error, git_output("log", "-1", "--format=%s"), "fourth")
+            if (allocated(error)) exit body
+            call close_buffer(out, st)
+        end block body
+
+        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
+        call teardown(h)
+        if (is_file_directory(remote)) call delete_directory(remote, st, .true.)
+        if (is_file_directory(clone)) call delete_directory(clone, st, .true.)
+    end subroutine test_push_pull
 end module test_vc_mod

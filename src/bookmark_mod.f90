@@ -86,7 +86,7 @@ module bookmark_mod
     use search_mod, only: search_forward, search_backward, match_beginning, match_end
     use fileio_mod, only: is_file_readable, expand_file_name, file_name_nondirectory, file_name_directory, &
                           directory_file_name, file_attributes
-    use sysdep_mod, only: file_stat_type, emacs_clock_realtime
+    use sysdep_mod, only: file_stat_type, fortmacs_clock_realtime
     use files_mod, only: find_file_noselect, abbreviate_file_name, write_file, revert_buffer_function
     use frame_mod, only: selected_frame, selected_window
     use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
@@ -99,12 +99,12 @@ module bookmark_mod
     use coding_mod, only: coding_system_for_write, buffer_file_coding_system, coding_system_base
     use itree_mod, only: make_overlay, overlay_put, overlay_get, overlays_in, destroy_overlay
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, is_keymap_live, destroy_keymap, keymap_set
-    use keyboard_mod, only: exit_emacs_hook
+    use keyboard_mod, only: exit_fortmacs_hook
     use callint_mod, only: current_prefix_arg
     use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, completion_ignore_case
     use minibuf_table_mod, only: completion_table_type, TABLE_LIST
     use minibuffer_mod, only: completing_read, read_file_name, REQUIRE_MATCH_OTHER, REQUIRE_MATCH_CONFIRM
-    use fns_mod, only: read_yes_or_no
+    use fns_mod, only: read_yes_or_no, is_string_collate_less
     use subr_mod, only: add_to_history, read_y_or_n, make_progress_reporter, progress_reporter_done, &
                         progress_reporter_type
     use dispnew_mod, only: ding
@@ -802,7 +802,7 @@ contains
         integer(int64) :: sec
         integer(int32) :: nsec
 
-        call emacs_clock_realtime(sec, nsec)
+        call fortmacs_clock_realtime(sec, nsec)
         allocate (time(2))
         time(1) = sec
         time(2) = int(nsec, int64)
@@ -3133,22 +3133,13 @@ contains
         call major_modes%bookmark_bmenu_mode%end(saved, status)
     end subroutine bookmark_bmenu_mode
 
-    ! string-collate-lessp with IGNORE-CASE: case-insensitive, in the
-    ! POSIX locale's order (by character code).  Not a port.
-    logical function is_collate_less(a, b)
-        use fns_mod, only: compare_strings
-        character(len=*), intent(in) :: a, b
-
-        is_collate_less = compare_strings(a, b, ignore_case=.true.) < 0
-    end function is_collate_less
-
     !> Test to sort "*Bookmark List*" buffer by the name column.
     !> This is used for `tabulated_list_format' in `bookmark_bmenu_mode'.
     !> Port of bookmark.el:bookmark-bmenu--name-predicate.
     logical function bookmark_bmenu_name_test(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_name_test = is_collate_less(a%id, b%id)
+        bookmark_bmenu_name_test = is_string_collate_less(a%id, b%id, ignore_case=.true.)
     end function bookmark_bmenu_name_test
 
     !> Test to sort "*Bookmark List*" buffer by the type column.
@@ -3157,7 +3148,7 @@ contains
     logical function bookmark_bmenu_type_test(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_type_test = is_collate_less(a%cols(3)%text, b%cols(3)%text)
+        bookmark_bmenu_type_test = is_string_collate_less(a%cols(3)%text, b%cols(3)%text, ignore_case=.true.)
     end function bookmark_bmenu_type_test
 
     !> Test to sort "*Bookmark List*" buffer by the file column.
@@ -3166,7 +3157,7 @@ contains
     logical function bookmark_bmenu_file_test(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_file_test = is_collate_less(bookmark_location(a%id), bookmark_location(b%id))
+        bookmark_bmenu_file_test = is_string_collate_less(bookmark_location(a%id), bookmark_location(b%id), ignore_case=.true.)
     end function bookmark_bmenu_file_test
 
     !> Toggle whether filenames are shown in the bookmark list.
@@ -4085,6 +4076,6 @@ contains
         call keymap_set(bookmark_bmenu_mode_map, "e", "bookmark_bmenu_edit_annotation", st)
         call keymap_set(bookmark_bmenu_mode_map, "J", "bookmark_jump", st)
         call keymap_set(bookmark_bmenu_mode_map, "/", "bookmark_bmenu_search", st)
-        call exit_emacs_hook%prepend(bookmark_exit_hook_internal)
+        call exit_fortmacs_hook%prepend(bookmark_exit_hook_internal)
     end subroutine init_bookmark
 end module bookmark_mod

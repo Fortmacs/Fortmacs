@@ -29,10 +29,13 @@
 !> dired-aux.el's `dired_vc_deduce_fileset' and diff-mode.el's
 !> `diff_vc_deduce_fileset' are here, with the fileset type.
 !>
+!> Tags, branches, pulling and pushing are in the submodule
+!> vc_branches_mod, the logs in vc_log_mod.
+!>
 !> Deferred: committing (`vc_checkin', and so C-x v v on changed files
 !> and on a patch: Log Edit mode), the log commands (Log View mode), VC-Dir,
-!> annotating, tags and branches, merging, pulling and pushing,
-!> incoming/outgoing and unintegrated changes, working trees, cherry-picks
+!> annotating, merging, the incoming/outgoing diffs and unintegrated
+!> changes, working trees, cherry-picks
 !> and the history-rewriting commands, `vc_find_revision_no_save' (the
 !> revision is saved as FILE.~REV~), `vc_coding_system_for_diff' (output
 !> is decoded as UTF-8), restoring point in a reverted *vc-diff* buffer
@@ -109,6 +112,8 @@ module vc_mod
               vc_version_backup_file, vc_print_log_internal, vc_print_log, vc_print_root_log, vc_log_view_type, vc_shortlog, &
               log_buffer_index, make_log_buffer_entry, vc_shrink_buffer_window, with_backend_in_rootdir, &
               set_vc_buffer_overriding_fileset, vc_only_files_state_and_model, vc_ignore_base_dir
+    public :: vc_create_tag, vc_create_branch, vc_retrieve_tag, vc_switch_branch, vc_pull, vc_push, vc_incoming_revision, &
+              vc_root_log_incoming, vc_root_log_outgoing, vc_print_fileset_branch_log, vc_print_root_branch_log
 
     !> What `vc_deduce_fileset' returns: (BACKEND FILESET
     !> FILESET-ONLY-FILES STATE CHECKOUT-MODEL), the last three only with
@@ -298,6 +303,8 @@ module vc_mod
         logical :: is_start_revision = .false.
         type(vc_log_limit_type) :: limit
         integer :: type = VC_LOG_VIEW_NONE
+        ! The UPSTREAM-LOCATION of an incoming or outgoing log.
+        character(len=:), allocatable :: upstream_location
     end type vc_log_buffer_type
 
     type(vc_log_buffer_type), allocatable :: log_buffers(:)
@@ -409,6 +416,243 @@ module vc_mod
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine cmd_vc_print_root_log
+    end interface
+
+    ! ------------------------------------------------------------------
+    ! Tags, branches, pulling and pushing, incoming and outgoing
+    ! ------------------------------------------------------------------
+
+    !> Normal hook (list of functions) run after retrieving a tag.
+    !> Port of vc.el vc-retrieve-tag-hook.
+    type(hook_type), target, public :: vc_retrieve_tag_hook = hook_type(name="vc_retrieve_tag_hook")
+
+    interface
+        !> Descending recursively from DIR, make a tag called NAME.
+        !> For each registered file, the working revision becomes part of
+        !> the configuration identified by the tag.
+        !> If IS_BRANCH is true (interactively, the prefix argument), the
+        !> tag NAME is a new branch, and the files are checked out and
+        !> updated to reflect their revisions on that branch.
+        !> In interactive use, DIR is `default_directory' for repository-granular
+        !> VCSes (all the modern decentralized VCSes belong to this group),
+        !> otherwise the command will prompt for DIR.  Port of
+        !> vc.el:vc-create-tag.  (In vc_branches_mod.)
+        recursive module subroutine vc_create_tag(dir, name, is_branch, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            logical, intent(in) :: is_branch
+            type(status_type), intent(out) :: status
+        end subroutine vc_create_tag
+
+        !> Make a branch called NAME in directory DIR.
+        !> After making the new branch, check out the branch, i.e. update the
+        !> files in the tree to their revisions on the branch.
+        !>
+        !> Interactively, prompt for the NAME of the branch.
+        !>
+        !> With VCSes that maintain version information per file, this command also
+        !> prompts for the directory DIR whose files, recursively, will be tagged
+        !> with the NAME of new branch.  For VCSes that maintain version
+        !> information for the entire repository (all the modern decentralized
+        !> VCSes belong to this group), DIR is always the `default_directory'.
+        !>
+        !> Finally, this command might prompt for the branch or tag from which to
+        !> start ("fork") the new branch, with completion candidates including
+        !> all the known branches and tags in the repository.
+        !>
+        !> This command invokes `vc_create_tag' with IS_BRANCH true.  Port of
+        !> vc.el:vc-create-branch.  (In vc_branches_mod.)
+        recursive module subroutine vc_create_branch(dir, name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            type(status_type), intent(out) :: status
+        end subroutine vc_create_branch
+
+        !> For each file in or below DIR, retrieve their version identified by tag NAME.
+        !> NAME can name a branch, in which case this command will switch to the
+        !> named branch in the directory DIR.
+        !> Interactively, prompt for DIR only for VCS that works at file level;
+        !> otherwise use the root directory of the current buffer's VC tree.
+        !> If NAME is empty, it refers to the latest revisions of the current branch.
+        !> If locking is used for the files in DIR, then there must not be any
+        !> locked files at or below DIR (but if NAME is empty, locked files are
+        !> allowed and simply skipped).
+        !> If IS_BRANCH is true (interactively, the prefix argument), switch to the
+        !> branch and check out and update the files to their version on that branch.
+        !> In this case NAME may not be empty.
+        !> This function runs the hook `vc_retrieve_tag_hook' when finished.
+        !> Port of vc.el:vc-retrieve-tag.  (In vc_branches_mod.)
+        recursive module subroutine vc_retrieve_tag(dir, name, status, is_branch)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: is_branch
+        end subroutine vc_retrieve_tag
+
+        !> Switch to the branch NAME in the directory DIR.
+        !> Interactively, prompt for DIR only for VCS that works at file level;
+        !> otherwise use the root directory of the current buffer's VC tree.
+        !> Interactively, prompt for the NAME of the branch.
+        !> After switching to the branch, check out and update the files to their
+        !> version on that branch.
+        !> Uses `vc_retrieve_tag' with IS_BRANCH true.  Port of
+        !> vc.el:vc-switch-branch.  (In vc_branches_mod.)
+        recursive module subroutine vc_switch_branch(dir, name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            type(status_type), intent(out) :: status
+        end subroutine vc_switch_branch
+
+        !> Update the current fileset or branch.
+        !> You must be visiting a version controlled file, or in a `vc_dir' buffer.
+        !> On a distributed version control system, this runs a "pull"
+        !> operation to update the current branch, prompting for an argument
+        !> list if required.  PROMPT (the prefix argument) forces a prompt
+        !> for the VCS command to run.
+        !>
+        !> On a non-distributed version control system, update the current
+        !> fileset to the tip revisions.  For each unchanged and unlocked
+        !> file, this simply replaces the work file with the latest revision
+        !> on its branch.  If the file contains changes, any changes in the
+        !> tip revision are merged into the working file.  Port of
+        !> vc.el:vc-pull.  (In vc_branches_mod.)
+        recursive module subroutine vc_pull(prompt, status)
+            implicit none(type, external)
+            logical, intent(in) :: prompt
+            type(status_type), intent(out) :: status
+        end subroutine vc_pull
+
+        !> Push the current branch.
+        !> You must be visiting a version controlled file, or in a `vc_dir' buffer.
+        !> On a distributed version control system, this runs a "push"
+        !> operation on the current branch, prompting for the precise command
+        !> if required.  PROMPT true (the prefix argument) forces a prompt for
+        !> the VCS command to run.
+        !>
+        !> On a non-distributed version control system, an error condition
+        !> occurs.  It also occurs in a Bazaar bound branch.  Port of
+        !> vc.el:vc-push.  (In vc_branches_mod.)
+        recursive module subroutine vc_push(prompt, status)
+            implicit none(type, external)
+            logical, intent(in) :: prompt
+            type(status_type), intent(out) :: status
+        end subroutine vc_push
+
+        !> The REVISION at the head of the branch at UPSTREAM_LOCATION ("" for
+        !> where `vc_pull' pulls from) of BACKEND's repository: the last one
+        !> known, unless REFRESH.  A `user_error' error condition occurs if
+        !> there is none.  Port of vc.el:vc--incoming-revision.  (In
+        !> vc_branches_mod.)
+        recursive module subroutine vc_incoming_revision(backend, upstream_location, revision, status, refresh)
+            implicit none(type, external)
+            integer, intent(in) :: backend
+            character(len=*), intent(in) :: upstream_location
+            character(len=:), allocatable, intent(out) :: revision
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: refresh
+        end subroutine vc_incoming_revision
+
+        !> The commands C-x v s, C-x v b c, C-x v r, C-x v b s, C-x v + and
+        !> C-x v P, reading their arguments.  (In vc_branches_mod.)
+        recursive module subroutine cmd_vc_create_tag(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_create_tag
+
+        recursive module subroutine cmd_vc_create_branch(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_create_branch
+
+        recursive module subroutine cmd_vc_retrieve_tag(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_retrieve_tag
+
+        recursive module subroutine cmd_vc_switch_branch(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_switch_branch
+
+        recursive module subroutine cmd_vc_pull(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_pull
+
+        recursive module subroutine cmd_vc_push(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_push
+
+        !> Show log of changes that will be received with pull from UPSTREAM_LOCATION.
+        !> When unspecified UPSTREAM_LOCATION is the place \[vc_update] would pull
+        !> from.  When called interactively with a prefix argument, prompt for
+        !> UPSTREAM_LOCATION.  In some version control systems UPSTREAM_LOCATION
+        !> can be a remote branch name.  Port of vc.el:vc-root-log-incoming.
+        !> (In vc_log_mod.)
+        recursive module subroutine vc_root_log_incoming(status, upstream_location)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: upstream_location
+        end subroutine vc_root_log_incoming
+
+        !> Show log of changes that will be sent with a push to UPSTREAM_LOCATION.
+        !> When unspecified UPSTREAM_LOCATION is the place \[vc_push] would push
+        !> to.  When called interactively with a prefix argument, prompt for
+        !> UPSTREAM_LOCATION.  In some version control systems UPSTREAM_LOCATION
+        !> can be a remote branch name.  Port of vc.el:vc-root-log-outgoing.
+        !> (In vc_log_mod.)
+        recursive module subroutine vc_root_log_outgoing(status, upstream_location)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: upstream_location
+        end subroutine vc_root_log_outgoing
+
+        !> Show log of VC changes on BRANCH, limited to the current fileset.
+        !> When called interactively, prompts for BRANCH.
+        !> In addition to logging branches, for VCS for which it makes sense you
+        !> can specify a revision ID instead of a branch name to produce a log
+        !> starting at that revision.  Tags and remote references also work.
+        !> Port of vc.el:vc-print-fileset-branch-log.  (In vc_log_mod.)
+        recursive module subroutine vc_print_fileset_branch_log(branch, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: branch
+            type(status_type), intent(out) :: status
+        end subroutine vc_print_fileset_branch_log
+
+        !> Show root log of VC changes on BRANCH in another window.
+        !> When called interactively, prompts for BRANCH.
+        !> In addition to logging branches, for VCS for which it makes sense you
+        !> can specify a revision ID instead of a branch name to produce a log
+        !> starting at that revision.  Tags and remote references also work.
+        !> Port of vc.el:vc-print-root-branch-log.  (In vc_log_mod.)
+        recursive module subroutine vc_print_root_branch_log(branch, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: branch
+            type(status_type), intent(out) :: status
+        end subroutine vc_print_root_branch_log
+
+        !> The commands C-x v I, C-x v O, C-x v b l and C-x v b L, reading
+        !> their arguments.  (In vc_log_mod.)
+        recursive module subroutine cmd_vc_root_log_incoming(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_root_log_incoming
+
+        recursive module subroutine cmd_vc_root_log_outgoing(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_root_log_outgoing
+
+        recursive module subroutine cmd_vc_print_fileset_branch_log(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_print_fileset_branch_log
+
+        recursive module subroutine cmd_vc_print_root_branch_log(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_print_root_branch_log
     end interface
 
 contains
@@ -630,7 +874,8 @@ contains
     !> If the chosen value is t, return no switches.
     !> This is so that you may set, e.g. `vc_git_diff_switches' to t in order
     !> to override the value of `vc_diff_switches' and `diff_switches'.
-    !> Port of vc.el:vc-switches (vc-BACKEND-OP-switches only for diff).
+    !> Port of vc.el:vc-switches (vc-BACKEND-OP-switches only for diff and
+    !> register).
     subroutine vc_switches(b, op, switches)
         integer, intent(in) :: b
         character(len=*), intent(in) :: op
@@ -642,6 +887,10 @@ contains
 
         if (b > 0 .and. op == "diff") then
             if (associated(vc_backends(b)%diff_switches)) sw = vc_backends(b)%diff_switches
+        end if
+
+        if (b > 0 .and. op == "register") then
+            if (associated(vc_backends(b)%register_switches)) sw = vc_backends(b)%register_switches
         end if
 
         if (sw%kind == VC_SWITCHES_UNSPECIFIED) then
@@ -3625,6 +3874,21 @@ contains
         commands%vc_clear_context%execute => cmd_vc_clear_context
         commands%vc_print_log%execute => cmd_vc_print_log
         commands%vc_print_root_log%execute => cmd_vc_print_root_log
+        ! Tags, branches, pulling and pushing, incoming and outgoing.
+        commands%vc_create_tag%execute => cmd_vc_create_tag
+        commands%vc_create_branch%execute => cmd_vc_create_branch
+        commands%vc_retrieve_tag%execute => cmd_vc_retrieve_tag
+        commands%vc_switch_branch%execute => cmd_vc_switch_branch
+        commands%vc_pull%execute => cmd_vc_pull
+        commands%vc_update%execute => cmd_vc_pull
+        commands%vc_push%execute => cmd_vc_push
+        commands%vc_root_log_incoming%execute => cmd_vc_root_log_incoming
+        commands%vc_log_incoming%execute => cmd_vc_root_log_incoming
+        commands%vc_root_log_outgoing%execute => cmd_vc_root_log_outgoing
+        commands%vc_log_outgoing%execute => cmd_vc_root_log_outgoing
+        commands%vc_print_fileset_branch_log%execute => cmd_vc_print_fileset_branch_log
+        commands%vc_print_root_branch_log%execute => cmd_vc_print_root_branch_log
+        commands%vc_print_branch_log%execute => cmd_vc_print_root_branch_log
 
         if (.not. vc_log_finish_functions%member(vc_shrink_buffer_window)) then
             call vc_log_finish_functions%prepend(vc_shrink_buffer_window)

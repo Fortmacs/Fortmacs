@@ -59,7 +59,7 @@ module savehist_mod
     use config_mod, only: state_directory
     use coding_mod, only: coding_system_for_write
     use minibuf_mod, only: minibuffer_history_variable, minibuffer_setup_hook
-    use keyboard_mod, only: exit_emacs_hook
+    use keyboard_mod, only: exit_fortmacs_hook
     use xdisp_mod, only: message
     use namelist_mod, only: namelist_group_type, namelist_item_type, namelist_value_type, read_namelist, namelist_text, &
                             NAMELIST_STRING, NAMELIST_INTEGER, NAMELIST_LOGICAL
@@ -489,12 +489,12 @@ contains
 
     !> Hook Savehist into Fortmacs.
     !> Normally invoked by calling `savehist_mode' to set the minor mode.
-    !> Installs `savehist_autosave' in `exit_emacs_hook' and on a timer.
+    !> Installs `savehist_autosave' in `exit_fortmacs_hook' and on a timer.
     !> To undo this, call `savehist_uninstall'.  Port of
     !> savehist.el:savehist-install.
     subroutine savehist_install()
         call minibuffer_setup_hook%prepend(savehist_minibuffer_hook_adapter)
-        call exit_emacs_hook%prepend(savehist_autosave_timer)
+        call exit_fortmacs_hook%prepend(savehist_autosave_timer)
         call savehist_manage_timer()
     end subroutine savehist_install
 
@@ -503,7 +503,7 @@ contains
     !> Port of savehist.el:savehist-uninstall.
     subroutine savehist_uninstall()
         call minibuffer_setup_hook%remove(savehist_minibuffer_hook_adapter)
-        call exit_emacs_hook%remove(savehist_autosave_timer)
+        call exit_fortmacs_hook%remove(savehist_autosave_timer)
         call savehist_manage_timer()
     end subroutine savehist_uninstall
 
@@ -712,7 +712,7 @@ contains
         if (minor_modes%savehist_mode%enabled()) call savehist_save(status, auto_save=.true.)
     end subroutine savehist_autosave
 
-    !> savehist_autosave for the timer and `exit_emacs_hook'.  Not a port.
+    !> savehist_autosave for the timer and `exit_fortmacs_hook'.  Not a port.
     recursive subroutine savehist_autosave_timer(status)
         type(status_type), intent(out) :: status
 

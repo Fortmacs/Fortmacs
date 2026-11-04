@@ -92,7 +92,7 @@ module css_mode_mod
               css_property_value_cache_get, css_foreign_completions, css_completion_at_point, css_color_to_4_dpc, &
               css_format_hex, css_named_color_to_hex, css_format_rgba_alpha, css_hex_to_rgb, &
               css_rgb_to_named_color_or_hex, css_cycle_color_format, css_join_nested_selectors, &
-              css_prev_index_position, css_extract_index_name, css_current_rule_name, css_mdn_find_symbol, &
+              css_prev_index_position, extract_css_index_name, css_current_rule_name, css_mdn_find_symbol, &
               css_rgb_color, css_hsl_color, css_hex_color, css_hex_alpha, css_named_color, css_compute_color, &
               css_fontify_region, css_smie_forward_token, css_smie_backward_token, css_smie_rules, css_fill_paragraph, &
               css_adaptive_fill, is_scss_smie_not_interpolation, css_font_lock_keywords_of, scss_font_lock_keywords
@@ -1293,7 +1293,7 @@ contains
 
         ! puthash.
         if (.not. allocated(value_cache)) allocate (value_cache(0))
-        i = findloc(value_cache%property, property, dim=1)
+        i = findloc(value_cache%property == property, .true., dim=1)
 
         if (i > 0) then
             value_cache(i)%values = values
@@ -1317,7 +1317,7 @@ contains
         found = .false.
         allocate (values(0))
         if (.not. allocated(value_cache)) return
-        i = findloc(value_cache%property, property, dim=1)
+        i = findloc(value_cache%property == property, .true., dim=1)
         if (i == 0) return
         values = value_cache(i)%values
         found = size(values) > 0
@@ -2572,7 +2572,7 @@ contains
         found = pos > 0
         call goto_char(point() - (me(0) - mb(0)))
         ! (The match data stays that of the name, for
-        ! `css_extract_index_name'.)
+        ! `extract_css_index_name'.)
     end subroutine css_prev_index_position
 
     ! STRING with each run of newlines and spaces made one space, trimmed
@@ -2611,7 +2611,7 @@ contains
     !> matched, with those it is nested in (an
     !> `imenu_extract_index_name_function').  Port of
     !> css-mode.el:css--extract-index-name.
-    recursive subroutine css_extract_index_name(name)
+    recursive subroutine extract_css_index_name(name)
         character(len=:), allocatable, intent(out) :: name
         type(parse_state_type) :: ppss
         type(status_type) :: st
@@ -2643,7 +2643,7 @@ contains
 
         name = join_squeezed(res)
         call goto_char(opoint)
-    end subroutine css_extract_index_name
+    end subroutine extract_css_index_name
 
     ! css--join-nested-selectors of the squeezed elements of RES.
     ! Not a port.
@@ -2672,7 +2672,7 @@ contains
         name = ""
         opoint = point()
         call css_prev_index_position(found)
-        if (found) call css_extract_index_name(name)
+        if (found) call extract_css_index_name(name)
         call goto_char(opoint)
     end subroutine css_current_rule_name
 
@@ -3420,7 +3420,7 @@ contains
         call font_lock_fontify_region_function_set_local(css_fontify_region)
         call completion_at_point_functions%prepend(css_completion_at_point, local=.true.)
         call imenu_prev_index_position_function%set_local(css_prev_index_position)
-        call imenu_extract_index_name_function%set_local(css_extract_index_name)
+        call imenu_extract_index_name_function%set_local(extract_css_index_name)
         call major_modes%css_mode%end(saved, status)
     end subroutine css_mode
 

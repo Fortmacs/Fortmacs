@@ -319,7 +319,7 @@ contains
         character(len=*), intent(in) :: name
 
         i = 0
-        if (allocated(ibuffer_filterings)) i = findloc(ibuffer_filterings%name, name, dim=1)
+        if (allocated(ibuffer_filterings)) i = findloc(ibuffer_filterings%name == name, .true., dim=1)
     end function filter_index
 
     ! The string qualifier of NODE.  Not a port.

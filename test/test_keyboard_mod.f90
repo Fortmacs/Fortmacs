@@ -45,8 +45,8 @@ module test_keyboard_mod
                             recursion_depth, top_level, recursive_edit, post_command_hook, safe_execute_hooks, echo_now
     use fns_mod, only: value_equal
     use subr_mod, only: init_subr
-    use sysdep_mod, only: emacs_tty_type, open_pty, close_fd, init_sys_modes, &
-                          reset_sys_modes, emacs_write
+    use sysdep_mod, only: fortmacs_tty_type, open_pty, close_fd, init_sys_modes, &
+                          reset_sys_modes, fortmacs_write
     implicit none(type, external)
     private
 
@@ -670,7 +670,7 @@ contains
     subroutine test_tty(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: global
-        type(emacs_tty_type) :: old
+        type(fortmacs_tty_type) :: old
         type(status_type) :: st
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding
@@ -688,7 +688,7 @@ contains
             call check(error, st%ok(), "raw mode")
             if (allocated(error)) exit run
             call set_input_fd(slave)
-            call emacs_write(master, char(24)//char(19), st)
+            call fortmacs_write(master, char(24)//char(19), st)
             call read_key_sequence(keys, binding, eof, st)
             call check(error, st%ok() .and. value_eq(binding, value_type(name="save_buffer")), "C-x C-s")
             call reset_sys_modes(slave, old, st)

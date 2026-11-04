@@ -74,7 +74,7 @@ module repeat_mod
     !> repeat.el repeat-on-final-keystroke (no list of characters).
     logical, public :: repeat_on_final_keystroke = .true.
 
-    !> # key sequences read in Emacs session when `repeat' last invoked.
+    !> # key sequences read in Fortmacs session when `repeat' last invoked.
     !> Port of repeat.el repeat-num-input-keys-at-repeat.
     integer(int64), public :: repeat_num_input_keys_at_repeat = -1
 
@@ -160,7 +160,7 @@ module repeat_mod
 contains
 
     !> Return true if this command is happening because user invoked `repeat'.
-    !> Usually, when a command is executing, the Emacs builtin variable
+    !> Usually, when a command is executing, the Fortmacs builtin variable
     !> `this_command' identifies the command the user invoked.  Some commands modify
     !> that variable on the theory they're doing more good than harm; `repeat' does
     !> that, and usually does do more good than harm.  However, like all do-gooders,

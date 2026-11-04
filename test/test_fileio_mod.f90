@@ -39,7 +39,7 @@ module test_fileio_mod
                           is_file_executable, is_file_newer_than_file, &
                           create_symbolic_link, is_file_symlink, &
                           directory_file_name, is_directory_name, is_file_name_absolute, &
-                          expand_file_name, get_homedir, init_fileio, emacs_wd, file_exists, &
+                          expand_file_name, get_homedir, init_fileio, fortmacs_wd, file_exists, &
                           is_file_readable, is_file_writable, is_file_directory, file_modes, &
                           set_file_modes, insert_file_contents, write_region, &
                           is_visited_file_modtime_current, create_directory_internal, &
@@ -115,7 +115,7 @@ contains
         call init_fileio()
         call get_or_make_buffer("fileio-test", buffer, st)
         call set_buffer(buffer, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
     end subroutine make_test_buffer
 
     subroutine teardown(buffer)
@@ -353,7 +353,7 @@ contains
         call save_home(home, had_home)
         call setenv("HOME", "a/b/c")
         call expand_file_name("~/foo", a, st)
-        call expand_file_name("a/b/c/foo", b, st, file_name_as_directory(emacs_wd))
+        call expand_file_name("a/b/c/foo", b, st, file_name_as_directory(fortmacs_wd))
         call restore_home(home, had_home)
         call check(error, a == b .and. len(a) == len(b), a//" vs "//b)
     end subroutine test_relative_home
@@ -409,9 +409,9 @@ contains
         call write_region(testdir//"/f1", .true., st, message=msg)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call check(error, msg == "Wrote "//file_name_as_directory(emacs_wd)//testdir//"/f1", msg)
+        call check(error, msg == "Wrote "//file_name_as_directory(fortmacs_wd)//testdir//"/f1", msg)
         if (allocated(error)) return
-        call check(error, buffers(current)%filename == file_name_as_directory(emacs_wd)//testdir//"/f1")
+        call check(error, buffers(current)%filename == file_name_as_directory(fortmacs_wd)//testdir//"/f1")
         if (allocated(error)) return
         call is_buffer_modified(current_buffer(), modified, st)
         call check(error,.not. modified, "visiting write leaves the buffer unmodified")
@@ -479,7 +479,7 @@ contains
         call check(error, st%code == FM_FILE_MISSING .and. condition_matches(st%code, FM_FILE_ERROR), format_error(st))
         if (allocated(error)) return
         call check(error, format_error(st) == "Opening input file: No such file or directory, "// &
-                   file_name_as_directory(emacs_wd)//testdir//"/missing", format_error(st))
+                   file_name_as_directory(fortmacs_wd)//testdir//"/missing", format_error(st))
         if (allocated(error)) return
         call check(error, allocated(buffers(current)%filename), "visit records the file anyway")
         if (allocated(error)) return

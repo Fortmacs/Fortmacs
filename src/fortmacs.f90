@@ -534,7 +534,7 @@ module fortmacs
                         info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NO, INFO_HIDE_NOTE_REFERENCES_SEE, &
                         INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, info_breadcrumbs_depth, &
                         info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
-                        info_files_for_emacs, info_file_prefix_type
+                        info_files_for_fortmacs, info_file_prefix_type
     use info_look_mod, only: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_names, &
                              info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
                              info_lookup_doc_specs_type, info_lookup_trans_procedure, info_lookup_parse_procedure, &
@@ -1004,7 +1004,7 @@ module fortmacs
               info_use_header_line, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NO, &
               INFO_HIDE_NOTE_REFERENCES_SEE, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
               info_breadcrumbs_depth, info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
-              info_files_for_emacs, info_file_prefix_type
+              info_files_for_fortmacs, info_file_prefix_type
     public :: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_names, &
               info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
               info_lookup_doc_specs_type, info_lookup_trans_procedure, info_lookup_parse_procedure, info_lookup_doc_spec_procedure

@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ibuffer is an advanced replacement for the `buffer_menu' which is
-!> normally distributed with Emacs.  Its interface is intended to be
+!> normally distributed with Fortmacs.  Its interface is intended to be
 !> analogous to that of Dired.  To start using it, type `M-x ibuffer'.
 !>
 !> The columns of `ibuffer_formats' are drawn by interpreting the format
@@ -2631,7 +2631,7 @@ contains
     integer function column_index(name) result(k)
         character(len=*), intent(in) :: name
 
-        k = findloc(ibuffer_columns%name, name, dim=1)
+        k = findloc(ibuffer_columns%name == name, .true., dim=1)
     end function column_index
 
     ! ibuffer-expand-format-entry: check SPEC's column, and give MIN and
@@ -3689,7 +3689,7 @@ contains
         integer :: k
 
         if (.not. allocated(ibuffer_sorting_functions)) allocate (ibuffer_sorting_functions(0))
-        k = findloc(ibuffer_sorting_functions%name, name, dim=1)
+        k = findloc(ibuffer_sorting_functions%name == name, .true., dim=1)
 
         if (k == 0) then
             ! (Pushed onto the table.)
@@ -4292,7 +4292,7 @@ contains
 
         call make_ibuffer_local_entry(k)
         less => null()
-        n = findloc(ibuffer_sorting_functions%name, locals(k)%sorting_mode, dim=1)
+        n = findloc(ibuffer_sorting_functions%name == locals(k)%sorting_mode, .true., dim=1)
         if (n > 0) less => ibuffer_sorting_functions(n)%less
 
         if (associated(less) .and. size(bmarklist) > 1) then

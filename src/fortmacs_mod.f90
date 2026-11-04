@@ -1,4 +1,4 @@
-! emacs_mod.f90 -- starting and running the editor.
+! fortmacs_mod.f90 -- starting and running the editor.
 ! Ported from GNU Emacs 31.1 src/emacs.c (main) with the terminal setup,
 ! options, init file and file arguments of lisp/startup.el and
 ! lisp/faces.el (tty-run-terminal-initialization).
@@ -22,12 +22,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `emacs_main' sets up the *scratch* buffer, the key bindings and the
+!> `fortmacs_main' sets up the *scratch* buffer, the key bindings and the
 !> terminal, runs the init file's `configure' (unless -q), visits the
 !> files named on the command line, then runs the command loop until
 !> C-x C-c, redisplaying whenever it waits for input.  `execute_editor' is the
 !> program around it.
-module emacs_mod
+module fortmacs_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, output_unit, error_unit
     use error_mod, only: format_message, status_type, set_error, format_error, FM_GENERIC_ERROR
     use version_mod, only: version_string
@@ -35,14 +35,14 @@ module emacs_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, current_buffer
     use editfns_mod, only: goto_char, point_min
     use cmds_mod, only: forward_line
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, is_file_name_absolute, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_name_absolute, &
                           file_exists, is_file_executable, is_file_newer_than_file
     use files_mod, only: find_file_noselect
     use frame_mod, only: selected_frame
     use window_mod, only: delete_window_tree, delete_window_object, set_window_buffer_internal, switch_to_buffer, &
                           switch_to_buffer_other_window, other_window
-    use sysdep_mod, only: install_interrupt_handler, install_window_change_handler, emacs_isatty, &
-                          emacs_execv, emacs_strerror
+    use sysdep_mod, only: install_interrupt_handler, install_window_change_handler, fortmacs_isatty, &
+                          fortmacs_execv, fortmacs_strerror
     use term_mod, only: init_tty, delete_tty, tty_set_terminal_modes
     use termchar_mod, only: tty_flush
     use dispnew_mod, only: adjust_frame_glyphs, frame_ring_bell, do_pending_window_change
@@ -50,7 +50,7 @@ module emacs_mod
     use xfaces_mod, only: init_frame_faces
     use faces_mod, only: init_faces
     use modes_mod, only: minor_modes
-    use keyboard_mod, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, exit_emacs_hook
+    use keyboard_mod, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, exit_fortmacs_hook
     use process_mod, only: kill_buffer_processes
     use bindings_mod, only: init_bindings
     use term_xterm_mod, only: terminal_init_xterm
@@ -67,7 +67,7 @@ module emacs_mod
     implicit none(type, external)
     private
 
-    public :: emacs_main, command_line, command_line_1, init_procedure, execute_editor, sort_args
+    public :: fortmacs_main, command_line, command_line_1, init_procedure, execute_editor, sort_args
     public :: load_init_file
 
     abstract interface
@@ -94,7 +94,7 @@ module emacs_mod
         integer :: priority = 0, nargs = 0
     end type standard_arg_type
 
-    !> The options Emacs knows, for sort_args (emacs.c standard_args, as
+    !> The options Fortmacs knows, for sort_args (emacs.c standard_args, as
     !> built on GNU/Linux with the portable dumper, modules and seccomp).
     type(standard_arg_type), parameter :: standard_args(82) = [ &
                                           standard_arg_type("-version", "--version", 150, 0), &
@@ -306,9 +306,9 @@ contains
             end if
 
             ! process-file-arg
-            dir = file_name_as_directory(emacs_wd)
+            dir = file_name_as_directory(fortmacs_wd)
 
-            if (len(emacs_wd) == 0 .and. .not. is_file_name_absolute(argi)) then
+            if (len(fortmacs_wd) == 0 .and. .not. is_file_name_absolute(argi)) then
                 call message("Ignoring relative file name ("//argi//") due to unset default_directory")
                 cycle
             end if
@@ -396,7 +396,7 @@ contains
     !> `fd' until the user leaves, visiting the files in `args' first.
     !> Port of the terminal path of emacs.c:main (init_display, then the
     !> file part of startup.el:command-line, then Frecursive_edit).
-    subroutine emacs_main(terminal_type, fd, status, args, configure)
+    subroutine fortmacs_main(terminal_type, fd, status, args, configure)
         character(len=*), intent(in) :: terminal_type
         integer(int32), intent(in) :: fd
         type(status_type), intent(out) :: status
@@ -414,8 +414,8 @@ contains
         call set_buffer(scratch, status)
         if (.not. status%ok()) return
         ! buffer.c:init_buffer: *scratch* starts in the working directory.
-        if (len(emacs_wd) > 0) buffers(current)%directory = file_name_as_directory(emacs_wd)
-        ! A fresh frame (emacs_main may run more than once in tests).
+        if (len(fortmacs_wd) > 0) buffers(current)%directory = file_name_as_directory(fortmacs_wd)
+        ! A fresh frame (fortmacs_main may run more than once in tests).
         call delete_window_tree(selected_frame%root_window)
         call delete_window_object(selected_frame%minibuffer_window)
         selected_frame%root_window = null_handle()
@@ -500,7 +500,7 @@ contains
         ring_bell_hook => frame_ring_bell
         call command_loop(st)
         ! Fkill_emacs: run the hook.
-        call exit_emacs_hook%execute(st)
+        call exit_fortmacs_hook%execute(st)
         ring_bell_hook => null()
         redisplay_hook => null()
         call delete_tty(selected_frame%tty, status)
@@ -508,7 +508,7 @@ contains
         call set_input_fd(-1_int32)
         ! shut_down_emacs: hang up the subprocesses.
         call kill_buffer_processes(null_handle())
-    end subroutine emacs_main
+    end subroutine fortmacs_main
 
     !> Run the init file's `configure'.  An error is shown in the echo area
     !> and sets `init_file_had_error'; startup goes on.  Port of
@@ -929,7 +929,7 @@ contains
         args = args(skip + 1:)
 
         ! emacs.c:main: a terminal is needed on standard input.
-        if (.not. emacs_isatty(0_int32)) then
+        if (.not. fortmacs_isatty(0_int32)) then
             write (error_unit, "(a)") "fortmacs: standard input is not a tty"
             exit_code = 1
             return
@@ -946,7 +946,7 @@ contains
         allocate (character(len=arglen) :: term)
         call get_environment_variable("TERM", term)
         startup_message = reminder
-        call emacs_main(term, 0_int32, status, args, configure)
+        call fortmacs_main(term, 0_int32, status, args, configure)
 
         if (.not. status%ok()) then
             ! term.c:fatal and term.c:vfatal: the message, then exit.
@@ -1079,7 +1079,7 @@ contains
             argv(k + 1)%text = args(k)%text
         end do
 
-        err = emacs_execv(build, argv)
-        reminder = "Can't run "//build//": "//emacs_strerror(err)
+        err = fortmacs_execv(build, argv)
+        reminder = "Can't run "//build//": "//fortmacs_strerror(err)
     end subroutine execute_user_build
-end module emacs_mod
+end module fortmacs_mod
