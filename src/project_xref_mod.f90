@@ -127,9 +127,9 @@ contains
         call set_directory(saved_dir)
     end subroutine show_regexp_matches
 
-    ! The matches for the fetcher's regexp in its files: a `user-error'
-    ! error condition occurs when there are no files or no matches.  Port
-    ! of project.el:project--find-regexp-in-files.
+    ! The matches for the fetcher's regexp in its files: a `user_error'
+    ! error condition occurs when there are no files or no matches.
+    ! Port of project.el:project--find-regexp-in-files.
     recursive subroutine find_regexp_in_files(this, items, status)
         class(project_regexp_fetcher_type), intent(inout) :: this
         type(xref_item_type), allocatable, intent(out) :: items(:)
@@ -171,8 +171,8 @@ contains
 
     ! The current buffer's `default_directory' ("./" for none), as
     ! project_mod's private `default_directory' gives it (gfortran does
-    ! not export a private procedure of the parent to a submodule).  Not a
-    ! port.
+    ! not export a private procedure of the parent to a submodule).
+    ! Not a port.
     function current_directory() result(dir)
         character(len=:), allocatable :: dir
 

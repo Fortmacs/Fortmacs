@@ -368,7 +368,7 @@ module project_mod
     ! Settings
     ! ------------------------------------------------------------------
 
-    !> Special hook to find the project containing a given directory.
+    !> Hook to find the project containing a given directory.
     !> Each procedure on this hook is called in turn with one argument,
     !> the directory in which to look, and should give either no project
     !> to mean that it is not applicable, or a project.  A project is an
@@ -633,6 +633,7 @@ module project_mod
         !> requires quoting, e.g. `\[quoted_insert]<space>'.  Port of
         !> project.el:project-find-regexp.
         recursive module subroutine find_project_regexp(regexp, status)
+            implicit none(type, external)
             character(len=*), intent(in) :: regexp
             type(status_type), intent(out) :: status
         end subroutine find_project_regexp
@@ -640,6 +641,7 @@ module project_mod
         !> Find all matches for REGEXP in the project roots or external
         !> roots.  Port of project.el:project-or-external-find-regexp.
         recursive module subroutine find_project_or_external_regexp(regexp, status)
+            implicit none(type, external)
             character(len=*), intent(in) :: regexp
             type(status_type), intent(out) :: status
         end subroutine find_project_or_external_regexp
@@ -941,7 +943,7 @@ contains
     !> project is found in that directory, return a "transient" project.
     !> PROMPT, when present, is passed to the prompter function.
     !>
-    !> The "transient" project is a special kind of value which denotes a
+    !> The "transient" project is a kind of project which denotes a
     !> project rooted in that directory and includes all the files under
     !> the directory except for those that match entries in
     !> `vc_directory_exclusions' or `grep_find_ignored_files_variable'.

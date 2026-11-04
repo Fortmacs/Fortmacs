@@ -565,7 +565,7 @@ module xref_mod
     !> XREF_AUTO_JUMP_MOVE means to only move point to the first result.
     !> This variable also affects commands similar to
     !> `find_xref_references', such as `find_xref_apropos', and
-    !> `project_find_regexp'.  Port of xref.el xref-auto-jump-to-first-xref.
+    !> `find_project_regexp'.  Port of xref.el xref-auto-jump-to-first-xref.
     type(choice_setting_type), public :: xref_auto_jump_to_first_xref = choice_setting_type(name="xref_auto_jump_to_first_xref")
 
     !> Special hook to find the xref backend for the current context.
@@ -641,7 +641,7 @@ module xref_mod
     !> This must reference a corresponding entry in `xref_search_programs'.
     !>
     !> This variable is used in `xref_matches_in_files', which is the
-    !> utility function used by commands like `project_find_regexp'.
+    !> utility function used by commands like `find_project_regexp'.
     !> Port of xref.el xref-search-program.
     integer, public :: xref_search_program = XREF_SEARCH_PROGRAM_GREP
 
@@ -2407,7 +2407,6 @@ contains
                 call erase_buffer(st)
                 call insert_xrefs(groups, status)
             end if
-
         else if (status%code == FM_USER_ERROR) then
             call erase_buffer(st)
             start = point()
@@ -3319,7 +3318,6 @@ contains
         do k = 1, size(patterns)
             ignores(k) = patterns(k)%text
         end do
-
 
         call xref_matches_in_directory(regexp_quote(identifier), "*", directory, ignores, items, status, delimited=.true.)
     end subroutine xref_references_in_directory_grep

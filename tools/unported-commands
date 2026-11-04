@@ -608,8 +608,6 @@ project.el	project-customize-dirlocals	project_customize_dirlocals
 project.el	project-display-buffer-other-frame	display_project_buffer_other_frame
 project.el	project-eshell	project_eshell
 project.el	project-find-matching-buffer	project_find_matching_buffer
-project.el	project-find-regexp	project_find_regexp
-project.el	project-or-external-find-regexp	project_or_external_find_regexp
 project.el	project-other-frame-command	project_other_frame_command
 project.el	project-other-tab-command	project_other_tab_command
 project.el	project-other-window-command	project_other_window_command
