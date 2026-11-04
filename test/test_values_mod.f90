@@ -23,7 +23,7 @@
 
 !> Ports lread-string-to-number-trailing-dot (the integers int64 holds;
 !> bignums are not applicable, as is data-tests-number-to-string); own
-!> tests of `string_to_number' and `number_to_string'.
+!> tests of `string_to_number'.
 module test_values_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use value_mod, only: vtag, V_NULL, V_NAME, V_ARRAY, value_type
@@ -33,7 +33,7 @@ module test_values_mod
     use value_mod, only: cons, list, list_elt, list_length, list_tail, make_list, sym_nil, sym_t, value_type, xfixnum, &
                          xstring
     use names_mod, only: intern, intern_soft
-    use data_mod, only: string_to_number, number_to_string
+    use data_mod, only: string_to_number
     use data_mod, only: boundp, makunbound, set, symbol_name, &
                         symbol_value, value_eq
     use fns_mod, only: get, plist_get, plist_member, plist_put, &
@@ -320,10 +320,12 @@ contains
                                                    largest - 1, largest, largest + 1]
         integer(int64) :: n
         integer :: k
+        character(len=24) :: text
 
         do k = 1, size(numbers)
-            call string_to_number(number_to_string(numbers(k))//".", n)
-            call check(error, n == numbers(k), number_to_string(numbers(k)))
+            write (text, '(i0, ".")') numbers(k)
+            call string_to_number(trim(text), n)
+            call check(error, n == numbers(k), trim(text))
             if (allocated(error)) return
         end do
     end subroutine test_string_to_number_trailing_dot

@@ -42,7 +42,7 @@ module callint_mod
 
     public :: command_procedure, command_type, find_command, is_command, is_command_defined, &
               set_command_disabled, intern_command_names, command_name_of, command_of
-    public :: execute_interactively, find_function, prefix_numeric_value, prefix_arg_repr
+    public :: execute_interactively, find_function, prefix_numeric_value, prefix_arg_text
 
     !> The kinds of a prefix argument (`prefix_arg_type%kind'): none, a
     !> number (C-u 5, M-5), one or more C-u's alone (value 4, 16, ...), or
@@ -305,7 +305,7 @@ contains
     !> Raw prefix argument ARG as help shows it, a Fortran structure
     !> constructor: "prefix_arg_type(kind=PREFIX_RAW, value=4)".
     !> Not a port.
-    function prefix_arg_repr(arg) result(text)
+    function prefix_arg_text(arg) result(text)
         type(prefix_arg_type), intent(in) :: arg
         character(len=:), allocatable :: text
         character(len=24) :: buffer
@@ -322,5 +322,5 @@ contains
         case default
             text = "prefix_arg_type(kind=PREFIX_NONE)"
         end select
-    end function prefix_arg_repr
+    end function prefix_arg_text
 end module callint_mod

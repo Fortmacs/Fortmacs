@@ -1216,6 +1216,7 @@ contains
         type(handle_type) :: buffer
         integer(int64) :: oldline, lastline, revspec, shortage
         type(vc_annotate_display_mode_type) :: parent_mode
+        character(len=21) :: count_text
         logical :: found, saved, has_rev
         integer :: b, k
 
@@ -1264,7 +1265,8 @@ contains
             vc_use_short_revision = saved
 
             if (.not. has_rev) then
-                call message("Cannot increment "//integer_string(count)//" revisions from revision " &
+                write (count_text, "(i0)") count
+                call message("Cannot increment "//trim(count_text)//" revisions from revision " &
                              //vc_buffer_revision())
             end if
         else if (count < 0) then
@@ -1287,7 +1289,8 @@ contains
             if (.not. status%ok()) return
 
             if (.not. has_rev) then
-                call message("Cannot decrement "//integer_string(-count)//" revisions from revision " &
+                write (count_text, "(i0)") - count
+                call message("Cannot decrement "//trim(count_text)//" revisions from revision " &
                              //vc_buffer_revision())
             end if
         else
@@ -1306,16 +1309,6 @@ contains
             call vc_annotate(the_file, newrev, status, parent_mode, buffer, min(oldline, lastline), b)
         end if
     end subroutine warp_vc_annotate_revision
-
-    ! N as a decimal string.  Not a port.
-    function integer_string(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function integer_string
 
     !> Return the name of FILE at revision REV using backend B.
     !> If the file name has changed in the given revision, return the new name;

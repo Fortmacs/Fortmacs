@@ -29,7 +29,6 @@
 !> The Deferred list is in PORTING.md's vc_hg_mod row.
 module vc_hg_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xfixnum, vtag, V_INTEGER
@@ -777,6 +776,7 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         character(len=:), allocatable :: start
+        character(len=21) :: limit_text
         integer :: view
 
         limit_unsupported = .false.
@@ -819,7 +819,11 @@ contains
             call append_string(flags, "-r"//start//":"//limit%revision//" "//AMPERSAND//" !"//limit%revision)
         end if
 
-        if (limit%kind == VC_LIMIT_NUMBER) call append_all(flags, strings("-l", number_to_string(limit%n)))
+        if (limit%kind == VC_LIMIT_NUMBER) then
+            write (limit_text, "(i0)") limit%n
+            call append_all(flags, strings("-l", trim(limit_text)))
+        end if
+
         if (view == VC_LOG_VIEW_WITH_DIFF) call append_string(flags, "-p")
 
         if (shortlog) then
@@ -1086,6 +1090,7 @@ contains
         type(handle_type) :: old, tmp
         type(status_type) :: st
         character(len=:), allocatable :: digits
+        character(len=16) :: text
         integer :: n, code, ios
 
         prev = ""
@@ -1097,13 +1102,15 @@ contains
         !
         ! See <https://repo.mercurial-scm.org/hg/help/revsets> for reference.
         if (string_match("\`\.\(\^*\)\'", rev, st) > 0) then
-            prev = ".~"//number_to_string(1 + len(match_string(1, rev)))
+            write (text, '(".~", i0)') 1 + len(match_string(1, rev))
+            prev = trim(text)
             found = .true.
         else if (string_match("\`\.~\([0-9]+\)\'", rev, st) > 0) then
             digits = match_string(1, rev)
             read (digits, *, iostat=ios) n
             if (ios /= 0) n = 0
-            prev = ".~"//number_to_string(1 + n)
+            write (text, '(".~", i0)') 1 + n
+            prev = trim(text)
             found = .true.
         else
             ! We can't simply decrement by 1, because that revision might
@@ -1134,6 +1141,7 @@ contains
         type(status_type) :: st
         integer(int64) :: pos, newrev, tip_revision
         character(len=:), allocatable :: digits
+        character(len=21) :: revision_text
         integer :: ios
 
         next = ""
@@ -1162,7 +1170,8 @@ contains
         ! We don't want to exceed the maximum possible revision number, ie
         ! the tip revision.
         if (newrev <= tip_revision) then
-            next = number_to_string(newrev)
+            write (revision_text, "(i0)") newrev
+            next = trim(revision_text)
             found = .true.
         end if
     end subroutine vc_hg_next_revision

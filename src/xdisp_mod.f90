@@ -120,8 +120,7 @@ module xdisp_mod
     use value_mod, only: value_type, xstring, list_elements, xfixnum, xhandle, string_intervals, vtag, V_INTEGER, &
                          V_STRING, V_ARRAY, V_WINDOW
     use intervals_mod, only: textget
-    use data_mod, only: buffer_local_value, integer_setting_type, append_locals_clearer, value_eq, choice_setting_type, &
-                        number_to_string
+    use data_mod, only: buffer_local_value, integer_setting_type, append_locals_clearer, value_eq, choice_setting_type
     use coding_mod, only: is_coding_system, coding_system_mnemonic, coding_system_eol_type_mnemonic, init_coding, &
                           buffer_file_coding_system
     use buffer_mod, only: get_buffer, get_or_make_buffer, set_buffer, is_buffer_live, temp_set_point_both, BEGINNING, BEGINNING_BYTE
@@ -4017,7 +4016,7 @@ contains
     !> With ARGUMENTS, TEXT is a format control string, and ARGUMENTS are
     !> data to be formatted under control of the string.  Percent sign (%),
     !> grave accent (`) and apostrophe (') are then special in the format;
-    !> see `format' and `format_message' for details.  Without them, TEXT
+    !> see `format_text' and `format_message' for details.  Without them, TEXT
     !> is displayed as it is.
     !>
     !> If TEXT is the empty string, the function clears any existing
@@ -4621,8 +4620,13 @@ contains
     function message_log_max_other_value(self) result(text)
         class(message_log_max_choice_setting_type), intent(in) :: self
         character(len=:), allocatable :: text
+        character(len=32) :: component_text
 
         text = ""
-        if (self%lines >= 0) text = "%lines = "//number_to_string(self%lines)
+
+        if (self%lines >= 0) then
+            write (component_text, '("%lines = ", i0)') self%lines
+            text = trim(component_text)
+        end if
     end function message_log_max_other_value
 end module xdisp_mod

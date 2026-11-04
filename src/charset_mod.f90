@@ -41,7 +41,6 @@
 !> `charset-map-path' (the maps are not read from files) are Deferred.
 module charset_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_OK, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, &
                          FM_ARGS_OUT_OF_RANGE
     use character_mod, only: MAX_CHAR, MAX_UNICODE_CHAR, MAX_5_BYTE_CHAR, string_char_and_length
@@ -2149,6 +2148,7 @@ contains
         logical, allocatable :: seen(:)
         integer(int64) :: from, to, stop
         character(len=:), allocatable :: text
+        character(len=48) :: range_text
 
         call init_charset()
         allocate (names(0), seen(charset_count))
@@ -2158,7 +2158,8 @@ contains
 
         associate (b => buffers(current))
             if (from < b%begv .or. to > b%zv) then
-                call set_error(status, FM_ARGS_OUT_OF_RANGE, number_to_string(beginning)//", "//number_to_string(end))
+                write (range_text, '(i0, ", ", i0)') beginning, end
+                call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(range_text))
                 return
             end if
 

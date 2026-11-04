@@ -759,14 +759,15 @@ contains
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: today
         integer :: year, day, last
+        character(len=32) :: prompt
 
         today = calendar_current_date()
         call calendar_read_expression("Year (>0)", is_positive, year, status, today%year)
         if (.not. status%ok()) return
         last = 365
         if (is_calendar_leap_year(year)) last = 366
-        call calendar_read_expression("Day number (+/- 1-"//number_to_string(last)//")", is_day_number, day, status, &
-                                      calendar_day_number(today))
+        write (prompt, '("Day number (+/- 1-", i0, ")")') last
+        call calendar_read_expression(trim(prompt), is_day_number, day, status, calendar_day_number(today))
         if (.not. status%ok()) return
         call calendar_goto_day_of_year(year, day, status)
 

@@ -75,7 +75,7 @@ module font_lock_mod
                              font_lock_properties_procedure
     use syntax_mod, only: parse_state_type, parse_partial_expression, syntax_ppss, COMMENTSTOP_SYNTAX_TABLE
     use subr_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, looking_back
-    use data_mod, only: string_setting_type, forward_setting, choice_setting_type, number_to_string
+    use data_mod, only: string_setting_type, forward_setting, choice_setting_type
     use newcomment_mod, only: comment_start, comment_start_skip, comment_end_skip, comment_normalize_vars
     use insdel_mod, only: after_change_functions
     use jit_lock_mod, only: jit_lock_register, jit_lock_unregister, jit_lock_refontify, jit_lock_fontify_now, &
@@ -2345,8 +2345,13 @@ contains
     function font_lock_maximum_decoration_other_value(self) result(text)
         class(font_lock_maximum_decoration_choice_setting_type), intent(in) :: self
         character(len=:), allocatable :: text
+        character(len=32) :: component_text
 
         text = ""
-        if (self%level >= 0) text = "%level = "//number_to_string(self%level)
+
+        if (self%level >= 0) then
+            write (component_text, '("%level = ", i0)') self%level
+            text = trim(component_text)
+        end if
     end function font_lock_maximum_decoration_other_value
 end module font_lock_mod

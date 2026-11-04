@@ -749,6 +749,7 @@ contains
         logical, intent(in) :: found, reversed, dry_run
         integer(int64), intent(in) :: line_offset
         character(len=:), allocatable :: msg
+        character(len=40) :: offset_text
 
         if (dry_run) then
             msg = merge("already applied", "not yet applied", reversed)
@@ -763,9 +764,11 @@ contains
         else if (line_offset == 0) then
             call message("Hunk "//msg)
         else if (line_offset == 1) then
-            call message("Hunk "//msg//" at offset "//number_to_string(line_offset)//" line")
+            write (offset_text, '(" at offset ", i0, " line")') line_offset
+            call message("Hunk "//msg//trim(offset_text))
         else
-            call message("Hunk "//msg//" at offset "//number_to_string(line_offset)//" lines")
+            write (offset_text, '(" at offset ", i0, " lines")') line_offset
+            call message("Hunk "//msg//trim(offset_text))
         end if
     end subroutine diff_hunk_status_msg
 
@@ -926,6 +929,7 @@ contains
     integer :: k, j, n
     logical :: rev, testing, nosave, more
     type(value_type) :: saved_inhibit
+    character(len=48) :: text
 
     status = status_type()
     rev = .false.
@@ -1006,7 +1010,8 @@ contains
         if (failures == 1) then
             call message("1 hunk failed; no buffers changed")
         else
-            call message(number_to_string(int(failures, int64))//" hunks failed; no buffers changed")
+            write (text, '(i0, " hunks failed; no buffers changed")') failures
+            call message(trim(text))
         end if
     end if
 
@@ -1017,8 +1022,10 @@ contains
         character(len=*), intent(in) :: verb
         integer, intent(in) :: count
         character(len=:), allocatable :: s
+        character(len=24) :: count_text
 
-        s = verb//" "//number_to_string(int(count, int64))//" buffer"
+        write (count_text, '(" ", i0, " buffer")') count
+        s = verb//trim(count_text)
         if (count /= 1) s = s//"s"
     end function plural
 

@@ -1,6 +1,6 @@
 ! test_editfns_mod.f90 -- tests for editfns_mod.
 ! Ports GNU Emacs 31.1 test/src/editfns-tests.el in part; the rest need
-! `format', `replace-region-contents' or undo marker adjustments (the
+! `format_text', `replace-region-contents' or undo marker adjustments (the
 ! change-hook cases are in test_insdel_mod).
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
@@ -82,10 +82,9 @@ module test_editfns_mod
     use cmds_mod, only: end_of_line, delete_char
     use chartab_mod, only: make_char_table, char_table_set, destroy_char_table
     use character_mod, only: MAX_CHAR, multibyte_chars_in_text
-    use editfns_mod, only: format, styled_format, format_arguments_type
+    use editfns_mod, only: format_text, styled_format, format_arguments_type
     use textprop_mod, only: propertize, joined => propertized_concat
     use intervals_mod, only: compare_string_intervals
-    use data_mod, only: number_to_string
     use error_mod, only: FM_WRONG_NUMBER_OF_ARGUMENTS
     implicit none(type, external)
     private
@@ -1500,7 +1499,7 @@ contains
         type(status_type) :: st
         integer(int64) :: nchars
 
-        call format(string, arguments, v, st)
+        call format_text(string, arguments, v, st)
         call check(error, st%ok(), label//": status")
         if (allocated(error)) return
         call check(error, xstring(v) == xstring(expected), label//": text "//xstring(v))
@@ -1517,7 +1516,7 @@ contains
         character(len=:), allocatable :: text
         type(status_type) :: st
 
-        call format(string, arguments, text, st)
+        call format_text(string, arguments, text, st)
         call check(error, st%ok(), string//": "//format_error(st))
         if (allocated(error)) return
         call check(error, text == expected, string//": got ["//text//"], expected ["//expected//"]")
@@ -1531,7 +1530,7 @@ contains
         character(len=:), allocatable :: text
         type(status_type) :: st
 
-        call format(string, arguments, text, st)
+        call format_text(string, arguments, text, st)
         call check(error, st%code == FM_GENERIC_ERROR, string//": error")
         if (allocated(error)) return
         call check(error, format_error(st) == message, string//": "//format_error(st))
@@ -1666,7 +1665,7 @@ contains
         type(status_type) :: st
 
         call arguments%append(0.5_real64)
-        call format("%c", arguments, text, st)
+        call format_text("%c", arguments, text, st)
         call check(error,.not. st%ok(), "error")
     end subroutine test_format_c_float
 
@@ -1712,6 +1711,7 @@ contains
                                                                                                                      "111010010111"]
         type(format_arguments_type) :: arguments
         character(len=:), allocatable :: bits, sgn_minus, sgn, w, c
+        character(len=11) :: width
         integer :: k, j, npad, nsgn, extra
 
         do k = 1, size(numbers)
@@ -1732,7 +1732,8 @@ contains
                 sgn = "-"
             end if
 
-            w = number_to_string(int(len(bits) + extra, int64))
+            write (width, "(i0)") len(bits) + extra
+            w = trim(width)
 
             do j = 1, 2
                 c = "b"
@@ -1863,11 +1864,11 @@ contains
         if (allocated(error)) return
         ! most-positive-fixnum (2**61 - 1), and that plus 1.0.
         call largest%append(2305843009213693951_int64)
-        call format("a %%%d$d b", largest, text, st)
+        call format_text("a %%%d$d b", largest, text, st)
         call check_format_error(error, text, none, "Not enough arguments for format string")
         if (allocated(error)) return
         call plus_one%append(1.0_real64 + 2305843009213693951_int64)
-        call format("a %%%d$d b", plus_one, text, st)
+        call format_text("a %%%d$d b", plus_one, text, st)
         call check(error, text == "a %2305843009213693952$d b", text)
         if (allocated(error)) return
         call check_format_error(error, text, none, "Not enough arguments for format string")
@@ -1894,7 +1895,7 @@ contains
 
         call inner%append("[1]")
         call inner%append(repeat(a_macron, 100))
-        call format("%s %s", inner, text, st)
+        call format_text("%s %s", inner, text, st)
         call check(error, st%ok(), "inner")
         if (allocated(error)) return
         call outer%append(text)

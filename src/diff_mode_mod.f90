@@ -55,7 +55,7 @@ module diff_mode_mod
     use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer
-    use data_mod, only: symbol_value, set, number_to_string
+    use data_mod, only: symbol_value, set
     use value_mod, only: make_keymap_ref, value_type, xfixnum
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
                            line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
@@ -1196,6 +1196,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: pos, start, start1, start2, newstart1, newstart2, shortage
         type(value_type) :: saved
+        character(len=64) :: header
 
         call beginning_of_line()
         pos = point()
@@ -1214,7 +1215,8 @@ contains
         newstart2 = start2 + diff_count_matches("^[+ "//TAB//"]", point(), pos)
         call bind_inhibit_read_only(saved)
         call goto_char(pos)
-        call insert("@@ -"//number_to_string(newstart1)//",1 +"//number_to_string(newstart2)//",1 @@"//LF, status)
+        write (header, '("@@ -", i0, ",1 +", i0, ",1 @@")') newstart1, newstart2
+        call insert(trim(header)//LF, status)
         if (status%ok()) call diff_fixup_modifs(start, pos, status)
         call restore_inhibit_read_only(saved)
     end subroutine diff_split_hunk
@@ -1230,6 +1232,7 @@ contains
         integer(int32) :: c
         type(value_type) :: saved_inhibit
         character(len=:), allocatable :: old1, old2, new1, new2, new, old
+        character(len=20) :: digits
 
         status = status_type()
         saved = point()
@@ -1274,8 +1277,10 @@ contains
                 if (at(diff_hunk_header_regexp_unified)) then
                     old1 = match_string(2)
                     old2 = match_string(4)
-                    new1 = number_to_string(space + minus)
-                    new2 = number_to_string(space + plus)
+                    write (digits, "(i0)") space + minus
+                    new1 = trim(digits)
+                    write (digits, "(i0)") space + plus
+                    new2 = trim(digits)
 
                     if (me(4) > 0) then
                         if (new2 /= old2 .or. len(new2) /= len(old2)) then
@@ -1303,7 +1308,8 @@ contains
                     if (space + bang + plus > 0) then
                         old1 = match_string(1)
                         old2 = match_string(2)
-                        new = number_to_string(space + bang + plus - 1 + string_to_number(old1))
+                        write (digits, "(i0)") space + bang + plus - 1 + string_to_number(old1)
+                        new = trim(digits)
 
                         if (new /= old2 .or. len(new) /= len(old2)) then
                             call replace_match(new, status, fixedcase=.true., literal=.true., subexp=2)
@@ -1341,8 +1347,10 @@ contains
             integer(int64), intent(in) :: n
             integer, intent(in) :: width
             character(len=:), allocatable :: s
+            character(len=20) :: digits
 
-            s = number_to_string(n)
+            write (digits, "(i0)") n
+            s = trim(digits)
             if (len(s) < width .and. n >= 0) s = repeat("0", width - len(s))//s
         end function zero_padded
     end subroutine diff_fixup_modifs

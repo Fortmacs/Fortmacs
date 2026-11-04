@@ -1,6 +1,6 @@
 ! test_textprop_mod.f90 -- tests for intervals_mod and textprop_mod.
 ! Ports GNU Emacs 31.1 test/src/textprop-tests.el in part;
-! textprop-tests-format needs `format' and the other test needs
+! textprop-tests-format needs `format_text' and the other test needs
 ! font-lock--remove-face-from-text-property.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
@@ -29,7 +29,7 @@ module test_textprop_mod
                          FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: list, value_type, make_keymap_ref
-    use data_mod, only: number_to_string, value_eq, set
+    use data_mod, only: value_eq, set
     use fns_mod, only: value_equal, put
     use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, set_buffer, &
                           current_buffer, is_buffer_live, set_buffer_read_only, &
@@ -549,45 +549,55 @@ contains
     subroutine tp_rec_mod(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
+        character(len=48) :: text
 
         status = status_type()
-        tp_trace = tp_trace//" M"//number_to_string(beginning)//","//number_to_string(end)
+        write (text, '(" M", i0, ",", i0)') beginning, end
+        tp_trace = tp_trace//trim(text)
     end subroutine tp_rec_mod
 
     ! See `tp_rec_mod'.
     subroutine tp_rec_behind(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
+        character(len=48) :: text
 
         status = status_type()
-        tp_trace = tp_trace//" B"//number_to_string(beginning)//","//number_to_string(end)
+        write (text, '(" B", i0, ",", i0)') beginning, end
+        tp_trace = tp_trace//trim(text)
     end subroutine tp_rec_behind
 
     ! See `tp_rec_mod'.
     subroutine tp_rec_front(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
+        character(len=48) :: text
 
         status = status_type()
-        tp_trace = tp_trace//" F"//number_to_string(beginning)//","//number_to_string(end)
+        write (text, '(" F", i0, ",", i0)') beginning, end
+        tp_trace = tp_trace//trim(text)
     end subroutine tp_rec_front
 
     ! See `tp_rec_mod'.
     subroutine tp_rec_entered(old_point, new_point, status)
         integer(int64), intent(in) :: old_point, new_point
         type(status_type), intent(out) :: status
+        character(len=48) :: text
 
         status = status_type()
-        tp_trace = tp_trace//" E"//number_to_string(old_point)//","//number_to_string(new_point)
+        write (text, '(" E", i0, ",", i0)') old_point, new_point
+        tp_trace = tp_trace//trim(text)
     end subroutine tp_rec_entered
 
     ! See `tp_rec_mod'.
     subroutine tp_rec_left(old_point, new_point, status)
         integer(int64), intent(in) :: old_point, new_point
         type(status_type), intent(out) :: status
+        character(len=48) :: text
 
         status = status_type()
-        tp_trace = tp_trace//" L"//number_to_string(old_point)//","//number_to_string(new_point)
+        write (text, '(" L", i0, ",", i0)') old_point, new_point
+        tp_trace = tp_trace//trim(text)
     end subroutine tp_rec_left
 
     !> Define the recording property functions.  Not a port.

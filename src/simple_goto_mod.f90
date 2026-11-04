@@ -400,27 +400,26 @@ contains
 
     module procedure count_words_format
     integer(int64) :: lines, sentences, words, chars
+    character(len=len(string) + 160) :: buffer
 
     lines = count_lines(start, end)
     sentences = count_sentences(start, end)
     words = count_words(start, end)
     chars = end - start
-    text = string//" has "//counted(lines, "line")//", "//counted(sentences, "sentence")//", "//counted(words, "word") &
-           //", and "//counted(chars, "character")
+    write (buffer, '(a, " has ", i0, " line", a, ", ", i0, " sentence", a, ", ", i0, " word", a, ", and ", i0, " character", a)') &
+        string, lines, plural(lines), sentences, plural(sentences), words, plural(words), chars, plural(chars)
+    text = trim(buffer)
 
 contains
 
-    ! "N NOUN", with an s unless N is 1.
-    function counted(n, noun) result(s)
+    ! "s" unless N is 1.
+    function plural(n) result(s)
         integer(int64), intent(in) :: n
-        character(len=*), intent(in) :: noun
         character(len=:), allocatable :: s
-        character(len=24) :: buffer
 
-        write (buffer, "(i0)") n
-        s = trim(buffer)//" "//noun
-        if (n /= 1) s = s//"s"
-    end function counted
+        s = "s"
+        if (n == 1) s = ""
+    end function plural
     end procedure count_words_format
 
     !> Count words between START and END (the command): report the number
