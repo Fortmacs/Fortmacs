@@ -318,9 +318,9 @@ module docstrings_mod
                            ibuffer_title_face_def, ibuffer_title_face, ibuffer_truncate_lines, ibuffer_use_header_line, &
                            IBUFFER_USE_HEADER_LINE_NO, IBUFFER_USE_HEADER_LINE_FILTERS, IBUFFER_USE_HEADER_LINE_TITLE, &
                            ibuffer_use_other_window, ibuffer_view_ibuffer
-    use imenu_mod, only: imenu_history, imenu_after_jump_hook, imenu_auto_rescan, &
-                         imenu_auto_rescan_maxout, imenu_case_fold_search, imenu_create_index_function, &
-                         imenu_default_goto_function_variable, imenu_extract_index_name_function, imenu_flatten, &
+    use imenu_mod, only: imenu_default_goto_function_variable, imenu_history, imenu_after_jump_hook, &
+                         imenu_auto_rescan, imenu_auto_rescan_maxout, imenu_case_fold_search, &
+                         imenu_create_index_function, imenu_extract_index_name_function, imenu_flatten, &
                          IMENU_FLATTEN_NO, IMENU_FLATTEN_PREFIX, imenu_patterns, &
                          imenu_generic_skip_comments_and_strings, imenu_level_separator, imenu_max_index_time, &
                          imenu_max_item_length, imenu_name_lookup_function, imenu_prev_index_position_function, &
@@ -1414,10 +1414,11 @@ module docstrings_mod
                                                             "global_auto_revert_ignore_buffer", "global_auto_revert_ignore_modes", &
                                                                    "global_auto_revert_mode_hook", "global_auto_revert_mode_text", &
                                                          "global_auto_revert_non_file_buffers", "global_disable_point_adjustment", &
-                                             "global_font_lock_mode_hook", "goal_column", "grep_command", "grep_command_position", &
-                                          "grep_compilation_transform_finished_rules", "grep_context_face", "grep_edit_mode_hook", &
-                                               "grep_edit_mode_map", "grep_error", "grep_error_face", "grep_error_screen_columns", &
-                                          "grep_files_aliases", "grep_files_history", "grep_find_abbreviate", "grep_find_command", &
+                                               "global_font_lock_mode_hook", "goal_column", "goto_imenu_position", "grep_command", &
+                                                             "grep_command_position", "grep_compilation_transform_finished_rules", &
+                                                   "grep_context_face", "grep_edit_mode_hook", "grep_edit_mode_map", "grep_error", &
+                                                             "grep_error_face", "grep_error_screen_columns", "grep_files_aliases", &
+                                                                "grep_files_history", "grep_find_abbreviate", "grep_find_command", &
                                                "grep_find_command_position", "grep_find_history", "grep_find_ignored_directories", &
                                                            "grep_find_ignored_files", "grep_find_template", "grep_find_use_xargs", &
                                              "grep_first_column", "grep_heading", "grep_heading_regexp", "grep_highlight_matches", &
@@ -1453,33 +1454,32 @@ module docstrings_mod
                                                     "ibuffer_use_header_line", "ibuffer_use_other_window", "ibuffer_view_ibuffer", &
                                                               "imenu__history_list", "imenu_after_jump_hook", "imenu_auto_rescan", &
                                               "imenu_auto_rescan_maxout", "imenu_case_fold_search", "imenu_create_index_function", &
-                                              "imenu_default_goto_function", "imenu_extract_index_name_function", "imenu_flatten", &
-                                                            "imenu_generic_expression", "imenu_generic_skip_comments_and_strings", &
-                                                         "imenu_level_separator", "imenu_max_index_time", "imenu_max_item_length", &
-                                                               "imenu_name_lookup_function", "imenu_prev_index_position_function", &
-                                                     "imenu_space_replacement", "imenu_syntax_modifications", "imenu_use_markers", &
-                                                             "indent_line_function", "indent_region_function", "indent_tabs_mode", &
-                                                 "indent_tabs_mode_hook", "info_additional_directories", "info_breadcrumbs_depth", &
-                                                        "info_default_directories", "info_directories", "info_files_for_fortmacs", &
-                                               "info_fontify_maximum_menu_size", "info_fontify_visited_nodes", "info_header_node", &
-                                          "info_header_xref", "info_hide_note_references", "info_history_skip_intermediate_nodes", &
-                                                              "info_index_match", "info_isearch_search", "info_lookup_file_names", &
-                                                "info_lookup_highlight_face", "info_lookup_other_window_flag", "info_menu_header", &
-                                                    "info_menu_star", "info_mode_hook", "info_mode_map", "info_mode_syntax_table", &
-                                                      "info_node", "info_scroll_prefer_subnodes", "info_search_whitespace_regexp", &
-                                               "info_selection_hook", "info_streamline_headings", "info_suffixes", "info_title_1", &
-                                         "info_title_2", "info_title_3", "info_title_4", "info_url_table", "info_use_header_line", &
-                                                         "info_warn_on_index_alternatives_wrap", "info_xref", "info_xref_visited", &
-                                                       "inhibit_auto_fill", "inhibit_eol_conversion", "inhibit_field_text_motion", &
-                                              "inhibit_interaction", "inhibit_iso_escape_detection", "inhibit_modification_hooks", &
-                                                                    "inhibit_null_byte_detection", "inhibit_point_motion_hooks", &
-                                               "input_method_activate_hook", "input_method_alist", "input_method_deactivate_hook", &
-                                          "input_method_previous_message", "insert_default_directory", "insert_directory_program", &
-                                              "insert_pairs", "isearch", "isearch_filter_test_function", "isearch_lax_whitespace", &
-                                                "isearch_message_function", "isearch_message_prefix_add", "isearch_mode_end_hook", &
-                                                            "isearch_mode_end_hook_quit", "isearch_mode_hook", "isearch_mode_map", &
-                                                                   "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
-                                                                    "isearch_search_fun_function", "isearch_wrap_function", &
+                                                 "imenu_extract_index_name_function", "imenu_flatten", "imenu_generic_expression", &
+                                                               "imenu_generic_skip_comments_and_strings", "imenu_level_separator", &
+                                                    "imenu_max_index_time", "imenu_max_item_length", "imenu_name_lookup_function", &
+                                                                  "imenu_prev_index_position_function", "imenu_space_replacement", &
+                                                        "imenu_syntax_modifications", "imenu_use_markers", "indent_line_function", &
+                                                            "indent_region_function", "indent_tabs_mode", "indent_tabs_mode_hook", &
+                                              "info_additional_directories", "info_breadcrumbs_depth", "info_default_directories", &
+                                                  "info_directories", "info_files_for_fortmacs", "info_fontify_maximum_menu_size", &
+                                                             "info_fontify_visited_nodes", "info_header_node", "info_header_xref", &
+                                          "info_hide_note_references", "info_history_skip_intermediate_nodes", "info_index_match", &
+                                                    "info_isearch_search", "info_lookup_file_names", "info_lookup_highlight_face", &
+                                          "info_lookup_other_window_flag", "info_menu_header", "info_menu_star", "info_mode_hook", &
+                                            "info_mode_map", "info_mode_syntax_table", "info_node", "info_scroll_prefer_subnodes", &
+                                               "info_search_whitespace_regexp", "info_selection_hook", "info_streamline_headings", &
+                                                  "info_suffixes", "info_title_1", "info_title_2", "info_title_3", "info_title_4", &
+                                                 "info_url_table", "info_use_header_line", "info_warn_on_index_alternatives_wrap", &
+                                                  "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
+                                               "inhibit_field_text_motion", "inhibit_interaction", "inhibit_iso_escape_detection", &
+                                                                    "inhibit_modification_hooks", "inhibit_null_byte_detection", &
+                                                 "inhibit_point_motion_hooks", "input_method_activate_hook", "input_method_alist", &
+                                                                  "input_method_deactivate_hook", "input_method_previous_message", &
+                                                "insert_default_directory", "insert_directory_program", "insert_pairs", "isearch", &
+                                             "isearch_filter_test_function", "isearch_lax_whitespace", "isearch_message_function", &
+                                              "isearch_message_prefix_add", "isearch_mode_end_hook", "isearch_mode_end_hook_quit", &
+                                                           "isearch_mode_hook", "isearch_mode_map", "isearch_push_state_function", &
+                                          "isearch_regexp_lax_whitespace", "isearch_search_fun_function", "isearch_wrap_function", &
                                                                "ispell__aspell_found_dictionaries", "ispell_alternate_dictionary", &
                                              "ispell_aspell_data_dir", "ispell_aspell_dict_dir", "ispell_aspell_dictionary_alist", &
                                                     "ispell_change_dictionary_hook", "ispell_check_comments", "ispell_check_only", &
@@ -24754,6 +24754,21 @@ contains
             entry%doc = "Semipermanent goal column for vertical motion, or -1 for none."//LF// &
                         "A setting other than -1 overrides the variable"//LF// &
                         "`line_move_visual', which see."
+        case ("goto_imenu_position")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_default_goto_function_variable"
+            entry%original = "null()"
+            entry%declarations = "procedure(imenu_goto_procedure), pointer :: imenu_default_goto_function_variable"
+
+            if (.not. associated(imenu_default_goto_function_variable)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "The default function called when selecting an Imenu item."//LF// &
+                        "The function in this variable is called when selecting a normal"//LF// &
+                        "index-item (the procedure is `goto_imenu_position')."
         case ("grep_command")
             entry%file = "grep_mod.f90"
             entry%fortran = "grep_command"
@@ -25990,22 +26005,6 @@ contains
                         "buffer.  The function is called within a `save_excursion'."//LF// &
                         ""//LF// &
                         "See `imenu_index_type' for the format of the buffer index."
-        case ("imenu_default_goto_function")
-            entry%file = "imenu_mod.f90"
-            entry%fortran = "imenu_default_goto_function_variable"
-            entry%original = "null()"
-            entry%declarations = "procedure(imenu_goto_procedure), pointer :: imenu_default_goto_function_variable"
-
-            if (.not. associated(imenu_default_goto_function_variable)) then
-                entry%value = "null()"
-            else
-                entry%value = "a procedure set by the configuration"
-            end if
-
-            entry%doc = "The default function called when selecting an Imenu item."//LF// &
-                        "The function in this variable is called when selecting a normal"//LF// &
-                        "index-item.  Named so because the procedure `imenu_default_goto_function'"//LF// &
-                        "has the plain name."
         case ("imenu_extract_index_name_function")
             entry%file = "imenu_mod.f90"
             entry%fortran = "imenu_extract_index_name_function"
@@ -26073,7 +26072,7 @@ contains
             entry%original = ".true."
             entry%value = repr(imenu_generic_skip_comments_and_strings)
             entry%doc = "When true, ignore text inside comments and strings."//LF// &
-                        "Only affects `imenu_default_create_index_function' (and any"//LF// &
+                        "Only affects `create_imenu_index' (and any"//LF// &
                         "alternative implementation of `imenu_create_index_function' that"//LF// &
                         "uses `make_imenu_generic_index')."
         case ("imenu_level_separator")
@@ -26131,7 +26130,7 @@ contains
             entry%doc = "Function for finding the next index position."//LF// &
                         ""//LF// &
                         "If `imenu_create_index_function' is set to"//LF// &
-                        "`imenu_default_create_index_function', then you must set this variable"//LF// &
+                        "`create_imenu_index', then you must set this variable"//LF// &
                         "to a function that will find the next index, looking backwards in the"//LF// &
                         "file."//LF// &
                         ""//LF// &

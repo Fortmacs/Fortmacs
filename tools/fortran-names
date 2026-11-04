@@ -2534,3 +2534,9 @@ name	python_imenu_create_index	create_python_imenu_index
 keep	python_imenu_format_item_label_function
 keep	python_imenu_format_parent_item_label_function
 keep	python_imenu_format_parent_item_jump_label_function
+# R2-Q19/R6-40 (owner's decision, 2026-11-04): no `_function' suffix on a procedure,
+# verb first; the pointer settings `imenu_create_index_function' and
+# `imenu_default_goto_function_variable' keep their names (R2-Q10).
+name	imenu_default_create_index_function	create_imenu_index
+name	imenu_default_goto_function	goto_imenu_position
+keep	imenu_default_goto_function_variable

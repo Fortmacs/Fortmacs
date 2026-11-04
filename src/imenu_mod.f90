@@ -64,8 +64,8 @@ module imenu_mod
     implicit none(type, external)
     private
 
-    public :: init_imenu, imenu, cmd_imenu, choose_imenu_buffer_index, imenu_default_create_index_function, &
-              imenu_default_goto_function, make_imenu_index, make_imenu_generic_index, flush_imenu_cache, &
+    public :: init_imenu, imenu, cmd_imenu, choose_imenu_buffer_index, create_imenu_index, &
+              goto_imenu_position, make_imenu_index, make_imenu_generic_index, flush_imenu_cache, &
               destroy_imenu_markers, truncate_imenu_items, find_imenu_default, find_imenu_entry, flatten_imenu_index, &
               read_imenu_index_item, is_imenu_name_before, is_imenu_position_before, has_imenu_index, get_imenu_index, &
               set_imenu_index, current_imenu_menubar_modified_tick, imenu_beginning_of_subprogram
@@ -354,7 +354,7 @@ module imenu_mod
     integer, public :: imenu_flatten = IMENU_FLATTEN_NO
 
     !> When true, ignore text inside comments and strings.
-    !> Only affects `imenu_default_create_index_function' (and any
+    !> Only affects `create_imenu_index' (and any
     !> alternative implementation of `imenu_create_index_function' that
     !> uses `make_imenu_generic_index').  Port of imenu.el
     !> imenu-generic-skip-comments-and-strings.
@@ -405,7 +405,7 @@ module imenu_mod
     !> Function for finding the next index position.
     !>
     !> If `imenu_create_index_function' is set to
-    !> `imenu_default_create_index_function', then you must set this variable
+    !> `create_imenu_index', then you must set this variable
     !> to a function that will find the next index, looking backwards in the
     !> file.
     !>
@@ -436,9 +436,8 @@ module imenu_mod
 
     !> The default function called when selecting an Imenu item.
     !> The function in this variable is called when selecting a normal
-    !> index-item.  Named so because the procedure `imenu_default_goto_function'
-    !> has the plain name.  Port of imenu.el imenu-default-goto-function (not
-    !> buffer-local yet).
+    !> index-item (the procedure is `goto_imenu_position').  Port of imenu.el
+    !> imenu-default-goto-function (not buffer-local yet).
     procedure(imenu_goto_procedure), pointer, public :: imenu_default_goto_function_variable => null()
 
     !> Defines whether `make_imenu_generic_index' should fold case when matching.
@@ -479,7 +478,7 @@ contains
         if (.not. allocated(imenu_syntax_modifications%value)) allocate (imenu_syntax_modifications%value(0))
 
         if (.not. associated(imenu_create_index_function%value)) then
-            imenu_create_index_function%value => imenu_default_create_index_function
+            imenu_create_index_function%value => create_imenu_index
         end if
 
         if (.not. associated(imenu_prev_index_position_function%value)) then
@@ -487,7 +486,7 @@ contains
         end if
 
         if (.not. associated(imenu_default_goto_function_variable)) then
-            imenu_default_goto_function_variable => imenu_default_goto_function
+            imenu_default_goto_function_variable => goto_imenu_position
         end if
 
         commands%imenu%execute => cmd_imenu
@@ -905,7 +904,7 @@ contains
     !> The alternate method, which is the one most often used, is to call
     !> `make_imenu_generic_index' with `imenu_patterns' as argument.
     !> Port of imenu.el:imenu-default-create-index-function.
-    recursive subroutine imenu_default_create_index_function(index, status)
+    recursive subroutine create_imenu_index(index, status)
         type(imenu_index_type), intent(out) :: index
         type(status_type), intent(out) :: status
         procedure(imenu_prev_index_position_procedure), pointer :: prev
@@ -970,10 +969,10 @@ contains
                 call make_imenu_generic_index(patterns, index, status)
             else
                 call set_error(status, FM_IMENU_UNAVAILABLE, &
-                               fortran_string("This buffer cannot use `imenu_default_create_index_function'"))
+                               fortran_string("This buffer cannot use `create_imenu_index'"))
             end if
         end if
-    end subroutine imenu_default_create_index_function
+    end subroutine create_imenu_index
 
     ! A marker at POS of the current buffer that advances on insertion
     ! there (copy-marker POS t).  Not a port.
@@ -1508,7 +1507,7 @@ contains
     !> just makes this function have the same interface as a function
     !> placed in a special index item.  Port of
     !> imenu.el:imenu-default-goto-function.
-    recursive subroutine imenu_default_goto_function(name, position, status)
+    recursive subroutine goto_imenu_position(name, position, status)
         character(len=*), intent(in) :: name
         integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
@@ -1518,7 +1517,7 @@ contains
         ! Widen if outside narrowing.
         if (position < point_min() .or. position > point_max()) call widen()
         call goto_char(position)
-    end subroutine imenu_default_goto_function
+    end subroutine goto_imenu_position
 
     !> Jump to a place in the buffer chosen using a buffer menu.
     !> The index entry ITEM (or the top-level entry named NAME) specifies

@@ -283,7 +283,7 @@ contains
         call check(error, st%code == FM_IMENU_UNAVAILABLE, "unavailable")
         if (allocated(error)) return
         call check(error, format_error(st), &
-                   "imenu unavailable: ""This buffer cannot use `imenu_default_create_index_function'""")
+                   "imenu unavailable: ""This buffer cannot use `create_imenu_index'""")
         if (allocated(error)) return
         call sh_mode(st)
         call make_imenu_index(index, st)
