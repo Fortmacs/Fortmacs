@@ -31,10 +31,10 @@ module test_filenotify_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, generate_new_buffer_name
-    use insdel_mod, only: insert
-    use fileio_mod, only: write_region, is_file_directory, file_exists, directory_file_name, create_directory_internal, &
-                          rename_file, copy_file, set_file_modes, set_file_times
-    use timefns_mod, only: time_type
+    use insert_delete_mod, only: insert
+    use file_input_output_mod, only: write_region, is_file_directory, file_exists, directory_file_name, create_directory_internal, &
+                                     rename_file, copy_file, set_file_modes, set_file_times
+    use time_functions_mod, only: time_type
     use files_mod, only: create_temp_file, delete_file, delete_directory
     use keyboard_mod, only: read_event
     use inotify_mod, only: watch_descriptor_type, operator(==)

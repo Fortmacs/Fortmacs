@@ -38,19 +38,19 @@ module test_diff_mode_mod
     use value_mod, only: value_type, xsymbol, symbols, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, &
                           get_buffer, get_file_buffer, is_buffer_live, restore_buffer_modified
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, point, point_min, point_max, buffer_string, narrow_to_region, widen
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, point, point_min, point_max, buffer_string, narrow_to_region, widen
     use search_mod, only: re_search_forward, re_search_backward, match_beginning
-    use textprop_mod, only: get_text_property
-    use fileio_mod, only: init_fileio, fortmacs_wd, expand_file_name, file_name_as_directory, is_file_directory, &
-                          create_directory_internal, write_region
+    use text_properties_mod, only: get_text_property
+    use file_input_output_mod, only: init_fileio, fortmacs_wd, expand_file_name, file_name_as_directory, is_file_directory, &
+                                     create_directory_internal, write_region
     use files_mod, only: find_file_noselect, delete_directory
     use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop
     use process_mod, only: accept_process_output, get_buffer_process
     use modes_mod, only: minor_modes
     use font_lock_mod, only: font_lock_ensure
     use bindings_mod, only: init_bindings
-    use dired_mode_mod, only: dired, dired_goto_file, dired_buffers_for_dir
+    use directory_editor_mode_mod, only: dired, dired_goto_file, dired_buffers_for_dir
     use diff_mode_mod, only: diff_mode, diff_hunk_text, diff_text_type, diff_fixup_modifs, diff_hunk_file_names, &
                              diff_apply_hunk, diff_hunk_next, diff_beginning_of_hunk, diff_end_of_hunk, &
                              diff_buffer_type, DIFF_BUFFER_PLAIN, DIFF_BUFFER_GIT, DIFF_BUFFER_HG
@@ -128,7 +128,7 @@ contains
     !> if not ((skip-unless (executable-find diff-command))).
     logical function has_diff(error)
         use diff_mod, only: diff_command
-        use callproc_mod, only: shell_file_name
+        use execute_process_mod, only: shell_file_name
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: shell, command
 

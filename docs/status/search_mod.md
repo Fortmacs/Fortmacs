@@ -47,6 +47,6 @@ waits for the GUI: nothing
 
 ## Tests
 
-test_cmds_mod,
+test_editing_commands_mod,
 test_search_mod (ports search-test--replace-match-update-data; own, including the match data during process filters and the fast matchers),
-test_regex_mod (own)
+test_regular_expression_mod (own)

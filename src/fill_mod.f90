@@ -31,8 +31,8 @@
 !> `fill_individual_paragraphs' and `set_justification'.
 module fill_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use fns_mod, only: count_characters
-    use callint_mod, only: PREFIX_NONE
+    use utility_functions_mod, only: count_characters
+    use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type
@@ -42,29 +42,29 @@ module fill_mod
                           is_buffer_modified, restore_buffer_modified, current_buffer, buffer_serial_live
     use character_mod, only: string_char_and_length
     use category_mod, only: char_has_category
-    use charscript_mod, only: char_script, script_names
+    use character_script_mod, only: char_script, script_names
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, buffer_substring, &
-                           delete_region, char_after, char_before, line_beginning_position, line_end_position, &
-                           subst_char_in_region, region_beginning, region_end, narrow_to_region, widen, &
-                           point_marker, char_to_string
-    use insdel_mod, only: insert, insert_before_markers
-    use cmds_mod, only: forward_line, beginning_of_line, end_of_line, forward_char, delete_char
-    use textprop_mod, only: get_text_property, put_text_property, text_property_not_all
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, buffer_substring, &
+                                     delete_region, char_after, char_before, line_beginning_position, line_end_position, &
+                                     subst_char_in_region, region_beginning, region_end, narrow_to_region, widen, &
+                                     point_marker, char_to_string
+    use insert_delete_mod, only: insert, insert_before_markers
+    use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line, forward_char, delete_char
+    use text_properties_mod, only: get_text_property, put_text_property, text_property_not_all
     use syntax_mod, only: skip_chars_forward, skip_chars_backward, skip_syntax_backward, char_syntax
     use search_mod, only: looking_at, re_search_forward, re_search_backward, search_forward, search_backward, &
                           match_beginning, match_end, replace_match, regexp_quote, string_match, SEARCH_NOERROR, &
                           SEARCH_MOVE
-    use subr_mod, only: match_string
-    use xdisp_mod, only: message, glyph_columns
+    use basic_subprograms_mod, only: match_string
+    use display_engine_mod, only: message, glyph_columns
     use indent_mod, only: current_column, move_to_column, indent_to, current_indentation, indent_line_to, &
                           current_left_margin, move_to_left_margin, indent_according_to_mode, beginning_of_line_text
     use paragraphs_mod, only: paragraph_start, sentence_end_double_space, sentence_end_without_period, &
                               sentence_end_without_space, sentence_end_regexp, forward_paragraph, &
                               init_paragraph_variables
     use simple_mod, only: fill_prefix, is_use_region, mark
-    use minibuf_mod, only: is_minibuffer, minibuffer_prompt_end
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use minibuffer_reading_mod, only: is_minibuffer, minibuffer_prompt_end
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     implicit none(type, external)
     private
 

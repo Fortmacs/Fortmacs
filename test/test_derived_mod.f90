@@ -1,4 +1,4 @@
-! test_derived_mod.f90 -- tests for hooks (subr_mod, hooks_mod), derived
+! test_derived_mod.f90 -- tests for hooks (basic_subprograms_mod, hooks_mod), derived
 ! major modes (derived_mod), Text, Prog, Fundamental and Special modes.
 ! Ports GNU Emacs 31.1 test/lisp/subr-tests.el and
 ! test/lisp/files-tests.el in part; only the derived-mode cases.
@@ -31,13 +31,13 @@ module test_derived_mod
     use buffer_mod, only: get_or_make_buffer, close_buffer, set_buffer, buffers, current, fill_column
     use data_mod, only: value_eq
     use hooks_mod, only: hook_type
-    use subr_mod, only: after_change_major_mode_hook
+    use basic_subprograms_mod, only: after_change_major_mode_hook
     use keymap_mod, only: current_local_map, keymap_parent, keymap_set, key_binding, key_parse
     use derived_mod, only: major_mode_type, is_derived_mode, provided_mode_derived_p
     use modes_mod, only: major_modes
     use syntax_mod, only: syntax_table, standard_syntax_table, char_syntax
     use text_mode_mod, only: text_mode, init_text_mode, text_mode_syntax_table, text_mode_variant, text_mode_hook
-    use prog_mode_mod, only: init_prog_mode
+    use programming_mode_mod, only: init_prog_mode
     use simple_mod, only: fundamental_mode, special_mode, init_simple_modes
     use files_mod, only: normal_mode, auto_mode_spec, file_name_sans_versions, prepend_auto_mode, require_final_newline, &
                          mode_require_final_newline

@@ -30,7 +30,7 @@
 !> horizontal scrolling of ordinary windows, and truncated lines.
 module indent_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use buffer_mod, only: buffers, current, buf_fetch_char, buf_next_char_len, buffer_serial_live
     use category_mod, only: char_has_category
     use marker_mod, only: char_to_byte
@@ -39,14 +39,14 @@ module indent_mod
     use data_mod, only: value_eq
     use handle_mod, only: handle_type
     use character_mod, only: string_char_and_length
-    use textprop_mod, only: get_char_property, get_char_property_and_overlay, text_prop_means_invisible, &
-                            next_property_change, next_single_property_change, get_property_and_range
-    use itree_mod, only: next_overlay_change, overlay_end
+    use text_properties_mod, only: get_char_property, get_char_property_and_overlay, text_prop_means_invisible, &
+                                   next_property_change, next_single_property_change, get_property_and_range
+    use interval_tree_mod, only: next_overlay_change, overlay_end
     use data_mod, only: logical_setting_type, integer_setting_type, setting_type
-    use editfns_mod, only: goto_char, pos_bol, point, insert_char_n
-    use insdel_mod, only: del_range
-    use xdisp_mod, only: glyph_columns, tab_width, row_start_type, display_line_rows, display_row_of, display_row, &
-                         line_beginning
+    use editing_functions_mod, only: goto_char, pos_bol, point, insert_char_n
+    use insert_delete_mod, only: del_range
+    use display_engine_mod, only: glyph_columns, tab_width, row_start_type, display_line_rows, display_row_of, display_row, &
+                                  line_beginning
     use frame_mod, only: selected_frame, frame_selected_window_ref
     use window_mod, only: window_type, window_text_cols
     implicit none(type, external)
@@ -60,7 +60,7 @@ module indent_mod
     type(logical_setting_type), public :: indent_tabs_mode = logical_setting_type(name="indent_tabs_mode", value=.true.)
 
     ! ------------------------------------------------------------------
-    ! indent.el, in the submodule indent_cmds_mod
+    ! indent.el, in the submodule indent_commands_mod
     ! ------------------------------------------------------------------
 
     public :: indent_line_procedure, indent_region_procedure, clear_indent_locals
@@ -383,7 +383,7 @@ module indent_mod
         end subroutine indent_relative
 
         !> The name of indent-line function P: `indent_relative' for null,
-        !> "" for a procedure without a name.  (In indent_cmds_mod.)
+        !> "" for a procedure without a name.  (In indent_commands_mod.)
         !> Not a port.
         module function indent_line_function_name(p) result(name)
             implicit none(type, external)
@@ -392,7 +392,7 @@ module indent_mod
         end function indent_line_function_name
 
         !> Point P at the indent-line function named NAME; any other
-        !> function is called through its name.  (In indent_cmds_mod.)
+        !> function is called through its name.  (In indent_commands_mod.)
         !> Not a port.
         module subroutine indent_line_function_named(name, p)
             implicit none(type, external)
@@ -889,7 +889,7 @@ contains
     !> `goal' on it (the last one on a continued row if it is shorter).
     !> `moved' is the number of screen lines moved, closer to zero at the
     !> beginning or end of the buffer.  Screen lines are those redisplay
-    !> shows (xdisp_mod:display_line_rows), with invisible text, display
+    !> shows (display_engine_mod:display_line_rows), with invisible text, display
     !> strings and overlay strings.  Port of indent.c:Fvertical_motion
     !> (LINES alone or with COLS; no CUR-COL).  Lines are as wide as in
     !> WINDOW, by default the selected window.

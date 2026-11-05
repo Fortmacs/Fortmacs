@@ -33,14 +33,14 @@ module test_winner_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_keymap_ref
-    use fns_mod, only: value_equal
+    use utility_functions_mod, only: value_equal
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, buffers, buffer_list
     use keymap_mod, only: key_parse, lookup_key
     use keyboard_mod, only: unread_command_events, last_message, command_loop, discard_input, this_command, &
                             last_command
-    use callint_mod, only: prefix_arg, prefix_arg_type, current_prefix_arg
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char
+    use execute_interactively_mod, only: prefix_arg, prefix_arg_type, current_prefix_arg
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char
     use frame_mod, only: selected_frame, ensure_frame_windows
     use modes_mod, only: minor_modes
     use window_mod, only: window_leaves, is_window_live, delete_other_windows, delete_window_tree, resize_window_tree, &

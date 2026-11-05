@@ -40,25 +40,25 @@
 !> revert (g).
 module apropos_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, format_message, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, symbols, nsymbols, list_elements, xstring, vtag, V_STRING
     use buffer_mod, only: buffers, current, current_buffer, get_buffer, set_buffer, is_buffer_live, get_or_make_buffer, &
                           close_buffer, generate_new_buffer_name
-    use editfns_mod, only: point_min, point_max, buffer_string, goto_char, line_beginning_position
-    use insdel_mod, only: insert
-    use textprop_mod, only: put_text_property, get_text_property, next_single_property_change
+    use editing_functions_mod, only: point_min, point_max, buffer_string, goto_char, line_beginning_position
+    use insert_delete_mod, only: insert
+    use text_properties_mod, only: put_text_property, get_text_property, next_single_property_change
     use search_mod, only: string_match, regexp_quote, match_end
     use keymap_mod, only: key_description, where_is_internal, keymap_set, make_sparse_keymap
-    use callint_mod, only: is_command, current_prefix_arg
-    use minibuf_mod, only: read_string
-    use xdisp_mod, only: message
+    use execute_interactively_mod, only: is_command, current_prefix_arg
+    use minibuffer_reading_mod, only: read_string
+    use display_engine_mod, only: message
     use fill_mod, only: fill_region
     use simple_mod, only: fill_prefix, special_mode
     use buffer_mod, only: fill_column
-    use cmds_mod, only: forward_line
+    use editing_commands_mod, only: forward_line
     use frame_mod, only: selected_frame
     use window_mod, only: window_leaves
     use derived_mod, only: major_mode_type

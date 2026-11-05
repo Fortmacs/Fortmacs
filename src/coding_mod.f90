@@ -74,13 +74,13 @@ module coding_mod
     use data_mod, only: logical_setting_type, string_setting_type
     use buffer_mod, only: buffers, current, buf_bytes, temp_set_point_both
     use marker_mod, only: char_to_byte
-    use insdel_mod, only: insert, del_range
+    use insert_delete_mod, only: insert, del_range
     use characters_mod, only: characters_preferred_coding_systems
-    use charset_mod, only: CHARSET_NAME_LEN, charsets, find_charset, check_charset, decode_char_id, encode_char_id, &
-                           char_charset_id
-    use charset_mod, only: find_iso_charset, iso_2022_charset_order, charset_ascii, charset_jisx0201_roman, &
-                           charset_jisx0208_1978, charset_jisx0208
-    use charset_mod, only: emacs_mule_charset_order, emacs_mule_charsets, emacs_mule_bytes, charset_eight_bit
+    use character_set_mod, only: CHARSET_NAME_LEN, charsets, find_charset, check_charset, decode_char_id, encode_char_id, &
+                                 char_charset_id
+    use character_set_mod, only: find_iso_charset, iso_2022_charset_order, charset_ascii, charset_jisx0201_roman, &
+                                 charset_jisx0208_1978, charset_jisx0208
+    use character_set_mod, only: emacs_mule_charset_order, emacs_mule_charsets, emacs_mule_bytes, charset_eight_bit
     implicit none(type, external)
     private
 
@@ -464,7 +464,7 @@ module coding_mod
         module subroutine init_vietnamese()
             implicit none(type, external)
         end subroutine init_vietnamese
-        !> Define the `charset' coding systems of misc-lang.el (in misc_lang_mod).  Port of
+        !> Define the `charset' coding systems of misc-lang.el (in miscellaneous_language_mod).  Port of
         !> misc-lang.el's `charset' coding systems.
         module subroutine init_misc_lang()
             implicit none(type, external)
@@ -569,12 +569,12 @@ module coding_mod
         module subroutine define_vietnamese_language_environments()
             implicit none(type, external)
         end subroutine define_vietnamese_language_environments
-        !> Define the language environments of misc-lang.el (in misc_lang_mod).
+        !> Define the language environments of misc-lang.el (in miscellaneous_language_mod).
         !> Port of misc-lang.el's language environments.
         module subroutine define_misc_lang_language_environments()
             implicit none(type, external)
         end subroutine define_misc_lang_language_environments
-        !> Define the language environments of utf-8-lang.el (in utf_8_lang_mod).
+        !> Define the language environments of utf-8-lang.el (in utf_8_language_mod).
         !> Port of utf-8-lang.el's language environments.
         module subroutine define_utf_8_lang_language_environments()
             implicit none(type, external)
@@ -614,7 +614,7 @@ module coding_mod
 contains
 
     !> Define the language environments of the language files, in the
-    !> order loadup.el loads them (mule_mod calls this once).
+    !> order loadup.el loads them (multilingual_environment_mod calls this once).
     !> Port of loadup.el (the language files' language environments).
     subroutine define_language_environments()
         call define_chinese_language_environments()

@@ -7,7 +7,7 @@
 ## Ported
 
 `terminal-coding-system`,
-`set-terminal-coding-system-internal` (term_mod encodes terminal output with it, "?" for what it cannot encode),
+`set-terminal-coding-system-internal` (terminal_output_mod encodes terminal output with it, "?" for what it cannot encode),
 `keyboard-coding-system`,
 `set-keyboard-coding-system-internal` (keyboard_mod decodes terminal input with it);
 coding systems named by strings (upstream's symbol names, "" for nil) with subsidiaries and aliases: `undecided`,
@@ -66,7 +66,7 @@ post-read/pre-write conversions,
 NOCOPY,
 the process and network tables and the table functions (xml, po, latexenc);
 coding systems whose charset map is Deferred are left out of `find_coding_systems_text` (select-safe-coding-system never offers them),
-and `is_char_encodable` reports them through its optional STATUS (term_mod shows such a glyph as unencodable)
+and `is_char_encodable` reports them through its optional STATUS (terminal_output_mod shows such a glyph as unencodable)
 
 ## Tests
 

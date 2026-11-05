@@ -36,7 +36,7 @@
 !> prefix-argument echoing.
 module simple_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS, command_of
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS, command_of
     use commands_mod, only: commands
     use error_mod, only: format_message, status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_QUIT, &
                          FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, FM_MARK_INACTIVE, &
@@ -49,56 +49,56 @@ module simple_mod
                         history_setting_type, &
                         append_locals_clearer
     use character_mod, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask, multibyte_chars_in_text
-    use casetab_mod, only: downcase
+    use case_table_mod, only: downcase
     use buffer_mod, only: resolve_buffer, buf_bytes, BEGINNING, BEGINNING_BYTE, buffer_serial_live
     use marker_mod, only: char_to_byte
     use buffer_mod, only: barf_if_buffer_read_only, buffers, current, transient_mark_mode, deactivate_mark_variable, &
                           inhibit_read_only, auto_fill_procedure, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
                           UE_POINT, UE_FIRST_CHANGE, buffer_visited_file_modtime
-    use timefns_mod, only: is_time_equal
+    use time_functions_mod, only: is_time_equal
     use undo_mod, only: undo_boundary
     use marker_mod, only: set_marker, detach_marker, copy_marker_at, destroy_marker, marker_position
-    use xdisp_mod, only: message, invisibility
+    use display_engine_mod, only: message, invisibility
     use frame_mod, only: selected_frame, selected_window_ref
     use window_mod, only: window_type, window_start, window_body_lines, recenter
-    use subr_mod, only: add_to_history, defvar_nil, mail_user_agent_type, mail_switch_procedure
-    use editfns_mod, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
-                           is_bol, constrain_to_field, pos_eol, point_min, is_bob, is_eob, buffer_substring, &
-                           delete_region, mark_marker, mark_position, region_beginning, region_end, pos_bol
-    use textprop_mod, only: get_text_property, get_char_property, next_char_property_change, &
-                            previous_char_property_change, previous_single_char_property_change, &
-                            next_single_property_change, previous_single_property_change, &
-                            string_next_single_property_change, propertized_substring, propertized_concat, &
-                            string_get_text_property
-    use itree_mod, only: next_overlay_change, previous_overlay_change
+    use basic_subprograms_mod, only: add_to_history, defvar_nil, mail_user_agent_type, mail_switch_procedure
+    use editing_functions_mod, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
+                                     is_bol, constrain_to_field, pos_eol, point_min, is_bob, is_eob, buffer_substring, &
+                                     delete_region, mark_marker, mark_position, region_beginning, region_end, pos_bol
+    use text_properties_mod, only: get_text_property, get_char_property, next_char_property_change, &
+                                   previous_char_property_change, previous_single_char_property_change, &
+                                   next_single_property_change, previous_single_property_change, &
+                                   string_next_single_property_change, propertized_substring, propertized_concat, &
+                                   string_get_text_property
+    use interval_tree_mod, only: next_overlay_change, previous_overlay_change
     use indent_mod, only: current_column, move_to_column, vertical_motion, screen_column, window_text_width
-    use insdel_mod, only: insert, del_range
+    use insert_delete_mod, only: insert, del_range
     use data_mod, only: symbol_value, set
     use value_mod, only: list_length, xstring, xsymbol, symbols, make_keymap_ref, value_type
-    use editfns_mod, only: insert_char_n
-    use minibuf_mod, only: minibuffer_history_position, minibuffer_history_variable, &
-                           minibuffer_default, minibuffer_text_before_history, minibuffer_temporary_goal_position, &
-                           minibuffer_prompt_end, minibuffer_contents, minibuf_level
-    use cmds_mod, only: delete_char, self_insert_command, forward_line, end_of_line, beginning_of_line, &
-                        backward_char
+    use editing_functions_mod, only: insert_char_n
+    use minibuffer_reading_mod, only: minibuffer_history_position, minibuffer_history_variable, &
+                                      minibuffer_default, minibuffer_text_before_history, minibuffer_temporary_goal_position, &
+                                      minibuffer_prompt_end, minibuffer_contents, minibuf_level
+    use editing_commands_mod, only: delete_char, self_insert_command, forward_line, end_of_line, beginning_of_line, &
+                                    backward_char
     use keymap_mod, only: make_sparse_keymap, define_key, is_keymap_live, &
                           key_description, where_is_internal, lookup_key, command_remapping
-    use minibuf_mod, only: completion_obarray_table
+    use minibuffer_reading_mod, only: completion_obarray_table
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use names_mod, only: intern_soft
-    use callint_mod, only: current_prefix_arg, prefix_arg, &
-                           prefix_numeric_value, mark_even_if_inactive, is_command, execute_interactively
+    use execute_interactively_mod, only: current_prefix_arg, prefix_arg, &
+                                         prefix_numeric_value, mark_even_if_inactive, is_command, execute_interactively
     use syntax_mod, only: forward_word, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
                           backward_prefix_chars
     use search_mod, only: looking_at, re_search_forward, re_search_backward, replace_match, regexp_quote, &
                           SEARCH_NOERROR, SEARCH_MOVE, match_beginning
     use hooks_mod, only: hook_type
-    use abbrev_mod, only: abbrev_table_type
-    use insdel_mod, only: insert_before_markers
-    use editfns_mod, only: char_before, is_eol, point_marker, delete_and_extract_region, char_after, pos_bol, &
-                           inhibit_field_text_motion
-    use minibuf_mod, only: is_minibuffer
-    use cmds_mod, only: forward_char, cut_forward_chars_hook
+    use abbreviation_mod, only: abbrev_table_type
+    use insert_delete_mod, only: insert_before_markers
+    use editing_functions_mod, only: char_before, is_eol, point_marker, delete_and_extract_region, char_after, pos_bol, &
+                                     inhibit_field_text_motion
+    use minibuffer_reading_mod, only: is_minibuffer
+    use editing_commands_mod, only: forward_char, cut_forward_chars_hook
     use keyboard_mod, only: last_command_event, this_command, &
                             real_this_command, last_command, &
                             real_last_command, last_prefix_arg, read_event, &
@@ -111,7 +111,7 @@ module simple_mod
     private
 
     !> kmacro.el:kmacro-keyboard-quit, which `keyboard_quit' calls (set by
-    !> kmacro_mod, which sits above this module); null for none.
+    !> keyboard_macros_mod, which sits above this module); null for none.
     procedure(redisplay_procedure), pointer, public :: kmacro_keyboard_quit_hook => null()
 
     public :: execute_extended_command, read_extended_command
@@ -541,7 +541,7 @@ module simple_mod
         !> then VALUE.  The current value of VARIABLE will be put in the
         !> minibuffer history so that it can be accessed with \`M-n', which
         !> makes it easier to edit it.  Port of simple.el:set-variable (see
-        !> simple_setvar_mod for what is read).  (In simple_setvar_mod.)
+        !> simple_set_variable_mod for what is read).  (In simple_set_variable_mod.)
         module subroutine set_variable(variable, value, make_local, status)
             implicit none(type, external)
             character(len=*), intent(in) :: variable, value
@@ -555,7 +555,7 @@ module simple_mod
         !> `custom_variable_p' returns true.  (Empty input without a
         !> default gives "".)  Port of minibuf.c:Fread_variable (here, as
         !> the user options are known to docstrings_mod).  (In
-        !> simple_setvar_mod.)
+        !> simple_set_variable_mod.)
         recursive module subroutine read_variable(prompt, name, status, default_value)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
@@ -565,7 +565,7 @@ module simple_mod
         end subroutine read_variable
 
         !> Set VARIABLE to VALUE, read in the minibuffer.  Port of
-        !> simple.el:set-variable (the command).  (In simple_setvar_mod.)
+        !> simple.el:set-variable (the command).  (In simple_set_variable_mod.)
         recursive module subroutine cmd_set_variable(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -950,7 +950,7 @@ module simple_mod
 
         !> Momentarily highlight the beginning of the expression before point.
         !> Port of simple.el:blink-matching-open.  (In simple_electric_mod,
-        !> for paren_mod.)
+        !> for parenthesis_mod.)
         recursive module subroutine blink_matching_open(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -4242,7 +4242,7 @@ contains
     !> from the beginning of the accessible portion of the buffer.  But if the
     !> second optional argument ABSOLUTE is true, the value counts the lines
     !> from the absolute start of the buffer, disregarding the narrowing.
-    !> Port of fns.c:Fline_number_at_pos (here rather than in fns_mod, which
+    !> Port of fns.c:Fline_number_at_pos (here rather than in utility_functions_mod, which
     !> does not see the buffer text; a POSITION outside the buffer is
     !> taken as its end).
     integer(int64) function line_number_at_pos(position, absolute) result(line)

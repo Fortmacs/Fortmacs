@@ -58,55 +58,55 @@
 !> regexps, `read_regexp_case_fold_search'.
 module replace_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use commands_mod, only: commands
     use error_mod, only: format_message, status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xstring, list_elements, list_length, list_elt, vtag, V_INTEGER, &
                          V_STRING
-    use fns_mod, only: count_characters
+    use utility_functions_mod, only: count_characters
     use data_mod, only: value_eq, symbol_value, set, history_setting_type, forward_setting
     use buffer_mod, only: barf_if_buffer_read_only
     use marker_mod, only: make_marker, set_marker, marker_position, destroy_marker
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, buffer_substring, &
-                           region_beginning, region_end
-    use cmds_mod, only: forward_char
-    use textprop_mod, only: text_property_not_all
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, buffer_substring, &
+                                     region_beginning, region_end
+    use editing_commands_mod, only: forward_char
+    use text_properties_mod, only: text_property_not_all
     use undo_mod, only: undo_boundary
     use search_mod, only: case_fold_search, search_spaces_regexp, re_search_forward, re_search_backward, &
                           looking_at, match_beginning, match_end, match_data, set_match_data, replace_match, &
                           regexp_quote, string_match, SEARCH_NOERROR
-    use subr_mod, only: read_key, add_to_history, history_length, query_replace_answer, match_string, &
-                        looking_back, match_substitute_replacement, find_tag_default, find_tag_default_as_regexp, &
-                        find_tag_default_as_identifier_regexp, &
-                        ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, ANSWER_AUTOMATIC, &
-                        ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_EDIT_REPLACEMENT, &
-                        ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, ANSWER_EDIT, &
-                        ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, ANSWER_DIFF, &
-                        ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN
-    use isearch_mod, only: search_upper_case, search_whitespace_regexp, &
-                           is_isearch_no_upper_case, word_search_regexp
-    use minibuf_mod, only: read_from_minibuffer, read_string, history_append_new_input
+    use basic_subprograms_mod, only: read_key, add_to_history, history_length, query_replace_answer, match_string, &
+                                     looking_back, match_substitute_replacement, find_tag_default, find_tag_default_as_regexp, &
+                                     find_tag_default_as_identifier_regexp, &
+                                     ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, ANSWER_AUTOMATIC, &
+                                     ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_EDIT_REPLACEMENT, &
+                                     ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, ANSWER_EDIT, &
+                                     ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, ANSWER_DIFF, &
+                                     ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN
+    use incremental_search_mod, only: search_upper_case, search_whitespace_regexp, &
+                                      is_isearch_no_upper_case, word_search_regexp
+    use minibuffer_reading_mod, only: read_from_minibuffer, read_string, history_append_new_input
     use keyboard_mod, only: this_command, unread_command_events, sit_for, recursive_edit
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use simple_mod, only: push_mark, is_use_region, deactivate_mark
     use window_mod, only: recenter_top_bottom, scroll_up, scroll_down
     use help_mod, only: with_help_window
-    use xdisp_mod, only: message
-    use dispnew_mod, only: ding
+    use display_engine_mod, only: message
+    use display_update_mod, only: ding
     use handle_mod, only: null_handle
     use value_mod, only: xfixnum, list, value_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, close_buffer, &
                           is_buffer_live, buffer_list, erase_buffer, rename_buffer, generate_new_buffer_name, &
                           restore_buffer_modified
     use marker_mod, only: copy_marker_at, marker_buffer
-    use insdel_mod, only: insert, after_change_functions
-    use editfns_mod, only: is_bol, is_eol, line_beginning_position, line_end_position, delete_region
-    use cmds_mod, only: forward_line
+    use insert_delete_mod, only: insert, after_change_functions
+    use editing_functions_mod, only: is_bol, is_eol, line_beginning_position, line_end_position, delete_region
+    use editing_commands_mod, only: forward_line
     use indent_mod, only: current_column, move_to_column
-    use textprop_mod, only: put_text_property, get_text_property, add_text_properties, add_face_text_property, &
-                            text_properties_at, next_property_change, next_single_property_change, &
-                            previous_single_property_change, propertize
+    use text_properties_mod, only: put_text_property, get_text_property, add_text_properties, add_face_text_property, &
+                                   text_properties_at, next_property_change, next_single_property_change, &
+                                   previous_single_property_change, propertize
     use search_mod, only: search_forward, SEARCH_MOVE
     use keyboard_mod, only: last_command
     use simple_mod, only: cut_region, copy_region_quietly, line_number_at_pos, count_lines, set_next_error_function, &
@@ -126,8 +126,8 @@ module replace_mod
     use text_mode_mod, only: text_mode_map
     use font_core_mod, only: font_lock_mode_enabled, turn_on_font_lock
     use font_lock_mod, only: font_lock_ensure
-    use regexp_opt_mod, only: regexp_opt_depth
-    use xfaces_mod, only: is_face_differs_from_default
+    use regular_expression_optimization_mod, only: regexp_opt_depth
+    use face_realization_mod, only: is_face_differs_from_default
     use faces_mod, only: named_face_type, display_when, face_attrs, init_faces, FACE_CLASS_COLOR, FACE_CLASS_MONO, &
                          FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     use string_type_mod, only: string_type
@@ -2039,8 +2039,8 @@ contains
     !> Port of replace.el:flush-lines (the command's argument reading is
     !> Deferred).
     recursive subroutine flush_lines(regexp, count, status, rstart, rend, interactive)
-        use cmds_mod, only: forward_line
-        use editfns_mod, only: delete_region
+        use editing_commands_mod, only: forward_line
+        use editing_functions_mod, only: delete_region
         character(len=*), intent(in) :: regexp
         integer(int64), intent(out) :: count
         type(status_type), intent(out) :: status

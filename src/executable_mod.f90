@@ -21,7 +21,7 @@
 
 !> Setting the magic number (#!) of interpreter scripts and making
 !> them executable when they are saved.  It also has files.el's
-!> `executable_find' (files_mod cannot use callproc_mod, which uses it).
+!> `executable_find' (files_mod cannot use execute_process_mod, which uses it).
 !>
 !> Deferred: `executable_interpret' (C-c C-x; it needs rule specifications
 !> in `compilation_error_regexp_names', so `executable_error_regexps'
@@ -31,16 +31,16 @@ module executable_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, format_message, format_error, FM_GENERIC_ERROR
     use buffer_mod, only: buffers, current, current_buffer
-    use editfns_mod, only: point, point_min, point_max, goto_char, buffer_substring, widen, narrow_to_region
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_substring, widen, narrow_to_region
     use search_mod, only: looking_at, string_match, match_beginning, match_end, replace_match, match_data, set_match_data
-    use insdel_mod, only: insert
-    use fileio_mod, only: is_file_name_absolute, file_name_nondirectory, is_file_executable, set_file_modes, &
-                          file_modes, default_file_modes
-    use callproc_mod, only: locate_program
+    use insert_delete_mod, only: insert
+    use file_input_output_mod, only: is_file_name_absolute, file_name_nondirectory, is_file_executable, set_file_modes, &
+                                     file_modes, default_file_modes
+    use execute_process_mod, only: locate_program
     use files_mod, only: after_save_hook
-    use subr_mod, only: read_y_or_n
-    use minibuf_mod, only: read_string
-    use xdisp_mod, only: message
+    use basic_subprograms_mod, only: read_y_or_n
+    use minibuffer_reading_mod, only: read_string
+    use display_engine_mod, only: message
     use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use commands_mod, only: commands

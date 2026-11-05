@@ -28,8 +28,8 @@
 !> the same).  A line's buffer is its `ibuffer_properties' text property
 !> (the buffer's serial number) and its mark the `ibuffer_mark' property
 !> (upstream both in `ibuffer-properties').  ibuf-ext.el is the
-!> submodule ibuf_ext_mod; ibuf-macs.el's definitions are the types of
-!> ibuf_macs_mod.
+!> submodule ibuffer_extensions_mod; ibuf-macs.el's definitions are the types of
+!> ibuffer_types_mod.
 !>
 !> Deferred: the menus and mouse commands (`ibuffer_mouse_toggle_mark',
 !> `ibuffer_mouse_visit_buffer', `ibuffer_mouse_popup_menu', the header
@@ -46,7 +46,7 @@
 !> and the obsolete `ibuffer_load_hook'.
 module ibuffer_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use callint_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
+    use execute_interactively_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT, format_message
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, xfixnum, xstring, list, vtag, V_INTEGER, V_STRING
@@ -57,27 +57,27 @@ module ibuffer_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
                           buffer_handle, buffer_list, buffer_serial_live, close_buffer, is_buffer_modified, &
                           restore_buffer_modified, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_eob, is_bob, pos_bol, pos_eol, delete_region, &
-                           buffer_size, buffer_substring, following_char, point_marker
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_eob, is_bob, pos_bol, pos_eol, delete_region, &
+                                     buffer_size, buffer_substring, following_char, point_marker
     use marker_mod, only: marker_position, destroy_marker
-    use cmds_mod, only: forward_line, beginning_of_line
-    use textprop_mod, only: get_text_property, put_text_property, next_single_property_change, &
-                            previous_single_property_change
+    use editing_commands_mod, only: forward_line, beginning_of_line
+    use text_properties_mod, only: get_text_property, put_text_property, next_single_property_change, &
+                                   previous_single_property_change
     use search_mod, only: string_match, regexp_quote, re_search_forward
     use keyboard_mod, only: read_event
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
-    use xdisp_mod, only: message, mode_line_process_text, cursor_in_echo_area, set_mode_line_process, &
-                         mode_line_part_type
-    use dispnew_mod, only: ding
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use display_engine_mod, only: message, mode_line_process_text, cursor_in_echo_area, set_mode_line_process, &
+                                  mode_line_part_type
+    use display_update_mod, only: ding
     use help_mod, only: substitute_command_keys
     use files_mod, only: save_buffer, abbreviate_file_name, file_size_human_readable, revert_buffer_function, &
                          find_file
-    use fileio_mod, only: expand_file_name
+    use file_input_output_mod, only: expand_file_name
     use fill_mod, only: string_width
-    use mule_util_mod, only: truncate_string_to_width
+    use multilingual_environment_utilities_mod, only: truncate_string_to_width
     use shell_mod, only: list_buffers_directory
-    use dired_mode_mod, only: dired_directory_of
+    use directory_editor_mode_mod, only: dired_directory_of
     use derived_mod, only: is_derived_mode
     use process_mod, only: get_buffer_process, process_status, process_name
     use frame_mod, only: selected_frame, selected_window, frame_lines, frame_cols
@@ -86,27 +86,27 @@ module ibuffer_mod
                           pop_to_buffer, select_window, get_buffer_window, fit_window_to_buffer, window_leaves, is_window_live, &
                           window_configuration_type, current_window_configuration, set_window_configuration
     use view_mod, only: view_buffer
-    use subr_mod, only: read_y_or_n
-    use minibuf_mod, only: is_minibuffer
+    use basic_subprograms_mod, only: read_y_or_n
+    use minibuffer_reading_mod, only: is_minibuffer
     use minibuffer_mod, only: read_file_name
     use simple_mod, only: count_lines, is_use_region
     use keymap_mod, only: keymap_set
     use time_date_mod, only: seconds_to_string, SECONDS_TO_STRING_READABLE
-    use timefns_mod, only: time_type, current_time, time_subtract, is_time_less, real
+    use time_functions_mod, only: time_type, current_time, time_subtract, is_time_less, real
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_BACKGROUND_DARK
-    use ibuf_macs_mod, only: ibuffer_column, ibuffer_text, ibuffer_formats_type, ibuffer_format_type, &
-                             ibuffer_column_spec_type, ibuffer_column_type, ibuffer_cell_type, ibuffer_sorter_type, &
-                             ibuffer_op_type, ibuffer_show_test_type, ibuffer_fontification_type, &
-                             ibuffer_directory_abbrev_type, ibuffer_column_procedure, ibuffer_summarizer_procedure, &
-                             ibuffer_sorter_procedure, ibuffer_form_procedure, IBUFFER_ALIGN_LEFT, IBUFFER_ALIGN_CENTER, &
-                             IBUFFER_ALIGN_RIGHT, IBUFFER_OP_SKIPPED, IBUFFER_OP_DONE, IBUFFER_OP_REMOVE, IBUFFER_MODIFIER_NO, &
-                             IBUFFER_MODIFIER_YES, IBUFFER_MODIFIER_MAYBE, IBUFFER_NAME_LEN, ibuffer_filter_type, &
-                             ibuffer_saved_filters_type, ibuffer_saved_filter_type, ibuffer_filter_groups_type, &
-                             ibuffer_saved_filter_groups_type, ibuffer_filter_def_type, ibuffer_filter_formats_type, &
-                             ibuffer_filter_format_type, ibuffer_or, ibuffer_and, ibuffer_not, ibuffer_major_mode, &
-                             ibuffer_derived_mode, ibuffer_starred_name, ibuffer_filename, ibuffer_buffer_test_procedure, &
-                             ibuffer_filter_test_procedure, IBUFFER_FILTER_SIMPLE, IBUFFER_FILTER_NOT, IBUFFER_FILTER_AND, &
-                             IBUFFER_FILTER_OR, IBUFFER_FILTER_SAVED
+    use ibuffer_types_mod, only: ibuffer_column, ibuffer_text, ibuffer_formats_type, ibuffer_format_type, &
+                                 ibuffer_column_spec_type, ibuffer_column_type, ibuffer_cell_type, ibuffer_sorter_type, &
+                                 ibuffer_op_type, ibuffer_show_test_type, ibuffer_fontification_type, &
+                                 ibuffer_directory_abbrev_type, ibuffer_column_procedure, ibuffer_summarizer_procedure, &
+                                 ibuffer_sorter_procedure, ibuffer_form_procedure, IBUFFER_ALIGN_LEFT, IBUFFER_ALIGN_CENTER, &
+                                 IBUFFER_ALIGN_RIGHT, IBUFFER_OP_SKIPPED, IBUFFER_OP_DONE, IBUFFER_OP_REMOVE, IBUFFER_MODIFIER_NO, &
+                                 IBUFFER_MODIFIER_YES, IBUFFER_MODIFIER_MAYBE, IBUFFER_NAME_LEN, ibuffer_filter_type, &
+                                 ibuffer_saved_filters_type, ibuffer_saved_filter_type, ibuffer_filter_groups_type, &
+                                 ibuffer_saved_filter_groups_type, ibuffer_filter_def_type, ibuffer_filter_formats_type, &
+                                 ibuffer_filter_format_type, ibuffer_or, ibuffer_and, ibuffer_not, ibuffer_major_mode, &
+                                 ibuffer_derived_mode, ibuffer_starred_name, ibuffer_filename, ibuffer_buffer_test_procedure, &
+                                 ibuffer_filter_test_procedure, IBUFFER_FILTER_SIMPLE, IBUFFER_FILTER_NOT, IBUFFER_FILTER_AND, &
+                                 IBUFFER_FILTER_OR, IBUFFER_FILTER_SAVED
     use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
@@ -140,7 +140,7 @@ module ibuffer_mod
               ibuffer_filter_by_visiting_file, ibuffer_filter_by_content, ibuffer_filter_by_test, &
               ibuffer_list_buffer_modes, ibuffer_filtering_qualifiers, ibuffer_set_filtering_qualifiers, &
               ibuffer_filter_groups, ibuffer_set_filter_groups
-    ! (Public for the submodule ibuf_ext_mod: gfortran emits no private
+    ! (Public for the submodule ibuffer_extensions_mod: gfortran emits no private
     ! procedure that only a submodule uses.)
     public :: buffer_matches_tests, buffer_matches_regexps, form_compressed, has_prop, has_string_prop, &
               ibuffer_abbreviate_file_name, ibuffer_set_mark_1, jump_to_buffer_by_name, line_serial, map_marked_lines, &
@@ -573,7 +573,7 @@ module ibuffer_mod
 
     interface
         !> Whether BUFFER should be shown (ibuffer-ext-visible-p).  (In
-        !> ibuf_ext_mod.)  Port of ibuf-ext.el:ibuffer-ext-visible-p.
+        !> ibuffer_extensions_mod.)  Port of ibuf-ext.el:ibuffer-ext-visible-p.
         recursive module logical function is_ibuffer_ext_visible(buffer, all, ibuffer_buf, status) result(visible)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer, ibuffer_buf
@@ -586,7 +586,7 @@ module ibuffer_mod
         !> GROUP_OF(k) being the index in NAMES of the group of entry k
         !> (0 for none).  NOEMPTY leaves out the empty groups, NODEFAULT
         !> the group "Default".  Port of
-        !> ibuf-ext.el:ibuffer-generate-filter-groups.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-generate-filter-groups.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_generate_filter_groups(bmarklist, names, group_of, status, noempty, &
                                                                    nodefault)
             implicit none(type, external)
@@ -602,7 +602,7 @@ module ibuffer_mod
         !> BUFFER is a buffer, and FILTERS is a list of filter specifications
         !> with the same structure as `ibuffer_filtering_qualifiers'.
         !> Port of ibuf-ext.el:ibuffer-included-in-filters-p.  (In
-        !> ibuf_ext_mod.)
+        !> ibuffer_extensions_mod.)
         recursive module logical function is_ibuffer_included_in_filters(buffer, filters, status) result(included)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
@@ -615,7 +615,7 @@ module ibuffer_mod
         !> BUFFER is a buffer, and FILTER is a filter specification, with the
         !> same structure as an element of the list
         !> `ibuffer_filtering_qualifiers'.  Port of
-        !> ibuf-ext.el:ibuffer-included-in-filter-p.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-included-in-filter-p.  (In ibuffer_extensions_mod.)
         recursive module logical function is_ibuffer_included_in_filter(buffer, filter, status) result(included)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
@@ -625,7 +625,7 @@ module ibuffer_mod
 
         !> Extract operand from a unary compound FILTER specification
         !> (`ibuffer_not').  Port of ibuf-ext.el:ibuffer-unary-operand.  (In
-        !> ibuf_ext_mod.)
+        !> ibuffer_extensions_mod.)
         module function ibuffer_unary_operand(filter) result(operand)
             implicit none(type, external)
             type(ibuffer_filter_type), intent(in) :: filter
@@ -634,7 +634,7 @@ module ibuffer_mod
 
         !> The text of the filter specification QUALIFIER, as shown in the
         !> mode line: " [DESCRIPTION: QUALIFIER]".  Port of
-        !> ibuf-ext.el:ibuffer-format-qualifier.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-format-qualifier.  (In ibuffer_extensions_mod.)
         recursive module function ibuffer_format_qualifier(qualifier) result(s)
             implicit none(type, external)
             type(ibuffer_filter_type), intent(in) :: qualifier
@@ -644,7 +644,7 @@ module ibuffer_mod
         !> Add FILTER_SPECIFICATION to `ibuffer_filtering_qualifiers'.
         !> If FILTER_SPECIFICATION is already in the list then return false.
         !> Otherwise, return true.  Port of ibuf-ext.el:ibuffer-push-filter.
-        !> (In ibuf_ext_mod.)
+        !> (In ibuffer_extensions_mod.)
         module logical function ibuffer_push_filter(filter_specification) result(pushed)
             implicit none(type, external)
             type(ibuffer_filter_type), intent(in) :: filter_specification
@@ -653,7 +653,7 @@ module ibuffer_mod
         !> Disable all filters currently in effect in this buffer.
         !> With optional arg DELETE_FILTER_GROUPS true, delete all filter
         !> group definitions by setting `ibuffer_filter_groups' to empty.
-        !> Port of ibuf-ext.el:ibuffer-filter-disable.  (In ibuf_ext_mod.)
+        !> Port of ibuf-ext.el:ibuffer-filter-disable.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_filter_disable(status, delete_filter_groups)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -661,7 +661,7 @@ module ibuffer_mod
         end subroutine ibuffer_filter_disable
 
         !> Remove the top filter in this buffer.  Port of
-        !> ibuf-ext.el:ibuffer-pop-filter.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-pop-filter.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_pop_filter(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -674,21 +674,21 @@ module ibuffer_mod
         !> must be a complex filter like (OR [name: foo] [mode: bar_mode]),
         !> will be turned into separate filters, like [name: foo] and [mode:
         !> bar_mode].  Port of ibuf-ext.el:ibuffer-decompose-filter.  (In
-        !> ibuf_ext_mod.)
+        !> ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_decompose_filter(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine ibuffer_decompose_filter
 
         !> Exchange the top two filters on the stack in this buffer.  Port of
-        !> ibuf-ext.el:ibuffer-exchange-filters.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-exchange-filters.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_exchange_filters(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine ibuffer_exchange_filters
 
         !> Negate the sense of the top filter in the current buffer.  Port of
-        !> ibuf-ext.el:ibuffer-negate-filter.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-negate-filter.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_negate_filter(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -697,7 +697,7 @@ module ibuffer_mod
         !> Replace the top two filters in this buffer with their logical
         !> OR.  If optional argument DECOMPOSE is true, instead break the
         !> top OR filter into parts.  Port of ibuf-ext.el:ibuffer-or-filter.
-        !> (In ibuf_ext_mod.)
+        !> (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_or_filter(status, decompose)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -707,7 +707,7 @@ module ibuffer_mod
         !> Replace the top two filters in this buffer with their logical
         !> AND.  If optional argument DECOMPOSE is true, instead break the
         !> top AND filter into parts.  Port of
-        !> ibuf-ext.el:ibuffer-and-filter.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-and-filter.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_and_filter(status, decompose)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -717,7 +717,7 @@ module ibuffer_mod
         !> Save FILTERS in this buffer with name NAME in
         !> `ibuffer_saved_filters'.  Interactively, prompt for NAME, and use
         !> the current filters.  Port of ibuf-ext.el:ibuffer-save-filters.
-        !> (In ibuf_ext_mod.)
+        !> (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_save_filters(name, filters, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -727,7 +727,7 @@ module ibuffer_mod
 
         !> Delete saved filters with NAME from `ibuffer_saved_filters'.
         !> Port of ibuf-ext.el:ibuffer-delete-saved-filters.  (In
-        !> ibuf_ext_mod.)
+        !> ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_delete_saved_filters(name, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -736,7 +736,7 @@ module ibuffer_mod
 
         !> Add saved filters from `ibuffer_saved_filters' to this buffer's
         !> filters.  Port of ibuf-ext.el:ibuffer-add-saved-filters.  (In
-        !> ibuf_ext_mod.)
+        !> ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_add_saved_filters(name, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -745,7 +745,7 @@ module ibuffer_mod
 
         !> Set this buffer's filters to filters with NAME from
         !> `ibuffer_saved_filters'.  Port of
-        !> ibuf-ext.el:ibuffer-switch-to-saved-filters.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-switch-to-saved-filters.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_switch_to_saved_filters(name, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -753,7 +753,7 @@ module ibuffer_mod
         end subroutine ibuffer_switch_to_saved_filters
 
         !> Make the current filters into a filtering group.  Port of
-        !> ibuf-ext.el:ibuffer-filters-to-filter-group.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-filters-to-filter-group.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_filters_to_filter_group(name, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -761,21 +761,21 @@ module ibuffer_mod
         end subroutine ibuffer_filters_to_filter_group
 
         !> Set the current filter groups to filter by mode.  Port of
-        !> ibuf-ext.el:ibuffer-set-filter-groups-by-mode.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-set-filter-groups-by-mode.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_set_filter_groups_by_mode(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine ibuffer_set_filter_groups_by_mode
 
         !> Remove the first filter group.  Port of
-        !> ibuf-ext.el:ibuffer-pop-filter-group.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-pop-filter-group.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_pop_filter_group(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine ibuffer_pop_filter_group
 
         !> Decompose the filter group GROUP into active filters.  Port of
-        !> ibuf-ext.el:ibuffer-decompose-filter-group.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-decompose-filter-group.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_decompose_filter_group(group, status)
             implicit none(type, external)
             character(len=*), intent(in) :: group
@@ -783,7 +783,7 @@ module ibuffer_mod
         end subroutine ibuffer_decompose_filter_group
 
         !> Remove all filter groups.  Port of
-        !> ibuf-ext.el:ibuffer-clear-filter-groups.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-clear-filter-groups.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_clear_filter_groups(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -791,7 +791,7 @@ module ibuffer_mod
 
         !> Cut the filter group named NAME.
         !> The group will be added to `ibuffer_cut_filter_groups'.
-        !> Port of ibuf-ext.el:ibuffer-kill-filter-group.  (In ibuf_ext_mod.)
+        !> Port of ibuf-ext.el:ibuffer-kill-filter-group.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_cut_filter_group(name, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -799,7 +799,7 @@ module ibuffer_mod
         end subroutine ibuffer_cut_filter_group
 
         !> Paste the last cut filter group before group named NAME.
-        !> Port of ibuf-ext.el:ibuffer-yank-filter-group.  (In ibuf_ext_mod.)
+        !> Port of ibuf-ext.el:ibuffer-yank-filter-group.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_paste_filter_group(name, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -809,7 +809,7 @@ module ibuffer_mod
         !> Save all active filter groups GROUPS as NAME.
         !> They are added to `ibuffer_saved_filter_groups'.  Interactively,
         !> prompt for NAME, and use the current filters.  Port of
-        !> ibuf-ext.el:ibuffer-save-filter-groups.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-save-filter-groups.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_save_filter_groups(name, groups, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -819,7 +819,7 @@ module ibuffer_mod
 
         !> Delete saved filter groups with NAME.
         !> They are removed from `ibuffer_saved_filter_groups'.  Port of
-        !> ibuf-ext.el:ibuffer-delete-saved-filter-groups.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-delete-saved-filter-groups.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_delete_saved_filter_groups(name, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -829,7 +829,7 @@ module ibuffer_mod
         !> Set this buffer's filter groups to saved version with NAME.
         !> The value from `ibuffer_saved_filter_groups' is used.  Port of
         !> ibuf-ext.el:ibuffer-switch-to-saved-filter-groups.  (In
-        !> ibuf_ext_mod.)
+        !> ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_switch_to_saved_filter_groups(name, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -840,7 +840,7 @@ module ibuffer_mod
         !> QUALIFIER.  QUALIFIER is the mode name or a list of names.
         !> Called interactively, accept a comma separated list of mode
         !> names.  Port of ibuf-ext.el:ibuffer-filter-by-mode.  (In
-        !> ibuf_ext_mod.)
+        !> ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_filter_by_mode(qualifier, status)
             implicit none(type, external)
             character(len=*), intent(in) :: qualifier(:)
@@ -852,7 +852,7 @@ module ibuffer_mod
         !>
         !> Called interactively, accept a comma separated list of mode names
         !> currently used by buffers.  Port of
-        !> ibuf-ext.el:ibuffer-filter-by-used-mode.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-filter-by-used-mode.  (In ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_filter_by_used_mode(qualifier, status)
             implicit none(type, external)
             character(len=*), intent(in) :: qualifier(:)
@@ -865,7 +865,7 @@ module ibuffer_mod
         !>  from modes specified by QUALIFIER.
         !> Called interactively, accept a comma separated list of mode
         !> names.  Port of ibuf-ext.el:ibuffer-filter-by-derived-mode.  (In
-        !> ibuf_ext_mod.)
+        !> ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_filter_by_derived_mode(qualifier, status)
             implicit none(type, external)
             character(len=*), intent(in) :: qualifier(:)
@@ -880,7 +880,7 @@ module ibuffer_mod
         !> `ibuffer_filter_by_size_gt', `ibuffer_filter_by_size_lt',
         !> `ibuffer_filter_by_modified', `ibuffer_filter_by_visiting_file' and
         !> `ibuffer_filter_by_content' (the commands
-        !> ibuf-macs.el:define-ibuffer-filter defines).  (In ibuf_ext_mod.)
+        !> ibuf-macs.el:define-ibuffer-filter defines).  (In ibuffer_extensions_mod.)
         !> Port of ibuf-macs.el:define-ibuffer-filter, in part (the commands
         !> it defines).
         recursive module subroutine ibuffer_filter_by(name, status, qualifier, number)
@@ -893,7 +893,7 @@ module ibuffer_mod
 
         !> Limit current view to buffers for which QUALIFIER returns true.
         !> Port of ibuf-ext.el:ibuffer-filter-by-predicate.  (In
-        !> ibuf_ext_mod.)
+        !> ibuffer_extensions_mod.)
         recursive module subroutine ibuffer_filter_by_test(qualifier, status)
             implicit none(type, external)
             procedure(ibuffer_buffer_test_procedure) :: qualifier
@@ -902,7 +902,7 @@ module ibuffer_mod
 
         !> Create a completion table of buffer modes currently in use.
         !> If INCLUDE_PARENTS is true then include parent modes.  Port of
-        !> ibuf-ext.el:ibuffer-list-buffer-modes.  (In ibuf_ext_mod.)
+        !> ibuf-ext.el:ibuffer-list-buffer-modes.  (In ibuffer_extensions_mod.)
         module subroutine ibuffer_list_buffer_modes(modes, include_parents)
             implicit none(type, external)
             character(len=IBUFFER_NAME_LEN), allocatable, intent(out) :: modes(:)
@@ -910,7 +910,7 @@ module ibuffer_mod
         end subroutine ibuffer_list_buffer_modes
 
         !> Define ibuf-ext.el's commands, sorting methods and keys.  (In
-        !> ibuf_ext_mod.)  Not a port.
+        !> ibuffer_extensions_mod.)  Not a port.
         module subroutine init_ibuf_ext()
             implicit none(type, external)
         end subroutine init_ibuf_ext
@@ -2346,7 +2346,7 @@ contains
     ! ibuffer-get-region-and-prefix: START, END (when the region is
     ! active) and ARG.  Port of ibuffer.el:ibuffer-get-region-and-prefix.
     subroutine get_region_and_prefix(has_region, start, end, arg)
-        use editfns_mod, only: region_beginning, region_end
+        use editing_functions_mod, only: region_beginning, region_end
         logical, intent(out) :: has_region
         integer(int64), intent(out) :: start, end, arg
         type(status_type) :: st

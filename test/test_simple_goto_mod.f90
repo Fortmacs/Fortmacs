@@ -1,5 +1,5 @@
 ! test_simple_goto_mod.f90 -- tests for goto-line, the narrowing commands,
-! count-words (simple_goto_mod) and number-at-point (thingatpt_mod).
+! count-words (simple_goto_mod) and number-at-point (thing_at_point_mod).
 ! Ports GNU Emacs 31.1 test/lisp/simple-tests.el and
 ! test/lisp/thingatpt-tests.el in part; the count-words and
 ! number-at-point tests.
@@ -33,16 +33,16 @@ module test_simple_goto_mod
     use handle_mod, only: handle_type
     use value_mod, only: list, value_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region, is_buffer_narrowed
-    use cmds_mod, only: forward_char
-    use textprop_mod, only: put_text_property
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region, is_buffer_narrowed
+    use editing_commands_mod, only: forward_char
+    use text_properties_mod, only: put_text_property
     use keymap_mod, only: key_parse, key_binding
     use bindings_mod, only: init_bindings
     use value_mod, only: value_type
     use data_mod, only: value_eq
     use simple_mod, only: goto_line, goto_line_relative, count_words, count_words_format, line_number_at_pos
-    use thingatpt_mod, only: number_at_point
+    use thing_at_point_mod, only: number_at_point
     implicit none(type, external)
     private
 

@@ -1,6 +1,6 @@
 # inotify_mod
 
-- Module: inotify_mod (with sysdep_mod's inotify calls)
+- Module: inotify_mod (with system_dependent_mod's inotify calls)
 - Upstream: inotify.c
 - State: done
 

@@ -1,6 +1,6 @@
 # window_mod
 
-- Module: window_mod, window_scroll_mod, window_cmds_mod, window_display_mod, window_config_mod, window_sides_mod, window_change_mod (submodules)
+- Module: window_mod, window_scroll_mod, window_commands_mod, window_display_mod, window_configuration_mod, window_sides_mod, window_change_mod (submodules)
 - Upstream: window.c, window.h, window.el, buffer.c (`other-buffer`, `record-buffer`, `bury-buffer-internal`, frame buffer lists)
 - State: partial
 
@@ -245,4 +245,4 @@ coordinates-in-window-p
 
 test_window_mod (own; upstream has no ERT tests for windows),
 test_window_sides_mod (own),
-test_xdisp_mod
+test_display_engine_mod

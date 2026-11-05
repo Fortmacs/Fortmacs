@@ -27,7 +27,7 @@
 !> fortmacs_mod, which uses everything; this module is for those that only
 !> need these options.
 module startup_mod
-    use editfns_mod, only: user_login_name, system_name
+    use editing_functions_mod, only: user_login_name, system_name
     implicit none(type, external)
     private
 

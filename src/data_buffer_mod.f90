@@ -42,25 +42,25 @@ submodule(data_mod) data_buffer_mod
     use handle_mod, only: null_handle
     use buffer_mod, only: buffers, current, swap_buffer_locals_hook, fill_column, FILL_COLUMN_NONE, left_margin, &
                           auto_fill_function, auto_fill_procedure, is_buffer_live, buffer_handle, transient_mark_mode
-    use xdisp_mod, only: tab_width, TAB_WIDTH_DEFAULT
+    use display_engine_mod, only: tab_width, TAB_WIDTH_DEFAULT
     use indent_mod, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_procedure, &
                           indent_line_setting_type, indent_line_function_name, indent_line_function_named
-    use callint_mod, only: find_command, command_name_of
+    use execute_interactively_mod, only: find_command, command_name_of
     use value_mod, only: command_procedure, value_type, is_named_choice
     use search_mod, only: case_fold_search
-    use minibuf_mod, only: completion_ignore_case
+    use minibuffer_reading_mod, only: completion_ignore_case
     use paragraphs_mod, only: paragraph_start, paragraph_separate, sentence_end, &
                               sentence_end_double_space, init_paragraph_variables
     use fill_mod, only: adaptive_fill_mode
     use simple_mod, only: fill_prefix, auto_fill_inhibit_regexp, do_auto_fill
-    use fns_mod, only: get
+    use utility_functions_mod, only: get
     use hooks_mod, only: change_major_mode_hook, clear_local_hooks
-    use subr_mod, only: clear_delayed_mode_hooks
-    use easy_mmode_mod, only: minor_mode_type, minor_mode_index, minor_mode_at
+    use basic_subprograms_mod, only: clear_delayed_mode_hooks
+    use easy_minor_mode_mod, only: minor_mode_type, minor_mode_index, minor_mode_at
     use text_mode_mod, only: text_mode_variant
     use syntax_mod, only: parse_expression_ignore_comments, comment_end_can_be_escaped
     use casefiddle_mod, only: case_identifiers_as_words
-    use insdel_mod, only: inhibit_modification_hooks
+    use insert_delete_mod, only: inhibit_modification_hooks
     use electric_mod, only: electric_indent_inhibit
     use files_mod, only: require_final_newline, mode_require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT, &
                          REQUIRE_FINAL_NEWLINE_VISIT_SAVE, REQUIRE_FINAL_NEWLINE_ASK, MODE_REQUIRE_FINAL_NEWLINE_VISIT, &

@@ -27,17 +27,17 @@
 !> from their forms).
 module test_python_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_min, point_max, goto_char, widen, is_bob, is_eob, is_bol, is_eol, line_beginning_position, &
-                           line_end_position
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, widen, is_bob, is_eob, is_bol, is_eol, &
+                                     line_beginning_position, line_end_position
     use simple_mod, only: back_to_indentation, line_number_at_pos
     use indent_mod, only: current_column, indent_for_tab_command
-    use cmds_mod, only: forward_line, end_of_line, beginning_of_line, forward_char
+    use editing_commands_mod, only: forward_line, end_of_line, beginning_of_line, forward_char
     use search_mod, only: looking_at, re_search_forward, re_search_backward, regexp_quote, match_end, match_beginning, &
                           SEARCH_NOERROR
     use indent_mod, only: current_indentation

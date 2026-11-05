@@ -1,6 +1,6 @@
 # chinese_mod
 
-- Module: chinese_mod, cyrillic_mod, english_mod, european_mod, romanian_mod, greek_mod, hebrew_mod, japanese_mod, korean_mod, lao_mod, thai_mod, tibetan_mod, vietnamese_mod, misc_lang_mod, georgian_mod (submodules of coding_mod)
+- Module: chinese_mod, cyrillic_mod, english_mod, european_mod, romanian_mod, greek_mod, hebrew_mod, japanese_mod, korean_mod, lao_mod, thai_mod, tibetan_mod, vietnamese_mod, miscellaneous_language_mod, georgian_mod (submodules of coding_mod)
 - Upstream: language/*.el
 - State: partial
 

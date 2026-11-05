@@ -26,12 +26,12 @@ module test_ansi_color_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list, xstring
-    use fns_mod, only: value_equal
+    use utility_functions_mod, only: value_equal
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_min, point_max, buffer_string
-    use textprop_mod, only: get_char_property
-    use itree_mod, only: overlays_at
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, buffer_string
+    use text_properties_mod, only: get_char_property
+    use interval_tree_mod, only: overlays_at
     use bindings_mod, only: init_bindings
     use faces_mod, only: face_spec_recalc_all
     use ansi_color_mod, only: ansi_color_apply_on_region, ansi_color_filter_region, ansi_color_filter_apply, &

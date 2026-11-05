@@ -28,12 +28,12 @@ module test_search_mod
                          FM_ARGS_OUT_OF_RANGE
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, point, narrow_to_region, widen
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, point, narrow_to_region, widen
     use search_mod, only: search_forward, search_backward, match_beginning, match_end, case_fold_search, &
                           SEARCH_NOERROR, SEARCH_MOVE, looking_at, replace_match, re_search_forward, string_match, &
                           set_match_data, running_asynch_code, restore_search_regs, fast_string_match, fast_looking_at
-    use editfns_mod, only: buffer_string, point_min, point_max
+    use editing_functions_mod, only: buffer_string, point_min, point_max
     use buffer_mod, only: erase_buffer
     implicit none(type, external)
     private

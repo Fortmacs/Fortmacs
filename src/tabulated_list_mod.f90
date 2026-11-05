@@ -43,28 +43,28 @@
 !> are no line numbers), bidi.
 module tabulated_list_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xstring, xfixnum, string_intervals, vtag, V_INTEGER, V_STRING
-    use fns_mod, only: is_string_less
+    use utility_functions_mod, only: is_string_less
     use data_mod, only: append_locals_clearer
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
     use commands_mod, only: commands
     use buffer_mod, only: buffers, current, buffer_serial_live, erase_buffer, restore_buffer_modified
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_min, point_max, pos_bol, pos_eol, delete_region, is_eob
-    use cmds_mod, only: forward_line, beginning_of_line, forward_char
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, pos_bol, pos_eol, delete_region, is_eob
+    use editing_commands_mod, only: forward_line, beginning_of_line, forward_char
     use indent_mod, only: current_column, move_to_column
-    use textprop_mod, only: get_text_property, put_text_property, add_text_properties, next_single_property_change, &
-                            previous_single_property_change, propertize
+    use text_properties_mod, only: get_text_property, put_text_property, add_text_properties, next_single_property_change, &
+                                   previous_single_property_change, propertize
     use files_mod, only: revert_buffer_function
     use fill_mod, only: string_width
     use frame_mod, only: selected_frame
     use derived_mod, only: is_derived_mode
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
-    use mule_util_mod, only: truncate_string_to_width, truncate_string_to_width_propertized
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use multilingual_environment_utilities_mod, only: truncate_string_to_width, truncate_string_to_width_propertized
     use faces_mod, only: named_face_type, face_attrs, display_when
     use keymap_mod, only: keymap_set
     implicit none(type, external)
@@ -550,7 +550,7 @@ contains
     ! after it (as insert-and-inherit takes those of the line's entry).
     ! Not a port.
     recursive subroutine insert_inheriting(text, status)
-        use textprop_mod, only: text_properties_at
+        use text_properties_mod, only: text_properties_at
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
         type(value_type) :: plist

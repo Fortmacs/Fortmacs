@@ -48,25 +48,25 @@
 !> repeat map and menus.
 module shell_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, xstring, vtag, V_NULL, V_NAME
     use data_mod, only: string_setting_type, logical_setting_type, forward_setting, append_locals_clearer
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, close_buffer, &
                           generate_new_buffer_name
-    use editfns_mod, only: point, point_min, point_max, goto_char, buffer_substring, line_end_position, &
-                           line_beginning_position, narrow_to_region, widen, field_beginning, field_end, &
-                           field_string_no_properties, is_eob
-    use textprop_mod, only: get_text_property, put_text_property, next_single_property_change
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_substring, line_end_position, &
+                                     line_beginning_position, narrow_to_region, widen, field_beginning, field_end, &
+                                     field_string_no_properties, is_eob
+    use text_properties_mod, only: get_text_property, put_text_property, next_single_property_change
     use ansi_color_mod, only: ansi_color_apply_face_function, ansi_color_face_type, ansi_color_face_value
-    use insdel_mod, only: insert
+    use insert_delete_mod, only: insert
     use search_mod, only: string_match, re_search_forward, re_search_backward, match_beginning, match_end, &
                           looking_at, SEARCH_NOERROR, SEARCH_MOVE
     use syntax_mod, only: skip_chars_forward, skip_syntax_backward, skip_syntax_forward
-    use env_mod, only: getenv
-    use fileio_mod, only: file_exists, expand_file_name, file_name_nondirectory, is_file_name_absolute, &
-                          directory_file_name, insert_file_contents
+    use environment_mod, only: getenv
+    use file_input_output_mod, only: file_exists, expand_file_name, file_name_nondirectory, is_file_name_absolute, &
+                                     directory_file_name, insert_file_contents
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
     use keymap_mod, only: keymap_set, make_sparse_keymap, is_keymap_live, set_repeat_map
@@ -74,50 +74,51 @@ module shell_mod
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use window_mod, only: pop_to_buffer_same_window
-    use callproc_mod, only: shell_file_name, init_callproc
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_process_mod, only: shell_file_name, init_callproc
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use minibuffer_mod, only: read_buffer
     use derived_mod, only: is_derived_mode
-    use xdisp_mod, only: message
-    use dispnew_mod, only: ding
+    use display_engine_mod, only: message
+    use display_update_mod, only: ding
     use commands_mod, only: commands
     use process_mod, only: get_buffer_process, process_filter, process_sentinel, &
                            set_process_filter, set_process_sentinel, process_send_string, accept_process_output, is_process_live, &
                            process_buffer, process_command, process_filter_procedure, process_sentinel_procedure, process_name
-    use comint_mod, only: comint_mode, comint_check_process, make_comint_in_buffer, comint_prompt_regexp, &
-                          comint_delimiter_arguments, comint_input_ring_size, comint_input_ring_file_name, &
-                          comint_input_ring_file_prefix, comint_preoutput_filter_functions, comint_input_filter_functions, &
-                          comint_use_prompt_regexp, comint_read_input_ring, comint_write_input_ring, comint_bol, &
-                          comint_arguments, comint_substitute_in_file_name, comint_input_ring_length, &
-                          set_comint_get_old_input, comint_next_prompt, comint_previous_prompt, init_comint
+    use command_interpreter_mod, only: comint_mode, comint_check_process, make_comint_in_buffer, comint_prompt_regexp, &
+                                       comint_delimiter_arguments, comint_input_ring_size, comint_input_ring_file_name, &
+                                  comint_input_ring_file_prefix, comint_preoutput_filter_functions, comint_input_filter_functions, &
+                                       comint_use_prompt_regexp, comint_read_input_ring, comint_write_input_ring, comint_bol, &
+                                       comint_arguments, comint_substitute_in_file_name, comint_input_ring_length, &
+                                       set_comint_get_old_input, comint_next_prompt, comint_previous_prompt, init_comint
     use compile_mod, only: cd
     use data_mod, only: choice_setting_type
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     use value_mod, only: make_list, list_elements, value_type
     use hooks_mod, only: capf_hook_type, capf_entry_type
-    use minibuf_table_mod, only: completion_table_type, completion_test_procedure, completion_quote_procedure, capf_data_type, &
-                                 completion_function_table, completion_list_table, COMPLETION_SOLE, COMPLETION_FINISHED
-    use minibuf_mod, only: complete_with_action
+    use minibuffer_reading_tables_mod, only: completion_table_type, completion_test_procedure, completion_quote_procedure, &
+                                             capf_data_type, &
+                                             completion_function_table, completion_list_table, COMPLETION_SOLE, COMPLETION_FINISHED
+    use minibuffer_reading_mod, only: complete_with_action
     use minibuffer_mod, only: completion_in_region, completion_file_name_table, completion_at_point_functions
-    use fileio_mod, only: is_file_executable, is_file_directory, is_file_accessible_directory, file_name_as_directory
-    use dired_mod, only: file_name_all_completions
+    use file_input_output_mod, only: is_file_executable, is_file_directory, is_file_accessible_directory, file_name_as_directory
+    use directory_editor_mod, only: file_name_all_completions
     use search_mod, only: SEARCH_NOERROR, SEARCH_MOVE, looking_at, regexp_quote, re_search_backward, re_search_forward
-    use subr_mod, only: match_string
-    use fns_mod, only: substring, count_characters
-    use editfns_mod, only: is_eol, char_after, delete_region
+    use basic_subprograms_mod, only: match_string
+    use utility_functions_mod, only: substring, count_characters
+    use editing_functions_mod, only: is_eol, char_after, delete_region
     use frame_mod, only: selected_frame
-    use sysdep_mod, only: fortmacs_environment
-    use comint_mod, only: comint_file_name_chars, comint_file_name_quote_chars, comint_file_name_prefix, &
-                          comint_dynamic_complete_functions, comint_filename_completion, comint_completion_at_point, &
-                          comint_c_a_p_replace_by_expanded_history, comint_match_partial_filename, comint_quote_filename, &
-                          comint_directory, set_comint_completion_fignore, set_comint_quote_functions, &
-                          comint_completion_addsuffix, comint_input_autoexpand, COMINT_INPUT_AUTOEXPAND_HISTORY, &
-                          COMINT_INPUT_AUTOEXPAND_INPUT, &
-                          comint_completion_fignore, comint_line_beginning_position
-    use pcomplete_mod, only: pcomplete_match, pcomplete_thrown, pcomplete_here, pcomplete_entries, pcomplete_ignore, &
-                             pcomplete_completions_at_point, pcomplete_parse_arguments_function, &
-                             pcomplete_termination_string, pcomplete_command_completion_function, &
-                             pcomplete_default_completion_function, pcomplete_remote_file_ignore
+    use system_dependent_mod, only: fortmacs_environment
+    use command_interpreter_mod, only: comint_file_name_chars, comint_file_name_quote_chars, comint_file_name_prefix, &
+                                       comint_dynamic_complete_functions, comint_filename_completion, comint_completion_at_point, &
+                                   comint_c_a_p_replace_by_expanded_history, comint_match_partial_filename, comint_quote_filename, &
+                                       comint_directory, set_comint_completion_fignore, set_comint_quote_functions, &
+                                       comint_completion_addsuffix, comint_input_autoexpand, COMINT_INPUT_AUTOEXPAND_HISTORY, &
+                                       COMINT_INPUT_AUTOEXPAND_INPUT, &
+                                       comint_completion_fignore, comint_line_beginning_position
+    use programmable_completion_mod, only: pcomplete_match, pcomplete_thrown, pcomplete_here, pcomplete_entries, pcomplete_ignore, &
+                                           pcomplete_completions_at_point, pcomplete_parse_arguments_function, &
+                                           pcomplete_termination_string, pcomplete_command_completion_function, &
+                                           pcomplete_default_completion_function, pcomplete_remote_file_ignore
     use string_type_mod, only: string_type, append_string, prepend_string
     implicit none(type, external)
     private
@@ -503,7 +504,7 @@ contains
 
     ! Not a port.
     integer function char_before_point()
-        use editfns_mod, only: char_before
+        use editing_functions_mod, only: char_before
         integer(int32) :: c
         logical :: found
 
@@ -528,7 +529,7 @@ contains
     !> shell.el:shell--parse-pcomplete-arguments (a non-empty
     !> `comint_file_name_quote_chars', as on GNU/Linux).
     subroutine shell_parse_pcomplete_arguments(args, begins)
-        use subr_mod, only: match_string
+        use basic_subprograms_mod, only: match_string
         type(string_type), allocatable, intent(out) :: args(:)
         integer(int64), allocatable, intent(out) :: begins(:)
         character(len=*), parameter :: ARG_REGEXP = "\(?:[^ "//achar(9)//achar(10)//"\""';]+\|'\([^']*\)'?\|"// &
@@ -1686,7 +1687,7 @@ contains
 
     !> The contents of FILE.  Not a port.
     subroutine file_contents(file, text, status)
-        use editfns_mod, only: buffer_string
+        use editing_functions_mod, only: buffer_string
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
@@ -2002,7 +2003,7 @@ contains
                 call shell_process_cd(comint_substitute_in_file_name(arg1), st)
             else if (shell_has_auto_cd%value) then
                 block
-                    use fileio_mod, only: is_file_directory
+                    use file_input_output_mod, only: is_file_directory
                     if (is_file_directory(cmd_subst_fn)) call shell_process_cd(cmd_subst_fn, st)
                 end block
             end if

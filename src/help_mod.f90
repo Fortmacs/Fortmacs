@@ -31,7 +31,7 @@
 !> sees; and `with_help_window', which shows text in *Help*.
 !>
 !> `describe_function', `describe_variable', `describe_name',
-!> `describe_command' and `describe_mode' are in help_fns_mod, which
+!> `describe_command' and `describe_mode' are in help_functions_mod, which
 !> installs the text `describe_key' shows through
 !> `describe_function_1_hook' (help-fns.el is loaded after help.el); the
 !> apropos commands are in apropos_mod.
@@ -55,7 +55,7 @@
 !> help-fns-function-name; here the key "runs a keyboard macro").
 module help_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: prefix_arg_type, PREFIX_NUMBER
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NUMBER
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
@@ -67,14 +67,14 @@ module help_mod
                           overriding_terminal_local_map, active_minor_mode_of_map, current_global_map
     use derived_mod, only: major_mode_type, major_mode_named
     use keyboard_mod, only: read_key_sequence_vs
-    use callint_mod, only: is_command
+    use execute_interactively_mod, only: is_command
     use buffer_mod, only: current_buffer, get_or_make_buffer, set_buffer, set_buffer_read_only, erase_buffer, &
                           restore_buffer_modified, buffers, current, is_buffer_live
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, widen
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, widen
     use marker_mod, only: set_marker
-    use xdisp_mod, only: message
-    use minibuf_mod, only: completion_obarray_table, minibuffer_local_map
+    use display_engine_mod, only: message
+    use minibuffer_reading_mod, only: completion_obarray_table, minibuffer_local_map
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use help_mode_mod, only: help_mode, help_mode_map, init_help_mode, help_make_xrefs, help_setup_xref
     use frame_mod, only: selected_frame, selected_window
@@ -87,14 +87,14 @@ module help_mod
                           set_keymap_parent, single_key_description
     use keyboard_mod, only: recent_keys, lossage_size, bitch_at_user, key_translation_map, local_function_key_map, &
                             input_decode_map
-    use xdisp_mod, only: message_nolog, glyph_columns, cursor_in_echo_area
+    use display_engine_mod, only: message_nolog, glyph_columns, cursor_in_echo_area
     use simple_mod, only: messages_buffer
     use window_mod, only: set_window_point, pop_to_buffer, scroll_up, scroll_down, window_configuration_type, &
                           current_window_configuration, set_window_configuration, destroy_window_configuration, &
                           window_text_cols
-    use callint_mod, only: is_command_defined, execute_interactively
+    use execute_interactively_mod, only: is_command_defined, execute_interactively
     use data_mod, only: default_value
-    use fns_mod, only: value_equal
+    use utility_functions_mod, only: value_equal
     use print_mod, only: fortran_text
     use error_mod, only: FM_QUIT
     use faces_mod, only: display_supports_face_attributes_p, face_attrs
@@ -138,10 +138,10 @@ module help_mod
         end subroutine documentation_procedure
     end interface
 
-    !> help-fns.el:describe-function-1, set by help_fns_mod.
+    !> help-fns.el:describe-function-1, set by help_functions_mod.
     procedure(describe_function_1_procedure), pointer, public :: describe_function_1_hook => null()
 
-    !> doc.c:Fdocumentation (RAW), set by help_fns_mod, which holds the
+    !> doc.c:Fdocumentation (RAW), set by help_functions_mod, which holds the
     !> compiled-in docstrings.
     procedure(documentation_procedure), pointer, public :: documentation_hook => null()
 

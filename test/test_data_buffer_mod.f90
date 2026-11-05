@@ -33,7 +33,7 @@ module test_data_buffer_mod
     use buffer_mod, only: get_or_make_buffer, close_buffer, set_buffer, buffers, current, fill_column, &
                           auto_fill_function, FILL_COLUMN_NONE
     use fill_mod, only: current_fill_column
-    use xdisp_mod, only: tab_width
+    use display_engine_mod, only: tab_width
     use search_mod, only: case_fold_search
     use indent_mod, only: indent_tabs_mode, sane_tab_width
     use casefiddle_mod, only: case_identifiers_as_words
@@ -41,7 +41,7 @@ module test_data_buffer_mod
                         make_variable_buffer_local, clear_local_variable, clear_all_local_variables, &
                         is_local_variable, is_local_variable_if_set, default_value, set_default, &
                         default_boundp, buffer_local_value, buffer_local_variables, setq_local
-    use fns_mod, only: put
+    use utility_functions_mod, only: put
     use simple_mod, only: init_simple
     implicit none(type, external)
     private

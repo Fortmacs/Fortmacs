@@ -27,10 +27,10 @@ module test_skeleton_mod
     use error_mod, only: status_type, format_error, FM_QUIT
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_min, point_max, buffer_string, widen
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, widen
     use keyboard_mod, only: discard_input, kbd_store_bytes, last_command_event
-    use callint_mod, only: prefix_arg_type, PREFIX_NONE
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE
     use value_mod, only: value_type
     use bindings_mod, only: init_bindings
     use simple_mod, only: fundamental_mode

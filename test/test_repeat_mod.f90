@@ -25,16 +25,16 @@
 !> components, as defvar-keymap :repeat does; own test of C-x z.
 module test_repeat_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, assignment(=)
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer, generate_new_buffer_name
-    use editfns_mod, only: buffer_string
+    use editing_functions_mod, only: buffer_string
     use keymap_mod, only: make_sparse_keymap, key_parse, keymap_set, use_local_map, set_repeat_map
     use keyboard_mod, only: execute_kbd_macro, last_kbd_macro
-    use kmacro_mod, only: init_kmacro
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use keyboard_macros_mod, only: init_kmacro
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use modes_mod, only: minor_modes
     use bindings_mod, only: init_bindings
     use test_support_mod, only: show_alone

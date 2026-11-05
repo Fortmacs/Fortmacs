@@ -1,6 +1,6 @@
 # indent_mod
 
-- Module: indent_mod, indent_cmds_mod (submodule)
+- Module: indent_mod, indent_commands_mod (submodule)
 - Upstream: indent.c, indent.el
 - State: partial
 
@@ -35,7 +35,7 @@ indent.el: `indent-for-tab-command` (TAB),
 `move-to-tab-stop`,
 `standard-indent`;
 columns skip invisible text (not text shown as an ellipsis) and count display strings and spaces (scan_for_column with skip_invisible and check_display_width);
-`vertical-motion` and point's screen column through xdisp_mod's display_row
+`vertical-motion` and point's screen column through display_engine_mod's display_row
 
 ## Deferred
 

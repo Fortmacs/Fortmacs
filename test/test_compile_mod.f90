@@ -32,10 +32,10 @@ module test_compile_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, &
                           is_buffer_live, set_buffer_read_only
-    use insdel_mod, only: insert
-    use editfns_mod, only: buffer_string, point_max
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: buffer_string, point_max
     use keyboard_mod, only: last_message
-    use fileio_mod, only: file_name_as_directory
+    use file_input_output_mod, only: file_name_as_directory
     use files_mod, only: temporary_file_directory, abbreviate_file_name
     use keymap_mod, only: key_binding, key_parse
     use value_mod, only: value_type, xsymbol, symbols, vtag, V_NULL, V_NAME
@@ -47,9 +47,9 @@ module test_compile_mod
                            compilation_error_count_found, compilation_warning_count_found, compilation_info_count_found, &
                            compilation_error_regexp_names, compilation_error_regexps, compilation_rule_type, &
                            compilation_next_error, compile_goto_error, compilation_ensure_parse
-    use editfns_mod, only: point, point_min, goto_char
+    use editing_functions_mod, only: point, point_min, goto_char
     use simple_mod, only: next_error
-    use xdisp_mod, only: mode_line_process_text
+    use display_engine_mod, only: mode_line_process_text
     implicit none(type, external)
     private
 
@@ -1623,7 +1623,7 @@ contains
     !> The text from the start of the current line to the end of the
     !> first number on it.
     function current_line_start_text() result(text)
-        use editfns_mod, only: line_beginning_position, line_end_position, buffer_substring
+        use editing_functions_mod, only: line_beginning_position, line_end_position, buffer_substring
         character(len=:), allocatable :: text
         type(status_type) :: st
         integer :: k

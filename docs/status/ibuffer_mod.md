@@ -1,6 +1,6 @@
 # ibuffer_mod
 
-- Module: ibuffer_mod, ibuf_ext_mod (submodule)
+- Module: ibuffer_mod, ibuffer_extensions_mod (submodule)
 - Upstream: ibuffer.el, ibuf-ext.el
 - State: partial
 
@@ -77,4 +77,4 @@ reading a test form (`/ e`)
 ## Tests
 
 test_ibuffer_mod (ports ibuffer-test-Bug25000; own tests of the list, marks, kills, sorting and formats),
-test_ibuf_ext_mod (ports ibuffer-test-Bug24997, -Bug25058, ibuffer-save-filters, ibuffer-filter-inclusion-1 to -8, ibuffer-decompose-filter, ibuffer-and-filter, ibuffer-or-filter, ibuffer-format-qualifier, ibuffer-unary-operand, with ported modes in place of the others; own tests of filter groups)
+test_ibuffer_extensions_mod (ports ibuffer-test-Bug24997, -Bug25058, ibuffer-save-filters, ibuffer-filter-inclusion-1 to -8, ibuffer-decompose-filter, ibuffer-and-filter, ibuffer-or-filter, ibuffer-format-qualifier, ibuffer-unary-operand, with ported modes in place of the others; own tests of filter groups)

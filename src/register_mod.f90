@@ -51,8 +51,8 @@
 !> properties), and the `register__name' text property of the preview.
 module register_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use fns_mod, only: count_characters
-    use callint_mod, only: PREFIX_NONE
+    use utility_functions_mod, only: count_characters
+    use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, &
                          FM_WRONG_TYPE_ARGUMENT
@@ -66,26 +66,26 @@ module register_mod
                           set_buffer, set_buffer_read_only, erase_buffer, close_buffer, barf_if_buffer_read_only, &
                           deactivate_mark_variable, get_buffer
     use marker_mod, only: destroy_marker, marker_position, marker_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, goto_char_marker, point_marker, buffer_substring, delete_region, &
-                           delete_and_extract_region, region_beginning, region_end
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, goto_char_marker, point_marker, buffer_substring, delete_region, &
+                                     delete_and_extract_region, region_beginning, region_end
     use search_mod, only: looking_at, match_beginning, match_end
     use simple_mod, only: push_mark, insert_for_paste, exchange_point_and_mark, indicate_copied_region, &
                           region_extract_function, REGION_EXTRACT_COPY, REGION_EXTRACT_DELETE
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: last_command
-    use subr_mod, only: read_key, read_y_or_n
+    use basic_subprograms_mod, only: read_key, read_y_or_n
     use frame_mod, only: selected_frame, frame_selected_window_ref
     use window_mod, only: window_type, window_configuration_type, current_window_configuration, &
                           set_window_configuration, destroy_window_configuration, switch_to_buffer, temp_buffer_window_show, &
                           display_action_parameters_type, DISPLAY_ACTION_AT_BOTTOM, fit_window_to_buffer, get_buffer_window, &
                           delete_window, is_window_live, window_leaves, windows, same_window, window_text_cols
-    use fileio_mod, only: expand_file_name
+    use file_input_output_mod, only: expand_file_name
     use files_mod, only: find_file
     use minibuffer_mod, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use help_mod, only: with_output_to_temp_buffer
-    use xdisp_mod, only: message
-    use rect_mod, only: extract_rectangle, delete_extract_rectangle, insert_rectangle
+    use display_engine_mod, only: message
+    use rectangle_mod, only: extract_rectangle, delete_extract_rectangle, insert_rectangle
     use string_type_mod, only: string_type
     implicit none(type, external)
     private

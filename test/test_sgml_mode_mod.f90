@@ -27,18 +27,18 @@ module test_sgml_mode_mod
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer, close_buffer
-    use insdel_mod, only: insert
+    use insert_delete_mod, only: insert
     use value_mod, only: value_type, vtag, V_NAME, xsymbol, symbols
-    use editfns_mod, only: point, point_min, point_max, goto_char, widen, is_eob, buffer_substring
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, widen, is_eob, buffer_substring
     use indent_mod, only: indent_region
     use syntax_mod, only: parse_state_type, syntax_ppss
     use syntax_propertize_mod, only: syntax_propertize_chunk_size
-    use textprop_mod, only: get_text_property, next_single_char_property_change
+    use text_properties_mod, only: get_text_property, next_single_char_property_change
     use font_lock_mod, only: font_lock_ensure
     use modes_mod, only: minor_modes
     use bindings_mod, only: init_bindings
-    use sgml_mode_mod, only: sgml_mode, html_mode, sgml_delete_tag, sgml_quote, sgml_close_tag, sgml_tag, sgml_tag_last, &
-                             html_paragraph, &
+    use sgml_mode_mod, only: sgml_mode, html_mode, sgml_delete_tag, sgml_quote, sgml_close_tag, &
+                             sgml_tag, sgml_tag_last, html_paragraph, &
                              html_headline_1, html_image, html_ordered_list, html_div
     use keyboard_mod, only: kbd_store_bytes, discard_input
     implicit none(type, external)

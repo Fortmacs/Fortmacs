@@ -25,15 +25,15 @@
 !> kills its buffer.
 module test_simple_electric_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_min, goto_char, buffer_string
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_min, goto_char, buffer_string
     use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, last_message
-    use callint_mod, only: prefix_arg
+    use execute_interactively_mod, only: prefix_arg
     use frame_mod, only: selected_window_ref
     use window_mod, only: set_window_start
     use simple_mod, only: fundamental_mode, blink_matching_check_mismatch, blink_matching_paren, &

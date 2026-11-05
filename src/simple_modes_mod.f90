@@ -26,11 +26,11 @@ submodule(simple_mod) simple_modes_mod
     use value_mod, only: value_type
     use commands_mod, only: commands
     use data_mod, only: clear_all_local_variables
-    use subr_mod, only: execute_mode_hooks
+    use basic_subprograms_mod, only: execute_mode_hooks
     use keymap_mod, only: keymap_set, define_key
     use modes_mod, only: major_modes, minor_modes
     use buffer_mod, only: get_buffer, get_or_make_buffer, set_buffer, is_buffer_live, current_buffer
-    use xdisp_mod, only: messages_buffer_mode_function, message_log_echo, MESSAGES_BUFFER_NAME
+    use display_engine_mod, only: messages_buffer_mode_function, message_log_echo, MESSAGES_BUFFER_NAME
     use keyboard_mod, only: message_log_hook
     implicit none(type, external)
 

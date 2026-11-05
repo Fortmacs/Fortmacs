@@ -48,7 +48,7 @@
 module character_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
-    use uni_category_mod, only: category_runs, category_starts, category_ends, category_codes
+    use unicode_category_mod, only: category_runs, category_starts, category_ends, category_codes
     implicit none(type, external)
     private
 

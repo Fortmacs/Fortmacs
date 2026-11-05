@@ -32,11 +32,11 @@ module test_autorevert_mod
     use value_mod, only: value_type
     use buffer_mod, only: buffers, current, get_buffer, get_or_make_buffer, set_buffer, close_buffer, current_buffer, &
                           generate_new_buffer_name, is_buffer_live, restore_buffer_modified, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: buffer_string
-    use fileio_mod, only: write_region, set_file_times
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: buffer_string
+    use file_input_output_mod, only: write_region, set_file_times
     use files_mod, only: create_temp_file, delete_file, find_file_noselect, save_buffer, write_file, before_revert_hook
-    use timefns_mod, only: current_time, time_subtract, time_type
+    use time_functions_mod, only: current_time, time_subtract, time_type
     use keyboard_mod, only: read_event
     use modes_mod, only: minor_modes
     use bindings_mod, only: init_bindings

@@ -28,8 +28,8 @@ module test_newcomment_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_min, point_max, goto_char, buffer_string
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string
     use simple_mod, only: deactivate_mark
     use indent_mod, only: indent_tabs_mode
     use bindings_mod, only: init_bindings

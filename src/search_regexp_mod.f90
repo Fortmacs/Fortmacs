@@ -27,16 +27,16 @@
 submodule(search_mod) search_regexp_mod
     use commands_mod, only: commands
     use window_mod, only: same_handle
-    use regex_mod, only: re_pattern_buffer_type, re_registers_type, re_subject_type, re_compile_pattern, &
-                         re_search, re_match, string_to_subject, buffer_to_subject
+    use regular_expression_mod, only: re_pattern_buffer_type, re_registers_type, re_subject_type, re_compile_pattern, &
+                                      re_search, re_match, string_to_subject, buffer_to_subject
     use syntax_mod, only: syntax_table, syntax_modiff
-    use minibuf_mod, only: read_string
+    use minibuffer_reading_mod, only: read_string
     use casefiddle_mod, only: upcase_string, upcase_initials_string, upcase_region, upcase_initials_region, &
                               case_identifiers_as_words
-    use casetab_mod, only: is_lowercase, is_uppercase
+    use case_table_mod, only: is_lowercase, is_uppercase
     use syntax_mod, only: char_syntax_class, SWORD, SSYMBOL
-    use insdel_mod, only: replace_range
-    use editfns_mod, only: buffer_substring, goto_char
+    use insert_delete_mod, only: replace_range
+    use editing_functions_mod, only: buffer_substring, goto_char
     use buffer_mod, only: temp_set_point_both
     use error_mod, only: format_message, FM_ARGS_OUT_OF_RANGE
     implicit none(type, external)

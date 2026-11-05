@@ -31,7 +31,7 @@
 !>
 !> String and regexp search (`search_forward', `re_search_forward',
 !> `looking_at', `string_match' and their relatives) with the case table,
-!> a cache of compiled patterns and the match data.  regex_mod does
+!> a cache of compiled patterns and the match data.  regular_expression_mod does
 !> the matching.
 !>
 !> Positions in strings are 1-based character indices, as Fortran's
@@ -50,7 +50,7 @@ module search_mod
     use print_mod, only: fortran_string
     use data_mod, only: logical_setting_type
     use character_mod, only: string_char_and_length, char_bytes, is_char_head
-    use casetab_mod, only: case_canon
+    use case_table_mod, only: case_canon
     use buffer_mod, only: buffers, current, buf_prev_char_len, temp_set_point_both, buf_fetch_char, &
                           buf_next_char_len, current_buffer
     use marker_mod, only: char_to_byte, byte_to_char

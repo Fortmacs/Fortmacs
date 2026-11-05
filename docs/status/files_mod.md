@@ -109,5 +109,5 @@ minor modes on the -*- line
 
 test_files_mod (ports files-tests-make-directory, files-tests-revert-buffer, files-tests-make-temp-file-empty-prefix; otherwise own: files-tests.el needs file name handlers, the minibuffer and hooks),
 test_derived_mod (ports part of files-tests--bug75961),
-test_dired_mode_mod (ports files-tests-insert-directory-wildcard-in-dir-p, files-tests-insert-directory-shows-files);
+test_directory_editor_mode_mod (ports files-tests-insert-directory-wildcard-in-dir-p, files-tests-insert-directory-shows-files);
 test_files_copy_mod (ports files-tests-file-modes-symbolic-to-number, files-tests-file-modes-number-to-symbolic, files-tests-copy-directory; own tests of copy-file, rename-file, add-name-to-file, file-in-directory-p, make-empty-file)

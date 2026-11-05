@@ -23,27 +23,27 @@
 !> `disable-command`.
 module test_novice_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type
-    use callint_mod, only: find_command, command_type
+    use execute_interactively_mod, only: find_command, command_type
     use commands_mod, only: commands
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, buffer_string, point_max
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, buffer_string, point_max
     use simple_mod, only: push_mark
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, command_loop
-    use callint_mod, only: prefix_arg
+    use execute_interactively_mod, only: prefix_arg
     use bindings_mod, only: init_bindings
     use novice_mod, only: enable_command, disable_command, disabled_command_function, init_novice
-    use help_fns_mod, only: describe_variable_text
+    use help_functions_mod, only: describe_variable_text
     use keyboard_mod, only: disabled_command_function_variable
     use names_mod, only: user_init_file
-    use fileio_mod, only: expand_file_name, create_directory_internal, delete_file_internal, fortmacs_wd, init_fileio
+    use file_input_output_mod, only: expand_file_name, create_directory_internal, delete_file_internal, fortmacs_wd, init_fileio
     use files_mod, only: find_file_noselect
     implicit none(type, external)
     private

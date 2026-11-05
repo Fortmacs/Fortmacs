@@ -24,7 +24,7 @@
 !> starts at 7k - 6.  The window has 10 lines of text.
 module test_window_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use commands_mod, only: commands
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
@@ -34,8 +34,8 @@ module test_window_mod
                           get_buffer, is_buffer_live
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, last_message
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, point
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, point
     use handle_mod, only: null_handle
     use frame_mod, only: selected_frame, frame_selected_window_ref, ensure_frame_windows
     use window_mod, only: window_type, set_window_buffer, set_window_start, window_start, delete_window_tree, &
@@ -60,7 +60,7 @@ module test_window_mod
     use simple_mod, only: goal_column
     use keyboard_mod, only: this_command, last_command, kbd_store_bytes, command_loop, &
                             discard_input
-    use callint_mod, only: prefix_arg
+    use execute_interactively_mod, only: prefix_arg
     use bindings_mod, only: init_bindings
     implicit none(type, external)
     private

@@ -19,7 +19,7 @@
 
 !> Entry point: executes the editor (`execute_editor' in fortmacs_mod) with the built-in
 !> configuration, which changes nothing.  `fortmacs --recompile' builds
-!> the user's init.f90 into a binary of its own (see config_mod), which an
+!> the user's init.f90 into a binary of its own (see configuration_mod), which an
 !> installed fortmacs runs instead.
 program fortmacs_main
     use fortmacs_mod, only: execute_editor

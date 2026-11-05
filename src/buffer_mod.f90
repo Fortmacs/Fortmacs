@@ -28,13 +28,13 @@
 !> `n + (n >= gpt_byte ? gap_size : 0)' (buffer.h:BUF_BYTE_ADDRESS).
 !>
 !> Buffers live in a registry and are referred to by `handle_type'.
-!> Lower layers (marker_mod, insdel_mod) work on the registry slot directly:
+!> Lower layers (marker_mod, insert_delete_mod) work on the registry slot directly:
 !> `buffers(i)' with `i' from `resolve_buffer', and `current' is the slot of
 !> the current buffer.  Everything else should go through the procedures.
 !>
-!> `close_buffer' and `erase_buffer' need marker_mod and insdel_mod, which
+!> `close_buffer' and `erase_buffer' need marker_mod and insert_delete_mod, which
 !> themselves use this module, so they are implemented in the submodule
-!> buffer_ops_mod (buffer_ops_mod.f90).
+!> buffer_operations_mod (buffer_operations_mod.f90).
 !>
 !> Deferred: indirect buffers, buffer-local variables, overlays,
 !> file visiting and locking, and hooks.
@@ -44,7 +44,7 @@ module buffer_mod
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                          FM_BUFFER_READ_ONLY, FM_INVALID_HANDLE
     use handle_mod, only: handle_type, slot_table_type, null_handle, has_handle, same_handle
-    use timefns_mod, only: time_type
+    use time_functions_mod, only: time_type
     use value_mod, only: value_type, make_symbol_ref
     use names_mod, only: intern
     use data_mod, only: symbol_value, integer_setting_type, logical_setting_type, function_setting_type, history_setting_type
@@ -169,7 +169,7 @@ module buffer_mod
         logical :: bidi_display_reordering = .true.
         !> BVAR bidi_paragraph_direction (`bidi_paragraph_direction'): 0
         !> to determine each paragraph's direction dynamically, 1
-        !> (`left-to-right') or 2 (`right-to-left') to force it (bidi_mod
+        !> (`left-to-right') or 2 (`right-to-left') to force it (bidirectional_mod
         !> L2R and R2L).
         integer :: bidi_paragraph_direction = 0
         !> BVAR read_only.
@@ -195,7 +195,7 @@ module buffer_mod
         type(handle_type) :: syntax_table
         !> BVAR downcase_table, upcase_table, case_canon_table and
         !> case_eqv_table: the case table and its companions (char-tables),
-        !> or null handles for the standard ones (casetab_mod).
+        !> or null handles for the standard ones (case_table_mod).
         type(handle_type) :: downcase_table, upcase_table, case_canon_table, case_eqv_table
         !> BVAR category_table: the category table, or the null handle for
         !> the standard one (category_mod).
@@ -360,7 +360,7 @@ module buffer_mod
     !>
     !> Buffer modifications store true in this variable.  Port of keyboard.c
     !> Vdeactivate_mark, the variable `deactivate_mark' (here because
-    !> insdel_mod sets it; renamed: the function is simple_mod's
+    !> insert_delete_mod sets it; renamed: the function is simple_mod's
     !> `deactivate_mark').
     logical, public :: deactivate_mark_variable = .false.
 
@@ -457,7 +457,7 @@ module buffer_mod
     interface
         !> Close buffer `h': unchain its markers, free its text, and if it was
         !> current make another buffer current.  Port of the core of
-        !> buffer.c:Fkill_buffer.  (In buffer_ops_mod.)
+        !> buffer.c:Fkill_buffer.  (In buffer_operations_mod.)
         recursive module subroutine close_buffer(h, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: h
@@ -465,7 +465,7 @@ module buffer_mod
         end subroutine close_buffer
 
         !> Widen and delete all text of the current buffer.
-        !> Port of buffer.c:Ferase_buffer.  (In buffer_ops_mod.)
+        !> Port of buffer.c:Ferase_buffer.  (In buffer_operations_mod.)
         module subroutine erase_buffer(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -473,7 +473,7 @@ module buffer_mod
 
         !> Execute `buffer_list_update_hook' unless buffer slot I inhibits
         !> buffer hooks.  Port of buffer.c:run_buffer_list_update_hook.
-        !> (In buffer_ops_mod.)
+        !> (In buffer_operations_mod.)
         recursive module subroutine execute_buffer_list_update_hook(i, status)
             implicit none(type, external)
             integer(int64), intent(in) :: i
@@ -484,7 +484,7 @@ module buffer_mod
         !> If there is no such live buffer, return the null handle.
         !> See also `find_buffer_visiting'.
         !> Port of buffer.c:Ffind_buffer (the null handle for none).  (In
-        !> buffer_ops_mod.)
+        !> buffer_operations_mod.)
         module function find_buffer(variable, value) result(h)
             implicit none(type, external)
             type(value_type), intent(in) :: variable, value
@@ -493,7 +493,7 @@ module buffer_mod
 
         !> Define the commands of buffer.c.  Port of buffer.c:syms_of_buffer
         !> (its commands; its variables are typed settings).  (In
-        !> buffer_ops_mod.)
+        !> buffer_operations_mod.)
         module subroutine init_buffer_commands()
             implicit none(type, external)
         end subroutine init_buffer_commands
@@ -712,7 +712,7 @@ contains
     end subroutine get_or_make_buffer
 
     !> The live buffer visiting `filename', or the null handle.  The caller
-    !> passes the expanded name (fileio_mod's `expand_file_name', which
+    !> passes the expanded name (file_input_output_mod's `expand_file_name', which
     !> depends on this module).  Port of buffer.c:Fget_file_buffer (no file
     !> name handlers).
     function get_file_buffer(filename) result(h)
@@ -1363,7 +1363,7 @@ contains
     !> With optional true ALL, force redisplay of all mode lines, tab lines and
     !> header lines.  This function also forces recomputation of the
     !> menu bar menus and the frame title.
-    !> Port of buffer.c:Fforce_mode_line_update.  Redisplay (xdisp_mod)
+    !> Port of buffer.c:Fforce_mode_line_update.  Redisplay (display_engine_mod)
     !> recomputes every mode line and header line each time, so there is
     !> no update_mode_lines flag to set: the next redisplay shows them.
     subroutine force_mode_line_update(all)

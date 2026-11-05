@@ -41,7 +41,7 @@
 !> (FETCH_CHAR_AS_MULTIBYTE).
 submodule(syntax_mod) syntax_scan_mod
     use buffer_mod, only: temp_set_point_both
-    use editfns_mod, only: validate_region
+    use editing_functions_mod, only: validate_region
     use search_mod, only: scan_newline
     use print_mod, only: fortran_string
     implicit none(type, external)

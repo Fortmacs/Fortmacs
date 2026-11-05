@@ -27,11 +27,11 @@ submodule(simple_mod) simple_fill_mod
     use value_mod, only: value_type
     use commands_mod, only: commands
     use buffer_mod, only: fill_column, FILL_COLUMN_NONE, auto_fill_function
-    use cmds_mod, only: internal_auto_fill_hook, end_of_line, post_self_insert_hook
+    use editing_commands_mod, only: internal_auto_fill_hook, end_of_line, post_self_insert_hook
     use hooks_mod, only: hook_type
     use indent_mod, only: current_column, move_to_column, indent_to_left_margin, indent_according_to_mode
-    use editfns_mod, only: point_marker
-    use subr_mod, only: read_number
+    use editing_functions_mod, only: point_marker
+    use basic_subprograms_mod, only: read_number
     use fill_mod, only: current_justification, current_fill_column, fill_context_prefix, &
                         fill_move_to_break_point, justify_current_line, unjustify_current_line, string_width, &
                         adaptive_fill_mode, fill_indent_according_to_mode, DEFAULT_JUSTIFICATION_NONE, DEFAULT_JUSTIFICATION_LEFT, &
@@ -39,9 +39,9 @@ submodule(simple_mod) simple_fill_mod
     use paragraphs_mod, only: forward_paragraph, page_delimiter, init_paragraph_variables
     use indent_mod, only: current_left_margin, move_to_left_margin, indent_to
     use search_mod, only: string_match
-    use insdel_mod, only: insert_before_markers
+    use insert_delete_mod, only: insert_before_markers
     use modes_mod, only: minor_modes
-    use abbrev_mod, only: abbrev_mode
+    use abbreviation_mod, only: abbrev_mode
     use newcomment_mod, only: comment_start, comment_auto_fill_only_comments
     implicit none(type, external)
 

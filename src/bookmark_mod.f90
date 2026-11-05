@@ -63,7 +63,7 @@
 !> variables, format upgrades and `bookmark_load_hook'.
 module bookmark_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use callint_mod, only: PREFIX_NONE, PREFIX_RAW
+    use execute_interactively_mod, only: PREFIX_NONE, PREFIX_RAW
     use error_mod, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_USER_ERROR, &
                          FM_FILE_ERROR, FM_BOOKMARK_ERROR_NO_FILENAME, format_message
     use handle_mod, only: handle_type
@@ -75,46 +75,46 @@ module bookmark_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           buffer_list, erase_buffer, close_buffer, buffer_serial_live, generate_new_buffer_name, &
                           restore_buffer_modified
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_min, point_max, buffer_substring, buffer_string, delete_region, &
-                           following_char, pos_bol, pos_eol, widen, is_bol, is_eob, user_full_name, user_login_name, &
-                           system_name
-    use timefns_mod, only: current_time_string
-    use cmds_mod, only: forward_line, beginning_of_line, end_of_line, delete_char, forward_char
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_substring, buffer_string, delete_region, &
+                                     following_char, pos_bol, pos_eol, widen, is_bol, is_eob, user_full_name, user_login_name, &
+                                     system_name
+    use time_functions_mod, only: current_time_string
+    use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line, delete_char, forward_char
     use syntax_mod, only: forward_word
     use simple_mod, only: push_mark
     use search_mod, only: search_forward, search_backward, match_beginning, match_end
-    use fileio_mod, only: is_file_readable, expand_file_name, file_name_nondirectory, file_name_directory, &
-                          directory_file_name, file_attributes
-    use sysdep_mod, only: file_stat_type, fortmacs_clock_realtime
+    use file_input_output_mod, only: is_file_readable, expand_file_name, file_name_nondirectory, file_name_directory, &
+                                     directory_file_name, file_attributes
+    use system_dependent_mod, only: file_stat_type, fortmacs_clock_realtime
     use files_mod, only: find_file_noselect, abbreviate_file_name, write_file, revert_buffer_function
     use frame_mod, only: selected_frame, selected_window
     use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
                                   set_tabulated_list_entries, set_tabulated_list_padding, set_tabulated_list_sort_key, &
                                   clear_tabulated_list_sort_key, tabulated_list_init_header, tabulated_list_print, &
                                   tabulated_list_get_id, tabulated_list_put_tag, tabulated_list_revert_hook
-    use dired_mode_mod, only: dired_directory_of
+    use directory_editor_mode_mod, only: dired_directory_of
     use derived_mod, only: is_derived_mode
-    use config_mod, only: state_directory
+    use configuration_mod, only: state_directory
     use coding_mod, only: coding_system_for_write, buffer_file_coding_system, coding_system_base
-    use itree_mod, only: make_overlay, overlay_put, overlay_get, overlays_in, destroy_overlay
+    use interval_tree_mod, only: make_overlay, overlay_put, overlay_get, overlays_in, destroy_overlay
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, is_keymap_live, destroy_keymap, keymap_set
     use keyboard_mod, only: exit_fortmacs_hook
-    use callint_mod, only: current_prefix_arg
-    use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, completion_ignore_case
-    use minibuf_table_mod, only: completion_table_type, TABLE_LIST
+    use execute_interactively_mod, only: current_prefix_arg
+    use minibuffer_reading_mod, only: read_from_minibuffer, minibuffer_local_map, completion_ignore_case
+    use minibuffer_reading_tables_mod, only: completion_table_type, TABLE_LIST
     use minibuffer_mod, only: completing_read, read_file_name, REQUIRE_MATCH_OTHER, REQUIRE_MATCH_CONFIRM
-    use fns_mod, only: read_yes_or_no, is_string_collate_less, is_string_less
-    use subr_mod, only: add_to_history, read_y_or_n, make_progress_reporter, progress_reporter_done, &
-                        progress_reporter_type
-    use dispnew_mod, only: ding
+    use utility_functions_mod, only: read_yes_or_no, is_string_collate_less, is_string_less
+    use basic_subprograms_mod, only: add_to_history, read_y_or_n, make_progress_reporter, progress_reporter_done, &
+                                     progress_reporter_type
+    use display_update_mod, only: ding
     use help_mod, only: substitute_command_keys
     use window_mod, only: windows, get_buffer_window, set_window_point, pop_to_buffer, pop_to_buffer_same_window, &
                           switch_to_buffer_other_window, quit_window, window_configuration_type, &
                           current_window_configuration, set_window_configuration, display_action_parameters_type, switch_to_buffer
     use faces_mod, only: named_face_type, face_attrs, display_when, FACE_CLASS_COLOR, FACE_CLASS_GRAYSCALE, &
                          FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
-    use xdisp_mod, only: message
+    use display_engine_mod, only: message
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, &
                             NAMELIST_STRING, NAMELIST_INTEGER
     use string_type_mod, only: string_type, append_string, prepend_string
@@ -655,7 +655,7 @@ contains
     ! Whether RECORD is named NAME, as assoc-string compares them (ignoring
     ! case if `bookmark_completion_ignore_case').  Not a port.
     logical function name_matches(record, name) result(match)
-        use fns_mod, only: compare_strings, COMPARE_EQUAL
+        use utility_functions_mod, only: compare_strings, COMPARE_EQUAL
         type(bookmark_type), intent(in) :: record
         character(len=*), intent(in) :: name
 
@@ -3647,7 +3647,7 @@ contains
     contains
 
         integer function char_at(pos)
-            use editfns_mod, only: char_after
+            use editing_functions_mod, only: char_after
             integer(int64), intent(in) :: pos
             integer(int32) :: c
             logical :: found
@@ -3718,7 +3718,7 @@ contains
     !> Incremental search of bookmarks, hiding the non-matches as we go.
     !> Port of bookmark.el:bookmark-bmenu-search.
     recursive subroutine bookmark_bmenu_search(status)
-        use minibuf_mod, only: read_string, minibuffer_setup_hook
+        use minibuffer_reading_mod, only: read_string, minibuffer_setup_hook
         use timer_mod, only: is_timer, destroy_timer
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bmk, pattern
@@ -3748,7 +3748,7 @@ contains
     ! the minibuffer's contents every `bookmark_search_delay' seconds of
     ! idleness.  Not a port.
     recursive subroutine bmenu_search_setup(status)
-        use minibuf_mod, only: minibuffer_setup_hook
+        use minibuffer_reading_mod, only: minibuffer_setup_hook
         use timer_mod, only: execute_with_idle_timer
         type(status_type), intent(out) :: status
 
@@ -3760,7 +3760,7 @@ contains
 
     ! Not a port.
     recursive subroutine bmenu_search_filter(status)
-        use minibuf_mod, only: minibuffer_contents
+        use minibuffer_reading_mod, only: minibuffer_contents
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(status_type) :: st
@@ -3803,7 +3803,7 @@ contains
     !> See user option `bookmark_fringe_mark'.  Port of
     !> bookmark.el:bookmark--set-fringe-mark.
     subroutine bookmark_set_fringe_mark()
-        use textprop_mod, only: propertize
+        use text_properties_mod, only: propertize
         type(handle_type) :: bm
         type(status_type) :: st
         type(value_type) :: spec(3), props(2)
@@ -3877,7 +3877,7 @@ contains
 
     ! Narrow back to BEGV..ZV (save-restriction).  Not a port.
     subroutine restore_restriction(begv, zv)
-        use editfns_mod, only: narrow_to_region
+        use editing_functions_mod, only: narrow_to_region
         integer(int64), intent(in) :: begv, zv
         type(status_type) :: st
 

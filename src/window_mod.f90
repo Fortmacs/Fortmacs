@@ -26,7 +26,7 @@
 !> markers, so they follow insertions and deletions in its buffer.
 module window_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle, slot_table_type, same_handle
     use hooks_mod, only: window_position_hook_type
@@ -810,7 +810,7 @@ module window_mod
             implicit none(type, external)
         end subroutine init_window_commands
 
-        ! The window tree and buffer display, in submodule window_cmds_mod.
+        ! The window tree and buffer display, in submodule window_commands_mod.
 
         !> Select WINDOW which must be a live window.  Also make WINDOW's
         !> buffer current and make WINDOW the frame's selected window; point

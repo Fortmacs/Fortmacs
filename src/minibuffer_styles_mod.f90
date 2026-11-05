@@ -40,7 +40,7 @@
 submodule(minibuffer_mod) minibuffer_styles_mod
     use value_mod, only: value_type, vtag, V_STRING
     use search_mod, only: string_match, match_beginning, match_end, case_fold_search
-    use casetab_mod, only: downcase_char => downcase
+    use case_table_mod, only: downcase_char => downcase
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
 
@@ -943,7 +943,7 @@ contains
     !> unless that drops everything.  Port of
     !> minibuffer.el:completion-pcm--filename-try-filter.
     subroutine filename_try_filter(all)
-        use dired_mod, only: completion_ignored_extensions
+        use directory_editor_mod, only: completion_ignored_extensions
         type(string_type), allocatable, intent(inout) :: all(:)
         type(string_type), allocatable :: try(:)
         integer :: k, j, n

@@ -33,18 +33,18 @@ module test_bookmark_mod
     use data_mod, only: set, symbol_value
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, close_buffer, get_or_make_buffer, &
                           generate_new_buffer_name, restore_buffer_modified, get_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: buffer_string, goto_char, point_min, point_max, point
-    use cmds_mod, only: forward_line, beginning_of_line, forward_char
-    use regexp_opt_mod, only: regexp_unmatchable
-    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, file_attributes
-    use sysdep_mod, only: file_stat_type
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: buffer_string, goto_char, point_min, point_max, point
+    use editing_commands_mod, only: forward_line, beginning_of_line, forward_char
+    use regular_expression_optimization_mod, only: regexp_unmatchable
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, file_attributes
+    use system_dependent_mod, only: file_stat_type
     use files_mod, only: create_temp_file, delete_file, find_file_noselect, abbreviate_file_name
     use search_mod, only: string_match, looking_at, re_search_forward
     use derived_mod, only: is_derived_mode
     use window_mod, only: switch_to_buffer, window_configuration_type, current_window_configuration, same_handle, &
                           set_window_configuration
-    use subr_mod, only: history_delete_duplicates
+    use basic_subprograms_mod, only: history_delete_duplicates
     use bindings_mod, only: init_bindings
     use bookmark_mod, only: bookmark_type, bookmarks, bookmark_default_file, bookmark_bookmarks_timestamp, &
                             bookmark_save_flag, bookmark_use_annotations, &

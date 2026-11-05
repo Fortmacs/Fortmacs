@@ -26,10 +26,10 @@ module test_page_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_min, point_max, buffer_string, buffer_substring, widen, is_bob, &
-                           region_beginning, region_end
-    use cmds_mod, only: forward_char, forward_line
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, buffer_substring, widen, is_bob, &
+                                     region_beginning, region_end
+    use editing_commands_mod, only: forward_char, forward_line
     use search_mod, only: looking_at
     use bindings_mod, only: init_bindings
     use page_mod, only: forward_page, backward_page, mark_page, narrow_to_page, page_count_lines_page, page_what_page

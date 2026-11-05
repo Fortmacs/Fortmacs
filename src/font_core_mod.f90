@@ -49,13 +49,13 @@ module font_core_mod
                           restore_buffer_modified, current_buffer
     use handle_mod, only: handle_type
     use hooks_mod, only: hook_type, change_major_mode_hook
-    use subr_mod, only: after_change_major_mode_hook, after_hook_procedure
+    use basic_subprograms_mod, only: after_change_major_mode_hook, after_hook_procedure
     use derived_mod, only: is_derived_mode
-    use easy_mmode_mod, only: minor_mode_type
+    use easy_minor_mode_mod, only: minor_mode_type
     use modes_mod, only: minor_modes
     use commands_mod, only: commands
-    use textprop_mod, only: remove_list_of_text_properties
-    use editfns_mod, only: widen, narrow_to_region, point_min, point_max
+    use text_properties_mod, only: remove_list_of_text_properties
+    use editing_functions_mod, only: widen, narrow_to_region, point_min, point_max
     use syntax_mod, only: parse_state_type
     implicit none(type, external)
     private

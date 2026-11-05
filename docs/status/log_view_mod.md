@@ -41,4 +41,4 @@ directory-local variables
 
 ## Tests
 
-test_vc_mod (own: Git logs, n and p, d, m, U, RET)
+test_version_control_mod (own: Git logs, n and p, d, m, U, RET)

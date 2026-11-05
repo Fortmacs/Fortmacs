@@ -23,17 +23,17 @@
 !> `copy_directory', `is_file_in_directory', `is_file_equal',
 !> `create_empty_file' and the symbolic file modes
 !> (`file_modes_symbolic_to_number', `file_modes_number_to_symbolic'):
-!> a submodule because `copy_directory' uses dired_mod
-!> (`directory_files'), which uses files_mod.  It also gives fileio_mod the
+!> a submodule because `copy_directory' uses directory_editor_mod
+!> (`directory_files'), which uses files_mod.  It also gives file_input_output_mod the
 !> files.el procedures `rename_file' calls across file systems.
 submodule(files_mod) files_copy_mod
     use value_mod, only: list_elements, xstring
     use error_mod, only: FM_FILE_ALREADY_EXISTS
-    use sysdep_mod, only: S_IFMT, S_IFDIR, S_IFLNK
-    use dired_mod, only: directory_files
-    use timefns_mod, only: time_type, TIMESPEC_COUNT_RATE
-    use fileio_mod, only: copy_file, create_symbolic_link, file_symlink_target, set_file_times, default_file_modes, &
-                          copy_directory_hook, delete_directory_hook, delete_file_hook
+    use system_dependent_mod, only: S_IFMT, S_IFDIR, S_IFLNK
+    use directory_editor_mod, only: directory_files
+    use time_functions_mod, only: time_type, TIMESPEC_COUNT_RATE
+    use file_input_output_mod, only: copy_file, create_symbolic_link, file_symlink_target, set_file_times, default_file_modes, &
+                                     copy_directory_hook, delete_directory_hook, delete_file_hook
     implicit none(type, external)
 
 contains

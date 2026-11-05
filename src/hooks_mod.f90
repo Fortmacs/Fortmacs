@@ -58,9 +58,9 @@ module hooks_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_VOID_FUNCTION
     use value_mod, only: value_type, command_procedure, symbols, xsymbol, vtag, V_NULL, V_NAME
     use handle_mod, only: handle_type
-    use callint_mod, only: current_prefix_arg, prefix_arg_type
+    use execute_interactively_mod, only: current_prefix_arg, prefix_arg_type
     use buffer_mod, only: buffers, current
-    use minibuf_table_mod, only: capf_data_type
+    use minibuffer_reading_tables_mod, only: capf_data_type
     implicit none(type, external)
     private
 

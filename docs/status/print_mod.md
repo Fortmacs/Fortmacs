@@ -27,4 +27,4 @@ full keymaps' char-tables
 test_help_mod,
 test_marker_mod,
 test_keymap_mod,
-test_editfns_mod (floats through `format`)
+test_editing_functions_mod (floats through `format`)

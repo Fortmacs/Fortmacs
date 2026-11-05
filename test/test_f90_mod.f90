@@ -30,15 +30,15 @@ module test_f90_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_min, point_max, goto_char, buffer_string, buffer_substring, line_end_position
-    use cmds_mod, only: forward_line, beginning_of_line
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string, buffer_substring, line_end_position
+    use editing_commands_mod, only: forward_line, beginning_of_line
     use indent_mod, only: current_indentation, move_to_column, indent_rigidly
     use syntax_mod, only: skip_chars_forward, char_syntax
     use search_mod, only: string_match, match_beginning, match_end
     use bindings_mod, only: init_bindings
     use fill_mod, only: fill_paragraph
-    use regexp_opt_mod, only: regexp_opt, regexp_opt_charset, regexp_unmatchable
+    use regular_expression_optimization_mod, only: regexp_opt, regexp_opt_charset, regexp_unmatchable
     use f90_mod, only: f90_mode, f90_indent_region, f90_do_auto_fill, f90_indent_subprogram, f90_indent_line, &
                        f90_end_of_subprogram, f90_block_type, f90_smart_end, F90_SMART_END_NO_BLINK, &
                        f90_keywords_regexp, f90_program_block_regexp

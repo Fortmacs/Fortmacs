@@ -23,7 +23,7 @@
 
 module test_simple_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW
     use commands_mod, only: commands
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
@@ -34,12 +34,12 @@ module test_simple_mod
     use data_mod, only: set, value_eq
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, &
                           set_buffer_read_only
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_min, point_max, goto_char, buffer_string, buffer_substring, &
-                           delete_region, mark_position, region_beginning, region_end
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string, buffer_substring, &
+                                     delete_region, mark_position, region_beginning, region_end
     use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, last_command, this_command, &
                             last_message
-    use callint_mod, only: prefix_arg
+    use execute_interactively_mod, only: prefix_arg
     use bindings_mod, only: init_bindings
     use simple_mod, only: clipboard_history, copy_to_clipboard_history, append_to_clipboard_entry, current_clipboard_entry, &
                           cut_region, &
@@ -49,14 +49,14 @@ module test_simple_mod
                           delete_indentation, fill_prefix, transpose_chars, transpose_words, transpose_lines, &
                           delete_horizontal_space, just_one_space, fixup_whitespace, delete_blank_lines, &
                           cycle_spacing
-    use cmds_mod, only: forward_line, end_of_line, self_insert_command, delete_char, auto_fill_chars
+    use editing_commands_mod, only: forward_line, end_of_line, self_insert_command, delete_char, auto_fill_chars
     use simple_mod, only: newline, open_line, turn_on_auto_fill, turn_off_auto_fill, inhibit_auto_fill, &
                           end_of_buffer, indicate_copied_region, transient_mark_mode_hook, special_mode, &
                           fundamental_mode
     use keymap_mod, only: key_parse, key_binding
     use buffer_mod, only: left_margin, fill_column, transient_mark_mode, auto_fill_function
     use undo_mod, only: this_command_amalgamating
-    use callint_mod, only: mark_even_if_inactive, current_prefix_arg
+    use execute_interactively_mod, only: mark_even_if_inactive, current_prefix_arg
     use keyboard_mod, only: unread_command_events
     use character_mod, only: CHAR_META
     use error_mod, only: FM_MARK_INACTIVE
@@ -65,7 +65,7 @@ module test_simple_mod
     use window_mod, only: window_type, set_window_buffer, window_start, delete_window_tree, resize_window_tree, &
                           set_window_start
     use indent_mod, only: indent_tabs_mode
-    use editfns_mod, only: narrow_to_region, widen, pos_bol, pos_eol
+    use editing_functions_mod, only: narrow_to_region, widen, pos_bol, pos_eol
     implicit none(type, external)
     private
 
@@ -1314,7 +1314,7 @@ contains
     !> lines skips an invisible line; C-e and C-a treat an invisible
     !> newline as absent.
     subroutine test_line_motion_invisible(error)
-        use textprop_mod, only: put_text_property
+        use text_properties_mod, only: put_text_property
         use value_mod, only: value_type
         use simple_mod, only: line_move_visual
         type(error_type), allocatable, intent(out) :: error

@@ -24,15 +24,15 @@
 !> tests that run without a display).
 module test_indent_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, point
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, point
     use frame_mod, only: selected_frame, frame_selected_window_ref
     use window_mod, only: window_type
     use indent_mod, only: current_column, move_to_column, vertical_motion, screen_column, indent_to, &
@@ -40,7 +40,7 @@ module test_indent_mod
                           indent_next_tab_stop, indent_accumulate_tab_stops, tab_stops, indent_rigidly, &
                           indent_region
     use simple_mod, only: back_to_indentation, fill_prefix
-    use editfns_mod, only: buffer_string, point_max
+    use editing_functions_mod, only: buffer_string, point_max
     use keymap_mod, only: key_parse
     use simple_mod, only: line_move, goal_column, line_move_visual
     use keyboard_mod, only: unread_command_events, discard_input, command_loop, last_command
@@ -532,9 +532,9 @@ contains
     !> shown as an ellipsis) and count display strings and spaces, as GNU
     !> Emacs does.
     subroutine test_column_display_props(error)
-        use textprop_mod, only: put_text_property
+        use text_properties_mod, only: put_text_property
         use value_mod, only: list, value_type
-        use subr_mod, only: add_to_invisibility_spec
+        use basic_subprograms_mod, only: add_to_invisibility_spec
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -574,7 +574,7 @@ contains
 
     !> C-n moves by visible lines: a line made invisible is skipped.
     subroutine test_vertical_motion_invisible(error)
-        use textprop_mod, only: put_text_property
+        use text_properties_mod, only: put_text_property
         use value_mod, only: value_type
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -600,9 +600,9 @@ contains
     !> to END(k) invisible, after (move-to-column COLUMN t) from its start:
     !> its text from 1 to TO.
     function move_to_column_invis(text, starts, ends, column, to) result(got)
-        use textprop_mod, only: put_text_property
+        use text_properties_mod, only: put_text_property
         use value_mod, only: value_type
-        use editfns_mod, only: buffer_substring
+        use editing_functions_mod, only: buffer_substring
         character(len=*), intent(in) :: text
         integer(int64), intent(in) :: starts(:), ends(:), column, to
         character(len=:), allocatable :: got

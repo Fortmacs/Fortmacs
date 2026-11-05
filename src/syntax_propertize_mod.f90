@@ -38,28 +38,28 @@
 !> are not ported), `syntax_ppss_debug' and `syntax_ppss_stats'.
 module syntax_propertize_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use fns_mod, only: count_characters
+    use utility_functions_mod, only: count_characters
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, buffer_serial_live
     use value_mod, only: value_type, list, make_syntax_table_ref, vtag, V_NULL, V_NAME
     use data_mod, only: value_eq, append_locals_clearer
     use hooks_mod, only: region_hook_type, region_entry_type
-    use insdel_mod, only: before_change_functions
-    use textprop_mod, only: get_text_property, put_text_property, remove_text_properties, &
-                            previous_single_property_change, text_property_any
+    use insert_delete_mod, only: before_change_functions
+    use text_properties_mod, only: get_text_property, put_text_property, remove_text_properties, &
+                                   previous_single_property_change, text_property_any
     use syntax_mod, only: parse_state_type, parse_partial_expression, syntax_table, set_syntax_table, is_syntax_table_live, &
                           string_to_syntax, syntax_descriptor_type, syntax_descriptor_value, syntax_propertize_done, &
                           parse_expression_lookup_properties, internal_syntax_propertize, syntax_ppss_function
     use search_mod, only: re_search_forward, string_match, match_beginning, match_end, match_data, set_match_data, &
                           string_index_to_offset, SEARCH_NOERROR
-    use subr_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, &
-                        is_subregexp_context
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_bol, line_beginning_position, &
-                           inhibit_field_text_motion
+    use basic_subprograms_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, &
+                                     is_subregexp_context
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bol, line_beginning_position, &
+                                     inhibit_field_text_motion
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use xdisp_mod, only: message
-    use regexp_opt_mod, only: regexp_opt_depth
+    use display_engine_mod, only: message
+    use regular_expression_optimization_mod, only: regexp_opt_depth
     implicit none(type, external)
     private
 

@@ -32,15 +32,15 @@ module test_add_log_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, &
                           get_buffer, is_buffer_live
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, point, point_min, buffer_string
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, point, point_min, buffer_string
     use search_mod, only: search_forward, replace_match
-    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, create_directory_internal, &
-                          write_region
+    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
+                                     create_directory_internal, write_region
     use files_mod, only: delete_directory, abbreviate_file_name
     use keyboard_mod, only: discard_input
     use bindings_mod, only: init_bindings
-    use sh_script_mod, only: sh_mode
+    use shell_script_mod, only: sh_mode
     use diff_mode_mod, only: diff_mode, diff_add_log_current_subprograms
     use log_edit_mod, only: log_edit, generate_log_edit_changelog_from_diff
     use window_mod, only: pop_to_buffer, get_buffer_window, is_window_live

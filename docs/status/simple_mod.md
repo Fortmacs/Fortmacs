@@ -40,7 +40,7 @@ whitespace (`delete-horizontal-space` M-\, `delete-all-space`, `just-one-space`,
 `beginning-of-buffer` (M-<, C-<home>),
 `end-of-buffer` (M->, C-<end>),
 `count-lines`,
-fns.c `line-number-at-pos` (here, as fns_mod does not see buffer text);
+fns.c `line-number-at-pos` (here, as utility_functions_mod does not see buffer text);
 in the submodule simple_fill_mod: `do-auto-fill`,
 `internal-auto-fill`,
 `auto-fill-mode` (a command; minor modes come next),
@@ -55,7 +55,7 @@ in the submodule simple_fill_mod: `do-auto-fill`,
 in the submodule simple_modes_mod: `fundamental-mode`,
 `special-mode` with special-mode-map,
 the minor modes `transient-mark-mode` and `indent-tabs-mode`;
-`auto-fill-mode` is a buffer-local minor mode (easy_mmode_mod);
+`auto-fill-mode` is a buffer-local minor mode (easy_minor_mode_mod);
 `read-only-mode` (C-x C-q; a minor mode on `buffer-read-only`, entering and leaving View mode under `view-read-only`; `read-only-mode-hook`),
 `what-line` (in simple_view_mod, with its message returned as `what_line_text`),
 `messages-buffer-mode` and `messages-buffer` (simple_modes_mod);
@@ -117,4 +117,4 @@ test_bindings_mod ,
 test_simple_mod (ports simple-tests: kill-whole-line-after-other-kill, -buffer-boundaries, -line-boundaries, simple-delete-indentation-no-region, -inactive-region, -blank-line, -boundaries, -region, -prefix; own tests for the mark, the kill ring, transposition and whitespace) ,
 test_undo_mod,
 test_derived_mod,
-test_easy_mmode_mod
+test_easy_minor_mode_mod

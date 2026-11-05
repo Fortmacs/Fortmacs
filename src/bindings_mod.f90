@@ -27,7 +27,7 @@
 !> ported yet are left out rather than failing with `void_function'.
 module bindings_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
@@ -36,19 +36,19 @@ module bindings_mod
     use keymap_mod, only: make_keymap, make_sparse_keymap, define_key, &
                           define_key_range, use_global_map, set_keymap_parent, &
                           key_parse, is_keymap_live, destroy_keymap, set_repeat_map
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value, intern_command_names
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use page_mod, only: init_page
     use button_mod, only: init_button
     use keyboard_mod, only: local_function_key_map, init_macros_commands, init_keyboard_suspend_commands, help_events
-    use kmacro_mod, only: init_kmacro, kmacro_keymap
-    use cmds_mod, only: init_cmds, forward_char, backward_char
-    use dispnew_mod, only: init_display_commands
+    use keyboard_macros_mod, only: init_kmacro, kmacro_keymap
+    use editing_commands_mod, only: init_cmds, forward_char, backward_char
+    use display_update_mod, only: init_display_commands
     use simple_mod, only: init_simple, backward_word, region_bounds, is_region_noncontiguous
     use syntax_mod, only: init_syntax, forward_word
     use syntax_propertize_mod, only: init_syntax_propertize
-    use smie_mod, only: init_smie
+    use simple_minded_indentation_engine_mod, only: init_smie
     use executable_mod, only: init_executable
-    use sh_script_mod, only: init_sh_script
+    use shell_script_mod, only: init_sh_script
     use paragraphs_mod, only: init_paragraphs
     use expression_motion_mod, only: init_expression_motion
     use search_mod, only: init_search, begin_running_asynch_code, end_running_asynch_code
@@ -56,98 +56,98 @@ module bindings_mod
     use casefiddle_mod, only: init_casefiddle, casefiddle_region_bounds => region_bounds, &
                               casefiddle_is_region_noncontiguous => is_region_noncontiguous
     use novice_mod, only: init_novice
-    use fns_mod, only: init_fns
+    use utility_functions_mod, only: init_fns
     use indent_mod, only: init_indent
     use fill_mod, only: init_fill
-    use isearch_mod, only: init_isearch
+    use incremental_search_mod, only: init_isearch
     use window_mod, only: init_window_commands
     use frame_mod, only: init_frame_commands
     use buffer_mod, only: init_buffer_commands
     use files_mod, only: init_files
-    use vc_hooks_mod, only: init_vc_hooks
-    use vc_mod, only: init_vc
-    use vc_svn_mod, only: init_vc_svn
-    use vc_git_mod, only: init_vc_git
-    use vc_hg_mod, only: init_vc_hg
+    use version_control_hooks_mod, only: init_vc_hooks
+    use version_control_mod, only: init_vc
+    use version_control_subversion_mod, only: init_vc_svn
+    use version_control_git_mod, only: init_vc_git
+    use version_control_mercurial_mod, only: init_vc_hg
     use log_view_mod, only: init_log_view
-    use vc_dir_mod, only: init_vc_dir
+    use version_control_directory_mod, only: init_vc_dir
     use project_mod, only: init_project
-    use vc_annotate_mod, only: init_vc_annotate
+    use version_control_annotate_mod, only: init_vc_annotate
     use autorevert_mod, only: init_autorevert
     use repeat_mod, only: init_repeat
     use help_mod, only: init_help, register_keymap_name, help_map
-    use mule_mod, only: init_mule
-    use isearch_mod, only: isearch_mode_map
+    use multilingual_environment_mod, only: init_mule
+    use incremental_search_mod, only: isearch_mode_map
     use text_mode_mod, only: text_mode_map
-    use prog_mode_mod, only: prog_mode_map
+    use programming_mode_mod, only: prog_mode_map
     use simple_mod, only: special_mode_map
     use minibuffer_mod, only: minibuffer_local_completion_map, minibuffer_local_must_match_map, &
                               minibuffer_local_filename_completion_map, minibuffer_local_filename_must_match_map
-    use help_fns_mod, only: init_help_fns
+    use help_functions_mod, only: init_help_fns
     use apropos_mod, only: init_apropos
-    use minibuf_mod, only: init_minibuf, minibuffer_local_map
+    use minibuffer_reading_mod, only: init_minibuf, minibuffer_local_map
     use minibuffer_mod, only: init_minibuffer, completion_at_point
-    use subr_mod, only: init_subr
+    use basic_subprograms_mod, only: init_subr
     use text_mode_mod, only: init_text_mode
-    use conf_mode_mod, only: init_conf_mode
+    use configuration_mode_mod, only: init_conf_mode
     use make_mode_mod, only: init_make_mode
     use python_mod, only: init_python
     use css_mode_mod, only: init_css_mode
-    use js_mod, only: init_js
+    use javascript_mod, only: init_js
     use skeleton_mod, only: init_skeleton
     use sgml_mode_mod, only: init_sgml_mode
     use f90_mod, only: init_f90
-    use prog_mode_mod, only: init_prog_mode
+    use programming_mode_mod, only: init_prog_mode
     use font_core_mod, only: init_font_core
     use font_lock_mod, only: init_font_lock
-    use jit_lock_mod, only: init_jit_lock
-    use dired_mode_mod, only: init_dired_mode, dired_mode_map
+    use just_in_time_lock_mod, only: init_jit_lock
+    use directory_editor_mode_mod, only: init_dired_mode, dired_mode_map
     use view_mod, only: init_view
     use follow_mod, only: init_follow
     use process_mod, only: init_process, begin_asynch_code, end_asynch_code
     use compile_mod, only: init_compile, compilation_mode_map
     use grep_mod, only: init_grep
-    use xref_mod, only: init_xref
-    use etags_mod, only: init_etags
+    use cross_reference_mod, only: init_xref
+    use fortmacs_tags_mod, only: init_etags
     use diff_mode_mod, only: init_diff_mode
-    use smerge_mode_mod, only: init_smerge_mode
+    use simple_merge_mode_mod, only: init_smerge_mode
     use add_log_mod, only: init_add_log
     use diff_mod, only: init_diff
-    use ediff_mod, only: init_ediff
-    use comint_mod, only: init_comint, comint_mode_map
-    use pcomplete_mod, only: init_pcomplete
+    use fortmacs_diff_mod, only: init_ediff
+    use command_interpreter_mod, only: init_comint, comint_mode_map
+    use programmable_completion_mod, only: init_pcomplete
     use auth_source_mod, only: init_auth_source
     use ansi_color_mod, only: init_ansi_color
     use shell_mod, only: init_shell, shell_mode_map
-    use rect_mod, only: init_rect
-    use savehist_mod, only: init_savehist
+    use rectangle_mod, only: init_rect
+    use save_history_mod, only: init_savehist
     use winner_mod, only: init_winner
-    use windmove_mod, only: init_windmove
+    use window_move_mod, only: init_windmove
     use saveplace_mod, only: init_saveplace
-    use recentf_mod, only: init_recentf
+    use recent_files_mod, only: init_recentf
     use tabulated_list_mod, only: init_tabulated_list
     use simple_mod, only: init_simple_process
     use bookmark_mod, only: init_bookmark, bookmark_map, bookmark_minibuffer_read_name_map
     use info_mod, only: init_info
-    use info_look_mod, only: init_info_look
-    use buff_menu_mod, only: init_buff_menu
+    use info_lookup_mod, only: init_info_look
+    use buffer_menu_mod, only: init_buff_menu
     use calendar_mod, only: init_calendar
     use ibuffer_mod, only: init_ibuffer
-    use crm_mod, only: init_crm
+    use completing_read_multiple_mod, only: init_crm
     use register_mod, only: init_register
-    use abbrev_mod, only: init_abbrev, edit_abbrevs_mode_map
-    use dabbrev_mod, only: init_dabbrev
-    use ispell_mod, only: init_ispell
-    use flyspell_mod, only: init_flyspell
-    use paren_mod, only: init_paren
-    use imenu_mod, only: init_imenu
-    use which_func_mod, only: init_which_func
+    use abbreviation_mod, only: init_abbrev, edit_abbrevs_mode_map
+    use dynamic_abbreviation_mod, only: init_dabbrev
+    use spellcheck_mod, only: init_ispell
+    use spellcheck_mode_mod, only: init_flyspell
+    use parenthesis_mod, only: init_paren
+    use index_menu_mod, only: init_imenu
+    use which_function_mod, only: init_which_func
     use electric_mod, only: init_electric
-    use elec_pair_mod, only: init_elec_pair
+    use electric_pair_mod, only: init_elec_pair
     use newcomment_mod, only: init_newcomment
-    use mail_utils_mod, only: init_mail_utils
-    use sendmail_mod, only: init_sendmail, mail_mode_map
-    use mailabbrev_mod, only: init_mailabbrev
+    use mail_utilities_mod, only: init_mail_utils
+    use send_mail_mod, only: init_sendmail, mail_mode_map
+    use mail_abbreviations_mod, only: init_mailabbrev
     use simple_mod, only: init_simple_mail
     use modes_mod, only: minor_modes
     implicit none(type, external)

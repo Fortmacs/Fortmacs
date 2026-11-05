@@ -21,7 +21,7 @@
 
 !> Blinking matching parens (`blink_matching_open' from
 !> `post_self_insert_hook') and `newline_and_indent': a submodule because
-!> they read paren.el's and electric.el's modes (paren_mod, modes_mod),
+!> they read paren.el's and electric.el's modes (parenthesis_mod, modes_mod),
 !> which use simple_mod.
 !>
 !> Deferred: `blink_matching_paren_highlight_offscreen' and the face
@@ -34,15 +34,15 @@ submodule(simple_mod) simple_electric_mod
                           char_syntax, SCLOSE, SQUOTE
     use expression_motion_mod, only: forward_expression
     use syntax_propertize_mod, only: syntax_propertize
-    use editfns_mod, only: narrow_to_region, widen
+    use editing_functions_mod, only: narrow_to_region, widen
     use window_mod, only: window_pos_visible_p => is_pos_visible_in_window
     use frame_mod, only: selected_window
-    use itree_mod, only: make_overlay, move_overlay, delete_overlay, overlay_put, is_overlay
-    use paren_mod, only: show_paren_context_when_offscreen
+    use interval_tree_mod, only: make_overlay, move_overlay, delete_overlay, overlay_put, is_overlay
+    use parenthesis_mod, only: show_paren_context_when_offscreen
     use modes_mod, only: minor_modes
     use minibuffer_mod, only: minibuffer_message
     use font_lock_mod, only: font_lock_ensure
-    use cmds_mod, only: post_self_insert_hook
+    use editing_commands_mod, only: post_self_insert_hook
     use indent_mod, only: indent_according_to_mode
     use keyboard_mod, only: is_executing_kbd_macro, sit_for
     implicit none(type, external)

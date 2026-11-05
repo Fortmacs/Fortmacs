@@ -45,7 +45,7 @@
 !> variables).
 module log_edit_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, format_error
     use handle_mod, only: handle_type, null_handle
     use commands_mod, only: commands
@@ -56,26 +56,26 @@ module log_edit_mod
     use ring_mod, only: ring_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           erase_buffer, close_buffer, buffer_serial_live, generate_new_buffer_name
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_bol, is_eob, is_bob, buffer_substring, buffer_string, &
-                           delete_region, char_after, char_before, narrow_to_region, widen, line_end_position, &
-                           insert_buffer_substring
-    use cmds_mod, only: forward_line, end_of_line, forward_char, beginning_of_line
-    use insdel_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bol, is_eob, is_bob, buffer_substring, &
+                                buffer_string, delete_region, char_after, char_before, narrow_to_region, widen, line_end_position, &
+                                     insert_buffer_substring
+    use editing_commands_mod, only: forward_line, end_of_line, forward_char, beginning_of_line
+    use insert_delete_mod, only: insert
     use search_mod, only: looking_at, search_regexp_forward => re_search_forward, search_regexp_backward => re_search_backward, &
                           search_fwd => search_forward, search_bwd => search_backward, &
                           match_beginning, match_end, replace_match, string_match, regexp_quote, set_match_data, &
                           case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
-    use subr_mod, only: match_string, read_y_or_n, match_substitute_replacement
+    use basic_subprograms_mod, only: match_string, read_y_or_n, match_substitute_replacement
     use syntax_mod, only: skip_syntax_backward, skip_chars_forward
-    use textprop_mod, only: put_text_property
-    use fileio_mod, only: expand_file_name, file_name_directory, file_name_nondirectory, file_exists, &
-                          is_file_readable, insert_file_contents
+    use text_properties_mod, only: put_text_property
+    use file_input_output_mod, only: expand_file_name, file_name_directory, file_name_nondirectory, file_exists, &
+                                     is_file_readable, insert_file_contents
     use files_mod, only: file_relative_name, close_buffer_hook
-    use xdisp_mod, only: message
-    use dispnew_mod, only: ding
+    use display_engine_mod, only: message
+    use display_update_mod, only: ding
     use keyboard_mod, only: last_command
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
-    use minibuf_mod, only: read_string
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use minibuffer_reading_mod, only: read_string
     use help_mod, only: substitute_command_keys
     use simple_mod, only: rfc822_goto_eoh, push_mark, special_mode, delete_horizontal_space, do_auto_fill, &
                           normal_auto_fill_function
@@ -87,7 +87,7 @@ module log_edit_mod
                           display_buffer_mark_dedicated, DEDICATED_STRONG, display_buffer, get_buffer_window, &
                           bury_buffer, quit_windows_on, delete_window
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use callproc_mod, only: execute_process
+    use execute_process_mod, only: execute_process
     use derived_mod, only: is_derived_mode
     use modes_mod, only: major_modes
     use keymap_mod, only: keymap_set
@@ -95,11 +95,11 @@ module log_edit_mod
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
-    use pcvs_util_mod, only: cvs_insert_strings
+    use pcvs_utilities_mod, only: cvs_insert_strings
     use add_log_mod, only: find_change_log, add_log_find_changelog_buffer, change_log_mode, change_log_default_name, &
                            add_log_full_name, add_log_mailing_address, add_log_time_format, &
                            add_log_dont_create_changelog_file
-    use editfns_mod, only: user_full_name
+    use editing_functions_mod, only: user_full_name
     use startup_mod, only: user_mail_address_value
     use page_mod, only: forward_page
     use string_type_mod, only: string_type, append_string
@@ -339,14 +339,14 @@ module log_edit_mod
 
     interface
         !> Display diffs for the files to be committed.  Port of
-        !> log-edit.el:log-edit-diff-fileset.  (In log_edit_vc_mod.)
+        !> log-edit.el:log-edit-diff-fileset.  (In log_edit_version_control_mod.)
         recursive module subroutine log_edit_diff_fileset(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine log_edit_diff_fileset
 
         !> Provide help for the `log_edit_mode_map'.  Port of
-        !> log-edit.el:log-edit-mode-help.  (In log_edit_vc_mod.)
+        !> log-edit.el:log-edit-mode-help.  (In log_edit_version_control_mod.)
         recursive module subroutine log_edit_mode_help(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -362,7 +362,7 @@ module log_edit_mod
         !> Should you need to look at the diffs themselves, they can be found
         !> in the "*vc-diff*" buffer produced by this command.  Port of
         !> log-edit.el:log-edit-generate-changelog-from-diff.  (In
-        !> log_edit_vc_mod.)
+        !> log_edit_version_control_mod.)
         recursive module subroutine generate_log_edit_changelog_from_diff(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -2579,7 +2579,7 @@ contains
     ! Insert FUNC_NAMES, following ChangeLog formatting.
     ! Port of log-edit.el:log-edit--insert-filled-defuns.
     recursive subroutine log_edit_insert_filled_subprograms(func_names, status)
-        use cmds_mod, only: delete_char
+        use editing_commands_mod, only: delete_char
         type(string_type), intent(in) :: func_names(:)
         type(status_type), intent(out) :: status
         logical :: inside_paren_pair, first_line, found, more
@@ -2678,8 +2678,8 @@ contains
     recursive subroutine log_edit_fill_entry(status, done, justify)
         use add_log_mod, only: change_log_read_subprograms, change_log_unindented_file_names_regexp
         use fill_mod, only: fill_region, fill_indent_according_to_mode
-        use editfns_mod, only: line_beginning_position
-        use subr_mod, only: replace_regexp_in_region, replace_string_in_region
+        use editing_functions_mod, only: line_beginning_position
+        use basic_subprograms_mod, only: replace_regexp_in_region, replace_string_in_region
         type(status_type), intent(out) :: status
         logical, intent(out) :: done
         integer, intent(in), optional :: justify
@@ -2806,7 +2806,7 @@ contains
 
     ! Port of log-edit.el:log-edit-done-strip-cvs-lines (its body).
     recursive subroutine strip_cvs_lines(interactive, status)
-        use vc_hooks_mod, only: vc_backends
+        use version_control_hooks_mod, only: vc_backends
         use search_mod, only: case_fold_search
         use replace_mod, only: flush_lines
         logical, intent(in) :: interactive

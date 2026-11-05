@@ -41,19 +41,20 @@ module repeat_mod
     use hooks_mod, only: hook_type, hook_current_prefix_arg
     use commands_mod, only: commands, builtin_command, BUILTIN_COMMAND_NAMES
     use modes_mod, only: minor_modes
-    use callint_mod, only: execute_interactively, current_prefix_arg, prefix_arg, this_command, current_minibuffer_command, &
-                           command_of, prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
+    use execute_interactively_mod, only: execute_interactively, current_prefix_arg, prefix_arg, this_command, &
+                                         current_minibuffer_command, &
+                                         command_of, prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use keyboard_mod, only: real_this_command, last_command_event, last_prefix_arg, last_repeatable_command, &
                             num_input_keys, set_transient_map, exit_transient_map, pre_command_hook, post_command_hook, &
                             last_message
     use keymap_mod, only: make_sparse_keymap, destroy_keymap, is_keymap_live, define_key, lookup_key, keymap_events, &
                           access_keymap, copy_keymap, key_parse, key_description, parse_modifiers, is_keymap
     use character_mod, only: CHAR_MODIFIER_MASK
-    use minibuf_mod, only: minibuf_level
+    use minibuffer_reading_mod, only: minibuf_level
     use timer_mod, only: execute_with_idle_timer, destroy_timer, is_timer
-    use xdisp_mod, only: message, message_nolog
-    use rmc_mod, only: rmc_choice_type, rmc_add_key_description
-    use editfns_mod, only: char_before
+    use display_engine_mod, only: message, message_nolog
+    use read_multiple_choice_mod, only: rmc_choice_type, rmc_add_key_description
+    use editing_functions_mod, only: char_before
     implicit none(type, external)
     private
 

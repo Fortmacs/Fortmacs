@@ -32,7 +32,7 @@ module test_apropos_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, current_buffer, is_buffer_live
     use frame_mod, only: selected_frame, ensure_frame_windows
     use window_mod, only: windows, delete_other_windows, switch_to_buffer, resize_window_tree
-    use editfns_mod, only: buffer_string, goto_char, point_max
+    use editing_functions_mod, only: buffer_string, goto_char, point_max
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
     use bindings_mod, only: init_bindings

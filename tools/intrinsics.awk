@@ -99,7 +99,7 @@
 #                internal `write' with edit descriptors.
 #   char-loop    a `do K = 1, min(len(A), len(B))' loop that orders the
 #                characters `A(K:K)' and `B(K:K)' with `<' or `>' (also
-#                through ichar or iachar): string-lessp by hand.  fns_mod's
+#                through ichar or iachar): string-lessp by hand.  utility_functions_mod's
 #                is_string_less is its port (`<' pads the shorter string
 #                with blanks) (R6-45).
 #   blank-skip   a `do while' whose body is only `if (S(K:K) /= C1 .and.
@@ -116,9 +116,9 @@
 #                version_less_or_equal (or version_le, is_version_le,
 #                is_version_less, is_version_less_or_equal,
 #                version_to_numbers), char_text or list_delq outside the
-#                module that holds the one port (fns_mod, files_dir_mod,
-#                data_mod, none, none, subr_mod: its version_type with the
-#                operators < <= == /= >= >, editfns_mod for char_to_string,
+#                module that holds the one port (utility_functions_mod, files_dir_mod,
+#                data_mod, none, none, basic_subprograms_mod: its version_type with the
+#                operators < <= == /= >= >, editing_functions_mod for char_to_string,
 #                none (pack)): a private copy of a Lisp function (R6-45).
 #
 # Logical user options named *_p upstream keep their names: they are
@@ -241,7 +241,7 @@ function check_loops(line, l, s, k, a, b, ca, cb, cond, terms, n, i, t, name, kk
         return
     }
     if (incl && (l ~ clregexp || l ~ clreverse)) {
-        finding(clline, "char-loop", depth > 0 ? pname[depth] : "?", " (use fns_mod's is_string_less)")
+        finding(clline, "char-loop", depth > 0 ? pname[depth] : "?", " (use utility_functions_mod's is_string_less)")
         incl = 0
     }
     if (incl && l ~ /^end[ \t]*(function|subroutine|procedure)/) incl = 0
@@ -469,19 +469,19 @@ BEGIN {
     n = split("int8 int16 int32 int64 real32 real64 real128 c_int c_long c_char", w, " ")
     for (i = 1; i <= n; i++) kinds[w[i]] = 1
     # The Lisp functions with one port, and its file (none for the last two).
-    helper["is_string_less"] = "fns_mod.f90"
+    helper["is_string_less"] = "utility_functions_mod.f90"
     helper["is_string_prefix"] = "files_dir_mod.f90"
     helper["string_to_number"] = "data_mod.f90"
     helper["int_text"] = ""
     helper["string_trim"] = ""
-    helper["version_less"] = "subr_mod.f90"
-    helper["version_less_or_equal"] = "subr_mod.f90"
-    helper["version_le"] = "subr_mod.f90"
-    helper["is_version_le"] = "subr_mod.f90"
-    helper["is_version_less"] = "subr_mod.f90"
-    helper["is_version_less_or_equal"] = "subr_mod.f90"
-    helper["version_to_numbers"] = "subr_mod.f90"
-    helper["char_text"] = "editfns_mod.f90"
+    helper["version_less"] = "basic_subprograms_mod.f90"
+    helper["version_less_or_equal"] = "basic_subprograms_mod.f90"
+    helper["version_le"] = "basic_subprograms_mod.f90"
+    helper["is_version_le"] = "basic_subprograms_mod.f90"
+    helper["is_version_less"] = "basic_subprograms_mod.f90"
+    helper["is_version_less_or_equal"] = "basic_subprograms_mod.f90"
+    helper["version_to_numbers"] = "basic_subprograms_mod.f90"
+    helper["char_text"] = "editing_functions_mod.f90"
     helper["list_delq"] = ""
     if (baseline != "") {
         while ((getline l <baseline) > 0) {

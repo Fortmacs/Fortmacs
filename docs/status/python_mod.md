@@ -42,5 +42,5 @@ the menu,
 ## Tests
 
 test_python_mod (ports python-tests.el's indentation, navigation, info, util and syntax tests: 126);
-test_imenu_mod (the index),
-test_which_func_mod
+test_index_menu_mod (the index),
+test_which_function_mod

@@ -51,19 +51,19 @@ module saveplace_mod
     use timer_mod, only: execute_with_timer, destroy_timer, is_timer
     use buffer_mod, only: buffers, current, buffer_list, set_buffer, current_buffer, get_or_make_buffer, &
                           generate_new_buffer_name, close_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, buffer_string
-    use fileio_mod, only: is_file_readable, expand_file_name, write_region, insert_file_contents
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, buffer_string
+    use file_input_output_mod, only: is_file_readable, expand_file_name, write_region, insert_file_contents
     use files_mod, only: find_file_hook, close_buffer_hook, abbreviate_file_name, revert_buffer_in_progress
-    use config_mod, only: state_directory
+    use configuration_mod, only: state_directory
     use coding_mod, only: coding_system_for_write
     use derived_mod, only: is_derived_mode
-    use dired_mode_mod, only: dired_initial_position_hook, dired_current_directory, dired_get_filename, &
-                              dired_goto_file, dired_subdir_dirs
+    use directory_editor_mode_mod, only: dired_initial_position_hook, dired_current_directory, dired_get_filename, &
+                                         dired_goto_file, dired_subdir_dirs
     use search_mod, only: string_match
     use keyboard_mod, only: exit_fortmacs_hook
-    use easy_mmode_mod, only: mode_called_interactively
-    use xdisp_mod, only: message
+    use easy_minor_mode_mod, only: mode_called_interactively
+    use display_engine_mod, only: message
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, &
                             NAMELIST_STRING, NAMELIST_INTEGER
     use string_type_mod, only: string_type

@@ -32,6 +32,6 @@ signals
 
 ## Tests
 
-test_xdisp_mod (runs the editor on a pty),
+test_display_engine_mod (runs the editor on a pty),
 test_files_mod,
 test_fortmacs_mod (options and the init file, on a pty)

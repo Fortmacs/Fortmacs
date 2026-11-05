@@ -35,7 +35,7 @@
 !> (`Electric_command_loop', `Electric_pop_up_window').
 module electric_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: prefix_arg_type, PREFIX_NONE
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
@@ -43,12 +43,12 @@ module electric_mod
                         append_locals_clearer
     use commands_mod, only: commands
     use hooks_mod, only: hook_type
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use buffer_mod, only: buffers, current, buffer_list, resolve_buffer, barf_if_buffer_read_only, buffer_serial_live
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use editfns_mod, only: point, goto_char, is_bol, is_eol, char_before, line_beginning_position
+    use editing_functions_mod, only: point, goto_char, is_bol, is_eol, char_before, line_beginning_position
     use syntax_mod, only: skip_chars_backward
-    use cmds_mod, only: post_self_insert_hook
+    use editing_commands_mod, only: post_self_insert_hook
     use keyboard_mod, only: last_command_event
     use indent_mod, only: indent_according_to_mode, indent_line_function, indent_line_function_name
     use simple_mod, only: newline, newline_and_indent, delete_horizontal_space

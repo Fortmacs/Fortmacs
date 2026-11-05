@@ -34,7 +34,7 @@
 !>
 !> Words: `scan_words' and `forward_word'.  Two word-constituent
 !> characters are in the same word unless they belong to different
-!> scripts (`char_script_table', charscript_mod), with the exceptions of
+!> scripts (`char_script_table', character_script_mod), with the exceptions of
 !> `word_combining_categories'; or, in the same script, the exceptions of
 !> `word_separating_categories' (category.c:word_boundary_p, with
 !> characters.el's values for those variables).
@@ -57,14 +57,14 @@ module syntax_mod
     use error_mod, only: format_message
     use buffer_mod, only: buffers, current, buf_fetch_char, buf_next_char_len, buf_prev_char_len
     use marker_mod, only: char_to_byte
-    use editfns_mod, only: point, goto_char, constrain_to_field, char_to_string
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use editing_functions_mod, only: point, goto_char, constrain_to_field, char_to_string
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use characters_mod, only: characters_syntax
     use category_mod, only: char_has_category
-    use charscript_mod, only: char_script
+    use character_script_mod, only: char_script
     use data_mod, only: logical_setting_type, integer_setting_type, forward_setting
     use value_mod, only: value_type, xfixnum, xhandle, list_elt, list, vtag, V_INTEGER, V_ARRAY, V_SYNTAX_TABLE
-    use textprop_mod, only: get_text_property
+    use text_properties_mod, only: get_text_property
     implicit none(type, external)
     private
 
@@ -246,7 +246,7 @@ module syntax_mod
 
     interface
         !> Port of syntax.c:skip_chars.  (In syntax_skip_mod, which can use
-        !> regex_mod for the character classes.)
+        !> regular_expression_mod for the character classes.)
         module function skip_chars(forwardp, string, status, lim) result(moved)
             implicit none(type, external)
             logical, intent(in) :: forwardp

@@ -40,7 +40,7 @@ annotations (`bookmark-use-annotations`, `bookmark-edit-annotation` with Edit-Bo
 the fringe mark overlay (`bookmark-fringe-mark`, `bookmark-face`),
 `bookmark-map`;
 error_mod's `bookmark-errors` and `bookmark-error-no-filename`;
-sysdep_mod's `fortmacs_clock_realtime` (clock_gettime) ,
+system_dependent_mod's `fortmacs_clock_realtime` (clock_gettime) ,
 the bookmark list (`bookmark-bmenu-list` and its aliases `list-bookmarks` and `edit-bookmarks`, C-x r l, Bookmark Menu mode with all its commands, `bookmark-bmenu-search`, `bookmark-bmenu-filter-alist-by-regexp`, the options of the list, `bookmark-menu-bookmark`, the list rebuilt when bookmarks change, annotations edited from it)
 
 ## Deferred

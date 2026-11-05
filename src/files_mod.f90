@@ -32,39 +32,39 @@
 !> handlers, trash (`delete_by_moving_to_trash').
 module files_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use hooks_mod, only: hook_type
     use error_mod, only: format_message, status_type, set_error, condition_matches, format_error, FM_GENERIC_ERROR, &
                          FM_USER_ERROR, FM_FILE_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type
-    use minibuf_table_mod, only: completion_test_procedure
+    use minibuffer_reading_tables_mod, only: completion_test_procedure
     use data_mod, only: integer_setting_type, logical_setting_type, choice_setting_type
     use buffer_mod, only: buffers, current, current_buffer, resolve_buffer, set_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, get_file_buffer, &
                           buffer_list, close_buffer, erase_buffer, set_buffer_read_only, &
                           rename_buffer, restore_buffer_modified, buffer_serial_live, execute_close_buffer_hook
-    use fileio_mod, only: open_dribble_file
-    use fileio_mod, only: file_stat_type, expand_file_name, file_name_directory, is_directory_name, &
-                          file_name_nondirectory, directory_file_name, file_name_as_directory, &
-                          get_homedir, file_exists, is_file_readable, is_file_writable, &
-                          is_file_directory, is_file_accessible_directory, file_attributes, &
-                          file_modes, set_file_modes, rename_file, copy_file, &
-                          insert_file_contents, write_region, is_visited_file_modtime_current, &
-                          is_file_regular, is_file_symlink, user_uid, group_gid, &
-                          create_directory_internal
+    use file_input_output_mod, only: open_dribble_file
+    use file_input_output_mod, only: file_stat_type, expand_file_name, file_name_directory, is_directory_name, &
+                                     file_name_nondirectory, directory_file_name, file_name_as_directory, &
+                                     get_homedir, file_exists, is_file_readable, is_file_writable, &
+                                     is_file_directory, is_file_accessible_directory, file_attributes, &
+                                     file_modes, set_file_modes, rename_file, copy_file, &
+                                     insert_file_contents, write_region, is_visited_file_modtime_current, &
+                                     is_file_regular, is_file_symlink, user_uid, group_gid, &
+                                     create_directory_internal
     use keymap_mod, only: define_key
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: request_exit
-    use xdisp_mod, only: message
-    use editfns_mod, only: point, goto_char, point_min, point_max, char_after, widen, narrow_to_region, &
-                           format_message
-    use insdel_mod, only: insert
-    use subr_mod, only: read_y_or_n
-    use fns_mod, only: read_yes_or_no
+    use display_engine_mod, only: message
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, char_after, widen, narrow_to_region, &
+                                     format_message
+    use insert_delete_mod, only: insert
+    use basic_subprograms_mod, only: read_y_or_n
+    use utility_functions_mod, only: read_yes_or_no
     use derived_mod, only: major_mode_type, major_mode_named
-    use map_ynp_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK
+    use read_y_or_n_each_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK
     use window_mod, only: pop_to_buffer_same_window, switch_to_buffer_other_window, switch_to_buffer_other_frame
     use coding_mod, only: buffer_file_coding_system, last_coding_system_used
     use hooks_mod, only: hook_type, until_success_hook_type
@@ -238,7 +238,7 @@ module files_mod
             character(len=10) :: s
         end function file_modes_number_to_symbolic
 
-        !> Give fileio_mod's `rename_file' the files.el procedures it calls
+        !> Give file_input_output_mod's `rename_file' the files.el procedures it calls
         !> across file systems.  (In files_copy_mod.) Not a port.
         module subroutine init_files_copy()
             implicit none(type, external)
@@ -740,11 +740,11 @@ module files_mod
         end subroutine vc_save_procedure
     end interface
 
-    !> vc-hooks.el:vc-before-save, set by vc_hooks_mod (which is above
+    !> vc-hooks.el:vc-before-save, set by version_control_hooks_mod (which is above
     !> files_mod).
     procedure(vc_save_procedure), pointer, public :: vc_before_save_hook => null()
 
-    !> vc-hooks.el:vc-after-save, set by vc_hooks_mod.
+    !> vc-hooks.el:vc-after-save, set by version_control_hooks_mod.
     procedure(vc_save_procedure), pointer, public :: vc_after_save_hook => null()
 
     !> Values of `mode_require_final_newline' besides .true. and .false.
@@ -1100,7 +1100,7 @@ contains
     !> it means chase no more than that many links and then stop.  Port of
     !> files.el:file-chase-links.
     recursive subroutine file_chase_links(filename, newname, status, limit)
-        use fileio_mod, only: file_symlink_target
+        use file_input_output_mod, only: file_symlink_target
         character(len=*), intent(in) :: filename
         character(len=:), allocatable, intent(out) :: newname
         type(status_type), intent(out) :: status
@@ -1165,8 +1165,8 @@ contains
     !> in PATH ("" if COMMAND is not found anywhere in `exec_path').  Port of
     !> files.el:executable-find (`exec_path' is PATH; no REMOTE).
     subroutine executable_find(command, path)
-        use env_mod, only: getenv
-        use fileio_mod, only: is_file_executable
+        use environment_mod, only: getenv
+        use file_input_output_mod, only: is_file_executable
         character(len=*), intent(in) :: command
         character(len=:), allocatable, intent(out) :: path
         character(len=:), allocatable :: dir, search, entry, candidate

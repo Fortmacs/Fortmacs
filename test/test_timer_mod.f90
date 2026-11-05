@@ -34,7 +34,7 @@ module test_timer_mod
                          timer_check, timer_start_idle, timer_stop_idle, is_timer_active, is_timer_triggered, &
                          cancel_function_timers, current_idle_time
     use keyboard_mod, only: read_event, set_input_fd, sit_for, discard_input, last_message
-    use sysdep_mod, only: fortmacs_tty_type, open_pty, close_fd, init_sys_modes, reset_sys_modes, fortmacs_write
+    use system_dependent_mod, only: fortmacs_tty_type, open_pty, close_fd, init_sys_modes, reset_sys_modes, fortmacs_write
     implicit none(type, external)
     private
 

@@ -37,20 +37,20 @@ module winner_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
-    use callint_mod, only: command_type, this_command
+    use execute_interactively_mod, only: command_type, this_command
     use keyboard_mod, only: last_command, post_command_hook
     use commands_mod, only: commands
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, resolve_buffer
     use marker_mod, only: set_marker_restricted, make_marker
-    use editfns_mod, only: goto_char, mark_position
+    use editing_functions_mod, only: goto_char, mark_position
     use simple_mod, only: is_region_active, set_mark, activate_mark, deactivate_mark
     use search_mod, only: string_match
     use keymap_mod, only: make_sparse_keymap, is_keymap_live, destroy_keymap, keymap_set, set_repeat_map
     use value_mod, only: value_type
-    use minibuf_mod, only: minibuf_level, minibuffer_setup_hook
-    use xdisp_mod, only: message
+    use minibuffer_reading_mod, only: minibuf_level, minibuffer_setup_hook
+    use display_engine_mod, only: message
     use frame_mod, only: selected_frame
     use window_mod, only: window_configuration_type, current_window_configuration, set_window_configuration, &
                           destroy_window_configuration, copy_window_configuration, window_list, windows, &

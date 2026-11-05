@@ -1,6 +1,6 @@
 # calendar_mod
 
-- Module: calendar_mod, cal_move_mod (submodule)
+- Module: calendar_mod, calendar_movement_mod (submodule)
 - Upstream: calendar/calendar.el, calendar/cal-move.el
 - State: partial
 

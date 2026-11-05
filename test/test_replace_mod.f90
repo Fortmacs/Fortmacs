@@ -30,7 +30,7 @@
 !> (no Lisp).
 module test_replace_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type
@@ -39,24 +39,24 @@ module test_replace_mod
     use data_mod, only: set
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, is_buffer_live, buffers, current
     use error_mod, only: format_error
-    use editfns_mod, only: point, point_min, line_end_position, buffer_substring
+    use editing_functions_mod, only: point, point_min, line_end_position, buffer_substring
     use files_mod, only: revert_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, buffer_string
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, buffer_string
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
-    use callint_mod, only: prefix_arg
+    use execute_interactively_mod, only: prefix_arg
     use bindings_mod, only: init_bindings
-    use subr_mod, only: match_string
+    use basic_subprograms_mod, only: match_string
     use replace_mod, only: occur_edit_mode, occur_cease_edit
     use replace_mod, only: occur, occur_next, occur_mode_goto_occurrence, how_many, keep_lines, flush_lines, &
                            cut_matching_lines, copy_matching_lines, list_matching_lines_jump_to_current_line
     use replace_mod, only: perform_replace, replace_regexp, replace_quote, query_replace_defaults, &
                            replace_expand_count, query_replace_compile_replacement, read_regexp_suggestions, &
                            query_replace_read_from_suggestions
-    use subr_mod, only: query_replace_answer, ANSWER_SCROLL_DOWN, ANSWER_SCROLL_UP, ANSWER_SKIP, ANSWER_EXIT, &
-                        ANSWER_HELP, ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_ACT, &
-                        ANSWER_NONE
+    use basic_subprograms_mod, only: query_replace_answer, ANSWER_SCROLL_DOWN, ANSWER_SCROLL_UP, ANSWER_SKIP, ANSWER_EXIT, &
+                                     ANSWER_HELP, ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_ACT, &
+                                     ANSWER_NONE
     use data_mod, only: symbol_value
     use value_mod, only: list_length, list_elt, xstring, value_type
     use string_type_mod, only: string_type

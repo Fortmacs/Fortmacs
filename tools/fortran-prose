@@ -75,7 +75,7 @@ keep	"throw away"
 # form) implements Lisp data; the names branch rewrites it (PORTING.md,
 # "Decided, not yet applied": C1 to C5), and these keeps go with it.
 keep	src/value_mod.f90
-keep	src/fns_mod.f90
+keep	src/utility_functions_mod.f90
 keep	src/data_mod.f90
 keep	src/print_mod.f90
 keep	src/names_mod.f90
@@ -92,8 +92,8 @@ keep	""(EVENT . BINDING)" as upstream prints it"
 # "Pair" in senses that are not Lisp data: delimiters (Electric Pair
 # mode, insert_pair and delete_pair), Unicode's bracket pairs (UAX #9),
 # a pseudo-terminal pair, the verb, and upstream messages.
-keep	src/elec_pair_mod.f90
-keep	src/bidi_mod.f90
+keep	src/electric_pair_mod.f90
+keep	src/bidirectional_mod.f90
 keep	"pair of open and close characters"
 keep	"character pair"
 keep	"open/close pair"

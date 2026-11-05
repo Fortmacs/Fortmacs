@@ -27,4 +27,4 @@ the evaluator
 ## Tests
 
 test_derived_mod (ports subr-tests-add-hook-depth),
-test_insdel_mod
+test_insert_delete_mod

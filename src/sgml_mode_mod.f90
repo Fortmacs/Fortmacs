@@ -60,21 +60,21 @@ module sgml_mode_mod
                           parse_partial_expression, forward_comment, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
                           skip_syntax_backward, syntax_table, set_syntax_table, syntax_entry_at, ST_STRING_STYLE, &
                           syntax_descriptor_type, string_to_syntax, syntax_descriptor_value
-    use editfns_mod, only: point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, char_before, &
-                           line_beginning_position, line_end_position, narrow_to_region, widen, buffer_substring, &
-                           delete_region, following_char, preceding_char, char_to_string
-    use cmds_mod, only: forward_line, forward_char, self_insert_command, delete_char
-    use insdel_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, &
+                               char_before, line_beginning_position, line_end_position, narrow_to_region, widen, buffer_substring, &
+                                     delete_region, following_char, preceding_char, char_to_string
+    use editing_commands_mod, only: forward_line, forward_char, self_insert_command, delete_char
+    use insert_delete_mod, only: insert
     use indent_mod, only: current_column, current_indentation, indent_line_to, indent_line_function, &
                           indent_according_to_mode
     use search_mod, only: looking_at, re_search_forward, re_search_backward, search_backward, search_forward, &
                           string_match, match_beginning, match_end, replace_match, case_fold_search, regexp_quote, &
                           SEARCH_NOERROR, SEARCH_MOVE
-    use subr_mod, only: match_string, match_string_no_properties, looking_back
+    use basic_subprograms_mod, only: match_string, match_string_no_properties, looking_back
     use simple_mod, only: back_to_indentation, read_quoted_char, read_shell_command, reindent_then_newline_and_indent
-    use textprop_mod, only: put_text_property, get_text_property
+    use text_properties_mod, only: put_text_property, get_text_property
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use xdisp_mod, only: message
+    use display_engine_mod, only: message
     use faces_mod, only: named_face_type, display_when, face_attrs
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              font_lock_keywords_type, font_lock_keywords_level
@@ -85,7 +85,7 @@ module sgml_mode_mod
     use paragraphs_mod, only: paragraph_start, paragraph_separate
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type, &
                                      syntax_property_type, syntax_ppss_table
-    use regexp_opt_mod, only: regexp_opt, REGEXP_OPT_GROUP
+    use regular_expression_optimization_mod, only: regexp_opt, REGEXP_OPT_GROUP
     use undo_mod, only: undo_boundary
     use frame_mod, only: selected_window
     use window_mod, only: is_pos_visible_in_window
@@ -99,22 +99,22 @@ module sgml_mode_mod
                             skeleton_end_newline, skeleton_end_hook, SKELETON_NEWLINE, SKELETON_POINT, SKELETON_STRING, &
                             SKELETON_INDENT, SKELETON_END, SKELETON_RESUME, SKELETON_V2, SKELETON_IF_NOT_MOVED, &
                             SKELETON_NO_INTERACTOR
-    use callint_mod, only: prefix_arg_type, current_prefix_arg, prefix_numeric_value, PREFIX_NONE
-    use minibuf_mod, only: read_string, completion_table_type, completion_ignore_case
+    use execute_interactively_mod, only: prefix_arg_type, current_prefix_arg, prefix_numeric_value, PREFIX_NONE
+    use minibuffer_reading_mod, only: read_string, completion_table_type, completion_ignore_case
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use replace_mod, only: format_prompt
-    use subr_mod, only: read_y_or_n
+    use basic_subprograms_mod, only: read_y_or_n
     use simple_mod, only: newline_and_indent
     use buffer_mod, only: barf_if_buffer_read_only
     use casefiddle_mod, only: capitalize_string
-    use editfns_mod, only: user_full_name
+    use editing_functions_mod, only: user_full_name
     use startup_mod, only: user_mail_address
     use files_mod, only: file_relative_name
     use minibuffer_mod, only: read_file_name
     use print_mod, only: fortran_string
     use data_mod, only: history_setting_type
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
-    use imenu_mod, only: imenu_patterns, imenu_pattern_type, imenu_create_index_function, imenu_index_type
+    use index_menu_mod, only: imenu_patterns, imenu_pattern_type, imenu_create_index_function, imenu_index_type
     use string_type_mod, only: string_type, append_string
     use data_mod, only: choice_setting_type
     implicit none(type, external)
@@ -1254,7 +1254,7 @@ contains
     !> Name self unless in position to end a tag or a prefix ARG is given.
     !> Port of sgml-mode.el:sgml-maybe-end-tag.
     recursive subroutine sgml_maybe_end_tag(status)
-        use callint_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE
+        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE
         type(status_type), intent(out) :: status
         integer(int64) :: start
         integer :: ctype
@@ -1316,7 +1316,7 @@ contains
 
     ! The command `sgml_skip_tag_backward'.
     recursive subroutine cmd_sgml_skip_tag_backward(status)
-        use callint_mod, only: current_prefix_arg, prefix_numeric_value
+        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
         type(status_type), intent(out) :: status
         logical :: skipped
 
@@ -1384,7 +1384,7 @@ contains
 
     ! The command `sgml_skip_tag_forward'.
     recursive subroutine cmd_sgml_skip_tag_forward(status)
-        use callint_mod, only: current_prefix_arg, prefix_numeric_value
+        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
         type(status_type), intent(out) :: status
         logical :: skipped
 
@@ -1500,7 +1500,7 @@ contains
 
     ! The command `sgml_delete_tag'.
     recursive subroutine cmd_sgml_delete_tag(status)
-        use callint_mod, only: current_prefix_arg, prefix_numeric_value
+        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
         type(status_type), intent(out) :: status
 
         call sgml_delete_tag(prefix_numeric_value(current_prefix_arg), status)
@@ -1811,8 +1811,8 @@ contains
 
     ! The command `sgml_quote'.
     recursive subroutine cmd_sgml_quote(status)
-        use callint_mod, only: current_prefix_arg, PREFIX_NONE
-        use editfns_mod, only: region_beginning, region_end
+        use execute_interactively_mod, only: current_prefix_arg, PREFIX_NONE
+        use editing_functions_mod, only: region_beginning, region_end
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
@@ -1866,7 +1866,7 @@ contains
 
     ! The command `sgml_pretty_print'.
     recursive subroutine cmd_sgml_pretty_print(status)
-        use editfns_mod, only: region_beginning, region_end
+        use editing_functions_mod, only: region_beginning, region_end
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
@@ -2632,14 +2632,14 @@ contains
 
     ! The commands of the keymaps and the prefix argument wrappers.
     recursive subroutine cmd_sgml_slash(status)
-        use callint_mod, only: current_prefix_arg, prefix_numeric_value
+        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
         type(status_type), intent(out) :: status
 
         call sgml_slash(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_sgml_slash
 
     recursive subroutine cmd_sgml_slash_matching(status)
-        use callint_mod, only: current_prefix_arg, prefix_numeric_value
+        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
         type(status_type), intent(out) :: status
 
         call sgml_slash_matching(prefix_numeric_value(current_prefix_arg), status)

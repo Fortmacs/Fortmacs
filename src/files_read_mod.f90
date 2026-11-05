@@ -24,14 +24,14 @@ submodule(files_mod) files_read_mod
     use modes_mod, only: minor_modes
     use minibuffer_mod, only: read_file_name, REQUIRE_MATCH_NO, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION, &
                               read_file_name_completion_ignore_case, read_file_name_internal, completion_table_with_context
-    use minibuf_mod, only: all_completions
-    use minibuf_table_mod, only: completion_table_type, COMPLETE_BOUNDARIES
+    use minibuffer_reading_mod, only: all_completions
+    use minibuffer_reading_tables_mod, only: completion_table_type, COMPLETE_BOUNDARIES
     use value_mod, only: list, make_list, list_length, list_elt, xstring, value_type
-    use dired_mod, only: file_name_all_completions
-    use regexp_opt_mod, only: regexp_opt, REGEXP_OPT_GROUP
+    use directory_editor_mod, only: file_name_all_completions
+    use regular_expression_optimization_mod, only: regexp_opt, REGEXP_OPT_GROUP
     use search_mod, only: string_match, match_beginning
-    use fileio_mod, only: is_file_name_absolute
-    use fns_mod, only: compare_strings, COMPARE_EQUAL
+    use file_input_output_mod, only: is_file_name_absolute
+    use utility_functions_mod, only: compare_strings, COMPARE_EQUAL
     implicit none(type, external)
 
     abstract interface

@@ -1,6 +1,6 @@
 ! test_ibuffer_mod.f90 -- tests for ibuffer_mod.
 ! Ports GNU Emacs 31.1 test/lisp/ibuffer-tests.el in part;
-! ibuffer-test-Bug25000 here, the filter tests in test_ibuf_ext_mod, and
+! ibuffer-test-Bug25000 here, the filter tests in test_ibuffer_extensions_mod, and
 ! ibuffer-0autoload does not apply.
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
@@ -32,9 +32,9 @@ module test_ibuffer_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current_buffer, set_buffer, close_buffer, get_or_make_buffer, get_buffer, &
                           is_buffer_live, generate_new_buffer_name
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, point_min, point_max, pos_bol, pos_eol, buffer_substring, buffer_string
-    use cmds_mod, only: beginning_of_line
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, point_min, point_max, pos_bol, pos_eol, buffer_substring, buffer_string
+    use editing_commands_mod, only: beginning_of_line
     use search_mod, only: search_forward
     use bindings_mod, only: init_bindings
     use ibuffer_mod, only: ibuffer, ibuffer_update, ibuffer_unmark_all_marks, ibuffer_change_marks, &
@@ -43,7 +43,7 @@ module test_ibuffer_mod
                            ibuffer_current_mark, ibuffer_do_close_on_deletion_marks, ibuffer_expert, ibuffer_switch_format, &
                            ibuffer_toggle_marks, ibuffer_get_marked_buffers, ibuffer_do_sort_by, ibuffer_formats, &
                            ibuffer_column, ibuffer_text
-    use ibuf_macs_mod, only: ibuffer_formats_type, IBUFFER_ALIGN_RIGHT
+    use ibuffer_types_mod, only: ibuffer_formats_type, IBUFFER_ALIGN_RIGHT
     implicit none(type, external)
     private
 

@@ -72,21 +72,21 @@ module button_mod
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_min, point_max, buffer_substring_no_properties
-    use textprop_mod, only: get_text_property, put_text_property, add_text_properties, &
-                            next_single_property_change, previous_single_property_change, &
-                            next_single_char_property_change, previous_single_char_property_change, &
-                            get_char_property, get_char_property_and_overlay, remove_list_of_text_properties, &
-                            add_face_text_property
-    use itree_mod, only: make_overlay, overlay_put, overlay_get, overlay_start, overlay_end, overlays_in, &
-                         is_overlay, destroy_overlay
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_substring_no_properties
+    use text_properties_mod, only: get_text_property, put_text_property, add_text_properties, &
+                                   next_single_property_change, previous_single_property_change, &
+                                   next_single_char_property_change, previous_single_char_property_change, &
+                                   get_char_property, get_char_property_and_overlay, remove_list_of_text_properties, &
+                                   add_face_text_property
+    use interval_tree_mod, only: make_overlay, overlay_put, overlay_get, overlay_start, overlay_end, overlays_in, &
+                                 is_overlay, destroy_overlay
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, keymap_set
     use faces_mod, only: named_face_type, face_named, face_attrs, display_when, highlight
     use frame_mod, only: selected_window
-    use subr_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end
-    use xdisp_mod, only: message
+    use basic_subprograms_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end
+    use display_engine_mod, only: message
     use help_mod, only: substitute_command_keys, with_help_window, register_keymap_name
     implicit none(type, external)
     private

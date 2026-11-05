@@ -33,8 +33,8 @@ module test_expression_motion_mod
     use error_mod, only: status_type, FM_USER_ERROR
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, erase_buffer, transient_mark_mode
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_min, point_max, buffer_string, mark_position, widen
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, mark_position, widen
     use keyboard_mod, only: last_command
     use bindings_mod, only: init_bindings
     use syntax_mod, only: modify_syntax_entry, make_syntax_table, copy_syntax_table, set_syntax_table, destroy_syntax_table, &

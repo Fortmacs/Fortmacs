@@ -23,30 +23,30 @@
 !> `insert_directory' (running `insert_directory_program' through
 !> `execute_process'), `file_truename',
 !> `delete_file', `delete_directory', file size strings and
-!> `revert_buffer': a submodule because they use callproc_mod and dired_mod,
+!> `revert_buffer': a submodule because they use execute_process_mod and directory_editor_mod,
 !> which use files_mod.
 submodule(files_mod) files_dir_mod
     use value_mod, only: make_list, list_elements, xstring, value_type
     use names_mod, only: read_string_literal
-    use callproc_mod, only: execute_process, shell_file_name, init_callproc
-    use dired_mod, only: directory_files
+    use execute_process_mod, only: execute_process, shell_file_name, init_callproc
+    use directory_editor_mod, only: directory_files
     use search_mod, only: string_match, match_beginning, match_end, looking_at, string_index_to_offset
-    use subr_mod, only: match_string
-    use textprop_mod, only: put_text_property
-    use cmds_mod, only: forward_line
-    use editfns_mod, only: line_end_position, char_after, is_bol, is_eol
-    use fileio_mod, only: is_file_name_absolute, delete_file_internal, delete_directory_internal, file_system_info, &
-                          fortmacs_wd, create_temp_file_internal
+    use basic_subprograms_mod, only: match_string
+    use text_properties_mod, only: put_text_property
+    use editing_commands_mod, only: forward_line
+    use editing_functions_mod, only: line_end_position, char_after, is_bol, is_eol
+    use file_input_output_mod, only: is_file_name_absolute, delete_file_internal, delete_directory_internal, file_system_info, &
+                                     fortmacs_wd, create_temp_file_internal
     use character_mod, only: string_char_and_length, is_char_byte8
     use casefiddle_mod, only: downcase_string
     use minibuffer_mod, only: read_file_name_completion_ignore_case
-    use sysdep_mod, only: fortmacs_readlink
+    use system_dependent_mod, only: fortmacs_readlink
     use error_mod, only: FM_FILE_MISSING
     use search_mod, only: case_fold_search
-    use editfns_mod, only: buffer_substring, delete_region, pos_bol
+    use editing_functions_mod, only: buffer_substring, delete_region, pos_bol
     use buffer_mod, only: buf_fetch_char, buf_next_char_len
     use marker_mod, only: char_to_byte
-    use fileio_mod, only: report_file_errno
+    use file_input_output_mod, only: report_file_errno
     use string_type_mod, only: string_type
     implicit none(type, external)
 
@@ -1012,7 +1012,7 @@ contains
     !> are no auto-save files or indirect buffers, so it always reverts
     !> from the visited file).
     recursive subroutine revert_buffer_default(ignore_auto, noconfirm, status)
-        use fns_mod, only: read_yes_or_no
+        use utility_functions_mod, only: read_yes_or_no
         use buffer_mod, only: is_buffer_modified, inhibit_read_only
         use data_mod, only: set
         use value_mod, only: value_type
@@ -1086,7 +1086,7 @@ contains
     !> files.el:revert-buffer-insert-file-contents--default-function.
     recursive subroutine revert_buffer_insert_file_contents_default(file_name, auto_save_p, status)
         use coding_mod, only: coding_system_for_read, buffer_file_coding_system
-        use mule_mod, only: buffer_file_coding_system_explicit
+        use multilingual_environment_mod, only: buffer_file_coding_system_explicit
         character(len=*), intent(in) :: file_name
         logical, intent(in) :: auto_save_p
         type(status_type), intent(out) :: status
@@ -1142,9 +1142,9 @@ contains
     end subroutine revert_buffer_insert_file_contents_default
 
     module procedure file_backup_file_names
-    use dired_mod, only: file_name_all_completions
-    use fileio_mod, only: is_file_directory, is_file_newer_than_file, expand_file_name, file_name_directory, &
-                          file_name_nondirectory
+    use directory_editor_mod, only: file_name_all_completions
+    use file_input_output_mod, only: is_file_directory, is_file_newer_than_file, expand_file_name, file_name_directory, &
+                                     file_name_nondirectory
     character(len=:), allocatable :: name, expanded, dir, candidate, tmp
     type(value_type) :: all
     type(value_type), allocatable :: elts(:)

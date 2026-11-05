@@ -1,6 +1,6 @@
 # log_edit_mod
 
-- Module: log_edit_mod, log_edit_vc_mod (submodule)
+- Module: log_edit_mod, log_edit_version_control_mod (submodule)
 - Upstream: vc/log-edit.el
 - State: partial
 
@@ -29,7 +29,7 @@ the comment ring (M-n, M-p, M-r, M-s),
 `log-edit-rewrite-fixes` (two strings),
 `log-edit-done-strip-cvs-lines`,
 `log-edit-mode-help`,
-`log-edit-generate-changelog-from-diff` (C-c C-w, `generate_log_edit_changelog_from_diff` in log_edit_vc_mod: the diff function's buffer is caught through `display_buffer_overriding_action` with an action function and `display-buffer-no-window`, ported to window_mod for it)
+`log-edit-generate-changelog-from-diff` (C-c C-w, `generate_log_edit_changelog_from_diff` in log_edit_version_control_mod: the diff function's buffer is caught through `display_buffer_overriding_action` with an action function and `display-buffer-no-window`, ported to window_mod for it)
 
 ## Deferred
 

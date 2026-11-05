@@ -64,7 +64,7 @@ module keymap_mod
                              MAX_MULTIBYTE_LENGTH, char_string, &
                              string_char_and_length, multibyte_length
     use buffer_mod, only: buffers, current
-    use textprop_mod, only: get_char_property, get_pos_property
+    use text_properties_mod, only: get_char_property, get_pos_property
     use value_mod, only: command_type, defined_command, value_type
     use commands_mod, only: builtin_command
     implicit none(type, external)

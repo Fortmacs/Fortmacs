@@ -88,7 +88,7 @@
 !> (l).
 module compile_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: PREFIX_NONE, PREFIX_RAW
+    use execute_interactively_mod, only: PREFIX_NONE, PREFIX_RAW
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
@@ -98,29 +98,29 @@ module compile_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           buffer_list, erase_buffer, restore_buffer_modified
     use marker_mod, only: copy_marker_at, destroy_marker, marker_position, set_marker, marker_buffer, make_marker
-    use insdel_mod, only: insert, before_change_functions
-    use editfns_mod, only: point, point_min, point_max, goto_char, widen, narrow_to_region, &
-                           line_beginning_position, line_end_position, is_eob, is_bob, is_bol, buffer_size, &
-                           buffer_substring, point_marker
-    use textprop_mod, only: put_text_property, get_text_property, add_text_properties, &
-                            remove_list_of_text_properties, next_single_property_change, &
-                            previous_single_property_change, text_property_not_all
-    use cmds_mod, only: forward_line, beginning_of_line, end_of_line
+    use insert_delete_mod, only: insert, before_change_functions
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, widen, narrow_to_region, &
+                                     line_beginning_position, line_end_position, is_eob, is_bob, is_bol, buffer_size, &
+                                     buffer_substring, point_marker
+    use text_properties_mod, only: put_text_property, get_text_property, add_text_properties, &
+                                   remove_list_of_text_properties, next_single_property_change, &
+                                   previous_single_property_change, text_property_not_all
+    use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
     use indent_mod, only: move_to_column, current_column
     use syntax_mod, only: skip_chars_forward
     use search_mod, only: string_match, re_search_forward, match_end, match_data, set_match_data, replace_match, &
                           case_fold_search, SEARCH_NOERROR
-    use subr_mod, only: match_string, silent_modifications_type, silent_modifications_begin, silent_modifications_end
-    use env_mod, only: substitute_env_vars, getenv
-    use fileio_mod, only: expand_file_name, file_name_as_directory, is_file_name_absolute, is_file_directory, &
-                          file_exists, is_file_accessible_directory, file_name_directory, file_name_nondirectory
+    use basic_subprograms_mod, only: match_string, silent_modifications_type, silent_modifications_begin, silent_modifications_end
+    use environment_mod, only: substitute_env_vars, getenv
+    use file_input_output_mod, only: expand_file_name, file_name_as_directory, is_file_name_absolute, is_file_directory, &
+                                     file_exists, is_file_accessible_directory, file_name_directory, file_name_nondirectory
     use files_mod, only: abbreviate_file_name, save_some_buffers, find_file_noselect, file_truename
     use print_mod, only: readable_text
-    use fns_mod, only: read_yes_or_no
+    use utility_functions_mod, only: read_yes_or_no
     use hooks_mod, only: hook_type, change_major_mode_hook
     use keyboard_mod, only: sit_for
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
-    use xdisp_mod, only: message, mode_line_part_type, set_mode_line_process, append_mode_line_modes_entry, tab_width
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use display_engine_mod, only: message, mode_line_part_type, set_mode_line_process, append_mode_line_modes_entry, tab_width
     use window_mod, only: windows, display_buffer, set_window_start, set_window_point, pop_to_buffer, switch_to_buffer, &
                           get_buffer_window, select_window, display_action_parameters_type, pop_up_windows
     use frame_mod, only: selected_frame
@@ -129,14 +129,14 @@ module compile_mod
     use derived_mod, only: major_mode_type
     use simple_mod, only: special_mode_map, read_shell_command, shell_command_switch, next_error_last_buffer, &
                           set_next_error_function, next_error_find_buffer, next_error_internal, next_error, push_mark
-    use callproc_mod, only: shell_file_name, init_callproc
+    use execute_process_mod, only: shell_file_name, init_callproc
     use process_mod, only: make_process, get_buffer_process, process_status, &
                            process_query_on_exit_flag, interrupt_process, delete_process, process_buffer, &
                            process_exit_status, set_process_buffer, set_process_query_on_exit_flag, process_mark, &
                            process_send_eof, num_processors
-    use timefns_mod, only: current_time_string
+    use time_functions_mod, only: current_time_string
     use version_mod, only: upstream_version
-    use comint_mod, only: comint_carriage_motion, comint_inhibit_carriage_motion, comint_mode, comint_exec
+    use command_interpreter_mod, only: comint_carriage_motion, comint_inhibit_carriage_motion, comint_mode, comint_exec
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              FONT_LOCK_OVERRIDE_REPLACE
@@ -3843,7 +3843,7 @@ contains
     !> `compilation_search_path' are Deferred).
     recursive subroutine compilation_find_file(marker, filename, buffer, status, directory)
         use minibuffer_mod, only: read_file_name
-        use dispnew_mod, only: ding
+        use display_update_mod, only: ding
         type(handle_type), intent(in) :: marker
         character(len=*), intent(in) :: filename
         type(handle_type), intent(out) :: buffer

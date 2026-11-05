@@ -1,7 +1,7 @@
 # diff_mode_mod
 
 - Module: diff_mode_mod, diff_mode_apply_mod, diff_mode_add_log_mod (submodules)
-- Upstream: vc/diff-mode.el (+ emacs-lisp/easy-mmode.el `easy-mmode--next`/`--prev` in easy_mmode_mod)
+- Upstream: vc/diff-mode.el (+ emacs-lisp/easy-mmode.el `easy-mmode--next`/`--prev` in easy_minor_mode_mod)
 - State: partial
 
 ## Ported

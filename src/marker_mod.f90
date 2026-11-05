@@ -22,7 +22,7 @@
 
 !> Markers, and converting between character and byte positions.
 !>
-!> A marker records a buffer and a character and a byte position that insdel_mod
+!> A marker records a buffer and a character and a byte position that insert_delete_mod
 !> keeps up to date as text is inserted and deleted.  Each buffer's markers
 !> form a singly linked chain (upstream `next'), headed by
 !> `buffers(b)%text%markers'; links are marker registry slots.
@@ -66,7 +66,7 @@ module marker_mod
         integer(int64) :: next = 0
     end type marker_type
 
-    !> Registry storage; insdel_mod walks the chains directly.
+    !> Registry storage; insert_delete_mod walks the chains directly.
     type(marker_type), allocatable, public :: markers(:)
     type(slot_table_type) :: table
 

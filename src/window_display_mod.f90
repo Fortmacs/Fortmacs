@@ -46,7 +46,7 @@
 !> sibling can give.
 submodule(window_mod) window_display_mod
     use handle_mod, only: has_handle
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use buffer_mod, only: current, current_buffer, set_buffer, is_buffer_live, record_buffer, bury_buffer_internal, &
@@ -57,15 +57,15 @@ submodule(window_mod) window_display_mod
     use frame_mod, only: selected_frame, ensure_frame_windows, selected_window, frame_list, select_frame_begin, &
                          select_frame_end, window_frame, select_frame, make_frame, get_frame, frame_type, next_frame, &
                          delete_frame
-    use editfns_mod, only: goto_char
+    use editing_functions_mod, only: goto_char
     use indent_mod, only: vertical_motion, screen_column
     use buffer_mod, only: inhibit_read_only
-    use insdel_mod, only: inhibit_modification_hooks
+    use insert_delete_mod, only: inhibit_modification_hooks
     use data_mod, only: set, append_locals_clearer
     use value_mod, only: value_type
-    use minibuf_mod, only: minibuf_level
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
-    use timefns_mod, only: current_time
+    use minibuffer_reading_mod, only: minibuf_level
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use time_functions_mod, only: current_time
     implicit none(type, external)
 
     !> What `window_deletable' says of a window: it cannot be deleted, it

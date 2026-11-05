@@ -22,7 +22,7 @@
 !> root window is 23 lines by 80 columns.
 module test_window_sides_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type, prefix_arg
+    use execute_interactively_mod, only: prefix_arg_type, prefix_arg
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
@@ -30,8 +30,8 @@ module test_window_sides_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, buffers, buffer_list
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, last_message, command_loop, discard_input
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char
     use frame_mod, only: selected_frame, ensure_frame_windows
     use bindings_mod, only: init_bindings
     use window_mod, only: windows, window_leaves, same_window, set_window_buffer, delete_window_tree, &

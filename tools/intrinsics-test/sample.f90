@@ -330,7 +330,7 @@ contains
         read (s, *) n
     end function string_to_number
 
-    !> A private copy of version<= (subr_mod holds the port).
+    !> A private copy of version<= (basic_subprograms_mod holds the port).
     logical function version_le(a, b)
         character(len=*), intent(in) :: a, b
 

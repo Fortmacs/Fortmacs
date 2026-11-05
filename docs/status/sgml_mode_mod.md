@@ -56,4 +56,4 @@ yank-media,
 ## Tests
 
 test_sgml_mode_mod (ports sgml-mode-tests: all 10; own: indentation, `sgml-close-tag`, `sgml-tag` and the HTML skeletons as GNU Emacs inserts them);
-test_imenu_mod (the indexes)
+test_index_menu_mod (the indexes)

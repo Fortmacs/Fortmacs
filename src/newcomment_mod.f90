@@ -52,36 +52,36 @@
 !> (they are the same commands under their upstream names).
 module newcomment_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS, command_type
+    use execute_interactively_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS, command_type
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use data_mod, only: value_eq, append_locals_clearer
     use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, function_setting_type, forward_setting
     use commands_mod, only: commands
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: last_command, this_command
     use buffer_mod, only: buffers, current, current_buffer, get_or_make_buffer, set_buffer, close_buffer, &
                           generate_new_buffer_name, barf_if_buffer_read_only, fill_column, buffer_serial_live
-    use insdel_mod, only: insert, insert_before_markers
+    use insert_delete_mod, only: insert, insert_before_markers
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use editfns_mod, only: interactive_region, &
-                           point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, char_before, &
-                           line_beginning_position, line_end_position, delete_region, buffer_substring, &
-                           narrow_to_region, widen, region_beginning, region_end, char_to_string
-    use cmds_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char
+    use editing_functions_mod, only: interactive_region, &
+                                  point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, char_before, &
+                                     line_beginning_position, line_end_position, delete_region, buffer_substring, &
+                                     narrow_to_region, widen, region_beginning, region_end, char_to_string
+    use editing_commands_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char
     use search_mod, only: re_search_forward, re_search_backward, looking_at, string_match, match_beginning, match_end, &
                           replace_match, regexp_quote, SEARCH_NOERROR, SEARCH_MOVE
-    use subr_mod, only: match_string
-    use fns_mod, only: substring, count_characters
+    use basic_subprograms_mod, only: match_string
+    use utility_functions_mod, only: substring, count_characters
     use syntax_mod, only: forward_comment, parse_partial_expression, syntax_ppss, parse_state_type, skip_syntax_backward, &
                           skip_syntax_forward, skip_chars_forward, skip_chars_backward, string_to_syntax, &
                           syntax_descriptor_type, syntax_entry, syntax_table, set_syntax_table, COMMENTSTOP_COMMENT
-    use textprop_mod, only: get_text_property
+    use text_properties_mod, only: get_text_property
     use indent_mod, only: current_column, current_indentation, move_to_column, indent_to, indent_according_to_mode, &
                           indent_to_left_margin, current_left_margin, move_to_left_margin, indent_tabs_mode
-    use xdisp_mod, only: message, tab_width
-    use minibuf_mod, only: read_string
+    use display_engine_mod, only: message, tab_width
+    use minibuffer_reading_mod, only: read_string
     use fill_mod, only: adaptive_fill_mode
     use simple_mod, only: newline, delete_horizontal_space, cut_region, is_use_region, back_to_indentation, &
                           comment_line_break_function, fill_prefix, simple_count_lines => count_lines

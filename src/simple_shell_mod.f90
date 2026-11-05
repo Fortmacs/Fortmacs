@@ -26,7 +26,7 @@
 !> `shell_command_on_region' (M-|), their output in the echo area or in
 !> *Shell Command Output*, error buffers, and
 !> `shell_command_keep_output'.  A submodule of simple_mod, as it
-!> runs processes (callproc_mod sits above simple_mod).
+!> runs processes (execute_process_mod sits above simple_mod).
 !>
 !> Asynchronous shell commands (a COMMAND ending in `&',
 !> `async_shell_command' on M-&) run in *Async Shell Command* in Shell
@@ -54,25 +54,25 @@ submodule(simple_mod) simple_shell_mod
     use buffer_mod, only: get_buffer, get_or_make_buffer, set_buffer, current_buffer, is_buffer_live, erase_buffer, &
                           generate_new_buffer_name, rename_buffer
     use search_mod, only: string_match
-    use editfns_mod, only: point_min, delete_region, buffer_substring, buffer_size, is_bol, is_bob, mark_marker, &
-                           mark_position, widen, narrow_to_region
+    use editing_functions_mod, only: point_min, delete_region, buffer_substring, buffer_size, is_bol, is_bob, mark_marker, &
+                                     mark_position, widen, narrow_to_region
     use marker_mod, only: set_marker
-    use fileio_mod, only: expand_file_name, file_exists, file_attributes, file_stat_type, insert_file_contents, &
-                          delete_file_internal, report_file_errno
+    use file_input_output_mod, only: expand_file_name, file_exists, file_attributes, file_stat_type, insert_file_contents, &
+                                     delete_file_internal, report_file_errno
     use files_mod, only: temporary_file_directory, abbreviate_file_name, file_relative_name
-    use sysdep_mod, only: fortmacs_mkostemp, close_fd
-    use callproc_mod, only: execute_process, execute_process_region, shell_file_name, init_callproc
+    use system_dependent_mod, only: fortmacs_mkostemp, close_fd
+    use execute_process_mod, only: execute_process, execute_process_region, shell_file_name, init_callproc
     use window_mod, only: window_type, windows, get_buffer_window, display_buffer, set_window_point
     use frame_mod, only: selected_frame
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, is_keymap_live
-    use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map
+    use minibuffer_reading_mod, only: read_from_minibuffer, minibuffer_local_map
     use help_mod, only: register_keymap_name
-    use fns_mod, only: read_yes_or_no
+    use utility_functions_mod, only: read_yes_or_no
     use process_mod, only: make_process, get_buffer_process, stop_process, &
                            process_status, process_buffer, process_command, set_process_sentinel, set_process_filter
-    use comint_mod, only: comint_output_filter, comint_term_environment
+    use command_interpreter_mod, only: comint_output_filter, comint_term_environment
     use shell_mod, only: shell_command_mode
-    use xdisp_mod, only: set_mode_line_process, mode_line_part_type
+    use display_engine_mod, only: set_mode_line_process, mode_line_part_type
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
 
@@ -574,7 +574,7 @@ contains
 
     ! Not a port.
     function file_nondirectory(file) result(name)
-        use fileio_mod, only: file_name_nondirectory
+        use file_input_output_mod, only: file_name_nondirectory
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: name
 
@@ -1149,7 +1149,7 @@ contains
     !> The region's limits, as region-beginning and region-end give them.
     !> Not a port.
     subroutine shell_region_bounds(beginning, end, status)
-        use editfns_mod, only: region_beginning, region_end
+        use editing_functions_mod, only: region_beginning, region_end
         integer(int64), intent(out) :: beginning, end
         type(status_type), intent(out) :: status
 

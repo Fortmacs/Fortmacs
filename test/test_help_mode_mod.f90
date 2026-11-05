@@ -32,8 +32,8 @@ module test_help_mode_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, get_buffer, set_buffer, current_buffer, erase_buffer, set_buffer_read_only
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_max, buffer_string, widen
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_max, buffer_string, widen
     use search_mod, only: search_forward
     use frame_mod, only: selected_frame, ensure_frame_windows
     use window_mod, only: delete_other_windows, resize_window_tree, switch_to_buffer
@@ -42,7 +42,7 @@ module test_help_mode_mod
     use help_mode_mod, only: help_mode, help_make_xrefs, help_xref_item_type, help_xref_stack, help_xref_forward_stack, &
                              help_xref_stack_item, help_xref_go_back, help_xref_go_forward, help_go_back, help_go_forward, &
                              help_follow_name
-    use help_fns_mod, only: describe_function
+    use help_functions_mod, only: describe_function
     use button_mod, only: button_type, button_kind_type, button_at, push_button
     implicit none(type, external)
     private
@@ -170,7 +170,7 @@ contains
         type(status_type) :: st
 
         call temp_buffer()
-        call insert("forward_char is an interactive function in "//LQ//"cmds_mod.f90"//RQ//", like "//LQ// &
+        call insert("forward_char is an interactive function in "//LQ//"editing_commands_mod.f90"//RQ//", like "//LQ// &
                     "backward_char"//RQ//"."//LF//LF//"Move point N characters forward.  See also "//LQ// &
                     "backward_char"//RQ//" and the variable "//LQ//"fill_column"//RQ//", and M-x backward_char."//LF//LF, st)
         call help_mode(st)
@@ -187,7 +187,7 @@ contains
         call check(error, button_type_name(position_of("backward_char.")) == "help_function", "M-x")
         if (allocated(error)) return
         ! One newline at the end, no navigation buttons.
-        call check(error, buffer_string() == "forward_char is an interactive function in "//LQ//"cmds_mod.f90"//RQ// &
+        call check(error, buffer_string() == "forward_char is an interactive function in "//LQ//"editing_commands_mod.f90"//RQ// &
                    ", like "//LQ//"backward_char"//RQ//"."//LF//LF//"Move point N characters forward.  See also "//LQ// &
                    "backward_char"//RQ//" and the variable "//LQ//"fill_column"//RQ//", and M-x backward_char."//LF, &
                    buffer_string())

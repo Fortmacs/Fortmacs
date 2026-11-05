@@ -48,7 +48,7 @@
 !> (upstream composes the two).
 module diff_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
@@ -57,18 +57,18 @@ module diff_mode_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer
     use data_mod, only: symbol_value, set
     use value_mod, only: make_keymap_ref, value_type, xfixnum
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
-                           line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
-                           char_after, delete_region
-    use cmds_mod, only: forward_line, beginning_of_line
-    use insdel_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
+                                     line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
+                                     char_after, delete_region
+    use editing_commands_mod, only: forward_line, beginning_of_line
+    use insert_delete_mod, only: insert
     use search_mod, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, replace_match, &
                           SEARCH_NOERROR, SEARCH_MOVE
-    use subr_mod, only: match_string
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use basic_subprograms_mod, only: match_string
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use simple_mod, only: cut_region, special_mode_map, set_next_error_function, read_only_mode_hook, is_use_region
-    use editfns_mod, only: region_beginning, region_end
-    use fileio_mod, only: is_file_regular, file_exists, expand_file_name, file_name_directory, file_name_nondirectory
+    use editing_functions_mod, only: region_beginning, region_end
+    use file_input_output_mod, only: is_file_regular, file_exists, expand_file_name, file_name_directory, file_name_nondirectory
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, keymap_set, append_minor_mode_map, is_keymap_live, &
                           destroy_keymap
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
@@ -77,8 +77,8 @@ module diff_mode_mod
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use modes_mod, only: major_modes
     use add_log_mod, only: change_log_entry_type, add_log_current_subprogram_function, add_log_buffer_file_name_function
-    use easy_mmode_mod, only: easy_mmode_next, easy_mmode_prev
-    use imenu_mod, only: imenu_patterns, imenu_pattern_type
+    use easy_minor_mode_mod, only: easy_mmode_next, easy_mmode_prev
+    use index_menu_mod, only: imenu_patterns, imenu_pattern_type
     use string_type_mod, only: string_type, append_string
     use data_mod, only: string_to_number
     implicit none(type, external)
@@ -1464,7 +1464,7 @@ contains
     !> You can customize `diff_ask_before_revert_and_cut_hunk' to control
     !> that.  Port of diff-mode.el:diff-revert-and-kill-hunk.
     recursive subroutine diff_revert_and_cut_hunk(status, beginning, end)
-        use subr_mod, only: read_y_or_n
+        use basic_subprograms_mod, only: read_y_or_n
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: beginning, end
         logical :: yes
@@ -1510,7 +1510,7 @@ contains
     !> diff-mode.el:diff-merge-strings.
     subroutine diff_merge_strings(ancestor, from, to, result, merged)
         use search_mod, only: string_match
-        use fns_mod, only: substring
+        use utility_functions_mod, only: substring
         character(len=*), intent(in) :: ancestor, from, to
         character(len=:), allocatable, intent(out) :: result
         logical, intent(out) :: merged

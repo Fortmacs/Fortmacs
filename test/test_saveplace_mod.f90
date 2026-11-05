@@ -29,11 +29,11 @@ module test_saveplace_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: current_buffer, set_buffer, close_buffer, restore_buffer_modified, get_or_make_buffer, &
                           generate_new_buffer_name
-    use insdel_mod, only: insert
-    use editfns_mod, only: buffer_string
-    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, insert_file_contents, file_name_as_directory
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: buffer_string
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio, insert_file_contents, file_name_as_directory
     use files_mod, only: create_temp_file, delete_file, find_file, file_truename
-    use dired_mode_mod, only: dired
+    use directory_editor_mode_mod, only: dired
     use bindings_mod, only: init_bindings
     use modes_mod, only: minor_modes
     use saveplace_mod, only: save_places, save_place_type, save_place_loaded, save_place_file, &

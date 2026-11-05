@@ -26,7 +26,7 @@ module test_faces_mod
                          line_number, line_number_major_tick, fill_column_indicator, show_paren_match, &
                          tty_menu_selected_face, tty_menu_disabled_face, read_multiple_choice_face, tool_bar, &
                          glyphless_char, tab_line, menu, cursor, region, FACE_COLOR
-    use comint_mod, only: comint_highlight_input_face
+    use command_interpreter_mod, only: comint_highlight_input_face
     use fortmacs, only: faces, face_underline, face_box, FACE_STYLE_WAVE, FACE_STYLE_LINE, FACE_BOX_RELEASED_BUTTON
     implicit none(type, external)
     private

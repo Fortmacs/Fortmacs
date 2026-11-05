@@ -31,11 +31,11 @@
 !> Deferred: `goto_line_history_local' (buffer-local minibuffer
 !> histories), `selective_display'.
 submodule(simple_mod) simple_goto_mod
-    use editfns_mod, only: point_min, widen, narrow_to_region, is_buffer_narrowed, interactive_region, region_beginning, &
-                           region_end, inhibit_field_text_motion, transpose_regions
+    use editing_functions_mod, only: point_min, widen, narrow_to_region, is_buffer_narrowed, interactive_region, region_beginning, &
+                                     region_end, inhibit_field_text_motion, transpose_regions
     use buffer_mod, only: current_buffer
-    use subr_mod, only: read_number
-    use thingatpt_mod, only: number_at_point
+    use basic_subprograms_mod, only: read_number
+    use thing_at_point_mod, only: number_at_point
     use paragraphs_mod, only: count_sentences
     use window_mod, only: get_buffer_window, select_window, switch_to_buffer_other_window, other_buffer
     implicit none(type, external)

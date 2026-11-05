@@ -34,9 +34,9 @@ module test_fill_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, fill_column, auto_fill_function
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_min, point_max, goto_char, buffer_string, delete_region, pos_bol, pos_eol
-    use cmds_mod, only: forward_line, beginning_of_line, self_insert_command
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string, delete_region, pos_bol, pos_eol
+    use editing_commands_mod, only: forward_line, beginning_of_line, self_insert_command
     use search_mod, only: search_forward
     use simple_mod, only: fill_prefix, deactivate_mark, init_simple
     use modes_mod, only: minor_modes

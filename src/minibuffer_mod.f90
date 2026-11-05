@@ -26,7 +26,7 @@
 !> buffers: `completion_at_point' with `completion_at_point_functions',
 !> `completion_in_region' and `completion_in_region_mode', with the
 !> `:exit_function' of the completion data; tables with quoting
-!> (`completion_table_with_quoting', in minibuf_mod).
+!> (`completion_table_with_quoting', in minibuffer_reading_mod).
 !>
 !> Not ported yet: cycling, completion metadata other than the category
 !> and identity sorting (groups, other sorting functions, the rest of
@@ -36,22 +36,22 @@
 !> ~USER in file names.
 module minibuffer_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use callint_mod, only: command_type
+    use execute_interactively_mod, only: command_type
     use commands_mod, only: commands
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current, get_buffer, get_or_make_buffer, set_buffer, current_buffer, erase_buffer, &
                           set_buffer_read_only, buffer_list, bury_buffer_internal, deactivate_mark_variable
-    use insdel_mod, only: del_range, insert
+    use insert_delete_mod, only: del_range, insert
     use keymap_mod, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, is_keymap_live, &
                           destroy_keymap
     use value_mod, only: value_type, list, list_elements, list_length, list_elt, xfixnum, xstring, make_list, vtag, &
                          V_NULL, V_INTEGER, V_NAME, V_STRING
     use data_mod, only: value_eq, symbol_value, set
     use character_mod, only: string_char_and_length
-    use editfns_mod, only: point, point_max, goto_char, buffer_substring
+    use editing_functions_mod, only: point, point_max, goto_char, buffer_substring
     use faces_mod, only: named_face_type, face_attrs, display_when
-    use textprop_mod, only: add_face_text_property
+    use text_properties_mod, only: add_face_text_property
     use frame_mod, only: selected_frame, frame_selected_window_ref
     use window_mod, only: window_type, windows, set_window_start, is_window_live, same_window, get_buffer_window, &
                           temp_buffer_window_show, fit_window_to_buffer, display_action_parameters_type, delete_window, &
@@ -60,34 +60,34 @@ module minibuffer_mod
                           DISPLAY_ACTION_MAYBE_SAME_WINDOW, DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM, &
                           recenter_top_bottom, scroll_up_command, &
                           scroll_down_command, set_window_buffer
-    use callint_mod, only: current_prefix_arg
-    use xdisp_mod, only: message
-    use dispnew_mod, only: ding
-    use fns_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring, is_string_less, read_yes_or_no
-    use dired_mod, only: file_name_completion, file_name_all_completions
+    use execute_interactively_mod, only: current_prefix_arg
+    use display_engine_mod, only: message
+    use display_update_mod, only: ding
+    use utility_functions_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring, is_string_less, read_yes_or_no
+    use directory_editor_mod, only: file_name_completion, file_name_all_completions
     use keyboard_mod, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text, &
                             minibuffer_message_timeout, last_message
     use timer_mod, only: execute_at_time, destroy_timer, is_timer
-    use minibuf_mod, only: is_minibuffer, minibuf_level, minibuffer_prompt_end, abort_minibuffers, &
-                           is_minibuffer_innermost_command_loop, is_innermost_minibuffer, &
-                           minibuffer_local_map, read_from_minibuffer, completion_table_type, &
-                           completion_test_procedure, completion_function_table, try_completion, all_completions, &
-                           is_exact_completion, completion_ignore_case, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, &
-                           COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer, completion_list_table, &
-                           minibuffer_setup_function, minibuffer_setup_procedure, history_added, minibuffer_default, &
-                           quoting_table_call
-    use fileio_mod, only: is_file_name_absolute, expand_file_name, substitute_in_file_name, file_name_directory, &
-                          file_name_nondirectory, file_exists, file_name_as_directory, is_file_directory
-    use subr_mod, only: add_to_history, history_delete_duplicates
+    use minibuffer_reading_mod, only: is_minibuffer, minibuf_level, minibuffer_prompt_end, abort_minibuffers, &
+                                      is_minibuffer_innermost_command_loop, is_innermost_minibuffer, &
+                                      minibuffer_local_map, read_from_minibuffer, completion_table_type, &
+                                      completion_test_procedure, completion_function_table, try_completion, all_completions, &
+                                      is_exact_completion, completion_ignore_case, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, &
+                                      COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer, completion_list_table, &
+                                      minibuffer_setup_function, minibuffer_setup_procedure, history_added, minibuffer_default, &
+                                      quoting_table_call
+    use file_input_output_mod, only: is_file_name_absolute, expand_file_name, substitute_in_file_name, file_name_directory, &
+                                     file_name_nondirectory, file_exists, file_name_as_directory, is_file_directory
+    use basic_subprograms_mod, only: add_to_history, history_delete_duplicates
     use files_mod, only: abbreviate_file_name
-    use minibuf_table_mod, only: capf_data_type, COMPLETION_EXACT, COMPLETION_FINISHED, COMPLETION_UNKNOWN, &
-                                 completion_exit_function_procedure, TABLE_QUOTING
+    use minibuffer_reading_tables_mod, only: capf_data_type, COMPLETION_EXACT, COMPLETION_FINISHED, COMPLETION_UNKNOWN, &
+                                             completion_exit_function_procedure, TABLE_QUOTING
     use hooks_mod, only: capf_hook_type, capf_procedure, capf_entry_type
     use marker_mod, only: copy_marker_at, copy_marker, destroy_marker, marker_buffer, marker_position
     use keymap_mod, only: push_minor_mode_overriding_map, remove_minor_mode_overriding_map
     use keyboard_mod, only: post_command_hook, has_unread_command_events, this_command_keys
     use window_mod, only: same_handle
-    use editfns_mod, only: line_end_position
+    use editing_functions_mod, only: line_end_position
     use window_mod, only: set_window_point
     use modes_mod, only: minor_modes
     use string_type_mod, only: string_type

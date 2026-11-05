@@ -26,7 +26,7 @@
 submodule(apropos_mod) apropos_print_mod
     use docstrings_mod, only: doc_entry_type, function_doc, variable_doc
     use value_mod, only: value_type
-    use help_fns_mod, only: describe_function, describe_variable, is_function_known, is_variable_known
+    use help_functions_mod, only: describe_function, describe_variable, is_function_known, is_variable_known
     use string_type_mod, only: string_type
     implicit none(type, external)
 

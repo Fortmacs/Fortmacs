@@ -30,18 +30,18 @@ module test_make_mode_mod
     use value_mod, only: value_type, symbols, xsymbol, xstring, list_elements, list_length, list_elt, vtag, V_NULL, &
                          V_NAME, V_ARRAY
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_min, point_max, goto_char, buffer_string
-    use cmds_mod, only: forward_line, beginning_of_line, end_of_line
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string
+    use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
     use search_mod, only: search_forward, search_backward, re_search_backward
-    use textprop_mod, only: get_text_property
+    use text_properties_mod, only: get_text_property
     use bindings_mod, only: init_bindings
     use modes_mod, only: minor_modes
     use font_lock_mod, only: font_lock_ensure
     use files_mod, only: set_auto_mode
     use fill_mod, only: fill_paragraph
-    use fileio_mod, only: make_temp_name
-    use minibuf_table_mod, only: capf_data_type, COMPLETION_FINISHED
+    use file_input_output_mod, only: make_temp_name
+    use minibuffer_reading_tables_mod, only: capf_data_type, COMPLETION_FINISHED
     use make_mode_mod, only: makefile_mode, makefile_gmake_mode, makefile_next_dependency, makefile_previous_dependency, &
                              makefile_pickup_targets, makefile_pickup_macros, makefile_target_table, makefile_macro_table, &
                              makefile_has_prereqs, makefile_insert_target, makefile_insert_macro, &

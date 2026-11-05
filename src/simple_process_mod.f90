@@ -29,8 +29,8 @@
 !> in the Command column.
 submodule(simple_mod) simple_process_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, current_buffer, is_buffer_live
-    use editfns_mod, only: point_max, is_eob
-    use cmds_mod, only: forward_line, beginning_of_line
+    use editing_functions_mod, only: point_max, is_eob
+    use editing_commands_mod, only: forward_line, beginning_of_line
     use process_mod, only: process_list, process_status, process_id, process_name, process_tty_name, &
                            process_buffer, process_command, process_query_on_exit_flag, &
                            delete_process, get_process
