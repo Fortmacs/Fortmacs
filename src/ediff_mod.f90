@@ -86,85 +86,87 @@ module ediff_mod
 
     !> Last directory used by an Ediff command as the output directory for
     !> merge.  Port of ediff.el ediff-last-merge-autostore-dir.
-    character(len=:), allocatable, public :: ediff_last_merge_autostore_dir
+    character(len=:), allocatable, public :: ediff_last_merge_autostore_directory
 
     interface
-        !> Run Ediff on directories DIR1 and DIR2, comparing files.
+        !> Run Ediff on directories DIRECTORY1 and DIRECTORY2, comparing files.
         !> Consider only files that have the same name in both directories.
         !>
         !> REGEXP is "" or a regular expression; only file names that match
         !> the regexp are considered.  Port of ediff.el:ediff-directories.
         !> (In ediff_directories_mod.)
-        recursive module subroutine ediff_directories(dir1, dir2, regexp, status)
+        recursive module subroutine ediff_directories(directory1, directory2, regexp, status)
             implicit none(type, external)
-            character(len=*), intent(in) :: dir1, dir2, regexp
+            character(len=*), intent(in) :: directory1, directory2, regexp
             type(status_type), intent(out) :: status
         end subroutine ediff_directories
 
-        !> Run Ediff on directories DIR1, DIR2, and DIR3, comparing files.
+        !> Run Ediff on directories DIRECTORY1, DIRECTORY2, and DIRECTORY3, comparing files.
         !> Consider only files that have the same name in all three
         !> directories.
         !>
         !> REGEXP is "" or a regular expression; only file names that match
         !> the regexp are considered.  Port of ediff.el:ediff-directories3.
         !> (In ediff_directories_mod.)
-        recursive module subroutine ediff_directories3(dir1, dir2, dir3, regexp, status)
+        recursive module subroutine ediff_directories3(directory1, directory2, directory3, regexp, status)
             implicit none(type, external)
-            character(len=*), intent(in) :: dir1, dir2, dir3, regexp
+            character(len=*), intent(in) :: directory1, directory2, directory3, regexp
             type(status_type), intent(out) :: status
         end subroutine ediff_directories3
 
-        !> Run Ediff on two directories, DIR1 and DIR2, merging files
+        !> Run Ediff on two directories, DIRECTORY1 and DIRECTORY2, merging files
         !> that have the same name in both.  The third argument, REGEXP, is ""
         !> or a regular expression; only file names that match the regexp
-        !> are considered.  MERGE_AUTOSTORE_DIR is the directory in which to
+        !> are considered.  MERGE_AUTOSTORE_DIRECTORY is the directory in which to
         !> store merged files.  Port of ediff.el:ediff-merge-directories.
         !> (In ediff_directories_mod.)
-        recursive module subroutine ediff_merge_directories(dir1, dir2, regexp, status, merge_autostore_dir)
+        recursive module subroutine ediff_merge_directories(directory1, directory2, regexp, status, merge_autostore_directory)
             implicit none(type, external)
-            character(len=*), intent(in) :: dir1, dir2, regexp
+            character(len=*), intent(in) :: directory1, directory2, regexp
             type(status_type), intent(out) :: status
-            character(len=*), intent(in), optional :: merge_autostore_dir
+            character(len=*), intent(in), optional :: merge_autostore_directory
         end subroutine ediff_merge_directories
 
-        !> Merge files in DIR1 and DIR2 using files in ANCESTOR_DIR as
+        !> Merge files in DIRECTORY1 and DIRECTORY2 using files in ANCESTOR_DIRECTORY as
         !> ancestors.
-        !> Ediff merges files that have identical names in DIR1, DIR2.  If two
-        !> files in DIR1 and DIR2 don't have an ancestor in
-        !> ANCESTOR_DIR, Ediff will merge without ancestor.  The fourth
+        !> Ediff merges files that have identical names in DIRECTORY1, DIRECTORY2.  If two
+        !> files in DIRECTORY1 and DIRECTORY2 don't have an ancestor in
+        !> ANCESTOR_DIRECTORY, Ediff will merge without ancestor.  The fourth
         !> argument, REGEXP, is "" or a regular expression; only file names
-        !> that match the regexp are considered.  MERGE_AUTOSTORE_DIR is the
+        !> that match the regexp are considered.  MERGE_AUTOSTORE_DIRECTORY is the
         !> directory in which to store merged files.  Port of
         !> ediff.el:ediff-merge-directories-with-ancestor.  (In
         !> ediff_directories_mod.)
-        recursive module subroutine ediff_merge_directories_with_ancestor(dir1, dir2, ancestor_dir, regexp, status, &
-                                                                          merge_autostore_dir)
+        recursive module subroutine ediff_merge_directories_with_ancestor(directory1, directory2, ancestor_directory, regexp, &
+                                                                          status, &
+                                                                          merge_autostore_directory)
             implicit none(type, external)
-            character(len=*), intent(in) :: dir1, dir2, ancestor_dir, regexp
+            character(len=*), intent(in) :: directory1, directory2, ancestor_directory, regexp
             type(status_type), intent(out) :: status
-            character(len=*), intent(in), optional :: merge_autostore_dir
+            character(len=*), intent(in), optional :: merge_autostore_directory
         end subroutine ediff_merge_directories_with_ancestor
 
         !> Run the session group job JOB_NAME (commands%ediff_directories,
         !> commands%ediff_directories3, commands%ediff_merge_directories or
         !> commands%ediff_merge_directories_with_ancestor) on directories
-        !> DIR1 and DIR2 (and DIR3, the ancestors when merging; "" for
+        !> DIRECTORY1 and DIRECTORY2 (and DIRECTORY3, the ancestors when merging; "" for
         !> none): its sessions compare or merge the files with
         !> `ediff_files', `ediff_files3', `ediff_merge_files' or
         !> `ediff_merge_files_with_ancestor'.  REGEXP is "" or a regular
         !> expression; only file names that match the regexp are
         !> considered.  STARTUP_HOOKS run in the group buffer once it is
-        !> made.  MERGE_AUTOSTORE_DIR is the directory in which to store
+        !> made.  MERGE_AUTOSTORE_DIRECTORY is the directory in which to store
         !> merged files.  Port of ediff.el:ediff-directories-internal (the
         !> job gives ACTION).  (In ediff_directories_mod.)
-        recursive module subroutine ediff_directories_internal(dir1, dir2, dir3, regexp, job_name, status, startup_hooks, &
-                                                               merge_autostore_dir)
+        recursive module subroutine ediff_directories_internal(directory1, directory2, directory3, regexp, job_name, status, &
+                                                               startup_hooks, &
+                                                               merge_autostore_directory)
             implicit none(type, external)
-            character(len=*), intent(in) :: dir1, dir2, dir3, regexp
+            character(len=*), intent(in) :: directory1, directory2, directory3, regexp
             type(command_type), pointer, intent(in) :: job_name
             type(status_type), intent(out) :: status
             type(hook_type), intent(inout), optional :: startup_hooks
-            character(len=*), intent(in), optional :: merge_autostore_dir
+            character(len=*), intent(in), optional :: merge_autostore_directory
         end subroutine ediff_directories_internal
 
         !> Register the directory commands of ediff.el and set up

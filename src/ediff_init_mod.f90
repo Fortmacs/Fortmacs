@@ -55,7 +55,7 @@ module ediff_init_mod
               paint_ediff_background_regions, check_ediff_control_buffer, close_ediff_buffer_carefully, &
               make_ediff_session_entry, drop_ediff_session, init_ediff_init, is_ediff_ancestor_metajob, &
               is_ediff_collect_diffs_metajob, is_ediff_merge_metajob, is_ediff_metajob3, is_ediff_comparison_metajob3, &
-              abbreviate_ediff_job_name, strip_ediff_last_dir
+              abbreviate_ediff_job_name, strip_ediff_last_directory
 
     ! ------------------------------------------------------------------
     ! Buffer types
@@ -743,37 +743,38 @@ contains
         end if
     end function abbreviate_ediff_job_name
 
-    !> The parent directory of DIR (`default_directory' if DIR is "");
-    !> does nothing to "/".  If DIR is a regular file, strip the file AND
-    !> the last dir.  Port of ediff-init.el:ediff-strip-last-dir.
-    subroutine strip_ediff_last_dir(dir_in, result, status)
-        character(len=*), intent(in) :: dir_in
+    !> The parent directory of DIRECTORY_IN (`default_directory' if it is
+    !> ""); does nothing to "/".  If DIRECTORY_IN is a regular file, strip
+    !> the file AND the last directory.  Port of
+    !> ediff-init.el:ediff-strip-last-dir.
+    subroutine strip_ediff_last_directory(directory_in, result, status)
+        character(len=*), intent(in) :: directory_in
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dir
-        integer :: pos
+        character(len=:), allocatable :: directory
+        integer :: position
 
         result = ""
-        dir = dir_in
+        directory = directory_in
 
-        if (len(dir) == 0) then
+        if (len(directory) == 0) then
             if (current > 0) then
-                if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+                if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
             end if
         end if
 
-        call expand_file_name(dir, result, status)
+        call expand_file_name(directory, result, status)
         if (.not. status%ok()) return
-        dir = result
-        if (.not. is_file_directory(dir)) dir = file_name_directory(dir)
-        pos = len(dir)
+        directory = result
+        if (.not. is_file_directory(directory)) directory = file_name_directory(directory)
+        position = len(directory)
 
-        if (pos > 1) then
-            if (dir(pos:pos) == "/") dir = dir(1:pos - 1)
+        if (position > 1) then
+            if (directory(position:position) == "/") directory = directory(1:position - 1)
         end if
 
-        result = abbreviate_file_name(file_name_directory(dir))
-    end subroutine strip_ediff_last_dir
+        result = abbreviate_file_name(file_name_directory(directory))
+    end subroutine strip_ediff_last_directory
 
     !> Define the faces of ediff-init.el.  Not a port.
     subroutine define_faces()

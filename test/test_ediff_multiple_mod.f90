@@ -36,7 +36,9 @@ module test_ediff_multiple_mod
     use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop
     use bindings_mod, only: init_bindings
     use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, create_directory_internal, &
-                          write_region
+                          write_region, file_exists
+    use frame_mod, only: selected_frame
+    use window_mod, only: set_window_buffer
     use files_mod, only: delete_directory
     use commands_mod, only: commands
     use ediff_init_mod, only: ediff_sessions, ediff_session_index, abbreviate_ediff_job_name
@@ -46,7 +48,10 @@ module test_ediff_multiple_mod
                                   intersect_ediff_directories, ediff_session_registry, ediff_registry_buffer, &
                                   show_ediff_registry, show_ediff_meta_buffer, EDIFF_SESSION_STATUS_MARKED, &
                                   EDIFF_SESSION_STATUS_HIDE, &
-                                  EDIFF_SESSION_STATUS_HIDDEN, EDIFF_MEMBERSHIP_CODE1, EDIFF_MEMBERSHIP_CODE2
+                                  EDIFF_SESSION_STATUS_HIDDEN, EDIFF_MEMBERSHIP_CODE1, EDIFF_MEMBERSHIP_CODE2, &
+                                  ediff_filtering_regexp_history, ediff_default_filtering_regexp, &
+                                  get_ediff_default_filtering_regexp, get_latest_ediff_filtering_regexp, &
+                                  update_ediff_registry, update_ediff_meta_buffer
     implicit none(type, external)
     private
 
@@ -55,7 +60,7 @@ module test_ediff_multiple_mod
     character, parameter :: LF = achar(10)
 
     !> The test directory, under the build directory.
-    character(len=*), parameter :: subdir = "build/test-ediff-multiple"
+    character(len=*), parameter :: subdirectory = "build/test-ediff-multiple"
 
 contains
 
@@ -69,7 +74,9 @@ contains
                     new_unittest("ediff-meta-marks", test_marks), &
                     new_unittest("ediff-meta-mark-equal-files", test_mark_equal_files), &
                     new_unittest("ediff-filegroup-action", test_filegroup_action), &
-                    new_unittest("ediff-quit-meta-buffer", test_quit_meta_buffer) &
+                    new_unittest("ediff-quit-meta-buffer", test_quit_meta_buffer), &
+                    new_unittest("ediff-default-filtering-regexp", test_default_filtering_regexp), &
+                    new_unittest("ediff-directory-diff-copy", test_directory_diff_copy) &
                     ]
     end subroutine collect_ediff_multiple_mod
 
@@ -77,7 +84,7 @@ contains
     logical function has_program(program, error)
         character(len=*), intent(in) :: program
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: path, dir
+        character(len=:), allocatable :: path, directory
         integer :: n, st, k
 
         has_program = .false.
@@ -90,7 +97,7 @@ contains
             do while (len(path) > 0 .and. .not. has_program)
                 k = index(path, ":")
                 if (k == 0) k = len(path) + 1
-                dir = path(1:k - 1)
+                directory = path(1:k - 1)
 
                 if (k > len(path)) then
                     path = ""
@@ -98,7 +105,7 @@ contains
                     path = path(k + 1:)
                 end if
 
-                if (len(dir) > 0) inquire (file=dir//"/"//program, exist=has_program)
+                if (len(directory) > 0) inquire (file=directory//"/"//program, exist=has_program)
             end do
         end if
 
@@ -135,10 +142,10 @@ contains
     end subroutine make_file
 
     !> *scratch* current, shown alone, and directories A and B under the
-    !> test directory DIR: both have f1 (equal), f2 (different) and the
+    !> test directory DIRECTORY: both have f1 (equal), f2 (different) and the
     !> subdirectory sub; only A has only_a, only B has only_b.
-    subroutine setup(dir)
-        character(len=:), allocatable, intent(out) :: dir
+    subroutine setup(directory)
+        character(len=:), allocatable, intent(out) :: directory
         type(handle_type) :: buffer
         type(status_type) :: st
 
@@ -148,32 +155,32 @@ contains
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
         call show_alone()
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
-        if (is_file_directory(dir)) call delete_directory(dir, st, .true.)
-        call create_directory_internal(dir, st)
-        call create_directory_internal(dir//"a", st)
-        call create_directory_internal(dir//"b", st)
-        call create_directory_internal(dir//"a/sub", st)
-        call create_directory_internal(dir//"b/sub", st)
-        call make_file(dir//"a/f1", "same"//LF)
-        call make_file(dir//"b/f1", "same"//LF)
-        call make_file(dir//"a/f2", "one"//LF//"two"//LF)
-        call make_file(dir//"b/f2", "one"//LF//"three"//LF)
-        call make_file(dir//"a/only_a", "a"//LF)
-        call make_file(dir//"b/only_b", "b"//LF)
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdirectory)
+        if (is_file_directory(directory)) call delete_directory(directory, st, .true.)
+        call create_directory_internal(directory, st)
+        call create_directory_internal(directory//"a", st)
+        call create_directory_internal(directory//"b", st)
+        call create_directory_internal(directory//"a/sub", st)
+        call create_directory_internal(directory//"b/sub", st)
+        call make_file(directory//"a/f1", "same"//LF)
+        call make_file(directory//"b/f1", "same"//LF)
+        call make_file(directory//"a/f2", "one"//LF//"two"//LF)
+        call make_file(directory//"b/f2", "one"//LF//"three"//LF)
+        call make_file(directory//"a/only_a", "a"//LF)
+        call make_file(directory//"b/only_b", "b"//LF)
     end subroutine setup
 
     !> Close the group buffers and the registry, the buffers of the test
-    !> files and the test directory DIR.
-    subroutine teardown(dir)
-        character(len=*), intent(in) :: dir
+    !> files and the test directory DIRECTORY.
+    subroutine teardown(directory)
+        character(len=*), intent(in) :: directory
         type(status_type) :: st
         integer :: k
 
         if (allocated(ediff_session_groups)) then
             do k = 1, size(ediff_session_groups)
-                if (is_buffer_live(ediff_session_groups(k)%dir_diffs_buffer)) then
-                    call close_buffer(ediff_session_groups(k)%dir_diffs_buffer, st)
+                if (is_buffer_live(ediff_session_groups(k)%directory_diffs_buffer)) then
+                    call close_buffer(ediff_session_groups(k)%directory_diffs_buffer, st)
                 end if
 
                 if (is_buffer_live(ediff_session_groups(k)%buffer)) call close_buffer(ediff_session_groups(k)%buffer, st)
@@ -183,7 +190,7 @@ contains
         call discard(get_buffer("f1"))
         call discard(get_buffer("f2"))
         call discard(get_buffer("f2<2>"))
-        call delete_directory(dir, st, .true.)
+        call delete_directory(directory, st, .true.)
     end subroutine teardown
 
     !> Close buffer H without saving it.
@@ -202,13 +209,13 @@ contains
 
     !> Start M-x ediff_directories on A and B; GROUP is its buffer's
     !> group, which is current.
-    subroutine start_group(dir, k, status)
-        character(len=*), intent(in) :: dir
+    subroutine start_group(directory, k, status)
+        character(len=*), intent(in) :: directory
         integer, intent(out) :: k
         type(status_type), intent(out) :: status
 
         k = 0
-        call ediff_directories(dir//"a", dir//"b", "", status)
+        call ediff_directories(directory//"a", directory//"b", "", status)
         if (.not. status%ok()) return
         k = ediff_group_index(get_buffer("*Ediff Session Group Panel*"))
         if (k > 0) call set_buffer(ediff_session_groups(k)%buffer, status)
@@ -221,38 +228,38 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(ediff_session_group_type) :: group
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
-        call setup(dir)
-        call intersect_ediff_directories(commands%ediff_directories, "", dir//"a", dir//"b", "", "", group, st)
+        call setup(directory)
+        call intersect_ediff_directories(commands%ediff_directories, "", directory//"a", directory//"b", "", "", group, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, size(group%sessions), 3)
             if (allocated(error)) exit body
-            call check(error, group%sessions(1)%files(1)%name, dir//"a/f1")
+            call check(error, group%sessions(1)%files(1)%name, directory//"a/f1")
             if (allocated(error)) exit body
-            call check(error, group%sessions(2)%files(2)%name, dir//"b/f2")
+            call check(error, group%sessions(2)%files(2)%name, directory//"b/f2")
             if (allocated(error)) exit body
-            call check(error, group%sessions(3)%files(1)%name, dir//"a/sub/")
+            call check(error, group%sessions(3)%files(1)%name, directory//"a/sub/")
             if (allocated(error)) exit body
             call check(error,.not. allocated(group%sessions(1)%files(3)%name), "no file C")
             if (allocated(error)) exit body
-            call check(error, size(group%dir_differences), 2)
+            call check(error, size(group%directory_differences), 2)
             if (allocated(error)) exit body
-            call check(error, group%dir_differences(1)%file, "only_a")
+            call check(error, group%directory_differences(1)%file, "only_a")
             if (allocated(error)) exit body
-            call check(error, group%dir_differences(1)%membership, EDIFF_MEMBERSHIP_CODE1)
+            call check(error, group%directory_differences(1)%membership, EDIFF_MEMBERSHIP_CODE1)
             if (allocated(error)) exit body
-            call check(error, group%dir_differences(2)%membership, EDIFF_MEMBERSHIP_CODE2)
+            call check(error, group%directory_differences(2)%membership, EDIFF_MEMBERSHIP_CODE2)
             if (allocated(error)) exit body
             ! A filter keeps the matching names only.
-            call intersect_ediff_directories(commands%ediff_directories, "^f", dir//"a", dir//"b", "", "", group, st)
+            call intersect_ediff_directories(commands%ediff_directories, "^f", directory//"a", directory//"b", "", "", group, st)
             call check(error, size(group%sessions), 2)
         end block body
 
-        call teardown(dir)
+        call teardown(directory)
     end subroutine test_intersect
 
     !> M-x ediff_directories makes the group buffer, lists the sessions,
@@ -260,11 +267,11 @@ contains
     subroutine test_directories(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        character(len=:), allocatable :: dir, text
+        character(len=:), allocatable :: directory, text
         integer :: k
 
-        call setup(dir)
-        call start_group(dir, k, st)
+        call setup(directory)
+        call start_group(directory, k, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -286,7 +293,7 @@ contains
             if (allocated(error)) exit body
             call check(error, any(same_handle(ediff_session_registry, ediff_session_groups(k)%buffer)), "registered")
             if (allocated(error)) exit body
-            call check(error, index(text_of(ediff_session_groups(k)%dir_diffs_buffer), "only_a") > 0, "dir diffs")
+            call check(error, index(text_of(ediff_session_groups(k)%directory_diffs_buffer), "only_a") > 0, "directory diffs")
             if (allocated(error)) exit body
             ! The registry lists the group.
             call show_ediff_registry(st)
@@ -301,7 +308,7 @@ contains
             call check(error, index(text_of(ediff_session_groups(k)%buffer), "Useful commands") > 0, "verbose help")
         end block body
 
-        call teardown(dir)
+        call teardown(directory)
     end subroutine test_directories
 
     !> n moves to a session, m marks it for an operation, h for hiding,
@@ -309,11 +316,11 @@ contains
     subroutine test_marks(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         integer :: k
 
-        call setup(dir)
-        call start_group(dir, k, st)
+        call setup(directory)
+        call start_group(directory, k, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -336,7 +343,7 @@ contains
             call check(error, ediff_session_groups(k)%sessions(1)%status, " ")
         end block body
 
-        call teardown(dir)
+        call teardown(directory)
     end subroutine test_marks
 
     !> == shows which files are equal, =h also marks their sessions for
@@ -344,12 +351,12 @@ contains
     subroutine test_mark_equal_files(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         integer :: k
 
         if (.not. has_program("cmp", error)) return
-        call setup(dir)
-        call start_group(dir, k, st)
+        call setup(directory)
+        call start_group(directory, k, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -366,7 +373,7 @@ contains
             call check(error, index(text_of(ediff_session_groups(k)%buffer), "=  ") > 0, "the = marker")
         end block body
 
-        call teardown(dir)
+        call teardown(directory)
     end subroutine test_mark_equal_files
 
     !> RET on a session starts Ediff on its files as a session of the
@@ -375,12 +382,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: control, meta
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         integer :: k, s
 
         if (.not. has_program("diff", error)) return
-        call setup(dir)
-        call start_group(dir, k, st)
+        call setup(directory)
+        call start_group(directory, k, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -414,7 +421,7 @@ contains
             call check(error, index(text_of(meta), "-   Session 2:") > 0, text_of(meta))
         end block body
 
-        call teardown(dir)
+        call teardown(directory)
     end subroutine test_filegroup_action
 
     !> q in a group with no active session asks and closes it, then shows
@@ -423,11 +430,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: meta
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         integer :: k
 
-        call setup(dir)
-        call start_group(dir, k, st)
+        call setup(directory)
+        call start_group(directory, k, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -442,6 +449,68 @@ contains
             call check(error, same_handle(current_buffer(), ediff_registry_buffer), "the registry")
         end block body
 
-        call teardown(dir)
+        call teardown(directory)
     end subroutine test_quit_meta_buffer
+
+    !> The default filter is a regular expression set with = or a
+    !> procedure set with =>, such as the last filter typed.
+    subroutine test_default_filtering_regexp(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call ediff_filtering_regexp_history%append("^f")
+        ediff_default_filtering_regexp%procedure => get_latest_ediff_filtering_regexp
+        call check(error, get_ediff_default_filtering_regexp(), "^f")
+        if (allocated(error)) return
+        ediff_default_filtering_regexp = "\.f90$"
+        call check(error,.not. associated(ediff_default_filtering_regexp%procedure), "= clears the procedure")
+        if (allocated(error)) return
+        call check(error, get_ediff_default_filtering_regexp(), "\.f90$")
+        call ediff_default_filtering_regexp%clear()
+    end subroutine test_default_filtering_regexp
+
+    !> C in the directory difference buffer copies a file to the
+    !> directory that lacks it, which makes it a session of the group; q
+    !> then closes the buffer.  Updating the registry without redrawing it
+    !> is an error, as upstream.
+    subroutine test_directory_diff_copy(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: diffs
+        type(status_type) :: st
+        character(len=:), allocatable :: directory
+        integer :: k, at
+
+        call setup(directory)
+        call start_group(directory, k, st)
+
+        body: block
+            call check(error, st%ok(), format_error(st))
+            if (allocated(error)) exit body
+            diffs = ediff_session_groups(k)%directory_diffs_buffer
+            call set_window_buffer(selected_frame%selected_window, diffs, st)
+            call set_buffer(diffs, st)
+            at = index(text_of(diffs), "only_a")
+            call goto_char(int(at, int64))
+            call kbd_store_bytes("Cy")
+            call command_loop(st)
+            call check(error, file_exists(directory//"b/only_a"), "only_a copied to B")
+            if (allocated(error)) exit body
+            call check(error, size(ediff_session_groups(k)%sessions), 4)
+            if (allocated(error)) exit body
+            call check(error, size(ediff_session_groups(k)%directory_differences), 1)
+            if (allocated(error)) exit body
+            call check(error, is_buffer_live(diffs), "still shown")
+            if (allocated(error)) exit body
+            call kbd_store_bytes("q")
+            call command_loop(st)
+            call check(error,.not. is_buffer_live(diffs), "q closes it after C")
+            if (allocated(error)) exit body
+            call update_ediff_registry(st)
+            call check(error, st%ok(), format_error(st))
+            if (allocated(error)) exit body
+            call update_ediff_meta_buffer(ediff_registry_buffer, st)
+            call check(error,.not. st%ok(), "the registry is no group")
+        end block body
+
+        call teardown(directory)
+    end subroutine test_directory_diff_copy
 end module test_ediff_multiple_mod

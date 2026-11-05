@@ -986,19 +986,19 @@ contains
         character(len=*), intent(in) :: f1, f2
         logical, intent(out) :: same
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: e1, e2
-        type(value_type) :: result, arg1, arg2
+        character(len=:), allocatable :: expanded1, expanded2
+        type(value_type) :: result, argument1, argument2
 
         same = .false.
         status = status_type()
         if (is_file_directory(f1) .or. is_file_directory(f2)) return
-        call expand_file_name(f1, e1, status)
+        call expand_file_name(f1, expanded1, status)
         if (.not. status%ok()) return
-        call expand_file_name(f2, e2, status)
+        call expand_file_name(f2, expanded2, status)
         if (.not. status%ok()) return
-        arg1 = value_type(text=e1)
-        arg2 = value_type(text=e2)
-        call execute_process(ediff_cmp_program, result, status, args=list(arg1, arg2))
+        argument1 = value_type(text=expanded1)
+        argument2 = value_type(text=expanded2)
+        call execute_process(ediff_cmp_program, result, status, args=list(argument1, argument2))
         if (.not. status%ok()) return
         if (vtag(result) == V_INTEGER) same = xfixnum(result) == 0
     end subroutine compare_ediff_file_contents
