@@ -37,23 +37,23 @@ module novice_mod
     use names_mod, only: user_init_file
     use handle_mod, only: handle_type
     use buffer_mod, only: current_buffer, set_buffer
-    use editfns_mod, only: point, point_min, point_max, goto_char, delete_region, line_beginning_position, &
-                           buffer_substring
-    use insdel_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, delete_region, line_beginning_position, &
+                                     buffer_substring
+    use insert_delete_mod, only: insert
     use search_mod, only: search_forward, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
-    use fileio_mod, only: file_exists
+    use file_input_output_mod, only: file_exists
     use files_mod, only: find_file_noselect, save_buffer
-    use config_mod, only: init_file_name
-    use subr_mod, only: read_y_or_n
+    use configuration_mod, only: init_file_name
+    use basic_subprograms_mod, only: read_y_or_n
     use data_mod, only: symbol_name
     use keymap_mod, only: key_description
     use keyboard_mod, only: disabled_command_function_variable
-    use callint_mod, only: execute_interactively, is_command, find_command, command_type
+    use execute_interactively_mod, only: execute_interactively, is_command, find_command, command_type
     use character_mod, only: CHAR_META
     use help_mod, only: substitute_command_keys, documentation_hook
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
-    use minibuf_mod, only: completion_obarray_table
-    use rmc_mod, only: rmc_choice_type, read_multiple_choice
+    use minibuffer_reading_mod, only: completion_obarray_table
+    use read_multiple_choice_mod, only: rmc_choice_type, read_multiple_choice
     implicit none(type, external)
     private
 

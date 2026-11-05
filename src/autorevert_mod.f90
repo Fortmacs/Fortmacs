@@ -42,7 +42,7 @@ module autorevert_mod
     use handle_mod, only: handle_type, null_handle, has_handle
     use value_mod, only: value_type
     use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer, set, symbol_value
-    use fns_mod, only: put
+    use utility_functions_mod, only: put
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
@@ -50,24 +50,24 @@ module autorevert_mod
                           set_buffer_internal, restore_buffer_modified
     use window_mod, only: windows, window_leaves, window_point, set_window_point, same_handle
     use frame_mod, only: selected_frame
-    use editfns_mod, only: point, point_max, point_min, goto_char, widen, narrow_to_region
+    use editing_functions_mod, only: point, point_max, point_min, goto_char, widen, narrow_to_region
     use undo_mod, only: undo_boundary
     use search_mod, only: string_match
     use keyboard_mod, only: is_input_pending
     use timer_mod, only: execute_with_timer, destroy_timer, is_timer, is_timer_active
-    use xdisp_mod, only: message
-    use fileio_mod, only: expand_file_name, is_file_readable, is_file_symlink, file_attributes, file_stat_type, &
-                          file_name_nondirectory, insert_file_contents, set_visited_file_modtime, is_visited_file_modtime_current
+    use display_engine_mod, only: message
+    use file_input_output_mod, only: expand_file_name, is_file_readable, is_file_symlink, file_attributes, file_stat_type, &
+                             file_name_nondirectory, insert_file_contents, set_visited_file_modtime, is_visited_file_modtime_current
     use files_mod, only: revert_buffer, find_file_hook, close_buffer_hook, after_set_visited_file_name_hook, &
                          before_revert_hook, after_revert_hook, revert_buffer_in_progress, buffer_stale_function, &
                          buffer_stale_procedure, buffer_stale_default_function, buffer_auto_revert_by_notification, &
                          mounted_file_systems, BUFFER_STALE_NO, BUFFER_STALE_YES, BUFFER_STALE_FAST
-    use subr_mod, only: after_change_major_mode_hook, read_y_or_n
+    use basic_subprograms_mod, only: after_change_major_mode_hook, read_y_or_n
     use filenotify_mod, only: file_notify_event_type, file_notify_add_watch, file_notify_rm_watch, &
                               FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE, FILE_NOTIFY_CREATED, FILE_NOTIFY_DELETED, &
                               FILE_NOTIFY_CHANGED, FILE_NOTIFY_RENAMED, FILE_NOTIFY_ATTRIBUTE_CHANGED, FILE_NOTIFY_STOPPED
     use inotify_mod, only: watch_descriptor_type, operator(==)
-    use vc_hooks_mod, only: vc_refresh_state
+    use version_control_hooks_mod, only: vc_refresh_state
     implicit none(type, external)
     private
 

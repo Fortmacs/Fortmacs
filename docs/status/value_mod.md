@@ -1,6 +1,6 @@
 # value_mod
 
-- Module: value_mod, value_names_mod (submodule), names_mod, data_mod, data_buffer_mod (submodule), fns_mod, fns_hash_mod (submodule)
+- Module: value_mod, value_names_mod (submodule), names_mod, data_mod, data_buffer_mod (submodule), utility_functions_mod, utility_functions_hash_mod (submodule)
 - Upstream: lisp.h, alloc.c, lread.c (obarray), data.c, fns.c (+ buffer.c local variables)
 - State: partial
 
@@ -22,7 +22,7 @@ symbol values,
 `substring` and COUNT_CHARACTERS on strings,
 plists,
 `get`/`put`,
-fns.c `yes-or-no-p` (submodule fns_ask_mod; ASCII downcase);
+fns.c `yes-or-no-p` (submodule utility_functions_ask_mod; ASCII downcase);
 buffer-local variables in data_buffer_mod: `make-local-variable`,
 `make-variable-buffer-local`,
 `kill-local-variable`,
@@ -44,7 +44,7 @@ strings' text property intervals (`string_intervals`, `set_string_intervals`; `e
 Not applicable: run-time variables (a variable that exists only because a name was set at run time: data.c `set`, `boundp`, `makunbound`, `symbol-value` on names no Fortran object declares, and the data-tests cases on such variables);
 unknown names in set_variable,
 file-local and directory-local variables are ignored ;
-step 42f chunk 4 in fns_mod (and submodule fns_buffer_mod): `string-search`,
+step 42f chunk 4 in utility_functions_mod (and submodule utility_functions_buffer_mod): `string-search`,
 `string-distance` (BYTECOMPARE),
 `string_char_to_byte`/`string_byte_to_char`,
 `substring-no-properties`,
@@ -55,7 +55,7 @@ step 42f chunk 4 in fns_mod (and submodule fns_buffer_mod): `string-search`,
 the base64 functions (`base64-encode-string`, `base64url-encode-string`, `base64-decode-string`, and the region commands `base64-encode-region`, `base64url-encode-region`, `base64-decode-region` with M-x; MULTIBYTE for raw bytes),
 `buffer-line-statistics`,
 `random` (a generic: no argument, a positive LIMIT, a string seed, `.true.` to reseed from the system's entropy; the intrinsic `random_number` behind sysdep.c `get_random`),
-`load-average` (integers times 100 or reals; Gnulib getloadavg's /proc/loadavg reading in Fortran, sysdep_mod `get_load_averages`),
+`load-average` (integers times 100 or reals; Gnulib getloadavg's /proc/loadavg reading in Fortran, system_dependent_mod `get_load_averages`),
 `locale-info` (the C locale's codeset, days, months and paper, items `LOCALE_INFO_CODESET`/`_DAYS`/`_MONTHS`/`_PAPER`; a result of another kind stays unallocated, upstream's nil);
 data.c `string-to-number` (int64 or real64 result, BASE 2–16, +INF/NaN);
 `string-bytes` is the intrinsic `len`,
@@ -70,12 +70,12 @@ data.c `string-to-number` (int64 or real64 result, BASE 2–16, +INF/NaN);
 `swap_in_global_binding`,
 `do_symval_forwarding` cited where implemented;
 fns.c `md5`,
-`secure-hash` (strings and buffers; START/END as BEGINNING/END, CODING-SYSTEM, NOERROR, BINARY; the algorithms the named constants `SECURE_HASH_MD5` … `SECURE_HASH_SHA3_512`; the input encoded as extract_data_from_object does: a string by the most preferred coding system or `raw-text` if unibyte, a buffer by the coding system `write-region` would choose, with `select_safe_coding_system_function`; the `iv-auto` OBJECT as `hash_random_bytes(algorithm, length, hash, status, binary)` (R6-31), LENGTH bytes from getrandom through sysdep_mod `fortmacs_getrandom`),
+`secure-hash` (strings and buffers; START/END as BEGINNING/END, CODING-SYSTEM, NOERROR, BINARY; the algorithms the named constants `SECURE_HASH_MD5` … `SECURE_HASH_SHA3_512`; the input encoded as extract_data_from_object does: a string by the most preferred coding system or `raw-text` if unibyte, a buffer by the coding system `write-region` would choose, with `select_safe_coding_system_function`; the `iv-auto` OBJECT as `hash_random_bytes(algorithm, length, hash, status, binary)` (R6-31), LENGTH bytes from getrandom through system_dependent_mod `fortmacs_getrandom`),
 `secure-hash-algorithms`,
 `buffer-hash` (SHA-1 of both sides of the gap),
 `secure_hash`,
 `hexbuf_digest`/`make_digest_string` (`digest_to_hex`),
-in submodule fns_hash_mod over md5_mod … sha3_mod
+in submodule utility_functions_hash_mod over md5_mod … sha3_mod
 
 ## Deferred
 
@@ -97,9 +97,9 @@ subr.el's `sha1` (it is `secure_hash` with SECURE_HASH_SHA1)
 ## Tests
 
 test_values_mod (ports fns-tests length and plist cases, binding-test-set-constant),
-test_fns_mod (ports fns-tests-compare-strings; own `substring` tests),
+test_utility_functions_mod (ports fns-tests-compare-strings; own `substring` tests),
 test_data_buffer_mod (ports binding-test-manual, -setq-default and -makunbound without `let`) ;
-test_fns_mod ports string-search,
+test_utility_functions_mod ports string-search,
 test-string-distance,
 substring-no-properties,
 string-equal,
@@ -113,7 +113,7 @@ and own string-indexes,
 base64-decode-region,
 load-average and locale-info tests;
 test_values_mod ports lread-string-to-number-trailing-dot and own string-to-number tests;
-test_fns_mod ports test-secure-hash (`iv-auto` as `hash_random_bytes`) and fns-tests-hash-buffer,
+test_utility_functions_mod ports test-secure-hash (`iv-auto` as `hash_random_bytes`) and fns-tests-hash-buffer,
 and own md5/secure-hash range,
 buffer,
 BINARY,

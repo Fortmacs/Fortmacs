@@ -1,4 +1,4 @@
-! test_marker_mod.f90 -- tests for marker objects (marker_mod, insdel_mod).
+! test_marker_mod.f90 -- tests for marker objects (marker_mod, insert_delete_mod).
 ! Own tests; upstream's marker-tests.el needs windows and *Help*; its
 ! point is covered by set-marker-from-other-buffer.
 !
@@ -34,7 +34,7 @@ module test_marker_mod
                           destroy_marker, make_marker, marker_buffer, marker_byte_position, &
                           marker_insertion_type, marker_last_position, marker_position, set_marker, &
                           set_marker_insertion_type, set_marker_to
-    use insdel_mod, only: insert, insert_before_markers, del_range
+    use insert_delete_mod, only: insert, insert_before_markers, del_range
     use value_mod, only: make_marker_ref
     use print_mod, only: readable_text
     implicit none(type, external)

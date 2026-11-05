@@ -25,18 +25,18 @@
 !> lines whose beginning matches `page_delimiter'.
 module page_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use error_mod, only: status_type
     use buffer_mod, only: buffers, current
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_bol, is_bob, is_eob, is_eol, widen, narrow_to_region
-    use cmds_mod, only: forward_char, forward_line, beginning_of_line, end_of_line
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bol, is_bob, is_eob, is_eol, widen, narrow_to_region
+    use editing_commands_mod, only: forward_char, forward_line, beginning_of_line, end_of_line
     use search_mod, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, &
                           set_match_data, SEARCH_NOERROR
-    use subr_mod, only: looking_back
+    use basic_subprograms_mod, only: looking_back
     use simple_mod, only: push_mark, count_lines
-    use xdisp_mod, only: message
+    use display_engine_mod, only: message
     use paragraphs_mod, only: page_delimiter, init_paragraph_variables
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use commands_mod, only: commands
     implicit none(type, external)
     private

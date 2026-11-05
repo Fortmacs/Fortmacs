@@ -1,12 +1,12 @@
 # smtpmail_mod
 
-- Module: smtpmail_mod (+ sys_socket_mod in src/sys)
+- Module: smtpmail_mod (+ system_socket_mod in src/sys)
 - Upstream: mail/smtpmail.el (+ network-stream.el `open-network-stream` and `network-stream-open-starttls` without TLS, `network-stream-get-response`; rfc2104.el `rfc2104-hash` with MD5; message.el `message-make-message-id`, `message-unique-id`, `message-number-base36`, `message-make-fqdn`, `message-user-mail-address`, `message-narrow-to-headers`; process.c's blocking connect, `send_process` and the default sentinel's messages for this connection)
 - State: partial
 
 ## Ported
 
-`smtpmail-send-it` (`send_mail_with_smtp`: the envelope address from `mail_envelope_from` (sendmail_mod's `get_mail_envelope_from`), the From field (mail_extract_mod) or `smtpmail_user_mail_address`, the blank header lines, blank Subject, the From field in the `angles`, `parens` and plain styles, Message-Id and Date fields, the MIME header for `mail_send_nonascii` MIME, Fcc with the message's coding system, the recipients, Bcc removed, sending or queueing; the `smtpmail_mail_address` and `smtpmail_code_conv_from` bindings),
+`smtpmail-send-it` (`send_mail_with_smtp`: the envelope address from `mail_envelope_from` (send_mail_mod's `get_mail_envelope_from`), the From field (mail_extract_mod) or `smtpmail_user_mail_address`, the blank header lines, blank Subject, the From field in the `angles`, `parens` and plain styles, Message-Id and Date fields, the MIME header for `mail_send_nonascii` MIME, Fcc with the message's coding system, the recipients, Bcc removed, sending or queueing; the `smtpmail_mail_address` and `smtpmail_code_conv_from` bindings),
 `smtpmail-send-queued-mail` (`send_queued_mail_with_smtp`; the variables of a queued message are kept in a namelist file, FILE.nml, where upstream writes FILE.el),
 `smtpmail-via-smtp` (the trace buffer "*trace of SMTP session to HOST*", the greeting, EHLO and HELO, the extensions, ONEX, VERB, XUSR, MAIL FROM with SIZE, RCPT TO, DATA, QUIT; retries after transient 4xx errors up to `smtpmail_retries`; asking for credentials after 530 or 550-554; `smtpmail_servers_requiring_authorization`),
 `smtpmail-try-auth-methods` (the mechanisms of `smtpmail_auth_supported` the server offers),
@@ -30,8 +30,8 @@
 the user options of smtpmail.el but `smtpmail-stream-type` (`smtpmail_smtp_service` takes a port number, `%port`, or a service name, `%service_name`),
 `smtpmail-auth-supported`,
 `smtpmail-mail-address`;
-the "smtp" choice of `sendmail-query-user-about-smtp` (sendmail_mod's submodule sendmail_query_mod);
-TCP connections in src/sys/sys_socket_mod (getaddrinfo, socket, connect, send without SIGPIPE)
+the "smtp" choice of `sendmail-query-user-about-smtp` (send_mail_mod's submodule send_mail_query_mod);
+TCP connections in src/sys/system_socket_mod (getaddrinfo, socket, connect, send without SIGPIPE)
 
 ## Deferred
 

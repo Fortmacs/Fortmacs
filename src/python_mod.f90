@@ -49,14 +49,14 @@
 !> `python_indent_current_level' and `python_indent_levels'.
 module python_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use error_mod, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, list, list_elements, vtag, V_INTEGER
     use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
                         append_locals_clearer
     use commands_mod, only: commands
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: this_command, last_command, real_this_command, last_command_event
     use buffer_mod, only: buffers, current, buffer_serial_live, current_buffer, buffer_chars_modified_tick, &
                           transient_mark_mode
@@ -69,21 +69,22 @@ module python_mod
                           skip_syntax_backward, syntax_entry, standard_syntax_table, string_to_syntax, &
                           syntax_descriptor_type, syntax_entry_at, char_syntax, parse_expression_ignore_comments, &
                           parse_expression_lookup_properties, scan_error_data, ST_STRING_STYLE, syntax_table, set_syntax_table
-    use editfns_mod, only: point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, char_before, &
-                           buffer_substring, line_beginning_position, line_end_position, delete_region, narrow_to_region, &
-                           widen, region_beginning, region_end, preceding_char, following_char, mark_position
-    use cmds_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, post_self_insert_hook
-    use insdel_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, &
+                                     char_before, &
+                                    buffer_substring, line_beginning_position, line_end_position, delete_region, narrow_to_region, &
+                                     widen, region_beginning, region_end, preceding_char, following_char, mark_position
+    use editing_commands_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, post_self_insert_hook
+    use insert_delete_mod, only: insert
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use indent_mod, only: current_column, current_indentation, indent_line_to, indent_line_function, &
                           indent_region_function, indent_rigidly, indent_according_to_mode, indent_tabs_mode
     use search_mod, only: looking_at, re_search_forward, re_search_backward, search_backward, string_match, &
                           match_beginning, match_end, match_data, set_match_data, SEARCH_NOERROR, SEARCH_MOVE
-    use subr_mod, only: match_string_no_properties, looking_back
+    use basic_subprograms_mod, only: match_string_no_properties, looking_back
     use simple_mod, only: back_to_indentation, line_number_at_pos, is_use_region, backward_delete_char_untabify, newline, &
                           count_lines
-    use textprop_mod, only: put_text_property
-    use xdisp_mod, only: message, tab_width
+    use text_properties_mod, only: put_text_property
+    use display_engine_mod, only: message, tab_width
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, font_lock_keywords_type, &
                              font_lock_keywords_level, FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
@@ -95,11 +96,11 @@ module python_mod
     use fill_mod, only: fill_paragraph, fill_paragraph_function, fill_comment_paragraph, fill_indent_according_to_mode
     use simple_mod, only: normal_auto_fill_function, do_auto_fill
     use electric_mod, only: electric_indent_inhibit, electric_indent_chars_value, electric_indent_chars_set_local
-    use prog_mode_mod, only: prog_first_column
+    use programming_mode_mod, only: prog_first_column
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use grep_mod, only: grep_files_aliases, grep_files_alias_type, grep_find_ignored_directories, grep_ignore_type
-    use imenu_mod, only: imenu_create_index_function, imenu_index_type
-    use which_func_mod, only: which_func_functions
+    use index_menu_mod, only: imenu_create_index_function, imenu_index_type
+    use which_function_mod, only: which_func_functions
     use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private

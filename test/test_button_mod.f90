@@ -32,10 +32,10 @@ module test_button_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type, vtag, xstring, xfixnum, V_STRING
     use buffer_mod, only: get_or_make_buffer, get_buffer, set_buffer, current_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_min, point_max, buffer_string, widen
-    use textprop_mod, only: get_text_property, put_text_property
-    use itree_mod, only: is_overlay, overlay_buffer, overlay_start
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, widen
+    use text_properties_mod, only: get_text_property, put_text_property
+    use interval_tree_mod, only: is_overlay, overlay_buffer, overlay_start
     use keymap_mod, only: make_sparse_keymap, keymap_set, key_parse
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
     use frame_mod, only: selected_window, selected_frame, ensure_frame_windows

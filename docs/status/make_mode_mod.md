@@ -51,4 +51,4 @@ the overview sorts its lines itself (sort.el is not ported)
 ## Tests
 
 test_make_mode_mod (ports make-mode-tests--bug17400; own tests of the keywords, motion, pickup, insertion, completion, backslashes, filling, the save checks, `makefile-add-log-defun`, auto-mode-alist and `make-temp-name`);
-test_imenu_mod (the index)
+test_index_menu_mod (the index)

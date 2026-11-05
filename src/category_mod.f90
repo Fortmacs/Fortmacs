@@ -37,7 +37,7 @@
 !>    categories.  Total number of categories is limited to 95.
 !>
 !> A category set is a `category_set_type' (a bool-vector of length 128
-!> upstream).  A category table is a char-table (chartab_mod) of subtype
+!> upstream).  A category table is a char-table (character_table_mod) of subtype
 !> "category_table" whose values are category set numbers; its extra
 !> slot 0 holds the number of its `category_info_type', which keeps the
 !> docstrings of its categories (upstream's extra slot 0) and the
@@ -54,9 +54,9 @@ module category_mod
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current
     use character_mod, only: MAX_CHAR
-    use chartab_mod, only: make_char_table, copy_char_table, is_char_table, char_table_subtype, &
-                           char_table_extra_slot, set_char_table_extra_slot, char_table_ref, char_table_ref_and_range, &
-                           char_table_set_range, set_char_table_range, NO_VALUE
+    use character_table_mod, only: make_char_table, copy_char_table, is_char_table, char_table_subtype, &
+                                   char_table_extra_slot, set_char_table_extra_slot, char_table_ref, char_table_ref_and_range, &
+                                   char_table_set_range, set_char_table_range, NO_VALUE
     use characters_mod, only: characters_categories
     use string_type_mod, only: string_type
     implicit none(type, external)

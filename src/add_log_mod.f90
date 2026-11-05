@@ -37,19 +37,19 @@
 module add_log_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type
-    use timefns_mod, only: format_time_string
+    use time_functions_mod, only: format_time_string
     use handle_mod, only: handle_type
     use data_mod, only: string_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
-    use callint_mod, only: current_prefix_arg, PREFIX_NONE
+    use execute_interactively_mod, only: current_prefix_arg, PREFIX_NONE
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_file_buffer, &
                           is_buffer_live, buffer_serial_live
-    use fileio_mod, only: expand_file_name, file_name_directory, file_name_nondirectory, is_file_directory, &
-                          file_exists, file_name_as_directory, directory_file_name
+    use file_input_output_mod, only: expand_file_name, file_name_directory, file_name_nondirectory, is_file_directory, &
+                                     file_exists, file_name_as_directory, directory_file_name
     use files_mod, only: find_file_noselect, abbreviate_file_name, file_chase_links, find_file, file_relative_name, &
                          file_truename, is_backup_file_name, file_name_sans_versions
-    use fns_mod, only: count_characters
+    use utility_functions_mod, only: count_characters
     use derived_mod, only: is_derived_mode
     use modes_mod, only: major_modes
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, skip_chars_forward, skip_chars_backward, &
@@ -57,26 +57,26 @@ module add_log_mod
     use faces_mod, only: named_face_type, display_when, face_attrs
     use buffer_mod, only: fill_column, left_margin
     use indent_mod, only: indent_tabs_mode, indent_to, indent_relative_first_indent_point, current_column
-    use xdisp_mod, only: tab_width, message
+    use display_engine_mod, only: tab_width, message
     use paragraphs_mod, only: paragraph_start, paragraph_separate, page_delimiter, forward_paragraph
     use page_mod, only: forward_page
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_eob, char_before, delete_region, buffer_substring, &
-                           line_beginning_position, line_end_position, point_marker, user_full_name, widen, &
-                           narrow_to_region, buffer_size
-    use cmds_mod, only: forward_line, beginning_of_line, end_of_line
-    use insdel_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_eob, char_before, delete_region, buffer_substring, &
+                                     line_beginning_position, line_end_position, point_marker, user_full_name, widen, &
+                                     narrow_to_region, buffer_size
+    use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
+    use insert_delete_mod, only: insert
     use search_mod, only: looking_at, re_search_forward, re_search_backward, search_forward, regexp_quote, string_match, &
                           match_beginning, case_fold_search, SEARCH_NOERROR
-    use subr_mod, only: match_string_no_properties
+    use basic_subprograms_mod, only: match_string_no_properties
     use undo_mod, only: undo_boundary
     use marker_mod, only: marker_position, destroy_marker
     use window_mod, only: window_buffer, window_dedication, switch_to_buffer, switch_to_buffer_other_window, &
                           DEDICATED_NONE
-    use minibuf_mod, only: read_string
+    use minibuffer_reading_mod, only: read_string
     use minibuffer_mod, only: read_file_name
     use replace_mod, only: format_prompt
     use startup_mod, only: user_mail_address_value
-    use vc_hooks_mod, only: vc_working_revision
+    use version_control_hooks_mod, only: vc_working_revision
     use keymap_mod, only: keymap_set
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
@@ -385,10 +385,10 @@ contains
     !> Move point to the end of names read and return the function names
     !> as a list of strings.  Port of add-log.el:change-log-read-defuns.
     recursive subroutine change_log_read_subprograms(names, status, end)
-        use editfns_mod, only: point, goto_char
+        use editing_functions_mod, only: point, goto_char
         use syntax_mod, only: skip_chars_forward, skip_chars_backward
         use search_mod, only: looking_at, match_end
-        use subr_mod, only: match_string_no_properties
+        use basic_subprograms_mod, only: match_string_no_properties
         type(string_type), allocatable, intent(out) :: names(:)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: end

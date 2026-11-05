@@ -1,6 +1,6 @@
 # frame_mod
 
-- Module: frame_mod, frame_cmds_mod (submodule)
+- Module: frame_mod, frame_commands_mod (submodule)
 - Upstream: frame.h (+ window.h pixel edges, window.c `window_body_width` and `resize_frame_windows`, window.el `frame-windows-min-size`, frame.c's divider widths, frame.el's window dividers); step 44a: frame.c (terminal frames), frame.el (C-x 5), minibuf.c `move_minibuffers_onto_frame`
 - State: partial
 
@@ -112,7 +112,7 @@ after step 44b: the tab bar of a window-system frame (frame.c:gui_set_tab_bar_li
 
 ## Tests
 
-test_dispnew_mod,
-test_xdisp_mod,
-test_fake_gui_mod,
+test_display_update_mod,
+test_display_engine_mod,
+test_fake_graphical_user_interface_mod,
 test_frame_mod (own; upstream has no window divider tests)

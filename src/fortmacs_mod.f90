@@ -33,39 +33,39 @@ module fortmacs_mod
     use version_mod, only: version_string
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, current_buffer
-    use editfns_mod, only: goto_char, point_min
-    use cmds_mod, only: forward_line
-    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_name_absolute, &
-                          file_exists, is_file_executable, is_file_newer_than_file
+    use editing_functions_mod, only: goto_char, point_min
+    use editing_commands_mod, only: forward_line
+    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_name_absolute, &
+                                     file_exists, is_file_executable, is_file_newer_than_file
     use files_mod, only: find_file_noselect
     use frame_mod, only: selected_frame
     use window_mod, only: delete_window_tree, delete_window_object, set_window_buffer_internal, switch_to_buffer, &
                           switch_to_buffer_other_window, other_window
-    use sysdep_mod, only: install_interrupt_handler, install_window_change_handler, fortmacs_isatty, &
-                          fortmacs_execv, fortmacs_strerror
-    use term_mod, only: init_tty, delete_tty, tty_set_terminal_modes
-    use termchar_mod, only: tty_flush
-    use dispnew_mod, only: adjust_frame_glyphs, frame_ring_bell, do_pending_window_change
-    use xdisp_mod, only: redisplay_internal, init_frame_windows, message
-    use xfaces_mod, only: init_frame_faces
+    use system_dependent_mod, only: install_interrupt_handler, install_window_change_handler, fortmacs_isatty, &
+                                    fortmacs_execv, fortmacs_strerror
+    use terminal_output_mod, only: init_tty, delete_tty, tty_set_terminal_modes
+    use terminal_state_mod, only: tty_flush
+    use display_update_mod, only: adjust_frame_glyphs, frame_ring_bell, do_pending_window_change
+    use display_engine_mod, only: redisplay_internal, init_frame_windows, message
+    use face_realization_mod, only: init_frame_faces
     use faces_mod, only: init_faces
     use modes_mod, only: minor_modes
     use keyboard_mod, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, exit_fortmacs_hook
     use process_mod, only: kill_buffer_processes
     use bindings_mod, only: init_bindings
-    use term_xterm_mod, only: terminal_init_xterm
-    use tty_colors_mod, only: tty_register_colors
+    use terminal_xterm_mod, only: terminal_init_xterm
+    use terminal_colors_mod, only: tty_register_colors
     use names_mod, only: user_init_file
     use startup_mod, only: init_user_mail_address
-    use config_mod, only: install_prefix, configure_info_directory, running_executable, recompile, init_file_name, &
-                          current_build_name, generation_of, current_generation, switch_generation, rollback, list_generations
+    use configuration_mod, only: install_prefix, configure_info_directory, running_executable, recompile, init_file_name, &
+                                current_build_name, generation_of, current_generation, switch_generation, rollback, list_generations
     use indent_mod, only: move_to_column
-    use abbrev_mod, only: abbrevs_changed
+    use abbreviation_mod, only: abbrevs_changed
     use string_type_mod, only: string_type
     use data_mod, only: setting_errors
     use docstrings_mod, only: init_choice_values
     use coding_mod, only: eol_mnemonic_dos, eol_mnemonic_mac
-    use mule_mod, only: set_locale_environment
+    use multilingual_environment_mod, only: set_locale_environment
     implicit none(type, external)
     private
 

@@ -34,19 +34,19 @@ module auth_source_mod
     use handle_mod, only: handle_type
     use value_mod, only: list, value_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, erase_buffer
-    use editfns_mod, only: buffer_size
-    use textprop_mod, only: put_text_property, remove_list_of_text_properties
+    use editing_functions_mod, only: buffer_size
+    use text_properties_mod, only: put_text_property, remove_list_of_text_properties
     use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
     use keymap_mod, only: keymap_set, set_keymap_parent, use_local_map
     use keyboard_mod, only: post_command_hook, sit_for
-    use cmds_mod, only: post_self_insert_hook
+    use editing_commands_mod, only: post_self_insert_hook
     use modes_mod, only: minor_modes
     use commands_mod, only: commands
-    use minibuf_mod, only: minibuffer_prompt_end, minibuffer_setup_function, read_string, &
-                           enable_recursive_minibuffers, minibuffer_local_map, read_hide_char
+    use minibuffer_reading_mod, only: minibuffer_prompt_end, minibuffer_setup_function, read_string, &
+                                      enable_recursive_minibuffers, minibuffer_local_map, read_hide_char
     use window_mod, only: windows, is_window_valid
     use frame_mod, only: selected_frame
-    use xdisp_mod, only: message
+    use display_engine_mod, only: message
     implicit none(type, external)
     private
 

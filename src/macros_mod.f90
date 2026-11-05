@@ -32,9 +32,9 @@ submodule(keyboard_mod) macros_mod
     use commands_mod, only: commands
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     use value_mod, only: value_type, vtag, V_STRING, V_ARRAY
-    use callint_mod, only: prefix_arg_text
+    use execute_interactively_mod, only: prefix_arg_text
     use print_mod, only: fortran_text
-    use xdisp_mod, only: message
+    use display_engine_mod, only: message
     implicit none(type, external)
 
 contains

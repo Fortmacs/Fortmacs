@@ -1,5 +1,5 @@
 ! test_font_lock_mod.f90 -- tests for font_core_mod, font_lock_mod and
-! jit_lock_mod.
+! just_in_time_lock_mod.
 ! Own tests; upstream's font-lock-tests.el is not ported yet.
 !
 ! Copyright (C) 2026 The Fortmacs authors
@@ -28,21 +28,21 @@ module test_font_lock_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, resolve_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, point_max
-    use textprop_mod, only: put_text_property, get_text_property
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, point_max
+    use text_properties_mod, only: put_text_property, get_text_property
     use bindings_mod, only: init_bindings
     use modes_mod, only: minor_modes
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, &
                              font_lock_highlight_type, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_KEEP
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_fontify_buffer, font_lock_ensure, &
                              font_lock_add_keywords
-    use jit_lock_mod, only: is_jit_lock_mode, jit_lock_fontify_now
-    use dispextern_mod, only: glyph_row_type, DEFAULT_FACE_ID
+    use just_in_time_lock_mod, only: is_jit_lock_mode, jit_lock_fontify_now
+    use glyph_matrices_mod, only: glyph_row_type, DEFAULT_FACE_ID
     use frame_mod, only: frame_type
     use faces_mod, only: init_faces
-    use xfaces_mod, only: init_frame_faces
-    use xdisp_mod, only: layout_window
+    use face_realization_mod, only: init_frame_faces
+    use display_engine_mod, only: layout_window
     implicit none(type, external)
     private
 

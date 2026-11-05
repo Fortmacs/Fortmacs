@@ -28,8 +28,8 @@ module test_inotify_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, generate_new_buffer_name
-    use insdel_mod, only: insert
-    use fileio_mod, only: write_region
+    use insert_delete_mod, only: insert
+    use file_input_output_mod, only: write_region
     use files_mod, only: create_temp_file, delete_file
     use keyboard_mod, only: read_event
     use inotify_mod, only: watch_descriptor_type, inotify_event_type, inotify_add_watch, inotify_rm_watch, &

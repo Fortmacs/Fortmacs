@@ -40,14 +40,14 @@
 module f90_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use character_mod, only: downcase_ascii
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, command_procedure, vtag, V_INTEGER
     use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
                         choice_setting_type
     use commands_mod, only: commands
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: set_transient_map, sit_for
     use buffer_mod, only: buffers, current, current_buffer, get_or_make_buffer, set_buffer, barf_if_buffer_read_only, &
                           fill_column, auto_fill_function, is_buffer_modified, restore_buffer_modified, erase_buffer
@@ -57,11 +57,11 @@ module f90_mod
     use keymap_mod, only: keymap_set, make_sparse_keymap, define_key
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, parse_partial_expression, &
                           parse_state_type, scan_groups, skip_chars_forward, skip_chars_backward, forward_word
-    use editfns_mod, only: interactive_region, point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, &
-                           char_after, char_before, delete_region, buffer_substring, line_beginning_position, &
-                           line_end_position
-    use cmds_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char, self_insert_command
-    use insdel_mod, only: insert
+    use editing_functions_mod, only: interactive_region, point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, &
+                                     char_after, char_before, delete_region, buffer_substring, line_beginning_position, &
+                                     line_end_position
+    use editing_commands_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char, self_insert_command
+    use insert_delete_mod, only: insert
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use indent_mod, only: current_column, current_indentation, move_to_column, indent_to, indent_according_to_mode, &
                           indent_line_function, indent_line_procedure, indent_region_function, indent_region, indent_tabs_mode
@@ -70,21 +70,21 @@ module f90_mod
     use simple_mod, only: newline, delete_horizontal_space, fixup_whitespace, push_mark, normal_auto_fill_function, &
                           what_line_text, blink_matching_delay, deactivate_mark
     use casefiddle_mod, only: upcase_word, downcase_word, capitalize_word
-    use xdisp_mod, only: message
+    use display_engine_mod, only: message
     use window_mod, only: windows, window_start, display_buffer
     use frame_mod, only: selected_frame
-    use abbrev_mod, only: abbrev_table_type, abbrev_mode, abbrev_all_caps, expand_abbrev, &
-                          insert_abbrev_table_description, edit_abbrevs_mode
+    use abbreviation_mod, only: abbrev_table_type, abbrev_mode, abbrev_all_caps, expand_abbrev, &
+                                insert_abbrev_table_description, edit_abbrevs_mode
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              font_lock_keywords_type, font_lock_keywords_level, FONT_LOCK_OVERRIDE_REPLACE, &
                              FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_APPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored, font_lock_flush
     use fill_mod, only: fill_paragraph_function, fill_comment_paragraph
     use expression_motion_mod, only: forward_expression, beginning_of_subprogram_function, end_of_subprogram_function
-    use regexp_opt_mod, only: regexp_opt, REGEXP_OPT_GROUP
+    use regular_expression_optimization_mod, only: regexp_opt, REGEXP_OPT_GROUP
     use newcomment_mod, only: comment_start, comment_start_skip, comment_indent_function, comment_indent_type, &
                               comment_column, comment_auto_fill_only_comments, COMMENT_INDENT_COLUMN
-    use imenu_mod, only: imenu_patterns, imenu_pattern_type, imenu_case_fold_search
+    use index_menu_mod, only: imenu_patterns, imenu_pattern_type, imenu_case_fold_search
     implicit none(type, external)
     private
 

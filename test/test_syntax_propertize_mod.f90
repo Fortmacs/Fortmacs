@@ -31,15 +31,15 @@ module test_syntax_propertize_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type, vtag, V_ARRAY
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_min, point_max, goto_char
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char
     use search_mod, only: re_search_forward, SEARCH_NOERROR
-    use textprop_mod, only: get_text_property
+    use text_properties_mod, only: get_text_property
     use bindings_mod, only: init_bindings
     use syntax_mod, only: parse_state_type, parse_partial_expression, syntax_ppss, syntax_propertize_done, &
                           parse_expression_lookup_properties, forward_comment
-    use subr_mod, only: is_subregexp_context
-    use regexp_opt_mod, only: regexp_opt_depth
+    use basic_subprograms_mod, only: is_subregexp_context
+    use regular_expression_optimization_mod, only: regexp_opt_depth
     use syntax_propertize_mod, only: syntax_propertize_shift_groups_and_backrefs, syntax_propertize_function, &
                                      syntax_propertize_rules_type, syntax_propertize_rule_type, syntax_highlight_type, &
                                      syntax_propertize_wholelines, syntax_ppss_max_span, syntax_ppss_context, &

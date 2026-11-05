@@ -30,7 +30,7 @@ module text_mode_mod
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live
     use modes_mod, only: major_modes
     use hooks_mod, only: hook_type
-    use abbrev_mod, only: abbrev_table_type
+    use abbreviation_mod, only: abbrev_table_type
     implicit none(type, external)
     private
 

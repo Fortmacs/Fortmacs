@@ -25,10 +25,10 @@ module test_fortmacs_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use buffer_mod, only: erase_buffer, buffers, current
-    use editfns_mod, only: buffer_string
-    use sysdep_mod, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
-                          reset_sys_modes, fortmacs_write, fortmacs_read, input_available, &
-                          fortmacs_tty_type
+    use editing_functions_mod, only: buffer_string
+    use system_dependent_mod, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
+                                    reset_sys_modes, fortmacs_write, fortmacs_read, input_available, &
+                                    fortmacs_tty_type
     use keyboard_mod, only: last_message
     use value_mod, only: value_type, xstring
     use data_mod, only: symbol_value, value_eq
@@ -38,7 +38,7 @@ module test_fortmacs_mod
     use frame_mod, only: selected_frame
     use test_support_mod, only: show_alone
     use window_mod, only: windows, window_leaves
-    use fileio_mod, only: fortmacs_wd, file_name_as_directory, write_region, create_directory_internal, init_fileio
+    use file_input_output_mod, only: fortmacs_wd, file_name_as_directory, write_region, create_directory_internal, init_fileio
     use buffer_mod, only: close_buffer, get_file_buffer
     use fortmacs, only: status_type, set_error, FM_GENERIC_ERROR, command_type, &
                         keymap_global_set, insert, get_or_make_buffer, set_buffer, &

@@ -48,21 +48,21 @@ module test_project_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, close_buffer, get_or_make_buffer, &
                           generate_new_buffer_name
-    use insdel_mod, only: insert
-    use editfns_mod, only: buffer_string
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: buffer_string
     use search_mod, only: string_match
-    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
-                          create_directory_internal, write_region, expand_file_name, directory_file_name, &
-                          file_name_nondirectory
+    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+                                     create_directory_internal, write_region, expand_file_name, directory_file_name, &
+                                     file_name_nondirectory
     use files_mod, only: delete_directory, executable_find, file_relative_name, is_file_equal, abbreviate_file_name
     use bindings_mod, only: init_bindings
     use value_mod, only: value_type, make_keymap_ref, command_type
     use keymap_mod, only: key_parse, lookup_key, current_global_map
-    use callint_mod, only: command_of
+    use execute_interactively_mod, only: command_of
     use commands_mod, only: commands
-    use vc_hooks_mod, only: vc_handled_backends
-    use vc_mod, only: vc_responsible_backend
-    use vc_hooks_mod, only: vc_backends
+    use version_control_hooks_mod, only: vc_handled_backends
+    use version_control_mod, only: vc_responsible_backend
+    use version_control_hooks_mod, only: vc_backends
     use project_mod, only: project_type, transient_project_type, vc_project_type, &
                            get_current_project, project_find_functions, try_vc_project, project_clear_cache, &
                            project_vc_extra_root_markers, project_vc_ignores, project_vc_backend_markers, &
@@ -71,8 +71,8 @@ module test_project_mod
                            combine_project_directories, subtract_project_directories, project_vc_ignores_of, &
                            is_project_buffer_matching, project_close_buffer_conditions, project_buffers_to_close, &
                            find_project_regexp
-    use xref_mod, only: xref_fetcher_type, xref_show_parameters_type, xref_show_procedure, xref_item_type, &
-                        xref_show_xrefs_function, xref_search_program, XREF_SEARCH_PROGRAM_GREP
+    use cross_reference_mod, only: xref_fetcher_type, xref_show_parameters_type, xref_show_procedure, xref_item_type, &
+                                   xref_show_xrefs_function, xref_search_program, XREF_SEARCH_PROGRAM_GREP
     implicit none(type, external)
     private
 
@@ -699,7 +699,7 @@ contains
     contains
 
         subroutine insert_file(file)
-            use fileio_mod, only: insert_file_contents
+            use file_input_output_mod, only: insert_file_contents
             character(len=*), intent(in) :: file
 
             call insert_file_contents(file, .false., inserted, st)

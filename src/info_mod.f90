@@ -55,7 +55,7 @@
 !> UTF-8, and the Info files of the source tree (`source_directory').
 module info_mod
     use, intrinsic :: iso_fortran_env, only: int64, int32
-    use callint_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_SEARCH_FAILED, &
                          FM_USER_SEARCH_FAILED, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
@@ -69,51 +69,51 @@ module info_mod
                           inhibit_read_only, transient_mark_mode, header_line_format_type, buffer_list
     use marker_mod, only: make_marker, destroy_marker, marker_buffer, marker_position, set_marker, &
                           detach_marker, set_marker_insertion_type, byte_to_char, char_to_byte
-    use editfns_mod, only: point, point_min, point_max, goto_char, is_bob, is_eob, is_bol, is_eol, buffer_size, widen, &
-                           narrow_to_region, buffer_substring, insert_buffer_substring, delete_region, &
-                           delete_and_extract_region, line_beginning_position, line_end_position
-    use insdel_mod, only: insert
-    use cmds_mod, only: forward_line, beginning_of_line, end_of_line
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_bob, is_eob, is_bol, is_eol, buffer_size, widen, &
+                                     narrow_to_region, buffer_substring, insert_buffer_substring, delete_region, &
+                                     delete_and_extract_region, line_beginning_position, line_end_position
+    use insert_delete_mod, only: insert
+    use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
     use search_mod, only: looking_at, string_match, search_forward, search_backward, re_search_forward, &
                           re_search_backward, match_beginning, match_end, replace_match, regexp_quote, &
                           string_index_to_offset, case_fold_search, search_spaces_regexp, SEARCH_NOERROR, SEARCH_MOVE
-    use subr_mod, only: match_string_no_properties, looking_back, read_y_or_n, version, operator(>=)
+    use basic_subprograms_mod, only: match_string_no_properties, looking_back, read_y_or_n, version, operator(>=)
     use syntax_mod, only: skip_chars_forward, skip_chars_backward, copy_syntax_table, modify_syntax_entry, &
                           is_syntax_table_live, skip_syntax_backward
     use casefiddle_mod, only: downcase_string, capitalize_string
-    use textprop_mod, only: get_text_property, put_text_property, get_char_property, &
-                            next_single_char_property_change, previous_single_char_property_change, &
-                            next_single_property_change, remove_text_properties, propertized_concat, &
-                            string_put_text_property, text_property_not_all
+    use text_properties_mod, only: get_text_property, put_text_property, get_char_property, &
+                                   next_single_char_property_change, previous_single_char_property_change, &
+                                   next_single_property_change, remove_text_properties, propertized_concat, &
+                                   string_put_text_property, text_property_not_all
     use character_mod, only: multibyte_chars_in_text
-    use itree_mod, only: make_overlay, overlay_put
+    use interval_tree_mod, only: make_overlay, overlay_put
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              font_lock_mode_enabled, turn_on_font_lock
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use fill_mod, only: string_width
-    use fileio_mod, only: file_exists, is_file_directory, file_name_directory, file_name_nondirectory, &
-                          file_name_as_directory, directory_file_name, is_file_name_absolute, expand_file_name, &
-                          substitute_in_file_name, insert_file_contents, file_attributes, file_stat_type
+    use file_input_output_mod, only: file_exists, is_file_directory, file_name_directory, file_name_nondirectory, &
+                                     file_name_as_directory, directory_file_name, is_file_name_absolute, expand_file_name, &
+                                     substitute_in_file_name, insert_file_contents, file_attributes, file_stat_type
     use files_mod, only: file_truename, file_name_sans_extension, close_buffer_hook, revert_buffer_function
-    use dired_mod, only: directory_files
-    use env_mod, only: getenv
-    use config_mod, only: configure_info_directory
+    use directory_editor_mod, only: directory_files
+    use environment_mod, only: getenv
+    use configuration_mod, only: configure_info_directory
     use coding_mod, only: inhibit_null_byte_detection, buffer_file_coding_system
-    use callproc_mod, only: execute_process
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value, find_command, is_command
+    use execute_process_mod, only: execute_process
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, find_command, is_command
     use keyboard_mod, only: this_command_keys, read_event, unread_command_events, read_key_sequence_vs, sit_for
-    use isearch_mod, only: isearch_active, isearch_forward, isearch_wrapped, isearch_regexp, isearch_nonincremental, &
-                           isearch_lax_whitespace, isearch_regexp_lax_whitespace, search_whitespace_regexp, &
-                           isearch_search_procedure, isearch_pop_procedure, isearch_search_fun_default, isearch_mode_hook, &
-                           isearch_mode_end_hook, isearch_search_fun_function, isearch_wrap_function, &
-                           isearch_push_state_function, isearch_filter_test_function, set_isearch_wrapped
+    use incremental_search_mod, only: isearch_active, isearch_forward, isearch_wrapped, isearch_regexp, isearch_nonincremental, &
+                                      isearch_lax_whitespace, isearch_regexp_lax_whitespace, search_whitespace_regexp, &
+                                   isearch_search_procedure, isearch_pop_procedure, isearch_search_fun_default, isearch_mode_hook, &
+                                      isearch_mode_end_hook, isearch_search_fun_function, isearch_wrap_function, &
+                                      isearch_push_state_function, isearch_filter_test_function, set_isearch_wrapped
     use keymap_mod, only: keymap_set, where_is_internal, key_description, key_binding
     use commands_mod, only: commands
     use modes_mod, only: major_modes
     use derived_mod, only: is_derived_mode
-    use xdisp_mod, only: message, tab_width
+    use display_engine_mod, only: message, tab_width
     use indent_mod, only: current_column, move_to_column
     use simple_mod, only: copy_to_clipboard_history, count_lines, is_pos_visible_in_window, deactivate_mark, line_number_at_pos
     use window_mod, only: windows, display_buffer, select_window, get_buffer_window, window_start, set_window_start, &
@@ -121,11 +121,11 @@ module info_mod
                           window_configuration_type, current_window_configuration, set_window_configuration, &
                           destroy_window_configuration, delete_other_windows, switch_to_buffer, bury_buffer, pop_to_buffer
     use frame_mod, only: selected_window, selected_frame
-    use dispnew_mod, only: ding
-    use minibuf_mod, only: completion_ignore_case, try_completion, all_completions, is_exact_completion, &
-                           completion_table_type, completion_list_table, completion_function_table, &
-                           completion_test_procedure, completion_obarray_table, read_string, COMPLETE_TRY, COMPLETE_ALL, &
-                           COMPLETE_TEST, COMPLETE_BOUNDARIES
+    use display_update_mod, only: ding
+    use minibuffer_reading_mod, only: completion_ignore_case, try_completion, all_completions, is_exact_completion, &
+                                      completion_table_type, completion_list_table, completion_function_table, &
+                                     completion_test_procedure, completion_obarray_table, read_string, COMPLETE_TRY, COMPLETE_ALL, &
+                                      COMPLETE_TEST, COMPLETE_BOUNDARIES
     use minibuffer_mod, only: completing_read, read_file_name, REQUIRE_MATCH_YES
     use text_mode_mod, only: text_mode_syntax_table, text_mode_abbrev_table, init_text_mode
     use shell_mod, only: list_buffers_directory

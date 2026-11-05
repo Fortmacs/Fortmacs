@@ -32,14 +32,14 @@ module paragraphs_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use buffer_mod, only: buffers, current, buf_fetch_char, transient_mark_mode, barf_if_buffer_read_only
     use marker_mod, only: char_to_byte
-    use editfns_mod, only: point, goto_char, is_bob, is_eob, is_bol, point_min, point_max, constrain_to_field, &
-                           narrow_to_region, widen, inhibit_field_text_motion
-    use cmds_mod, only: forward_line, beginning_of_line, end_of_line
+    use editing_functions_mod, only: point, goto_char, is_bob, is_eob, is_bol, point_min, point_max, constrain_to_field, &
+                                     narrow_to_region, widen, inhibit_field_text_motion
+    use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
     use indent_mod, only: current_column, move_to_left_margin, current_left_margin
     use simple_mod, only: cut_region, set_mark, push_mark, transpose_subr, fill_prefix
-    use editfns_mod, only: mark_position
+    use editing_functions_mod, only: mark_position
     use data_mod, only: string_setting_type, logical_setting_type
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: this_command, last_command
     use search_mod, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, &
                           SEARCH_NOERROR, SEARCH_MOVE, regexp_quote

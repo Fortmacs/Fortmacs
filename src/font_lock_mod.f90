@@ -23,7 +23,7 @@
 !> from the syntax table) and by keywords (regexps or functions, each
 !> with the faces to give the parts of its matches), as the major mode's
 !> `font_lock_defaults' says.  With the default support mode
-!> (Just-in-time Lock, jit_lock_mod) text is fontified as redisplay is
+!> (Just-in-time Lock, just_in_time_lock_mod) text is fontified as redisplay is
 !> about to show it; otherwise the whole buffer at once, and the changed
 !> lines after each change.  This module also defines the faces of
 !> font-lock.el.
@@ -46,21 +46,21 @@
 !> face variables (font-lock-comment-face as a variable: not applicable).
 module font_lock_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, symbols, xsymbol, list_elements, make_list, vtag, V_NULL, V_NAME, V_ARRAY
     use data_mod, only: symbol_value, set, append_locals_clearer, value_eq
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_modified, restore_buffer_modified
     use marker_mod, only: make_marker, destroy_marker, set_marker, marker_position
-    use editfns_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region, line_beginning_position, &
-                           line_end_position
-    use cmds_mod, only: forward_line, forward_char
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region, line_beginning_position, &
+                                     line_end_position
+    use editing_commands_mod, only: forward_line, forward_char
     use search_mod, only: re_search_forward, match_beginning, match_end, match_data, set_match_data, case_fold_search, &
                           looking_at, &
                           SEARCH_NOERROR
-    use textprop_mod, only: put_text_property, get_text_property, next_single_property_change, &
-                            remove_list_of_text_properties, text_property_any, text_property_not_all
+    use text_properties_mod, only: put_text_property, get_text_property, next_single_property_change, &
+                                   remove_list_of_text_properties, text_property_any, text_property_not_all
     use syntax_mod, only: syntax_table, set_syntax_table, copy_syntax_table, modify_syntax_entry
     use derived_mod, only: is_derived_mode
     use faces_mod, only: init_faces, named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_CLASS_GRAYSCALE, &
@@ -74,18 +74,18 @@ module font_lock_mod
                              major_mode_of_current, &
                              font_lock_properties_procedure
     use syntax_mod, only: parse_state_type, parse_partial_expression, syntax_ppss, COMMENTSTOP_SYNTAX_TABLE
-    use subr_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, looking_back
+    use basic_subprograms_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, looking_back
     use data_mod, only: string_setting_type, forward_setting, choice_setting_type
     use newcomment_mod, only: comment_start, comment_start_skip, comment_end_skip, comment_normalize_vars
-    use insdel_mod, only: after_change_functions
-    use jit_lock_mod, only: jit_lock_register, jit_lock_unregister, jit_lock_refontify, jit_lock_fontify_now, &
-                            jit_lock_after_change_extend_region_functions, jit_lock_start, jit_lock_end, is_jit_lock_mode
-    use textprop_mod, only: previous_single_property_change
+    use insert_delete_mod, only: after_change_functions
+    use just_in_time_lock_mod, only: jit_lock_register, jit_lock_unregister, jit_lock_refontify, jit_lock_fontify_now, &
+                                     jit_lock_after_change_extend_region_functions, jit_lock_start, jit_lock_end, is_jit_lock_mode
+    use text_properties_mod, only: previous_single_property_change
     use error_mod, only: format_error
     use modes_mod, only: minor_modes
     use commands_mod, only: commands
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
-    use xdisp_mod, only: message
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use display_engine_mod, only: message
     use syntax_propertize_mod, only: syntax_propertize, syntax_ppss_table, syntax_propertize_wholelines, syntax_ppss_flush_cache
     implicit none(type, external)
     private
@@ -1595,7 +1595,7 @@ contains
     !> font-lock.el:font-lock--remove-face-from-text-property (in the
     !> current buffer).
     subroutine font_lock_remove_face_from_text_property(start_in, end, prop, value, status)
-        use textprop_mod, only: text_property_not_all, remove_list_of_text_properties
+        use text_properties_mod, only: text_property_not_all, remove_list_of_text_properties
         integer(int64), intent(in) :: start_in, end
         type(value_type), intent(in) :: prop, value
         type(status_type), intent(out) :: status

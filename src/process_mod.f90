@@ -30,7 +30,7 @@
 !>
 !> A process object is a handle into a registry (with a generation
 !> counter, so a freed one is detected).  Each running child has a worker
-!> thread (src/sys/sys_worker_mod) that reads its output and reaps it; the
+!> thread (src/sys/system_worker_mod) that reads its output and reaps it; the
 !> main thread takes the workers' messages while waiting for input
 !> (keyboard_mod's `process_output_hook'), in `accept_process_output', or
 !> in `sit_for', and only then runs the filters and sentinels, as upstream
@@ -69,20 +69,20 @@ module process_mod
                           resolve_buffer, close_buffer_processes_hook, deactivate_mark_variable, BEGINNING, buffer_handle
     use marker_mod, only: make_marker, destroy_marker, marker_buffer, marker_position, set_marker_both, &
                           set_marker, char_to_byte
-    use insdel_mod, only: insert, insert_before_markers
-    use editfns_mod, only: goto_char, widen, narrow_to_region, set_point_from_marker
+    use insert_delete_mod, only: insert, insert_before_markers
+    use editing_functions_mod, only: goto_char, widen, narrow_to_region, set_point_from_marker
     use character_mod, only: str_as_multibyte, str_as_unibyte
     use coding_mod, only: default_process_coding_system, coding_system_for_read, coding_system_for_write, &
                           last_coding_system_used, check_coding_system, coding_system_type, coding_system_eol_type, &
                           decode_coding_bytes, encode_coding_text, EOL_DOS
-    use fileio_mod, only: is_file_directory, report_file_errno, expand_file_name
-    use callproc_mod, only: get_current_directory, locate_program, init_callproc, make_environment_block
-    use sysdep_mod, only: fortmacs_spawn_async, fortmacs_kill, ignore_sigpipe, fortmacs_full_write, &
-                          close_fd, fortmacs_strsignal, fortmacs_strerror, fortmacs_dup_cloexec, fortmacs_num_processors, &
-                          ENOENT, EPIPE, set_tty_size
-    use sys_worker_mod, only: worker_message_type, start_reader, take_worker_messages, worker_wake_fd, &
-                              wait_for_worker_messages, worker_count, WORKER_OUTPUT, WORKER_EXIT
-    use xdisp_mod, only: message, mode_line_process_status
+    use file_input_output_mod, only: is_file_directory, report_file_errno, expand_file_name
+    use execute_process_mod, only: get_current_directory, locate_program, init_callproc, make_environment_block
+    use system_dependent_mod, only: fortmacs_spawn_async, fortmacs_kill, ignore_sigpipe, fortmacs_full_write, &
+                                   close_fd, fortmacs_strsignal, fortmacs_strerror, fortmacs_dup_cloexec, fortmacs_num_processors, &
+                                    ENOENT, EPIPE, set_tty_size
+    use system_worker_mod, only: worker_message_type, start_reader, take_worker_messages, worker_wake_fd, &
+                                 wait_for_worker_messages, worker_count, WORKER_OUTPUT, WORKER_EXIT
+    use display_engine_mod, only: message, mode_line_process_status
     use keyboard_mod, only: process_output_hook, process_wake_fd
     use commands_mod, only: commands
     use string_type_mod, only: string_type
@@ -1581,7 +1581,7 @@ contains
     !> (SIGNALS_VIA_CHARACTERS), other signals to the terminal's foreground
     !> group.  Port of process.c:process_send_signal.
     subroutine process_send_signal(i, signo, status, current_group)
-        use sysdep_mod, only: fortmacs_get_tty_pgrp, fortmacs_tty_signal_char
+        use system_dependent_mod, only: fortmacs_get_tty_pgrp, fortmacs_tty_signal_char
         integer(int64), intent(in) :: i
         integer, intent(in) :: signo
         type(status_type), intent(out) :: status
@@ -1636,7 +1636,7 @@ contains
     !> the current buffer's process.  Port of
     !> process.c:Fprocess_running_child_p.
     integer(int32) function process_running_child(process, status)
-        use sysdep_mod, only: fortmacs_get_tty_pgrp
+        use system_dependent_mod, only: fortmacs_get_tty_pgrp
         type(handle_type), intent(in), optional :: process
         !> Set when PROCESS is not a live subprocess (the result is then
         !> `PROCESS_RUNNING_CHILD_UNKNOWN').
@@ -1799,7 +1799,7 @@ contains
     !> Called from program, takes three arguments, PROCESS, START and END.
     !> Port of process.c:Fprocess_send_region.
     subroutine process_send_region(start, end, status, process)
-        use editfns_mod, only: buffer_substring
+        use editing_functions_mod, only: buffer_substring
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: process

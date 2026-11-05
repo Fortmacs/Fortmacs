@@ -44,7 +44,7 @@
 !> A recursive type (a value holding an array of values) would be more
 !> direct, but gfortran 13 and 14 copy such components shallowly, which
 !> breaks value semantics and double-frees.  Code outside this module and
-!> data_mod/fns_mod should use the procedures, not the atoms.
+!> data_mod/utility_functions_mod should use the procedures, not the atoms.
 !>
 !> Lists are proper lists only: no dotted pairs, no setcar/setcdr
 !> sharing.  Without object identity, `eq' on strings and lists is always
@@ -56,7 +56,7 @@
 !> never `make_list([value_type(name="a"), value_type(name="b")])'.
 !>
 !> Symbols are stored here (struct Lisp_Symbol); interning is names_mod,
-!> values and properties are data_mod and fns_mod.  Symbols are never
+!> values and properties are data_mod and utility_functions_mod.  Symbols are never
 !> freed, so a symbol is just an id; ids 1 and 2 are `nil' and `t'.
 module value_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64

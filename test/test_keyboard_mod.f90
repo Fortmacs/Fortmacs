@@ -1,4 +1,4 @@
-! test_keyboard_mod.f90 -- tests for keyboard_mod and callint_mod.
+! test_keyboard_mod.f90 -- tests for keyboard_mod and execute_interactively_mod.
 ! Ports GNU Emacs 31.1 test/src/keyboard-tests.el's read-key-sequence,
 ! lossage-size and inhibit-interaction tests; the rest of it and
 ! callint-tests.el need Lisp.  The other tests are our own.
@@ -23,7 +23,7 @@
 
 module test_keyboard_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, set_error, format_error, FM_USER_ERROR, FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_mod, only: handle_type, null_handle
@@ -31,7 +31,7 @@ module test_keyboard_mod
     use data_mod, only: value_eq
     use keymap_mod, only: define_key, destroy_keymap, key_description, key_parse, make_keymap, &
                           make_sparse_keymap, use_global_map, overriding_terminal_local_map, key_binding
-    use callint_mod, only: is_command, current_prefix_arg, command_type, prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: is_command, current_prefix_arg, command_type, prefix_arg, prefix_numeric_value
     use keyboard_mod, only: command_loop, command_loop_step, discard_input, input_decode_map, &
                             is_input_pending, kbd_store_bytes, key_translation_map, last_command, &
                             last_command_event, last_message, local_function_key_map, read_event, &
@@ -43,10 +43,10 @@ module test_keyboard_mod
                             this_single_command_raw_keys, set_this_command_keys, echo_keystrokes, echo_keystrokes_help, &
                             cancel_echoing, event_convert_list, event_name_parse_modifiers, make_ctrl_char, &
                             recursion_depth, top_level, recursive_edit, post_command_hook, safe_execute_hooks, echo_now
-    use fns_mod, only: value_equal
-    use subr_mod, only: init_subr
-    use sysdep_mod, only: fortmacs_tty_type, open_pty, close_fd, init_sys_modes, &
-                          reset_sys_modes, fortmacs_write
+    use utility_functions_mod, only: value_equal
+    use basic_subprograms_mod, only: init_subr
+    use system_dependent_mod, only: fortmacs_tty_type, open_pty, close_fd, init_sys_modes, &
+                                    reset_sys_modes, fortmacs_write
     implicit none(type, external)
     private
 
@@ -206,8 +206,8 @@ contains
     subroutine adjust_buffer(h)
         use bindings_mod, only: init_bindings
         use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
-        use insdel_mod, only: insert
-        use editfns_mod, only: goto_char
+        use insert_delete_mod, only: insert
+        use editing_functions_mod, only: goto_char
         use test_support_mod, only: show_alone
         use window_mod, only: switch_to_buffer
         type(handle_type), intent(out) :: h
@@ -225,7 +225,7 @@ contains
 
     !> Point after KEYS from position FROM.
     integer(int64) function point_after(from, keys) result(pos)
-        use editfns_mod, only: goto_char, point
+        use editing_functions_mod, only: goto_char, point
         integer(int64), intent(in) :: from
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
@@ -242,10 +242,10 @@ contains
     !> "bcd" (2 to 5) stays at 2, then goes past it to 6; C-b from 6 to 2.
     !> With an ellipsis, it stops at the end.
     subroutine test_adjust_invisible(error)
-        use textprop_mod, only: put_text_property
+        use text_properties_mod, only: put_text_property
         use buffer_mod, only: close_buffer
         use value_mod, only: value_type
-        use subr_mod, only: add_to_invisibility_spec
+        use basic_subprograms_mod, only: add_to_invisibility_spec
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -271,7 +271,7 @@ contains
 
     !> Point leaves text a display string replaces (3 to 5).
     subroutine test_adjust_display(error)
-        use textprop_mod, only: put_text_property
+        use text_properties_mod, only: put_text_property
         use buffer_mod, only: close_buffer
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h

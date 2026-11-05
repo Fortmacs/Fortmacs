@@ -34,7 +34,7 @@
 !> of a page into buttons that describe them, and `l' and `r'
 !> (`help_go_back', `help_go_forward') move through the pages shown in
 !> *Help*.  The procedures that use buttons and the help commands are in
-!> the submodule help_mode_xref_mod (button_mod and help_fns_mod use this
+!> the submodule help_mode_cross_reference_mod (button_mod and help_functions_mod use this
 !> module through help_mod).
 !>
 !> Deferred: `s' (help-view-source), `i'/`I' (Info), `c' (customize),
@@ -52,7 +52,7 @@ module help_mode_mod
     use keymap_mod, only: is_keymap_live, keymap_set
     use modes_mod, only: major_modes
     use hooks_mod, only: hook_type
-    use abbrev_mod, only: abbrev_table_type
+    use abbreviation_mod, only: abbrev_table_type
     use simple_mod, only: init_simple_modes
     implicit none(type, external)
     private
@@ -142,7 +142,7 @@ module help_mode_mod
         !> So this should be called very early, before the output buffer is
         !> cleared, also because we want to record the "previous" position
         !> of point so we can restore it properly when going back.  Port of
-        !> help-mode.el:help-setup-xref.  (In help_mode_xref_mod.)
+        !> help-mode.el:help-setup-xref.  (In help_mode_cross_reference_mod.)
         recursive module subroutine help_setup_xref(interactive, status, describe, argument)
             implicit none(type, external)
             logical, intent(in) :: interactive
@@ -165,7 +165,7 @@ module help_mode_mod
         !> stack of help buffers.  Variable `help_back_label' specifies the
         !> text for that.  Port of help-mode.el:help-make-xrefs (the
         !> current buffer; quoted names and M-x commands).  (In
-        !> help_mode_xref_mod.)
+        !> help_mode_cross_reference_mod.)
         recursive module subroutine help_make_xrefs(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -173,7 +173,7 @@ module help_mode_mod
 
         !> From BUFFER, go back to previous help buffer text using
         !> `help_xref_stack'.  Port of help-mode.el:help-xref-go-back.
-        !> (In help_mode_xref_mod.)
+        !> (In help_mode_cross_reference_mod.)
         recursive module subroutine help_xref_go_back(buffer, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
@@ -181,7 +181,7 @@ module help_mode_mod
         end subroutine help_xref_go_back
 
         !> From BUFFER, go forward to next help buffer.  Port of
-        !> help-mode.el:help-xref-go-forward.  (In help_mode_xref_mod.)
+        !> help-mode.el:help-xref-go-forward.  (In help_mode_cross_reference_mod.)
         recursive module subroutine help_xref_go_forward(buffer, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
@@ -189,14 +189,14 @@ module help_mode_mod
         end subroutine help_xref_go_forward
 
         !> Go back to previous topic in this help buffer.  Port of
-        !> help-mode.el:help-go-back.  (In help_mode_xref_mod.)
+        !> help-mode.el:help-go-back.  (In help_mode_cross_reference_mod.)
         recursive module subroutine help_go_back(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine help_go_back
 
         !> Go to the next topic in this help buffer.  Port of
-        !> help-mode.el:help-go-forward.  (In help_mode_xref_mod.)
+        !> help-mode.el:help-go-forward.  (In help_mode_cross_reference_mod.)
         recursive module subroutine help_go_forward(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -205,7 +205,7 @@ module help_mode_mod
         !> In help buffer, show docs for the name at POSITION, defaulting
         !> to point.  Show all docs for that name as either a variable or
         !> function.  Port of help-mode.el:help-follow-symbol (no faces).
-        !> (In help_mode_xref_mod.)
+        !> (In help_mode_cross_reference_mod.)
         recursive module subroutine help_follow_name(status, position)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -215,7 +215,7 @@ module help_mode_mod
         !> Go to the next page (if any) in the current buffer.
         !> The help buffers are divided into "pages" by the ^L character.
         !> Port of help-mode.el:help-goto-next-page.  (In
-        !> help_mode_xref_mod.)
+        !> help_mode_cross_reference_mod.)
         recursive module subroutine help_goto_next_page(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -227,14 +227,14 @@ module help_mode_mod
         !>
         !> The help buffers are divided into "pages" by the ^L character.
         !> Port of help-mode.el:help-goto-previous-page.  (In
-        !> help_mode_xref_mod.)
+        !> help_mode_cross_reference_mod.)
         recursive module subroutine help_goto_previous_page(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine help_goto_previous_page
 
         !> Define the button types of the cross-references.  Not a port.
-        !> (In help_mode_xref_mod.)
+        !> (In help_mode_cross_reference_mod.)
         module subroutine init_help_xref()
             implicit none(type, external)
         end subroutine init_help_xref

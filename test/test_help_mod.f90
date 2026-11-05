@@ -1,4 +1,4 @@
-! test_help_mod.f90 -- tests for help_mod, help_fns_mod and help_mode_mod.
+! test_help_mod.f90 -- tests for help_mod, help_functions_mod and help_mode_mod.
 ! Ports GNU Emacs 31.1 test/lisp/help-tests.el in part; the tests
 ! needing faces, keymap summaries or other quoting styles are not
 ! ported.
@@ -26,33 +26,33 @@
 !> tests, through the command loop.
 module test_help_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_RAW
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_RAW
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
     use print_mod, only: fortran_text
-    use callint_mod, only: current_prefix_arg
+    use execute_interactively_mod, only: current_prefix_arg
     use files_mod, only: require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT
     use buffer_mod, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, current_buffer, is_buffer_modified, &
                           auto_fill_function, is_buffer_live
     use frame_mod, only: selected_frame, ensure_frame_windows
     use window_mod, only: windows, window_leaves, delete_other_windows, switch_to_buffer, resize_window_tree
-    use editfns_mod, only: buffer_string
+    use editing_functions_mod, only: buffer_string
     use keymap_mod, only: key_parse, keymap_global_set, keymap_set
     use text_mode_mod, only: text_mode, text_mode_map
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop, store_event
     use bindings_mod, only: init_bindings
-    use xdisp_mod, only: tab_width
-    use isearch_mod, only: search_upper_case, SEARCH_UPPER_CASE_NOT_PASTED
+    use display_engine_mod, only: tab_width
+    use incremental_search_mod, only: search_upper_case, SEARCH_UPPER_CASE_NOT_PASTED
     use simple_mod, only: fill_prefix, do_auto_fill, copy_region_blink_test_function, is_region_indistinguishable
     use help_mode_mod, only: help_xref_stack, help_xref_forward_stack, help_xref_stack_item
     use help_mod, only: substitute_command_keys, with_help_window, describe_map_tree, lossage_comment_indent, &
                         make_separator_line, register_keymap_name
-    use xdisp_mod, only: message, message_nolog
+    use display_engine_mod, only: message, message_nolog
     use keymap_mod, only: make_sparse_keymap, destroy_keymap
     use value_mod, only: make_keymap_ref, value_type
-    use help_fns_mod, only: describe_function_1, describe_variable_text
+    use help_functions_mod, only: describe_function_1, describe_variable_text
     implicit none(type, external)
     private
 
@@ -306,8 +306,8 @@ contains
 
         call fresh_scratch()
         call describe_function_1("forward_char", text)
-        call check(error, index(text, "an interactive Fortran subroutine in "//LQ//"cmds_mod.f90"//RQ//"."//LF//LF) == 1, &
-                   text)
+        call check(error, index(text, "an interactive Fortran subroutine in "//LQ//"editing_commands_mod.f90"//RQ//"."// &
+                                LF//LF) == 1, text)
         if (allocated(error)) return
         call check(error, index(text, "It is bound to C-f."//LF) > 0, text)
         if (allocated(error)) return
@@ -338,7 +338,7 @@ contains
 
         call fresh_scratch()
         call describe_function_1("insert", text)
-        call check(error, index(text, "a Fortran subroutine in "//LQ//"insdel_mod.f90"//RQ//"."//LF//LF// &
+        call check(error, index(text, "a Fortran subroutine in "//LQ//"insert_delete_mod.f90"//RQ//"."//LF//LF// &
                                 "call insert(") == 1, text)
         if (allocated(error)) return
         ! The call line, then the declaration block of its arguments.
@@ -346,7 +346,7 @@ contains
                                 "type(status_type), intent(out) :: status"//LF//LF) > 0, text)
         if (allocated(error)) return
         call describe_function_1("point", text)
-        call check(error, index(text, "a Fortran function in "//LQ//"editfns_mod.f90"//RQ) == 1 .and. &
+        call check(error, index(text, "a Fortran function in "//LQ//"editing_functions_mod.f90"//RQ) == 1 .and. &
                    index(text, LF//"point()"//LF//"integer(int64) :: point"//LF) > 0, text)
         if (allocated(error)) return
         call describe_function_1("no-such-function", text)
@@ -365,7 +365,7 @@ contains
         tab_width = 4
         call describe_variable_text("tab_width", text, found)
         tab_width = saved
-        call check(error, found .and. index(text, "tab_width is a variable defined in "//LQ//"xdisp_mod.f90"//RQ// &
+        call check(error, found .and. index(text, "tab_width is a variable defined in "//LQ//"display_engine_mod.f90"//RQ// &
                                             "."//LF//LF//"Its value is 4"//LF//"Original value was 8"//LF// &
                                             "Its Fortran name is "//LQ//"tab_width"//RQ//"."//LF//LF// &
                                             "Distance between tab stops") == 1, text)
@@ -606,7 +606,8 @@ contains
         if (allocated(error)) return
         ! The line is filled (describe-function-1).
         call check(error, index(help_text(), "C-f runs the command forward_char (found in global_map), which is "// &
-                                "an"//LF//"interactive Fortran subroutine in "//LQ//"cmds_mod.f90"//RQ//"."//LF//LF) == 1, &
+                                "an"//LF//"interactive Fortran subroutine in "//LQ//"editing_commands_mod.f90"//RQ// &
+                                "."//LF//LF) == 1, &
                    help_text())
         if (allocated(error)) return
         call type_keys("<f1> k C-x C-f")
@@ -704,7 +705,7 @@ contains
         call type_keys("C-h f i n s e r t RET")
         call command_loop(st)
         call check(error, window_count() == 2 .and. &
-                   index(help_text(), "insert is a Fortran subroutine in "//LQ//"insdel_mod.f90"//RQ) == 1, &
+                   index(help_text(), "insert is a Fortran subroutine in "//LQ//"insert_delete_mod.f90"//RQ) == 1, &
                    help_text())
         ! Back to one window.
         call fresh_scratch()
@@ -718,7 +719,7 @@ contains
         call type_keys("C-h v t a b _ w i d t h RET")
         call command_loop(st)
         call check(error, window_count() == 2 .and. &
-                   index(help_text(), "tab_width is a variable defined in "//LQ//"xdisp_mod.f90"//RQ) == 1, &
+                   index(help_text(), "tab_width is a variable defined in "//LQ//"display_engine_mod.f90"//RQ) == 1, &
                    help_text())
         ! Back to one window.
         call fresh_scratch()

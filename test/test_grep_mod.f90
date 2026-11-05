@@ -36,12 +36,12 @@ module test_grep_mod
     use value_mod, only: value_type, xstring, vtag, V_STRING, choice_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, &
                           is_buffer_live, set_buffer_read_only, current_buffer, restore_buffer_modified
-    use insdel_mod, only: insert
-    use editfns_mod, only: buffer_string, point, point_min, point_max, goto_char
-    use textprop_mod, only: get_text_property
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: buffer_string, point, point_min, point_max, goto_char
+    use text_properties_mod, only: get_text_property
     use search_mod, only: re_search_forward, string_match, case_fold_search
-    use subr_mod, only: match_string
-    use fileio_mod, only: file_name_as_directory
+    use basic_subprograms_mod, only: match_string
+    use file_input_output_mod, only: file_name_as_directory
     use files_mod, only: temporary_file_directory, wildcard_to_regexp
     use bindings_mod, only: init_bindings
     use modes_mod, only: minor_modes

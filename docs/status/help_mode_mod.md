@@ -1,6 +1,6 @@
 # help_mode_mod
 
-- Module: help_mode_mod, help_mode_xref_mod (submodule)
+- Module: help_mode_mod, help_mode_cross_reference_mod (submodule)
 - Upstream: help-mode.el
 - State: partial
 

@@ -29,19 +29,19 @@ module test_css_mode_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer, close_buffer
-    use insdel_mod, only: insert
+    use insert_delete_mod, only: insert
     use value_mod, only: value_type, vtag, V_ARRAY, V_NAME, xsymbol, list_elements, xstring, symbols
-    use editfns_mod, only: point, point_min, point_max, goto_char, widen, buffer_substring, line_end_position
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, widen, buffer_substring, line_end_position
     use simple_mod, only: backward_word
     use indent_mod, only: indent_region
     use fill_mod, only: fill_paragraph
-    use textprop_mod, only: get_text_property
+    use text_properties_mod, only: get_text_property
     use font_lock_mod, only: font_lock_ensure
     use modes_mod, only: minor_modes
-    use minibuf_table_mod, only: capf_data_type
-    use minibuf_mod, only: all_completions
+    use minibuffer_reading_tables_mod, only: capf_data_type
+    use minibuffer_reading_mod, only: all_completions
     use bindings_mod, only: init_bindings
-    use tty_colors_mod, only: tty_register_default_colors, tty_color_clear
+    use terminal_colors_mod, only: tty_register_default_colors, tty_color_clear
     use css_mode_mod, only: css_mode, scss_mode, css_property_values, css_value_class_lookup, &
                             css_property_value_cache_get, css_current_rule_name, css_completion_at_point, &
                             css_foreign_completions, css_class_list_function, css_id_list_function, css_color_to_4_dpc, &

@@ -1,5 +1,5 @@
 ! test_files_copy_mod.f90 -- tests for copying, renaming and linking
-! files (fileio_mod) and files.el's copy-directory and symbolic modes
+! files (file_input_output_mod) and files.el's copy-directory and symbolic modes
 ! (files_mod's submodule files_copy_mod).
 ! Ports GNU Emacs 31.1 test/lisp/files-tests.el in part; only
 ! files-tests-file-modes-symbolic-to-number, -number-to-symbolic and
@@ -29,13 +29,13 @@ module test_files_copy_mod
     use bindings_mod, only: init_bindings
     use error_mod, only: status_type, format_error, FM_FILE_ALREADY_EXISTS
     use handle_mod, only: handle_type
-    use timefns_mod, only: time_type
+    use time_functions_mod, only: time_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
-                          write_region, create_directory_internal, copy_file, rename_file, add_name_to_file, &
-                          create_symbolic_link, set_file_modes, file_modes, set_file_times, file_attributes, &
-                          file_stat_type, file_symlink_target, default_file_modes
+    use insert_delete_mod, only: insert
+    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+                                     write_region, create_directory_internal, copy_file, rename_file, add_name_to_file, &
+                                     create_symbolic_link, set_file_modes, file_modes, set_file_times, file_attributes, &
+                                     file_stat_type, file_symlink_target, default_file_modes
     use files_mod, only: delete_directory, copy_directory, file_modes_symbolic_to_number, &
                          file_modes_number_to_symbolic, is_file_in_directory, create_empty_file
     implicit none(type, external)

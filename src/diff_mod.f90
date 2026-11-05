@@ -32,7 +32,7 @@
 !> strings (a string of switches, separated by spaces, is the same).
 module diff_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
@@ -40,19 +40,19 @@ module diff_mod
     use data_mod, only: symbol_value, set, choice_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           resolve_buffer, erase_buffer
-    use editfns_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region
-    use timefns_mod, only: current_time_string
-    use insdel_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region
+    use time_functions_mod, only: current_time_string
+    use insert_delete_mod, only: insert
     use search_mod, only: search_backward, SEARCH_NOERROR
     use marker_mod, only: marker_position, set_marker
-    use callint_mod, only: current_prefix_arg
-    use subr_mod, only: shell_quote_argument
-    use minibuf_mod, only: read_string
+    use execute_interactively_mod, only: current_prefix_arg
+    use basic_subprograms_mod, only: shell_quote_argument
+    use minibuffer_reading_mod, only: read_string
     use minibuffer_mod, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
-    use fileio_mod, only: expand_file_name, file_exists, file_name_directory, file_name_nondirectory, write_region
+    use file_input_output_mod, only: expand_file_name, file_exists, file_name_directory, file_name_nondirectory, write_region
     use files_mod, only: create_temp_file, file_newest_backup, is_backup_file_name, file_name_sans_versions, &
                          delete_file, revert_buffer_function, temporary_file_directory
-    use callproc_mod, only: execute_process, shell_file_name, init_callproc
+    use execute_process_mod, only: execute_process, shell_file_name, init_callproc
     use process_mod, only: make_process, process_buffer, process_mark, process_exit_status, &
                            set_process_filter, set_process_sentinel
     use simple_mod, only: shell_command_switch

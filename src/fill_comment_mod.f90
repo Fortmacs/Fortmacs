@@ -28,7 +28,7 @@ submodule(fill_mod) fill_comment_mod
                               comment_search_forward, comment_string_strip
     use paragraphs_mod, only: paragraph_separate
     use data_mod, only: default_value
-    use xdisp_mod, only: tab_width
+    use display_engine_mod, only: tab_width
     use indent_mod, only: indent_tabs_mode
     implicit none(type, external)
 

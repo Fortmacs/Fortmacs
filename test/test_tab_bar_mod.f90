@@ -34,13 +34,13 @@ module test_tab_bar_mod
     use keyboard_mod, only: last_message, pre_command_hook, unread_command_events, command_loop, last_command
     use keymap_mod, only: key_parse
     use value_mod, only: value_type
-    use callint_mod, only: this_command
+    use execute_interactively_mod, only: this_command
     use commands_mod, only: commands
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer
     use frame_mod, only: selected_frame, ensure_frame_windows, delete_other_frames, set_tab_bar_lines, default_frame
     use window_mod, only: windows, resize_window_tree, set_window_buffer, same_handle, init_window_display, &
                           window_leaves, split_window, delete_other_windows, window_configuration_change_hook
-    use xdisp_mod, only: tab_bar_run_type
+    use display_engine_mod, only: tab_bar_run_type
     use tab_bar_mod, only: make_tab, close_tab, close_other_tabs, undo_close_tab, rename_tab, select_tab, &
                            switch_to_next_tab, switch_to_recent_tab, duplicate_tab, move_tab, update_tab_bar_tabs, &
                            make_tab_bar_items, tab_bar_item_type, tab_bar_closed_tabs, tab_bar_show, &

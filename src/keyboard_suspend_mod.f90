@@ -22,7 +22,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Part of keyboard_mod: suspending Fortmacs, which needs the terminal
-!> (term_mod) and the frame size change (dispnew_mod), both above
+!> (terminal_output_mod) and the frame size change (display_update_mod), both above
 !> keyboard_mod, so it lives in a submodule.  There is one terminal, the
 !> selected frame's, so upstream's check for other tty frames never fails.
 !> GNU/Linux has job control, so Fortmacs stops itself (SIGTSTP); the
@@ -31,9 +31,9 @@
 submodule(keyboard_mod) keyboard_suspend_mod
     use commands_mod, only: commands
     use frame_mod, only: selected_frame
-    use term_mod, only: reset_all_sys_modes, init_all_sys_modes, is_controlling_tty
-    use dispnew_mod, only: change_frame_size
-    use sysdep_mod, only: get_tty_size, sys_suspend, stuff_char
+    use terminal_output_mod, only: reset_all_sys_modes, init_all_sys_modes, is_controlling_tty
+    use display_update_mod, only: change_frame_size
+    use system_dependent_mod, only: get_tty_size, sys_suspend, stuff_char
     implicit none(type, external)
 
 contains

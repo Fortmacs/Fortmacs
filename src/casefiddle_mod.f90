@@ -22,7 +22,7 @@
 
 !> Upcasing, downcasing, capitalizing and upcasing the initials of
 !> characters, strings and buffer regions, with Unicode title case and the
-!> unconditional special casings (uni_special_casing_mod: ß upcases to SS,
+!> unconditional special casings (unicode_special_casing_mod: ß upcases to SS,
 !> ﬁ to FI), and the Greek final sigma rule.  Words are runs of
 !> word-constituent characters (and identifier constituents with
 !> `case_identifiers_as_words') by the current syntax table.
@@ -40,19 +40,19 @@ module casefiddle_mod
     use data_mod, only: logical_setting_type
     use character_mod, only: char_string, string_char_and_length, MAX_MULTIBYTE_LENGTH, CHAR_ALT, CHAR_SUPER, &
                              CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META, unibyte_to_char, char_to_byte8
-    use casetab_mod, only: downcase, upcase
+    use case_table_mod, only: downcase, upcase
     use syntax_mod, only: syntax_entry, char_syntax_class, scan_words, syntax_descriptor_type, SWORD, SSYMBOL
     use buffer_mod, only: buffers, current, buf_fetch_char, buf_next_char_len, buf_bytes, temp_set_point_both, &
                           buf_fetch_byte, buffer_byte_index
     use marker_mod, only: char_to_byte
-    use insdel_mod, only: modify_text, replace_range_2, signal_after_change
+    use insert_delete_mod, only: modify_text, replace_range_2, signal_after_change
     use undo_mod, only: record_insert, record_delete
-    use editfns_mod, only: validate_region, point, goto_char, region_beginning, region_end
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
-    use uni_special_casing_mod, only: title_count, title_keys, title_values, special_count_1, special_keys_1, &
-                                      special_lengths_1, special_values_1, special_count_2, special_keys_2, &
-                                      special_lengths_2, special_values_2, special_count_3, special_keys_3, &
-                                      special_lengths_3, special_values_3
+    use editing_functions_mod, only: validate_region, point, goto_char, region_beginning, region_end
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use unicode_special_casing_mod, only: title_count, title_keys, title_values, special_count_1, special_keys_1, &
+                                          special_lengths_1, special_values_1, special_count_2, special_keys_2, &
+                                          special_lengths_2, special_values_2, special_count_3, special_keys_3, &
+                                          special_lengths_3, special_values_3
     implicit none(type, external)
     private
 

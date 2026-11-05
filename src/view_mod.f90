@@ -38,7 +38,7 @@
 !> runs `jump_to_register', as there is no alias `register_to_point'.
 module view_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use callint_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE, format_message
     use handle_mod, only: handle_type
@@ -47,10 +47,10 @@ module view_mod
     use hooks_mod, only: hook_type, change_major_mode_hook
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_live, buffer_serial_live, resolve_buffer, buffer_handle, &
                           is_buffer_modified, close_buffer, get_file_buffer
-    use editfns_mod, only: point, point_min, point_max, goto_char, is_eob, line_end_position
-    use cmds_mod, only: forward_line, beginning_of_line, end_of_line
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_eob, line_end_position
+    use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
     use search_mod, only: re_search_forward, looking_at, SEARCH_NOERROR
-    use fileio_mod, only: file_exists, expand_file_name
+    use file_input_output_mod, only: file_exists, expand_file_name
     use files_mod, only: find_file_noselect, view_read_only
     use window_mod, only: windows, is_window_live, window_leaves, window_body_lines, scroll_up_command, &
                           scroll_down_command, recenter, is_pos_visible_in_window, quit_window, switch_to_buffer, &
@@ -59,11 +59,11 @@ module view_mod
     use frame_mod, only: selected_frame, selected_window
     use keymap_mod, only: keymap_set
     use keyboard_mod, only: this_command, sit_for
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
-    use xdisp_mod, only: message
-    use dispnew_mod, only: ding
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use display_engine_mod, only: message
+    use display_update_mod, only: ding
     use simple_mod, only: push_mark, pop_mark, mark
-    use minibuf_mod, only: read_string
+    use minibuffer_reading_mod, only: read_string
     use minibuffer_mod, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use help_mod, only: substitute_command_keys, register_keymap_name
     use print_mod, only: fortran_string

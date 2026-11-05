@@ -24,8 +24,8 @@ small tests,
 `is_alphanumeric`,
 `is_graphic`,
 `is_printable`,
-`is_blank` (general categories from uni_category_mod),
-`glyph_width` (an approximation of `char_width`, moved from xdisp_mod for editfns_mod's `format`; xdisp_mod re-exports it)
+`is_blank` (general categories from unicode_category_mod),
+`glyph_width` (an approximation of `char_width`, moved from display_engine_mod for editing_functions_mod's `format`; display_engine_mod re-exports it)
 
 ## Deferred
 

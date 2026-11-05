@@ -26,19 +26,19 @@
 !> and dir2.
 module test_info_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list, xstring, symbols, xsymbol, vtag, V_NULL, V_NAME, V_STRING
-    use textprop_mod, only: get_text_property, get_char_property
+    use text_properties_mod, only: get_text_property, get_char_property
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, close_buffer, get_buffer, header_line_format_type
-    use editfns_mod, only: buffer_string, point, point_min, point_max, goto_char, line_beginning_position
+    use editing_functions_mod, only: buffer_string, point, point_min, point_max, goto_char, line_beginning_position
     use search_mod, only: search_forward, SEARCH_NOERROR
-    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, file_exists, &
-                          file_name_directory, file_name_nondirectory
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, file_exists, &
+                                     file_name_directory, file_name_nondirectory
     use files_mod, only: create_temp_file, delete_file
-    use callproc_mod, only: execute_process
+    use execute_process_mod, only: execute_process
     use simple_mod, only: current_clipboard_entry
     use window_mod, only: window_configuration_type, current_window_configuration, set_window_configuration
     use bindings_mod, only: init_bindings
@@ -50,8 +50,8 @@ module test_info_mod
                         info_follow_nearest_node, info_extract_pointer, info_build_node_completions, info_toc, &
                         info_history, info_search, info_search_backward, info_index, info_index_next, &
                         info_virtual_index, info_history_variable, info_history_entry_type
-    use isearch_mod, only: isearch_mode, isearch_process_search_string, isearch_repeat_forward, isearch_delete_char, &
-                           isearch_done, isearch_success, isearch_error
+    use incremental_search_mod, only: isearch_mode, isearch_process_search_string, isearch_repeat_forward, isearch_delete_char, &
+                                      isearch_done, isearch_success, isearch_error
     implicit none(type, external)
     private
 

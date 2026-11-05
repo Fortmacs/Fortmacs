@@ -1,7 +1,7 @@
 ! frame_mod.f90 -- frames: a terminal screen with its glyph matrices.
 ! Ported from GNU Emacs 31.1 src/frame.h (struct frame, the parts in use),
 ! src/frame.c (the divider widths) and lisp/frame.el (window dividers, in
-! the submodule frame_cmds_mod).
+! the submodule frame_commands_mod).
 !
 ! Copyright (C) 1993-1994, 1999-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -23,7 +23,7 @@
 
 !> One frame per terminal, so a frame holds its terminal directly.  The
 !> current matrix is what the screen shows; redisplay fills the desired
-!> matrix, and update_frame (dispnew_mod) makes the screen match it.
+!> matrix, and update_frame (display_update_mod) makes the screen match it.
 !> The frame has a window tree (its root window), the selected window (a
 !> live window of the tree) and a minibuffer window on its last line, all
 !> windows of window_mod's registry; child frames are not ported.
@@ -42,8 +42,8 @@
 !> A terminal frame stores them but has no window dividers, so its divider
 !> widths stay 0, as upstream's.
 module frame_mod
-    use termchar_mod, only: tty_display_info_type
-    use dispextern_mod, only: glyph_matrix_type, face_type, redisplay_interface_type
+    use terminal_state_mod, only: tty_display_info_type
+    use glyph_matrices_mod, only: glyph_matrix_type, face_type, redisplay_interface_type
     use font_mod, only: font_driver_type
     use handle_mod, only: handle_type, slot_table_type, null_handle
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
@@ -54,7 +54,7 @@ module frame_mod
                           window_resize_check, window_resize_apply, same_handle, &
                           window_configuration_type, destroy_window_configuration
     use marker_mod, only: destroy_marker
-    use timefns_mod, only: time_type
+    use time_functions_mod, only: time_type
     implicit none(type, external)
     private
 
@@ -210,7 +210,7 @@ module frame_mod
         !> (text_cols, text_lines); a terminal frame has its terminal's.
         integer :: text_cols = 0, text_lines = 0
         !> A size change requested but not made yet (delayed by
-        !> dispnew_mod's `change_frame_size'): the new width and height in
+        !> display_update_mod's `change_frame_size'): the new width and height in
         !> pixels, -1 for no change, and whether one is pending
         !> (frame.h:new_width, frame.h:new_height, frame.h:new_size_p).
         integer :: new_width = -1, new_height = -1
@@ -284,8 +284,8 @@ module frame_mod
               window_bottom_divider_width, is_window_divider_width_valid, window_divider_mode, &
               window_divider_mode_apply
 
-    ! frame.el's commands and frame.c's, in submodule frame_cmds_mod (a
-    ! minor mode needs easy_mmode_mod, which depends on this module).
+    ! frame.el's commands and frame.c's, in submodule frame_commands_mod (a
+    ! minor mode needs easy_minor_mode_mod, which depends on this module).
     interface
         !> Display dividers between windows (Window Divider mode).
         !>
@@ -310,14 +310,14 @@ module frame_mod
         end subroutine window_divider_mode_apply
 
         !> Make a frame on the selected frame's terminal showing the
-        !> current buffer (frame_cmds_mod).  Port of frame.el:make-frame.
+        !> current buffer (frame_commands_mod).  Port of frame.el:make-frame.
         module subroutine make_frame(frame, status)
             implicit none(type, external)
             type(handle_type), intent(out) :: frame
             type(status_type), intent(out) :: status
         end subroutine make_frame
 
-        !> Select FRAME (frame_cmds_mod).  Port of frame.c:Fselect_frame.
+        !> Select FRAME (frame_commands_mod).  Port of frame.c:Fselect_frame.
         recursive module subroutine select_frame(frame, status, norecord, for_deletion)
             implicit none(type, external)
             type(handle_type), intent(in) :: frame
@@ -326,7 +326,7 @@ module frame_mod
         end subroutine select_frame
 
         !> Select FRAME for what follows without showing it, storing the
-        !> frame selected in SAVED (frame_cmds_mod).  Port of
+        !> frame selected in SAVED (frame_commands_mod).  Port of
         !> subr.el:with-selected-frame.
         module subroutine select_frame_begin(frame, saved)
             implicit none(type, external)
@@ -334,14 +334,14 @@ module frame_mod
             type(handle_type), intent(out) :: saved
         end subroutine select_frame_begin
 
-        !> Select SAVED again (frame_cmds_mod).  Port of
+        !> Select SAVED again (frame_commands_mod).  Port of
         !> subr.el:with-selected-frame.
         recursive module subroutine select_frame_end(saved)
             implicit none(type, external)
             type(handle_type), intent(in) :: saved
         end subroutine select_frame_end
 
-        !> Delete FRAME, the selected frame by default (frame_cmds_mod).
+        !> Delete FRAME, the selected frame by default (frame_commands_mod).
         !> Port of frame.c:Fdelete_frame.
         recursive module subroutine delete_frame(status, frame, force)
             implicit none(type, external)
@@ -350,7 +350,7 @@ module frame_mod
             logical, intent(in), optional :: force
         end subroutine delete_frame
 
-        !> Delete all frames but FRAME (frame_cmds_mod).  Port of
+        !> Delete all frames but FRAME (frame_commands_mod).  Port of
         !> frame.el:delete-other-frames.
         recursive module subroutine delete_other_frames(status, frame, iconify)
             implicit none(type, external)
@@ -359,7 +359,7 @@ module frame_mod
             logical, intent(in), optional :: iconify
         end subroutine delete_other_frames
 
-        !> Select the ARGth frame from the selected one (frame_cmds_mod).
+        !> Select the ARGth frame from the selected one (frame_commands_mod).
         !> Port of frame.el:other-frame.
         recursive module subroutine other_frame(arg, status)
             implicit none(type, external)
@@ -367,7 +367,7 @@ module frame_mod
             type(status_type), intent(out) :: status
         end subroutine other_frame
 
-        !> Select the frame named NAME (frame_cmds_mod).  Port of
+        !> Select the frame named NAME (frame_commands_mod).  Port of
         !> frame.el:select-frame-by-name.
         recursive module subroutine select_frame_by_name(name, status)
             implicit none(type, external)
@@ -375,7 +375,7 @@ module frame_mod
             type(status_type), intent(out) :: status
         end subroutine select_frame_by_name
 
-        !> Name the selected frame NAME (frame_cmds_mod).  Port of
+        !> Name the selected frame NAME (frame_commands_mod).  Port of
         !> frame.el:set-frame-name.
         module subroutine set_frame_name(name, status)
             implicit none(type, external)
@@ -392,7 +392,7 @@ module frame_mod
             integer, intent(in) :: n
         end subroutine set_tab_bar_lines
 
-        !> Register the frame commands (frame_cmds_mod).  Not a port.
+        !> Register the frame commands (frame_commands_mod).  Not a port.
         module subroutine init_frame_commands()
             implicit none(type, external)
         end subroutine init_frame_commands
@@ -953,7 +953,7 @@ contains
 
     !> Make `selected_frame''s windows if they don't exist yet: one window
     !> (the root, selected) and the minibuffer window, sized later by
-    !> xdisp_mod:init_frame_windows.  Port of window.c:init_window_once
+    !> display_engine_mod:init_frame_windows.  Port of window.c:init_window_once
     !> (the initial frame's windows).
     subroutine ensure_frame_windows()
         call ensure_frames()

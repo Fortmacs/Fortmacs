@@ -26,7 +26,7 @@
 !> frame names its font by a font id (`face_type%font', 0 on a terminal),
 !> which the frame's font driver (`frame_type%font_driver') resolves to
 !> the font's metrics (`font_type') and the metrics of each character
-!> (`text_extents').  Redisplay (xdisp_mod) lays out glyphs with these
+!> (`text_extents').  Redisplay (display_engine_mod) lays out glyphs with these
 !> pixel sizes; a terminal frame has no font driver, and every glyph is
 !> one column (one "pixel") wide.
 !>

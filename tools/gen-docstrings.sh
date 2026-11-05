@@ -788,10 +788,10 @@ $1 == "V" {
     }
     # The procedures naming the value of a procedure setting.
     if ($5 ~ /function_setting_type\)/ && !named_cmd++)
-        mods["callint_mod.f90"] = mods["callint_mod.f90"] (mods["callint_mod.f90"] == "" ? "" : ", ") "command_name_of"
+        mods["execute_interactively_mod.f90"] = mods["execute_interactively_mod.f90"] (mods["execute_interactively_mod.f90"] == "" ? "" : ", ") "command_name_of"
     # A prefix argument is shown as its structure constructor.
     if ($5 ~ /prefix_arg_type\)/ && !named_prefix++)
-        mods["callint_mod.f90"] = mods["callint_mod.f90"] (mods["callint_mod.f90"] == "" ? "" : ", ") "prefix_arg_text"
+        mods["execute_interactively_mod.f90"] = mods["execute_interactively_mod.f90"] (mods["execute_interactively_mod.f90"] == "" ? "" : ", ") "prefix_arg_text"
     if ($5 ~ /indent_line_setting_type\)/ && !named_indent++)
         mods["indent_mod.f90"] = mods["indent_mod.f90"] (mods["indent_mod.f90"] == "" ? "" : ", ") "indent_line_function_name"
     # A choice setting: the reserved choices, and its named constants

@@ -31,8 +31,8 @@ module test_mail_extract_mod
     use error_mod, only: status_type, format_error, FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, same_handle
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: narrow_to_region, point_max
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: narrow_to_region, point_max
     use bindings_mod, only: init_bindings
     use mail_extract_mod, only: extract_mail_address_components, what_domain, mail_address_components_type, &
                                 mail_extr_guess_middle_initial, mail_extr_mangle_uucp, &

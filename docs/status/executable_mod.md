@@ -21,4 +21,4 @@ remote `executable-find`
 
 ## Tests
 
-test_sh_script_mod (upstream has no executable tests)
+test_shell_script_mod (upstream has no executable tests)

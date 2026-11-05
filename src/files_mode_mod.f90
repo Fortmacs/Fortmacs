@@ -23,12 +23,12 @@
 !> because the modes use files_mod's dependencies.
 submodule(files_mod) files_mode_mod
     use character_mod, only: downcase_ascii
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use data_mod, only: clear_all_local_variables
-    use subr_mod, only: delaying_mode_hooks, change_major_mode_after_body_hook, after_change_major_mode_hook
-    use callint_mod, only: find_command, current_prefix_arg, command_type
+    use basic_subprograms_mod, only: delaying_mode_hooks, change_major_mode_after_body_hook, after_change_major_mode_hook
+    use execute_interactively_mod, only: find_command, current_prefix_arg, command_type
     use search_mod, only: string_match, case_fold_search, match_beginning, match_end, looking_at
-    use editfns_mod, only: point_min, point_max, buffer_substring, point, goto_char
+    use editing_functions_mod, only: point_min, point_max, buffer_substring, point, goto_char
     implicit none(type, external)
 
     !> An entry of auto-mode-alist.

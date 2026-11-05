@@ -1,4 +1,4 @@
-! test_values_mod.f90 -- tests for value_mod, names_mod, data_mod and fns_mod.
+! test_values_mod.f90 -- tests for value_mod, names_mod, data_mod and utility_functions_mod.
 ! Ports GNU Emacs 31.1 test/src/fns-tests.el, test/src/data-tests.el and
 ! test/src/lread-tests.el in part; only the cases of the ported value
 ! functions.
@@ -36,8 +36,8 @@ module test_values_mod
     use data_mod, only: string_to_number
     use data_mod, only: boundp, makunbound, set, symbol_name, &
                         symbol_value, value_eq
-    use fns_mod, only: get, plist_get, plist_member, plist_put, &
-                       put, is_string_greater, is_string_less, value_equal
+    use utility_functions_mod, only: get, plist_get, plist_member, plist_put, &
+                                     put, is_string_greater, is_string_less, value_equal
     implicit none(type, external)
     private
 

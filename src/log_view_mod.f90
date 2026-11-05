@@ -51,28 +51,28 @@ module log_view_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, buffer_serial_live, is_buffer_live, deactivate_mark_variable
     use commands_mod, only: commands
     use modes_mod, only: major_modes
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, line_beginning_position, &
-                           delete_region, region_beginning, region_end
-    use insdel_mod, only: insert
-    use cmds_mod, only: forward_line
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, line_beginning_position, &
+                                     delete_region, region_beginning, region_end
+    use insert_delete_mod, only: insert
+    use editing_commands_mod, only: forward_line
     use search_mod, only: looking_at, search_regexp_forward => re_search_forward, search_regexp_backward => re_search_backward, &
                           match_beginning, match_end, SEARCH_NOERROR, SEARCH_MOVE
-    use subr_mod, only: match_string_no_properties, looking_back
-    use textprop_mod, only: get_text_property, put_text_property, next_single_property_change, get_char_property, &
-                            get_char_property_and_overlay
-    use itree_mod, only: make_overlay, overlay_put, delete_overlay, overlay_get, overlay_end
-    use easy_mmode_mod, only: easy_mmode_next, easy_mmode_prev
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use basic_subprograms_mod, only: match_string_no_properties, looking_back
+    use text_properties_mod, only: get_text_property, put_text_property, next_single_property_change, get_char_property, &
+                                   get_char_property_and_overlay
+    use interval_tree_mod, only: make_overlay, overlay_put, delete_overlay, overlay_get, overlay_end
+    use easy_minor_mode_mod, only: easy_mmode_next, easy_mmode_prev
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use simple_mod, only: is_use_region, copy_to_clipboard_history, line_number_at_pos, special_mode
     use syntax_mod, only: skip_syntax_backward
-    use xdisp_mod, only: message
+    use display_engine_mod, only: message
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_APPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use keymap_mod, only: keymap_set
-    use fileio_mod, only: is_file_directory
-    use vc_hooks_mod, only: vc_backends
-    use vc_mod, only: vc_fileset_type, vc_diff_internal, vc_find_revision, vc_root_dir, vc_allow_async_diff
+    use file_input_output_mod, only: is_file_directory
+    use version_control_hooks_mod, only: vc_backends
+    use version_control_mod, only: vc_fileset_type, vc_diff_internal, vc_find_revision, vc_root_dir, vc_allow_async_diff
     use string_type_mod, only: string_type, prepend_string, append_string
     implicit none(type, external)
     private
@@ -113,7 +113,7 @@ module log_view_mod
     end interface
 
     !> vc-annotate.el's `vc_annotate' for `log_view_annotate_version',
-    !> associated once VC-Annotate is loaded (vc_annotate_mod).
+    !> associated once VC-Annotate is loaded (version_control_annotate_mod).
     procedure(log_view_vc_annotate_procedure), pointer, public :: log_view_vc_annotate => null()
 
     !> Hook run at the end of `log_view_mode'.
@@ -520,7 +520,7 @@ contains
     !> Return the current file.  Port of log-view.el:log-view-current-file
     !> (without PCL-CVS's directory changes).
     recursive subroutine log_view_current_file(file, status)
-        use fileio_mod, only: expand_file_name
+        use file_input_output_mod, only: expand_file_name
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name, cvsdir, dir, regexp
@@ -952,7 +952,7 @@ contains
     ! (add-text-properties BEGINNING END PROPS).  Not a port.
     recursive subroutine add_properties(beginning, end, props, changed, status)
         use value_mod, only: make_list, value_type
-        use textprop_mod, only: add_text_properties
+        use text_properties_mod, only: add_text_properties
         integer(int64), intent(in) :: beginning, end
         type(value_type), intent(in) :: props(:)
         logical, intent(out) :: changed

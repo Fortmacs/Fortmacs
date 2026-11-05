@@ -36,8 +36,8 @@ module test_casefiddle_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, buffers, current
     use value_mod, only: value_type
     use simple_mod, only: region_extract_function, region_extract_procedure, region_bounds
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, point, point_min, point_max, buffer_string
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, point, point_min, point_max, buffer_string
     use character_mod, only: string_char
     use casefiddle_mod, only: upcase_string, downcase_string, capitalize_string, upcase_initials_string, &
                               upcase_char, downcase_char, capitalize_char, upcase_initials_char, upcase_region, &

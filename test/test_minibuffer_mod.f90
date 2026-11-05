@@ -38,18 +38,18 @@ module test_minibuffer_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, list_length, list_elements, xstring
     use buffer_mod, only: get_or_make_buffer, close_buffer
-    use minibuf_mod, only: completion_table_type, completion_list_table, completion_function_table, &
-                           completion_ignore_case
+    use minibuffer_reading_mod, only: completion_table_type, completion_list_table, completion_function_table, &
+                                      completion_ignore_case
     use minibuffer_mod, only: completion_try_completion, completion_all_completions, try_result_type, TRY_STRING, &
                               TRY_NONE, completion_styles, internal_complete_buffer, completion_at_point_functions
-    use minibuf_table_mod, only: capf_data_type
+    use minibuffer_reading_tables_mod, only: capf_data_type
     use test_support_mod, only: show_alone
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, command_loop
     use bindings_mod, only: init_bindings
     use buffer_mod, only: set_buffer, buffers, current
-    use insdel_mod, only: insert
-    use editfns_mod, only: buffer_string, point, goto_char
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: buffer_string, point, goto_char
     use modes_mod, only: minor_modes
     use window_mod, only: get_buffer_window, is_window_live
     use buffer_mod, only: get_buffer

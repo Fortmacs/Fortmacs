@@ -26,7 +26,7 @@ submodule(simple_mod) simple_view_mod
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
     use derived_mod, only: major_mode_type, major_mode_named
-    use editfns_mod, only: point_min, widen, narrow_to_region
+    use editing_functions_mod, only: point_min, widen, narrow_to_region
     use view_mod, only: view_mode_enabled, view_exit_and_edit, view_read_only_value, set_view_read_only_local, &
                         view_mode_enter
     implicit none(type, external)

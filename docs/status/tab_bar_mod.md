@@ -1,7 +1,7 @@
 # tab_bar_mod
 
 - Module: tab_bar_mod
-- Upstream: tab-bar.el (step 44b; with xdisp.c's display_tab_bar for terminal frames in xdisp_mod, frame.c's set_tab_bar_lines in frame_mod, window.el's window-state-get/put in part in window_mod)
+- Upstream: tab-bar.el (step 44b; with xdisp.c's display_tab_bar for terminal frames in display_engine_mod, frame.c's set_tab_bar_lines in frame_mod, window.el's window-state-get/put in part in window_mod)
 - State: partial
 
 ## Ported

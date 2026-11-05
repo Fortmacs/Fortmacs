@@ -1,4 +1,4 @@
-! test_process_mod.f90 -- tests for process_mod and sys_worker_mod.
+! test_process_mod.f90 -- tests for process_mod and system_worker_mod.
 ! Ports GNU Emacs 31.1 test/src/process-tests.el in part; only the tests
 ! that apply to what is ported.
 !
@@ -29,10 +29,10 @@ module test_process_mod
     use error_mod, only: status_type, format_error, FM_ARGS_OUT_OF_RANGE
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
-    use editfns_mod, only: buffer_string
+    use editing_functions_mod, only: buffer_string
     use keyboard_mod, only: sit_for
-    use sys_worker_mod, only: on_main_thread, wait_for_worker_messages
-    use sysdep_mod, only: signal_disposition_type, default_signal, restore_signal, SIGHUP
+    use system_worker_mod, only: on_main_thread, wait_for_worker_messages
+    use system_dependent_mod, only: signal_disposition_type, default_signal, restore_signal, SIGHUP
     use process_mod, only: make_process, start_process, delete_process, destroy_process, &
                            process_status, process_exit_status, is_process_live, process_name, process_tty_name, &
                            set_process_sentinel, set_process_filter, accept_process_output, stop_process, &
@@ -613,7 +613,7 @@ contains
     !> the process at point.
     subroutine test_list_processes(error)
         use buffer_mod, only: get_buffer, current_buffer
-        use editfns_mod, only: goto_char, point_min
+        use editing_functions_mod, only: goto_char, point_min
         use search_mod, only: search_forward, SEARCH_NOERROR
         use bindings_mod, only: init_bindings
         use simple_mod, only: list_processes, process_menu_delete_process

@@ -34,4 +34,4 @@ the `delete-selection` property,
 ## Tests
 
 test_f90_mod (ports f90-tests: all but the expected failure f90-test-bug3729; own: comment filling);
-test_imenu_mod (the index)
+test_index_menu_mod (the index)

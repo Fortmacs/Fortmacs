@@ -26,10 +26,10 @@ module test_log_edit_mod
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, fill_column
-    use insdel_mod, only: insert
-    use editfns_mod, only: buffer_string, goto_char, point_min
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: buffer_string, goto_char, point_min
     use bindings_mod, only: init_bindings
-    use vc_hooks_mod, only: register_vc_backend
+    use version_control_hooks_mod, only: register_vc_backend
     use log_edit_mod, only: log_edit_fill_entry, log_edit_done, log_edit_done_hook, log_edit_done_strip_cvs_lines, &
                             set_log_edit_callback, set_log_edit_vc_backend
     implicit none(type, external)

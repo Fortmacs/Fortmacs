@@ -46,15 +46,15 @@ module ansi_color_mod
     use buffer_mod, only: buffers, current, current_buffer
     use marker_mod, only: make_marker, destroy_marker, marker_position, set_marker, detach_marker, copy_marker_at, &
                           marker_buffer
-    use editfns_mod, only: point, point_min, goto_char, delete_region, buffer_substring
+    use editing_functions_mod, only: point, point_min, goto_char, delete_region, buffer_substring
     use search_mod, only: string_match, re_search_forward, match_beginning, match_end, SEARCH_NOERROR
-    use textprop_mod, only: put_text_property, string_put_text_property, propertized_substring, propertized_concat
-    use itree_mod, only: make_overlay, overlay_put, move_overlay, overlay_start, overlay_end
+    use text_properties_mod, only: put_text_property, string_put_text_property, propertized_substring, propertized_concat
+    use interval_tree_mod, only: make_overlay, overlay_put, move_overlay, overlay_start, overlay_end
     use hooks_mod, only: property_function_type
     use faces_mod, only: named_face_type, face_attrs, face_box, display_when, face_attributes_type, face_named
     use commands_mod, only: commands
     use process_mod, only: get_buffer_process, process_mark
-    use comint_mod, only: comint_output_filter_functions, comint_last_output_start
+    use command_interpreter_mod, only: comint_output_filter_functions, comint_last_output_start
     use compile_mod, only: compilation_filter_start
     implicit none(type, external)
     private

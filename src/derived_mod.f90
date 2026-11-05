@@ -46,8 +46,8 @@ module derived_mod
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current
     use keymap_mod, only: make_sparse_keymap, is_keymap_live, keymap_parent, set_keymap_parent, use_local_map
-    use subr_mod, only: delay_mode_hooks_begin, delay_mode_hooks_end, execute_mode_hooks
-    use abbrev_mod, only: abbrev_table_type, local_abbrev_table, abbrev_table_set_local
+    use basic_subprograms_mod, only: delay_mode_hooks_begin, delay_mode_hooks_end, execute_mode_hooks
+    use abbreviation_mod, only: abbrev_table_type, local_abbrev_table, abbrev_table_set_local
     implicit none(type, external)
     private
 

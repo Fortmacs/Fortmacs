@@ -1,6 +1,6 @@
 # simple_goto_mod
 
-- Module: simple_goto_mod (submodule of simple_mod), thingatpt_mod
+- Module: simple_goto_mod (submodule of simple_mod), thing_at_point_mod
 - Upstream: simple.el (going to lines, counting words; + editfns.c `goto-char`, `narrow-to-region` and `widen`, indent.c `move-to-column`, subr.el `goto-char--read-natnum-interactive` as commands, bindings.el `narrow-map`), thingatpt.el
 - State: partial
 
@@ -15,7 +15,7 @@
 `widen` (C-x n w),
 `count-words` (with `count-words--format`, `count-words--buffer-format`),
 `count-words-region` (M-=);
-subr_read_mod's `read-number` with a nil first default;
+basic_subprograms_read_mod's `read-number` with a nil first default;
 thingatpt.el's `number-at-point` (decimal and hexadecimal),
 `thing-at-point-looking-at`,
 `thing-at-point-decimal-regexp`,

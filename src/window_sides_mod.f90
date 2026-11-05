@@ -26,7 +26,7 @@
 !> windows that are not side windows descend from the frame's main
 !> window.  `display_buffer_in_side_window' makes and reuses them;
 !> `split_window', `delete_window', `delete_other_windows' and
-!> `other_window' (window_cmds_mod) respect them.
+!> `other_window' (window_commands_mod) respect them.
 submodule(window_mod) window_sides_mod
     use error_mod, only: set_error, FM_GENERIC_ERROR
     use buffer_mod, only: is_buffer_live

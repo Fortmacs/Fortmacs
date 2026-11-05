@@ -42,13 +42,13 @@ module mail_extract_mod
     use data_mod, only: choice_setting_type
     use value_mod, only: value_type, make_list
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, set_buffer_if_live, get_or_make_buffer, erase_buffer
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_eob, is_bob, buffer_string, delete_region, &
-                           narrow_to_region, widen, insert_buffer_substring, buffer_substring_no_properties, char_after, &
-                           following_char, preceding_char, save_excursion_begin, save_excursion_end, excursion_type, &
-                           save_restriction_begin, save_restriction_end, restriction_type, point_marker
-    use insdel_mod, only: insert, insert_char, insert_before_markers
-    use cmds_mod, only: forward_char, backward_char, delete_char
-    use casetab_mod, only: downcase, upcase
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_eob, is_bob, buffer_string, delete_region, &
+                                     narrow_to_region, widen, insert_buffer_substring, buffer_substring_no_properties, char_after, &
+                                     following_char, preceding_char, save_excursion_begin, save_excursion_end, excursion_type, &
+                                     save_restriction_begin, save_restriction_end, restriction_type, point_marker
+    use insert_delete_mod, only: insert, insert_char, insert_before_markers
+    use editing_commands_mod, only: forward_char, backward_char, delete_char
+    use case_table_mod, only: downcase, upcase
     use casefiddle_mod, only: capitalize_word, upcase_word, capitalize_region, downcase_region, downcase_string
     use simple_mod, only: just_one_space
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, set_syntax_table, syntax_table, char_syntax, &
@@ -56,11 +56,11 @@ module mail_extract_mod
     use search_mod, only: search_forward, re_search_forward, looking_at, match_beginning, match_end, replace_match, &
                           case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use textprop_mod, only: set_text_properties
-    use minibuf_table_mod, only: completion_table_type, completion_list_table
-    use minibuf_mod, only: completion_ignore_case
+    use text_properties_mod, only: set_text_properties
+    use minibuffer_reading_tables_mod, only: completion_table_type, completion_list_table
+    use minibuffer_reading_mod, only: completion_ignore_case
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
-    use xdisp_mod, only: message
+    use display_engine_mod, only: message
     implicit none(type, external)
     private
 

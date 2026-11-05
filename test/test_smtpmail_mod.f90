@@ -35,19 +35,19 @@ module test_smtpmail_mod
     use value_mod, only: value_type
     use keyboard_mod, only: unread_command_events
     use buffer_mod, only: get_buffer, set_buffer, close_buffer, is_buffer_live, get_or_make_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: buffer_string, system_name
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: buffer_string, system_name
     use bindings_mod, only: init_bindings
-    use fileio_mod, only: file_exists, init_fileio
+    use file_input_output_mod, only: file_exists, init_fileio
     use files_mod, only: create_temp_file, delete_file
     use startup_mod, only: user_mail_address
-    use sendmail_mod, only: mail_from_style, mail_specify_envelope_from, mail_envelope_from, MAIL_FROM_STYLE_SIMPLE, &
-                            MAIL_ENVELOPE_FROM_HEADER
+    use send_mail_mod, only: mail_from_style, mail_specify_envelope_from, mail_envelope_from, MAIL_FROM_STYLE_SIMPLE, &
+                             MAIL_ENVELOPE_FROM_HEADER
     use smtpmail_mod, only: send_mail_with_smtp, send_queued_mail_with_smtp, smtpmail_smtp_server, smtpmail_smtp_service, &
                             smtpmail_debug_info, smtpmail_queue_mail, smtpmail_queue_dir, &
                             smtpmail_servers_requiring_authorization, smtpmail_smtp_user, smtpmail_auth_supported
-    use sysdep_mod, only: close_fd, fortmacs_read, fortmacs_creat, fortmacs_full_write, wait_for_termination
-    use sys_socket_mod, only: fortmacs_listen_loopback, fortmacs_accept, fortmacs_send, fortmacs_fork, fortmacs_exit_now
+    use system_dependent_mod, only: close_fd, fortmacs_read, fortmacs_creat, fortmacs_full_write, wait_for_termination
+    use system_socket_mod, only: fortmacs_listen_loopback, fortmacs_accept, fortmacs_send, fortmacs_fork, fortmacs_exit_now
     use string_type_mod, only: string_type
     implicit none(type, external)
     private

@@ -49,13 +49,13 @@ module holidays_mod
                             calendar_christian_all_holidays_flag, calendar_islamic_all_holidays_flag, &
                             calendar_day_number, calendar_displayed_month, calendar_displayed_year, &
                             calendar_total_months_local
-    use xdisp_mod, only: message
+    use display_engine_mod, only: message
     use commands_mod, only: commands
-    use callint_mod, only: current_prefix_arg, PREFIX_NONE
+    use execute_interactively_mod, only: current_prefix_arg, PREFIX_NONE
     use keymap_mod, only: keymap_set
     use value_mod, only: value_type, make_list
-    use minibuf_mod, only: completion_ignore_case
-    use minibuf_table_mod, only: completion_list_table
+    use minibuffer_reading_mod, only: completion_ignore_case
+    use minibuffer_reading_tables_mod, only: completion_list_table
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use casefiddle_mod, only: capitalize_string
     use simple_mod, only: read_variable

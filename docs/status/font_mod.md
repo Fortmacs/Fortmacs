@@ -21,4 +21,4 @@ underline metrics
 
 ## Tests
 
-test_fake_gui_mod
+test_fake_graphical_user_interface_mod

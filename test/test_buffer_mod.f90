@@ -1,6 +1,6 @@
 ! test_buffer_mod.f90 -- tests for buffer_mod.
 ! Ports GNU Emacs 31.1 test/src/buffer-tests.el in part; the overlay tests
-! are in test_itree_mod, and the others need indirect buffers, file
+! are in test_interval_tree_mod, and the others need indirect buffers, file
 ! visiting, labeled narrowing or what is not ported yet.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
@@ -39,7 +39,7 @@ module test_buffer_mod
     use hooks_mod, only: buffer_list_update_hook
     use data_mod, only: set_default, setq_local
     use value_mod, only: value_type
-    use insdel_mod, only: insert
+    use insert_delete_mod, only: insert
     implicit none(type, external)
     private
 

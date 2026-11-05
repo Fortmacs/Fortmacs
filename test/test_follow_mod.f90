@@ -27,20 +27,20 @@
 module test_follow_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use callint_mod, only: prefix_arg_type, PREFIX_NUMBER
+    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NUMBER
     use error_mod, only: status_type, FM_END_OF_BUFFER
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, buffers, current
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, point, point_max
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, point, point_max
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, command_loop, discard_input, last_message
-    use callint_mod, only: prefix_arg
+    use execute_interactively_mod, only: prefix_arg
     use modes_mod, only: minor_modes
     use bindings_mod, only: init_bindings
     use frame_mod, only: selected_frame, ensure_frame_windows
-    use xdisp_mod, only: pre_redisplay_function
+    use display_engine_mod, only: pre_redisplay_function
     use window_mod, only: windows, window_start, window_end, window_leaves, same_window, delete_window_tree, &
                           resize_window_tree, set_window_buffer, select_window, set_window_start, window_point, &
                           set_window_point, is_pos_visible_in_window, window_body_lines

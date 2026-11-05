@@ -1,6 +1,6 @@
 # project_mod
 
-- Module: project_mod, project_xref_mod (submodule)
+- Module: project_mod, project_cross_reference_mod (submodule)
 - Upstream: progmodes/project.el (+ vc.el `vc-default-ignore-completion-table`)
 - State: partial
 
@@ -54,7 +54,7 @@ on C-x p (`project-prefix-map`): `project-find-file` (f, `find_project_file`),
 `project-async-shell-command` (&),
 `project-compile` (c),
 `project-recompile`,
-`project-find-regexp` (g) and `project-or-external-find-regexp` (G) with `project--find-regexp-in-files` and `project--read-regexp` (in project_xref_mod, which uses xref_mod),
+`project-find-regexp` (g) and `project-or-external-find-regexp` (G) with `project--find-regexp-in-files` and `project--read-regexp` (in project_cross_reference_mod, which uses cross_reference_mod),
 `project-switch-to-buffer` (b, `project--read-project-buffer`, `project--buffer-check`, `project-ignore-buffer-conditions`),
 `project-display-buffer`,
 `project-list-buffers` (C-b, `project-buffers-viewer`, `project-list-buffers-buffer-menu`),

@@ -33,15 +33,15 @@ module follow_mod
     use value_mod, only: make_keymap_ref
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
-    use callint_mod, only: prefix_arg_type, current_prefix_arg, prefix_numeric_value, this_command, PREFIX_NONE, &
-                           PREFIX_NUMBER, PREFIX_MINUS
+    use execute_interactively_mod, only: prefix_arg_type, current_prefix_arg, prefix_numeric_value, this_command, PREFIX_NONE, &
+                                         PREFIX_NUMBER, PREFIX_MINUS
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_list, resolve_buffer
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol
     use indent_mod, only: vertical_motion, current_column
     use keymap_mod, only: make_sparse_keymap, keymap_set, define_key, key_parse
     use keyboard_mod, only: is_input_pending, sit_for
-    use dispnew_mod, only: redisplay
-    use xdisp_mod, only: message, pre_redisplay_function, pre_redisplay_procedure
+    use display_update_mod, only: redisplay
+    use display_engine_mod, only: message, pre_redisplay_function, pre_redisplay_procedure
     use frame_mod, only: selected_frame, selected_window
     use window_mod, only: windows, window_start, set_window_start, window_point, set_window_point, window_end, &
                           is_window_live, window_list, window_list_1, next_window, select_window, same_window, &

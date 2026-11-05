@@ -65,11 +65,11 @@ module skeleton_mod
     use buffer_mod, only: buffers, current, current_buffer, buffer_serial_live, barf_if_buffer_read_only, transient_mark_mode
     use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
-    use callint_mod, only: prefix_arg_type, current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER
-    use editfns_mod, only: point, goto_char, is_bol, is_eol, line_beginning_position, line_end_position, buffer_substring, &
-                           delete_region, preceding_char, char_to_string
-    use cmds_mod, only: delete_char, end_of_line, self_insert_command
-    use insdel_mod, only: insert
+    use execute_interactively_mod, only: prefix_arg_type, current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER
+    use editing_functions_mod, only: point, goto_char, is_bol, is_eol, line_beginning_position, line_end_position, &
+                                     buffer_substring, delete_region, preceding_char, char_to_string
+    use editing_commands_mod, only: delete_char, end_of_line, self_insert_command
+    use insert_delete_mod, only: insert
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use indent_mod, only: current_column, current_indentation, indent_to, indent_according_to_mode, indent_region, &
                           move_to_column
@@ -77,9 +77,9 @@ module skeleton_mod
     use search_mod, only: looking_at
     use simple_mod, only: newline_and_indent, reindent_then_newline_and_indent, backward_delete_char_untabify, &
                           is_use_region, deactivate_mark
-    use subr_mod, only: change_group_type, prepare_change_group, activate_change_group, accept_change_group, &
-                        cancel_change_group
-    use minibuf_mod, only: read_string
+    use basic_subprograms_mod, only: change_group_type, prepare_change_group, activate_change_group, accept_change_group, &
+                                     cancel_change_group
+    use minibuffer_reading_mod, only: read_string
     use keyboard_mod, only: sit_for, last_command_event
     use value_mod, only: vtag, V_INTEGER
     use window_mod, only: window_buffer, is_pos_visible_in_window, recenter

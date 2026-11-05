@@ -47,7 +47,7 @@ event queue,
 `is_undefined_binding`,
 `command_loop_1` (prefix arg, keyboard macros run by a command loop over their events, `cmd_error` with discard-input and the bell),
 subr.el `set-transient-map` (one key sequence, pushed over the previous overriding map as internal-push-keymap does),
-redisplay before waiting for input (a hook, to keep keyboard_mod below xdisp_mod),
+redisplay before waiting for input (a hook, to keep keyboard_mod below display_engine_mod),
 `recursive_edit_1` and the `exit` catch (`exit-recursive-edit`, `abort-recursive-edit`),
 a pre-command hook (one function; it may change `this-command`),
 `post-command-hook` (a hook; an error ends its run),
@@ -77,7 +77,7 @@ the start of command_loop_1 in a recursive edit (post-command-hook, `last-comman
 `event-convert-list` (`parse_solitary_modifier`, `make_ctrl_char`),
 `internal-event-symbol-parse-modifiers` (`lispy_modifier_list`),
 `safe_execute_hooks` for pre- and post-command-hook (`safe_run_hook_funcall`, `safe_execute_hooks_1`, `safe_execute_hooks_error`, `safe_execute_hooks_maybe_narrowed`: the failing function is shown and removed),
-`open-dribble-file` (fileio_mod) and the dribble part of `record_char`,
+`open-dribble-file` (file_input_output_mod) and the dribble part of `record_char`,
 idle timers started before the echo wait,
 `insert-special-event`,
 the input queue (`kbd_buffer_get_event`, `read_event_from_main_queue`, `next_kbd_event`, `clear_event`, `get_input_pending`, `readable_events`, `detect_input_pending`, `detect_input_pending_execute_timers`, `requeued_events_pending_p`, `requeued_command_events_pending_p`, `kbd_buffer_events_waiting`, `gobble_input`),
@@ -89,7 +89,7 @@ the command state (`last-command`, `real-this-command`, `real-last-command`, `la
 where upstream holds a keyboard macro there (a key bound to a macro, `call-last-kbd-macro`, `kmacro-call-macro`) it points at `last_macro_command`,
 whose `macro` handle names the macro's events in the registry `command_macros` (A7a; a handle, not an allocatable component, keeps the generated commands fast to compile),
 so C-x z repeats it;
-step 42e: `suspend-emacs` with `stuff_buffered_input` (submodule keyboard_suspend_mod, because it needs term_mod and dispnew_mod, which use keyboard_mod: `suspend_hook` and `suspend_resume_hook`, subr.el's; the terminal reset and set again, term_mod's `reset_all_sys_modes` and `init_all_sys_modes`; the frame resized if the terminal's size changed meanwhile) and frame.el's `suspend-frame` (in keyboard_suspend_mod too),
+step 42e: `suspend-emacs` with `stuff_buffered_input` (submodule keyboard_suspend_mod, because it needs terminal_output_mod and display_update_mod, which use keyboard_mod: `suspend_hook` and `suspend_resume_hook`, subr.el's; the terminal reset and set again, terminal_output_mod's `reset_all_sys_modes` and `init_all_sys_modes`; the frame resized if the terminal's size changed meanwhile) and frame.el's `suspend-frame` (in keyboard_suspend_mod too),
 bound to C-z and C-x C-z (subr.el binds suspend-emacs, which bindings.el substitutes);
 a SIGWINCH while waiting for input or in `sit-for` redisplays,
 which makes the pending size change (process.c:wait_reading_process_output).
@@ -147,4 +147,4 @@ this-command-keys,
 echo-keystrokes,
 event-symbols,
 recursive-edit/top-level;
-suspend-emacs is tested in test_dispnew_mod (it sets up the terminal, which must not happen before test_term_xterm_mod)
+suspend-emacs is tested in test_display_update_mod (it sets up the terminal, which must not happen before test_terminal_xterm_mod)

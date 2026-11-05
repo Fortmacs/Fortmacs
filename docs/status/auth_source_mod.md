@@ -21,4 +21,4 @@ text conversion
 
 ## Tests
 
-through test_comint_mod (the password tests)
+through test_command_interpreter_mod (the password tests)

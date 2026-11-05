@@ -23,18 +23,18 @@
 !> The names of the subprograms a diff changes
 !> (`diff_add_log_current_subprograms', `diff_current_subprogram') and
 !> ChangeLog entries for every hunk (\[add_diff_change_log_entries_other_window]):
-!> a submodule because it uses vc_mod (`vc_root_dir'), which uses
+!> a submodule because it uses version_control_mod (`vc_root_dir'), which uses
 !> diff_mode_mod.
 submodule(diff_mode_mod) diff_mode_add_log_mod
     use add_log_mod, only: add_log_current_subprogram, change_log_default_name, add_change_log_entry
     use string_type_mod, only: string_type
     use buffer_mod, only: get_or_make_buffer, close_buffer, generate_new_buffer_name, is_buffer_live
     use derived_mod, only: major_mode_type, major_mode_named
-    use subr_mod, only: delay_mode_hooks_begin, delay_mode_hooks_end
+    use basic_subprograms_mod, only: delay_mode_hooks_begin, delay_mode_hooks_end
     use expression_motion_mod, only: end_of_subprogram
     use files_mod, only: file_relative_name
-    use vc_mod, only: vc_root_dir
-    use xdisp_mod, only: message
+    use version_control_mod, only: vc_root_dir
+    use display_engine_mod, only: message
     implicit none(type, external)
 
     !> The state of one subprogram context follower of

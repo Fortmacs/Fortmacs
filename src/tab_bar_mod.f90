@@ -25,7 +25,7 @@
 !> records): the current tab, and the others, each with the window
 !> configuration it restores when selected.  The tab bar is a line at
 !> the top of a terminal frame (its `tab_bar_lines'), which redisplay
-!> draws from the items `tab_bar_format' makes (xdisp_mod's
+!> draws from the items `tab_bar_format' makes (display_engine_mod's
 !> `get_tab_bar_items').  `tab_bar_history_mode' keeps the window
 !> configurations used in each tab.  What is left out is listed in
 !> docs/status/tab_bar_mod.md.
@@ -36,7 +36,7 @@ module tab_bar_mod
     use value_mod, only: value_type, make_list, command_type, vtag, xfixnum, V_INTEGER, make_keymap_ref
     use data_mod, only: choice_setting_type
     use string_type_mod, only: string_type, append_string
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER, this_command
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER, this_command
     use keyboard_mod, only: last_command_event, pre_command_hook
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
@@ -50,15 +50,15 @@ module tab_bar_mod
                           frame_seen_buffers, &
                           frame_buried_buffers, exchange_frame_buffers
     use marker_mod, only: make_marker, set_marker, marker_position, marker_buffer
-    use editfns_mod, only: goto_char
-    use timefns_mod, only: current_time, is_time_less
-    use fns_mod, only: count_characters
+    use editing_functions_mod, only: goto_char
+    use time_functions_mod, only: current_time, is_time_less
+    use utility_functions_mod, only: count_characters
     use fill_mod, only: string_width
-    use mule_util_mod, only: truncate_string_to_width
-    use fileio_mod, only: file_exists
+    use multilingual_environment_utilities_mod, only: truncate_string_to_width
+    use file_input_output_mod, only: file_exists
     use files_mod, only: find_file_noselect
-    use minibuf_mod, only: minibuf_level, read_from_minibuffer
-    use minibuf_table_mod, only: completion_list_table
+    use minibuffer_reading_mod, only: minibuf_level, read_from_minibuffer
+    use minibuffer_reading_tables_mod, only: completion_list_table
     use minibuffer_mod, only: completing_read, read_buffer, read_file_name, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
     use frame_mod, only: frame_type, selected_frame, tab_type, tab_window_configuration_type, frame_list, get_frame, &
                          set_tab_bar_lines, delete_frame, default_frame, frame_cols, select_frame_begin, select_frame_end, &
@@ -70,7 +70,7 @@ module tab_bar_mod
                           set_window_state, destroy_window_state, display_action_parameters_type, &
                           window_configuration_change_hook, close_tab_hook, ignore_window_parameters, &
                           window_safe_min_width, same_handle, QR_TAB, WINDOW_SIDE_NONE
-    use xdisp_mod, only: message, tab_bar_run_type, get_tab_bar_items
+    use display_engine_mod, only: message, tab_bar_run_type, get_tab_bar_items
     implicit none(type, external)
     private
 
@@ -1620,7 +1620,7 @@ contains
     end subroutine make_tab_bar_items
 
     !> The runs of text of the selected frame's tab bar, for redisplay
-    !> (xdisp_mod's `get_tab_bar_items').  Port of keyboard.c:tab_bar_items
+    !> (display_engine_mod's `get_tab_bar_items').  Port of keyboard.c:tab_bar_items
     !> (the captions of the items).
     subroutine get_tab_bar_runs(runs)
         type(tab_bar_run_type), allocatable, intent(out) :: runs(:)

@@ -20,9 +20,9 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The language environments czech.el defines.  A submodule of coding_mod,
-!> which defines them when mule_mod asks for them.
+!> which defines them when multilingual_environment_mod asks for them.
 submodule(coding_mod) czech_mod
-    use mule_mod, only: define_language_environment
+    use multilingual_environment_mod, only: define_language_environment
     implicit none(type, external)
 
 contains

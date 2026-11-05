@@ -29,9 +29,9 @@
 !> The coding systems of type `charset' that thai.el defines, with their
 !> aliases, and its language environments (its other coding systems are
 !> Deferred).  A submodule of coding_mod, which defines the coding systems
-!> when it starts and the language environments when mule_mod asks for them.
+!> when it starts and the language environments when multilingual_environment_mod asks for them.
 submodule(coding_mod) thai_mod
-    use mule_mod, only: define_language_environment
+    use multilingual_environment_mod, only: define_language_environment
     implicit none(type, external)
 
 contains

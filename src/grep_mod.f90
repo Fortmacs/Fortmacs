@@ -51,8 +51,8 @@
 !> only, `grep_quoting_style' stays false).
 module grep_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use fns_mod, only: count_characters
-    use callint_mod, only: PREFIX_NONE, PREFIX_RAW, find_command
+    use utility_functions_mod, only: count_characters
+    use execute_interactively_mod, only: PREFIX_NONE, PREFIX_RAW, find_command
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
@@ -63,40 +63,40 @@ module grep_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, generate_new_buffer_name, &
                           close_buffer, is_buffer_modified, is_buffer_live, transient_mark_mode
     use marker_mod, only: copy_marker_at, destroy_marker, marker_position, set_marker
-    use insdel_mod, only: insert, insert_before_markers
-    use editfns_mod, only: point, point_min, point_max, goto_char, line_beginning_position, line_end_position, &
-                           buffer_substring, mark_position, char_after
-    use cmds_mod, only: forward_line
-    use textprop_mod, only: put_text_property, get_text_property, add_text_properties, text_property_any, &
-                            next_single_property_change, remove_list_of_text_properties
+    use insert_delete_mod, only: insert, insert_before_markers
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, line_beginning_position, line_end_position, &
+                                     buffer_substring, mark_position, char_after
+    use editing_commands_mod, only: forward_line
+    use text_properties_mod, only: put_text_property, get_text_property, add_text_properties, text_property_any, &
+                                   next_single_property_change, remove_list_of_text_properties
     use search_mod, only: re_search_forward, match_beginning, match_end, match_data, set_match_data, replace_match, &
                           string_match, looking_at, case_fold_search, string_index_to_offset, SEARCH_NOERROR, SEARCH_MOVE
-    use subr_mod, only: match_string, shell_quote_argument, add_to_history, find_tag_default, &
-                        silent_modifications_type, silent_modifications_begin, silent_modifications_end
-    use fileio_mod, only: expand_file_name, file_name_as_directory, file_name_nondirectory, is_file_directory, &
-                          is_file_accessible_directory
+    use basic_subprograms_mod, only: match_string, shell_quote_argument, add_to_history, find_tag_default, &
+                                     silent_modifications_type, silent_modifications_begin, silent_modifications_end
+    use file_input_output_mod, only: expand_file_name, file_name_as_directory, file_name_nondirectory, is_file_directory, &
+                                     is_file_accessible_directory
     use files_mod, only: save_some_buffers, file_name_extension, wildcard_to_regexp, create_temp_file, delete_file
-    use callproc_mod, only: execute_process
+    use execute_process_mod, only: execute_process
     use simple_mod, only: read_shell_command, next_error_last_buffer, shell_command_switch
-    use callproc_mod, only: shell_file_name, init_callproc
-    use minibuf_mod, only: read_from_minibuffer, read_string
-    use minibuf_table_mod, only: completion_table_type, completion_function_table, completion_list_table, &
-                                 completion_test_procedure, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
-    use minibuf_mod, only: try_completion, all_completions, is_exact_completion
+    use execute_process_mod, only: shell_file_name, init_callproc
+    use minibuffer_reading_mod, only: read_from_minibuffer, read_string
+    use minibuffer_reading_tables_mod, only: completion_table_type, completion_function_table, completion_list_table, &
+                                             completion_test_procedure, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
+    use minibuffer_reading_mod, only: try_completion, all_completions, is_exact_completion
     use minibuffer_mod, only: completing_read, read_directory_name, completion_file_name_table, &
                               read_file_name_completion_ignore_case
     use replace_mod, only: read_regexp, format_prompt
-    use isearch_mod, only: is_isearch_no_upper_case
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use incremental_search_mod, only: is_isearch_no_upper_case
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use keymap_mod, only: keymap_set, set_keymap_parent, make_sparse_keymap, current_local_map, use_local_map
     use text_mode_mod, only: text_mode_map
     use derived_mod, only: is_derived_mode
-    use subr_mod, only: execute_mode_hooks
-    use insdel_mod, only: after_change_functions
+    use basic_subprograms_mod, only: execute_mode_hooks
+    use insert_delete_mod, only: after_change_functions
     use data_mod, only: set
     use help_mod, only: substitute_command_keys
     use buffer_mod, only: restore_buffer_modified
-    use textprop_mod, only: text_property_not_all
+    use text_properties_mod, only: text_property_not_all
     use replace_mod, only: occur_add_target, occur_after_change_function
     use modes_mod, only: major_modes
     use process_mod, only: get_buffer_process
@@ -104,9 +104,9 @@ module grep_mod
                              FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_highlight
     use faces_mod, only: named_face_type, display_when, face_attrs
-    use vc_hooks_mod, only: vc_directory_exclusions
-    use dired_mod, only: completion_ignored_extensions
-    use xdisp_mod, only: message, mode_line_part_type
+    use version_control_hooks_mod, only: vc_directory_exclusions
+    use directory_editor_mod, only: completion_ignored_extensions
+    use display_engine_mod, only: message, mode_line_part_type
     use compile_mod, only: compilation_start, compilation_set_mode_locals, compilation_update_mode_line, &
                            compilation_rule_type, compilation_highlight_type, compilation_directory_matcher_type, &
                            compilation_transform_type, compilation_transform_file_matches, &

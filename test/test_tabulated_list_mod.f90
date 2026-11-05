@@ -31,10 +31,10 @@ module test_tabulated_list_mod
     use value_mod, only: value_type, xstring, vtag, V_STRING
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, close_buffer, get_or_make_buffer, &
                           generate_new_buffer_name
-    use editfns_mod, only: buffer_string, point, goto_char, point_min, pos_bol, pos_eol, buffer_substring
-    use cmds_mod, only: forward_line
+    use editing_functions_mod, only: buffer_string, point, goto_char, point_min, pos_bol, pos_eol, buffer_substring
+    use editing_commands_mod, only: forward_line
     use syntax_mod, only: skip_chars_forward
-    use textprop_mod, only: get_text_property
+    use text_properties_mod, only: get_text_property
     use bindings_mod, only: init_bindings
     use tabulated_list_mod, only: tabulated_list_mode, tabulated_list_column_type, tabulated_list_entry_type, &
                                   set_tabulated_list_format, set_tabulated_list_entries, set_tabulated_list_padding, &

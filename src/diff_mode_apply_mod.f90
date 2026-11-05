@@ -25,10 +25,10 @@
 submodule(diff_mode_mod) diff_mode_apply_mod
     use value_mod, only: value_type
     use buffer_mod, only: get_or_make_buffer, close_buffer, generate_new_buffer_name, is_buffer_live
-    use editfns_mod, only: buffer_string
+    use editing_functions_mod, only: buffer_string
     use search_mod, only: search_forward, search_backward, regexp_quote
-    use fns_mod, only: count_characters
-    use xdisp_mod, only: message
+    use utility_functions_mod, only: count_characters
+    use display_engine_mod, only: message
     use string_type_mod, only: string_type
     implicit none(type, external)
 
@@ -114,7 +114,7 @@ contains
     !> must have LINES lines.  Port of
     !> diff-mode.el:diff-sanity-check-context-hunk-half.
     recursive subroutine diff_sanity_check_context_hunk_half(lines, status)
-        use subr_mod, only: read_y_or_n
+        use basic_subprograms_mod, only: read_y_or_n
         integer(int64), intent(in) :: lines
         type(status_type), intent(out) :: status
         integer(int64) :: count, shortage
@@ -182,7 +182,7 @@ contains
     end subroutine diff_sanity_check_context_hunk_half
 
     module procedure diff_sanity_check_hunk
-    use subr_mod, only: read_y_or_n
+    use basic_subprograms_mod, only: read_y_or_n
     integer(int64) :: saved, before, after, shortage
     integer(int32) :: c
     logical :: yes, more
@@ -771,8 +771,8 @@ contains
 
     module procedure diff_apply_hunk
     use files_mod, only: is_backup_file_name, delete_file
-    use fns_mod, only: read_yes_or_no
-    use subr_mod, only: read_y_or_n
+    use utility_functions_mod, only: read_yes_or_no
+    use basic_subprograms_mod, only: read_y_or_n
     use window_mod, only: display_buffer, display_action_parameters_type, set_window_point, windows, pop_to_buffer
     use frame_mod, only: selected_frame
     type(string_type), allocatable :: names(:)

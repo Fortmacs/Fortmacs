@@ -46,20 +46,20 @@ module css_mode_mod
     use keymap_mod, only: keymap_set, define_key
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
                           forward_comment, skip_chars_forward, skip_chars_backward, char_syntax
-    use editfns_mod, only: point, point_min, point_max, goto_char, is_bol, is_eol, char_after, char_before, &
-                           buffer_substring, line_beginning_position, line_end_position, narrow_to_region, widen, &
-                           following_char, preceding_char
-    use cmds_mod, only: forward_char
-    use insdel_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_bol, is_eol, char_after, char_before, &
+                                     buffer_substring, line_beginning_position, line_end_position, narrow_to_region, widen, &
+                                     following_char, preceding_char
+    use editing_commands_mod, only: forward_char
+    use insert_delete_mod, only: insert
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use indent_mod, only: indent_region
     use search_mod, only: looking_at, re_search_forward, re_search_backward, search_backward, string_match, &
                           match_beginning, match_end, replace_match, case_fold_search, SEARCH_NOERROR
-    use subr_mod, only: match_string_no_properties, looking_back, silent_modifications_type, silent_modifications_begin, &
-                        silent_modifications_end
+    use basic_subprograms_mod, only: match_string_no_properties, looking_back, silent_modifications_type, &
+                                     silent_modifications_begin, silent_modifications_end
     use simple_mod, only: newline, backward_word
-    use textprop_mod, only: put_text_property
-    use xdisp_mod, only: message
+    use text_properties_mod, only: put_text_property
+    use display_engine_mod, only: message
     use faces_mod, only: named_face_type, display_when, face_attrs, readable_foreground_color
     use color_mod, only: color_name_to_rgb, color_rgb_to_hex, color_hsl_to_rgb
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
@@ -73,18 +73,19 @@ module css_mode_mod
     use fill_mod, only: fill_paragraph, fill_paragraph_function, adaptive_fill_function
     use electric_mod, only: electric_indent_chars_value, electric_indent_chars_set_local
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
-    use smie_mod, only: smie_prec_type, smie_precs_type, smie_prec2_type, smie_grammar_type, smie_rule_result_type, &
-                        smie_indent_type, smie_expression_type, smie_precs_to_prec2, smie_prec2_to_grammar, smie_setup, &
-                        smie_default_forward_token, smie_default_backward_token, smie_backward_expression, &
-                        is_smie_rule_hanging, is_smie_rule_bol, smie_rule_parent, smie_indent_virtual, SMIE_ASSOC, SMIE_LEFT, &
-                        SMIE_AFTER, SMIE_BEFORE, SMIE_ELEM, SMIE_LIST_INTRO, SMIE_RULE_NONE, SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, &
-                        SMIE_RULE_YES, SMIE_INDENT_COLUMN
-    use minibuf_table_mod, only: capf_data_type, completion_table_type, completion_test_procedure, TABLE_FUNCTION, &
-                                 COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, COMPLETION_FINISHED
-    use minibuf_mod, only: try_completion, all_completions, is_exact_completion
+    use simple_minded_indentation_engine_mod, only: smie_prec_type, smie_precs_type, smie_prec2_type, smie_grammar_type, &
+                                                    smie_rule_result_type, &
+                                   smie_indent_type, smie_expression_type, smie_precs_to_prec2, smie_prec2_to_grammar, smie_setup, &
+                                                smie_default_forward_token, smie_default_backward_token, smie_backward_expression, &
+                             is_smie_rule_hanging, is_smie_rule_bol, smie_rule_parent, smie_indent_virtual, SMIE_ASSOC, SMIE_LEFT, &
+                          SMIE_AFTER, SMIE_BEFORE, SMIE_ELEM, SMIE_LIST_INTRO, SMIE_RULE_NONE, SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, &
+                                                    SMIE_RULE_YES, SMIE_INDENT_COLUMN
+    use minibuffer_reading_tables_mod, only: capf_data_type, completion_table_type, completion_test_procedure, TABLE_FUNCTION, &
+                                             COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, COMPLETION_FINISHED
+    use minibuffer_reading_mod, only: try_completion, all_completions, is_exact_completion
     use minibuffer_mod, only: completion_at_point_functions
-    use regexp_opt_mod, only: regexp_opt
-    use imenu_mod, only: imenu_prev_index_position_function, imenu_extract_index_name_function, imenu_space_replacement
+    use regular_expression_optimization_mod, only: regexp_opt
+    use index_menu_mod, only: imenu_prev_index_position_function, imenu_extract_index_name_function, imenu_space_replacement
     implicit none(type, external)
     private
 

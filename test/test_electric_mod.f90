@@ -1,5 +1,5 @@
 ! test_electric_mod.f90 -- tests for Electric Indent mode (electric_mod)
-! and `post_self_insert_hook' (cmds_mod).
+! and `post_self_insert_hook' (editing_commands_mod).
 ! Own tests; electric-tests.el's Electric Indent cases run in c-mode,
 ! js-mode and python-mode.
 !
@@ -27,16 +27,16 @@
 !> the command loop.  Every test kills its buffers.
 module test_electric_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_max, buffer_string
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_max, buffer_string
     use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input
-    use callint_mod, only: prefix_arg
-    use cmds_mod, only: post_self_insert_hook
+    use execute_interactively_mod, only: prefix_arg
+    use editing_commands_mod, only: post_self_insert_hook
     use simple_mod, only: fundamental_mode
     use electric_mod, only: electric_indent_inhibit, electric_indent_chars
     use modes_mod, only: minor_modes

@@ -34,8 +34,8 @@ module test_syntax_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, erase_buffer, close_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_min, point_max, buffer_string, mark_position
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, mark_position
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, command_loop
     use bindings_mod, only: init_bindings
@@ -45,7 +45,7 @@ module test_syntax_mod
                           modify_syntax_entry, make_syntax_table, copy_syntax_table, destroy_syntax_table, &
                           set_syntax_table, standard_syntax_table, matching_paren, syntax_entry, scan_words, &
                           forward_word, is_word_boundary, SWORD, SOPEN, internal_describe_syntax_value
-    use charscript_mod, only: char_script, script_names
+    use character_script_mod, only: char_script, script_names
     implicit none(type, external)
     private
 

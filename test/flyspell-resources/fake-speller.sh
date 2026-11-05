@@ -1,5 +1,5 @@
 #!/bin/sh
-# fake-speller.sh -- a speller for test_flyspell_mod that needs no
+# fake-speller.sh -- a speller for test_spellcheck_mode_mod that needs no
 # dictionary.  It says it is Aspell 0.60 and speaks the Ispell pipe
 # protocol (-a) and Aspell's `list' command.  It accepts every word but
 # these, until one is accepted with `@' or `*':

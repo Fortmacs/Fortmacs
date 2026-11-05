@@ -18,28 +18,28 @@ this file.
    registry. Foundations with no single upstream file.
 2. `character_mod` — UTF-8 encoding and char↔byte conversion
    (`character.c`, `character.h`).
-3. `buffer_mod` + `insdel_mod` — gap buffer, insert/delete, create/kill,
+3. `buffer_mod` + `insert_delete_mod` — gap buffer, insert/delete, create/kill,
    current buffer (`buffer.c`, `buffer.h`, `insdel.c`); plus the
    char↔byte conversion half of `marker_mod` (`marker.c`), which insdel needs.
 4. `marker_mod` — marker objects and their adjustment on insert/delete
    (`marker.c`); `kill-buffer`/`erase-buffer` completed in a submodule of
-   buffer_mod (which can use marker_mod/insdel_mod without a module cycle).
-   Narrowing and `goto-char` come with `editfns_mod` (`editfns.c`, done).
+   buffer_mod (which can use marker_mod/insert_delete_mod without a module cycle).
+   Narrowing and `goto-char` come with `editing_functions_mod` (`editfns.c`, done).
 5. Value model — symbols and the minimal value type that text properties,
    keymaps and buffer-local variables need (see Open questions).
-6. `intervals_mod` + `textprop_mod` — interval tree and text properties
+6. `intervals_mod` + `text_properties_mod` — interval tree and text properties
    (`intervals.c`, `textprop.c`).
 
 ### Phase 2 — Command loop and keymaps
 1. `src/sys/` termios raw mode — done.
 2. `keymap_mod` (`keymap.c`) — done (core; see docs/status/keymap_mod.md).
-3. `keyboard_mod` (`keyboard.c`) + `callint_mod` (`callint.c`) — event
+3. `keyboard_mod` (`keyboard.c`) + `execute_interactively_mod` (`callint.c`) — event
    reading, `read-key-sequence`, command registry, command loop — done
    (core). Still needed for a usable loop: xterm escape-sequence maps
    (`term/xterm.el` input-decode-map) and echo-area messages.
-4. Typing works: `self-insert-command` (`cmds_mod`), basic simple.el
+4. Typing works: `self-insert-command` (`editing_commands_mod`), basic simple.el
    commands (`simple_mod`), the default global bindings (`bindings_mod`),
-   xterm escape sequences (`term_xterm_mod`) — done (core).
+   xterm escape sequences (`terminal_xterm_mod`) — done (core).
 5. `app/main.f90` editor loop on a raw tty — needs Phase 3 output to be
    useful.
 
@@ -73,7 +73,7 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    `user_config` module's `configure`, run at startup (`-q` skips it);
    `keymap-global-set`, `key-valid-p`. — done
 2. `fortmacs --recompile`: build `~/.config/fortmacs/init.f90` with
-   gfortran against the installed library (`callproc_mod` runs the
+   gfortran against the installed library (`execute_process_mod` runs the
    compiler) into `~/.local/state/fortmacs`, scratch in
    `~/.cache/fortmacs`; the installed binary runs the built one. — done
 
@@ -117,21 +117,21 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    18. Processes on worker threads (M-!, M-|, `compile`). — done
    19. Fake GUI output device for tests (redisplay device independence). — done
    20. Comint: M-x shell, asynchronous shell commands, compilation errors and
-       `next-error`. — done (see comint_mod, shell_mod, compile_mod and
+       `next-error`. — done (see command_interpreter_mod, shell_mod, compile_mod and
        simple_next_error_mod for what is Deferred).
    21. Dired file operations (dired-aux.el) and view-mode. — done (core; `!`, `&`, diffs and Wdired are Deferred)
    22. More help commands and `set-variable` (C-h m, C-h b, C-h e, C-h l,
        C-h o, C-h x, C-h a, C-h d, C-h u, C-h C-h; *Messages*; M-x
        set-variable with Fortran literals). — done (core; Info, Outline in
        *Help* and help-mode navigation are Deferred; see help_mod,
-       help_fns_mod, apropos_mod and simple_setvar_mod).
+       help_functions_mod, apropos_mod and simple_set_variable_mod).
    23. Parenthesis matching and electric modes (Show Paren mode, blinking
        parens, Electric Indent mode, Electric Pair mode; timers and
        overlays for them). — done (core: Electric Layout and Electric Quote
-       modes are Deferred; see paren_mod, electric_mod and elec_pair_mod).
+       modes are Deferred; see parenthesis_mod, electric_mod and electric_pair_mod).
    24. Abbrevs and dabbrev (abbrev tables, Abbrev mode, C-x a, C-x ', M-',
-       M-/, saving abbrevs into init.f90). — done (core: see abbrev_mod and
-       dabbrev_mod for what is Deferred; hippie-exp.el is Deferred).
+       M-/, saving abbrevs into init.f90). — done (core: see abbreviation_mod and
+       dynamic_abbreviation_mod for what is Deferred; hippie-exp.el is Deferred).
    25. Faces in the config API: `faces%`, `face_underline`, `face_box` (the
        design decision of 2026-10-24). — done (a number as an underline's
        `:position` is Deferred with the GUI).
@@ -145,7 +145,7 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    27. Coding systems (coding.c): decoding and encoding for files and
        processes, `buffer-file-coding-system`. — done (core: UTF-8,
        UTF-16, Latin-1, ASCII and raw text with their line ends; see
-       coding_mod and mule_mod for what is Deferred).
+       coding_mod and multilingual_environment_mod for what is Deferred).
    28. Completion: more minibuffer completion styles and
        `completion-at-point` (then `dabbrev-completion`, Comint and shell
        completion). — done (the styles, categories, `completion-at-point`
@@ -300,20 +300,20 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    48. Smerge mode (conflict markers, `vc-git-resolve-conflicts`) and
        Ediff, as PRs: 48a Smerge mode (smerge-mode.el, vc-git.el's
        conflict hooks) — done (core: refinement, Ediff and the menus are
-       Deferred; see smerge_mode_mod); 48b Ediff core: comparing two and
+       Deferred; see simple_merge_mode_mod); 48b Ediff core: comparing two and
        three files or buffers on one terminal frame (ediff.el,
        ediff-util.el, ediff-diff.el, ediff-init.el, ediff-wind.el,
-       ediff-help.el; see docs/status/ediff_mod.md) — done; 48c merging
+       ediff-help.el; see docs/status/fortmacs_diff_mod.md) — done; 48c merging
        files and buffers (ediff-merg.el, `ediff-merge-files`,
        `ediff-merge-buffers` and their `-with-ancestor` forms; see
-       docs/status/ediff_merg_mod.md) — done; 48d session groups
+       docs/status/fortmacs_diff_merging_mod.md) — done; 48d session groups
        (ediff-mult.el, `ediff-directories`, `ediff-directories3`,
        `ediff-merge-directories` and `-with-ancestor`, the registry; see
-       docs/status/ediff_multiple_mod.md) — done; then revisions
+       docs/status/fortmacs_diff_multiple_mod.md) — done; then revisions
        (ediff-vers.el) and patches (ediff-ptch.el).
    49. Projects and cross-references: project.el (C-x p), xref.el and
-       etags.el (M-., M-?, M-,) — 49a partial (docs/status/xref_mod.md and
-       etags_mod.md), 49b partial (docs/status/project_mod.md), Imenu and
+       etags.el (M-., M-?, M-,) — 49a partial (docs/status/cross_reference_mod.md and
+       fortmacs_tags_mod.md), 49b partial (docs/status/project_mod.md), Imenu and
        `which-function-mode`.
    50. Change logs, the rest: `add-change-log-entry` (C-x 4 a),
        `log-edit-generate-changelog-from-diff`, `diff-add-log-current-defuns`
@@ -355,7 +355,8 @@ Design decisions).
    test-drive (`test/test_<name>_mod.f90`) where they exist; add our own for
    uncovered behavior. Name each ported test after its ERT test.
 3. **Implement.** One module per upstream file, named after it with an `_mod` suffix
-   (buffer.c → `buffer_mod`). Cite the
+   (buffer.c → `buffer_mod`) and spelled out (cal-move.el →
+   `calendar_movement_mod`; see "Module names" below). Cite the
    upstream file/function in a comment on every ported procedure, e.g.
    `!> Port of insdel.c:insert_1_both.` Run `tools/fortran-names.sh` on
    the new files (see "Fortran names for Lisp terms").
@@ -541,7 +542,7 @@ floatfns.c (step 42e) is Not applicable as a file: its functions are Lisp's
 arithmetic on floats, and Fortran has each as an intrinsic, which ported
 code uses directly (Intrinsics first): `sin`, `cos`, `tan`, `asin`,
 `acos`, `atan` (`atan2` for two arguments), `exp`, `log` (`log(x)/log(b)`
-for a base; `log10`), `sqrt`, `abs`, `expt` (`**`), `float` (`real`; `float-time` is `real` extended for a time value, timefns_mod, R6-14),
+for a base; `log10`), `sqrt`, `abs`, `expt` (`**`), `float` (`real`; `float-time` is `real` extended for a time value, time_functions_mod, R6-14),
 `isnan` (`ieee_is_nan`), `copysign` (`ieee_copy_sign`), `frexp`
 (`fraction`, `exponent`), `ldexp` (`scale`), `logb` (`exponent(x) - 1`),
 `ceiling`, `floor`, `truncate` (`int`), `fceiling`/`ffloor`/`ftruncate`
@@ -566,7 +567,7 @@ existing rule (decided and reported), or by the decision panel
 | defun, in a mode's own helper | the language's term | `python_mark_definition`, `python_nav_beginning_of_definition` (and `_regexp`), `python_nav_end_of_definition` (and `_function`), `python_nav_forward_definition`, `python_nav_backward_definition`, `python_info_current_definition`, `python_info_looking_at_beginning_of_definition`; `makefile_add_log_target`; `sh_current_function_name`; `log_view_beginning_of_entry`, `log_view_end_of_entry`; `css_current_rule_name`.  Generic commands, hooks and helpers keep subprogram: `search_subprogram_forward`/`_backward`, `nav_*_subprogram`, `beginning_subprogram_indent`, `change_log_read_subprograms`, `log_edit_insert_filled_subprograms`, `diff_add_log_current_subprograms` |
 | sexp (a balanced expression) | expression | `forward_expression`, `cut_expression`, `parse_partial_expression`, `scan_expressions`, `parse_expression_ignore_comments`, `halfexpression`, `expression_flag` (and the analogous `cmd_`, `test_` and `_1` forms of the renamed names) |
 | list, as a parenthesised group (these names only) | group | `forward_group`, `backward_group`, `up_group`, `down_group`, `backward_up_group`, `cut_backward_up_group`, their `*_group_function` variables, `scan_groups`, `smie_down_group` |
-| alist (an association list) | a plural name, no suffix (R2-Q8; first `_table`) | `auto_modes`, `bookmarks`, `file_coding_systems`, `registers`, `save_places`; `compilation_error_regexps` (all known formats) and `compilation_error_regexp_names` (the enabled ones); where the plural is taken or unclear, the plural names the records: `minor_mode_lighters`, `coding_system_names`, `display_buffer_rules`; `abbrev_minor_mode_tables`, `syntax_modifications` (font-lock-defaults' SYNTAX-ALIST, not `syntax_table`), `display_action_parameters_type` (display-buffer's action alist, fixed keys as components); in buffer_mod, buffer_ops_mod and process_mod, Vbuffer_alist and Vprocess_alist are `buffer_order`/`buffer_order_count` and `process_order`/`process_order_count` (the modules already have a `table`) |
+| alist (an association list) | a plural name, no suffix (R2-Q8; first `_table`) | `auto_modes`, `bookmarks`, `file_coding_systems`, `registers`, `save_places`; `compilation_error_regexps` (all known formats) and `compilation_error_regexp_names` (the enabled ones); where the plural is taken or unclear, the plural names the records: `minor_mode_lighters`, `coding_system_names`, `display_buffer_rules`; `abbrev_minor_mode_tables`, `syntax_modifications` (font-lock-defaults' SYNTAX-ALIST, not `syntax_table`), `display_action_parameters_type` (display-buffer's action alist, fixed keys as components); in buffer_mod, buffer_operations_mod and process_mod, Vbuffer_alist and Vprocess_alist are `buffer_order`/`buffer_order_count` and `process_order`/`process_order_count` (the modules already have a `table`) |
 | module lisp_cmds_mod (lisp.el) | expression_motion_mod | src/expression_motion_mod.f90, `init_expression_motion` |
 | the modules of lisp.h, eval.c and lread.c | `value_mod` (submodule `value_names_mod`), `hooks_mod`, `names_mod`, each named for what it holds (print.c stays `print_mod`) | src/value_mod.f90, src/hooks_mod.f90, src/names_mod.f90 |
 | `syms_of_X` (a module's one-time startup setup) | `init_X` (`init_X_commands` where upstream has an `init_X` of its own) | `init_simple`, `init_files`; `init_buffer_commands`, `init_display_commands`, `init_window_commands`, `init_macros_commands` |
@@ -576,7 +577,7 @@ existing rule (decided and reported), or by the decision panel
 | nil, NILP (the null value) | `value_type()`; `.not. allocated(v%a)` | the intrinsic itself, no helper; a function result is tested as `vtag(f(x)) == V_NULL`; the value tags are `V_NULL`, `V_INTEGER`, `V_NAME`, `V_STRING`, `V_ARRAY` (were `V_NIL`, `V_INT`, `V_SYMBOL`, `V_STRING`, `V_LIST`) |
 | FIXNUMP, STRINGP, CONSP, SYMBOLP, LISTP, BUFFERP, MARKERP, WINDOWP and value_mod's keymap and syntax-table tests | the tag test itself: `vtag(v) == V_INTEGER`, `vtag(v) /= V_STRING`, `(vtag(v) == V_NAME .or. vtag(v) == V_NULL)` | no wrapper; `vtag` gives `V_NULL` for the null value, and is elemental like the wrappers were; window.c's `windowp` (a handle test) is `is_window` |
 | the argument list C-h f shows | the call line, then the declaration block | `call insert(string, status)` followed by `character(len=*), intent(in) :: string` and `type(status_type), intent(out) :: status`; a function's result is declared too (`integer(int64) :: point`); tools/gen-docstrings.sh takes the lines from the dummy arguments' declarations (the help entry's `declarations`) |
-| funcall, funcall_nil, apply | the procedure pointer called directly | `call find_function(v, fn, status)` resolves a run-time name once, then `call fn%execute(status)`; set_auto_mode resolves the mode with `find_command`; the undefined-key command is keyboard_mod's `undefined_function` pointer, which subr_mod sets; grep's and log-view's internal `apply` are `set_defaults` and `toggle_entry` |
+| funcall, funcall_nil, apply | the procedure pointer called directly | `call find_function(v, fn, status)` resolves a run-time name once, then `call fn%execute(status)`; set_auto_mode resolves the mode with `find_command`; the undefined-key command is keyboard_mod's `undefined_function` pointer, which basic_subprograms_mod sets; grep's and log-view's internal `apply` are `set_defaults` and `toggle_entry` |
 | fboundp, keywordp | `associated(find_command(name))`; the name's first character | no wrapper |
 | cons (printing a keymap entry), a cons argument | `keymap_entry_text(event, binding)`; newcomment's `universal_arg` | named for what they hold |
 | the exact Lisp value of a setting (`setting_type%exact`) | removed (A8) | a logical setting holds `.true.` or `.false.` (any allocated value is `.true.`); an integer or string setting given another value is a `wrong-type-argument` error condition except where upstream's nil means something: fill-column's nil is `FILL_COLUMN_NONE` (`current_fill_column` then gives the largest fixnum, as upstream; its obsolescence warning is Deferred with lwarn; set_fill_column shows and refuses it as upstream does), tab-width's nil is `TAB_WIDTH_DEFAULT` (tabs take the default width, 8, buffer.h:sanitize_tab_width); both names confirmed by the owner; a function setting resolves the name when it is set (an undefined name is `void-function`, "Function is not defined") and keeps the resolved command (`%command`) for the name it reads back as; an unknown require-final-newline value is `FINAL_NEWLINE_ASK` |
@@ -621,7 +622,7 @@ The table also holds the names R6-21 gives this program (below): the
 identifier that means this program (`exit_emacs`, `emacs_read`, ...), a
 `keep` of the word `emacs` alone, so that the file entry's stem leaves
 prose ("GNU Emacs", "Emacs Lisp") to be changed by hand, the `file`
-entry `regex_emacs_mod` → `regex_mod` (R6-24), and `name` entries for
+entry `regex_emacs_mod` → `regular_expression_mod` (R6-24), and `name` entries for
 the commands and settings R6-25 names for this program.
 
 **Lisp that stays Lisp.**  `keep` entries leave what is genuinely Lisp
@@ -651,7 +652,7 @@ keep Emacs: the emacs-mule encoding (`emacs_mule_id`, `CAT_EMACS_MULE`,
 upstream ("GNU Emacs 31.1", "an Emacs regexp") and every citation
 ("Port of emacs.c:main", "Cf. sysdep.c:emacs_open").  Keys and behavior do
 not change.  R6-24 (2026-11-03): the module of regex-emacs.c is
-`regex_mod` (test_regex_mod), Fortmacs's only regex engine, so the
+`regular_expression_mod` (test_regular_expression_mod), Fortmacs's only regex engine, so the
 program's name does not belong in it; `emacs_mule_*`, the coding systems
 emacs-mule and utf-8-emacs and Emacs Lisp mode keep emacs, because they
 name formats and a language that exist outside this program.  R6-25
@@ -693,7 +694,7 @@ emacs-gnutls, ...), installed with the package each documents.
 R6-31 (2026-11-03): secure-hash's `iv-auto` OBJECT (the hash of LENGTH
 random bytes from getrandom) is its own subroutine,
 `call hash_random_bytes(SECURE_HASH_SHA512, 100_int64, hash, status)`,
-in fns_mod beside `secure_hash` for strings and buffers.
+in utility_functions_mod beside `secure_hash` for strings and buffers.
 
 ### Wording
 
@@ -762,7 +763,7 @@ tools/test-fortran-prose.sh on its fixture (tools/fortran-prose-test).
 Citations, identifiers (a quoted `name`, a name with an underscore, an
 argument in capitals), the tests, the Lisp language modes and the
 table's `keep` entries are not checked; the generic value machinery
-(value_mod, fns_mod, data_mod, print_mod, names_mod, data_buffer_mod) is kept
+(value_mod, utility_functions_mod, data_mod, print_mod, names_mod, data_buffer_mod) is kept
 until C1 to C5 rewrite it.
 
 ### Decided, not yet applied
@@ -802,7 +803,7 @@ named with it.
   `is_integer`, `xfixnum` or `integer_of` helpers.  Why not `select type`:
   see the design decision "Values stay a flat array of tagged nodes".
 - C2c, the rest: `cons` (building nested value lists) waits for C3/C4,
-  with `memq_p` in textprop_mod (text properties, C4).
+  with `memq_p` in text_properties_mod (text properties, C4).
 - C3: the name table holds only names that exist at run time;
   compile-time things are reached only through their typed objects;
   `intern` becomes `add_name`, `intern_soft` `find_name`, and
@@ -884,7 +885,7 @@ Settled by the owner later the same day and applied in PR 2b:
 
 - The module suffix `_fm` is `_mod`: `buffer_mod` in buffer_mod.f90,
   tested by test_buffer_mod.f90 (suite `buffer_mod`, `collect_buffer_mod`);
-  modules that port nothing take it too (`config_mod`, and the test
+  modules that port nothing take it too (`configuration_mod`, and the test
   helpers' `test_support_mod`, which had no suffix); the API module
   `fortmacs` and the user's `user_config` are unchanged.  tools/audit.awk
   checks it (rule `suffix`).
@@ -956,7 +957,7 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
   `is_command`);
 - **verb**: a procedure, procedure pointer or type-bound procedure named
   `run`, `run_*` or `call_*` (see "One word per meaning"); the two runs
-  of text properties textprop_mod keeps as nouns (`run_prop`,
+  of text properties text_properties_mod keeps as nouns (`run_prop`,
   `run_position`) are in the baseline.
 - **command-state**: the command loop's state declared as a
   `value_type` (A7): `this_command`, `last_command`, `real_this_command`,
@@ -971,7 +972,7 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
 - **underscores**: a name with a double underscore (R2-Q20);
 - **regexp**: a name ending in `_re` or `_regex` (V3a);
 - **test**: a name with the part `predicate`, `predicates`, `pred` or
-  `preds` (R2-Q10); bidi_mod's `NEUTRAL_ON` (the Unicode bidi class ON)
+  `preds` (R2-Q10); bidirectional_mod's `NEUTRAL_ON` (the Unicode bidi class ON)
   is in the baseline for the constant rule.
 - **write-wrapper**: a function or subroutine whose executable part is a
   `write` into a local buffer followed by `trim` of it (`write (buffer,
@@ -984,7 +985,7 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
   `to_string` (R6-44, R6-45).
 - **char-loop**: a `do K = 1, min(len(A), len(B))` loop that orders the
   characters `A(K:K)` and `B(K:K)` with `<` or `>` (also through `ichar`
-  or `iachar`): string-lessp by hand, whose port is fns_mod's
+  or `iachar`): string-lessp by hand, whose port is utility_functions_mod's
   `is_string_less` (R6-45, see "Lisp functions by hand" below).
 - **blank-skip**: a `do while` whose body is only `if (S(K:K) /= C1
   .and. S(K:K) /= C2 ...) exit` (each C a character literal, constant or
@@ -998,8 +999,8 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
   `version_less`, `version_less_or_equal` (or `version_le`,
   `is_version_le`, `is_version_less`, `is_version_less_or_equal`,
   `version_to_numbers`), `char_text` or `list_delq` outside the module
-  that holds the one port (fns_mod, files_dir_mod, data_mod, none, none,
-  subr_mod: its `version_type` operators, editfns_mod's
+  that holds the one port (utility_functions_mod, files_dir_mod, data_mod, none, none,
+  basic_subprograms_mod: its `version_type` operators, editing_functions_mod's
   `char_to_string`, none: `pack`): a private copy of a Lisp function
   (R6-45).
 <!-- fortran-names: on -->
@@ -1016,7 +1017,7 @@ the source is one internal `write` with edit descriptors, never Emacs's
 data_mod's `number_to_string`, a port of data.c `Fnumber_to_string`
 that stood in about 150 places for `write (text, "(i0)") n`, is gone
 (`write-not-number-to-string`, 2026-11-04), with the private copies
-ispell_mod's `integer_text`, buff_menu_mod's `buffer_id`,
+spellcheck_mod's `integer_text`, buffer_menu_mod's `buffer_id`,
 simple_goto_mod's `counted`, compile_mod's `code_string` and
 test_syntax_scan_mod's `string`; `number-to-string` is not applicable.
 Where a number fed a larger piece of text, the whole piece is one
@@ -1050,10 +1051,10 @@ an operator or an intrinsic with the same behavior is not rewritten as a
 loop, and no Lisp function is copied into the module that needs it.
 Standard operators are used wherever they can be, over wrapper
 functions (owner 2026-11-04): a comparison of values of a derived type
-is a defined `operator(<)` and its kin, as subr_mod's `version_type`
+is a defined `operator(<)` and its kin, as basic_subprograms_mod's `version_type`
 (`version(a) <= version(b)` for version<=), never `is_X_less(a, b)`.
 A procedure behind an operator is private, the operator its only
-spelling (owner 2026-11-04): subr_mod exports `operator(<)` and its kin,
+spelling (owner 2026-11-04): basic_subprograms_mod exports `operator(<)` and its kin,
 not `version_less`; calendar_mod exports `operator(==)`, not
 `is_calendar_date_equal`.  C-h f still documents such a procedure under
 its help name (its citation when that is a name, else its own name:
@@ -1066,10 +1067,10 @@ included), reverse of an array is the section `a(size(a):1:-1)`, delq of
 a handle is `pack(list, .not. same_handle(list, h))` (handle_mod's
 `same_handle` is elemental, and the one copy; window_mod re-exports it),
 memq of a handle is handle_mod's `has_handle`, char-to-string is
-editfns_mod's port (`call char_to_string(c, text, status)`; coding_mod,
+editing_functions_mod's port (`call char_to_string(c, text, status)`; coding_mod,
 a port of C, calls character_mod's `char_string`, the port of
 CHAR_STRING), version< and version<= are the operators `<` and `<=`
-between subr_mod's `version_type` values (`version(a) < version(b)`,
+between basic_subprograms_mod's `version_type` values (`version(a) < version(b)`,
 owner 2026-11-04, so "1.0pre2", "1.0-git" and "22.3a" compare as
 upstream; a caller that reports upstream's error checks the result's
 `status` component), string-trim and the loops
@@ -1078,9 +1079,9 @@ which the caller handles where the loop's end would have been `len(s) +
 1`), `verify(s, set, back=.true.)` and `scan`, a string value is its
 constructor `value_type(text=s)` where it is used, and string-to-number
 on arbitrary text is data_mod's port (`call string_to_number(text, n[,
-base])`, int64 or real64), which compile_mod, register_mod, vc_svn_mod,
-buff_menu_mod, diff_mode_mod, ibuf_ext_mod and dired_aux_mod call
-instead of their copies.  string-lessp keeps its port, fns_mod's
+base])`, int64 or real64), which compile_mod, register_mod, version_control_subversion_mod,
+buffer_menu_mod, diff_mode_mod, ibuffer_extensions_mod and directory_editor_auxiliary_mod call
+instead of their copies.  string-lessp keeps its port, utility_functions_mod's
 `is_string_less` (a generic: values, or character strings since
 `lisp-slips`), because the comparison `<` pads the shorter string with
 blanks: `"ab" < "ab "` is false, and a string whose next character after
@@ -1102,7 +1103,7 @@ private copies (`is_string_less`, `is_name_less`, `is_less`,
 ! before
 if (.not. is_less(tmp%text, sorted(j)%text)) exit   ! a private char-by-char loop
 ! after
-if (.not. is_string_less(tmp%text, sorted(j)%text)) exit   ! fns_mod's port
+if (.not. is_string_less(tmp%text, sorted(j)%text)) exit   ! utility_functions_mod's port
 
 ! before
 k = 1
@@ -1179,8 +1180,8 @@ words (a name whose citation uses the word stays: `buf_fetch_char`,
 | forget a buffer-local value | clear_local, clear_X_locals (drop_local, free_local, reset_local, kill_local; R2-Q3) | isearch's `%clear_local`, `search_fun_clear_local`, data_buffer_mod's `clear_local` |
 | a setting's local value | set_local_X, clear_local_X (X_set_local, X_clear_local; R6-17) | `abbrev_table_set_local`, `blink_matching_check_function_clear_local`, `electric_indent_chars_set_local` (until the verb-first rename, R6-17) |
 | a setting's current value | current_X, the binding `%current` (X_get, `%get`) | `fill_paragraph_function%current()`, `current_adaptive_fill`, `current_message_function` |
-| store | set (put) | `set_current`, `prec2_set`; put-text-property's helpers (`put_prop`, `put_syntax`) keep Emacs's word, and output keeps put (`tty_put_bytes`, xdisp_mod's glyph `put`) |
-| grow an array by one | append_X, prepend_X at the front (push, add_, add_X_front; R2-Q4) | `append_string`, `append_record`, `prepend_record`, `append_undo_entry`, `buffer_order_append` (until the verb-first rename, R6-17); a stack's push (terminfo_mod, Info's history) stays; vc_git_mod's helper that appends many is `append_all`; moving to the front is `move_to_front` |
+| store | set (put) | `set_current`, `prec2_set`; put-text-property's helpers (`put_prop`, `put_syntax`) keep Emacs's word, and output keeps put (`tty_put_bytes`, display_engine_mod's glyph `put`) |
+| grow an array by one | append_X, prepend_X at the front (push, add_, add_X_front; R2-Q4) | `append_string`, `append_record`, `prepend_record`, `append_undo_entry`, `buffer_order_append` (until the verb-first rename, R6-17); a stack's push (terminfo_mod, Info's history) stays; version_control_git_mod's helper that appends many is `append_all`; moving to the front is `move_to_front` |
 | draw the whole frame again; update what changed | redraw; redisplay (garbaged, SET_FRAME_GARBAGED, frame_garbaged; R6-9) | the frame flag `needs_redraw` (upstream `f->garbaged`), `redraw_frame`, `redraw_display`; `redisplay`, `redisplay_internal` |
 | a pair of steps | X_begin, X_end (finish, save, restore; R2-Q9) | `major_mode_end` and the binding `%end`, `fn_begin`, `fn_end` |
 | the one before | previous (prev) | `previous_char`, `previous_entry`, `previous_newline_byte`; upstream's prev names stay (`window_prev_buffers`, `switch_to_prev_buffer`) |
@@ -1280,7 +1281,7 @@ a logical mask (`pack`, `count`, `any` with an elemental `is_*`).
 |---|---|
 | `command_proc`, `yank_handler_proc`, `process_filter_proc`, `after_change_function` (an interface), `ynp_actor`, `transpose_mover` | `command_procedure`, `paste_handler_procedure`, `process_filter_procedure`, `after_change_procedure`, `ynp_actor_procedure`, `transpose_mover_procedure` |
 | `comint_check_proc`, `proc`, `procs`, `oldproc` | `comint_check_process`, `process`, `processes`, `old_process` |
-| procedures and pointers named `_proc`: js_mod's and sgml_mode_mod's `indent_line_proc`, saveplace's `save_place_dired_hook_proc`, font_core_mod's `font_lock_mode_internal_proc`, `is_font_lock_specified_proc` | `indent_line_adapter`, `save_place_dired_hook_adapter`, `font_lock_mode_internal_hook`, `font_lock_specified_test` |
+| procedures and pointers named `_proc`: javascript_mod's and sgml_mode_mod's `indent_line_proc`, saveplace's `save_place_dired_hook_proc`, font_core_mod's `font_lock_mode_internal_proc`, `is_font_lock_specified_proc` | `indent_line_adapter`, `save_place_dired_hook_adapter`, `font_lock_mode_internal_hook`, `font_lock_specified_test` |
 | `minibuffer_completion_predicate`, `fill_nobreak_predicate`, `isearch_filter_predicate`, `electric_pair_inhibit_predicate`, `backup_enable_predicate`, `show_paren_predicate`, `ibuffer_never_show_predicates`, `completion_table_with_predicate`, a PREDICATE argument | `minibuffer_completion_test_function`, `fill_nobreak_functions`, `isearch_filter_test_function`, `electric_pair_inhibit_test_function`, `backup_enable_test_function`, `show_paren_test_function`, `ibuffer_never_show_tests`, `completion_table_with_test`, TEST |
 | the 27 types without `_type`: `logical_setting`, `integer_setting`, `string_setting`, `history_setting`, `function_setting`, `isearch_state`, `access_state`, `tty_display_info`, ... | `logical_setting_type`, `integer_setting_type`, `string_setting_type`, `history_setting_type`, `function_setting_type`, `isearch_state_type`, `access_state_type`, `tty_display_info_type`, ... |
 
@@ -1390,7 +1391,7 @@ upstream measured; the numbers are the baselines to shrink.
   99, `symbol_value(value_type(name=` 50, `intern("` 13, `select case (name)`
   11, in 78 files.  The three places to start, which all four module reviews
   named: a key's binding is a name value that the command loop resolves with
-  `find_command(name)` on every keystroke (`command_of`, callint_mod;
+  `find_command(name)` on every keystroke (`command_of`, execute_interactively_mod;
   `keymap_set` and `keymap_global_set` take the command as a string), so a
   typed binding (command pointer, keymap handle, macro, unbound) and
   `execute_interactively` taking `command_type` come first; `inhibit_read_only`
@@ -1414,14 +1415,14 @@ upstream measured; the numbers are the baselines to shrink.
   `region_fn`, `replacement_fn`, `until_success_fn`, ...); the `_start`
   helpers become `_beginning` (R5-1).
 - **Behavior at the margins**, found by sampling and not yet fixed: the
-  progress reporter never pulses (subr_mod), `cut_line` uses
+  progress reporter never pulses (basic_subprograms_mod), `cut_line` uses
   `line_end_position` where upstream skips invisible text, kill-append's
   replace rule, `-` after digits in universal-argument, "Mark set" while a
   macro runs, no `activate-mark-hook`, `num_input_keys` counted inside
   read_key_sequence, `where-is-preferred-modifier` ignored, `cmd_error`
   without `cancel_echoing`, `this-original-command` missing,
   `delete_active_region` a logical though upstream has three states,
-  `charset_mod`'s accessor layer against R3-6, `define_charset_internal` a
+  `character_set_mod`'s accessor layer against R3-6, `define_charset_internal` a
   function with a side effect (R3-8).  Each goes into its module's status file as
   Deferred when it is not fixed in the PR that touches the module next.
 <!-- fortran-names: keep -->
@@ -1660,7 +1661,7 @@ statement or the comment line above it.  Checked:
   gen-docstrings.sh, gen-tty-colors.sh, gen-unicategory.sh).
 - `truncated-literal`: a string longer than the length of its array
   constructor's type specification (`[character(len=N) :: ...]`), which
-  gfortran truncates without a word (term_xterm_mod's `kp-separator`
+  gfortran truncates without a word (terminal_xterm_mod's `kp-separator`
   read as `kp-separato`, fortmacs_mod's `--no-blinking-cursor` as
   `--no-blinking-cu`): size the length from the longest string, as the
   generators do.
@@ -1703,7 +1704,7 @@ Checked by hand on every PR's diff (no script can tell):
 - Lisp's `round` and `fround` round a value halfway between two integers
   to the even one (floatfns.c's emacs_rint, rounddiv_q); Fortran's `nint`
   and `anint` round it away from zero.  Port them as `ieee_rint` from
-  `ieee_arithmetic` (tty_colors_mod's 16-bit color scaling does).
+  `ieee_arithmetic` (terminal_colors_mod's 16-bit color scaling does).
 - `findloc` or `pack` on a character component section (`findloc(list%name,
   name, dim=1)`, `pack(list%name, keep)`) copies the section into an
   array temporary on every call ("Fortran runtime warning: An array
@@ -1714,7 +1715,7 @@ Checked by hand on every PR's diff (no script can tell):
 - A test that signals a child assumes the signal's default action in the
   child, but a signal the test runner ignores (SIGHUP under `nohup`)
   stays ignored through fork and exec: set it to the default around the
-  start of the child (sysdep_mod's `default_signal`, then
+  start of the child (system_dependent_mod's `default_signal`, then
   `restore_signal`), as test_process_mod's `process-kill-buffer` does.
   It failed after 100 s with "finished" (its `sleep 100` ran out) only in
   `nohup` runs, which looked like a flake under load.
@@ -1885,7 +1886,7 @@ scroll = .not. compilation_scroll_output%is_off()
   components (the `allocatable-constructor` hazard), and `list` is
   allocated first (an unallocated array can't appear in the constructor).
   `move_alloc` stays for the capacity-doubling buffers and for hot loops
-  (smie_mod's cycle search and config-guess traces, compile_mod's line
+  (simple_minded_indentation_engine_mod's cycle search and config-guess traces, compile_mod's line
   nodes).  A module's per-buffer table is searched with
   `findloc(locals%serial, buffers(current)%serial, dim=1)` (with
   `mask=locals%set` where entries carry a flag) and reuses the entries of
@@ -1901,7 +1902,7 @@ scroll = .not. compilation_scroll_output%is_off()
   "Numbers to text"), never `number_to_string` (data_mod's generic one,
   which `simplify-a2` had made the one copy, is gone since R6-44),
   `format` or a private wrapper (R6-44, R6-45); a string's character
-  count fns_mod's `count_characters`, the ASCII lowercase of a string
+  count utility_functions_mod's `count_characters`, the ASCII lowercase of a string
   character_mod's
   `downcase_ascii` (R6-16): no module keeps its own copy (`simplify-a2`,
   2026-11-03).
@@ -1914,7 +1915,7 @@ scroll = .not. compilation_scroll_output%is_off()
   unallocated array, not `allocate (list(3))` and one assignment per
   element; a list of fixed-length strings is one array constructor
   (`props = [character(len=32) :: "a", "b"]`).  A wrapper whose one
-  component names something more than text stays (recentf_mod's
+  component names something more than text stays (recent_files_mod's
   `recentf_file_type` and coding_mod's `coding_system_list_entry_type`,
   both `%name` and in the config API), and so do types with more
   components.
@@ -1928,8 +1929,8 @@ scroll = .not. compilation_scroll_output%is_off()
   moves, and check that the run started.
 - When a .el and a .c file share a base name, the .c file keeps the plain
   name and the .el module gets a descriptive one, noted in its status file:
-  lisp.el is `expression_motion_mod` (lisp.h is `value_mod`), dired.el `dired_mode_mod`
-  (dired.c is `dired_mod`).
+  lisp.el is `expression_motion_mod` (lisp.h is `value_mod`), dired.el `directory_editor_mode_mod`
+  (dired.c is `directory_editor_mod`).
 - `syntax-propertize` runs mode code in the middle of a scan or a regexp
   match (as upstream's UPDATE_SYNTAX_TABLE does), so the scanners, the
   matcher and the search commands are `recursive`, and a compiled pattern
@@ -1944,7 +1945,7 @@ scroll = .not. compilation_scroll_output%is_off()
   allocatable or deferred-length result is freed by gfortran when the
   derived type is assigned (invalid free of the procedure's address): make
   the interface a subroutine with an `intent(out)` argument
-  (`font_lock_face_procedure`, xdisp_mod's `lighter_text_procedure`, minibuf_table_mod's
+  (`font_lock_face_procedure`, display_engine_mod's `lighter_text_procedure`, minibuffer_reading_tables_mod's
   `completion_unquote_procedure` and `completion_quote_procedure`).
 - Fortran names are case-insensitive: a dummy argument named `beginning` hides
   the constant `BEGINNING` in its procedure (a null-pointer read at run time),
@@ -1971,7 +1972,7 @@ scroll = .not. compilation_scroll_output%is_off()
 - Procedures in a submodule can't call *private* parent procedures that
   the parent itself never uses: gfortran drops them (link error). Put such
   helpers in the submodule.
-- Tests of the src/sys layer may use ISO_C_BINDING and sys_linux_mod
+- Tests of the src/sys layer may use ISO_C_BINDING and system_linux_mod
   directly; nothing else may. Terminal tests run on a pty (`open_pty`).
 - If fpm reports "Project is up to date" after a source change, the build
   cache is stale: delete `build/gfortran_*`. CI always builds clean.
@@ -1993,7 +1994,7 @@ scroll = .not. compilation_scroll_output%is_off()
   not), and none holds an `associate` on `buffers(current)` across a hook
   (the registry may grow).
 - Registry slots are reused after kill; any cache keyed by slot must also
-  check `buffers(i)%serial` (see the regression test in test_insdel_mod).
+  check `buffers(i)%serial` (see the regression test in test_insert_delete_mod).
 - Text uses Emacs's internal encoding (UTF-8 extended to 22-bit codes, raw
   bytes as C0/C1 two-byte forms), so files with invalid UTF-8 round-trip.
 
@@ -2048,7 +2049,7 @@ scroll = .not. compilation_scroll_output%is_off()
 
 - A `bind(C)` module variable is a definition, not a reference: binding
   libc's `environ` gave the program its own null `environ`, so child
-  processes got only the entries we passed.  sysdep_mod keeps its own
+  processes got only the entries we passed.  system_dependent_mod keeps its own
   copy of the environment instead (read from /proc/self/environ, kept
   current by `sys_setenv` and `sys_unsetenv`), as upstream keeps
   `process-environment`.
@@ -2071,7 +2072,7 @@ scroll = .not. compilation_scroll_output%is_off()
   argument instead, as `isearch_search_fun_function` does.
 - gfortran does not emit a private module procedure that only a submodule
   calls, so such helpers are made public with a comment saying so (they are
-  not part of the config API); ibuffer_mod does this for ibuf_ext_mod.
+  not part of the config API); ibuffer_mod does this for ibuffer_extensions_mod.
 
 ## Design decisions
 
@@ -2107,6 +2108,15 @@ scroll = .not. compilation_scroll_output%is_off()
   syms_of_X; where upstream has an init_X of its own (another startup
   step), it is `init_X_commands`, so a citation of upstream's init_X
   never names a different Fortmacs procedure.
+  Module names are spelled out (2026-11-05, decided by the owner):
+  they follow the no-abbreviations rule even where upstream's file
+  name is abbreviated (cal-move.el → `calendar_movement_mod`, xdisp.c →
+  `display_engine_mod`, fns.c → `utility_functions_mod`), and the file
+  header keeps citing the upstream file.  tools/module-renames lists the
+  renames made then; tools/rename-modules.sh applies them (file names,
+  `use` lines, test suites, status files), and a branch begun before
+  them runs it after merging main, then tools/check.sh --fix, and
+  commits.
 
 - **Fortran names (2026-10-23).** Fortmacs follows Emacs except where being
   Fortran requires otherwise: names use underscores (`find_file`) and
@@ -2183,7 +2193,7 @@ scroll = .not. compilation_scroll_output%is_off()
   (`LaTeX-mode` of `latex-mode`) collapse to one name. A capitalized name
   without a twin is only lowercased (`Buffer-menu-mark` →
   `buffer_menu_mark`). Upstream C variables that are not Lisp variables
-  keep their `V` prefix lowercased (editfns_mod's `vuser_login_name`).
+  keep their `V` prefix lowercased (editing_functions_mod's `vuser_login_name`).
 
   | Upstream | Fortmacs |
   |---|---|
@@ -2264,7 +2274,7 @@ scroll = .not. compilation_scroll_output%is_off()
   through a queue that the command loop polls, so core modules need no
   locks. Worker code must be reentrant (`recursive` procedures, no `save`d
   state). No OpenMP or coarrays. Implemented for subprocesses
-  (2026-10-24): src/sys/sys_worker_mod has one thread per child, reading
+  (2026-10-24): src/sys/system_worker_mod has one thread per child, reading
   its output and reaping it (a pidfd tells when it exits), and a
   mutex-protected queue with a self-pipe; keyboard_mod polls the self-pipe
   together with the terminal while waiting for input and calls
@@ -2289,29 +2299,29 @@ scroll = .not. compilation_scroll_output%is_off()
   on a window system, which updates window matrices (`update_window`).
   Survey of Fortmacs before this step: redisplay counted cells: glyphs
   had no width (a wide character was two cells, a TAB as many spaces),
-  rows no height, xdisp_mod's columns doubled as glyph indices and as
+  rows no height, display_engine_mod's columns doubled as glyph indices and as
   positions, `last_x` was the text width less one cell, the window rows
   went straight into the frame matrix (`put_rows`, the "|" border column
   of `window_text_cols`), the frame held its tty directly and
-  update_frame called term_mod; one font, one line per row everywhere.
+  update_frame called terminal_output_mod; one font, one line per row everywhere.
   Now: glyphs and rows carry upstream's pixel fields with their tty
   values (all existing tty output is unchanged, its tests untouched),
   frames have FRAME_COLUMN_WIDTH/FRAME_LINE_HEIGHT, a redisplay
   interface (`redisplay_interface_type`, null on a tty, so a tty frame
-  still goes through term_mod as upstream's terminal hooks) and a font
+  still goes through terminal_output_mod as upstream's terminal hooks) and a font
   driver (`font_driver_type`, font_mod; faces get a font id when
-  realized on a window-system frame).  xdisp_mod lays out a window-system
+  realized on a window-system frame).  display_engine_mod lays out a window-system
   frame in pixels (`display_row_gui`, the pixel half of `layout_window`,
   the graphic mode line, `get_phys_cursor_geometry`,
   `gui_draw_vertical_border`) and draws each window's rows through the
-  interface (dispnew_mod `update_window_line`); the terminal path keeps
+  interface (display_update_mod `update_window_line`); the terminal path keeps
   its frame matrices.  The device is exercised by a test-only fake GUI
-  (test/fake_gui_mod.f90: an in-memory pixel grid, a monospaced or
+  (test/fake_graphical_user_interface_mod.f90: an in-memory pixel grid, a monospaced or
   proportional default font and one twice its size), checked by
-  test_fake_gui_mod: the same text as a terminal with a monospaced font,
+  test_fake_graphical_user_interface_mod: the same text as a terminal with a monospaced font,
   wrapping by pixel width, a taller row for a larger font, the graphic
   mode line, side-by-side windows with a drawn border, the cursor box.
-  What a window-system frame can't do yet is Deferred in docs/status/xdisp_mod.md
+  What a window-system frame can't do yet is Deferred in docs/status/display_engine_mod.md
   (recentering and vertical motion in pixels, the active minibuffer,
   face extension, the rest of realize_gui_face, ...); vertical motion
   (indent_mod) still counts cells.
@@ -2367,7 +2377,7 @@ scroll = .not. compilation_scroll_output%is_off()
   produces (picoseconds, thirds of a second), with a range of about 292
   billion years; file and clock times use count_rate = 10**9.  Lisp's
   other shapes stay out of the config API.  Implemented in step 42e
-  (timefns_mod): the products of counts and rates are 128-bit integers
+  (time_functions_mod): the products of counts and rates are 128-bit integers
   (selected_int_kind(38)), a real converts to the least power of 2 that
   holds it, and a time zone (upstream's ZONE) is a POSIX TZ string.
 - **Lists in the config API (2026-10-28).** What Elisp writes as lists
@@ -2478,7 +2488,7 @@ scroll = .not. compilation_scroll_output%is_off()
   match the commands.
 
 - **Char-tables, case tables and categories (2026-10-30, step 42b).**
-  A char-table (chartab_mod) is a registry object referenced by handle,
+  A char-table (character_table_mod) is a registry object referenced by handle,
   with chartab.c's four-level trie; its sub char-tables live in a pool
   inside it (no recursive types) and go back to a free list when a
   value replaces them.  Values are integers, `NO_VALUE` standing for
@@ -2520,14 +2530,14 @@ scroll = .not. compilation_scroll_output%is_off()
   (`issued`) from one it never did.  With one frame, ALL-FRAMES
   arguments make no difference and are left out; MINIBUF is an
   integer (MINIBUF_ACTIVE, MINIBUF_YES, MINIBUF_NO).  These live
-  in the submodule window_info_mod because they need frame_mod.  bidi_mod
+  in the submodule window_info_mod because they need frame_mod.  bidirectional_mod
   ports bidi.c whole over the buffer or a string, its state split as
   upstream's (`bidi_copy_it` copies the members before the stack and
   the stack up to its top), with the cache of states as module data and
   the bidi tables generated from the UCD by tools/gen-unibidi.sh; it is
   checked by bidi-find-overridden-directionality's upstream tests, while
   reordering in redisplay waits for display_line to use it.  The
-  redisplay entry of xdisp_mod is now `redisplay_internal`, its upstream
+  redisplay entry of display_engine_mod is now `redisplay_internal`, its upstream
   name, leaving `redisplay` to dispnew.c's DEFUN.  The cursor-off flag
   is per window, as upstream (`internal_show_cursor`).
 
@@ -2583,7 +2593,7 @@ Each lists the default being used meanwhile.
    merge once CI is green.
 2. **Value model.** *Decided (2026-10-20):* no Lisp; values are a plain
    Fortran `value_type` with value semantics (value_mod), interned symbols
-   by id (names_mod), data.c/fns.c operations in data_mod/fns_mod. Values are
+   by id (names_mod), data.c/fns.c operations in data_mod/utility_functions_mod. Values are
    stored as flat preorder atom arrays because gfortran 13/14 copy
    recursive allocatable components shallowly (double free).
 3. **Error-code naming.** Error codes are `FM_<SYMBOL>` parameters, except
@@ -2591,7 +2601,7 @@ Each lists the default being used meanwhile.
    names are case-insensitive and `FM_ERROR` collides with module
    `error_mod`. *Default: keep as is.*
 4. **Buffer internals visibility.** `buffer_mod` exposes `buffers(:)` and
-   the current slot `current` (read-only outside the module) so insdel_mod and
+   the current slot `current` (read-only outside the module) so insert_delete_mod and
    marker_mod can work like upstream's buffer.h macros. *Default: keep;
    higher layers use the procedures only.*
 5. **Terminal capabilities.** *Decided (2026-10-20): (b), pure Fortran.*

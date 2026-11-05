@@ -21,7 +21,7 @@ intervals as a sorted run array: `create_root_interval`,
 `lookup_char_property`,
 TMEM,
 textprop.c `property_value`;
-textprop_mod has `temp_set_point`,
+text_properties_mod has `temp_set_point`,
 `set_point`,
 `set_point_both`,
 `adjust_for_invis_intang`,
@@ -38,5 +38,5 @@ waits for the GUI: nothing
 
 ## Tests
 
-test_textprop_mod,
-test_insdel_mod
+test_text_properties_mod,
+test_insert_delete_mod

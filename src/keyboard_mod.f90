@@ -72,21 +72,21 @@ module keyboard_mod
                           key_description, parse_modifiers, apply_modifiers, &
                           overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping, &
                           push_key_description, key_parse, M_UP, M_DOWN, M_DRAG, M_CLICK, M_DOUBLE, M_TRIPLE
-    use callint_mod, only: execute_interactively, current_prefix_arg, prefix_arg, &
-                           prefix_numeric_value, this_command, command_name_of, command_of, command_type, find_command, &
-                           prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
+    use execute_interactively_mod, only: execute_interactively, current_prefix_arg, prefix_arg, &
+                                      prefix_numeric_value, this_command, command_name_of, command_of, command_type, find_command, &
+                                         prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use buffer_mod, only: buffers, current, deactivate_mark_variable, transient_mark_mode, current_buffer, set_buffer, &
                           input_method_procedure
-    use casetab_mod, only: downcase, is_uppercase
+    use case_table_mod, only: downcase, is_uppercase
     use undo_mod, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                         buffer_before_last_command_or_undo
-    use sysdep_mod, only: fortmacs_read, input_available, interrupt_pending, inputs_available, fortmacs_write, &
-                          window_change_pending
+    use system_dependent_mod, only: fortmacs_read, input_available, interrupt_pending, inputs_available, fortmacs_write, &
+                                    window_change_pending
     use hooks_mod, only: hook_type
-    use textprop_mod, only: get_char_property_and_overlay, get_property_and_range, text_prop_means_invisible, &
-                            next_single_char_property_change, previous_single_char_property_change, get_pos_property
-    use itree_mod, only: overlay_start, overlay_end, overlay_get
-    use editfns_mod, only: goto_char
+    use text_properties_mod, only: get_char_property_and_overlay, get_property_and_range, text_prop_means_invisible, &
+                                   next_single_char_property_change, previous_single_char_property_change, get_pos_property
+    use interval_tree_mod, only: overlay_start, overlay_end, overlay_get
+    use editing_functions_mod, only: goto_char
     use timer_mod, only: timer_check, timer_start_idle, timer_stop_idle, timers_run, timer_error_message
     use coding_mod, only: keyboard_coding_system, coding_system_type, decode_coding_string
     implicit none(type, external)
@@ -135,7 +135,7 @@ module keyboard_mod
     !> keyboard.c:last_command_event.
     type(value_type), public :: last_command_event
     !> KVAR last_command, real_last_command and keyboard.c:real_this_command
-    !> (Vthis_command is callint_mod's `this_command'): null for none;
+    !> (Vthis_command is execute_interactively_mod's `this_command'): null for none;
     !> `last_macro_command' for a keyboard macro.
     type(command_type), pointer, public :: real_this_command => null(), last_command => null(), &
                                            real_last_command => null()
@@ -173,7 +173,7 @@ module keyboard_mod
     type(value_type), allocatable, public :: this_command_keys(:)
 
     !> The command run for an undefined key (subr.el:undefined, which
-    !> subr_mod sets: keyboard_mod cannot use it).  Not a port.
+    !> basic_subprograms_mod sets: keyboard_mod cannot use it).  Not a port.
     procedure(command_procedure), pointer, public :: undefined_function => null()
     !> Stand-in for the echo area: the last message shown.
     character(len=:), allocatable, public :: last_message
@@ -320,7 +320,7 @@ module keyboard_mod
                         disabled_command_function_choice_setting_type(name="disabled_command_function_variable", true_valid=.false.)
 
     !> Logs the error messages of the command loop in *Messages*
-    !> (xdisp_mod sits above this module; set by simple_mod); null for
+    !> (display_engine_mod sits above this module; set by simple_mod); null for
     !> none.
     procedure(message_log_procedure), pointer, public :: message_log_hook => null()
 
@@ -342,7 +342,7 @@ module keyboard_mod
     integer :: recent_keys_index = 1, total_keys = 0
 
     !> Called by read_event before it waits for terminal input, so the
-    !> screen is current.  Set by the program (xdisp_mod sits above this
+    !> screen is current.  Set by the program (display_engine_mod sits above this
     !> module); null in tests.
     procedure(redisplay_procedure), pointer, public :: redisplay_hook => null()
 
@@ -476,7 +476,7 @@ module keyboard_mod
     integer(int64) :: kbd_macro_ptr = 0, kbd_macro_end = 0
 
     !> The depth of active minibuffers.  Port of minibuf.c:minibuf_level
-    !> (here because keyboard.c reads it; minibuf_mod sets it and
+    !> (here because keyboard.c reads it; minibuffer_reading_mod sets it and
     !> re-exports it).
     integer, public :: minibuf_level = 0
 
@@ -532,7 +532,7 @@ module keyboard_mod
     integer :: raw_keybuf_count = 0
 
     !> The descriptor of the dribble file (keyboard.c:dribble), -1 for
-    !> none; `open_dribble_file' (fileio_mod) sets it.
+    !> none; `open_dribble_file' (file_input_output_mod) sets it.
     integer(int32), public :: dribble_fd = -1
 
     !> Character to recognize as meaning Help.

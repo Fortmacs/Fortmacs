@@ -43,13 +43,13 @@
 !> `lisp_complete_symbol' (obsolete; Emacs Lisp completion).
 module expression_motion_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: PREFIX_NONE, command_type
+    use execute_interactively_mod, only: PREFIX_NONE, command_type
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR, FM_GENERIC_ERROR
     use buffer_mod, only: buffers, current, transient_mark_mode, buffer_serial_live
-    use editfns_mod, only: point, goto_char, point_min, point_max, narrow_to_region, widen, mark_position, is_bob, is_eob, &
-                           is_bol, is_eol, line_beginning_position, line_end_position, region_beginning, region_end, &
-                           preceding_char, following_char, buffer_substring, delete_region
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, narrow_to_region, widen, mark_position, is_bob, &
+                                 is_eob, is_bol, is_eol, line_beginning_position, line_end_position, region_beginning, region_end, &
+                                     preceding_char, following_char, buffer_substring, delete_region
     use syntax_mod, only: scan_expressions, scan_groups, forward_comment, backward_prefix_chars, syntax_ppss, &
                           parse_state_type, scan_error_data, open_paren_in_column_0_is_subprogram_start, &
                           skip_chars_forward, skip_chars_backward, skip_syntax_backward, char_syntax
@@ -58,11 +58,11 @@ module expression_motion_mod
     use data_mod, only: append_locals_clearer, string_setting_type, logical_setting_type, function_setting_type, &
                         forward_setting
     use value_mod, only: xfixnum, vtag, V_INTEGER
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: this_command, last_command, last_command_event, sit_for
     use character_mod, only: CHAR_MODIFIER_MASK
-    use cmds_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char
-    use insdel_mod, only: insert, insert_char
+    use editing_commands_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char
+    use insert_delete_mod, only: insert, insert_char
     use search_mod, only: looking_at, re_search_forward, re_search_backward, match_end, match_data, set_match_data, &
                           SEARCH_NOERROR, SEARCH_MOVE
     use paragraphs_mod, only: page_delimiter

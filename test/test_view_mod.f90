@@ -28,11 +28,11 @@ module test_view_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, current_buffer, erase_buffer, &
                           get_file_buffer, is_buffer_live
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_min, goto_char
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_min, goto_char
     use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop, last_message
-    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, write_region, create_directory_internal, &
-                          is_file_directory
+    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, write_region, create_directory_internal, &
+                                     is_file_directory
     use files_mod, only: delete_directory, view_read_only
     use simple_mod, only: line_number_at_pos
     use window_mod, only: windows, window_start

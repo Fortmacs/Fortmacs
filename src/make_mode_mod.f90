@@ -41,15 +41,15 @@
 !> keywords), and the obsolete `makefile_generate_temporary_filename'.
 module make_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use callint_mod, only: PREFIX_NONE
+    use execute_interactively_mod, only: PREFIX_NONE
     use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xstring, make_list, list, list_length, list_elt, vtag, V_INTEGER
-    use fns_mod, only: is_string_less
+    use utility_functions_mod, only: is_string_less
     use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
                         append_locals_clearer
     use commands_mod, only: commands
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value, execute_interactively
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, execute_interactively
     use keyboard_mod, only: last_command_event
     use buffer_mod, only: buffers, current, buffer_serial_live, barf_if_buffer_read_only, get_buffer, get_or_make_buffer, &
                           set_buffer, current_buffer, erase_buffer, close_buffer
@@ -60,42 +60,42 @@ module make_mode_mod
     use keymap_mod, only: keymap_set
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, skip_chars_forward, &
                           skip_chars_backward
-    use editfns_mod, only: interactive_region, point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, &
-                           char_before, preceding_char, buffer_substring, line_beginning_position, line_end_position, &
-                           delete_region, narrow_to_region, widen, buffer_size
-    use cmds_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, self_insert_command
-    use insdel_mod, only: insert
+    use editing_functions_mod, only: interactive_region, point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, &
+                            char_after, char_before, preceding_char, buffer_substring, line_beginning_position, line_end_position, &
+                                     delete_region, narrow_to_region, widen, buffer_size
+    use editing_commands_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, self_insert_command
+    use insert_delete_mod, only: insert
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use indent_mod, only: current_column, indent_to, indent_line_function, indent_to_left_margin, indent_tabs_mode
     use search_mod, only: looking_at, re_search_forward, string_match, match_beginning, match_end, match_data, &
                           set_match_data, regexp_quote, SEARCH_NOERROR
-    use subr_mod, only: match_string_no_properties, read_y_or_n
+    use basic_subprograms_mod, only: match_string_no_properties, read_y_or_n
     use simple_mod, only: delete_horizontal_space, count_lines, line_number_at_pos
-    use textprop_mod, only: get_text_property, remove_text_properties
-    use xdisp_mod, only: message, tab_width
+    use text_properties_mod, only: get_text_property, remove_text_properties
+    use display_engine_mod, only: message, tab_width
     use window_mod, only: window_text_cols, pop_to_buffer, shrink_window_if_larger_than_buffer
     use frame_mod, only: frame_selected_window_ref
     use buffer_mod, only: fill_column
     use fill_mod, only: fill_paragraph, fill_paragraph_function
     use files_mod, only: write_file_functions, delete_file
-    use fileio_mod, only: is_file_directory, file_name_directory, write_region, make_temp_name
-    use dired_mod, only: file_name_all_completions
-    use callproc_mod, only: execute_process
+    use file_input_output_mod, only: is_file_directory, file_name_directory, write_region, make_temp_name
+    use directory_editor_mod, only: file_name_all_completions
+    use execute_process_mod, only: execute_process
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_PREPEND, &
                              FONT_LOCK_OVERRIDE_APPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
-    use regexp_opt_mod, only: regexp_opt, REGEXP_OPT_GROUP
+    use regular_expression_optimization_mod, only: regexp_opt, REGEXP_OPT_GROUP
     use newcomment_mod, only: comment_start, comment_end, comment_start_skip
-    use abbrev_mod, only: abbrev_table_type
-    use dabbrev_mod, only: dabbrev_abbrev_skip_leading_regexp
+    use abbreviation_mod, only: abbrev_table_type
+    use dynamic_abbreviation_mod, only: dabbrev_abbrev_skip_leading_regexp
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
-    use minibuf_mod, only: completion_table_type, read_string
-    use minibuf_table_mod, only: capf_data_type, COMPLETION_SOLE, COMPLETION_FINISHED
+    use minibuffer_reading_mod, only: completion_table_type, read_string
+    use minibuffer_reading_tables_mod, only: capf_data_type, COMPLETION_SOLE, COMPLETION_FINISHED
     use minibuffer_mod, only: completing_read, completion_at_point_functions
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
-    use imenu_mod, only: imenu_patterns, imenu_pattern_type
+    use index_menu_mod, only: imenu_patterns, imenu_pattern_type
     use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private

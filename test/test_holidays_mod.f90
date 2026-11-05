@@ -31,9 +31,9 @@ module test_holidays_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, get_buffer, &
                           is_buffer_live
-    use editfns_mod, only: buffer_string, point_min, point_max
-    use itree_mod, only: overlays_in
-    use xdisp_mod, only: current_message
+    use editing_functions_mod, only: buffer_string, point_min, point_max
+    use interval_tree_mod, only: overlays_in
+    use display_engine_mod, only: current_message
     use bindings_mod, only: init_bindings
     use handle_mod, only: null_handle
     use frame_mod, only: selected_frame, ensure_frame_windows

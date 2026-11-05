@@ -22,7 +22,7 @@
 !> The calendar: M-x calendar shows three months of the Gregorian
 !> calendar side by side in *Calendar*, in Calendar mode, whose keys move
 !> the cursor by days, weeks, months and years and scroll the months
-!> (cal_move_mod, a submodule).  A date is a `calendar_date_type'
+!> (calendar_movement_mod, a submodule).  A date is a `calendar_date_type'
 !> (upstream's list (MONTH DAY YEAR)); the absolute date counts the days
 !> since the imaginary Gregorian date Sunday, December 31, 1 BC.
 !>
@@ -70,30 +70,30 @@ module calendar_mod
     use buffer_mod, only: buffers, current, current_buffer, get_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           close_buffer, restore_buffer_modified, erase_buffer, buffer_serial_live, force_mode_line_update, &
                           header_line_format_type
-    use editfns_mod, only: point, point_min, point_max, goto_char, buffer_substring
-    use insdel_mod, only: insert
-    use cmds_mod, only: forward_line
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_substring
+    use insert_delete_mod, only: insert
+    use editing_commands_mod, only: forward_line
     use indent_mod, only: move_to_column, indent_to, current_column, indent_tabs_mode
     use simple_mod, only: count_lines, mark_ring_max, special_mode
     use search_mod, only: looking_at, re_search_backward, re_search_forward
-    use textprop_mod, only: put_text_property, get_text_property
-    use itree_mod, only: make_overlay, overlay_put, overlay_get, delete_overlay, overlays_in, overlays_at
+    use text_properties_mod, only: put_text_property, get_text_property
+    use interval_tree_mod, only: make_overlay, overlay_put, overlay_get, delete_overlay, overlays_in, overlays_at
     use fill_mod, only: string_width
-    use mule_util_mod, only: truncate_string_to_width
-    use timefns_mod, only: decode_time, decoded_time_type
+    use multilingual_environment_utilities_mod, only: truncate_string_to_width
+    use time_functions_mod, only: decode_time, decoded_time_type
     use hooks_mod, only: hook_type
     use derived_mod, only: is_derived_mode
     use modes_mod, only: major_modes
     use commands_mod, only: commands
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE
     use keymap_mod, only: keymap_set, lookup_key, current_global_map
     use keyboard_mod, only: this_command_key_events
     use print_mod, only: readable_text
     use help_mod, only: substitute_command_keys, register_keymap_name
-    use minibuf_mod, only: read_from_minibuffer, completion_ignore_case
-    use minibuf_table_mod, only: completion_table_type, completion_list_table
+    use minibuffer_reading_mod, only: read_from_minibuffer, completion_ignore_case
+    use minibuffer_reading_tables_mod, only: completion_table_type, completion_list_table
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
-    use xdisp_mod, only: message
+    use display_engine_mod, only: message
     use info_mod, only: info
     use frame_mod, only: selected_window
     use window_mod, only: windows, window_buffer, pop_to_buffer, switch_to_buffer, select_window, split_window_and_copy, &
@@ -770,7 +770,7 @@ contains
 
     !> The index of the current buffer's entry in the calendar's
     !> buffer-local values, or 1 (the default values) if it has none.
-    !> Public only for cal_move_mod (gfortran does not emit a private
+    !> Public only for calendar_movement_mod (gfortran does not emit a private
     !> procedure only a submodule calls); not part of the config API.
     !> Not a port.
     integer function calendar_local_index() result(k)
@@ -2052,7 +2052,7 @@ contains
     end function calendar_column_to_segment
 
     !> Whether the text at POS has the `date' property.  Public only for
-    !> cal_move_mod, as `calendar_local_index'.  Not a port.
+    !> calendar_movement_mod, as `calendar_local_index'.  Not a port.
     logical function has_calendar_date_property(pos)
         integer(int64), intent(in) :: pos
         type(value_type) :: v

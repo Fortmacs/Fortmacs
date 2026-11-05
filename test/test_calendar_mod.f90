@@ -1,4 +1,4 @@
-! test_calendar_mod.f90 -- tests for calendar_mod and cal_move_mod.
+! test_calendar_mod.f90 -- tests for calendar_mod and calendar_movement_mod.
 ! Ports GNU Emacs 31.1 test/lisp/calendar/calendar-tests.el.
 !
 ! Copyright (C) 2024-2026 Free Software Foundation, Inc.
@@ -31,7 +31,7 @@ module test_calendar_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, get_buffer, &
                           is_buffer_live
-    use editfns_mod, only: buffer_string
+    use editing_functions_mod, only: buffer_string
     use bindings_mod, only: init_bindings
     use calendar_mod, only: calendar_date_type, operator(==), calendar, calendar_mode, calendar_generate, &
                             calendar_exit, calendar_current_date, calendar_cursor_to_date, &

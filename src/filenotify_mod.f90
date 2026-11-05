@@ -39,8 +39,8 @@ module filenotify_mod
                            INOTIFY_MODIFY, INOTIFY_MOVE_SELF, INOTIFY_MOVE, INOTIFY_ATTRIB, INOTIFY_DONT_FOLLOW, &
                            INOTIFY_IGNORED, INOTIFY_UNMOUNT, INOTIFY_MOVED_FROM, INOTIFY_MOVED_TO
     use keyboard_mod, only: insert_special_event
-    use fileio_mod, only: expand_file_name, is_file_directory, directory_file_name, file_name_directory, &
-                          file_name_nondirectory, is_file_name_absolute
+    use file_input_output_mod, only: expand_file_name, is_file_directory, directory_file_name, file_name_directory, &
+                                     file_name_nondirectory, is_file_name_absolute
     use files_mod, only: is_backup_file_name
     implicit none(type, external)
     private

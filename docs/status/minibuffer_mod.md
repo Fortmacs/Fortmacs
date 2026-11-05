@@ -62,5 +62,5 @@ file name shadowing
 
 ## Tests
 
-test_minibuf_mod (ports completion-auto-help-test for nil and t; own tests),
+test_minibuffer_reading_mod (ports completion-auto-help-test for nil and t; own tests),
 test_minibuffer_mod (ports completion-test--pcm-bug38458, completion-pcm-test-1 to 4 and 6 to 8, -anydelim, completion-pcm-bug4219, completion-substring-test-1 to 3 and 5, completion-flex-test-1 and 3; own: non-ASCII flex, default styles, the buffer category, completion-at-point)

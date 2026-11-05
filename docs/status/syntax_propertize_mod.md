@@ -1,7 +1,7 @@
 # syntax_propertize_mod
 
 - Module: syntax_propertize_mod (named so as not to clash with syntax_mod)
-- Upstream: emacs-lisp/syntax.el (+ subr.el `subregexp-context-p` in subr_mod, regexp-opt.el `regexp-opt-depth` in regexp_opt_mod)
+- Upstream: emacs-lisp/syntax.el (+ subr.el `subregexp-context-p` in basic_subprograms_mod, regexp-opt.el `regexp-opt-depth` in regular_expression_optimization_mod)
 - State: partial
 
 ## Ported

@@ -30,7 +30,7 @@
 !>     smtpmail_smtp_service%port = 25
 !>
 !> `send_mail_with_smtp' talks to the server over a TCP connection
-!> (src/sys/sys_socket_mod): the greeting, EHLO (or HELO), AUTH with the
+!> (src/sys/system_socket_mod): the greeting, EHLO (or HELO), AUTH with the
 !> mechanisms of `smtpmail_auth_supported', MAIL FROM, RCPT TO, DATA and
 !> QUIT, keeping the dialogue in the buffer "*trace of SMTP session to
 !> HOST*".  With `smtpmail_queue_mail' true, mail is stored in
@@ -49,41 +49,43 @@ module smtpmail_mod
     use character_mod, only: downcase_ascii
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, erase_buffer, &
                           close_buffer, generate_new_buffer_name
-    use editfns_mod, only: point, goto_char, point_min, point_max, is_eob, buffer_substring_no_properties, buffer_string, &
-                           delete_region, narrow_to_region, widen, insert_buffer_substring, line_beginning_position, &
-                           line_end_position, preceding_char, system_name, user_full_name, user_login_name
-    use insdel_mod, only: insert
-    use cmds_mod, only: forward_line, end_of_line
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_eob, buffer_substring_no_properties, &
+                                     buffer_string, delete_region, narrow_to_region, widen, insert_buffer_substring, &
+                                     line_beginning_position, line_end_position, preceding_char, system_name, user_full_name, &
+                                     user_login_name
+    use insert_delete_mod, only: insert
+    use editing_commands_mod, only: forward_line, end_of_line
     use syntax_mod, only: skip_chars_forward
     use search_mod, only: re_search_forward, looking_at, match_beginning, match_end, replace_match, string_match, &
                           case_fold_search, string_index_to_offset, regexp_quote, SEARCH_NOERROR, SEARCH_MOVE
-    use subr_mod, only: match_string, read_number, progress_reporter_type, make_progress_reporter, progress_reporter_update, &
-                        progress_reporter_done
+    use basic_subprograms_mod, only: match_string, read_number, progress_reporter_type, make_progress_reporter, &
+                                     progress_reporter_update, progress_reporter_done
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker, set_marker
-    use fileio_mod, only: expand_file_name, file_exists, file_name_nondirectory, insert_file_contents, write_region, user_uid
+    use file_input_output_mod, only: expand_file_name, file_exists, file_name_nondirectory, insert_file_contents, write_region, &
+                                     user_uid
     use files_mod, only: create_directory, delete_file, write_file
-    use env_mod, only: getenv
-    use xdisp_mod, only: message
-    use minibuf_mod, only: read_string
+    use environment_mod, only: getenv
+    use display_engine_mod, only: message
+    use minibuffer_reading_mod, only: read_string
     use replace_mod, only: format_prompt
     use auth_source_mod, only: read_passwd
     use coding_mod, only: buffer_file_coding_system, coding_system_mime_charset, coding_system_for_write, &
                           coding_system_for_read, coding_system_change_eol_conversion, encode_coding_string, &
                           decode_coding_string, EOL_UNIX
-    use timefns_mod, only: format_time_string
-    use fns_mod, only: base64_encode_string, base64_decode_string, md5, secure_hash, random, SECURE_HASH_MD5
+    use time_functions_mod, only: format_time_string
+    use utility_functions_mod, only: base64_encode_string, base64_decode_string, md5, secure_hash, random, SECURE_HASH_MD5
     use simple_mod, only: count_lines
     use startup_mod, only: mail_host_address, user_mail_address_value
-    use mail_utils_mod, only: get_mail_field, strip_mail_quoted_names
+    use mail_utilities_mod, only: get_mail_field, strip_mail_quoted_names
     use mail_extract_mod, only: extract_mail_address_components, mail_address_components_type
     use namelist_mod, only: namelist_group_type, namelist_item_type, namelist_text, read_namelist, NAMELIST_STRING, &
                             NAMELIST_INTEGER, NAMELIST_LOGICAL
-    use sendmail_mod, only: mail_interactive, mail_specify_envelope_from, get_mail_envelope_from, mail_from_style, &
-                            mail_send_nonascii, sendmail_coding_system, mail_header_separator, &
-                            undelimit_mail_sendmail_header, do_mail_fcc, select_message_coding_system, &
-                            MAIL_FROM_STYLE_SIMPLE, MAIL_FROM_STYLE_PARENS, MAIL_FROM_STYLE_ANGLES, MAIL_SEND_NONASCII_MIME
-    use sysdep_mod, only: close_fd, input_available, inputs_available, fortmacs_read, fortmacs_strerror
-    use sys_socket_mod, only: fortmacs_connect, fortmacs_send
+    use send_mail_mod, only: mail_interactive, mail_specify_envelope_from, get_mail_envelope_from, mail_from_style, &
+                             mail_send_nonascii, sendmail_coding_system, mail_header_separator, &
+                             undelimit_mail_sendmail_header, do_mail_fcc, select_message_coding_system, &
+                             MAIL_FROM_STYLE_SIMPLE, MAIL_FROM_STYLE_PARENS, MAIL_FROM_STYLE_ANGLES, MAIL_SEND_NONASCII_MIME
+    use system_dependent_mod, only: close_fd, input_available, inputs_available, fortmacs_read, fortmacs_strerror
+    use system_socket_mod, only: fortmacs_connect, fortmacs_send
     implicit none(type, external)
     private
 
@@ -2629,7 +2631,7 @@ contains
     ! The unique part of a Message-Id: the user id, the time and a counter
     ! in base 36, and ".fsf".  Port of message.el:message-unique-id.
     subroutine make_message_unique_id(id)
-        use timefns_mod, only: current_time, time_type
+        use time_functions_mod, only: current_time, time_type
         character(len=:), allocatable, intent(out) :: id
         integer(int64), parameter :: BASE = 25*25
         integer(int64) :: tm

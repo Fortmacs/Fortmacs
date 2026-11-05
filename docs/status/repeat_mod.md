@@ -28,7 +28,7 @@ the faces of the hint,
 `repeat-message-function`,
 a list as `repeat-on-final-keystroke`,
 `describe-repeat-maps`,
-the repeat maps of commands not ported (window resizing and rotating, tab bar, outline, image; `smerge-repeat-map` came with smerge_mode_mod)
+the repeat maps of commands not ported (window resizing and rotating, tab bar, outline, image; `smerge-repeat-map` came with simple_merge_mode_mod)
 
 ## Tests
 

@@ -31,8 +31,8 @@ module test_paragraphs_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, erase_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, point_min, point_max, buffer_string, mark_position
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, mark_position
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, command_loop
     use bindings_mod, only: init_bindings

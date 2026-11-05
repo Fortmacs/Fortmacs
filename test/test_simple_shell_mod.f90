@@ -22,17 +22,17 @@
 
 module test_simple_shell_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, &
                           current_buffer, is_buffer_live, set_buffer_read_only
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_max, goto_char, buffer_string, mark_position
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_max, goto_char, buffer_string, mark_position
     use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, last_message
-    use callint_mod, only: prefix_arg
+    use execute_interactively_mod, only: prefix_arg
     use bindings_mod, only: init_bindings
     use simple_mod, only: shell_command, shell_command_on_region, shell_command_keep_output, push_mark, &
                           deactivate_mark, shell_command_buffer_name, &
@@ -319,7 +319,7 @@ contains
 
     !> The size of BUFFER.
     integer(int64) function size_of(buffer)
-        use editfns_mod, only: buffer_size_of
+        use editing_functions_mod, only: buffer_size_of
         type(handle_type), intent(in) :: buffer
         type(status_type) :: st
 

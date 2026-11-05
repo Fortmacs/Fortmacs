@@ -24,7 +24,7 @@
 
 module test_undo_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type, find_command
+    use execute_interactively_mod, only: prefix_arg_type, find_command
     use value_mod, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
@@ -32,14 +32,14 @@ module test_undo_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, &
                           is_buffer_modified, restore_buffer_modified, current_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, point_min, point_max, goto_char, buffer_string, delete_region
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string, delete_region
     use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, last_command, this_command
-    use callint_mod, only: prefix_arg, execute_interactively
+    use execute_interactively_mod, only: prefix_arg, execute_interactively
     use bindings_mod, only: init_bindings
     use undo_mod, only: undo_boundary
     use simple_mod, only: undo, undo_more, undo_only, undo_redo
-    use fileio_mod, only: write_region, delete_file_internal
+    use file_input_output_mod, only: write_region, delete_file_internal
     use files_mod, only: find_file_noselect, temporary_file_directory
     implicit none(type, external)
     private

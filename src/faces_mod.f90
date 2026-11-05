@@ -38,7 +38,7 @@
 !>
 !> `face_spec_recalc' works out the attributes a face has on the frame
 !> (its `lface'): the spec alternative that matches the display, then
-!> the attributes set in the configuration.  xfaces_mod merges them and
+!> the attributes set in the configuration.  face_realization_mod merges them and
 !> realizes faces for the terminal.
 !>
 !> Deferred: themes and Customize, frame-local `set_face_attribute',
@@ -49,7 +49,7 @@
 module faces_mod
     use, intrinsic :: iso_fortran_env, only: real64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
-    use tty_colors_mod, only: tty_color_values
+    use terminal_colors_mod, only: tty_color_values
     implicit none(type, external)
     private
 
@@ -193,7 +193,7 @@ module faces_mod
     end type face_spec_entry_type
 
     !> Whether the display supports face attributes ATTRS (the terminal's
-    !> part of display-supports-face-attributes-p, installed by xfaces_mod).
+    !> part of display-supports-face-attributes-p, installed by face_realization_mod).
     abstract interface
         ! Not a port.
         logical function supports_procedure(attrs)

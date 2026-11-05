@@ -1,5 +1,5 @@
 ! test_bindings_mod.f90 -- tests for bindings_mod, simple_mod and the
-! command side of cmds_mod: typing into a buffer through the command
+! command side of editing_commands_mod: typing into a buffer through the command
 ! loop.
 ! Own tests; simple-tests.el's newline and open-line cases need margins,
 ! fill prefixes and undo.
@@ -23,21 +23,21 @@
 
 module test_bindings_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use commands_mod, only: commands
     use test_support_mod, only: show_alone
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, FM_QUIT
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
-    use editfns_mod, only: point, buffer_string, goto_char
+    use editing_functions_mod, only: point, buffer_string, goto_char
     use value_mod, only: value_type, xstring, list_elt
     use simple_mod, only: clipboard_history
     use data_mod, only: value_eq
     use keymap_mod, only: key_binding, key_parse
     use keyboard_mod, only: kbd_store_bytes, command_loop, command_loop_step, &
                             discard_input, last_message, last_command, ring_bell_hook
-    use callint_mod, only: prefix_arg, is_command_defined
+    use execute_interactively_mod, only: prefix_arg, is_command_defined
     use bindings_mod, only: init_bindings
     implicit none(type, external)
     private

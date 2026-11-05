@@ -30,19 +30,19 @@
 !> `word_separating_categories', filling (|) and indentation (space)
 !> refer to, with their characters (^ combining, C han, H hiragana, K
 !> katakana, l Latin), for the standard category table (category_mod).
-!> The case entries are in casetab_mod (from uni_case_mod).
+!> The case entries are in case_table_mod (from unicode_case_mod).
 !>
 !> Deferred: entries made through legacy charsets (`map_charset_chars'
 !> over GB2312, Big5, JIS X 0208/0212, KS C 5601 and so on, which need
 !> their mapping tables), the other categories, and everything else
 !> characters.el sets up.
 module characters_mod
-    use uni_category_mod, only: cased_letter_runs, cased_letter_starts, cased_letter_ends, &
-                                nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends
-    use charset_mod, only: set_charset_attributes
+    use unicode_category_mod, only: cased_letter_runs, cased_letter_starts, cased_letter_ends, &
+                                    nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends
+    use character_set_mod, only: set_charset_attributes
     use, intrinsic :: iso_fortran_env, only: int32
     use error_mod, only: status_type
-    use editfns_mod, only: char_to_string
+    use editing_functions_mod, only: char_to_string
     implicit none(type, external)
     private
 

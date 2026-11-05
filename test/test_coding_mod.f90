@@ -1,4 +1,4 @@
-! test_coding_mod.f90 -- tests for coding_mod and mule_mod.
+! test_coding_mod.f90 -- tests for coding_mod and multilingual_environment_mod.
 ! Ports GNU Emacs 31.1 test/src/coding-tests.el and
 ! test/lisp/international/mule-tests.el in part; euc-jp and Shift-JIS
 ! buffers are not set up, and coding-nocopy-trivial tests `eq'.
@@ -36,14 +36,14 @@ module test_coding_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, buffers, current, current_buffer, &
                           resolve_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: goto_char, buffer_string, point_min, point_max
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: goto_char, buffer_string, point_min, point_max
     use character_mod, only: str_to_multibyte
     use bindings_mod, only: init_bindings
-    use fileio_mod, only: insert_file_contents, write_region, create_directory_internal, delete_file_internal, &
-                          delete_directory_internal, fortmacs_wd, init_fileio, file_name_as_directory, read_file
+    use file_input_output_mod, only: insert_file_contents, write_region, create_directory_internal, delete_file_internal, &
+                                     delete_directory_internal, fortmacs_wd, init_fileio, file_name_as_directory, read_file
     use files_mod, only: find_file_noselect, save_buffer, write_file
-    use xdisp_mod, only: mode_line_mule_info
+    use display_engine_mod, only: mode_line_mule_info
     use coding_mod, only: is_coding_system, check_coding_system, coding_system_base, coding_system_eol_type, &
                           coding_system_equal, coding_system_aliases, coding_system_priority_list, &
                           set_coding_system_priority, coding_system_change_eol_conversion, &
@@ -54,17 +54,18 @@ module test_coding_mod
                           inhibit_eol_conversion, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
     use coding_mod, only: define_charset_coding_system, is_char_encodable, is_coding_system_ascii_compatible, &
                           coding_system_charset_list, find_coding_systems_text
-    use charset_mod, only: CHARSET_NAME_LEN, define_charset
-    use mule_mod, only: find_auto_coding, set_buffer_file_coding_system, prefer_coding_system, describe_coding_system, &
-                        set_buffer_process_coding_system, set_terminal_coding_system, set_keyboard_coding_system
+    use character_set_mod, only: CHARSET_NAME_LEN, define_charset
+    use multilingual_environment_mod, only: find_auto_coding, set_buffer_file_coding_system, prefer_coding_system, &
+                                            describe_coding_system, &
+                                            set_buffer_process_coding_system, set_terminal_coding_system, set_keyboard_coding_system
     use coding_mod, only: terminal_coding_system, keyboard_coding_system, eol_mnemonic_dos, eol_mnemonic_mac
-    use term_mod, only: encode_terminal_code
-    use dispextern_mod, only: glyph_type
+    use terminal_output_mod, only: encode_terminal_code
+    use glyph_matrices_mod, only: glyph_type
     use value_mod, only: value_type, xfixnum
     use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, read_event
-    use mule_mod, only: find_language_environment, language_environments, set_language_environment, &
-                        describe_language_environment, current_language_environment, default_input_method, &
-                        set_locale_environment, find_locale_entry, locale_language_names, locale_charset_to_coding_system
+    use multilingual_environment_mod, only: find_language_environment, language_environments, set_language_environment, &
+                                            describe_language_environment, current_language_environment, default_input_method, &
+                                   set_locale_environment, find_locale_entry, locale_language_names, locale_charset_to_coding_system
     implicit none(type, external)
     private
 
@@ -1160,7 +1161,7 @@ contains
     !> in Emacs (whose input methods wait for them).
     subroutine test_language_environments(error)
         use buffer_mod, only: get_buffer
-        use charset_mod, only: charset_priority_list, set_charset_priority, CHARSET_NAME_LEN
+        use character_set_mod, only: charset_priority_list, set_charset_priority, CHARSET_NAME_LEN
         use syntax_mod, only: char_syntax
         type(error_type), allocatable, intent(out) :: error
         type(coding_system_list_entry_type), allocatable :: saved(:), names(:)
@@ -1245,7 +1246,7 @@ contains
     !> preferred, locale, terminal and keyboard coding systems for locales
     !> naming a language and a codeset, and the codeset names it knows.
     subroutine test_set_locale_environment(error)
-        use charset_mod, only: charset_priority_list, set_charset_priority, CHARSET_NAME_LEN, current_iso639_language
+        use character_set_mod, only: charset_priority_list, set_charset_priority, CHARSET_NAME_LEN, current_iso639_language
         use coding_mod, only: locale_coding_system
         type(error_type), allocatable, intent(out) :: error
         type(coding_system_list_entry_type), allocatable :: saved(:), names(:)
@@ -1307,8 +1308,8 @@ contains
     !> and list-charset-chars, as in Emacs.
     subroutine test_charset_commands(error)
         use buffer_mod, only: get_buffer
-        use mule_mod, only: describe_character_set, list_character_sets, list_charset_chars
-        use xdisp_mod, only: tab_width
+        use multilingual_environment_mod, only: describe_character_set, list_character_sets, list_charset_chars
+        use display_engine_mod, only: tab_width
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: TAB = achar(9)
         type(handle_type) :: old, buffer
@@ -1407,8 +1408,8 @@ contains
     !> first input method and toggling it, the input method's events (one,
     !> none or several for a key), C-u C-\, C-x RET C-\, describing it.
     subroutine test_input_methods(error)
-        use mule_mod, only: register_input_method, describe_current_input_method, deactivate_input_method, &
-                            describe_input_method
+        use multilingual_environment_mod, only: register_input_method, describe_current_input_method, deactivate_input_method, &
+                                                describe_input_method
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st

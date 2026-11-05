@@ -21,7 +21,7 @@
 
 module test_register_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use callint_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type, format_error, FM_QUIT, FM_WRONG_TYPE_ARGUMENT, FM_USER_ERROR
@@ -29,10 +29,10 @@ module test_register_mod
     use value_mod, only: value_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, set_buffer_read_only, &
                           current_buffer, get_buffer, is_buffer_live
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, buffer_string, mark_position, buffer_substring
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, buffer_string, mark_position, buffer_substring
     use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, last_message, unread_command_events
-    use callint_mod, only: prefix_arg
+    use execute_interactively_mod, only: prefix_arg
     use bindings_mod, only: init_bindings
     use simple_mod, only: deactivate_mark, set_mark
     use frame_mod, only: selected_frame, selected_window

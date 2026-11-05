@@ -20,13 +20,13 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> `skip_chars_forward' and `skip_chars_backward': a submodule because
-!> the character classes come from regex_mod, which uses syntax_mod.
+!> the character classes come from regular_expression_mod, which uses syntax_mod.
 !> The set is kept as character ranges and classes rather than
 !> upstream's fastmap of bytes and leading codes; the result is the same
 !> for multibyte buffers (unibyte buffers and raw bytes are not
 !> distinguished).
 submodule(syntax_mod) syntax_skip_mod
-    use regex_mod, only: re_wctype_parse, re_iswctype
+    use regular_expression_mod, only: re_wctype_parse, re_iswctype
     implicit none(type, external)
 
 contains

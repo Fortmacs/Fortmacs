@@ -49,47 +49,48 @@ module project_mod
     use data_mod, only: string_setting_type, forward_setting, history_setting_type, find_history
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, generate_new_buffer_name, &
                           close_buffer, is_buffer_live, get_buffer, buffer_list, buffer_serial_live
-    use insdel_mod, only: insert
-    use editfns_mod, only: buffer_string, buffer_substring_no_properties
-    use fns_mod, only: count_characters, read_yes_or_no, is_string_less
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: buffer_string, buffer_substring_no_properties
+    use utility_functions_mod, only: count_characters, read_yes_or_no, is_string_less
     use search_mod, only: string_match, re_search_forward, SEARCH_NOERROR, match_beginning, match_end, regexp_quote
-    use subr_mod, only: shell_quote_argument, match_string, bounds_of_identifier_at_point, version_type, version, operator(<=)
+    use basic_subprograms_mod, only: shell_quote_argument, match_string, bounds_of_identifier_at_point, version_type, version, &
+                                     operator(<=)
     use string_type_mod, only: string_type, append_string
-    use fileio_mod, only: expand_file_name, file_name_as_directory, directory_file_name, file_name_directory, &
-                          file_name_nondirectory, is_file_directory, file_exists, is_file_name_absolute, &
-                          is_directory_name, insert_file_contents, write_region, is_file_regular
+    use file_input_output_mod, only: expand_file_name, file_name_as_directory, directory_file_name, file_name_directory, &
+                                     file_name_nondirectory, is_file_directory, file_exists, is_file_name_absolute, &
+                                     is_directory_name, insert_file_contents, write_region, is_file_regular
     use files_mod, only: abbreviate_file_name, file_relative_name, is_file_in_directory, is_file_equal, &
                          wildcard_to_regexp, find_file, create_directory, locate_dominating_file, &
                          locate_dominating_stop_dir_regexp, save_some_buffers
-    use config_mod, only: state_directory
-    use sysdep_mod, only: fortmacs_directory_entries
+    use configuration_mod, only: state_directory
+    use system_dependent_mod, only: fortmacs_directory_entries
     use keymap_mod, only: make_sparse_keymap, keymap_set, define_key, set_keymap_parent, lookup_key, &
                           key_description, current_global_map, where_is_internal, overriding_terminal_local_map
     use keyboard_mod, only: read_key_sequence
-    use callint_mod, only: execute_interactively, current_prefix_arg, prefix_numeric_value, command_of, PREFIX_NONE, &
-                           PREFIX_NUMBER
-    use minibuf_table_mod, only: completion_table_type, completion_list_table
-    use minibuf_mod, only: try_completion, minibuffer_default, completion_ignore_case, &
-                           minibuffer_setup_function
+    use execute_interactively_mod, only: execute_interactively, current_prefix_arg, prefix_numeric_value, command_of, PREFIX_NONE, &
+                                         PREFIX_NUMBER
+    use minibuffer_reading_tables_mod, only: completion_table_type, completion_list_table
+    use minibuffer_reading_mod, only: try_completion, minibuffer_default, completion_ignore_case, &
+                                      minibuffer_setup_function
     use minibuffer_mod, only: completing_read, read_directory_name, read_file_name, read_file_name_completion_ignore_case, &
                               REQUIRE_MATCH_YES, REQUIRE_MATCH_CONFIRM, read_buffer_completion_ignore_case
     use replace_mod, only: format_prompt, read_regexp
-    use xdisp_mod, only: message
+    use display_engine_mod, only: message
     use window_mod, only: switch_to_buffer, display_buffer, pop_to_buffer_same_window, other_buffer
     use derived_mod, only: provided_mode_derived_p
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, NAMELIST_STRING
-    use vc_hooks_mod, only: vc_handled_backends, vc_directory_exclusions, vc_ignore_dir_regexp, &
-                            vc_backends, vc_backend_named
-    use vc_mod, only: vc_responsible_backend
-    use vc_git_mod, only: vc_git_command, vc_git_program_version, vc_git_root, vc_git_use_literal_pathspecs
-    use vc_dir_mod, only: vc_dir
-    use dired_mode_mod, only: dired
+    use version_control_hooks_mod, only: vc_handled_backends, vc_directory_exclusions, vc_ignore_dir_regexp, &
+                                         vc_backends, vc_backend_named
+    use version_control_mod, only: vc_responsible_backend
+    use version_control_git_mod, only: vc_git_command, vc_git_program_version, vc_git_root, vc_git_use_literal_pathspecs
+    use version_control_directory_mod, only: vc_dir
+    use directory_editor_mode_mod, only: dired
     use shell_mod, only: shell
-    use comint_mod, only: comint_check_process
+    use command_interpreter_mod, only: comint_check_process
     use compile_mod, only: recompile, compilation_directory
     use grep_mod, only: find_program, grep_find_ignored_files
     use simple_mod, only: execute_process_shell_command
-    use buff_menu_mod, only: list_buffers_noselect
+    use buffer_menu_mod, only: list_buffers_noselect
     implicit none(type, external)
     private
 

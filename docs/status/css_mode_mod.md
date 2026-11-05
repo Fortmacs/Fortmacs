@@ -32,4 +32,4 @@ the `:company-kind` properties
 ## Tests
 
 test_css_mode_mod (ports css-mode-tests: all 38, the resource files embedded and the random selector combinations made fixed; own: color fontification, filling);
-test_imenu_mod (the index)
+test_index_menu_mod (the index)

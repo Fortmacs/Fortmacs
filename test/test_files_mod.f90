@@ -1,4 +1,4 @@
-! test_files_mod.f90 -- tests for files_mod, subr_mod, map_ynp_mod and the
+! test_files_mod.f90 -- tests for files_mod, basic_subprograms_mod, read_y_or_n_each_mod and the
 ! command-line part of fortmacs_mod.
 ! Own tests; files-tests.el exercises these functions through file name
 ! handlers, the minibuffer and Lisp hooks.
@@ -34,12 +34,12 @@ module test_files_mod
     use value_mod, only: value_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, &
                           current_buffer, resolve_buffer
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, buffer_string, goto_char, point_max
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, buffer_string, goto_char, point_max
     use keyboard_mod, only: unread_command_events, discard_input, last_message, is_exit_requested
-    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, &
-                          file_modes, set_file_modes, write_region, create_directory_internal, &
-                          delete_file_internal, delete_directory_internal, is_file_directory
+    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, &
+                                     file_modes, set_file_modes, write_region, create_directory_internal, &
+                                     delete_file_internal, delete_directory_internal, is_file_directory
     use files_mod, only: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, &
                          save_buffer, basic_save_buffer, make_backup_file_name, &
                          normal_backup_enable_test_function, save_some_buffers, &
@@ -47,10 +47,10 @@ module test_files_mod
                          REQUIRE_FINAL_NEWLINE_ASK, REQUIRE_FINAL_NEWLINE_VISIT, find_file_run_dired, create_temp_file, &
                          mode_require_final_newline, MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, &
                          REQUIRE_FINAL_NEWLINE_VISIT_SAVE, set_require_final_newline_from_mode
-    use subr_mod, only: read_y_or_n
-    use map_ynp_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK, YNP_ACT
+    use basic_subprograms_mod, only: read_y_or_n
+    use read_y_or_n_each_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK, YNP_ACT
     use fortmacs_mod, only: command_line_1
-    use env_mod, only: setenv
+    use environment_mod, only: setenv
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private

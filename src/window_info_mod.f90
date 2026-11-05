@@ -33,7 +33,7 @@ submodule(window_mod) window_info_mod
     use error_mod, only: set_error, FM_WRONG_TYPE_ARGUMENT
     use frame_mod, only: selected_frame, selected_window, ensure_frame_windows
     use keyboard_mod, only: minib_level => minibuf_level
-    use minibuf_mod, only: minibuffer_depth_of
+    use minibuffer_reading_mod, only: minibuffer_depth_of
     implicit none(type, external)
 
 contains

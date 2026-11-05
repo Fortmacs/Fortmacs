@@ -1,5 +1,5 @@
 ! test_frame_mod.f90 -- tests for several frames on one terminal
-! (frame_mod, frame_cmds_mod) and frame.el's Window Divider mode.
+! (frame_mod, frame_commands_mod) and frame.el's Window Divider mode.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !

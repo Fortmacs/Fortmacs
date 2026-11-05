@@ -26,13 +26,13 @@ module test_shell_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use insdel_mod, only: insert
-    use editfns_mod, only: point, goto_char, buffer_string
+    use insert_delete_mod, only: insert
+    use editing_functions_mod, only: point, goto_char, buffer_string
     use minibuffer_mod, only: completion_at_point
-    use env_mod, only: getenv, setenv
+    use environment_mod, only: getenv, setenv
     use files_mod, only: create_temp_file
-    use fileio_mod, only: init_fileio, write_region, create_directory_internal, delete_file_internal, &
-                          delete_directory_internal, set_file_modes
+    use file_input_output_mod, only: init_fileio, write_region, create_directory_internal, delete_file_internal, &
+                                     delete_directory_internal, set_file_modes
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, generate_new_buffer_name
@@ -42,7 +42,7 @@ module test_shell_mod
                          shell_parse_pcomplete_arguments, &
                          shell_directory_tracker, list_buffers_directory, shell_input_autoexpand, &
                          SHELL_INPUT_AUTOEXPAND_INPUT, SHELL_INPUT_AUTOEXPAND_HISTORY
-    use comint_mod, only: comint_input_autoexpand, COMINT_INPUT_AUTOEXPAND_INPUT, COMINT_INPUT_AUTOEXPAND_HISTORY
+    use command_interpreter_mod, only: comint_input_autoexpand, COMINT_INPUT_AUTOEXPAND_INPUT, COMINT_INPUT_AUTOEXPAND_HISTORY
     use string_type_mod, only: string_type
     implicit none(type, external)
     private

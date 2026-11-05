@@ -29,7 +29,7 @@ module test_keymap_mod
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: list, make_keymap_ref, V_ARRAY, value_type, vtag, xfixnum, xhandle, xstring, list_elements
     use data_mod, only: value_eq
-    use fns_mod, only: value_equal
+    use utility_functions_mod, only: value_equal
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
     use keymap_mod, only: copy_keymap, current_global_map, current_local_map, define_key, destroy_keymap, &
                           key_binding, key_description, key_parse, is_keymap_full, is_keymap_live, &
@@ -37,7 +37,7 @@ module test_keymap_mod
                           make_sparse_keymap, push_key_description, set_keymap_parent, &
                           single_key_description, use_local_map, is_key_valid, keymap_set, &
                           keymap_global_set, define_key_range, where_is_internal
-    use subr_mod, only: global_set_key
+    use basic_subprograms_mod, only: global_set_key
     use keymap_mod, only: text_char_description, minor_mode_key_binding, current_minor_mode_maps, append_minor_mode_map
     use error_mod, only: format_error
     use data_mod, only: set

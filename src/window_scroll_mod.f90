@@ -29,16 +29,16 @@
 !> with `scroll_margin' 0 and `scroll_preserve_screen_position' .false..
 submodule(window_mod) window_scroll_mod
     use commands_mod, only: commands
-    use callint_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
+    use execute_interactively_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use error_mod, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, &
                          FM_WRONG_TYPE_ARGUMENT
     use buffer_mod, only: current, current_buffer, set_buffer, is_buffer_live, buffer_list
-    use editfns_mod, only: point, goto_char, is_eob, is_bob, point_min, point_max
-    use cmds_mod, only: forward_line, beginning_of_line
-    use xdisp_mod, only: truncate_partial_width_windows
+    use editing_functions_mod, only: point, goto_char, is_eob, is_bob, point_min, point_max
+    use editing_commands_mod, only: forward_line, beginning_of_line
+    use display_engine_mod, only: truncate_partial_width_windows
     use indent_mod, only: vertical_motion, move_to_column
     use frame_mod, only: selected_frame, selected_window_ref
-    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: this_command, last_command
     use simple_mod, only: goal_column, line_move_visual
     implicit none(type, external)
