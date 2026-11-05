@@ -97,6 +97,7 @@ module bindings_mod
     use skeleton_mod, only: initialize_skeleton
     use sgml_mode_mod, only: initialize_sgml_mode
     use f90_mod, only: initialize_f90
+    use fortran_completion_mod, only: initialize_fortran_completion
     use programming_mode_mod, only: initialize_programming_mode
     use font_core_mod, only: initialize_font_core
     use font_lock_mod, only: initialize_font_lock
@@ -151,6 +152,7 @@ module bindings_mod
     use mail_extract_mod, only: initialize_mail_extract
     use send_mail_mod, only: initialize_sendmail, mail_mode_map
     use smtpmail_mod, only: initialize_smtpmail
+    use message_mod, only: initialize_message
     use mail_abbreviations_mod, only: initialize_mailabbrev
     use simple_mod, only: initialize_simple_mail
     use modes_mod, only: minor_modes
@@ -378,6 +380,7 @@ contains
         call initialize_skeleton()
         call initialize_sgml_mode()
         call initialize_f90()
+        call initialize_fortran_completion()
         call initialize_programming_mode()
         call initialize_just_in_time_lock()
         call initialize_font_core()
@@ -794,13 +797,14 @@ contains
         call initialize_view()
         call initialize_follow()
         call initialize_directory_editor_mode(control_x_map, control_x_4_map, control_x_5_map, tab_prefix_map)
-        ! Mail: mail-utils.el, mail-extr.el, sendmail.el, smtpmail.el, mailabbrev.el and
+        ! Mail: mail-utils.el, mail-extr.el, sendmail.el, smtpmail.el, mailabbrev.el, message.el and
         ! simple.el's compose-mail, with their keys from bindings.el.
         call initialize_mail_utilities()
         call initialize_mail_extract()
         call initialize_sendmail()
         call initialize_smtpmail()
         call initialize_mailabbrev()
+        call initialize_message()
         call initialize_simple_mail()
         call bind(control_x_map, "m", "compose_mail")
         call bind(control_x_4_map, "m", "compose_mail_other_window")
