@@ -22,7 +22,7 @@ decoded times whose components may be unknown (`partial_decoded_time_type`; its 
 `seconds-to-string` (READABLE, `expanded`, ABBREV, PRECISION),
 `date-days-in-month`,
 `date-ordinal-to-time`,
-`decoded-time-add` (with `decoded-time--alter-month`, `decoded-time--alter-day`, `decoded-time--alter-second`),
+`decoded-time-add` (`add_decoded_time`; with `decoded-time--alter-month`, `decoded-time--alter-day`, `decoded-time--alter-second`),
 `decoded-time-set-defaults` (`set_decoded_time_defaults`),
 `decoded-time-period`,
 `encode_partial_decoded_time` (encode-time of such a decoded time: an unknown component is a `wrong_type_argument` error condition);
@@ -36,4 +36,4 @@ the two-element list `days-to-time` gives for an integer
 
 ## Tests
 
-test_time_date_mod (ports time-date-tests.el but test-obsolete-with-decoded-time-value and test-obsolete-encode-time-value; own tests of the readable forms, unknown components in `decoded_time_add` and the errors of `format_seconds`)
+test_time_date_mod (ports time-date-tests.el but test-obsolete-with-decoded-time-value and test-obsolete-encode-time-value; own tests of the readable forms, unknown components in `add_decoded_time` and the errors of `format_seconds`)

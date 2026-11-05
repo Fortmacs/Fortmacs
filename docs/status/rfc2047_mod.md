@@ -16,7 +16,7 @@
 `rfc2047-field-value` (mail-header-field-value),
 `rfc2047-encoding-type` (`RFC2047_ENCODING_TYPE_MIME`, `RFC2047_ENCODING_TYPE_ADDRESS_MIME`),
 `rfc2047-encode-message-header` (a command; mail-encode-encoded-word-buffer),
-`rfc2047-encodable-p` (`is_rfc2047_encodable`),
+`rfc2047-encodable-p` (`check_rfc2047_encodable`, a subroutine: it moves point),
 `rfc2047-syntax-table`,
 `rfc2047-encode-region` (mail-encode-encoded-word-region; addresses, quoted strings, comments, the `mime` type),
 `rfc2047-encode-string` (mail-encode-encoded-word-string),

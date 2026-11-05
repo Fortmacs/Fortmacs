@@ -23,7 +23,7 @@
 
 !> The time-date-tests.el tests but the two of obsolete list forms; own
 !> tests of the readable forms of `seconds_to_string', of unknown
-!> components in `decoded_time_add' and of the errors of `format_seconds'.
+!> components in `add_decoded_time' and of the errors of `format_seconds'.
 module test_time_date_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -32,7 +32,7 @@ module test_time_date_mod
                                   DECODED_TIME_DST_NO, DECODED_TIME_DST_UNKNOWN
     use time_date_mod, only: seconds_to_string, SECONDS_TO_STRING_READABLE, SECONDS_TO_STRING_EXPANDED, &
                              partial_decoded_time_type, date_to_time, days_between, is_date_leap_year, days_to_time, &
-                             date_days_in_month, format_seconds, date_ordinal_to_time, decoded_time_add, &
+                             date_days_in_month, format_seconds, date_ordinal_to_time, add_decoded_time, &
                              decoded_time_period, time_since, encode_partial_decoded_time
     use test_time_support_mod, only: render_partial_decoded_time
     implicit none(type, external)
@@ -95,7 +95,7 @@ contains
         call expect(error, render_partial_decoded_time(decoded), expected)
     end subroutine expect_decoded
 
-    ! Check that decoded_time_add of TIME and DELTA is EXPECTED.
+    ! Check that add_decoded_time of TIME and DELTA is EXPECTED.
     subroutine expect_add(error, time, delta, expected)
         type(error_type), allocatable, intent(out) :: error
         type(partial_decoded_time_type), intent(in) :: time, delta
@@ -103,7 +103,7 @@ contains
         type(status_type) :: st
         type(partial_decoded_time_type) :: sum
 
-        sum = decoded_time_add(time, delta, st)
+        sum = add_decoded_time(time, delta, st)
 
         if (.not. st%ok()) then
             call check(error, .false., format_error(st))
@@ -465,7 +465,7 @@ contains
         type(status_type) :: st
         type(partial_decoded_time_type) :: sum
 
-        sum = decoded_time_add(partial_decoded_time_type(day=1), partial_decoded_time_type(day=1), st)
+        sum = add_decoded_time(partial_decoded_time_type(day=1), partial_decoded_time_type(day=1), st)
         call check(error, format_error(st) == "Month unallocated is invalid", format_error(st))
         if (allocated(error)) return
         call expect_add(error, partial_decoded_time_type(day=15, month=3), partial_decoded_time_type(day=1), &

@@ -45,7 +45,7 @@ module iso8601_mod
     use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use time_functions_mod, only: time_type, decoded_time_type, decode_time, time_subtract, time_zone_rule, &
                                   DECODED_TIME_DST_UNKNOWN, DECODED_TIME_DST_NO
-    use time_date_mod, only: partial_decoded_time_type, is_date_leap_year, date_ordinal_to_time, decoded_time_add, &
+    use time_date_mod, only: partial_decoded_time_type, is_date_leap_year, date_ordinal_to_time, add_decoded_time, &
                              set_decoded_time_defaults, encode_partial_decoded_time
     use search_mod, only: string_match, match_beginning
     use basic_subprograms_mod, only: match_string
@@ -535,14 +535,14 @@ contains
         if (.not. status%ok()) return
 
         if (.not. has_end) then
-            end = decoded_time_add(start, duration, status)
+            end = add_decoded_time(start, duration, status)
             if (.not. status%ok()) return
         end if
 
         if (.not. has_start) then
             ! We negate the duration so that we get a subtraction.
             negated = negate(duration)
-            start = decoded_time_add(end, negated, status)
+            start = add_decoded_time(end, negated, status)
             if (.not. status%ok()) return
         end if
 

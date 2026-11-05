@@ -23,7 +23,7 @@
 !> parsed by parse_time_mod, in the submodule time_date_parse_mod),
 !> decoded times whose components may be unknown
 !> (`partial_decoded_time_type', `set_decoded_time_defaults',
-!> `decoded_time_add', `decoded_time_period'), calendar arithmetic
+!> `add_decoded_time', `decoded_time_period'), calendar arithmetic
 !> (`is_date_leap_year', `date_days_in_month', `date_ordinal_to_time',
 !> `time_to_days', `days_to_time') and time intervals as text
 !> (`format_seconds', `seconds_to_string').
@@ -43,13 +43,13 @@ module time_date_mod
               SECONDS_TO_STRING_EXPANDED
     public :: date_to_time, safe_date_to_time, time_since, date_to_day, days_between, is_date_leap_year, &
               time_to_day_in_year, time_to_days, days_to_time, format_seconds, &
-              date_days_in_month, date_ordinal_to_time, decoded_time_add, set_decoded_time_defaults, &
+              date_days_in_month, date_ordinal_to_time, add_decoded_time, set_decoded_time_defaults, &
               decoded_time_period, encode_partial_decoded_time
 
     !> A decoded time, as `decode_time' gives it, whose components may be
     !> unknown: an unallocated component is one the text did not give
     !> as `parse_time_string' and `parse_iso8601' return
-    !> it, and the components that `decoded_time_add' should change.  The
+    !> it, and the components that `add_decoded_time' should change.  The
     !> structure constructor is upstream's make-decoded-time:
     !> partial_decoded_time_type(month=2) has only its month and DST
     !> unknown.  `dst' is one of time_functions_mod's DECODED_TIME_DST_
@@ -334,7 +334,7 @@ contains
     !> all other components but the month component in DELTA unknown, and
     !> make the month component 2.  For instance:
     !>
-    !>   decoded_time_add(time, partial_decoded_time_type(month=2))
+    !>   add_decoded_time(time, partial_decoded_time_type(month=2))
     !>
     !> The values in DELTA can be negative.
     !>
@@ -353,7 +353,7 @@ contains
     !> A component of TIME that is unknown where it is needed is an error
     !> in STATUS, as upstream's arithmetic on an unknown component.  Port of
     !> time-date.el:decoded-time-add.
-    function decoded_time_add(time, delta, status) result(sum)
+    function add_decoded_time(time, delta, status) result(sum)
         type(partial_decoded_time_type), intent(in) :: time, delta
         type(status_type), intent(out), optional :: status
         type(partial_decoded_time_type) :: sum
@@ -425,7 +425,7 @@ contains
         end block body
 
         if (present(status)) status = st
-    end function decoded_time_add
+    end function add_decoded_time
 
     ! The value of the optional component VALUE, 0 if unknown.  Not a port.
     integer function known(value)

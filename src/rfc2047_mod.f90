@@ -64,7 +64,7 @@ module rfc2047_mod
     implicit none(type, external)
     private
 
-    public :: encode_rfc2047_message_header, is_rfc2047_encodable, encode_rfc2047_region, encode_rfc2047_string, &
+    public :: encode_rfc2047_message_header, check_rfc2047_encodable, encode_rfc2047_region, encode_rfc2047_string, &
               narrow_to_rfc2047_field, rfc2047_field_value, fold_rfc2047_field, fold_rfc2047_region, &
               unfold_rfc2047_field, unfold_rfc2047_region, decode_rfc2047_region, decode_rfc2047_address_region, &
               decode_rfc2047_string, decode_rfc2047_address_string, rfc2047_charset_to_coding_system, &
@@ -793,7 +793,7 @@ contains
                     end if
                 end do
 
-                if (status%ok()) encodable = is_rfc2047_encodable(status)
+                if (status%ok()) call check_rfc2047_encodable(encodable, status)
 
                 ! We found something that may perhaps be encoded.  (With no
                 ! posting charset, a field that needs no encoding is left
@@ -847,11 +847,13 @@ contains
         call save_excursion_end(excursion)
     end subroutine encode_rfc2047_message_header
 
-    !> Return true if any characters in current buffer need encoding in
-    !> headers.  The buffer may be narrowed.  Point moves to the beginning
-    !> of the accessible text, as upstream's does.  Port of
-    !> rfc2047.el:rfc2047-encodable-p (with no posting charset).
-    logical function is_rfc2047_encodable(status) result(encodable)
+    !> Set ENCODABLE to whether any characters in current buffer need
+    !> encoding in headers.  The buffer may be narrowed.  Point moves to the
+    !> beginning of the accessible text, as upstream's does (so this is a
+    !> subroutine).  Port of rfc2047.el:rfc2047-encodable-p (with no posting
+    !> charset).
+    subroutine check_rfc2047_encodable(encodable, status)
+        logical, intent(out) :: encodable
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: charsets(:)
         integer(int64) :: found
@@ -869,7 +871,7 @@ contains
         end if
 
         if (.not. encodable) encodable = size(charsets) > 0
-    end function is_rfc2047_encodable
+    end subroutine check_rfc2047_encodable
 
     !> Encode words in region B to E that need encoding.  By default, the
     !> region is treated as containing RFC 822 (or later) addresses.  Set

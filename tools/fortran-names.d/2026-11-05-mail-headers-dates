@@ -10,6 +10,9 @@ name	iso8601_parse_zone	parse_iso8601_zone
 name	iso8601_parse_duration	parse_iso8601_duration
 name	iso8601_parse_interval	parse_iso8601_interval
 name	decoded_time_set_defaults	set_decoded_time_defaults
+# decoded-time-add is verb first too (R6-17, the owner's newer rule; main's
+# time_add waits for the pending verb-first rename; coordinator, 2026-11-05).
+name	decoded_time_add	add_decoded_time
 name	quoted_printable_decode_region	decode_quoted_printable_region
 name	quoted_printable_decode_string	decode_quoted_printable_string
 name	quoted_printable_encode_region	encode_quoted_printable_region
@@ -31,7 +34,6 @@ name	rfc2047_strip_backslashes_in_quoted_strings	strip_rfc2047_backslashes_in_qu
 # Predicates are is_* (B1; rule-decided).
 name	iso8601_valid_p	is_iso8601_valid
 name	date_leap_year_p	is_date_leap_year
-name	rfc2047_encodable_p	is_rfc2047_encodable
 # An alist is a plural name (R2-Q8; rule-decided).
 name	rfc2047_header_encoding_alist	rfc2047_header_encodings
 name	rfc2047_charset_encoding_alist	rfc2047_charset_encodings
@@ -44,3 +46,6 @@ name	mm_coding_system_priorities	mime_coding_system_priorities
 name	mm_use_find_coding_systems_region	mime_use_find_coding_systems_region
 name	mm_charset_override_alist	mime_charset_overrides
 name	mm_charset_synonym_alist	mime_charset_synonyms
+# rfc2047-encodable-p moves point, so it is a subroutine (R3-8), named as
+# check_region_skip is (coordinator, 2026-11-05).
+name	rfc2047_encodable_p	check_rfc2047_encodable
