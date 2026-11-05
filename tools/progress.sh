@@ -370,6 +370,40 @@ figure() {
         }'
 }
 
+# How long the project has run: from the first commit to the last one (so
+# the block changes only with the history), in years, months, weeks, days,
+# hours and minutes; a unit not reached yet, or zero, is left out
+# ("1 week, 2 hours, 5 minutes").  Years and months are calendar ones.
+project_age() {
+    start=$(git -C "$root" log --reverse --format=%ct | head -n 1)
+    end=$(git -C "$root" log -1 --format=%ct)
+    [ -n "$start" ] && [ -n "$end" ] || return 0
+    # Whole calendar years, then months, counted from the start.
+    base=$start
+    years=0
+    while t=$(date -u -d "$(date -u -d "@$base" '+%Y-%m-%d %H:%M:%S') +1 year" +%s) && [ "$t" -le "$end" ]; do
+        years=$((years + 1)); base=$t
+    done
+    months=0
+    while t=$(date -u -d "$(date -u -d "@$base" '+%Y-%m-%d %H:%M:%S') +1 month" +%s) && [ "$t" -le "$end" ]; do
+        months=$((months + 1)); base=$t
+    done
+    rest=$((end - base))
+    weeks=$((rest / 604800)); rest=$((rest % 604800))
+    days=$((rest / 86400)); rest=$((rest % 86400))
+    hours=$((rest / 3600)); rest=$((rest % 3600))
+    minutes=$((rest / 60))
+    printf '%s %s %s %s %s %s\n' "$years" "$months" "$weeks" "$days" "$hours" "$minutes" | awk '{
+        split("year month week day hour minute", unit, " ")
+        out = ""
+        for (i = 1; i <= 6; i++) {
+            if ($i == 0) continue
+            out = out (out == "" ? "" : ", ") $i " " unit[i] ($i == 1 ? "" : "s")
+        }
+        print (out == "" ? "0 minutes" : out)
+    }'
+}
+
 # The progress block: a status line and the pie.
 readme_block() {
     mkdir -p "$root/docs/progress"
@@ -384,6 +418,8 @@ MELPA|#B39574|$melpa_done|$melpa_total"
     svg_size=$(sed -n "s/.*<svg[^>]* width=\"\([0-9]*\)\" height=\"\([0-9]*\)\".*/width=\"\1\" height=\"\2\"/p" "$root/docs/progress/pie.svg")
     echo "**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still"
     echo "missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far."
+    age=$(project_age)
+    [ -n "$age" ] && { echo; echo "**Time on the project:** $age."; }
     echo
     echo "<picture>"
     echo "<source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/progress/pie-dark.svg\">"
