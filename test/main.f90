@@ -58,6 +58,7 @@ program tester
     use test_simple_minded_indentation_engine_mod, only: collect_simple_minded_indentation_engine_mod
     use test_shell_script_mod, only: collect_shell_script_mod
     use test_f90_mod, only: collect_f90_mod
+    use test_fortran_completion_mod, only: collect_fortran_completion_mod
     use test_error_mod, only: collect_error_mod
     use test_handle_mod, only: collect_handle_mod
     use test_string_type_mod, only: collect_string_type_mod
@@ -302,6 +303,7 @@ program tester
                  new_testsuite("simple_minded_indentation_engine_mod", collect_simple_minded_indentation_engine_mod), &
                  new_testsuite("shell_script_mod", collect_shell_script_mod), &
                  new_testsuite("f90_mod", collect_f90_mod), &
+                 new_testsuite("fortran_completion_mod", collect_fortran_completion_mod), &
                  new_testsuite("terminal_colors_mod", collect_terminal_colors_mod), &
                  new_testsuite("faces_mod", collect_faces_mod), &
                  new_testsuite("face_realization_mod", collect_face_realization_mod), &

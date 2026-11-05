@@ -97,6 +97,7 @@ module bindings_mod
     use skeleton_mod, only: initialize_skeleton
     use sgml_mode_mod, only: initialize_sgml_mode
     use f90_mod, only: initialize_f90
+    use fortran_completion_mod, only: initialize_fortran_completion
     use programming_mode_mod, only: initialize_programming_mode
     use font_core_mod, only: initialize_font_core
     use font_lock_mod, only: initialize_font_lock
@@ -378,6 +379,7 @@ contains
         call initialize_skeleton()
         call initialize_sgml_mode()
         call initialize_f90()
+        call initialize_fortran_completion()
         call initialize_programming_mode()
         call initialize_just_in_time_lock()
         call initialize_font_core()

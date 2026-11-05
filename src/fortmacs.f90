@@ -744,6 +744,7 @@ module fortmacs
                        F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_AUTO_KEYWORD_CASE_NONE, &
                        F90_AUTO_KEYWORD_CASE_DOWNCASE_WORD, &
                        F90_AUTO_KEYWORD_CASE_UPCASE_WORD, F90_AUTO_KEYWORD_CASE_CAPITALIZE_WORD
+    use fortran_completion_mod, only: fortran_completion_mode, turn_on_fortran_completion_mode, fortran_completion_mode_hook
     use simple_minded_indentation_engine_mod, only: simple_minded_indentation_engine_indent_basic, &
                                                     simple_minded_indentation_engine_blink_matching_inners, &
                                                     simple_minded_indentation_engine_indent_functions
@@ -1367,6 +1368,7 @@ module fortmacs
               f90_mode_hook, f90_mode_map, f90_mode_syntax_table, f90_mode_abbreviation_table, &
               F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_AUTO_KEYWORD_CASE_NONE, F90_AUTO_KEYWORD_CASE_DOWNCASE_WORD, &
               F90_AUTO_KEYWORD_CASE_UPCASE_WORD, F90_AUTO_KEYWORD_CASE_CAPITALIZE_WORD
+    public :: fortran_completion_mode, turn_on_fortran_completion_mode, fortran_completion_mode_hook
     public :: simple_minded_indentation_engine_indent_basic, simple_minded_indentation_engine_blink_matching_inners, &
               simple_minded_indentation_engine_indent_functions, forward_expression_function
     public :: shell_ancestors, shell_aliases, shell_ancestor_type, shell_alias_type, shell_shell_file, shell_shell, &
