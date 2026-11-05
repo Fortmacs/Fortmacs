@@ -18,7 +18,7 @@ the command of define-skeleton (`skeleton_command`, with subr.el's change groups
 `skeleton-end-newline`,
 `skeleton-further-elements` (a procedure binding the mode's variables),
 `skeleton-positions`,
-buffer-local values (`X_set_local`)
+buffer-local values, as setting objects: `skeleton-transformation-function`, `skeleton-filter-function`, `skeleton-pair-filter-function` and `skeleton-further-elements` (`%procedure`), `skeleton-pair-alist` and `skeleton-pair-default-alist` (`%pairs`, `%append`); `%set_local`, `%get_current`, `%clear_local`
 
 ## Deferred
 

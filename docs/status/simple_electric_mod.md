@@ -14,7 +14,7 @@
 `newline-and-indent`,
 `reindent-then-newline-and-indent`,
 `backward-delete-char-untabify` (`backward-delete-char-untabify-method`),
-`blink-matching-check-function` buffer-local (`blink_matching_check_function_set_local`),
+`blink-matching-check-function` buffer-local (`%set_local`),
 `syntax-propertize` in `blink-matching-open`
 
 ## Deferred

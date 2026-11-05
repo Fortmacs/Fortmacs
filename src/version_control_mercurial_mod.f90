@@ -823,7 +823,7 @@ contains
                                        VERSION_CONTROL_LOG_VIEW_LOG_UNINTEGRATED, VERSION_CONTROL_LOG_VIEW_SHORT, &
                                        VERSION_CONTROL_LOG_VIEW_LOG_INCOMING, VERSION_CONTROL_LOG_VIEW_LOG_OUTGOING
         use log_view_mod, only: set_log_view_file_regular_expression, set_log_view_message_regular_expression, &
-                                set_log_view_per_file_logs, set_log_view_expanded_log_entry_function, &
+                                set_log_view_per_file_logs, log_view_expanded_log_entry_function, &
                                 set_log_view_font_lock_keywords, log_view_font_lock_keywords
         use display_engine_mod, only: tab_width
         type(status_type), intent(out) :: status
@@ -857,7 +857,7 @@ contains
         call tab_width%set_local(2_int64)
         ! Allow expanding short log entries (upstream also truncates the
         ! lines: `truncate_lines' is not ported).
-        if (shortp) call set_log_view_expanded_log_entry_function(version_control_mercurial_expanded_log_entry)
+        if (shortp) call log_view_expanded_log_entry_function%set_local(version_control_mercurial_expanded_log_entry)
 
         if (shortp) then
             allocate (keywords(1))

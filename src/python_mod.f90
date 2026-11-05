@@ -96,7 +96,7 @@ module python_mod
     use paragraphs_mod, only: paragraph_start, paragraph_separate
     use fill_mod, only: fill_paragraph, fill_paragraph_function, fill_comment_paragraph, fill_indent_according_to_mode
     use simple_mod, only: normal_auto_fill_function, do_auto_fill
-    use electric_mod, only: electric_indent_inhibit, electric_indent_characters_value, electric_indent_characters_set_local
+    use electric_mod, only: electric_indent_inhibit, electric_indent_characters
     use programming_mode_mod, only: programming_first_column
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use grep_mod, only: grep_files_aliases, grep_files_alias_type, grep_find_ignored_directories, grep_ignore_type
@@ -4245,7 +4245,7 @@ contains
 
         ! Electric colon
         if (ev /= iachar(":")) return
-        if (.not. any(electric_indent_characters_value() == iachar(":"))) return
+        if (.not. any(electric_indent_characters%get_current() == iachar(":"))) return
         if (current_prefix_argument%kind /= PREFIX_NONE) return
         ! Trigger electric colon only at end of line
         if (.not. is_end_of_line()) return
@@ -4631,8 +4631,8 @@ contains
         call indent_region_function%set_local(python_indent_region)
         ! Because indentation is not redundant, we cannot safely reindent code.
         call electric_indent_inhibit%set_local(.true.)
-        chars = [iachar(":"), electric_indent_characters_value()]
-        call electric_indent_characters_set_local(chars)
+        chars = [iachar(":"), electric_indent_characters%get_current()]
+        call electric_indent_characters%set_local(chars)
         ! Add """ ... """ pairing to electric-pair-mode.
         call post_self_insert_hook%append(python_electric_pair_string_delimiter, local=.true.)
         call paragraph_start%set_local("\s-*$")

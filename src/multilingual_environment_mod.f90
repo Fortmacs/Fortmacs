@@ -1153,7 +1153,7 @@ contains
         if (len(coding) == 0) return
         bfcs = ""
         if (allocated(buffer_file_coding_system%value)) bfcs = buffer_file_coding_system%value
-        local = buffer_file_coding_system%local_p()
+        local = buffer_file_coding_system%is_local()
         ! Get information of `buffer-file-coding-system' in LOCAL-EOL and
         ! LOCAL-CODING.
         local_end_of_line = coding_system_end_of_line_type(bfcs)
@@ -2491,7 +2491,7 @@ contains
 
         s = "Coding system for saving this buffer:"//LF//"  "
 
-        if (buffer_file_coding_system%local_p() .and. allocated(buffer_file_coding_system%value)) then
+        if (buffer_file_coding_system%is_local() .and. allocated(buffer_file_coding_system%value)) then
             s = s//print_coding_system_briefly(buffer_file_coding_system%value, .false.)
         else
             s = s//"Not set locally, use the default."//LF

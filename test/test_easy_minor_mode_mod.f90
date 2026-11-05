@@ -198,7 +198,7 @@ contains
         call turn_on_auto_fill(st)
         call check(error, associated(auto_fill_function%value), "on in A")
         if (allocated(error)) return
-        call check(error, auto_fill_function%local_p(), "auto-fill-function local")
+        call check(error, auto_fill_function%is_local(), "auto-fill-function local")
         if (allocated(error)) return
         call check(error, mode_line_modes(a%index), "Fundamental Fill")
         if (allocated(error)) return

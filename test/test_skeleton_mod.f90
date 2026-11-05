@@ -37,7 +37,7 @@ module test_skeleton_mod
     use test_support_mod, only: show_alone
     use skeleton_mod, only: skeleton_element_type, skeleton_insert, skeleton_command, skeleton_text, skeleton_literal, &
                             skeleton_delete, skeleton_prompt, skeleton_for_each, skeleton_action, skeleton_value, &
-                            skeleton_pair_insert_maybe, skeleton_transformation_function_set_local, skeleton_positions, &
+                            skeleton_pair_insert_maybe, skeleton_transformation_function, skeleton_positions, &
                             skeleton_end_newline, skeleton_pair, skeleton_state, SKELETON_NEWLINE, SKELETON_POINT, &
                             SKELETON_POINT_OVERRIDE, SKELETON_INDENT, SKELETON_POSITION, SKELETON_IF_MOVED, &
                             SKELETON_IF_NOT_MOVED, SKELETON_RESUME, SKELETON_STRING, SKELETON_V1, SKELETON_END, &
@@ -227,10 +227,10 @@ contains
         type(status_type) :: st
 
         call temporary_buffer("")
-        call skeleton_transformation_function_set_local(upcase)
+        call skeleton_transformation_function%set_local(upcase)
         call skeleton_insert([skeleton_prompt("x"), skeleton_text("ab"), SKELETON_STRING, skeleton_literal("cd")], st, &
                              string="ef")
-        call skeleton_transformation_function_set_local()
+        call skeleton_transformation_function%set_local()
         call check(error, buffer_string() == "ABefcd", "transformed: "//buffer_string())
     end subroutine test_transformation
 

@@ -50,7 +50,8 @@ module simple_mod
                         append_locals_clearer
     use character_mod, only: MAXIMUM_CHARACTER, CHARACTER_META, character_resolve_modifier_mask, multibyte_characters_in_text
     use case_table_mod, only: downcase
-    use buffer_mod, only: resolve_buffer, buffer_bytes, BEGINNING, BEGINNING_BYTE, buffer_serial_live
+    use buffer_mod, only: resolve_buffer, buffer_bytes, BEGINNING, BEGINNING_BYTE
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use marker_mod, only: character_to_byte
     use buffer_mod, only: barf_if_buffer_read_only, buffers, current, transient_mark_mode, deactivate_mark_variable, &
                           inhibit_read_only, auto_fill_procedure, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
@@ -153,8 +154,6 @@ module simple_mod
     public :: blink_matching_open, blink_matching_check_mismatch, blink_parenthesis_open_parenthesis_line_string, &
               blink_parenthesis_post_self_insert_function, newline_and_indent, initialize_simple_electric, &
               backward_delete_character_untabify, blink_matching_check_procedure, reindent_then_newline_and_indent
-    public :: blink_matching_check_function_set_local, current_blink_matching_check_function, &
-              is_blink_matching_check_function_local, blink_matching_check_function_clear_local
 
     !> True means show the equivalent keybinding when M-x has one.
     !> (A length of time is not supported, nor the timer: the suggestion
@@ -1412,25 +1411,33 @@ module simple_mod
             integer(int64), intent(in) :: start, end
         end function blink_matching_check_procedure
     end interface
+    !> One buffer's own `blink_matching_check_function'.
+    type :: blink_matching_check_entry_type
+        procedure(blink_matching_check_procedure), pointer, nopass :: procedure => null()
+    end type blink_matching_check_entry_type
+
+    !> The type of `blink_matching_check_function': the global value `procedure' (set with
+    !> `=>'; null for none) and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: blink_matching_check_setting_type
+        procedure(blink_matching_check_procedure), pointer, nopass :: procedure => null()
+        type(blink_matching_check_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_blink_matching_check_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_blink_matching_check_current
+        procedure :: append_local_entry => append_blink_matching_check_entry
+        procedure :: clear_local_entry => clear_blink_matching_check_entry
+    end type blink_matching_check_setting_type
 
     !> Function to check parentheses mismatches.
     !> The function takes two arguments (START and END) where START is the
     !> position just before the opening token and END is the position right after.
     !> START can be 0, if it was not found.
     !> The function should return true if the two tokens do not match.
-    !> Port of simple.el blink-matching-check-function (the default
-    !> value; `blink_matching_check_function_set_local' gives a buffer
-    !> its own).
-    procedure(blink_matching_check_procedure), pointer, public :: blink_matching_check_function => null()
-
-    ! A buffer's own `blink_matching_check_function' (FN null is nil).
-    type :: check_entry_type
-        integer(int64) :: serial = 0
-        procedure(blink_matching_check_procedure), pointer, nopass :: fn => null()
-    end type check_entry_type
-
-    ! Buffers' own values of `blink_matching_check_function'.
-    type(check_entry_type), allocatable :: check_locals(:)
+    !> Port of simple.el blink-matching-check-function (`%procedure' is
+    !> the global value; `%set_local' gives a buffer its own).
+    type(blink_matching_check_setting_type), public :: blink_matching_check_function
 
     !> Function called, if set, whenever a close parenthesis is inserted.
     !> More precisely, a char with closeparen syntax is self-inserted.
@@ -1642,72 +1649,53 @@ module simple_mod
 
 contains
 
-    ! The index in `check_locals' of the current buffer's entry, 0 if none.
-    ! Not a port.
-    integer function check_local_index() result(i)
-        i = 0
-        if (current == 0 .or. .not. allocated(check_locals)) return
-        i = findloc(check_locals%serial, buffers(current)%serial, dim=1)
-    end function check_local_index
+    !> Give the current buffer its own `blink_matching_check_function', LOCAL_PROCEDURE (null
+    !> when absent).  Not a port.
+    subroutine set_blink_matching_check_local(self, local_procedure)
+        class(blink_matching_check_setting_type), intent(inout) :: self
+        procedure(blink_matching_check_procedure), optional :: local_procedure
+        integer :: k
 
-    !> Give the current buffer its own `blink_matching_check_function'
-    !> FN (set_local); absent clears it.  Not a port.
-    subroutine blink_matching_check_function_set_local(fn)
-        procedure(blink_matching_check_procedure), optional :: fn
-        type(check_entry_type) :: entry
-        integer :: i
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_blink_matching_check_local
 
-        if (current == 0) return
-        if (.not. allocated(check_locals)) allocate (check_locals(0))
-        i = check_local_index()
-
-        if (i == 0) then
-            do i = 1, size(check_locals)
-                if (.not. buffer_serial_live(check_locals(i)%serial)) exit
-            end do
-
-            if (i > size(check_locals)) check_locals = [check_locals, entry]
-            check_locals(i)%serial = buffers(current)%serial
-        end if
-
-        if (present(fn)) then
-            check_locals(i)%fn => fn
-        else
-            check_locals(i)%fn => null()
-        end if
-    end subroutine blink_matching_check_function_set_local
-
-    !> The value of `blink_matching_check_function' in the current buffer
-    !> (null when unset).  Not a port.
-    function current_blink_matching_check_function() result(fn)
-        procedure(blink_matching_check_procedure), pointer :: fn
-        integer :: i
-
-        i = check_local_index()
-
-        if (i > 0) then
-            fn => check_locals(i)%fn
-        else
-            fn => blink_matching_check_function
-        end if
-    end function current_blink_matching_check_function
-
-    !> Whether the current buffer has its own `blink_matching_check_function'.
+    !> The current buffer's `blink_matching_check_function': its own value, else the global one.
     !> Not a port.
-    logical function is_blink_matching_check_function_local()
-        is_blink_matching_check_function_local = check_local_index() > 0
-    end function is_blink_matching_check_function_local
+    function get_blink_matching_check_current(self) result(current_procedure)
+        class(blink_matching_check_setting_type), intent(in) :: self
+        procedure(blink_matching_check_procedure), pointer :: current_procedure
+        integer :: k
 
-    !> Make the current buffer use the default `blink_matching_check_function'
-    !> (also what `clear_all_local_variables' does to it).  Not a port.
-    subroutine blink_matching_check_function_clear_local()
-        integer :: i
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_blink_matching_check_current
 
-        i = check_local_index()
-        if (i == 0) return
-        check_locals(i)%serial = 0
-        check_locals(i)%fn => null()
-    end subroutine blink_matching_check_function_clear_local
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_blink_matching_check_entry(self)
+        class(blink_matching_check_setting_type), intent(inout) :: self
+        type(blink_matching_check_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_blink_matching_check_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_blink_matching_check_entry(self, k)
+        class(blink_matching_check_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_blink_matching_check_entry
+
+    ! kill-all-local-variables: forget the current buffer's own
+    ! `blink_matching_check_function'.  Not a port.
+    subroutine clear_simple_locals()
+        call blink_matching_check_function%clear_local()
+    end subroutine clear_simple_locals
 
     ! Not a port.
     integer(int64) function numeric_prefix_argument()
@@ -3154,7 +3142,7 @@ contains
         call defvar_false("clipboard_history")
         deactivate_mark_function => deactivate_mark_command_loop
         call forward_setting(normal_auto_fill_function)
-        call append_locals_clearer(blink_matching_check_function_clear_local)
+        call append_locals_clearer(clear_simple_locals)
         ! (<up> and <down> run previous/next-line-or-history-element
         ! upstream, which in a one-line minibuffer are these.)
         commands%execute_extended_command%execute => execute_execute_extended_command

@@ -60,7 +60,8 @@ M-r,
 M-s r,
 M-s SPC,
 the `lazy-highlight` face (for Occur's current line),
-the `incremental_search` face (for Ispell's highlighting)
+the `incremental_search` face (for Ispell's highlighting),
+`isearch-search-fun-function`, `isearch-wrap-function`, `isearch-push-state-function`, `isearch-filter-predicate` and `isearch-message-function` as buffer-local procedure settings (`%procedure`, `%set_local`, `%get_current`, `%clear_local`)
 
 ## Deferred
 

@@ -62,7 +62,8 @@ module skeleton_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, QUIT_CODE, GENERIC_ERROR_CODE, VOID_FUNCTION_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type
-    use buffer_mod, only: buffers, current, current_buffer, buffer_serial_live, barf_if_buffer_read_only, transient_mark_mode
+    use buffer_mod, only: buffers, current, current_buffer, barf_if_buffer_read_only, transient_mark_mode
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
     use execute_interactively_mod, only: prefix_argument_type, current_prefix_argument, prefix_numeric_value, PREFIX_NONE, &
@@ -93,9 +94,7 @@ module skeleton_mod
     public :: skeleton_text, skeleton_literal, skeleton_delete, skeleton_prompt, skeleton_interactor, skeleton_for_each, &
               skeleton_action, skeleton_value, skeleton_insert, skeleton_read, skeleton_proxy_new, skeleton_variants_proxy_new, &
               skeleton_command, skeleton_variants_command, skeleton_pair_insert_maybe, initialize_skeleton, &
-              skeleton_transformation_function_set_local, skeleton_filter_function_set_local, &
-              skeleton_pair_filter_function_set_local, skeleton_further_elements_set_local, skeleton_pairs_set_local, &
-              skeleton_default_pairs_set_local, skeleton_next_element, skeleton_read_string, skeleton_transform
+              skeleton_next_element, skeleton_read_string, skeleton_transform
     public :: skeleton_action_procedure, skeleton_value_procedure, skeleton_read_procedure, &
               skeleton_transformation_procedure, skeleton_filter_procedure, skeleton_test_procedure, skeleton_bind_procedure
 
@@ -286,35 +285,38 @@ module skeleton_mod
         end subroutine skeleton_filter_procedure
     end interface
 
-    ! A buffer's own values.
-    type :: local_type
-        integer(int64) :: serial = 0
-        logical :: has_transformation = .false.
-        procedure(skeleton_transformation_procedure), pointer, nopass :: transformation => null()
-        logical :: has_filter = .false.
-        procedure(skeleton_filter_procedure), pointer, nopass :: filter => null()
-        logical :: has_pair_filter = .false.
-        procedure(skeleton_test_procedure), pointer, nopass :: pair_filter => null()
-        logical :: has_further = .false.
-        procedure(skeleton_bind_procedure), pointer, nopass :: further => null()
-        logical :: has_pairs = .false.
-        type(skeleton_pairs_type) :: pairs
-        logical :: has_default_pairs = .false.
-        type(skeleton_pairs_type) :: default_pairs
-    end type local_type
-
-    type(local_type), allocatable :: locals(:)
-
     !> The values of string, input, help, v1 and v2 while a skeleton is
     !> inserted (see `skeleton_state_type').
     type(skeleton_state_type), public :: skeleton_state
 
+    !> One buffer's own value of
+    !> `skeleton_transformation_function'.
+    type :: skeleton_transformation_entry_type
+        procedure(skeleton_transformation_procedure), pointer, nopass :: procedure => null()
+    end type skeleton_transformation_entry_type
+
+    !> The type of
+    !> `skeleton_transformation_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: skeleton_transformation_setting_type
+        procedure(skeleton_transformation_procedure), pointer, nopass :: procedure => null()
+        type(skeleton_transformation_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_skeleton_transformation_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_skeleton_transformation_current
+        procedure :: append_local_entry => append_skeleton_transformation_entry
+        procedure :: clear_local_entry => clear_skeleton_transformation_entry
+    end type skeleton_transformation_setting_type
+
     !> If not null, function applied to literal strings before they are inserted.
     !> It should take strings and return them transformed.
     !> Typical examples might be upcase or capitalize.  Port of skeleton.el
-    !> skeleton-transformation-function (null for identity; buffer-local
-    !> values with `skeleton_transformation_function_set_local').
-    procedure(skeleton_transformation_procedure), pointer, public :: skeleton_transformation_function => null()
+    !> skeleton-transformation-function (`%procedure' is the global
+    !> value, null for identity; `%set_local' gives a buffer its own).
+    type(skeleton_transformation_setting_type), public :: skeleton_transformation_function
 
     !> Controls wrapping behavior of commands created by `skeleton_command'.
     !> When the region is visible (due to `transient_mark_mode' or marking a region
@@ -334,10 +336,33 @@ module skeleton_mod
     !> when calling this.  Port of skeleton.el skeleton-end-hook.
     type(hook_type), target, public :: skeleton_end_hook = hook_type(name="skeleton_end_hook")
 
+    !> One buffer's own value of
+    !> `skeleton_filter_function'.
+    type :: skeleton_filter_entry_type
+        procedure(skeleton_filter_procedure), pointer, nopass :: procedure => null()
+    end type skeleton_filter_entry_type
+
+    !> The type of
+    !> `skeleton_filter_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: skeleton_filter_setting_type
+        procedure(skeleton_filter_procedure), pointer, nopass :: procedure => null()
+        type(skeleton_filter_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_skeleton_filter_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_skeleton_filter_current
+        procedure :: append_local_entry => append_skeleton_filter_entry
+        procedure :: clear_local_entry => clear_skeleton_filter_entry
+    end type skeleton_filter_setting_type
+
     !> Function for transforming a skeleton proxy's aliases' variable value.
-    !> Port of skeleton.el skeleton-filter-function (null for identity;
-    !> buffer-local values with `skeleton_filter_function_set_local').
-    procedure(skeleton_filter_procedure), pointer, public :: skeleton_filter_function => null()
+    !> Port of skeleton.el skeleton-filter-function (`%procedure' is the
+    !> global value, null for identity; `%set_local' gives a buffer its
+    !> own).
+    type(skeleton_filter_setting_type), public :: skeleton_filter_function
 
     !> When true untabifies when deleting backwards with `skeleton_delete'.
     !> Port of skeleton.el skeleton-untabify.
@@ -350,13 +375,35 @@ module skeleton_mod
     type(logical_setting_type), target, public :: skeleton_newline_indent_rigidly = &
                                                   logical_setting_type(name="skeleton_newline_indent_rigidly", value=.false.)
 
+    !> One buffer's own value of
+    !> `skeleton_further_elements'.
+    type :: skeleton_further_elements_entry_type
+        procedure(skeleton_bind_procedure), pointer, nopass :: procedure => null()
+    end type skeleton_further_elements_entry_type
+
+    !> The type of
+    !> `skeleton_further_elements':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: skeleton_further_elements_setting_type
+        procedure(skeleton_bind_procedure), pointer, nopass :: procedure => null()
+        type(skeleton_further_elements_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_skeleton_further_elements_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_skeleton_further_elements_current
+        procedure :: append_local_entry => append_skeleton_further_elements_entry
+        procedure :: clear_local_entry => clear_skeleton_further_elements_entry
+    end type skeleton_further_elements_setting_type
+
     !> A buffer-local procedure giving mode specific variables their values
     !> while interpreting a skeleton (upstream's varlist of mode specific
     !> skeleton elements; elements of a mode's own are `skeleton_value'
     !> elements of its module).  Port of skeleton.el
-    !> skeleton-further-elements (null for none; buffer-local values with
-    !> `skeleton_further_elements_set_local').
-    procedure(skeleton_bind_procedure), pointer, public :: skeleton_further_elements => null()
+    !> skeleton-further-elements (`%procedure' is the global value,
+    !> null for none; `%set_local' gives a buffer its own).
+    type(skeleton_further_elements_setting_type), public :: skeleton_further_elements
 
     !> Replacement for %s in prompts of recursive subskeletons.  Port of
     !> skeleton.el skeleton-subprompt.
@@ -379,27 +426,66 @@ module skeleton_mod
     type(logical_setting_type), target, public :: skeleton_pair_on_word = &
                                                   logical_setting_type(name="skeleton_pair_on_word", value=.false.)
 
+    !> One buffer's own value of
+    !> `skeleton_pair_filter_function'.
+    type :: skeleton_pair_filter_entry_type
+        procedure(skeleton_test_procedure), pointer, nopass :: procedure => null()
+    end type skeleton_pair_filter_entry_type
+
+    !> The type of
+    !> `skeleton_pair_filter_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: skeleton_pair_filter_setting_type
+        procedure(skeleton_test_procedure), pointer, nopass :: procedure => null()
+        type(skeleton_pair_filter_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_skeleton_pair_filter_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_skeleton_pair_filter_current
+        procedure :: append_local_entry => append_skeleton_pair_filter_entry
+        procedure :: clear_local_entry => clear_skeleton_pair_filter_entry
+    end type skeleton_pair_filter_setting_type
+
     !> Attempt paired insertion if this function returns false, before inserting.
     !> This allows for context-sensitive checking whether pairing is appropriate.
-    !> Port of skeleton.el skeleton-pair-filter-function (null for a function
-    !> returning false; buffer-local values with
-    !> `skeleton_pair_filter_function_set_local').
-    procedure(skeleton_test_procedure), pointer, public :: skeleton_pair_filter_function => null()
+    !> Port of skeleton.el skeleton-pair-filter-function (`%procedure' is
+    !> the global value, null for a function returning false; `%set_local'
+    !> gives a buffer its own).
+    type(skeleton_pair_filter_setting_type), public :: skeleton_pair_filter_function
+
+    !> The type of `skeleton_pairs' and `skeleton_default_pairs': the
+    !> global value `pairs' (`%append' adds to it) and the buffers' own
+    !> values (`set_local').
+    type, extends(buffer_local_setting_type), public :: skeleton_pairs_setting_type
+        type(skeleton_pairs_type) :: pairs
+        type(skeleton_pairs_type), allocatable :: locals(:)
+    contains
+        !> Append the partner of CHAR, ELEMENTS, to the global value.
+        procedure :: append => append_skeleton_pairs_setting
+        !> Give the current buffer its own value PAIRS.
+        procedure :: set_local => set_skeleton_pairs_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_skeleton_pairs_current
+        procedure :: append_local_entry => append_skeleton_pairs_entry
+        procedure :: clear_local_entry => clear_skeleton_pairs_entry
+    end type skeleton_pairs_setting_type
 
     !> An override list of pairing partners matched against `last_command_event'.
     !> Each element, made with `%append(char, elements)', is passed to
     !> `skeleton_insert' with no interactor.  Variable string does nothing.
     !>
     !> Elements might be (` ` _ "''"), (( SPC _ " )") or ({ \n > _ \n } >).
-    !> Port of skeleton.el skeleton-pair-alist (buffer-local values with
-    !> `skeleton_pairs_set_local').
-    type(skeleton_pairs_type), public :: skeleton_pairs
+    !> Port of skeleton.el skeleton-pair-alist (`%append' adds to the global
+    !> value; `%set_local' gives a buffer its own).
+    type(skeleton_pairs_setting_type), public :: skeleton_pairs
 
     !> The default pairing partners: (), [], {}, <>, «» and (grave accent,
     !> apostrophe), each closing character standing for itself.  Port of
-    !> skeleton.el skeleton-pair-default-alist (buffer-local values with
-    !> `skeleton_default_pairs_set_local').
-    type(skeleton_pairs_type), public :: skeleton_default_pairs
+    !> skeleton.el skeleton-pair-default-alist (`%append' adds to the global
+    !> value; `%set_local' gives a buffer its own).
+    type(skeleton_pairs_setting_type), public :: skeleton_default_pairs
 
     ! The dynamic variables of skeleton-insert: skeleton-regions (markers,
     ! the next one at `region_next'), skeleton-point, skeleton-modified.
@@ -590,143 +676,261 @@ contains
     ! Buffer-local values
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals' (0 if none).
-    ! Not a port.
-    integer function local_index() result(k)
-        k = 0
-        if (current == 0) return
-        if (.not. allocated(locals)) return
-        k = findloc(locals%serial, buffers(current)%serial, dim=1)
-    end function local_index
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `skeleton_transformation_function'.  Not a port.
+    subroutine set_skeleton_transformation_local(self, local_procedure)
+        class(skeleton_transformation_setting_type), intent(inout) :: self
+        procedure(skeleton_transformation_procedure), optional :: local_procedure
+        integer :: k
 
-    ! Find or make the current buffer's entry in `locals', reusing the
-    ! entry of a closed buffer; K is its index (0 without a current
-    ! buffer).  Not a port.
-    subroutine make_local_entry(k)
-        integer, intent(out) :: k
-        type(local_type) :: entry
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_skeleton_transformation_local
 
-        k = local_index()
-        if (k > 0 .or. current == 0) return
-        if (.not. allocated(locals)) allocate (locals(0))
+    !> The current buffer's value of
+    !> `skeleton_transformation_function':
+    !> its own, else the global one.  Not a port.
+    function get_skeleton_transformation_current(self) result(current_procedure)
+        class(skeleton_transformation_setting_type), intent(in) :: self
+        procedure(skeleton_transformation_procedure), pointer :: current_procedure
+        integer :: k
 
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) exit
-        end do
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_skeleton_transformation_current
 
-        if (k > size(locals)) locals = [locals, entry]
-        locals(k) = local_type(serial=buffers(current)%serial)
-    end subroutine make_local_entry
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_skeleton_transformation_entry(self)
+        class(skeleton_transformation_setting_type), intent(inout) :: self
+        type(skeleton_transformation_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_skeleton_transformation_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_skeleton_transformation_entry(self, k)
+        class(skeleton_transformation_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_skeleton_transformation_entry
+
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `skeleton_filter_function'.  Not a port.
+    subroutine set_skeleton_filter_local(self, local_procedure)
+        class(skeleton_filter_setting_type), intent(inout) :: self
+        procedure(skeleton_filter_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_skeleton_filter_local
+
+    !> The current buffer's value of
+    !> `skeleton_filter_function':
+    !> its own, else the global one.  Not a port.
+    function get_skeleton_filter_current(self) result(current_procedure)
+        class(skeleton_filter_setting_type), intent(in) :: self
+        procedure(skeleton_filter_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_skeleton_filter_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_skeleton_filter_entry(self)
+        class(skeleton_filter_setting_type), intent(inout) :: self
+        type(skeleton_filter_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_skeleton_filter_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_skeleton_filter_entry(self, k)
+        class(skeleton_filter_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_skeleton_filter_entry
+
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `skeleton_pair_filter_function'.  Not a port.
+    subroutine set_skeleton_pair_filter_local(self, local_procedure)
+        class(skeleton_pair_filter_setting_type), intent(inout) :: self
+        procedure(skeleton_test_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_skeleton_pair_filter_local
+
+    !> The current buffer's value of
+    !> `skeleton_pair_filter_function':
+    !> its own, else the global one.  Not a port.
+    function get_skeleton_pair_filter_current(self) result(current_procedure)
+        class(skeleton_pair_filter_setting_type), intent(in) :: self
+        procedure(skeleton_test_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_skeleton_pair_filter_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_skeleton_pair_filter_entry(self)
+        class(skeleton_pair_filter_setting_type), intent(inout) :: self
+        type(skeleton_pair_filter_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_skeleton_pair_filter_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_skeleton_pair_filter_entry(self, k)
+        class(skeleton_pair_filter_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_skeleton_pair_filter_entry
+
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `skeleton_further_elements'.  Not a port.
+    subroutine set_skeleton_further_elements_local(self, local_procedure)
+        class(skeleton_further_elements_setting_type), intent(inout) :: self
+        procedure(skeleton_bind_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_skeleton_further_elements_local
+
+    !> The current buffer's value of
+    !> `skeleton_further_elements':
+    !> its own, else the global one.  Not a port.
+    function get_skeleton_further_elements_current(self) result(current_procedure)
+        class(skeleton_further_elements_setting_type), intent(in) :: self
+        procedure(skeleton_bind_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_skeleton_further_elements_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_skeleton_further_elements_entry(self)
+        class(skeleton_further_elements_setting_type), intent(inout) :: self
+        type(skeleton_further_elements_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_skeleton_further_elements_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_skeleton_further_elements_entry(self, k)
+        class(skeleton_further_elements_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_skeleton_further_elements_entry
+
+    !> Append the partner of CHAR, ELEMENTS (a skeleton without
+    !> interactor, CHAR itself usually first), to the global value.
+    !> Not a port.
+    subroutine append_skeleton_pairs_setting(self, char, elements)
+        class(skeleton_pairs_setting_type), intent(inout) :: self
+        integer, intent(in) :: char
+        type(skeleton_element_type), intent(in) :: elements(:)
+
+        call self%pairs%append(char, elements)
+    end subroutine append_skeleton_pairs_setting
+
+    !> Give the current buffer its own value PAIRS.  Not a port.
+    subroutine set_skeleton_pairs_local(self, pairs)
+        class(skeleton_pairs_setting_type), intent(inout) :: self
+        type(skeleton_pairs_type), intent(in) :: pairs
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k > 0) self%locals(k) = pairs
+    end subroutine set_skeleton_pairs_local
+
+    !> The current buffer's value: its own, else the global one.
+    !> Not a port.
+    function get_skeleton_pairs_current(self) result(pairs)
+        class(skeleton_pairs_setting_type), intent(in) :: self
+        type(skeleton_pairs_type) :: pairs
+        integer :: k
+
+        k = self%get_local_index()
+
+        if (k > 0) then
+            pairs = self%locals(k)
+        else
+            pairs = self%pairs
+        end if
+    end function get_skeleton_pairs_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_skeleton_pairs_entry(self)
+        class(skeleton_pairs_setting_type), intent(inout) :: self
+        type(skeleton_pairs_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_skeleton_pairs_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_skeleton_pairs_entry(self, k)
+        class(skeleton_pairs_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        if (allocated(self%locals(k)%entries)) deallocate (self%locals(k)%entries)
+    end subroutine clear_skeleton_pairs_entry
 
     ! Forget the current buffer's values.  Not a port.
     subroutine clear_skeleton_locals()
-        integer :: k
-
-        k = local_index()
-        if (k > 0) locals(k) = local_type()
+        call skeleton_transformation_function%clear_local()
+        call skeleton_filter_function%clear_local()
+        call skeleton_pair_filter_function%clear_local()
+        call skeleton_further_elements%clear_local()
+        call skeleton_pairs%clear_local()
+        call skeleton_default_pairs%clear_local()
     end subroutine clear_skeleton_locals
-
-    !> Give the current buffer its own `skeleton_transformation_function',
-    !> FN (absent for identity).  Not a port.
-    subroutine skeleton_transformation_function_set_local(fn)
-        procedure(skeleton_transformation_procedure), optional :: fn
-        integer :: k
-
-        call make_local_entry(k)
-        locals(k)%has_transformation = .true.
-        locals(k)%transformation => null()
-        if (present(fn)) locals(k)%transformation => fn
-    end subroutine skeleton_transformation_function_set_local
-
-    !> Give the current buffer its own `skeleton_filter_function', FN.
-    !> Not a port.
-    subroutine skeleton_filter_function_set_local(fn)
-        procedure(skeleton_filter_procedure) :: fn
-        integer :: k
-
-        call make_local_entry(k)
-        locals(k)%has_filter = .true.
-        locals(k)%filter => fn
-    end subroutine skeleton_filter_function_set_local
-
-    !> Give the current buffer its own `skeleton_pair_filter_function', FN.
-    !> Not a port.
-    subroutine skeleton_pair_filter_function_set_local(fn)
-        procedure(skeleton_test_procedure) :: fn
-        integer :: k
-
-        call make_local_entry(k)
-        locals(k)%has_pair_filter = .true.
-        locals(k)%pair_filter => fn
-    end subroutine skeleton_pair_filter_function_set_local
-
-    !> Give the current buffer its own `skeleton_further_elements', FN.
-    !> Not a port.
-    subroutine skeleton_further_elements_set_local(fn)
-        procedure(skeleton_bind_procedure) :: fn
-        integer :: k
-
-        call make_local_entry(k)
-        locals(k)%has_further = .true.
-        locals(k)%further => fn
-    end subroutine skeleton_further_elements_set_local
-
-    !> Give the current buffer its own `skeleton_pairs', PAIRS.  Not a port.
-    subroutine skeleton_pairs_set_local(pairs)
-        type(skeleton_pairs_type), intent(in) :: pairs
-        integer :: k
-
-        call make_local_entry(k)
-        locals(k)%has_pairs = .true.
-        locals(k)%pairs = pairs
-    end subroutine skeleton_pairs_set_local
-
-    !> Give the current buffer its own `skeleton_default_pairs', PAIRS.
-    !> Not a port.
-    subroutine skeleton_default_pairs_set_local(pairs)
-        type(skeleton_pairs_type), intent(in) :: pairs
-        integer :: k
-
-        call make_local_entry(k)
-        locals(k)%has_default_pairs = .true.
-        locals(k)%default_pairs = pairs
-    end subroutine skeleton_default_pairs_set_local
 
     !> STRING through the current buffer's `skeleton_transformation_function'.
     !> Not a port.
     function skeleton_transform(string) result(out)
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: out
-        procedure(skeleton_transformation_procedure), pointer :: fn
-        integer :: k
+        procedure(skeleton_transformation_procedure), pointer :: transformation
 
-        fn => skeleton_transformation_function
-        k = local_index()
+        transformation => skeleton_transformation_function%get_current()
 
-        if (k > 0) then
-            if (locals(k)%has_transformation) fn => locals(k)%transformation
-        end if
-
-        if (associated(fn)) then
-            call fn(string, out)
+        if (associated(transformation)) then
+            call transformation(string, out)
         else
             out = string
         end if
     end function skeleton_transform
-
-    ! The current buffer's further elements procedure (null for none).
-    ! Not a port.
-    subroutine current_further(fn)
-        procedure(skeleton_bind_procedure), pointer, intent(out) :: fn
-        integer :: k
-
-        fn => skeleton_further_elements
-        k = local_index()
-
-        if (k > 0) then
-            if (locals(k)%has_further) fn => locals(k)%further
-        end if
-    end subroutine current_further
 
     ! ------------------------------------------------------------------
     ! Inserting
@@ -839,7 +1043,7 @@ contains
             allocate (skeleton_state%v1(0), skeleton_state%v2(0))
             if (allocated(skeleton_positions)) deallocate (skeleton_positions)
             allocate (skeleton_positions(0))
-            call current_further(further)
+            further => skeleton_further_elements%get_current()
             if (associated(further)) call further(.true.)
             call internal_list(skeleton, 1, size(skeleton), .false., again, status, string)
             if (associated(further)) call further(.false.)
@@ -1567,14 +1771,8 @@ contains
         type(prefix_argument_type), intent(in), optional :: argument
         procedure(skeleton_filter_procedure), pointer :: fn
         type(skeleton_element_type), allocatable :: skeleton(:)
-        integer :: k
 
-        fn => skeleton_filter_function
-        k = local_index()
-
-        if (k > 0) then
-            if (locals(k)%has_filter) fn => locals(k)%filter
-        end if
+        fn => skeleton_filter_function%get_current()
 
         if (associated(fn)) then
             call fn(variants, skeleton, status)
@@ -1675,7 +1873,6 @@ contains
         character(len=:), allocatable :: text
         integer(int64) :: c
         logical :: mark, saved, inhibit, found
-        integer :: k
 
         c = -1
         if (vtag(last_command_event) == V_INTEGER) c = last_command_event%a(1)%i
@@ -1688,30 +1885,9 @@ contains
 
         mark = .false.
         if (skeleton_autowrap%value) mark = transient_mark_mode%value .and. buffers(current)%mark_active
-        k = local_index()
         found = .false.
-
-        if (k > 0) then
-            if (locals(k)%has_pairs) then
-                call find_pair(locals(k)%pairs)
-            else
-                call find_pair(skeleton_pairs)
-            end if
-        else
-            call find_pair(skeleton_pairs)
-        end if
-
-        if (.not. found) then
-            if (k > 0) then
-                if (locals(k)%has_default_pairs) then
-                    call find_pair(locals(k)%default_pairs)
-                else
-                    call find_pair(skeleton_default_pairs)
-                end if
-            else
-                call find_pair(skeleton_default_pairs)
-            end if
-        end if
+        call find_pair(skeleton_pairs%get_current())
+        if (.not. found) call find_pair(skeleton_default_pairs%get_current())
 
         if (.not. found) then
             call character_to_string(int(c, int32), text, status)
@@ -1726,12 +1902,7 @@ contains
             if (.not. skeleton_pair_on_word%value) inhibit = looking_at("\w", status)
 
             if (.not. inhibit) then
-                filter => skeleton_pair_filter_function
-
-                if (k > 0) then
-                    if (locals(k)%has_pair_filter) filter => locals(k)%pair_filter
-                end if
-
+                filter => skeleton_pair_filter_function%get_current()
                 if (associated(filter)) inhibit = filter()
             end if
         end if
@@ -1801,7 +1972,7 @@ contains
         call forward_setting(skeleton_newline_indent_rigidly)
         call forward_setting(skeleton_pair)
         call forward_setting(skeleton_pair_on_word)
-        if (allocated(skeleton_default_pairs%entries)) deallocate (skeleton_default_pairs%entries)
+        if (allocated(skeleton_default_pairs%pairs%entries)) deallocate (skeleton_default_pairs%pairs%entries)
 
         do k = 1, size(opening)
             call character_to_string(opening(k), opening_text, st)
@@ -1811,7 +1982,7 @@ contains
             if (k < size(opening)) call skeleton_default_pairs%append(closing(k), [skeleton_text(closing_text)])
         end do
 
-        if (.not. allocated(skeleton_pairs%entries)) allocate (skeleton_pairs%entries(0))
+        if (.not. allocated(skeleton_pairs%pairs%entries)) allocate (skeleton_pairs%pairs%entries(0))
         if (.not. allocated(skeleton_positions)) allocate (skeleton_positions(0))
         call append_locals_clearer(clear_skeleton_locals)
     end subroutine initialize_skeleton

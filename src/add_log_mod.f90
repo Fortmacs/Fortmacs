@@ -44,7 +44,7 @@ module add_log_mod
     use commands_mod, only: commands
     use execute_interactively_mod, only: current_prefix_argument, PREFIX_NONE
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_file_buffer, &
-                          is_buffer_live, buffer_serial_live
+                          is_buffer_live
     use file_input_output_mod, only: expand_file_name, file_name_directory, file_name_nondirectory, is_file_directory, &
                                      file_exists, file_name_as_directory, directory_file_name
     use files_mod, only: find_file_noselect, abbreviate_file_name, file_chase_links, find_file, file_relative_name, &
@@ -81,13 +81,14 @@ module add_log_mod
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     use string_type_mod, only: string_type, append_string
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
     public :: find_change_log, change_log_name, add_log_find_changelog_buffer, add_log_pseudo_changelog_buffer_name, &
               add_log_iso8601_time_string, change_log_mode, initialize_add_log
     public :: change_log_entry_type, change_log_read_subprograms, insert_change_log_entries
-    public :: add_log_name_procedure, add_log_file_name_procedure, add_log_name_function_type
+    public :: add_log_name_procedure, add_log_file_name_procedure
     public :: add_change_log_entry, add_change_log_entry_other_window, add_log_current_subprogram, add_log_file_name, &
               read_change_log_name, is_add_log_changelog_buffer, search_change_log_version_number, &
               search_change_log_file_name, find_change_log_entry_file, change_log_font_lock_keywords
@@ -120,26 +121,27 @@ module add_log_mod
         end subroutine add_log_file_name_procedure
     end interface
 
-    !> One buffer's own function.
+    !> One buffer's own value of
+    !> `add_log_current_subprogram_function' or `add_log_buffer_file_name_function'.
     type :: add_log_name_entry_type
-        integer(int64) :: serial = 0
-        procedure(add_log_name_procedure), pointer, nopass :: fn => null()
+        procedure(add_log_name_procedure), pointer, nopass :: procedure => null()
     end type add_log_name_entry_type
 
-    !> The type of `add_log_current_subprogram_function' and
-    !> `add_log_buffer_file_name_function': a default `value' (assign with
-    !> `=>'; null when unset) and buffers' own (`set_local').
-    type :: add_log_name_function_type
-        procedure(add_log_name_procedure), pointer, nopass :: value => null()
-        type(add_log_name_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `add_log_current_subprogram_function' or `add_log_buffer_file_name_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: add_log_name_setting_type
+        procedure(add_log_name_procedure), pointer, nopass :: procedure => null()
+        type(add_log_name_entry_type), allocatable :: locals(:)
     contains
-        !> Make FN the current buffer's function (set_local).
-        procedure :: set_local => name_function_set_local
-        !> The current buffer's function (null when unset).
-        procedure :: current => current_name_function
-        !> Make the current buffer use the default again.
-        procedure :: clear_local => name_function_clear_local
-    end type add_log_name_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_add_log_name_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_add_log_name_current
+        procedure :: append_local_entry => append_add_log_name_entry
+        procedure :: clear_local_entry => clear_add_log_name_entry
+    end type add_log_name_setting_type
 
     !> Regexp matching the file names of unindented ChangeLog entries.
     !> Port of add-log.el change-log-unindented-file-names-re.
@@ -182,13 +184,13 @@ module add_log_mod
     !> point is outside a function.  Port of add-log.el
     !> add-log-current-defun-function (modes give buffers their own with
     !> `set_local').
-    type(add_log_name_function_type), public :: add_log_current_subprogram_function
+    type(add_log_name_setting_type), public :: add_log_current_subprogram_function
 
     !> If not null, function to call to identify the full filename of a buffer.
     !> This function is called with no argument.  The default is to
     !> use `buffer_file_name'.  Port of add-log.el
     !> add-log-buffer-file-name-function (null for the default).
-    type(add_log_name_function_type), public :: add_log_buffer_file_name_function
+    type(add_log_name_setting_type), public :: add_log_buffer_file_name_function
 
     !> If not null, function to call to identify the filename for a ChangeLog entry.
     !> This function is called with one argument, the value of variable
@@ -315,60 +317,49 @@ contains
     ! Buffer-local functions
     ! ------------------------------------------------------------------
 
-    ! Not a port.
-    subroutine name_function_set_local(self, fn)
-        class(add_log_name_function_type), intent(inout) :: self
-        procedure(add_log_name_procedure) :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `add_log_current_subprogram_function' or `add_log_buffer_file_name_function'.  Not a port.
+    subroutine set_add_log_name_local(self, local_procedure)
+        class(add_log_name_setting_type), intent(inout) :: self
+        procedure(add_log_name_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_add_log_name_local
+
+    !> The current buffer's value of
+    !> `add_log_current_subprogram_function' or `add_log_buffer_file_name_function':
+    !> its own, else the global one.  Not a port.
+    function get_add_log_name_current(self) result(current_procedure)
+        class(add_log_name_setting_type), intent(in) :: self
+        procedure(add_log_name_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_add_log_name_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_add_log_name_entry(self)
+        class(add_log_name_setting_type), intent(inout) :: self
         type(add_log_name_entry_type) :: entry
-        integer :: i
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_add_log_name_entry
 
-        if (i == 0) then
-            ! Reuse the entry of a dead buffer.
-            do i = 1, size(self%entries)
-                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
-            end do
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_add_log_name_entry(self, k)
+        class(add_log_name_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-            if (i > size(self%entries)) self%entries = [self%entries, entry]
-            self%entries(i)%serial = buffers(current)%serial
-        end if
-
-        self%entries(i)%fn => fn
-    end subroutine name_function_set_local
-
-    ! Not a port.
-    function current_name_function(self) result(fn)
-        class(add_log_name_function_type), intent(in) :: self
-        procedure(add_log_name_procedure), pointer :: fn
-        integer :: i
-
-        fn => self%value
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-
-        if (i > 0) then
-            if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-        end if
-    end function current_name_function
-
-    ! Not a port.
-    subroutine name_function_clear_local(self)
-        class(add_log_name_function_type), intent(inout) :: self
-        integer :: i
-
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-
-        if (i > 0) then
-            self%entries(i)%serial = 0
-            self%entries(i)%fn => null()
-        end if
-    end subroutine name_function_clear_local
+        self%locals(k)%procedure => null()
+    end subroutine clear_add_log_name_entry
 
     ! Forget the current buffer's own add-log functions
     ! (kill-all-local-variables).  Not a port.
@@ -949,7 +940,7 @@ contains
         if (present(put_new_entry_on_new_line)) on_new_line = put_new_entry_on_new_line
         call add_log_current_subprogram(subprogram)
         if (change_log_version_info_enabled) call search_change_log_version_number(version)
-        fn => add_log_buffer_file_name_function%current()
+        fn => add_log_buffer_file_name_function%get_current()
 
         if (associated(fn)) then
             call fn(buffer_file_name)
@@ -1315,7 +1306,7 @@ contains
         logical :: saved_case, matched
 
         original_point = point()
-        fn => add_log_current_subprogram_function%current()
+        fn => add_log_current_subprogram_function%get_current()
 
         if (associated(fn)) then
             call fn(name)

@@ -136,7 +136,7 @@ contains
             if (.not. is_window_live(leaves(k))) cycle
             call set_buffer(windows(leaves(k)%index)%buffer, st)
 
-            if (window_configuration_change_hook%local_p()) then
+            if (window_configuration_change_hook%is_local()) then
                 old_selected = selected_frame%selected_window
                 call select_window(leaves(k), st, norecord=.true.)
                 call window_configuration_change_hook%execute_local(status)
