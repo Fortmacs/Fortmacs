@@ -2,7 +2,7 @@
 ! Ported from GNU Emacs 31.1 lisp/mail/smtpmail.el, with the parts of
 ! lisp/net/network-stream.el it uses (in part: the plain connection),
 ! lisp/net/rfc2104.el (rfc2104-hash) and lisp/gnus/message.el (in part:
-! message-make-message-id).
+! message-narrow-to-headers).
 !
 ! Copyright (C) 1995-1996, 2001-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -78,6 +78,7 @@ module smtpmail_mod
     use startup_mod, only: mail_host_address, user_mail_address_value
     use mail_utilities_mod, only: get_mail_field, strip_mail_quoted_names
     use mail_extract_mod, only: extract_mail_address_components, mail_address_components_type
+    use message_mod, only: make_message_id
     use namelist_mod, only: namelist_group_type, namelist_item_type, namelist_text, read_namelist, NAMELIST_STRING, &
                             NAMELIST_INTEGER, NAMELIST_LOGICAL
     use send_mail_mod, only: mail_interactive, mail_specify_envelope_from, get_mail_envelope_from, mail_from_style, &
@@ -224,10 +225,6 @@ module smtpmail_mod
     !> The number of messages queued in this session (smtpmail.el
     !> smtpmail-queue-counter).
     integer :: smtpmail_queue_counter = 0
-
-    !> The counter of Message-Id fields, randomly started (message.el
-    !> message-unique-id-char; negative until first used).
-    integer(int64) :: message_unique_id_character = -1
 
     !> The suffix of the file that keeps the variables of a queued
     !> message beside it (upstream's ".el": the Lisp file is a namelist
@@ -2606,162 +2603,6 @@ contains
         call goto_character(marked_position(original_point))
         call destroy_marker(original_point, st)
     end subroutine delete_bcc
-
-    ! A unique Message-Id field value for the message in the current
-    ! buffer.  Port of message.el:message-make-message-id (the reply
-    ! headers of Message mode are not ported: only Supersedes adds "_-_").
-    subroutine make_message_id(id, status)
-        character(len=:), allocatable, intent(out) :: id
-        type(status_type), intent(out) :: status
-        character(len=:), allocatable :: supersedes, unique, fqdn
-
-        call make_message_unique_id(unique)
-        id = "<"//unique
-        call get_mail_field("supersedes", supersedes, status, all=.true.)
-        if (.not. status%ok()) return
-
-        if (allocated(supersedes)) then
-            if (index(supersedes, "_-_@") > 0) id = id//"_-_"
-        end if
-
-        call make_message_fqdn(fqdn, status)
-        if (.not. status%ok()) return
-        id = id//"@"//fqdn//">"
-    end subroutine make_message_id
-
-    ! The unique part of a Message-Id: the user id, the time and a counter
-    ! in base 36, and ".fsf".  Port of message.el:message-unique-id.
-    subroutine make_message_unique_id(id)
-        use time_functions_mod, only: current_time, time_type
-        character(len=:), allocatable, intent(out) :: id
-        integer(int64), parameter :: BASE = 25*25
-        integer(int64) :: tm
-        type(time_type) :: now
-
-        ! 2^16 * 25 just fits into 4 digits i base 36.
-        if (message_unique_id_character < 0) then
-            message_unique_id_character = random(BASE)
-        else
-            message_unique_id_character = mod(message_unique_id_character + 1, BASE)
-        end if
-
-        now = current_time()
-        tm = now%seconds
-        ! Append a given name, because while the generated ID is unique
-        ! to this newsreader, other newsreaders might otherwise generate
-        ! the same ID via another algorithm.
-        id = number_base36(int(user_uid(), int64), -1)//number_base36(ishft(tm, -16) + &
-                                                                      ishft(mod(message_unique_id_character, 25_int64), 16), 4)// &
-             number_base36(iand(tm, int(z'ffff', int64)) + ishft(message_unique_id_character/25, 16), 4)//".fsf"
-    end subroutine make_message_unique_id
-
-    ! NUMBER in LEN digits of base 36 (as many as needed when LEN is
-    ! negative), digit 0 being "z".  Port of message.el:message-number-base36.
-    recursive function number_base36(number, length) result(digits)
-        integer(int64), intent(in) :: number
-        integer, intent(in) :: length
-        character(len=:), allocatable :: digits
-        character(len=*), parameter :: ALPHABET = "zyxwvutsrqponmlkjihgfedcba9876543210"
-        logical :: stop_here
-        integer(int64) :: k
-
-        if (length < 0) then
-            stop_here = number <= 0
-        else
-            stop_here = length == 0
-        end if
-
-        if (stop_here) then
-            digits = ""
-        else
-            k = mod(number, 36_int64) + 1
-            digits = number_base36(number/36, length - 1)//ALPHABET(k:k)
-        end if
-    end function number_base36
-
-    ! The user's fully qualified domain name: `system_name' when it has a
-    ! dot, else `mail_host_address', else the domain of `user_mail_address',
-    ! else the system name with ".mail-host-address-is-not-set".  Port of
-    ! message.el:message-make-fqdn (`message_user_fqdn' comes with
-    ! message.el).
-    subroutine make_message_fqdn(fqdn, status)
-        character(len=*), parameter :: BOGUS_SYSTEM_NAMES = "\`localhost\.\|\.local\'"
-        character(len=:), allocatable, intent(out) :: fqdn
-        type(status_type), intent(out) :: status
-        type(mail_address_components_type), allocatable :: components(:)
-        character(len=:), allocatable :: sysname, user_mail, user_domain
-        logical :: saved_fold
-        type(status_type) :: st
-        integer :: at
-
-        status = status_type()
-        sysname = system_name()
-        user_mail = user_mail_address_value()
-        user_domain = ""
-
-        ! message-user-mail-address: the address of `user_mail_address'.
-        if (allocated(user_mail)) then
-            if (string_match("@.*\.", user_mail, st, inhibit_modify=.true.) == 0) deallocate (user_mail)
-        end if
-
-        if (allocated(user_mail)) then
-            if (index(user_mail, " ") > 0) then
-                call extract_mail_address_components(user_mail, components, status)
-                if (.not. status%ok()) return
-                deallocate (user_mail)
-
-                if (size(components) > 0) then
-                    if (allocated(components(1)%address)) user_mail = components(1)%address
-                end if
-            end if
-        end if
-
-        if (allocated(user_mail)) then
-            at = index(user_mail, "@")
-            if (at > 0) user_domain = user_mail(at + 1:)
-        end if
-
-        saved_fold = case_fold_search%value
-        case_fold_search%value = .true.
-
-        ! A system name without any dots is unlikely to be a good fully
-        ! qualified domain name.
-        if (index(sysname, ".") > 0 .and. .not. is_bogus(sysname)) then
-            ! `system_name' returned the right result.
-            fqdn = sysname
-        else if (is_bogus_unset(mail_host_address)) then
-            ! Try `user_mail_address' as a backup.
-            if (len(user_domain) > 0 .and. .not. is_bogus(user_domain)) then
-                fqdn = user_domain
-            else
-                ! Default to this bogus thing.
-                fqdn = sysname//".mail-host-address-is-not-set"
-            end if
-        else
-            ! Try `mail_host_address'.
-            fqdn = mail_host_address
-        end if
-
-        case_fold_search%value = saved_fold
-
-    contains
-
-        ! True if NAME matches the bogus system names.  Not a port.
-        logical function is_bogus(name)
-            character(len=*), intent(in) :: name
-            type(status_type) :: bst
-
-            is_bogus = string_match(BOGUS_SYSTEM_NAMES, name, bst, inhibit_modify=.true.) > 0
-        end function is_bogus
-
-        ! True if NAME is unset or bogus.  Not a port.
-        logical function is_bogus_unset(name)
-            character(len=:), allocatable, intent(in) :: name
-
-            is_bogus_unset = .true.
-            if (allocated(name)) is_bogus_unset = is_bogus(name)
-        end function is_bogus_unset
-    end subroutine make_message_fqdn
 
     ! ------------------------------------------------------------------
     ! Initialization

@@ -134,10 +134,8 @@ module simple_mod
     !> variable using `define_mail_user_agent'.
     !>
     !> See also `read_mail_command' concerning reading mail.  Port of
-    !> simple.el mail-user-agent (a pointer to the agent; its default,
-    !> `message_user_agent', comes with message.el, so until then it is
-    !> null and the configuration sets `mail_user_agent =>
-    !> sendmail_user_agent').
+    !> simple.el mail-user-agent (a pointer to the agent; message_mod's
+    !> `initialize_message' points it at its default, `message_user_agent').
     type(mail_user_agent_type), pointer, public :: mail_user_agent => null()
     public :: asynchronous_shell_command, shell_command_sentinel
     public :: set_next_error_function, has_next_error_function, is_next_error_buffer, next_error_find_buffer, &

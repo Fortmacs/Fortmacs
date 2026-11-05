@@ -1,7 +1,7 @@
 # smtpmail_mod
 
 - Module: smtpmail_mod (+ system_socket_mod in src/sys)
-- Upstream: mail/smtpmail.el (+ network-stream.el `open-network-stream` and `network-stream-open-starttls` without TLS, `network-stream-get-response`; rfc2104.el `rfc2104-hash` with MD5; message.el `message-make-message-id`, `message-unique-id`, `message-number-base36`, `message-make-fqdn`, `message-user-mail-address`, `message-narrow-to-headers`; process.c's blocking connect, `send_process` and the default sentinel's messages for this connection)
+- Upstream: mail/smtpmail.el (+ network-stream.el `open-network-stream` and `network-stream-open-starttls` without TLS, `network-stream-get-response`; rfc2104.el `rfc2104-hash` with MD5; message.el `message-narrow-to-headers` (the Message-ID comes from message_mod's `make_message_id`); process.c's blocking connect, `send_process` and the default sentinel's messages for this connection)
 - State: partial
 
 ## Ported
@@ -39,7 +39,6 @@ TLS and STARTTLS (no C libraries: GnuTLS is not bound; the connection stays unen
 the sources of credentials (auth-source.el: `auth-source-search`, the authinfo and netrc files, `:smtp-auth`, saving new credentials, `auth-source-forget+`): without them nothing is found, and when credentials are needed the user name and password are asked for as the netrc source's creation does;
 expanding mail aliases (mailalias.el) and RFC 2047 encoding of the header (`mail-encode-header`);
 saving the server and port found by `smtpmail-query-smtp-server` into init.f90 (`customize-save-variable`);
-`message-user-fqdn` and the reply headers of `message-make-message-id` (message.el, step 52c);
 C-g while waiting for the server;
 the obsolete `smtpmail-intersection` and the unused `smtpmail-find-credentials` and `smtpmail-cred-*` accessors
 
