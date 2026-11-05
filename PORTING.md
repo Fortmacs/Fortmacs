@@ -2075,9 +2075,9 @@ Features that upstream Emacs 31.1 does not have, each an owner decision
 
 - **Completion after `%` in f90 buffers** (owner, 2026-11-05): the minor
   mode `fortran_completion_mode`, off by default (M-x, or turned on in
-  init.f90 through `f90_mode_hook`); while on,
-  it offers through completion-at-point (M-TAB, C-M-i, completion-preview,
-  icomplete). After `object%` it offers the components and type-bound
+  init.f90 through `f90_mode_hook`). While it is on, completion-at-point
+  (M-TAB, C-M-i, completion-preview, icomplete) offers, after `object%`,
+  the components and type-bound
   procedures of the object's derived type, known from a table the build
   generates for the config API's types and from the derived types parsed in
   the buffer and the project's .f90 files (cached, re-read when a file
