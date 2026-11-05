@@ -107,6 +107,7 @@
 | [kmacro_mod](../status/kmacro_mod.md) | kmacro.el | partial |
 | [log_edit_mod](../status/log_edit_mod.md) | vc/log-edit.el | partial |
 | [log_view_mod](../status/log_view_mod.md) | vc/log-view.el | partial |
+| [mail_extract_mod](../status/mail_extract_mod.md) | mail/mail-extr.el | done |
 | [mail_utils_mod](../status/mail_utils_mod.md) | mail/mail-utils.el | partial |
 | [mailabbrev_mod](../status/mailabbrev_mod.md) | mail/mailabbrev.el | partial |
 | [make_mode_mod](../status/make_mode_mod.md) | progmodes/make-mode.el | partial |
@@ -162,6 +163,7 @@
 | [skeleton_mod](../status/skeleton_mod.md) | skeleton.el | done |
 | [smerge_mode_mod](../status/smerge_mode_mod.md) | vc/smerge-mode.el | partial |
 | [smie_mod](../status/smie_mod.md) | emacs-lisp/smie.el | partial |
+| [smtpmail_mod](../status/smtpmail_mod.md) | mail/smtpmail.el (+ network-stream.el `open-network-stream` and `network-stream-open-starttls` without TLS, `network-stream-get-response`; rfc2104.el `rfc2104-hash` with MD5; message.el `message-make-message-id`, `message-unique-id`, `message-number-base36`, `message-make-fqdn`, `message-user-mail-address`, `message-narrow-to-headers`; process.c's blocking connect, `send_process` and the default sentinel's messages for this connection) | partial |
 | [string_type_mod](../status/string_type_mod.md) | — (fortran-lang stdlib's `string_type`) | done |
 | [subr_mod](../status/subr_mod.md) | subr.el | partial |
 | [syntax_mod](../status/syntax_mod.md) | syntax.c, syntax.h (+ category.c `is_word_boundary`, subr.el `make-syntax-table`) | done |
