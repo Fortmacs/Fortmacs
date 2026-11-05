@@ -281,7 +281,10 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        speller's list run, M-TAB auto-correction) — in progress (the
        correction menu of C-c $ waits for TTY menus).
    44. Terminal frames: several frames on one terminal (C-x 5), and
-       `tab-bar-mode`/`tab-line-mode`.
+       `tab-bar-mode`/`tab-line-mode`: 44a terminal frames and C-x 5 —
+       done; 44b tab-bar.el on terminal frames (the tab bar line, tabs,
+       C-x t, tab history; see docs/status/tab_bar_mod.md) — done; 44c
+       tab-line.el.
    45. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
        `window-divider` and side windows.
    46. Calendar and diary, in parts: 46a the calendar core (calendar.el

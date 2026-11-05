@@ -122,6 +122,7 @@ module bindings_mod
     use rect_mod, only: init_rect
     use savehist_mod, only: init_savehist
     use winner_mod, only: init_winner
+    use tab_bar_mod, only: init_tab_bar
     use windmove_mod, only: init_windmove
     use saveplace_mod, only: init_saveplace
     use recentf_mod, only: init_recentf
@@ -165,6 +166,8 @@ module bindings_mod
     !> subr.el:ctl-x-5-map (keymap for frame commands, `C-x 5').
     type(handle_type), public :: global_map, esc_map, ctl_x_map, &
                                  function_key_map, ctl_x_x_map, ctl_x_r_map, ctl_x_4_map, ctl_x_5_map
+    !> subr.el:tab-prefix-map (keymap for tab-bar related commands, `C-x t').
+    type(handle_type), public :: tab_prefix_map
     !> bindings.el:goto-map, keymap for navigation commands (M-g).
     type(handle_type), public :: goto_map
     !> bindings.el:narrow-map, keymap for narrowing commands (C-x n).
@@ -320,6 +323,7 @@ contains
         if (is_keymap_live(ctl_x_x_map)) call destroy_keymap(ctl_x_x_map, status)
         if (is_keymap_live(ctl_x_4_map)) call destroy_keymap(ctl_x_4_map, status)
         if (is_keymap_live(ctl_x_5_map)) call destroy_keymap(ctl_x_5_map, status)
+        if (is_keymap_live(tab_prefix_map)) call destroy_keymap(tab_prefix_map, status)
         if (is_keymap_live(ctl_x_r_map)) call destroy_keymap(ctl_x_r_map, status)
         if (is_keymap_live(function_key_map)) call destroy_keymap(function_key_map, status)
         if (is_keymap_live(goto_map)) call destroy_keymap(goto_map, status)
@@ -760,6 +764,12 @@ contains
         call bind(ctl_x_5_map, "C-f", "find_file_other_frame")
         call bind(ctl_x_5_map, "r", "find_file_read_only_other_frame")
         call bind(ctl_x_5_map, "C-o", "display_buffer_other_frame")
+        ! subr.el: (define-key ctl-x-map "t" tab-prefix-map), then tab-bar.el's
+        ! keys.
+        call make_sparse_keymap(tab_prefix_map)
+        key(1) = value_type(int(iachar("t"), int64))
+        call define_key(ctl_x_map, key, make_keymap_ref(tab_prefix_map), status)
+        call init_tab_bar(tab_prefix_map)
         call init_vc_hooks(ctl_x_map)
         ! (After vc_hooks: `grep_find_ignored_directories' defaults to
         ! `vc_directory_exclusions'.)
@@ -779,7 +789,7 @@ contains
         call init_vc_annotate()
         call init_view()
         call init_follow()
-        call init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map)
+        call init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map, tab_prefix_map)
         ! Mail: mail-utils.el, sendmail.el, mailabbrev.el and simple.el's
         ! compose-mail, with their keys from bindings.el.
         call init_mail_utils()
