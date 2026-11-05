@@ -100,7 +100,8 @@ the field commands (`message-goto-to`, `-from`, `-subject`, `-cc`, `-bcc`, `-fcc
 `message-rename-buffer`,
 `message-beginning-of-line` and `message-beginning-of-header`,
 `message-widen-and-recenter`,
-the user options of these (`message-user-path` but its value t);
+`message-syntax-checks` (`message_syntax_checks`, one logical component per check, `%sender` .false. by default),
+the user options of these (`message-user-path` but its value t; the defaults upstream copies from the mail settings when message.el is loaded, such as `message-yank-prefix`, `message-signature-file` and `message-default-mail-headers`, are copied the first time Message mode or `mail_message` is used, after the init file, unless the configuration set them; `message_interactive` and `message_signature` start at the defaults of the mail settings they copy);
 mail-utils.el's `mail-re-regexps` and `mail--wrap-re-regexp` (mail_utilities_mod), for `message-subject-re-regexp`
 
 ## Deferred
@@ -131,4 +132,4 @@ the obsolete `message-send-mail-function` (the function), `message-delete-line`,
 
 ## Tests
 
-test_message_mod (ports message-tests.el's message-all-recipients and message-replace-header; own: C-x m (`compose-mail`) with the default agent, sending through test/sendmail-resources/fake-sendmail with the generated headers and the MIME fields, Fcc to an mbox file, the X-Message-SMTP-Method header, a non-ASCII body refused, the From styles, Message-ID with Supersedes and reply headers, In-Reply-To and References, sorting the headers, folding a long field, `position_message_on_field`)
+test_message_mod (ports message-tests.el's message-all-recipients and message-replace-header; own: C-x m (`compose-mail`) with the default agent, sending through test/sendmail-resources/fake-sendmail with the generated headers and the MIME fields, Fcc to an mbox file, the X-Message-SMTP-Method header, a non-ASCII body refused, the syntax checks, the From styles, Message-ID with Supersedes and reply headers, In-Reply-To and References, sorting the headers, folding a long field, `position_message_on_field`)

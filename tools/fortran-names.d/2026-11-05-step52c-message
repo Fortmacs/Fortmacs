@@ -46,7 +46,7 @@ keep	message_send_hook
 keep	message_send_mail_hook
 keep	message_send_mail_function
 keep	message_send_rename_function
-keep	use_message_send_mail_function
+keep	send_message_mail_with_send_mail_function
 keep	send_message_mail
 keep	send_message_mail_with_sendmail
 keep	send_message_mail_by_default
@@ -60,3 +60,6 @@ keep	cmd_mark_message_insert_file
 # message-strip-subject-re strips the "Re:" prefix: _re is not an
 # abbreviation of regexp here (decided by rule: names read as words).
 name	message_strip_subject_re	strip_message_subject_re_prefix
+# message-use-send-mail-function is named for what it does, verb first
+# (#257, R6-17; coordinator 2026-11-05).
+name	message_use_send_mail_function	send_message_mail_with_send_mail_function

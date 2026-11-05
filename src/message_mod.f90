@@ -103,7 +103,7 @@ module message_mod
 
     public :: message_mode, mail_message, mail_message_other_window, set_up_message, send_message_and_exit, send_message, &
               close_message_buffer, message_dont_send, bury_message, send_message_mail, send_message_mail_with_sendmail, &
-              use_message_send_mail_function, send_message_mail_by_default, get_message_default_send_mail_function, &
+              send_message_mail_with_send_mail_function, send_message_mail_by_default, get_message_default_send_mail_function, &
               generate_message_headers, make_message_id, make_message_unique_id, make_message_date, &
               make_message_fully_qualified_domain_name, make_message_domain, make_message_from, make_message_address, &
               make_message_sender, get_message_user_mail_address, get_message_sendmail_envelope_from, &
@@ -328,14 +328,31 @@ module message_mod
     !> message.el message-from-style.
     integer, public :: message_from_style = MESSAGE_FROM_STYLE_ANGLES
 
-    !> The syntax checks that are not performed on outgoing posts (an
-    !> array of their names: "sender", "invisible-text",
-    !> "illegible-text", "bogus-recipient", "continuation-headers", ...).
+    !> The syntax checks of outgoing messages, one logical per check:
+    !> .true. performs it, .false. does not
+    !> (`message_syntax_checks%signature = .false.').  Not a port: the
+    !> keys of upstream's message-syntax-checks.
+    type, public :: message_syntax_checks_type
+        logical :: approved = .true., bogus_recipient = .true., continuation_headers = .true., &
+                   control_characters = .true., empty = .true., existing_newsgroups = .true., from = .true., &
+                   illegible_text = .true., invisible_text = .true., long_header_lines = .true., long_lines = .true., &
+                   message_id = .true., multiple_headers = .true., new_text = .true., newsgroups = .true., &
+                   quoting_style = .true., repeated_newsgroups = .true., reply_to = .true., sender = .true., &
+                   sendsys = .true., shoot = .true., shorten_followup_to = .true., signature = .true., size = .true., &
+                   subject = .true., subject_control_message = .true., valid_newsgroups = .true.
+    end type message_syntax_checks_type
+
+    !> Controls what syntax checks should not be performed on outgoing
+    !> posts.  To disable checking of long signatures, for instance, set
+    !> `message_syntax_checks%signature = .false.'.
     !>
     !> Don't touch this variable unless you really know what you're doing.
-    !> Port of message.el message-syntax-checks (the names of the checks
-    !> upstream's alist disables).
-    character(len=:), allocatable, public :: message_syntax_checks(:)
+    !>
+    !> See the Message manual for the meanings of the valid syntax check
+    !> types.  Port of message.el message-syntax-checks (its default
+    !> disables the sender check; the value
+    !> dont-check-for-anything-just-trust-me is Deferred).
+    type(message_syntax_checks_type), public :: message_syntax_checks = message_syntax_checks_type(sender=.false.)
 
     !> Headers to be generated or prompted for when sending a message.
     !> Also see `message_required_mail_headers'.  Port of message.el
@@ -934,19 +951,34 @@ contains
         end if
     end function trimmed
 
-    ! Whether the check named NAME is disabled in `message_syntax_checks'.
-    ! Port of message.el:message-check-element.
-    logical function is_message_check_disabled(name) result(disabled)
-        character(len=*), intent(in) :: name
-        integer :: k
+    ! Whether the check of the header HEADER (a lower-case header name,
+    ! as upstream interns it) is disabled in `message_syntax_checks'; a
+    ! header that names no check is checked.  Port of
+    ! message.el:message-check-element (for a header name).
+    logical function is_header_check_disabled(header) result(disabled)
+        character(len=*), intent(in) :: header
 
-        disabled = .false.
-        if (.not. allocated(message_syntax_checks)) return
-
-        do k = 1, size(message_syntax_checks)
-            if (trim(message_syntax_checks(k)) == name) disabled = .true.
-        end do
-    end function is_message_check_disabled
+        associate (c => message_syntax_checks)
+            select case (header)
+            case ("approved")
+                disabled = .not. c%approved
+            case ("from")
+                disabled = .not. c%from
+            case ("message-id")
+                disabled = .not. c%message_id
+            case ("newsgroups")
+                disabled = .not. c%newsgroups
+            case ("reply-to")
+                disabled = .not. c%reply_to
+            case ("sender")
+                disabled = .not. c%sender
+            case ("subject")
+                disabled = .not. c%subject
+            case default
+                disabled = .false.
+            end select
+        end associate
+    end function is_header_check_disabled
 
     ! ------------------------------------------------------------------
     ! The headers
@@ -2184,7 +2216,7 @@ contains
                 else
                     call header_value(header, value, known, status)
 
-                    if (status%ok() .and. .not. known .and. .not. is_message_check_disabled(downcase_string(header))) then
+                    if (status%ok() .and. .not. known .and. .not. is_header_check_disabled(downcase_string(header))) then
                         ! We couldn't generate a value for this header,
                         ! so we just ask the user.
                         call read_from_minibuffer("Empty header for "//header//"; enter value: ", value, status)
@@ -2257,7 +2289,7 @@ contains
             if (.not. status%ok()) exit body
             secure_sender = make_message_sender()
 
-            if (allocated(from) .and. .not. is_message_check_disabled("sender")) then
+            if (allocated(from) .and. message_syntax_checks%sender) then
                 call extract_mail_address_components(from, components, status)
                 if (.not. status%ok()) exit body
                 from_address = ""
@@ -2768,7 +2800,7 @@ contains
         integer(int64) :: moved
 
         status = status_type()
-        if (is_message_check_disabled("continuation-headers")) return
+        if (.not. message_syntax_checks%continuation_headers) return
         call goto_char(point_min())
 
         do while (search_regexp("^[^ "//TAB//LF//"][^ "//TAB//LF//":]*[ "//TAB//LF//"]", status))
@@ -4060,14 +4092,14 @@ contains
         call sort_message_headers(status)
         if (.not. status%ok()) return
 
-        if (.not. is_message_check_disabled("illegible-text")) then
+        if (message_syntax_checks%illegible_text) then
             call save_excursion_begin(excursion)
             call check_illegible_text(status)
             call save_excursion_end(excursion)
             if (.not. status%ok()) return
         end if
 
-        if (.not. is_message_check_disabled("bogus-recipient")) then
+        if (message_syntax_checks%bogus_recipient) then
             ! Warn before sending a mail to an invalid address.
             call save_excursion_begin(excursion)
             call check_message_recipients(status)
@@ -4560,17 +4592,17 @@ contains
 
     !> Run `message_send_mail_hook', then send the current buffer with
     !> `send_mail_function'.  Port of message.el:message-use-send-mail-function.
-    recursive subroutine use_message_send_mail_function(status)
+    recursive subroutine send_message_mail_with_send_mail_function(status)
         type(status_type), intent(out) :: status
 
         call message_send_mail_hook%execute(status)
         if (status%ok()) call send_mail_function(status)
-    end subroutine use_message_send_mail_function
+    end subroutine send_message_mail_with_send_mail_function
 
     !> The procedure that sends a message as `send_mail_function' says:
     !> `query_sendmail_once' asks, `send_mail_with_sendmail' becomes
     !> `send_message_mail_with_sendmail', and any other is called by
-    !> `use_message_send_mail_function'.  Port of
+    !> `send_message_mail_with_send_mail_function'.  Port of
     !> message.el:message-default-send-mail-function (feedmail.el is not
     !> ported).
     subroutine get_message_default_send_mail_function(chosen)
@@ -4581,7 +4613,7 @@ contains
         else if (associated(send_mail_function, send_mail_with_sendmail)) then
             chosen => send_message_mail_with_sendmail
         else
-            chosen => use_message_send_mail_function
+            chosen => send_message_mail_with_send_mail_function
         end if
     end subroutine get_message_default_send_mail_function
 
@@ -6066,7 +6098,6 @@ contains
 
         if (.not. allocated(message_signature_separator)) message_signature_separator = "^-- $"
         if (.not. allocated(message_elide_ellipsis)) message_elide_ellipsis = LF//"[...]"//LF//LF
-        if (.not. allocated(message_syntax_checks)) message_syntax_checks = [character(len=6) :: "sender"]
 
         if (.not. allocated(message_deletable_headers)) then
             message_deletable_headers = [character(len=10) :: "Message-ID", "Date", "Lines"]

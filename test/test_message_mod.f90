@@ -50,7 +50,7 @@ module test_message_mod
                            message_required_mail_headers, message_header_type, set_message_reply_headers, &
                            message_reply_headers_type, fold_message_field, encode_message_body, &
                            MESSAGE_FROM_STYLE_ANGLES, MESSAGE_FROM_STYLE_PARENS, MESSAGE_FROM_STYLE_SIMPLE, &
-                           position_message_on_field, narrow_to_message_headers
+                           position_message_on_field, narrow_to_message_headers, message_syntax_checks
     implicit none(type, external)
     private
 
@@ -73,6 +73,7 @@ contains
                     new_unittest("message-send-fcc", test_fcc), &
                     new_unittest("message-send-method-header", test_method_header), &
                     new_unittest("message-send-non-ascii-body", test_non_ascii), &
+                    new_unittest("message-syntax-checks", test_syntax_checks), &
                     new_unittest("message-make-from", test_make_from), &
                     new_unittest("message-make-message-id", test_message_id), &
                     new_unittest("message-reply-headers", test_reply_headers), &
@@ -352,6 +353,30 @@ contains
         if (.not. allocated(error)) call check(error, len(file_text(output)) == 0, file_text(output))
         call leave(output)
     end subroutine test_non_ascii
+
+    subroutine test_syntax_checks(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        character(len=:), allocatable :: output, text
+
+        call set_up(output)
+        ! Upstream's default disables the sender check only.
+        call check(error,.not. message_syntax_checks%sender .and. message_syntax_checks%illegible_text, "defaults")
+        if (allocated(error)) return
+        call compose(error)
+        if (allocated(error)) return
+        call goto_char(point_max())
+        call insert("a"//achar(1)//"b"//LF, st)
+        ! The illegible-text check would ask; disabled, the text is sent.
+        message_syntax_checks%illegible_text = .false.
+        call send_message(st)
+        message_syntax_checks%illegible_text = .true.
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        text = file_text(output)
+        call check(error, index(text, "a"//achar(1)//"b") > 0 .and. index(text, "Sender:") == 0, text)
+        call leave(output)
+    end subroutine test_syntax_checks
 
     ! ------------------------------------------------------------------
     ! The headers
