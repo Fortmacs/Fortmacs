@@ -94,6 +94,8 @@ contains
             if (buffers(bi)%name(1:1) == " ") buffer = other_buffer(buffer)
         end if
 
+        ! The `tab-bar-lines' parameter of `default_frame'.
+        f%tab_bar_lines = default_frame%tab_bar_lines
         call adjust_frame_glyphs(f)
         call init_frame_windows(f)
         call set_window_buffer_internal(f%root_window, buffer, .false.)
@@ -357,6 +359,7 @@ contains
             end if
         end if
 
+        call delete_frame_tabs(f)
         call delete_frame_windows(f)
         call unregister_frame(f)
 
@@ -366,6 +369,51 @@ contains
             deallocate (f)
         end if
     end subroutine delete_frame
+
+    !> Free the tabs and the tab history of frame F, which is being
+    !> deleted.  Not a port (upstream relies on GC).
+    subroutine delete_frame_tabs(f)
+        type(frame_type), intent(inout) :: f
+        integer :: k
+
+        if (allocated(f%parameters%tabs)) then
+            do k = 1, size(f%parameters%tabs)
+                call f%parameters%tabs(k)%destroy()
+            end do
+
+            deallocate (f%parameters%tabs)
+        end if
+
+        if (allocated(f%tab_history_back)) then
+            do k = 1, size(f%tab_history_back)
+                call f%tab_history_back(k)%destroy()
+            end do
+
+            deallocate (f%tab_history_back)
+        end if
+
+        if (allocated(f%tab_history_forward)) then
+            do k = 1, size(f%tab_history_forward)
+                call f%tab_history_forward(k)%destroy()
+            end do
+
+            deallocate (f%tab_history_forward)
+        end if
+    end subroutine delete_frame_tabs
+
+    module subroutine set_tab_bar_lines(f, n)
+        type(frame_type), intent(inout) :: f
+        integer, intent(in) :: n
+
+        ! (A window-system frame's tab bar, frame.c:gui_set_tab_bar_lines, waits
+        ! for the GUI.)
+        if (associated(f%rif)) return
+        if (n == f%tab_bar_lines) return
+        f%tab_bar_lines = n
+        ! change_frame_size with the frame's size: the windows move below
+        ! the tab bar, or up.
+        call adjust_frame_size(f, frame_cols(f)*f%column_width, frame_lines(f)*f%line_height)
+    end subroutine set_tab_bar_lines
 
     !> Delete the windows of frame F, which is being deleted: each window
     !> stops showing its buffer.  Port of frame.c:delete_frame (its

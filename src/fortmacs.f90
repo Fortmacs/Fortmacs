@@ -577,6 +577,17 @@ module fortmacs
                              ibuffer_derived_mode, ibuffer_name, ibuffer_process, ibuffer_starred_name, ibuffer_filename, &
                              ibuffer_basename, ibuffer_file_extension, ibuffer_directory, ibuffer_size_gt, ibuffer_size_lt, &
                              ibuffer_modified, ibuffer_visiting_file, ibuffer_content, ibuffer_test
+    use calendar_mod, only: calendar_date_type, calendar_mark_holidays_flag, calendar_view_holidays_initially_flag, &
+                            calendar_christian_all_holidays_flag, calendar_islamic_all_holidays_flag, &
+                            calendar_absolute_from_gregorian, calendar_gregorian_from_absolute, &
+                            calendar_dayname_on_or_before
+    use holidays_mod, only: holidays_type, holiday_entry_type, holiday_type, holiday_expression_procedure, &
+                            holidays_procedure, HOLIDAY_STRING_MAX, HOLIDAY_ENTRY_FIXED, HOLIDAY_ENTRY_FLOAT, &
+                            HOLIDAY_ENTRY_EXPRESSION, HOLIDAY_ENTRY_EASTER_ETC, HOLIDAY_ENTRY_ADVENT, &
+                            HOLIDAY_ENTRY_GREEK_ORTHODOX_EASTER, HOLIDAY_ENTRY_JULIAN, HOLIDAY_ENTRY_ISLAMIC, &
+                            HOLIDAY_ENTRY_PROCEDURE, holiday_general_holidays, holiday_local_holidays, &
+                            holiday_other_holidays, holiday_christian_holidays, holiday_islamic_holidays, &
+                            calendar_holidays, holidays, list_holidays
     use crm_mod, only: completing_read_multiple, crm_separator, crm_prompt, crm_local_completion_map, &
                        crm_local_must_match_map
     use buff_menu_mod, only: buffer_menu_marker_char, buffer_menu_del_char, buffer_menu_use_header_line, &
@@ -1085,6 +1096,15 @@ module fortmacs
               ibuffer_process, ibuffer_starred_name, ibuffer_filename, ibuffer_basename, ibuffer_file_extension, &
               ibuffer_directory, ibuffer_size_gt, ibuffer_size_lt, ibuffer_modified, ibuffer_visiting_file, &
               ibuffer_content, ibuffer_test
+    public :: calendar_date_type, calendar_mark_holidays_flag, calendar_view_holidays_initially_flag, &
+              calendar_christian_all_holidays_flag, calendar_islamic_all_holidays_flag, calendar_absolute_from_gregorian, &
+              calendar_gregorian_from_absolute, calendar_dayname_on_or_before
+    public :: holidays_type, holiday_entry_type, holiday_type, holiday_expression_procedure, holidays_procedure, &
+              HOLIDAY_STRING_MAX, HOLIDAY_ENTRY_FIXED, HOLIDAY_ENTRY_FLOAT, HOLIDAY_ENTRY_EXPRESSION, &
+              HOLIDAY_ENTRY_EASTER_ETC, HOLIDAY_ENTRY_ADVENT, HOLIDAY_ENTRY_GREEK_ORTHODOX_EASTER, HOLIDAY_ENTRY_JULIAN, &
+              HOLIDAY_ENTRY_ISLAMIC, HOLIDAY_ENTRY_PROCEDURE, holiday_general_holidays, holiday_local_holidays, &
+              holiday_other_holidays, holiday_christian_holidays, holiday_islamic_holidays, calendar_holidays, holidays, &
+              list_holidays
     public :: completing_read_multiple, crm_separator, crm_prompt, crm_local_completion_map, crm_local_must_match_map
     public :: buffer_menu_marker_char, buffer_menu_del_char, buffer_menu_use_header_line, buffer_menu_name_width, &
               buffer_menu_name_width_procedure, buffer_menu_dynamic_name_width, &

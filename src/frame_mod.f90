@@ -51,9 +51,57 @@ module frame_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use window_mod, only: window_type, window_ref, is_window_valid, make_window, windows, window_text_cols, &
                           window_safe_min_height, window_safe_min_width, window_resize_root_window, &
-                          window_resize_check, window_resize_apply, same_handle
+                          window_resize_check, window_resize_apply, same_handle, &
+                          window_configuration_type, destroy_window_configuration
+    use marker_mod, only: destroy_marker
+    use timefns_mod, only: time_type
     implicit none(type, external)
     private
+
+    !> A window configuration kept with the point of its current buffer
+    !> (tab-bar.el's `wc' and `wc-point' entries of a tab or of a tab's
+    !> history).  Free it with its `destroy'.  Not a port.
+    type, public :: tab_window_configuration_type
+        type(window_configuration_type) :: window_configuration
+        !> A marker at point in the buffer that was current (null for
+        !> none).
+        type(handle_type) :: point
+    contains
+        !> Free the configuration and the marker.
+        procedure :: destroy => destroy_tab_window_configuration
+    end type tab_window_configuration_type
+
+    !> A tab of a frame's tab bar (an element of the frame parameter
+    !> `tabs', as tab-bar.el's tab-bar--tab and tab-bar--current-tab-make
+    !> make it): its name, whether the user gave it, its group, when it
+    !> was last current and, for a tab that is not current, the window
+    !> configuration and buffer lists it restores when selected.  Free it
+    !> with its `destroy'.  Not a port (the window state `ws' is Deferred:
+    !> docs/status/tab_bar_mod.md).
+    type, public :: tab_type
+        !> The frame's current tab (`current-tab'; else `tab').
+        logical :: current = .false.
+        character(len=:), allocatable :: name
+        !> The name was given by the user (`explicit-name').
+        logical :: explicit_name = .false.
+        !> The tab's group (`group'); unallocated for none.
+        character(len=:), allocatable :: group
+        !> When the tab stopped being current (`time').
+        type(time_type) :: time
+        !> A tab that is not current: the window configuration with its
+        !> point (`wc', `wc-point'), and the frame's buffer lists then
+        !> (`wc-bl', `wc-bbl').
+        logical :: has_window_configuration = .false.
+        type(tab_window_configuration_type) :: window_configuration
+        type(handle_type), allocatable :: buffers(:), buried_buffers(:)
+        !> The frame's tab history then, while `tab_bar_history_mode' was
+        !> on (`wc-history-back', `wc-history-forward').
+        logical :: has_history = .false.
+        type(tab_window_configuration_type), allocatable :: history_back(:), history_forward(:)
+    contains
+        !> Free the tab's window configurations and markers.
+        procedure :: destroy => destroy_tab
+    end type tab_type
 
     !> The frame parameters ported (frame.h param_alist; frame.c's
     !> frame_parms), as typed components.
@@ -64,6 +112,15 @@ module frame_mod
         !> Width (in pixels) of the dividers on the bottom of windows
         !> (`bottom-divider-width'); 0 for none.
         integer :: bottom_divider_width = 0
+        !> The number of tab bar lines of new frames (`tab-bar-lines' in
+        !> `default_frame'; a frame's own is frame_type's `tab_bar_lines').
+        integer :: tab_bar_lines = 0
+        !> `toggle_frame_tab_bar' set the tab bar lines, which
+        !> `tab_bar_mode' then keeps (`tab-bar-lines-keep-state').
+        logical :: tab_bar_lines_keep_state = .false.
+        !> The frame's tabs (`tabs'); unallocated before the tab bar
+        !> made them.
+        type(tab_type), allocatable :: tabs(:)
     end type frame_parameters_type
 
     !> Default values of frame parameters for frame creation.
@@ -178,6 +235,15 @@ module frame_mod
         !> (frame.h buffer_list and buried_buffer_list; buffer_mod holds
         !> the selected frame's).
         type(handle_type), allocatable :: buffers(:), buried_buffers(:)
+        !> The number of lines of the frame's tab bar, at its top
+        !> (frame.h:tab_bar_lines, the `tab-bar-lines' parameter); set
+        !> with `set_tab_bar_lines'.
+        integer :: tab_bar_lines = 0
+        !> The window configurations of the frame's current tab before the
+        !> latest changes, the newest first, and those gone back over
+        !> (tab-bar.el's tab-bar-history-back and tab-bar-history-forward
+        !> of the frame).
+        type(tab_window_configuration_type), allocatable :: tab_history_back(:), tab_history_forward(:)
     end type frame_type
 
     !> One frame of the registry, made by make_frame and destroyed by
@@ -209,7 +275,7 @@ module frame_mod
     public :: ensure_frame_windows, selected_window, selected_window_ref, frame_selected_window_ref, minibuffer_window_ref
     public :: frame_lines, frame_cols, window_pixel_left, window_pixel_top, window_pixel_width, &
               window_pixel_height, window_body_pixel_width
-    public :: frame_windows_min_size, resize_frame_windows
+    public :: frame_windows_min_size, resize_frame_windows, frame_top_margin, set_tab_bar_lines
     public :: ensure_frames, is_frame_live, get_frame, frame_list, next_frame, previous_frame, find_frame, window_frame, &
               set_term_frame_name, get_next_frame_name, register_frame, unregister_frame
     public :: make_frame, select_frame, select_frame_begin, select_frame_end, delete_frame, delete_other_frames, &
@@ -317,6 +383,15 @@ module frame_mod
             type(status_type), intent(out) :: status
         end subroutine set_frame_name
 
+        !> Give frame F N tab bar lines,
+        !> resizing its windows when the number changes.  Port of
+        !> frame.c:set_tab_bar_lines.
+        module subroutine set_tab_bar_lines(f, n)
+            implicit none(type, external)
+            type(frame_type), intent(inout) :: f
+            integer, intent(in) :: n
+        end subroutine set_tab_bar_lines
+
         !> Register the frame commands (frame_cmds_mod).  Not a port.
         module subroutine init_frame_commands()
             implicit none(type, external)
@@ -324,6 +399,53 @@ module frame_mod
     end interface
 
 contains
+
+    !> Free window configuration SELF and its marker.  Not a port.
+    subroutine destroy_tab_window_configuration(self)
+        class(tab_window_configuration_type), intent(inout) :: self
+        type(status_type) :: status
+
+        call destroy_window_configuration(self%window_configuration)
+        if (self%point%index /= 0) call destroy_marker(self%point, status)
+        self%point = null_handle()
+    end subroutine destroy_tab_window_configuration
+
+    !> Free the window configurations and markers of tab SELF.
+    !> Not a port.
+    subroutine destroy_tab(self)
+        class(tab_type), intent(inout) :: self
+        integer :: k
+
+        if (self%has_window_configuration) call self%window_configuration%destroy()
+        self%has_window_configuration = .false.
+
+        if (allocated(self%history_back)) then
+            do k = 1, size(self%history_back)
+                call self%history_back(k)%destroy()
+            end do
+
+            deallocate (self%history_back)
+        end if
+
+        if (allocated(self%history_forward)) then
+            do k = 1, size(self%history_forward)
+                call self%history_forward(k)%destroy()
+            end do
+
+            deallocate (self%history_forward)
+        end if
+
+        self%has_history = .false.
+    end subroutine destroy_tab
+
+    !> The number of lines at the top of frame F above its windows: its
+    !> tab bar lines (no menu bar or tool bar on a terminal frame).
+    !> Port of frame.h:FRAME_TOP_MARGIN.
+    integer function frame_top_margin(f) result(lines)
+        type(frame_type), intent(in) :: f
+
+        lines = f%tab_bar_lines
+    end function frame_top_margin
 
     !> Return width (in pixels) of vertical window dividers on FRAME.
     !> Port of frame.c:Fright_divider_width (frame.h:FRAME_RIGHT_DIVIDER_WIDTH).
@@ -515,8 +637,8 @@ contains
     !> (`window_resize_root_window'), first respecting `window_min_height'
     !> and `window_min_width', then ignoring them; when neither works the
     !> windows keep their sizes.  Port of window.c:resize_frame_windows
-    !> (no tab line or menu bar: the root window starts at the top; window
-    !> sizes are whole lines and columns, so window.el's
+    !> (the root window starts below the tab bar, FRAME_TOP_MARGIN; no menu
+    !> bar on a terminal frame; window sizes are whole lines and columns, so window.el's
     !> window--pixel-to-total has nothing to round).
     subroutine resize_frame_windows(f, size, horflag)
         type(frame_type), intent(inout) :: f
@@ -553,7 +675,7 @@ contains
         frame_cols = windows(root%index)%total_cols
         if (horflag) frame_cols = new_units
 
-        if (new_pixel_size == old_pixel_size .and. (horflag .or. windows(root%index)%top_line == 0)) then
+        if (new_pixel_size == old_pixel_size .and. (horflag .or. windows(root%index)%top_line == frame_top_margin(f))) then
             ! Nothing to do for the root window.
         else if (.not. is_window_valid(windows(root%index)%child)) then
             ! For a leaf root window just set the size.
@@ -561,11 +683,11 @@ contains
                 windows(root%index)%total_cols = new_units
                 windows(root%index)%divider = .false.
             else
-                windows(root%index)%top_line = 0
+                windows(root%index)%top_line = frame_top_margin(f)
                 windows(root%index)%total_lines = new_units
             end if
         else
-            if (.not. horflag) windows(root%index)%top_line = 0
+            if (.not. horflag) windows(root%index)%top_line = frame_top_margin(f)
             ! Try a "normal" resize first.
             call window_resize_root_window(root, new_units - old_size, horflag, .false.)
 

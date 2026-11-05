@@ -54,7 +54,8 @@ C-n,
 C-p, <down>, <up>,
 `search-map` (M-s; o);
 step 44a: subr.el `ctl-x-5-map` (C-x 5) with frame.el's,
-files.el's and window.el's keys
+files.el's and window.el's keys,
+subr.el's `tab-prefix-map` (C-x t)
 
 ## Deferred
 
