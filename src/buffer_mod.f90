@@ -503,7 +503,7 @@ module buffer_mod
               set_buffer_internal
     public :: get_buffer, get_or_make_buffer, generate_new_buffer_name, get_file_buffer
     public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer, frame_buffer_list, exchange_frame_buffers, &
-              frame_seen_buffers, bury_buffer_internal, frames_discard_buffer
+              frame_seen_buffers, frame_buried_buffers, bury_buffer_internal, frames_discard_buffer
     public :: set_buffer, close_buffer, erase_buffer
     public :: is_buffer_modified, restore_buffer_modified, &
               buffer_modified_tick, buffer_chars_modified_tick
@@ -929,6 +929,18 @@ contains
             allocate (list(0))
         end if
     end function frame_seen_buffers
+
+    !> The buffers buried in the frame (frame.h buried_buffer_list).
+    !> Not a port.
+    function frame_buried_buffers() result(list)
+        type(handle_type), allocatable :: list(:)
+
+        if (allocated(frame_buried)) then
+            list = frame_buried
+        else
+            allocate (list(0))
+        end if
+    end function frame_buried_buffers
 
     !> Move H to the front of LIST (removing it elsewhere).  Not a port.
     subroutine move_to_front(list, h)

@@ -163,6 +163,7 @@ program tester
     use test_namelist_mod, only: collect_namelist_mod
     use test_savehist_mod, only: collect_savehist_mod
     use test_winner_mod, only: collect_winner_mod
+    use test_tab_bar_mod, only: collect_tab_bar_mod
     use test_windmove_mod, only: collect_windmove_mod
     use test_saveplace_mod, only: collect_saveplace_mod
     use test_recentf_mod, only: collect_recentf_mod
@@ -176,6 +177,7 @@ program tester
     use test_ansi_color_mod, only: collect_ansi_color_mod
     use test_buff_menu_mod, only: collect_buff_menu_mod
     use test_calendar_mod, only: collect_calendar_mod
+    use test_holidays_mod, only: collect_holidays_mod
     use test_ibuffer_mod, only: collect_ibuffer_mod
     use test_ibuf_ext_mod, only: collect_ibuf_ext_mod
     use test_time_date_mod, only: collect_time_date_mod
@@ -333,12 +335,14 @@ program tester
                  new_testsuite("namelist_mod", collect_namelist_mod), &
                  new_testsuite("savehist_mod", collect_savehist_mod), &
                  new_testsuite("winner_mod", collect_winner_mod), &
+                 new_testsuite("tab_bar_mod", collect_tab_bar_mod), &
                  new_testsuite("windmove_mod", collect_windmove_mod), &
                  new_testsuite("saveplace_mod", collect_saveplace_mod), &
                  new_testsuite("recentf_mod", collect_recentf_mod), &
                  new_testsuite("bookmark_mod", collect_bookmark_mod), &
                  new_testsuite("buff_menu_mod", collect_buff_menu_mod), &
                  new_testsuite("calendar_mod", collect_calendar_mod), &
+                 new_testsuite("holidays_mod", collect_holidays_mod), &
                  new_testsuite("ibuffer_mod", collect_ibuffer_mod), &
                  new_testsuite("ibuf_ext_mod", collect_ibuf_ext_mod), &
                  new_testsuite("time_date_mod", collect_time_date_mod), &

@@ -79,7 +79,8 @@ the listing updates `dired-add-file`,
 `dired-mark-confirm`,
 `dired-log-summary`;
 `=` (`dired-diff`) and `dired-backup-diff`;
-step 44a: `dired-other-frame` (C-x 5 d)
+step 44a: `dired-other-frame` (C-x 5 d),
+`dired-other-tab` (C-x t d)
 
 ## Deferred
 

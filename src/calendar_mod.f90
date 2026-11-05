@@ -26,9 +26,10 @@
 !> (upstream's list (MONTH DAY YEAR)); the absolute date counts the days
 !> since the imaginary Gregorian date Sunday, December 31, 1 BC.
 !>
-!> Deferred to the next parts of roadmap step 46: the holidays
-!> (holidays.el: a, h, x; `calendar_mark_holidays_flag',
-!> `calendar_view_holidays_initially_flag', `calendar_holiday_marker'),
+!> The holidays (holidays.el: a, h, x) are holidays_mod, which sets
+!> `calendar_mark_holidays_hook' and `calendar_list_holidays_hook'.
+!>
+!> Deferred to the next parts of roadmap step 46: `calendar_holiday_marker',
 !> the diary (diary-lib.el: d, D, s, m, i d and the other insert commands;
 !> `diary_file', `calendar_mark_diary_entries_flag',
 !> `calendar_view_diary_initially_flag', `diary_entry_marker', the
@@ -52,9 +53,8 @@
 !> upstream's calendar.el loads after the init file), the string and
 !> attribute-list forms of `calendar_today_marker' (a question; today is
 !> marked with the `calendar_today' face), `calendar_make_temp_face',
-!> `calendar_in_read_only_buffer', `calendar_set_mode_line',
-!> `calendar_date_compare', `calendar_get_date_range',
-!> `calendar_month_visible_p', the non-Gregorian visibility functions,
+!> `calendar_get_date_range', the years of `get_calendar_month_visible_year'
+!> for N months, the obsolete calendar-nongregorian-visible-p,
 !> `calendar_increment_month_cons', `calendar_make_alist',
 !> `calendar_abbrev_construct', `calendar_day_header_construct' and
 !> `calendar_customized_p' (used only by the deferred parts), the
@@ -66,7 +66,7 @@ module calendar_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, make_list, make_keymap_ref
+    use value_mod, only: value_type, make_list, make_keymap_ref, command_procedure
     use buffer_mod, only: buffers, current, current_buffer, get_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           close_buffer, restore_buffer_modified, erase_buffer, buffer_serial_live, force_mode_line_update, &
                           header_line_format_type
@@ -74,7 +74,7 @@ module calendar_mod
     use insdel_mod, only: insert
     use cmds_mod, only: forward_line
     use indent_mod, only: move_to_column, indent_to, current_column, indent_tabs_mode
-    use simple_mod, only: count_lines, mark_ring_max
+    use simple_mod, only: count_lines, mark_ring_max, special_mode
     use search_mod, only: looking_at, re_search_backward, re_search_forward
     use textprop_mod, only: put_text_property, get_text_property
     use itree_mod, only: make_overlay, overlay_put, overlay_get, delete_overlay, overlays_in, overlays_at
@@ -100,7 +100,7 @@ module calendar_mod
                           fit_window_to_buffer, quit_windows_on, get_buffer_window, set_window_point, window_body_width, &
                           window_dedication, is_window_live, is_window_splittable, is_window_combined, &
                           is_window_full_height, DEDICATED_NONE, split_height_threshold, split_width_threshold, &
-                          pop_up_windows
+                          pop_up_windows, display_buffer, window_total_width
     use data_mod, only: append_locals_clearer
     use faces_mod, only: named_face_type, display_when, face_attrs, highlight, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
@@ -122,7 +122,9 @@ module calendar_mod
               is_calendar_leap_year, calendar_last_day_of_month, calendar_day_number, calendar_absolute_from_gregorian, &
               calendar_date_from_day_of_year, calendar_increment_month, calendar_get_buffer, calendar_buffer_list, &
               calendar_displayed_month, calendar_displayed_year, calendar_total_months_local, calendar_mode_line_text, &
-              init_calendar, calendar_local_index, has_calendar_date_property
+              init_calendar, calendar_local_index, has_calendar_date_property, set_calendar_display, &
+              restore_calendar_display, get_calendar_month_visible_year, get_calendar_nongregorian_visible_dates, &
+              calendar_set_mode_line, calendar_in_read_only_buffer
     public :: calendar_cursor_to_nearest_date, calendar_cursor_to_visible_date, calendar_goto_today, &
               calendar_forward_month, calendar_forward_year, calendar_backward_month, calendar_backward_year, &
               calendar_scroll_left, calendar_scroll_right, calendar_scroll_calendar_left, &
@@ -146,6 +148,17 @@ module calendar_mod
     interface operator(==)
         module procedure is_calendar_date_equal
     end interface operator(==)
+
+    !> The displayed month and year and the number of months of a
+    !> buffer's calendar, as `set_calendar_display' saves them.
+    type, public :: calendar_display_type
+        private
+        integer :: entry = 0
+        integer(int64) :: serial = 0
+        integer :: month = 0
+        integer :: year = 0
+        integer :: total_months = 3
+    end type calendar_display_type
 
     !> The longest day or month name the name arrays hold.
     integer, parameter, public :: CALENDAR_NAME_MAX = 32
@@ -228,6 +241,29 @@ module calendar_mod
     !> Hook run when entering `calendar_mode'.  Port of calendar.el
     !> calendar-mode-hook.
     type(hook_type), target, public :: calendar_mode_hook = hook_type(name="calendar_mode_hook")
+
+    !> True means display holidays for current three month period on entry.
+    !> The holidays are displayed in another window when the calendar is first
+    !> displayed.  Port of calendar.el calendar-view-holidays-initially-flag.
+    logical, public :: calendar_view_holidays_initially_flag = .false.
+
+    !> True means mark dates of holidays in the calendar window.
+    !> The dates are marked with the `holiday' face.  Port of calendar.el
+    !> calendar-mark-holidays-flag (`calendar_holiday_marker', a face or a
+    !> single-character string, is Deferred with `calendar_today_marker').
+    logical, public :: calendar_mark_holidays_flag = .false.
+
+    !> If .false., show only major holidays from the Christian calendar.
+    !> This means only those Christian holidays that appear on secular calendars.
+    !> Otherwise, show all the holidays that would appear in a complete Christian
+    !> calendar.  Port of calendar.el calendar-christian-all-holidays-flag.
+    logical, public :: calendar_christian_all_holidays_flag = .false.
+
+    !> If .false., show only major holidays from the Islamic calendar.
+    !> This means only those Islamic holidays that appear on secular calendars.
+    !> Otherwise, show all the holidays that would appear in a complete Islamic
+    !> calendar.  Port of calendar.el calendar-islamic-all-holidays-flag.
+    logical, public :: calendar_islamic_all_holidays_flag = .false.
 
     !> String displayed when the cursor is over a date in the calendar.
     !>
@@ -399,6 +435,19 @@ module calendar_mod
     !> Name of the buffer used for the displaying the holidays.  Port of
     !> calendar.el holiday-buffer.
     character(len=*), parameter, public :: holiday_buffer = "*Holidays*"
+
+    !> Variable version of the user option `calendar_mark_holidays_flag'.
+    !> Port of calendar.el calendar-mark-holidays (renamed: the function
+    !> `calendar_mark_holidays' has its name).
+    logical, public :: calendar_mark_holidays_variable = .false.
+
+    !> `calendar_mark_holidays', which holidays_mod sets (calendar_mod
+    !> cannot use it).  Not a port.
+    procedure(command_procedure), pointer, public :: calendar_mark_holidays_hook => null()
+
+    !> `calendar_list_holidays', which holidays_mod sets (calendar_mod
+    !> cannot use it).  Not a port.
+    procedure(command_procedure), pointer, public :: calendar_list_holidays_hook => null()
 
     !> Name of the buffer used for the optional fancy display of the diary.
     !> Port of calendar.el diary-fancy-buffer.
@@ -1588,6 +1637,13 @@ contains
                 end if
             end if
 
+            if (calendar_mark_holidays_variable .and. associated(calendar_mark_holidays_hook)) then
+                call calendar_mark_holidays_hook(status)
+            end if
+        end if
+
+        ! The diary's marks (`calendar_mark_diary_entries') are Deferred.
+        if (status%ok()) then
             if (.not. is_calendar_date_visible(today)) then
                 call calendar_today_invisible_hook%execute(status)
             else
@@ -1673,6 +1729,9 @@ contains
         call indent_tabs_mode%set_local(.false.)
         call make_local_entry(k)
         call calendar_update_mode_line()
+        ! Init with user options (the diary's
+        ! `calendar_mark_diary_entries_flag' is Deferred).
+        calendar_mark_holidays_variable = calendar_mark_holidays_flag
         ! Most functions only work if displayed-month and displayed-year are set,
         ! so let's make sure they're always set.  Most likely, this will be reset
         ! soon in calendar-generate, but better safe than sorry.
@@ -1792,8 +1851,8 @@ contains
     !> If optional prefix argument ARG is true, prompts for the month
     !> and year, else uses the current date.  If NODISPLAY is true, don't
     !> display the generated calendar.  Port of
-    !> calendar.el:calendar-basic-setup (the diary and holidays shown
-    !> initially are Deferred).
+    !> calendar.el:calendar-basic-setup (the diary shown initially is
+    !> Deferred).
     recursive subroutine calendar_basic_setup(status, arg, nodisplay)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: arg, nodisplay
@@ -1889,6 +1948,17 @@ contains
         split_height_threshold = saved_height
         split_width_threshold = saved_width
         if (.not. status%ok()) return
+
+        if (calendar_view_holidays_initially_flag .and. associated(calendar_list_holidays_hook)) then
+            ! (split-height-threshold (if diary-window 2 1000)): the
+            ! diary's window waits for the diary.
+            split_height_threshold = 1000
+            ! FIXME display buffer?
+            call calendar_list_holidays_hook(status)
+            split_height_threshold = saved_height
+            if (.not. status%ok()) return
+        end if
+
         call calendar_initial_window_hook%execute(status)
     end subroutine calendar_basic_setup
 
@@ -2107,6 +2177,266 @@ contains
             y1 = y1 - 1
         end if
     end subroutine calendar_get_month_range
+
+    !> Save the current buffer's displayed month and year and its number
+    !> of months in SAVED and set them to MONTH, YEAR and TOTAL_MONTHS,
+    !> until `restore_calendar_display' (as upstream binds displayed-month,
+    !> displayed-year and calendar-total-months).  Not a port.
+    subroutine set_calendar_display(month, year, total_months, saved)
+        integer, intent(in) :: month, year, total_months
+        type(calendar_display_type), intent(out) :: saved
+        integer :: k
+
+        k = calendar_local_index()
+        saved%entry = k
+        saved%serial = locals(k)%serial
+        saved%month = locals(k)%displayed_month
+        saved%year = locals(k)%displayed_year
+        saved%total_months = locals(k)%total_months
+        locals(k)%displayed_month = month
+        locals(k)%displayed_year = year
+        locals(k)%total_months = total_months
+    end subroutine set_calendar_display
+
+    !> Restore the displayed month, year and number of months that
+    !> `set_calendar_display' saved in SAVED, in the buffer they were saved
+    !> from.  Not a port.
+    subroutine restore_calendar_display(saved)
+        type(calendar_display_type), intent(in) :: saved
+
+        if (saved%entry < 1 .or. saved%entry > size(locals)) return
+        if (locals(saved%entry)%serial /= saved%serial) return
+        locals(saved%entry)%displayed_month = saved%month
+        locals(saved%entry)%displayed_year = saved%year
+        locals(saved%entry)%total_months = saved%total_months
+    end subroutine restore_calendar_display
+
+    !> Return true if [M1, M2] intersects [MON, MON+N].  Port of
+    !> calendar.el:calendar--month-overlap-p.
+    pure logical function is_calendar_month_overlap(m1, m2, mon, n) result(overlap)
+        integer, intent(in) :: m1, m2, mon, n
+        integer :: last
+
+        if (n == 0) then
+            overlap = m1 <= mon .and. mon <= m2
+            return
+        end if
+
+        last = mon + n
+
+        if (last <= 12) then
+            overlap = max(m1, mon) <= min(m2, last)
+        else
+            overlap = max(m1, 1) <= min(m2, last - 12) .or. max(m1, mon) <= min(m2, 12)
+        end if
+    end function is_calendar_month_overlap
+
+    !> Set VISIBLE to true if MONTH is visible in the calendar.
+    !> Since the calendar shows at most 12 months, each month, if visible, is
+    !> associated with only one year: YEAR is the year associated with
+    !> MONTH (0 if MONTH is not visible).  Port of
+    !> calendar.el:calendar-month-visible-p (N omitted; the list of years
+    !> for MONTH and the next N months is Deferred, see calendar_mod's
+    !> status file).
+    subroutine get_calendar_month_visible_year(month, year, visible)
+        integer, intent(in) :: month
+        integer, intent(out) :: year
+        logical, intent(out) :: visible
+        integer :: m1, y1, m2, y2
+
+        call calendar_get_month_range(m1, y1, m2, y2)
+        year = 0
+
+        if (y1 == y2) then
+            if (is_calendar_month_overlap(m1, m2, month, 0)) year = y1
+        else
+            ! (push y2 r) then (push y1 r): the first year wins.
+            if (is_calendar_month_overlap(1, m2, month, 0)) year = y2
+            if (is_calendar_month_overlap(m1, 12, month, 0)) year = y1
+        end if
+
+        visible = year /= 0
+    end subroutine get_calendar_month_visible_year
+
+    !> DATES are the Gregorian dates of MONTH, DAY that are visible in the
+    !> calendar window (empty if it is not visible).
+    !> MONTH and DAY are in some non-Gregorian calendar system.  The functions
+    !> TO_ABSOLUTE and FROM_ABSOLUTE convert that system to and from absolute,
+    !> respectively.  The optional argument N is an integer indicating the
+    !> first local month in the non-Gregorian local year and defaults to 1.
+    !> Port of
+    !> calendar.el:calendar-nongregorian-date-visible-p.
+    recursive subroutine get_calendar_nongregorian_visible_dates(month, day, to_absolute, from_absolute, dates, n)
+        integer, intent(in) :: month, day
+        interface
+            integer function to_absolute(date)
+                import :: calendar_date_type
+                implicit none(type, external)
+                type(calendar_date_type), intent(in) :: date
+            end function to_absolute
+
+            function from_absolute(date) result(local)
+                import :: calendar_date_type
+                implicit none(type, external)
+                integer, intent(in) :: date
+                type(calendar_date_type) :: local
+            end function from_absolute
+        end interface
+        type(calendar_date_type), allocatable, intent(out) :: dates(:)
+        integer, intent(in), optional :: n
+        type(calendar_date_type), allocatable :: local_dates(:)
+        type(calendar_date_type) :: local_start, local_end, date
+        integer :: m1, y1, m2, y2, first, i, local_y1, local_y2, local_m1, local_m2
+
+        call calendar_get_month_range(m1, y1, m2, y2)
+        ! Local date of first/last date in calendar window.
+        local_start = from_absolute(calendar_absolute_from_gregorian(calendar_date_type(m1, 1, y1)))
+        local_end = from_absolute(calendar_absolute_from_gregorian( &
+                                  calendar_date_type(m2, calendar_last_day_of_month(m2, y2), y2)))
+        ! Local year/month of first/last dates.
+        local_y1 = local_start%year
+        local_y2 = local_end%year
+        local_m1 = local_start%month
+        local_m2 = local_end%month
+        first = 1
+        if (present(n)) first = n
+        allocate (local_dates(0))
+
+        ! The local calendar:
+        !    Year    : y1 ............. y1 y2 ............. y2
+        ! Month (N=1): 1 ... ..... ... END 1 ... ..... ... END
+        ! Month (N>1): N ... END 1 ... N-1 N ... END 1 ... N-1
+        if (local_y1 == local_y2) then
+            ! N > 1
+            if ((local_m1 <= month .and. month <= local_m2) &
+                .or. (local_m1 > local_m2 .and. (month >= local_m1 .or. month <= local_m2))) then
+                local_dates = [calendar_date_type(month, day, local_y1), local_dates]
+            end if
+        else if (local_y1 < local_y2) then
+            ! In a large calendar range (e.g. 12 months), the same local
+            ! month may appear twice and there may be three local years.
+            ! Cf holiday-chinese.
+            do i = 0, local_y2 - local_y1 - 2
+                local_dates = [calendar_date_type(month, day, local_y1 + i + 1), local_dates]
+            end do
+
+            if (local_m1 >= first) then
+                if (month >= local_m1 .or. month < first) then
+                    local_dates = [calendar_date_type(month, day, local_y1), local_dates]
+                end if
+
+                if (month <= local_m2) local_dates = [calendar_date_type(month, day, local_y2), local_dates]
+            else
+                ! m1 < N
+                if (local_m1 <= month .and. month < first) then
+                    local_dates = [calendar_date_type(month, day, local_y1), local_dates]
+                end if
+
+                if (month >= first .or. month <= local_m2) then
+                    local_dates = [calendar_date_type(month, day, local_y2), local_dates]
+                end if
+            end if
+        end if
+
+        allocate (dates(0))
+
+        do i = 1, size(local_dates)
+            date = calendar_gregorian_from_absolute(to_absolute(local_dates(i)))
+            if (is_calendar_date_visible(date)) dates = [dates, date]
+        end do
+    end subroutine get_calendar_nongregorian_visible_dates
+
+    !> Set mode line to TEXT, centered, surrounded by dashes.  Port of
+    !> calendar.el:calendar-set-mode-line (in a buffer visiting no file;
+    !> the mode line shows `%-' as dashes to its end and `%%' as `%', as
+    !> format-mode-line does; the layout for a buffer visiting a file is
+    !> Deferred, and the width under --daemon is Not applicable).
+    recursive subroutine calendar_set_mode_line(text)
+        character(len=*), intent(in) :: text
+        type(string_type) :: items(1)
+        type(header_line_format_type) :: format
+        character(len=:), allocatable :: spread, shown
+        integer :: width, k
+        type(status_type) :: st
+
+        ! As per doc of window-width, total visible mode-line length.
+        width = window_total_width(status=st)
+        if (.not. st%ok()) return
+        items(1)%text = text
+        spread = calendar_string_spread(items, "-", width)
+        shown = ""
+        k = 1
+
+        do while (k <= len(spread))
+            if (spread(k:k) == "%" .and. k < len(spread)) then
+                if (spread(k + 1:k + 1) == "%") then
+                    shown = shown//"%"
+                    k = k + 2
+                    cycle
+                else if (spread(k + 1:k + 1) == "-") then
+                    shown = shown//repeat("-", max(0, width - int(string_width(shown))))
+                    exit
+                end if
+            end if
+
+            shown = shown//spread(k:k)
+            k = k + 1
+        end do
+
+        call format%append(shown)
+        buffers(current)%mode_line_format = format
+        call force_mode_line_update(.false.)
+    end subroutine calendar_set_mode_line
+
+    !> Switch to BUFFER and execute the forms in BODY.
+    !> First creates or erases BUFFER as needed.  Leaves BUFFER read-only,
+    !> with disabled undo.  Leaves point at `point_min', displays BUFFER.
+    !> Port of calendar.el:calendar-in-read-only-buffer (its BODY
+    !> in every use: `calendar_set_mode_line' with MODE_LINE, then TEXT
+    !> inserted).
+    recursive subroutine calendar_in_read_only_buffer(buffer, mode_line, text, status)
+        character(len=*), intent(in) :: buffer, mode_line, text
+        type(status_type), intent(out) :: status
+        type(handle_type) :: h, window, old_window, old_buffer
+        type(status_type) :: st
+
+        call get_or_make_buffer(buffer, h, status)
+        if (.not. status%ok()) return
+        call set_buffer(h, status)
+        if (.not. status%ok()) return
+
+        if (.not. is_derived_mode(major_modes%special_mode)) then
+            call special_mode(status)
+            if (.not. status%ok()) return
+        end if
+
+        buffers(current)%read_only = .false.
+        buffers(current)%undo_enabled = .false.
+        call erase_buffer(status)
+        if (.not. status%ok()) return
+        call display_buffer(h, window, status)
+        if (.not. status%ok()) return
+
+        if (is_window_live(window)) then
+            ! with-selected-window
+            old_window = selected_window()
+            old_buffer = current_buffer()
+            call select_window(window, status, norecord=.true.)
+
+            if (status%ok()) then
+                call calendar_set_mode_line(mode_line)
+                call insert(text, status)
+                if (status%ok()) call goto_char(point_min())
+            end if
+
+            if (is_window_live(old_window)) call select_window(old_window, st, norecord=.true.)
+            if (is_buffer_live(old_buffer)) call set_buffer(old_buffer, st)
+            if (.not. status%ok()) return
+        end if
+
+        call restore_buffer_modified(.false.)
+        buffers(current)%read_only = .true.
+    end subroutine calendar_in_read_only_buffer
 
     ! ------------------------------------------------------------------
     ! Reading dates
@@ -2431,14 +2761,15 @@ contains
     end subroutine calendar_not_implemented
 
     !> Delete all diary/holiday marks/highlighting from the calendar.
-    !> Port of calendar.el:calendar-unmark (the diary's and holidays' marking
-    !> flags wait for them).
+    !> Port of calendar.el:calendar-unmark (the diary's marking flag,
+    !> `calendar_mark_diary_entries', waits for the diary).
     recursive subroutine calendar_unmark(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, old
         type(handle_type), allocatable :: ovs(:)
         integer :: k
 
+        calendar_mark_holidays_variable = .false.
         status = status_type()
         buffer = calendar_get_buffer()
         old = current_buffer()

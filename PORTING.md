@@ -281,14 +281,19 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        speller's list run, M-TAB auto-correction) — in progress (the
        correction menu of C-c $ waits for TTY menus).
    44. Terminal frames: several frames on one terminal (C-x 5), and
-       `tab-bar-mode`/`tab-line-mode`.
+       `tab-bar-mode`/`tab-line-mode`: 44a terminal frames and C-x 5 —
+       done; 44b tab-bar.el on terminal frames (the tab bar line, tabs,
+       C-x t, tab history; see docs/status/tab_bar_mod.md) — done; 44c
+       tab-line.el.
    45. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
        `window-divider` and side windows.
    46. Calendar and diary, in parts: 46a the calendar core (calendar.el
        and cal-move.el: M-x calendar, Calendar mode, movement and
-       scrolling) — done; then the holidays, the diary, the other
-       calendars (cal-iso.el, cal-julian.el and the rest), lunar.el
-       and solar.el.
+       scrolling) — done; 46b the holidays (holidays.el, with the
+       Julian and Islamic conversions of cal-julian.el and cal-islam.el;
+       docs/status/holidays_mod.md) — partial; then the diary, the
+       other calendars (cal-iso.el, the rest of cal-julian.el and the
+       others), lunar.el and solar.el (and the holidays that need them).
    47. VC, the rest: `vc-annotate` (C-x v g), branches and tags, pull
        and push, incoming and outgoing logs, and the vc-hg and vc-svn
        backends (vc-svn: done).

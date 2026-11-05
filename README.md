@@ -11,7 +11,7 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
-<img src="docs/progress/pie.svg" width="871" height="236" alt="Ported: ≈8.99% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 211,306 of the about 10,392,596 lines of Emacs and its packages translated">
+<img src="docs/progress/pie.svg" width="875" height="236" alt="Ported: ≈9.17% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 214,445 of the about 10,392,596 lines of Emacs and its packages translated">
 </picture>
 <!-- progress:end -->
 

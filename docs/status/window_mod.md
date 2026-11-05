@@ -210,7 +210,11 @@ the scanner's artifacts `buffer`,
 `syms_of_window`,
 `buffer`,
 `width`,
-`redirection`
+`redirection`,
+step 44b: window.el's `window-state-get` and `window-state-put` in part (`get_window_state`, `set_window_state`, `destroy_window_state`: the selected frame's root window, markers for starts and points, put into the whole frame with new windows when the sizes are equal, as tab-bar.el uses them),
+the `tab` quit-restore type (`QR_TAB`, window.el's display-buffer-record-window) and the `tab` cases of `window-deletable-p`, `window--delete` (through `close_tab_hook`) and `quit-restore-window`,
+an ACTION function argument of `display-buffer` and `pop-to-buffer` (`action_function`),
+`set-window-configuration` resizing the windows to the frame's top margin (adjust_frame_size, when the configuration was saved with other tab bar lines)
 
 ## Deferred
 
@@ -239,7 +243,8 @@ window commands while the minibuffer is selected,
 `buffer-list-update-hook`;
 own: window-accessors,
 next-window,
-coordinates-in-window-p
+coordinates-in-window-p,
+after step 44b: `window-state-get` with WRITABLE true, window parameters, pixel and minimum sizes, putting a state into a window of another size or into a given WINDOW (`window--state-put-1` resizing), `window-state-buffers`
 
 ## Tests
 
