@@ -71,6 +71,7 @@
 | [filenotify_mod](../status/filenotify_mod.md) | filenotify.el | partial |
 | [files_mod](../status/files_mod.md) | files.el (+ startup.el `command-line-1` file arguments are in fortmacs_mod); dired.el `dired--ls-error-file`/`-buffer` | partial |
 | [fill_mod](../status/fill_mod.md) | textmodes/fill.el | partial |
+| [flyspell_mod](../status/flyspell_mod.md) | textmodes/flyspell.el | partial |
 | [follow_mod](../status/follow_mod.md) | follow.el | partial |
 | [font_core_mod](../status/font_core_mod.md) | font-core.el | partial |
 | [font_lock_mod](../status/font_lock_mod.md) | font-lock.el | partial |
