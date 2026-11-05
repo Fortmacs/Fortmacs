@@ -41,7 +41,8 @@ module test_smtpmail_mod
     use fileio_mod, only: file_exists, init_fileio
     use files_mod, only: create_temp_file, delete_file
     use startup_mod, only: user_mail_address
-    use sendmail_mod, only: mail_from_style, mail_specify_envelope_from, MAIL_FROM_STYLE_SIMPLE
+    use sendmail_mod, only: mail_from_style, mail_specify_envelope_from, mail_envelope_from, MAIL_FROM_STYLE_SIMPLE, &
+                            MAIL_ENVELOPE_FROM_HEADER
     use smtpmail_mod, only: send_mail_with_smtp, send_queued_mail_with_smtp, smtpmail_smtp_server, smtpmail_smtp_service, &
                             smtpmail_debug_info, smtpmail_queue_mail, smtpmail_queue_dir, &
                             smtpmail_servers_requiring_authorization, smtpmail_smtp_user, smtpmail_auth_supported
@@ -83,7 +84,11 @@ contains
                     new_unittest("smtpmail-transient-retry", test_transient_retry), &
                     new_unittest("smtpmail-connection-refused", test_connection_refused), &
                     new_unittest("smtpmail-no-recipients", test_no_recipients), &
-                    new_unittest("smtpmail-queue", test_queue) &
+                    new_unittest("smtpmail-queue", test_queue), &
+                    new_unittest("smtpmail-from-field", test_from_field), &
+                    new_unittest("smtpmail-envelope-from-header", test_envelope_from_header), &
+                    new_unittest("smtpmail-service-name", test_service_name), &
+                    new_unittest("smtpmail-service-name-unknown", test_service_name_unknown) &
                     ]
     end subroutine collect_smtpmail_mod
 
@@ -99,6 +104,8 @@ contains
         user_mail_address = "king@grassland.com"
         mail_from_style = MAIL_FROM_STYLE_SIMPLE
         mail_specify_envelope_from = .false.
+        mail_envelope_from = .false.
+        if (allocated(smtpmail_smtp_service%service_name)) deallocate (smtpmail_smtp_service%service_name)
         smtpmail_debug_info = .false.
         smtpmail_queue_mail = .false.
         if (allocated(smtpmail_servers_requiring_authorization)) deallocate (smtpmail_servers_requiring_authorization)
@@ -157,7 +164,7 @@ contains
         call fortmacs_listen_loopback(fd, port, err)
         if (err /= 0) return
         smtpmail_smtp_server = "127.0.0.1"
-        smtpmail_smtp_service = port
+        smtpmail_smtp_service%port = port
         server%pid = fortmacs_fork()
 
         if (server%pid == 0) then
@@ -555,7 +562,7 @@ contains
         call fortmacs_listen_loopback(fd, port, err)
         call close_fd(fd)
         smtpmail_smtp_server = "127.0.0.1"
-        smtpmail_smtp_service = port
+        smtpmail_smtp_service%port = port
         call make_mail("To: a@example.com"//LF, "hello"//LF)
         call send_mail_with_smtp(st)
         call check(error, index(format_error(st), "make client process failed: Connection refused, :name, smtpmail, "// &
@@ -620,4 +627,85 @@ contains
         call delete_file(dir//"/index", st)
         call leave()
     end subroutine test_queue
+
+    !> The envelope address is the address of the From field, as
+    !> mail-extract-address-components finds it.
+    subroutine test_from_field(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(server_type) :: server
+        type(status_type) :: st
+        character(len=:), allocatable :: received
+
+        call set_up()
+        call start_server(responses_of("220 fake", "250 fake", "250 ok", "250 ok", "354 go ahead", "250 queued", &
+                                       "221 bye"), server)
+        call make_mail("From: ""Ann Lee"" <ann@example.org>"//LF//"To: a@example.com"//LF, "hello"//LF)
+        call send_mail_with_smtp(st)
+        call finish_server(server, received)
+        call check(error, st%ok(), format_error(st))
+        if (.not. allocated(error)) call check(error, index(received, "MAIL FROM:<ann@example.org>"//CRLF) > 0, received)
+        call leave()
+    end subroutine test_from_field
+
+    !> With `mail_specify_envelope_from' and MAIL_ENVELOPE_FROM_HEADER, the
+    !> envelope address comes from the From field through
+    !> `get_mail_envelope_from'.
+    subroutine test_envelope_from_header(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(server_type) :: server
+        type(status_type) :: st
+        character(len=:), allocatable :: received
+
+        call set_up()
+        mail_specify_envelope_from = .true.
+        mail_envelope_from = MAIL_ENVELOPE_FROM_HEADER
+        call start_server(responses_of("220 fake", "250 fake", "250 ok", "250 ok", "354 go ahead", "250 queued", &
+                                       "221 bye"), server)
+        call make_mail("From: bob@example.net (Bob)"//LF//"To: a@example.com"//LF, "hello"//LF)
+        call send_mail_with_smtp(st)
+        call finish_server(server, received)
+        call check(error, st%ok(), format_error(st))
+        if (.not. allocated(error)) call check(error, index(received, "MAIL FROM:<bob@example.net>"//CRLF) > 0, received)
+        call leave()
+        call set_up()
+    end subroutine test_envelope_from_header
+
+    !> A service name (here the port's digits, which getaddrinfo takes as
+    !> a name too) is used before the port number.
+    subroutine test_service_name(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(server_type) :: server
+        type(status_type) :: st
+        character(len=:), allocatable :: received
+        character(len=12) :: number
+
+        call set_up()
+        call start_server(responses_of("220 fake", "250 fake", "250 ok", "250 ok", "354 go ahead", "250 queued", &
+                                       "221 bye"), server)
+        write (number, "(i0)") smtpmail_smtp_service%port
+        smtpmail_smtp_service%service_name = trim(number)
+        smtpmail_smtp_service%port = 1
+        call make_mail("To: a@example.com"//LF, "hello"//LF)
+        call send_mail_with_smtp(st)
+        call finish_server(server, received)
+        call check(error, st%ok(), format_error(st))
+        if (.not. allocated(error)) call check(error, index(received, "RCPT TO:<a@example.com>"//CRLF) > 0, received)
+        call leave()
+        call set_up()
+    end subroutine test_service_name
+
+    !> A service name getaddrinfo does not know is an error naming it.
+    subroutine test_service_name_unknown(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+
+        call set_up()
+        smtpmail_smtp_server = "127.0.0.1"
+        smtpmail_smtp_service%service_name = "no-such-smtp-service"
+        call make_mail("To: a@example.com"//LF, "hello"//LF)
+        call send_mail_with_smtp(st)
+        call check(error, index(format_error(st), "127.0.0.1/no-such-smtp-service ") == 1, format_error(st))
+        call leave()
+        call set_up()
+    end subroutine test_service_name_unknown
 end module test_smtpmail_mod

@@ -145,6 +145,7 @@ module bindings_mod
     use elec_pair_mod, only: init_elec_pair
     use newcomment_mod, only: init_newcomment
     use mail_utils_mod, only: init_mail_utils
+    use mail_extract_mod, only: init_mail_extract
     use sendmail_mod, only: init_sendmail, mail_mode_map
     use smtpmail_mod, only: init_smtpmail
     use mailabbrev_mod, only: init_mailabbrev
@@ -779,9 +780,10 @@ contains
         call init_view()
         call init_follow()
         call init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map)
-        ! Mail: mail-utils.el, sendmail.el, smtpmail.el, mailabbrev.el and
+        ! Mail: mail-utils.el, mail-extr.el, sendmail.el, smtpmail.el, mailabbrev.el and
         ! simple.el's compose-mail, with their keys from bindings.el.
         call init_mail_utils()
+        call init_mail_extract()
         call init_sendmail()
         call init_smtpmail()
         call init_mailabbrev()

@@ -33,6 +33,7 @@ the field commands (`mail-to`, `mail-subject`, `mail-cc`, `mail-bcc`, `mail-fcc`
 `mail-yank-clear-headers`,
 `mail-yank-region` (a no-op without Rmail's action, as upstream),
 `mail-insert-file`,
+`mail-envelope-from`, the function (`get_mail_envelope_from`; the variable is a choice setting: `.false.`, MAIL_ENVELOPE_FROM_HEADER for the address of the From field, through mail_extract_mod, and `%address` an address; R6-39),
 the user options of sendmail.el
 
 ## Deferred
@@ -47,7 +48,6 @@ MML (`mail-encode-mml`, `mail-add-attachment`, long lines);
 `mail-other-frame` (frames);
 `mail-split-line` and its remap of `split-line` (not ported);
 `mail-fill-yanked-message` (C-c C-q, needs `fill-individual-paragraphs`);
-the `header` value of `mail-envelope-from` (mail-extr.el);
 the mail client choice of `sendmail-query-once` (mailclient.el: choosing it is a `void_function` error; the SMTP choice is smtpmail_mod's `send_mail_with_smtp`) and saving the choice into init.f90 (`customize-save-variable`);
 the bold choices in its help buffer;
 the `category` property of the separator;
@@ -63,4 +63,4 @@ DESTINATION 0 of `execute_process_region` (sending with `mail_interactive` false
 
 ## Tests
 
-test_sendmail_mod (own: setting up, the field commands, the From field, signatures, `compose_mail`, sending through test/sendmail-resources/fake-sendmail with Fcc, failures, error output and no recipients)
+test_sendmail_mod (own: setting up, the field commands, the From field, signatures, `compose_mail`, sending through test/sendmail-resources/fake-sendmail with Fcc, failures, error output, no recipients and the envelope-from address)

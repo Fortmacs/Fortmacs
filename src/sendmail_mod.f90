@@ -90,9 +90,12 @@ module sendmail_mod
     use mail_utils_mod, only: get_mail_field, strip_mail_quoted_names, parse_mail_comma_list, is_mail_file_babyl, &
                               mail_rfc822_date
     use data_mod, only: append_locals_clearer, choice_setting_type
+    use mail_extract_mod, only: extract_mail_address_components, mail_address_components_type
+    use editfns_mod, only: save_restriction_begin, save_restriction_end, restriction_type
     implicit none(type, external)
     private
 
+    public :: get_mail_envelope_from
     public :: query_sendmail_once, compose_sendmail_user_agent, set_up_mail, mail_mode, mail_header_end, mail_text_start, &
               delimit_mail_sendmail_header, undelimit_mail_sendmail_header, mail_mode_auto_fill, fill_mail_mode_paragraph, &
               send_mail_and_exit, mail_dont_send, bury_mail, send_mail, insert_mail_from_field, combine_mail_fields, &
@@ -157,12 +160,30 @@ module sendmail_mod
     !> smtpmail.  Port of sendmail.el mail-specify-envelope-from.
     logical, public :: mail_specify_envelope_from = .false.
 
-    !> If allocated, designate the envelope-from address when sending mail.
+    !> The setting `mail_envelope_from': .false., MAIL_ENVELOPE_FROM_HEADER
+    !> or an address (R6-39: `mail_envelope_from%address = "..."';
+    !> unallocated when none is set).  Not a port.
+    type, extends(choice_setting_type), public :: mail_envelope_from_choice_setting_type
+        !> The envelope-from address (upstream's string value).
+        character(len=:), allocatable :: address
+    contains
+        procedure :: clear_kinds => mail_envelope_from_clear_kinds
+        procedure :: other_value => mail_envelope_from_other_value
+        procedure :: kind_hint => mail_envelope_from_kind_hint
+    end type mail_envelope_from_choice_setting_type
+
+    !> Values of `mail_envelope_from' besides .false.
+    integer, parameter, public :: MAIL_ENVELOPE_FROM_HEADER = 2
+
+    !> If set, designate the envelope-from address when sending mail.
     !> This only has an effect if `mail_specify_envelope_from' is true.
-    !> The value should be a string, or unallocated (in which case the value of
-    !> `user_mail_address' is used).  Port of sendmail.el
-    !> mail-envelope-from (its value `header' is Deferred).
-    character(len=:), allocatable, public :: mail_envelope_from
+    !> The value should be either an address (`mail_envelope_from%address =
+    !> "..."'), or MAIL_ENVELOPE_FROM_HEADER (in
+    !> which case the contents of the "From" header of the message
+    !> being sent is used), or .false. (in which case the value of
+    !> `user_mail_address' is used).  Port of sendmail.el mail-envelope-from.
+    type(mail_envelope_from_choice_setting_type), public :: mail_envelope_from = &
+                                               mail_envelope_from_choice_setting_type(name="mail_envelope_from", true_valid=.false.)
 
     !> True means insert Bcc to self in messages to be sent.
     !> This is done when the message is initialized,
@@ -1560,7 +1581,9 @@ contains
         type(handle_type) :: errbuf, tembuf, mailbuf, delimline
         type(value_type) :: result, destination, item
         type(value_type), allocatable :: argv(:)
-        character(len=:), allocatable :: selected_coding, envelope_from, charset, errors, resend_to(:), part(:), merged(:)
+        character(len=:), allocatable :: selected_coding, envelope_from, charset, errors, resend_to(:), part(:), merged(:), &
+                                         address
+        type(restriction_type) :: restriction
         logical :: failed, fcc_was_found, multibyte, saved_fold, found, has_errbuf
         integer(int64) :: moved, where_content_type, k, longest
         type(status_type) :: st
@@ -1588,9 +1611,15 @@ contains
         envelope_from = ""
 
         if (mail_specify_envelope_from) then
-            ! mail-envelope-from
-            if (allocated(mail_envelope_from)) then
-                envelope_from = mail_envelope_from
+            ! Only look at the headers when fetching the envelope address.
+            call save_restriction_begin(restriction)
+            call narrow_to_mail_headers(status)
+            if (status%ok()) call get_mail_envelope_from(address, status)
+            call save_restriction_end(restriction)
+            if (.not. status%ok()) return
+
+            if (allocated(address)) then
+                envelope_from = address
             else
                 envelope_from = user_mail_address_value()
             end if
@@ -2915,4 +2944,70 @@ contains
         text = "a string is `"//trim(self%name)//"%text = ""...""' and a procedure `"//trim(self%name)//"%procedure => mine'"
         if (len(number) < 0) text = number
     end function mail_signature_variable_kind_hint
+
+    !> The envelope mail address to use when sending mail, in ADDRESS
+    !> (unallocated for none).
+    !> This procedure uses the `mail_envelope_from' variable.
+    !>
+    !> The buffer should be narrowed to the headers of the mail message
+    !> before this procedure is called.  Port of
+    !> sendmail.el:mail-envelope-from.
+    recursive subroutine get_mail_envelope_from(address, status)
+        character(len=:), allocatable, intent(out) :: address
+        type(status_type), intent(out) :: status
+        type(mail_address_components_type), allocatable :: components(:)
+        character(len=:), allocatable :: from
+
+        status = status_type()
+
+        if (allocated(mail_envelope_from%address)) then
+            address = mail_envelope_from%address
+        else if (mail_envelope_from%choice == MAIL_ENVELOPE_FROM_HEADER) then
+            call get_mail_field("From", from, status)
+            if (.not. status%ok()) return
+
+            ! Upstream passes the missing field on to
+            ! mail-extract-address-components, which refuses it.
+            if (.not. allocated(from)) then
+                call set_error(status, FM_GENERIC_ERROR, "Invalid address: .false.")
+                return
+            end if
+
+            call extract_mail_address_components(from, components, status)
+            if (.not. status%ok()) return
+
+            if (size(components) > 0) then
+                if (allocated(components(1)%address)) address = components(1)%address
+            end if
+        end if
+    end subroutine get_mail_envelope_from
+
+    !> Forget the address of `mail_envelope_from', as any assignment to it
+    !> does.  Not a port.
+    subroutine mail_envelope_from_clear_kinds(self)
+        class(mail_envelope_from_choice_setting_type), intent(inout) :: self
+
+        if (allocated(self%address)) deallocate (self%address)
+    end subroutine mail_envelope_from_clear_kinds
+
+    !> The address of `mail_envelope_from' as help shows it
+    !> (`%address = "..."'); "" when none is set.  Not a port.
+    function mail_envelope_from_other_value(self) result(text)
+        class(mail_envelope_from_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (allocated(self%address)) text = "%address = """//self%address//""""
+    end function mail_envelope_from_other_value
+
+    !> The assignment that sets the address `mail_envelope_from' takes, for
+    !> the error of a rejected value.  Not a port.
+    function mail_envelope_from_kind_hint(self, number) result(text)
+        class(mail_envelope_from_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "an address is `"//trim(self%name)//"%address = ""...""'"
+        if (len(number) < 0) text = number
+    end function mail_envelope_from_kind_hint
 end module sendmail_mod

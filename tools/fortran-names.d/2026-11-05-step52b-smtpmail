@@ -3,3 +3,14 @@
 # name drops _list (CLAUDE.md: arrays have plain plural names; rule-decided).
 name	smtpmail_send_it	send_mail_with_smtp
 name	smtpmail_recipient_address_list	smtpmail_recipient_addresses
+# smtpmail-send-queued-mail is send_queued_mail_with_smtp, beside
+# send_mail_with_smtp (panel 2026-11-05, #272).
+name	smtpmail_send_queued_mail	send_queued_mail_with_smtp
+# Step 52b (mail-extr.el): mail-extract-address-components is verb first,
+# as mail-insert-file is insert_mail_file (R6-17; rule-decided).
+# mail-envelope-from, the function, is get_mail_envelope_from beside the
+# variable mail_envelope_from (no entry: the variable keeps the name).
+name	mail_extract_address_components	extract_mail_address_components
+# mail-extr-@-binds-tighter-than-! spells its @ and ! out (pending the
+# panel; the name C-h v shows comes from this entry).
+name	mail_extr_@_binds_tighter_than_!	mail_extr_at_binds_tighter_than_exclamation_mark

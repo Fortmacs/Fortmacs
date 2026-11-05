@@ -988,7 +988,7 @@ contains
     subroutine narrow_to_region(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
-        integer(int64) :: s, e, k, begv_charpos, zv_charpos
+        integer(int64) :: s, e, k, begv_charpos, zv_charpos, begv_byte, zv_byte
 
         s = min(start, end)
         e = max(start, end)
@@ -1014,10 +1014,14 @@ contains
         end if
 
         associate (b => buffers(current))
+            ! The byte positions first, while begv and zv still match
+            ! their byte positions (as buffer.h:SET_BUF_BEGV and SET_BUF_ZV).
+            begv_byte = char_to_byte(s)
+            zv_byte = char_to_byte(e)
             b%begv = s
-            b%begv_byte = char_to_byte(s)
+            b%begv_byte = begv_byte
             b%zv = e
-            b%zv_byte = char_to_byte(e)
+            b%zv_byte = zv_byte
             if (b%pt < s) call temp_set_point_both(b, s, b%begv_byte)
             if (e < b%pt) call temp_set_point_both(b, e, b%zv_byte)
         end associate

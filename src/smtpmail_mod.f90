@@ -27,7 +27,7 @@
 !>
 !>     send_mail_function => send_mail_with_smtp
 !>     smtpmail_smtp_server = "YOUR SMTP HOST"
-!>     smtpmail_smtp_service = 25
+!>     smtpmail_smtp_service%port = 25
 !>
 !> `send_mail_with_smtp' talks to the server over a TCP connection
 !> (src/sys/sys_socket_mod): the greeting, EHLO (or HELO), AUTH with the
@@ -42,8 +42,9 @@
 module smtpmail_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_FILE_ERROR, FM_VOID_FUNCTION, FM_ARGS_OUT_OF_RANGE
+    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_FILE_ERROR, FM_ARGS_OUT_OF_RANGE
     use handle_mod, only: handle_type
+    use data_mod, only: choice_setting_type
     use string_type_mod, only: string_type, append_string, prepend_string
     use character_mod, only: downcase_ascii
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, erase_buffer, &
@@ -74,9 +75,10 @@ module smtpmail_mod
     use simple_mod, only: count_lines
     use startup_mod, only: mail_host_address, user_mail_address_value
     use mail_utils_mod, only: get_mail_field, strip_mail_quoted_names
+    use mail_extract_mod, only: extract_mail_address_components, mail_address_components_type
     use namelist_mod, only: namelist_group_type, namelist_item_type, namelist_text, read_namelist, NAMELIST_STRING, &
                             NAMELIST_INTEGER, NAMELIST_LOGICAL
-    use sendmail_mod, only: mail_interactive, mail_specify_envelope_from, mail_envelope_from, mail_from_style, &
+    use sendmail_mod, only: mail_interactive, mail_specify_envelope_from, get_mail_envelope_from, mail_from_style, &
                             mail_send_nonascii, sendmail_coding_system, mail_header_separator, &
                             undelimit_mail_sendmail_header, do_mail_fcc, select_message_coding_system, &
                             MAIL_FROM_STYLE_SIMPLE, MAIL_FROM_STYLE_PARENS, MAIL_FROM_STYLE_ANGLES, MAIL_SEND_NONASCII_MIME
@@ -86,6 +88,20 @@ module smtpmail_mod
     private
 
     public :: send_mail_with_smtp, send_queued_mail_with_smtp, init_smtpmail
+
+    !> The setting `smtpmail_smtp_service': a port number (R6-39:
+    !> `smtpmail_smtp_service%port = 587'; negative when none is set) or a
+    !> service name (`smtpmail_smtp_service%service_name = "submission"';
+    !> unallocated when none is set), the name first when both are set.
+    !> Not a port.
+    type, extends(choice_setting_type), public :: smtpmail_smtp_service_choice_setting_type
+        integer :: port = -1
+        character(len=:), allocatable :: service_name
+    contains
+        procedure :: clear_kinds => smtpmail_smtp_service_clear_kinds
+        procedure :: other_value => smtpmail_smtp_service_other_value
+        procedure :: kind_hint => smtpmail_smtp_service_kind_hint
+    end type smtpmail_smtp_service_choice_setting_type
 
     !> Specify default SMTP server.
     !> This only has effect if you specify it before `init_smtpmail' runs.
@@ -100,9 +116,13 @@ module smtpmail_mod
     character(len=:), allocatable, public :: smtpmail_smtp_server
 
     !> SMTP service port number.
-    !> The default value would be "smtp" or 25.  Port of smtpmail.el
-    !> smtpmail-smtp-service (a port number; service names are deferred).
-    integer, public :: smtpmail_smtp_service = 25
+    !> The default value would be "smtp" or 25.  A port number is
+    !> `smtpmail_smtp_service%port = 25', a service name
+    !> `smtpmail_smtp_service%service_name = "smtp"' (a service name that is
+    !> set is used).  Port of smtpmail.el smtpmail-smtp-service.
+    type(smtpmail_smtp_service_choice_setting_type), public :: smtpmail_smtp_service = &
+                                       smtpmail_smtp_service_choice_setting_type(name="smtpmail_smtp_service", true_valid=.false., &
+                                                                                                       false_valid=.false., port=25)
 
     !> User name to use when looking up credentials in the authinfo file.
     !> If set, only consider credentials for the specified user.  Port of
@@ -485,8 +505,8 @@ contains
             if (.not. status%ok()) exit body
 
             if (.not. found) then
-                call make_message_id(message_id)
-                call insert("Message-Id: "//message_id//LF, status)
+                call make_message_id(message_id, status)
+                if (status%ok()) call insert("Message-Id: "//message_id//LF, status)
             end if
 
             if (.not. status%ok()) exit body
@@ -606,30 +626,40 @@ contains
     ! narrowed header of the current buffer: `mail_envelope_from' when
     ! `mail_specify_envelope_from' is true, else the address of the From
     ! field, else `smtpmail_user_mail_address'.  With KEEP, a value
-    ! already set is kept (smtpmail-via-smtp's envelope-from).  Taking the
-    ! address of the From field needs mail-extr.el's
-    ! mail-extract-address-components, which is not ported: a From field
-    ! is a `void_function' error condition.  Port of the binding in
-    ! smtpmail.el:smtpmail-send-it.
+    ! already set is kept (smtpmail-via-smtp's envelope-from).  Port of
+    ! the binding in smtpmail.el:smtpmail-send-it.
     recursive subroutine get_mail_address(keep, status)
         logical, intent(in) :: keep
         type(status_type), intent(out) :: status
+        type(mail_address_components_type), allocatable :: components(:)
         character(len=:), allocatable :: from, address
 
         status = status_type()
         if (keep .and. allocated(smtpmail_mail_address)) return
 
-        if (mail_specify_envelope_from .and. allocated(mail_envelope_from)) then
-            smtpmail_mail_address = mail_envelope_from
-            return
+        if (mail_specify_envelope_from) then
+            call get_mail_envelope_from(address, status)
+            if (.not. status%ok()) return
+
+            if (allocated(address)) then
+                smtpmail_mail_address = address
+                return
+            end if
         end if
 
         call get_mail_field("from", from, status)
         if (.not. status%ok()) return
 
         if (allocated(from)) then
-            call set_error(status, FM_VOID_FUNCTION, "mail_extract_address_components")
-            return
+            call extract_mail_address_components(from, components, status)
+            if (.not. status%ok()) return
+
+            if (size(components) > 0) then
+                if (allocated(components(1)%address)) then
+                    smtpmail_mail_address = components(1)%address
+                    return
+                end if
+            end if
         end if
 
         call get_smtpmail_user_mail_address(address)
@@ -858,8 +888,15 @@ contains
         ! Perhaps store the server etc.
         if (.not. smtpmail_store_queue_variables) return
         call string_item("smtpmail_smtp_server", smtpmail_smtp_server)
-        item = namelist_item_type(name="smtpmail_smtp_service", component="")
-        call item%append_integer(int(smtpmail_smtp_service, int64))
+
+        if (allocated(smtpmail_smtp_service%service_name)) then
+            item = namelist_item_type(name="smtpmail_smtp_service", component="service_name")
+            call item%append_string(smtpmail_smtp_service%service_name)
+        else
+            item = namelist_item_type(name="smtpmail_smtp_service", component="port")
+            call item%append_integer(int(smtpmail_smtp_service%port, int64))
+        end if
+
         call group%append(item)
         call string_item("smtpmail_smtp_user", smtpmail_smtp_user)
 
@@ -914,10 +951,10 @@ contains
         type(handle_type) :: index_buffer, data_buffer, old
         character(len=:), allocatable :: qfile, file_data, file_variables, failure, saved_server, saved_user, &
                                          saved_address, message_text, sanitized, &
-                                         user_address
+                                         user_address, envelope_from
         type(string_type), allocatable :: saved_recipients(:)
         logical :: had_server, had_user, had_address, failed
-        integer :: saved_service
+        type(smtpmail_smtp_service_choice_setting_type) :: saved_service
         integer(int64) :: inserted, begv, zv
         type(status_type) :: st
 
@@ -960,17 +997,19 @@ contains
                 if (.not. status%ok()) exit
                 call set_buffer(data_buffer, status)
                 if (status%ok()) call insert_no_conversion(file_data, status)
+                if (allocated(envelope_from)) deallocate (envelope_from)
+
+                if (status%ok() .and. mail_specify_envelope_from) then
+                    ! Only look at the headers when fetching the
+                    ! envelope address.
+                    call narrow_to_headers(begv, zv, status)
+                    if (status%ok()) call get_mail_envelope_from(envelope_from, status)
+                    call restore_restriction(begv, zv)
+                end if
 
                 if (status%ok()) then
-                    if (mail_specify_envelope_from) then
-                        ! Only look at the headers when fetching the
-                        ! envelope address.
-                        call narrow_to_headers(begv, zv, status)
-                        call restore_restriction(begv, zv)
-                    end if
-
-                    if (mail_specify_envelope_from .and. allocated(mail_envelope_from)) then
-                        smtpmail_mail_address = mail_envelope_from
+                    if (allocated(envelope_from)) then
+                        smtpmail_mail_address = envelope_from
                     else
                         user_address = user_mail_address_value()
 
@@ -1129,7 +1168,11 @@ contains
                 else if (it%name == "smtpmail_smtp_user") then
                     call set_stored_string(it%values(1), smtpmail_smtp_user)
                 else if (it%name == "smtpmail_smtp_service") then
-                    if (it%values(1)%kind == NAMELIST_INTEGER) smtpmail_smtp_service = int(it%values(1)%integer)
+                    if (it%values(1)%kind == NAMELIST_INTEGER) then
+                        call set_service(int(it%values(1)%integer))
+                    else if (it%values(1)%kind == NAMELIST_STRING) then
+                        call set_service(service_name=it%values(1)%string)
+                    end if
                 end if
             end associate
         end do
@@ -1299,7 +1342,7 @@ contains
             call erase_buffer(status)
             if (.not. status%ok()) exit done
             ! Open the connection to the server.
-            call open_stream(process, process_buffer, host, smtpmail_smtp_service, greeting, has_greeting, capabilities, &
+            call open_stream(process, process_buffer, host, service_text(), greeting, has_greeting, capabilities, &
                              has_capabilities, status)
             if (.not. status%ok()) exit done
             code = 0
@@ -1872,37 +1915,64 @@ contains
     ! the init file, customize-save-variable, is deferred).
     recursive subroutine read_smtp_server(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: server, lookup_error
-        character(len=12) :: number
-        integer, allocatable :: ports(:)
-        integer :: port
+        ! The ports to try, as getaddrinfo takes them, and which of them are
+        ! service names (upstream's strings).
+        character(len=:), allocatable :: server, lookup_error, port
+        character(len=32), allocatable :: ports(:)
+        logical, allocatable :: named(:)
+        logical :: port_named
+        integer :: port_number
         integer(int64) :: answer
         integer(int32) :: fd, err
         logical :: prompted
+        character(len=32) :: number
 
         call read_string("Outgoing SMTP mail server: ", server, status)
         if (.not. status%ok()) return
-        ports = [25, 587]
+        ports = [character(len=32) :: "25", "587"]
+        named = [.false., .false.]
         prompted = .false.
-        if (.not. any(ports == smtpmail_smtp_service)) ports = [smtpmail_smtp_service, ports]
+
+        ! A service name is never a member of the numbers.
+        if (allocated(smtpmail_smtp_service%service_name)) then
+            ports = [character(len=32) :: smtpmail_smtp_service%service_name, ports]
+            named = [.true., named]
+        else if (smtpmail_smtp_service%port >= 0) then
+            write (number, "(i0)") smtpmail_smtp_service%port
+
+            if (.not. any(ports == number)) then
+                ports = [number, ports]
+                named = [.false., named]
+            end if
+        end if
 
         do while (.not. allocated(smtpmail_smtp_server) .and. size(ports) > 0)
-            port = ports(1)
+            port = trim(ports(1))
+            port_named = named(1)
             ports = ports(2:)
-            write (number, "(i0)") port
-            call fortmacs_connect(server, trim(number), fd, err, lookup_error)
+            named = named(2:)
+            call fortmacs_connect(server, port, fd, err, lookup_error)
 
             if (fd < 0) then
                 ! We've used up the list of default ports, so query the user.
                 if (size(ports) == 0 .and. .not. prompted) then
                     call read_number("Port number to use when contacting "//server//"? ", answer, status)
                     if (.not. status%ok()) return
-                    ports = [int(answer)]
+                    write (number, "(i0)") answer
+                    ports = [number]
+                    named = [.false.]
                     prompted = .true.
                 end if
             else
                 smtpmail_smtp_server = server
-                smtpmail_smtp_service = port
+
+                if (port_named) then
+                    call set_service(service_name=port)
+                else
+                    read (port, *) port_number
+                    call set_service(port_number)
+                end if
+
                 call close_fd(fd)
             end if
         end do
@@ -1914,42 +1984,43 @@ contains
     ! The connection
     ! ------------------------------------------------------------------
 
-    ! Open the connection PROCESS to PORT on HOST, its output going to
+    ! Open the connection PROCESS to SERVICE (a port number or a service
+    ! name) on HOST, its output going to
     ! BUFFER, read the greeting (GREETING, when HAS_GREETING) and send
     ! EHLO, reading its response (CAPABILITIES, when HAS_CAPABILITIES).
     ! The connection stays unencrypted: TLS and STARTTLS are deferred.
     ! Port of network-stream.el:open-network-stream with
     ! network-stream-open-starttls, as smtpmail-via-smtp calls them
     ! (:return-list, :capability-command, :end-of-command), without TLS.
-    recursive subroutine open_stream(process, buffer, host, port, greeting, has_greeting, capabilities, has_capabilities, &
+    recursive subroutine open_stream(process, buffer, host, service, greeting, has_greeting, capabilities, has_capabilities, &
                                      status)
         type(smtp_stream_type), intent(inout) :: process
         type(handle_type), intent(in) :: buffer
-        character(len=*), intent(in) :: host
-        integer, intent(in) :: port
+        character(len=*), intent(in) :: host, service
         character(len=:), allocatable, intent(out) :: greeting, capabilities
         logical, intent(out) :: has_greeting, has_capabilities
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: lookup_error
-        character(len=12) :: number
+        character(len=:), allocatable :: lookup_error, shown
         integer(int32) :: fd, err
         integer(int64) :: start
 
         has_greeting = .false.
         has_capabilities = .false.
         status = status_type()
-        write (number, "(i0)") port
-        call fortmacs_connect(host, trim(number), fd, err, lookup_error)
+        call fortmacs_connect(host, service, fd, err, lookup_error)
 
         if (len(lookup_error) > 0) then
-            call set_error(status, FM_GENERIC_ERROR, host//"/"//trim(number)//" "//lookup_error)
+            call set_error(status, FM_GENERIC_ERROR, host//"/"//service//" "//lookup_error)
             return
         end if
 
         if (fd < 0) then
+            ! The error data shows a service name as a string.
+            shown = service
+            if (verify(service, "0123456789") /= 0) shown = """"//service//""""
             call set_error(status, FM_FILE_ERROR, "make client process failed: "//fortmacs_strerror(err)//", :name, "// &
                            STREAM_NAME//", :buffer, #<buffer "//buffers(buffer%index)%name//">, :host, "//host// &
-                           ", :service, "//trim(number)//", :coding, .false.")
+                           ", :service, "//shown//", :coding, .false.")
             return
         end if
 
@@ -2536,20 +2607,23 @@ contains
     ! A unique Message-Id field value for the message in the current
     ! buffer.  Port of message.el:message-make-message-id (the reply
     ! headers of Message mode are not ported: only Supersedes adds "_-_").
-    subroutine make_message_id(id)
+    subroutine make_message_id(id, status)
         character(len=:), allocatable, intent(out) :: id
-        character(len=:), allocatable :: supersedes, unique
-        type(status_type) :: st
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: supersedes, unique, fqdn
 
         call make_message_unique_id(unique)
         id = "<"//unique
-        call get_mail_field("supersedes", supersedes, st, all=.true.)
+        call get_mail_field("supersedes", supersedes, status, all=.true.)
+        if (.not. status%ok()) return
 
         if (allocated(supersedes)) then
             if (index(supersedes, "_-_@") > 0) id = id//"_-_"
         end if
 
-        id = id//"@"//message_make_fqdn()//">"
+        call make_message_fqdn(fqdn, status)
+        if (.not. status%ok()) return
+        id = id//"@"//fqdn//">"
     end subroutine make_message_id
 
     ! The unique part of a Message-Id: the user id, the time and a counter
@@ -2607,25 +2681,41 @@ contains
     ! else the system name with ".mail-host-address-is-not-set".  Port of
     ! message.el:message-make-fqdn (`message_user_fqdn' comes with
     ! message.el).
-    function message_make_fqdn() result(fqdn)
+    subroutine make_message_fqdn(fqdn, status)
         character(len=*), parameter :: BOGUS_SYSTEM_NAMES = "\`localhost\.\|\.local\'"
-        character(len=:), allocatable :: fqdn
+        character(len=:), allocatable, intent(out) :: fqdn
+        type(status_type), intent(out) :: status
+        type(mail_address_components_type), allocatable :: components(:)
         character(len=:), allocatable :: sysname, user_mail, user_domain
         logical :: saved_fold
         type(status_type) :: st
         integer :: at
 
+        status = status_type()
         sysname = system_name()
         user_mail = user_mail_address_value()
         user_domain = ""
 
-        ! message-user-mail-address
+        ! message-user-mail-address: the address of `user_mail_address'.
         if (allocated(user_mail)) then
-            ! An address with a space in it needs mail-extr.el, not ported.
-            if (string_match("@.*\.", user_mail, st, inhibit_modify=.true.) > 0 .and. index(user_mail, " ") == 0) then
-                at = index(user_mail, "@")
-                if (at > 0) user_domain = user_mail(at + 1:)
+            if (string_match("@.*\.", user_mail, st, inhibit_modify=.true.) == 0) deallocate (user_mail)
+        end if
+
+        if (allocated(user_mail)) then
+            if (index(user_mail, " ") > 0) then
+                call extract_mail_address_components(user_mail, components, status)
+                if (.not. status%ok()) return
+                deallocate (user_mail)
+
+                if (size(components) > 0) then
+                    if (allocated(components(1)%address)) user_mail = components(1)%address
+                end if
             end if
+        end if
+
+        if (allocated(user_mail)) then
+            at = index(user_mail, "@")
+            if (at > 0) user_domain = user_mail(at + 1:)
         end if
 
         saved_fold = case_fold_search%value
@@ -2668,7 +2758,7 @@ contains
             is_bogus_unset = .true.
             if (allocated(name)) is_bogus_unset = is_bogus(name)
         end function is_bogus_unset
-    end function message_make_fqdn
+    end subroutine make_message_fqdn
 
     ! ------------------------------------------------------------------
     ! Initialization
@@ -2698,4 +2788,73 @@ contains
         if (.not. allocated(smtpmail_recipient_addresses)) allocate (smtpmail_recipient_addresses(0))
         commands%send_queued_mail_with_smtp%execute => send_queued_mail_with_smtp
     end subroutine init_smtpmail
+
+    ! ------------------------------------------------------------------
+    ! The setting smtpmail_smtp_service
+    ! ------------------------------------------------------------------
+
+    ! Set `smtpmail_smtp_service' to PORT or SERVICE_NAME, the other kind
+    ! cleared (as an assignment to upstream's variable).  Not a port.
+    subroutine set_service(port, service_name)
+        integer, intent(in), optional :: port
+        character(len=*), intent(in), optional :: service_name
+
+        if (allocated(smtpmail_smtp_service%service_name)) deallocate (smtpmail_smtp_service%service_name)
+        smtpmail_smtp_service%port = -1
+        if (present(port)) smtpmail_smtp_service%port = port
+        if (present(service_name)) smtpmail_smtp_service%service_name = service_name
+    end subroutine set_service
+
+    ! `smtpmail_smtp_service' as getaddrinfo takes it: the service name if
+    ! one is set, else the port number.  Not a port.
+    function service_text() result(text)
+        character(len=:), allocatable :: text
+        character(len=12) :: number
+
+        if (allocated(smtpmail_smtp_service%service_name)) then
+            text = smtpmail_smtp_service%service_name
+        else
+            write (number, "(i0)") smtpmail_smtp_service%port
+            text = trim(number)
+        end if
+    end function service_text
+
+    !> Forget the port and the service name of `smtpmail_smtp_service', as
+    !> any assignment to it does.  Not a port.
+    subroutine smtpmail_smtp_service_clear_kinds(self)
+        class(smtpmail_smtp_service_choice_setting_type), intent(inout) :: self
+
+        self%port = -1
+        if (allocated(self%service_name)) deallocate (self%service_name)
+    end subroutine smtpmail_smtp_service_clear_kinds
+
+    !> The port or service name of `smtpmail_smtp_service' as help shows it
+    !> (`%port = 25', `%service_name = "smtp"'); "" when neither is set.
+    !> Not a port.
+    function smtpmail_smtp_service_other_value(self) result(text)
+        class(smtpmail_smtp_service_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        character(len=32) :: component_text
+
+        text = ""
+
+        if (allocated(self%service_name)) then
+            text = "%service_name = """//self%service_name//""""
+        else if (self%port >= 0) then
+            write (component_text, '("%port = ", i0)') self%port
+            text = trim(component_text)
+        end if
+    end function smtpmail_smtp_service_other_value
+
+    !> The assignment that sets the port or the service name
+    !> `smtpmail_smtp_service' takes, for the error of a rejected value.
+    !> Not a port.
+    function smtpmail_smtp_service_kind_hint(self, number) result(text)
+        class(smtpmail_smtp_service_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a port number is `"//trim(self%name)//"%port = "//number//"' and a service name `"//trim(self%name)// &
+               "%service_name = ""...""'"
+    end function smtpmail_smtp_service_kind_hint
 end module smtpmail_mod
