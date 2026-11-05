@@ -369,7 +369,7 @@ module diary_library_mod
     ! The kinds of a value of an expression entry: an integer, t, nil, a
     ! list of integers, a string, a quoted name, a quoted entry form.
     integer, parameter :: VALUE_INTEGER = 1, VALUE_ALL = 2, VALUE_NONE = 3, VALUE_INTEGERS = 4, VALUE_STRING = 5, &
-                          VALUE_NAME = 6, VALUE_FORM = 7
+                          VALUE_NAME = 6, VALUE_EXPRESSION = 7
 
     ! A value of an expression entry: its KIND, an integer VALUE, the
     ! INTEGERS of a list, or the TEXT of a string, a name or a form.
@@ -390,6 +390,35 @@ module diary_library_mod
         character(len=:), allocatable :: text
         type(expression_value_type) :: mark
     end type expression_result_type
+
+    abstract interface
+        ! What the entry function of an expression entry gives for DATE:
+        ! its ARGS as the file writes them, the entry's text ENTRY, and
+        ! RESULT.  Not a port.
+        recursive subroutine entry_function_procedure(args, date, entry, result, status)
+            import :: expression_value_type, calendar_date_type, expression_result_type, status_type
+            implicit none(type, external)
+            type(expression_value_type), intent(in) :: args(:)
+            type(calendar_date_type), intent(in) :: date
+            character(len=*), intent(in) :: entry
+            type(expression_result_type), intent(out) :: result
+            type(status_type), intent(out) :: status
+        end subroutine entry_function_procedure
+    end interface
+
+    ! An entry function the diary file can name: its NAME as the file
+    ! writes it (upstream's), its LEAST and MOST numbers of arguments, and
+    ! the procedure that COMPUTEs it.
+    type :: entry_function_type
+        character(len=24) :: name = ""
+        integer :: least = 0
+        integer :: most = 0
+        procedure(entry_function_procedure), pointer, nopass :: compute => null()
+    end type entry_function_type
+
+    ! The entry functions of expression entries (made in
+    ! `init_diary_library').
+    type(entry_function_type) :: entry_functions(8)
 
     ! The kinds of entries `insert_diary_entry_1' inserts.
     integer, parameter :: ENTRY_MONTHLY = 1, ENTRY_YEARLY = 2
@@ -2293,7 +2322,7 @@ contains
         character(len=32) :: digits
         type(status_type) :: status
 
-        call evaluate_entry_form(expression, entry, date, result, status)
+        call evaluate_entry_expression(expression, entry, date, result, status)
 
         if (.not. status%ok()) then
             write (digits, "(i0)") count_lines(point_min(), point())
@@ -2313,69 +2342,40 @@ contains
     ! RESULT; an error condition occurs for a form the reader does not
     ! know.  Not a port (the reader of upstream's eval in
     ! diary-lib.el:diary-sexp-entry).
-    recursive subroutine evaluate_entry_form(expression, entry, date, result, status)
+    recursive subroutine evaluate_entry_expression(expression, entry, date, result, status)
         character(len=*), intent(in) :: expression, entry
         type(calendar_date_type), intent(in) :: date
         type(expression_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: form_name
         type(expression_value_type), allocatable :: args(:)
+        integer :: k
 
         result = expression_result_type()
-        call read_entry_form(expression, form_name, args, status)
+        call read_entry_expression(expression, form_name, args, status)
         if (.not. status%ok()) return
-
         ! The form names a function of the diary file, text read at run time.
-        select case (form_name)
-        case ("diary-date")
-            call check_arguments(3, 4)
-            if (status%ok()) call diary_date(args, date, result, status)
-        case ("diary-block")
-            call check_arguments(6, 7)
-            if (status%ok()) call diary_block(args, date, result, status)
-        case ("diary-float")
-            call check_arguments(3, 5)
-            if (status%ok()) call diary_float(args, date, result, status)
-        case ("diary-anniversary")
-            call check_arguments(2, 4)
-            if (status%ok()) call diary_anniversary(args, date, entry, result, status)
-        case ("diary-cyclic")
-            call check_arguments(4, 5)
-            if (status%ok()) call diary_cyclic(args, date, entry, result, status)
-        case ("diary-offset")
-            call check_arguments(2, 2)
-            if (status%ok()) call diary_offset(args, date, entry, result, status)
-        case ("diary-remind")
-            call check_arguments(2, 3)
-            if (status%ok()) call diary_remind(args, date, entry, result, status)
-        case ("diary-day-of-year")
-            call check_arguments(0, 0)
-            if (status%ok()) call diary_day_of_year(date, result)
-        case default
+        k = findloc(entry_functions%name == form_name, .true., dim=1)
+
+        if (k == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Unknown diary entry form "//form_name)
-        end select
+        else if (size(args) < entry_functions(k)%least .or. size(args) > entry_functions(k)%most) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong number of arguments: "//form_name)
+        else
+            call entry_functions(k)%compute(args, date, entry, result, status)
+        end if
 
         ! (cons mark entry) gives the entry; a string gives itself.
         if (status%ok() .and. result%applies .and. .not. result%has_text) then
             result%has_text = .true.
             result%text = entry
         end if
-
-    contains
-
-        subroutine check_arguments(least, most)
-            integer, intent(in) :: least, most
-
-            if (size(args) < least .or. size(args) > most) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong number of arguments: "//form_name)
-            end if
-        end subroutine check_arguments
-    end subroutine evaluate_entry_form
+    end subroutine evaluate_entry_expression
 
     ! Read the entry form TEXT, "(NAME ARGUMENT...)", into NAME and ARGS.
     ! An argument is an integer, t, nil, a string, a quoted list of
     ! integers, a quoted name or a quoted form.  Not a port.
-    recursive subroutine read_entry_form(text, name, args, status)
+    recursive subroutine read_entry_expression(text, name, args, status)
         character(len=*), intent(in) :: text
         character(len=:), allocatable, intent(out) :: name
         type(expression_value_type), allocatable, intent(out) :: args(:)
@@ -2401,7 +2401,7 @@ contains
 
         k = k + 1
         call skip_blanks(text, k)
-        name = read_atom(text, k)
+        name = read_entry_word(text, k)
 
         if (len(name) == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid diary entry form")
@@ -2421,7 +2421,7 @@ contains
             if (.not. status%ok()) return
             args = [args, arg]
         end do
-    end subroutine read_entry_form
+    end subroutine read_entry_expression
 
     ! Read the argument of TEXT at K into ARG, leaving K after it.
     ! Not a port.
@@ -2430,7 +2430,7 @@ contains
         integer, intent(inout) :: k
         type(expression_value_type), intent(out) :: arg
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: atom
+        character(len=:), allocatable :: word
         integer :: start, depth
         logical :: in_string
 
@@ -2506,9 +2506,9 @@ contains
 
                 call read_quoted_list(text(start:k - 1), arg, status)
             else
-                atom = read_atom(text, k)
+                word = read_entry_word(text, k)
 
-                select case (atom)
+                select case (word)
                 case ("nil")
                     arg%kind = VALUE_NONE
                 case ("t")
@@ -2516,21 +2516,21 @@ contains
                 case ("")
                     call set_error(status, FM_GENERIC_ERROR, "Invalid read syntax")
                 case default
-                    if (is_integer_text(atom)) then
+                    if (is_integer_text(word)) then
                         arg%kind = VALUE_INTEGER
-                        read (atom, *) arg%value
+                        read (word, *) arg%value
                     else
                         arg%kind = VALUE_NAME
-                        arg%text = atom
+                        arg%text = word
                     end if
                 end select
             end if
         case ("(")
             call set_error(status, FM_GENERIC_ERROR, "Unknown diary entry form "//text(k:))
         case default
-            atom = read_atom(text, k)
+            word = read_entry_word(text, k)
 
-            select case (atom)
+            select case (word)
             case ("nil")
                 arg%kind = VALUE_NONE
             case ("t")
@@ -2538,11 +2538,11 @@ contains
             case ("")
                 call set_error(status, FM_GENERIC_ERROR, "Invalid read syntax")
             case default
-                if (is_integer_text(atom)) then
+                if (is_integer_text(word)) then
                     arg%kind = VALUE_INTEGER
-                    read (atom, *) arg%value
+                    read (word, *) arg%value
                 else
-                    call set_error(status, FM_GENERIC_ERROR, "Unknown diary entry variable "//atom)
+                    call set_error(status, FM_GENERIC_ERROR, "Unknown diary entry variable "//word)
                 end if
             end select
         end select
@@ -2554,7 +2554,7 @@ contains
         character(len=*), intent(in) :: text
         type(expression_value_type), intent(out) :: arg
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: atom
+        character(len=:), allocatable :: word
         integer :: k, value
 
         status = status_type()
@@ -2567,10 +2567,10 @@ contains
             return
         end if
 
-        atom = read_atom(text, k)
+        word = read_entry_word(text, k)
 
-        if (.not. is_integer_text(atom)) then
-            arg%kind = VALUE_FORM
+        if (.not. is_integer_text(word)) then
+            arg%kind = VALUE_EXPRESSION
             arg%text = text
             return
         end if
@@ -2579,17 +2579,17 @@ contains
         allocate (arg%integers(0))
 
         do
-            if (.not. is_integer_text(atom)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong type argument: expected integer, got "//atom)
+            if (.not. is_integer_text(word)) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong type argument: expected integer, got "//word)
                 return
             end if
 
-            read (atom, *) value
+            read (word, *) value
             arg%integers = [arg%integers, value]
             call skip_blanks(text, k)
             if (k > len(text)) exit
             if (text(k:k) == ")") exit
-            atom = read_atom(text, k)
+            word = read_entry_word(text, k)
         end do
     end subroutine read_quoted_list
 
@@ -2604,12 +2604,12 @@ contains
         end do
     end subroutine skip_blanks
 
-    ! The atom (a name or a number) of TEXT at K, moving K past it.
+    ! The word (a name or a number) of TEXT at K, moving K past it.
     ! Not a port.
-    function read_atom(text, k) result(atom)
+    function read_entry_word(text, k) result(word)
         character(len=*), intent(in) :: text
         integer, intent(inout) :: k
-        character(len=:), allocatable :: atom
+        character(len=:), allocatable :: word
         integer :: start
 
         start = k
@@ -2619,8 +2619,8 @@ contains
             k = k + 1
         end do
 
-        atom = text(start:k - 1)
-    end function read_atom
+        word = text(start:k - 1)
+    end function read_entry_word
 
     ! Whether TEXT is an integer: digits, with an optional sign and a
     ! final period.  Not a port.
@@ -2754,9 +2754,10 @@ contains
     ! An optional parameter MARK specifies a face or single-character string
     ! to use when highlighting the day in the calendar.  Port of
     ! diary-lib.el:diary-date.
-    recursive subroutine diary_date(args, date, result, status)
+    recursive subroutine diary_date(args, date, entry, result, status)
         type(expression_value_type), intent(in) :: args(:)
         type(calendar_date_type), intent(in) :: date
+        character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
         type(expression_value_type) :: mm, dd, yy
@@ -2775,9 +2776,10 @@ contains
     ! An optional parameter MARK specifies a face or single-character string
     ! to use when highlighting the day in the calendar.  Port of
     ! diary-lib.el:diary-block.
-    recursive subroutine diary_block(args, date, result, status)
+    recursive subroutine diary_block(args, date, entry, result, status)
         type(expression_value_type), intent(in) :: args(:)
         type(calendar_date_type), intent(in) :: date
+        character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
         integer :: date1, date2, d
@@ -2800,9 +2802,10 @@ contains
     ! Optional MARK specifies a face or single-character string to use when
     ! highlighting the day in the calendar.  Port of
     ! diary-lib.el:diary-float.
-    recursive subroutine diary_float(args, date, result, status)
+    recursive subroutine diary_float(args, date, entry, result, status)
         type(expression_value_type), intent(in) :: args(:)
         type(calendar_date_type), intent(in) :: date
+        character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
         type(expression_value_type) :: month, day_arg
@@ -3059,22 +3062,26 @@ contains
 
         days = args(2)%value
 
-        if (args(1)%kind /= VALUE_FORM) then
+        if (args(1)%kind /= VALUE_EXPRESSION) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong type argument: expected a diary entry form")
             return
         end if
 
-        call evaluate_entry_form(args(1)%text, entry, &
-                                 calendar_gregorian_from_absolute(calendar_absolute_from_gregorian(date) - days), result, &
-                                 status)
+        call evaluate_entry_expression(args(1)%text, entry, &
+                                       calendar_gregorian_from_absolute(calendar_absolute_from_gregorian(date) - days), result, &
+                                       status)
     end subroutine diary_offset
 
     ! Day of year and number of days remaining in the year of date diary
     ! entry.  Port of diary-lib.el:diary-day-of-year.
-    recursive subroutine diary_day_of_year(date, result)
+    recursive subroutine diary_day_of_year(args, date, entry, result, status)
+        type(expression_value_type), intent(in) :: args(:)
         type(calendar_date_type), intent(in) :: date
+        character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
+        type(status_type), intent(out) :: status
 
+        status = status_type()
         result%applies = .true.
         result%has_text = .true.
         result%text = calendar_day_of_year_string(date)
@@ -3110,7 +3117,7 @@ contains
 
         status = status_type()
 
-        if (args(1)%kind /= VALUE_FORM) then
+        if (args(1)%kind /= VALUE_EXPRESSION) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong type argument: expected a diary entry form")
             return
         end if
@@ -3147,7 +3154,7 @@ contains
             character(len=:), allocatable :: text
 
             result = expression_result_type()
-            call evaluate_entry_form(args(1)%text, entry, date, diary_entry, status)
+            call evaluate_entry_expression(args(1)%text, entry, date, diary_entry, status)
             if (.not. status%ok()) return
 
             if (diary_entry%applies .and. (.not. diary_marking_entries_flag .or. diary_marking_entry_flag)) then
@@ -3157,9 +3164,9 @@ contains
                      .and. (.not. diary_marking_entries_flag .or. marking%kind /= VALUE_NONE)) then
                 ! Diary entry may apply to `days' before date.
                 ! Adjust date, and re-evaluate.
-                call evaluate_entry_form(args(1)%text, entry, &
-                                         calendar_gregorian_from_absolute(calendar_absolute_from_gregorian(date) + days), &
-                                         diary_entry, status)
+                call evaluate_entry_expression(args(1)%text, entry, &
+                                               calendar_gregorian_from_absolute(calendar_absolute_from_gregorian(date) + days), &
+                                               diary_entry, status)
                 if (.not. status%ok()) return
                 if (.not. diary_entry%applies) return
 
@@ -3593,6 +3600,14 @@ contains
         if (.not. allocated(diary_comment_end)) diary_comment_end = ""
         if (.not. allocated(diary_entries)) allocate (diary_entries(0))
         if (.not. allocated(diary_included_files)) allocate (diary_included_files(0))
+        entry_functions(1) = entry_function_type("diary-date", 3, 4, diary_date)
+        entry_functions(2) = entry_function_type("diary-block", 6, 7, diary_block)
+        entry_functions(3) = entry_function_type("diary-float", 3, 5, diary_float)
+        entry_functions(4) = entry_function_type("diary-anniversary", 2, 4, diary_anniversary)
+        entry_functions(5) = entry_function_type("diary-cyclic", 4, 5, diary_cyclic)
+        entry_functions(6) = entry_function_type("diary-offset", 2, 2, diary_offset)
+        entry_functions(7) = entry_function_type("diary-remind", 2, 3, diary_remind)
+        entry_functions(8) = entry_function_type("diary-day-of-year", 0, 0, diary_day_of_year)
         call copy_syntax_table(diary_syntax_table, st, standard_syntax_table())
         call modify_syntax_entry(iachar("*"), iachar("*"), "w", st, diary_syntax_table)
         call modify_syntax_entry(iachar(":"), iachar(":"), "w", st, diary_syntax_table)
