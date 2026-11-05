@@ -55,7 +55,7 @@ module rmail_output_mod
                          is_rmail_message_deleted, set_rmail_attribute, delete_rmail_message, delete_rmail_message_forward, &
                          next_rmail_message, next_rmail_undeleted_message, swap_rmail_buffers_maybe, modify_rmail_format, &
                          set_rmail_message_counters_maybe, ensure_rmail_blank_line, count_rmail_new_messages, &
-                         rmail_summary_exists, select_rmail_summary, update_rmail_summary_function, show_rmail_message_1, &
+                         has_rmail_summary, select_rmail_summary, update_rmail_summary_function, show_rmail_message_1, &
                          rmail_default_file, rmail_default_body_file, rmail_delete_after_output, rmail_enable_mime, &
                          RMAIL_DELETED_ATTRIBUTE_INDEX, RMAIL_FILED_ATTRIBUTE_INDEX
     implicit none(type, external)
@@ -288,7 +288,7 @@ contains
             if (.not. status%ok()) exit body
             call count_rmail_new_messages(.true.)
 
-            if (rmail_summary_exists()) then
+            if (has_rmail_summary()) then
                 call select_rmail_summary(update_rmail_summary_function, 0_int64, status)
                 if (.not. status%ok()) exit body
             end if

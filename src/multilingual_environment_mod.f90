@@ -3159,7 +3159,7 @@ contains
 
     contains
 
-        ! Whether "16-[lb]e" ends CANONICAL with its "-" at IDX.
+        ! Whether "16-[lb]e" ends CANONICAL with its "-" at AT.
         logical function is_utf_16_endian_suffix(at)
             integer, intent(in) :: at
 

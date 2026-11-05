@@ -307,7 +307,7 @@ contains
 
     ! Set the array of the messages the summary shows from its lines.
     ! Port of rmailsum.el:rmail-summary-populate-displayed-messages.
-    subroutine populate_rmail_summary_displayed_messages()
+    subroutine populate_is_rmail_summary_displayed_messages()
         type(handle_type) :: saved, summary
         type(status_type) :: st
         integer(int64) :: total, number, moved
@@ -332,7 +332,7 @@ contains
         end do
 
         call set_buffer(saved, st)
-    end subroutine populate_rmail_summary_displayed_messages
+    end subroutine populate_is_rmail_summary_displayed_messages
 
     ! The number at the start of the line at point (string-to-number of
     ! the line: 0 if none).  Not a port.
@@ -434,7 +434,7 @@ contains
         end if
 
         rmail_last_multi_labels = wanted
-        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call populate_rmail_summary_displayed_messages()
+        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call populate_is_rmail_summary_displayed_messages()
         call make_rmail_new_summary("labels "//wanted, SUMMARY_LABELS, wanted, .false., status)
     end subroutine rmail_summary_by_labels
 
@@ -452,7 +452,7 @@ contains
 
         primary = .false.
         if (present(primary_only)) primary = primary_only
-        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call populate_rmail_summary_displayed_messages()
+        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call populate_is_rmail_summary_displayed_messages()
         call make_rmail_new_summary("recipients "//recipients, SUMMARY_RECIPIENTS, recipients, primary, status)
     end subroutine rmail_summary_by_recipients
 
@@ -464,7 +464,7 @@ contains
         character(len=*), intent(in) :: senders
         type(status_type), intent(out) :: status
 
-        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call populate_rmail_summary_displayed_messages()
+        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call populate_is_rmail_summary_displayed_messages()
         call make_rmail_new_summary("senders "//senders, SUMMARY_SENDERS, senders, .false., status)
     end subroutine rmail_summary_by_senders
 

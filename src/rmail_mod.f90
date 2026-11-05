@@ -108,7 +108,7 @@ module rmail_mod
               count_rmail_new_messages, &
               set_rmail_message_counters, is_rmail_message_pruned, show_rmail_message_1, highlight_rmail_headers, &
               get_rmail_message_at, get_first_rmail_unseen_message, is_rmail_message_deleted, set_rmail_message_deleted, &
-              rmail_summary_exists, rmail_summary_displayed, display_rmail_summary_maybe, select_rmail_summary, &
+              has_rmail_summary, is_rmail_summary_displayed, display_rmail_summary_maybe, select_rmail_summary, &
               swap_rmail_buffers, swap_rmail_buffers_maybe, is_rmail_buffers_swapped, modify_rmail_format, &
               keep_rmail_format, ensure_rmail_blank_line, get_rmail_coding_system, is_rmail_text, rmail_buffer, &
               set_rmail_buffer, rmail_state_index, set_rmail_bad_format_error, annotate_rmail_write_region, &
@@ -1554,7 +1554,7 @@ contains
                 if (one_file .or. has_inboxes()) call message("(No new mail has arrived)")
             end if
 
-            if (rmail_summary_exists()) then
+            if (has_rmail_summary()) then
                 call select_rmail_summary(update_rmail_summary_function, 0_int64, status)
                 if (.not. status%ok()) exit body
             end if
@@ -2949,7 +2949,7 @@ contains
             ! If there is a summary buffer, try to move to this message in
             ! that buffer.  But don't complain if this message is not
             ! mentioned in the summary.
-            if (rmail_summary_exists() .and. .not. skip_summary) then
+            if (has_rmail_summary() .and. .not. skip_summary) then
                 call select_rmail_summary(goto_rmail_summary_message_function, rmail_states(k)%current_message, status)
                 if (.not. status%ok()) return
             end if
@@ -3728,7 +3728,7 @@ contains
         k = rmail_state_index(rmail_buffer())
         if (k == 0) return
         deleted_message = rmail_states(k)%current_message
-        if (rmail_summary_exists()) call select_rmail_summary(mark_rmail_summary_deleted_function, deleted_message, status)
+        if (has_rmail_summary()) call select_rmail_summary(mark_rmail_summary_deleted_function, deleted_message, status)
     end subroutine delete_rmail_message
 
     !> Back up to deleted message, select it, and undelete it.  Port of
@@ -3765,7 +3765,7 @@ contains
             call set_rmail_attribute(RMAIL_DELETED_ATTRIBUTE_INDEX, .false., status)
             if (.not. status%ok()) return
 
-            if (rmail_summary_exists() .and. associated(mark_rmail_summary_undeleted_function)) then
+            if (has_rmail_summary() .and. associated(mark_rmail_summary_undeleted_function)) then
                 saved = current_buffer()
                 call set_buffer(rmail_states(k)%summary_buffer, status)
                 if (status%ok()) call mark_rmail_summary_undeleted_function(msg, status)
@@ -3806,7 +3806,7 @@ contains
             k = rmail_state_index(rmail_buffer())
             deleted_message = rmail_states(k)%current_message
 
-            if (rmail_summary_exists()) then
+            if (has_rmail_summary()) then
                 call select_rmail_summary(mark_rmail_summary_deleted_function, deleted_message, status)
                 if (.not. status%ok()) return
             end if
@@ -4002,7 +4002,7 @@ contains
 
         ! We always update the summary buffer, so that the contents remain
         ! consistent with the rmail buffer.
-        if (rmail_summary_exists()) then
+        if (has_rmail_summary()) then
             if (quiet) then
                 if (associated(update_rmail_summary_function)) then
                     saved = current_buffer()
@@ -4047,7 +4047,7 @@ contains
         ! of it.
         call save_buffer(1_int64, .false., status)
         if (.not. status%ok()) return
-        if (rmail_summary_exists()) call select_rmail_summary(mark_unmodified, 0_int64, status)
+        if (has_rmail_summary()) call select_rmail_summary(mark_unmodified, 0_int64, status)
     end subroutine expunge_and_save_rmail
 
     ! Mark the current buffer unmodified.  Not a port: the
@@ -4081,7 +4081,7 @@ contains
 
         ! Don't switch to the summary buffer even if it was recently
         ! visible.
-        if (rmail_summary_exists()) then
+        if (has_rmail_summary()) then
             summary = rmail_states(k)%summary_buffer
             saved = current_buffer()
             call set_buffer(summary, st)
@@ -4133,17 +4133,17 @@ contains
 
     !> True if in an RMAIL buffer and an associated summary buffer exists.
     !> Port of rmail.el:rmail-summary-exists.
-    logical function rmail_summary_exists() result(exists)
+    logical function has_rmail_summary() result(exists)
         integer :: k
 
         exists = .false.
         k = rmail_state_index(rmail_buffer())
         if (k > 0) exists = is_buffer_live(rmail_states(k)%summary_buffer)
-    end function rmail_summary_exists
+    end function has_rmail_summary
 
     !> Return true if in RMAIL buffer and an associated summary buffer is
     !> displayed.  Port of rmail.el:rmail-summary-displayed.
-    logical function rmail_summary_displayed() result(displayed)
+    logical function is_rmail_summary_displayed() result(displayed)
         type(handle_type) :: window
         integer :: k
 
@@ -4153,7 +4153,7 @@ contains
         if (.not. is_buffer_live(rmail_states(k)%summary_buffer)) return
         window = get_buffer_window(rmail_states(k)%summary_buffer)
         displayed = window%index /= 0
-    end function rmail_summary_displayed
+    end function is_rmail_summary_displayed
 
     !> Put the summary buffer back on the screen, if user wants that.
     !> Port of rmail.el:rmail-maybe-display-summary (resizing the window
@@ -4193,7 +4193,7 @@ contains
         if (k == 0) return
         summary = rmail_states(k)%summary_buffer
 
-        if (rmail_summary_displayed()) then
+        if (is_rmail_summary_displayed()) then
             window = selected_window()
             call save_excursion_begin(excursion)
             call pop_to_rmail_buffer(summary, status)

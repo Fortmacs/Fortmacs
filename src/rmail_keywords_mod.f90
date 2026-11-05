@@ -44,7 +44,7 @@ module rmail_keywords_mod
     use replace_mod, only: format_prompt
     use mail_utilities_mod, only: mail_comma_list_regexp
     use rmail_mod, only: rmail_buffer, rmail_state_index, rmail_states, get_rmail_keywords, get_rmail_labels, &
-                         set_rmail_attribute, set_rmail_header, display_rmail_labels, rmail_summary_exists, &
+                         set_rmail_attribute, set_rmail_header, display_rmail_labels, has_rmail_summary, &
                          select_rmail_summary, update_rmail_summary_line_function, set_rmail_message_counters_maybe, &
                          show_rmail_message_1, RMAIL_ATTRIBUTE_NAMES, RMAIL_KEYWORD_HEADER, rmail_last_label, &
                          rmail_last_multi_labels
@@ -119,7 +119,7 @@ contains
 
         ! If the summary exists, we've already read all the existing
         ! labels.  If not, read the ones in this message.
-        if (buffers(current)%major_mode /= "rmail_summary_mode" .and. .not. rmail_summary_exists()) then
+        if (buffers(current)%major_mode /= "rmail_summary_mode" .and. .not. has_rmail_summary()) then
             call get_rmail_keywords(old, status)
             if (.not. status%ok()) return
 
@@ -275,7 +275,7 @@ contains
 
         if (.not. status%ok()) return
 
-        if (rmail_summary_exists()) then
+        if (has_rmail_summary()) then
             call select_rmail_summary(update_rmail_summary_line_function, n, status)
             if (.not. status%ok()) return
         end if

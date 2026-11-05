@@ -57,7 +57,7 @@ module rmail_edit_mod
     use mail_utilities_mod, only: get_mail_field, quote_mail_printable_region
     use utility_functions_mod, only: base64_encode_region
     use rmail_mod, only: rmail_states, rmail_state_index, rmail_buffer, set_up_rmail_mode_1, set_rmail_variables, &
-                         modify_rmail_format, is_rmail_message_pruned, rmail_summary_exists, disable_rmail_summary_function, &
+                         modify_rmail_format, is_rmail_message_pruned, has_rmail_summary, disable_rmail_summary_function, &
                          enable_rmail_summary_function, update_rmail_summary_line_function, rmail_message_beginning, &
                          rmail_message_end, swap_rmail_buffers_maybe, is_rmail_text, get_rmail_coding_system, &
                          ensure_rmail_blank_line, set_rmail_attribute, show_rmail_message, toggle_rmail_header, &
@@ -160,7 +160,7 @@ contains
 
         status = status_type()
 
-        if (rmail_summary_exists()) then
+        if (has_rmail_summary()) then
             k = rmail_state_index(rmail_buffer())
             saved = current_buffer()
             call set_buffer(rmail_states(k)%summary_buffer, status)
@@ -270,7 +270,7 @@ contains
             return
         end if
 
-        if (rmail_summary_exists()) then
+        if (has_rmail_summary()) then
             saved = current_buffer()
             call set_buffer(rmail_states(k)%summary_buffer, status)
             if (status%ok() .and. associated(enable_rmail_summary_function)) call enable_rmail_summary_function(0_int64, status)
@@ -536,7 +536,7 @@ contains
             call set_rmail_attribute(RMAIL_EDITED_ATTRIBUTE_INDEX, .true., status)
             if (.not. status%ok()) return
 
-            if (rmail_summary_exists() .and. associated(update_rmail_summary_line_function)) then
+            if (has_rmail_summary() .and. associated(update_rmail_summary_line_function)) then
                 saved = current_buffer()
                 call set_buffer(rmail_states(k)%summary_buffer, status)
                 if (status%ok()) call update_rmail_summary_line_function(rmail_states(k)%current_message, status)

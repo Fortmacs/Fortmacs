@@ -217,3 +217,11 @@ keep	set_up_rmail_mode_2
 keep	set_rmail_variables
 keep	read_rmail_search
 keep	read_rmail_output_file_name
+# Predicates are is_*/has_* logical functions (CLAUDE.md; coordinator,
+# 2026-11-05): rmail-summary-displayed is is_rmail_summary_displayed, and
+# rmail-summary-exists ("an associated summary buffer exists")
+# has_rmail_summary.  The new name of the first contains the old one: kept,
+# so that applying the table again changes nothing.
+name	rmail_summary_displayed	is_rmail_summary_displayed
+keep	is_rmail_summary_displayed
+name	rmail_summary_exists	has_rmail_summary
