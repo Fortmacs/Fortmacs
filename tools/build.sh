@@ -27,8 +27,8 @@
 #   `tools/build.sh run -- FILE' and `tools/build.sh install --profile
 #   release' work as fpm's own commands do.
 #   The generators run only when one of the four files is missing or one
-#   of their inputs (src/, the generators, tools/fortran-names,
-#   tools/fortran-names-lib.awk, tools/user-options, tools/blank-lines.awk,
+#   of their inputs (src/, the generators, tools/fortran-names.d,
+#   tools/fortran-names-lib.awk, tools/user-options.d, tools/blank-lines.awk,
 #   .fprettify.rc) changed since the last run, which build/generated.stamp
 #   records.  A file deleted or renamed in src/ changes its directory, so it
 #   counts as a change too.
@@ -60,7 +60,7 @@ is_stale() {
         [ -f "$root/$f" ] || return 0
     done
     newer=$(cd "$root" && find src tools/gen-commands.sh tools/gen-modes.sh tools/gen-faces.sh tools/gen-docstrings.sh \
-        tools/fortran-names tools/fortran-names-lib.awk tools/user-options tools/blank-lines.awk .fprettify.rc \
+        tools/fortran-names.d tools/fortran-names-lib.awk tools/user-options.d tools/blank-lines.awk .fprettify.rc \
         -newer "$stamp" | sed -n 1p)
     [ -n "$newer" ]
 }

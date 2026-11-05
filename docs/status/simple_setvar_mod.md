@@ -6,7 +6,7 @@
 
 ## Ported
 
-M-x set-variable: the user options with completion (custom-variable-p over `tools/user-options`, history `custom-variable-history`),
+M-x set-variable: the user options with completion (custom-variable-p over `tools/user-options.d`, history `custom-variable-history`),
 the prompt "Set NAME globally/buffer-locally/(buffer-local) to value: " with the current value for M-n,
 the value as one Fortran literal of the option's type (`.true.`/`.false.`, integers, reals, character literals in either quote, named constants of enumerated settings, or `.true.`, `.false.` and the named constants of a choice setting, read with completion over them, each annotated with its value),
 another value of an enumerated setting (such as upstream's symbol) a `wrong-type-argument` error naming its constants,

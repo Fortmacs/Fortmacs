@@ -1,3 +1,0 @@
-# Each line is an independent entry and order within a block does not matter,
-# so concurrent appends by two branches merge by keeping both sides' lines.
-tools/fortran-names merge=union

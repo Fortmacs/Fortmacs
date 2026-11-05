@@ -1,11 +1,17 @@
-# user-options -- the variables that are user options (customizable
-# variables) upstream: those GNU Emacs 31.1 defines with `defcustom', or
-# that lisp/cus-start.el makes customizable.  tools/gen-docstrings.sh
-# reads this list: C-h v says "You can customize this variable." for
-# them, `set_variable' reads their names (custom-variable-p), and
-# `apropos_user_option' lists them.  One Fortmacs name per line; each
-# must be a documented variable.  When porting a variable that upstream
-# defines with defcustom (or lists in cus-start.el), add it here.
+# user-options.d/0-base -- the variables that are user options
+# (customizable variables) upstream: those GNU Emacs 31.1 defines with
+# `defcustom', or that lisp/cus-start.el makes customizable; the entries
+# made before the list became a directory.
+#
+# The list is the files of tools/user-options.d, read in LC_ALL=C sorted
+# order (this file first).  Each PR adds its options in a file of its own,
+# named like its session log (tools/user-options.d/DATE-BRANCH), so two PRs
+# never edit the same file.  tools/gen-docstrings.sh reads the list: C-h v
+# says "You can customize this variable." for them, `set_variable' reads
+# their names (custom-variable-p), and `apropos_user_option' lists them.
+# One Fortmacs name per line; each must be a documented variable.  When
+# porting a variable that upstream defines with defcustom (or lists in
+# cus-start.el), add it to the PR's own file.
 #
 # Copyright (C) 2026 The Fortmacs authors
 #

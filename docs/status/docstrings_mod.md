@@ -10,7 +10,7 @@ the docstrings of the commands,
 the config API's procedures and its variables,
 collected from `!>` comments;
 variables' current values and values at startup;
-the user options (`tools/user-options`: upstream's defcustoms and cus-start.el entries) for C-h v,
+the user options (`tools/user-options.d`: upstream's defcustoms and cus-start.el entries) for C-h v,
 apropos and `set-variable`,
 with generated setters (`user_option_info`, `set_user_option_logical`/`_integer`/`_real`/`_string`/`_choice`);
 its name arrays and named constants are as long as the longest name,

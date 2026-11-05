@@ -27,7 +27,7 @@ set -eu
 cd "$(dirname "$0")/.."
 fixture=tools/lisp-candidates-test
 
-got=$(awk -v words=tools/lisp-candidates -v keep=tools/fortran-names -f tools/lisp-candidates.awk \
+got=$(awk -v words=tools/lisp-candidates -v keep=tools/fortran-names.d -f tools/lisp-candidates.awk \
     "$fixture/input.diff")
 
 if [ "$got" != "$(cat "$fixture/expected")" ]; then
