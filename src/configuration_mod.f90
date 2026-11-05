@@ -33,6 +33,7 @@
 !> - generations: $XDG_STATE_HOME/fortmacs/generations/N/ (~/.local/state/fortmacs/),
 !>   each with `fortmacs' and `init.f90', and the symbolic link `current'
 !> - build scratch: $XDG_CACHE_HOME/fortmacs/ (~/.cache/fortmacs/)
+!> - user data (the diary): $XDG_DATA_HOME/fortmacs/ (~/.local/share/fortmacs/)
 !>
 !> Not a port: upstream loads its init file at startup instead.
 module configuration_mod
@@ -56,7 +57,7 @@ module configuration_mod
     implicit none(type, external)
     private
 
-    public :: config_directory, state_directory, cache_directory, init_file_name
+    public :: config_directory, state_directory, cache_directory, data_directory, init_file_name
     public :: generations_directory, current_build_name, generation_numbers, current_generation, &
               generation_of, switch_generation, rollback, list_generations
     public :: running_executable, install_prefix, driver_source, recompile
@@ -112,6 +113,14 @@ contains
 
         dir = xdg_directory("XDG_CACHE_HOME", ".cache")
     end function cache_directory
+
+    !> The directory of the files the user writes and Fortmacs reads, such
+    !> as the diary (where upstream uses `user-emacs-directory').
+    function data_directory() result(dir)
+        character(len=:), allocatable :: dir
+
+        dir = xdg_directory("XDG_DATA_HOME", ".local/share")
+    end function data_directory
 
     !> The user's init file.
     function init_file_name() result(name)

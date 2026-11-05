@@ -181,6 +181,7 @@ program tester
     use test_buffer_menu_mod, only: collect_buffer_menu_mod
     use test_calendar_mod, only: collect_calendar_mod
     use test_holidays_mod, only: collect_holidays_mod
+    use test_diary_library_mod, only: collect_diary_library_mod
     use test_ibuffer_mod, only: collect_ibuffer_mod
     use test_ibuffer_extensions_mod, only: collect_ibuffer_extensions_mod
     use test_time_date_mod, only: collect_time_date_mod
@@ -347,6 +348,7 @@ program tester
                  new_testsuite("buffer_menu_mod", collect_buffer_menu_mod), &
                  new_testsuite("calendar_mod", collect_calendar_mod), &
                  new_testsuite("holidays_mod", collect_holidays_mod), &
+                 new_testsuite("diary_library_mod", collect_diary_library_mod), &
                  new_testsuite("ibuffer_mod", collect_ibuffer_mod), &
                  new_testsuite("ibuffer_extensions_mod", collect_ibuffer_extensions_mod), &
                  new_testsuite("time_date_mod", collect_time_date_mod), &
