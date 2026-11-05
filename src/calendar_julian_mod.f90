@@ -1,4 +1,4 @@
-! cal_julian_mod.f90 -- the Julian calendar's conversions and holidays.
+! calendar_julian_mod.f90 -- the Julian calendar's conversions and holidays.
 ! Ported from GNU Emacs 31.1 lisp/calendar/cal-julian.el (in part).
 !
 ! Copyright (C) 1995, 1997, 2001-2026 Free Software Foundation, Inc.
@@ -23,7 +23,7 @@
 !> dates, which the Julian and Greek Orthodox holidays use, and
 !> `holiday_julian'.  The rest of cal-julian.el is listed as Deferred in
 !> docs/status/holidays_mod.md.
-submodule(holidays_mod) cal_julian_mod
+submodule(holidays_mod) calendar_julian_mod
     implicit none(type, external)
 
 contains
@@ -68,15 +68,14 @@ contains
 
     module procedure holiday_julian
     type(calendar_date_type), allocatable :: dates(:)
-    logical :: visible
     integer :: k
 
-    visible = is_calendar_nongregorian_date_visible(month, day, calendar_julian_to_absolute, &
-                                                    calendar_julian_from_absolute, dates)
+    call get_calendar_nongregorian_visible_dates(month, day, calendar_julian_to_absolute, &
+                                                 calendar_julian_from_absolute, dates)
     allocate (holidays(0))
 
     do k = 1, size(dates)
         call append_holiday(holidays, dates(k), string)
     end do
     end procedure holiday_julian
-end submodule cal_julian_mod
+end submodule calendar_julian_mod

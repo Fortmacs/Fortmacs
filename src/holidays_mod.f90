@@ -30,7 +30,7 @@
 !> a procedure computing a list of holidays.  An entry gives the
 !> `holiday_type' values (a date and its string) visible in the calendar
 !> window.  The Julian and Islamic calendars' conversions are in the
-!> submodules cal_julian_mod and cal_islam_mod.  What is not ported yet is
+!> submodules calendar_julian_mod and calendar_islamic_mod.  What is not ported yet is
 !> listed in docs/status/holidays_mod.md.
 module holidays_mod
     use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
@@ -43,7 +43,7 @@ module holidays_mod
                             calendar_absolute_from_gregorian, calendar_gregorian_from_absolute, &
                             calendar_dayname_on_or_before, calendar_nth_named_absday, calendar_nth_named_day, &
                             calendar_last_day_of_month, calendar_increment_month, calendar_interval, &
-                            is_calendar_date_visible, is_calendar_month_visible, is_calendar_nongregorian_date_visible, &
+                            is_calendar_date_visible, get_calendar_month_visible_year, get_calendar_nongregorian_visible_dates, &
                             calendar_mode_map, holiday_buffer, holiday, calendar_mark_holidays_variable, &
                             calendar_mark_holidays_hook, calendar_list_holidays_hook, &
                             calendar_christian_all_holidays_flag, calendar_islamic_all_holidays_flag, &
@@ -280,7 +280,7 @@ module holidays_mod
     interface
         !> The number of days elapsed between the Gregorian date 12/31/1 BC and DATE.
         !> The Gregorian date Sunday, December 31, 1 BC is imaginary.  Port of
-        !> cal-julian.el:calendar-julian-to-absolute.  (In cal_julian_mod.)
+        !> cal-julian.el:calendar-julian-to-absolute.  (In calendar_julian_mod.)
         pure module integer function calendar_julian_to_absolute(date) result(absolute)
             implicit none(type, external)
             type(calendar_date_type), intent(in) :: date
@@ -289,7 +289,7 @@ module holidays_mod
         !> Compute the Julian (month day year) corresponding to the absolute DATE.
         !> The absolute date is the number of days elapsed since the (imaginary)
         !> Gregorian date Sunday, December 31, 1 BC.  Port of
-        !> cal-julian.el:calendar-julian-from-absolute.  (In cal_julian_mod.)
+        !> cal-julian.el:calendar-julian-from-absolute.  (In calendar_julian_mod.)
         pure module function calendar_julian_from_absolute(date) result(julian)
             implicit none(type, external)
             integer, intent(in) :: date
@@ -300,7 +300,7 @@ module holidays_mod
         !> If MONTH, DAY (Julian) is visible, HOLIDAYS holds the corresponding
         !> Gregorian date with STRING.  It is empty if it is not visible in
         !> the current calendar window.  Port of
-        !> cal-julian.el:holiday-julian.  (In cal_julian_mod.)
+        !> cal-julian.el:holiday-julian.  (In calendar_julian_mod.)
         recursive module subroutine holiday_julian(month, day, string, holidays)
             implicit none(type, external)
             integer, intent(in) :: month, day
@@ -309,14 +309,14 @@ module holidays_mod
         end subroutine holiday_julian
 
         !> Return true if YEAR is a leap year on the Islamic calendar.  Port of
-        !> cal-islam.el:calendar-islamic-leap-year-p.  (In cal_islam_mod.)
+        !> cal-islam.el:calendar-islamic-leap-year-p.  (In calendar_islamic_mod.)
         pure module logical function is_calendar_islamic_leap_year(year) result(leap)
             implicit none(type, external)
             integer, intent(in) :: year
         end function is_calendar_islamic_leap_year
 
         !> The last day in MONTH during YEAR on the Islamic calendar.  Port of
-        !> cal-islam.el:calendar-islamic-last-day-of-month.  (In cal_islam_mod.)
+        !> cal-islam.el:calendar-islamic-last-day-of-month.  (In calendar_islamic_mod.)
         pure module integer function calendar_islamic_last_day_of_month(month, year) result(last)
             implicit none(type, external)
             integer, intent(in) :: month, year
@@ -324,7 +324,7 @@ module holidays_mod
 
         !> Return the day number within the year of the Islamic date DATE.
         !> Port of cal-islam.el:calendar-islamic-day-number.  (In
-        !> cal_islam_mod.)
+        !> calendar_islamic_mod.)
         pure module integer function calendar_islamic_day_number(date) result(day_of_year)
             implicit none(type, external)
             type(calendar_date_type), intent(in) :: date
@@ -333,7 +333,7 @@ module holidays_mod
         !> Absolute date of Islamic DATE.
         !> The absolute date is the number of days elapsed since the (imaginary)
         !> Gregorian date Sunday, December 31, 1 BC.  Port of
-        !> cal-islam.el:calendar-islamic-to-absolute.  (In cal_islam_mod.)
+        !> cal-islam.el:calendar-islamic-to-absolute.  (In calendar_islamic_mod.)
         pure module integer function calendar_islamic_to_absolute(date) result(absolute)
             implicit none(type, external)
             type(calendar_date_type), intent(in) :: date
@@ -343,7 +343,7 @@ module holidays_mod
         !> The absolute date is the number of days elapsed since the (imaginary)
         !> Gregorian date Sunday, December 31, 1 BC.  A pre-Islamic date gives
         !> (0 0 0).  Port of cal-islam.el:calendar-islamic-from-absolute.  (In
-        !> cal_islam_mod.)
+        !> calendar_islamic_mod.)
         pure module function calendar_islamic_from_absolute(date) result(islamic)
             implicit none(type, external)
             integer, intent(in) :: date
@@ -354,7 +354,7 @@ module holidays_mod
         !> If MONTH, DAY (Islamic) is visible, HOLIDAYS holds the corresponding
         !> Gregorian date with STRING.
         !> It is empty if it is not visible in the current calendar window.
-        !> Port of cal-islam.el:holiday-islamic.  (In cal_islam_mod.)
+        !> Port of cal-islam.el:holiday-islamic.  (In calendar_islamic_mod.)
         recursive module subroutine holiday_islamic(month, day, string, holidays)
             implicit none(type, external)
             integer, intent(in) :: month, day
@@ -364,7 +364,7 @@ module holidays_mod
 
         !> Holiday entry for the Islamic New Year, if visible in the calendar
         !> window.  Port of cal-islam.el:holiday-islamic-new-year.  (In
-        !> cal_islam_mod.)
+        !> calendar_islamic_mod.)
         recursive module subroutine holiday_islamic_new_year(holidays, status)
             implicit none(type, external)
             type(holiday_type), allocatable, intent(out) :: holidays(:)
@@ -419,7 +419,7 @@ contains
     end function has_entries
 
     !> Add the holiday DATE, STRING at the end of HOLIDAYS.  Public only
-    !> for cal_julian_mod and cal_islam_mod (gfortran does not emit a
+    !> for calendar_julian_mod and calendar_islamic_mod (gfortran does not emit a
     !> private procedure only a submodule calls); not part of the config
     !> API.  Not a port.
     subroutine append_holiday(holidays, date, string)
@@ -1057,9 +1057,11 @@ contains
         character(len=*), intent(in) :: string
         type(holiday_type), allocatable, intent(out) :: holidays(:)
         integer :: y
+        logical :: visible
 
         allocate (holidays(0))
-        if (is_calendar_month_visible(month, y)) call append_holiday(holidays, calendar_date_type(month, day, y), string)
+        call get_calendar_month_visible_year(month, y, visible)
+        if (visible) call append_holiday(holidays, calendar_date_type(month, day, y), string)
     end subroutine holiday_fixed
 
     !> Holiday called STRING on the Nth DAYNAME after/before MONTH DAY.

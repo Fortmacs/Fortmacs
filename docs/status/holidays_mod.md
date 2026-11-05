@@ -1,6 +1,6 @@
 # holidays_mod
 
-- Module: holidays_mod, cal_julian_mod (submodule), cal_islam_mod (submodule)
+- Module: holidays_mod, calendar_julian_mod (submodule), calendar_islamic_mod (submodule)
 - Upstream: calendar/holidays.el, calendar/cal-julian.el (in part), calendar/cal-islam.el (in part)
 - State: partial
 

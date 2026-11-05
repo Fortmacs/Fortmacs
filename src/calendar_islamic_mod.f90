@@ -1,4 +1,4 @@
-! cal_islam_mod.f90 -- the Islamic calendar's conversions and holidays.
+! calendar_islamic_mod.f90 -- the Islamic calendar's conversions and holidays.
 ! Ported from GNU Emacs 31.1 lisp/calendar/cal-islam.el (in part).
 !
 ! Copyright (C) 1995, 1997, 2001-2026 Free Software Foundation, Inc.
@@ -22,7 +22,7 @@
 !> Part of holidays_mod: the conversions between Islamic and absolute
 !> dates and the Islamic holidays.  The rest of cal-islam.el is listed as
 !> Deferred in docs/status/holidays_mod.md.
-submodule(holidays_mod) cal_islam_mod
+submodule(holidays_mod) calendar_islamic_mod
     implicit none(type, external)
 
 contains
@@ -125,14 +125,13 @@ contains
     module procedure holiday_islamic
     type(calendar_date_type), allocatable :: dates(:)
     type(calendar_date_type) :: islamic_date, date
-    logical :: visible
     integer :: k, m, y
 
     allocate (holidays(0))
 
     if (calendar_total_months_local() /= 3) then
-        visible = is_calendar_nongregorian_date_visible(month, day, calendar_islamic_to_absolute, &
-                                                        calendar_islamic_from_absolute, dates)
+        call get_calendar_nongregorian_visible_dates(month, day, calendar_islamic_to_absolute, &
+                                                     calendar_islamic_from_absolute, dates)
 
         do k = 1, size(dates)
             call append_holiday(holidays, dates(k), string)
@@ -197,4 +196,4 @@ contains
         call append_holiday(holidays, entries(k)%date, "Islamic New Year "//trim(digits))
     end do
     end procedure holiday_islamic_new_year
-end submodule cal_islam_mod
+end submodule calendar_islamic_mod

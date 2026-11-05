@@ -53,7 +53,7 @@
 !> upstream's calendar.el loads after the init file), the string and
 !> attribute-list forms of `calendar_today_marker' (a question; today is
 !> marked with the `calendar_today' face), `calendar_make_temp_face',
-!> `calendar_get_date_range', the years of `is_calendar_month_visible'
+!> `calendar_get_date_range', the years of `get_calendar_month_visible_year'
 !> for N months, the obsolete calendar-nongregorian-visible-p,
 !> `calendar_increment_month_cons', `calendar_make_alist',
 !> `calendar_abbrev_construct', `calendar_day_header_construct' and
@@ -123,7 +123,7 @@ module calendar_mod
               calendar_date_from_day_of_year, calendar_increment_month, calendar_get_buffer, calendar_buffer_list, &
               calendar_displayed_month, calendar_displayed_year, calendar_total_months_local, calendar_mode_line_text, &
               init_calendar, calendar_local_index, has_calendar_date_property, set_calendar_display, &
-              restore_calendar_display, is_calendar_month_visible, is_calendar_nongregorian_date_visible, &
+              restore_calendar_display, get_calendar_month_visible_year, get_calendar_nongregorian_visible_dates, &
               calendar_set_mode_line, calendar_in_read_only_buffer
     public :: calendar_cursor_to_nearest_date, calendar_cursor_to_visible_date, calendar_goto_today, &
               calendar_forward_month, calendar_forward_year, calendar_backward_month, calendar_backward_year, &
@@ -2231,16 +2231,17 @@ contains
         end if
     end function is_calendar_month_overlap
 
-    !> Return true if MONTH is visible in the calendar.
+    !> Set VISIBLE to true if MONTH is visible in the calendar.
     !> Since the calendar shows at most 12 months, each month, if visible, is
     !> associated with only one year: YEAR is the year associated with
     !> MONTH (0 if MONTH is not visible).  Port of
     !> calendar.el:calendar-month-visible-p (N omitted; the list of years
     !> for MONTH and the next N months is Deferred, see calendar_mod's
     !> status file).
-    logical function is_calendar_month_visible(month, year) result(visible)
+    subroutine get_calendar_month_visible_year(month, year, visible)
         integer, intent(in) :: month
         integer, intent(out) :: year
+        logical, intent(out) :: visible
         integer :: m1, y1, m2, y2
 
         call calendar_get_month_range(m1, y1, m2, y2)
@@ -2255,17 +2256,17 @@ contains
         end if
 
         visible = year /= 0
-    end function is_calendar_month_visible
+    end subroutine get_calendar_month_visible_year
 
-    !> Return true if MONTH, DAY is visible in the calendar window.
+    !> DATES are the Gregorian dates of MONTH, DAY that are visible in the
+    !> calendar window (empty if it is not visible).
     !> MONTH and DAY are in some non-Gregorian calendar system.  The functions
     !> TO_ABSOLUTE and FROM_ABSOLUTE convert that system to and from absolute,
     !> respectively.  The optional argument N is an integer indicating the
     !> first local month in the non-Gregorian local year and defaults to 1.
-    !> DATES are the corresponding Gregorian dates.  Port of
+    !> Port of
     !> calendar.el:calendar-nongregorian-date-visible-p.
-    recursive logical function is_calendar_nongregorian_date_visible(month, day, to_absolute, from_absolute, dates, n) &
-        result(visible)
+    recursive subroutine get_calendar_nongregorian_visible_dates(month, day, to_absolute, from_absolute, dates, n)
         integer, intent(in) :: month, day
         interface
             integer function to_absolute(date)
@@ -2343,9 +2344,7 @@ contains
             date = calendar_gregorian_from_absolute(to_absolute(local_dates(i)))
             if (is_calendar_date_visible(date)) dates = [dates, date]
         end do
-
-        visible = size(dates) > 0
-    end function is_calendar_nongregorian_date_visible
+    end subroutine get_calendar_nongregorian_visible_dates
 
     !> Set mode line to TEXT, centered, surrounded by dashes.  Port of
     !> calendar.el:calendar-set-mode-line (in a buffer visiting no file;
