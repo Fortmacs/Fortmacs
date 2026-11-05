@@ -43,12 +43,10 @@ module test_fortmacs_diff_merging_mod
                                           FORTMACS_DIFF_STATE_OF_MERGE_COMBINED, FORTMACS_DIFF_STATE_OF_MERGE_DEFAULT_B, &
                                           FORTMACS_DIFF_STATE_OF_MERGE_PREFER_A, FORTMACS_DIFF_STATE_OF_MERGE_PREFER_B
     use fortmacs_diff_utilities_mod, only: next_fortmacs_diff_difference, jump_to_fortmacs_diff_difference, &
-                                           quit_fortmacs_diff_session, toggle_fortmacs_diff_help, &
-                                           toggle_fortmacs_diff_show_clashes_only, &
-                                           maybe_save_and_delete_fortmacs_diff_merge_session
-    use fortmacs_diff_merging_mod, only: fortmacs_diff_default_variant, do_fortmacs_diff_merge, combine_fortmacs_diff_diffs, &
-                                         fortmacs_diff_variant_state_of_merge, FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_A, &
-                                         FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_B, FORTMACS_DIFF_DEFAULT_VARIANT_COMBINED
+                                           toggle_fortmacs_diff_help, toggle_fortmacs_diff_show_clashes_only
+    use fortmacs_diff_merging_mod, only: fortmacs_diff_default_variant, fortmacs_diff_variant_state_of_merge, &
+                                         FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_A, FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_B, &
+                                         FORTMACS_DIFF_DEFAULT_VARIANT_COMBINED
     use fortmacs_diff_mod, only: fortmacs_diff_merge_buffers, fortmacs_diff_merge_buffers_with_ancestor
     use commands_mod, only: commands
     implicit none(type, external)
@@ -153,10 +151,10 @@ contains
 
     !> Merge two buffers that differ in lines 2 and 4 (A has a and b, B
     !> has A and B), without ancestor; A and B are the buffers, the control
-    !> buffer is current and K is its session.
-    subroutine start_merge(a, b, k, status)
+    !> buffer is current and SESSION_INDEX is its session.
+    subroutine start_merge(a, b, session_index, status)
         type(handle_type), intent(out) :: a, b
-        integer, intent(out) :: k
+        integer, intent(out) :: session_index
         type(status_type), intent(out) :: status
         type(handle_type) :: control
 
@@ -164,11 +162,11 @@ contains
         call temporary_buffer("merge-a", "1"//LF//"a"//LF//"3"//LF//"b"//LF//"5"//LF, a)
         call temporary_buffer("merge-b", "1"//LF//"A"//LF//"3"//LF//"B"//LF//"5"//LF, b)
         call fortmacs_diff_merge_buffers(a, b, status)
-        k = 0
+        session_index = 0
         if (.not. status%ok()) return
         control = get_buffer("*Ediff Control Panel*")
         call set_buffer(control, status)
-        k = fortmacs_diff_session_index(control)
+        session_index = fortmacs_diff_session_index(control)
     end subroutine start_merge
 
     !> Quit the session and close the buffers of the merge (A, B, the
@@ -178,14 +176,14 @@ contains
         type(handle_type), intent(in), optional :: ancestor
         type(handle_type) :: control
         type(status_type) :: st
-        integer :: k
+        integer :: session_index
 
         control = get_buffer("*Ediff Control Panel*")
 
         if (is_buffer_live(control)) then
             call set_buffer(control, st)
-            k = fortmacs_diff_session_index(control)
-            if (k > 0) call quit_fortmacs_diff_session(k, .false., st)
+            session_index = fortmacs_diff_session_index(control)
+            if (session_index > 0) call fortmacs_diff_sessions(session_index)%quit(.false., st)
         end if
 
         call discard(a)
@@ -215,36 +213,40 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b, merge
         type(status_type) :: st
-        integer :: k
+        integer :: session_index
 
         if (.not. has_program("diff", error)) return
-        call start_merge(a, b, k, st)
+        call start_merge(a, b, session_index, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error, associated(fortmacs_diff_sessions(k)%job_name, commands%fortmacs_diff_merge_buffers), &
+            call check(error, associated(fortmacs_diff_sessions(session_index)%job_name, commands%fortmacs_diff_merge_buffers), &
                        "job fortmacs_diff_merge_buffers")
             if (allocated(error)) exit body
-            call check(error, fortmacs_diff_sessions(k)%merge_job .and. fortmacs_diff_sessions(k)%three_way_job, "a merge job")
+            call check(error, &
+                       fortmacs_diff_sessions(session_index)%merge_job .and. fortmacs_diff_sessions(session_index)%three_way_job, &
+                       "a merge job")
             if (allocated(error)) exit body
             merge = get_buffer("*ediff-merge*")
-            call check(error, merge%index, fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_C)%index)
+            call check(error, merge%index, fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_C)%index)
             if (allocated(error)) exit body
             call check(error, text_of(merge), "1"//LF//"<<<<<<< variant A"//LF//"a"//LF//">>>>>>> variant B"//LF//"A"//LF// &
                        "======= end"//LF//"3"//LF//"<<<<<<< variant A"//LF//"b"//LF//">>>>>>> variant B"//LF//"B"//LF// &
                        "======= end"//LF//"5"//LF)
             if (allocated(error)) exit body
-            call check(error, fortmacs_diff_sessions(k)%merge_states(1)%state_of_merge, FORTMACS_DIFF_STATE_OF_MERGE_COMBINED)
+            call check(error, fortmacs_diff_sessions(session_index)%merge_states(1)%state_of_merge, &
+                       FORTMACS_DIFF_STATE_OF_MERGE_COMBINED)
             if (allocated(error)) exit body
             ! Buffers A and B are read-only, the merge buffer is not.
             call check(error, buffers(a%index)%read_only .and. .not. buffers(merge%index)%read_only, "read-only")
             if (allocated(error)) exit body
             ! The merge buffer's window is below the windows of A and B.
-            call check(error, is_window_live(fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_C)), "window C")
+            call check(error, is_window_live(fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_C)), &
+                       "window C")
             if (allocated(error)) exit body
-            call check(error, window_top_line(fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_C), st) > &
-                       window_top_line(fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_A), st), &
+            call check(error, window_top_line(fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_C), st) > &
+                       window_top_line(fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_A), st), &
                        "window C below window A")
         end block body
 
@@ -257,11 +259,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
-        integer :: k
+        integer :: session_index
 
         if (.not. has_program("diff", error)) return
         fortmacs_diff_default_variant = FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_B
-        call start_merge(a, b, k, st)
+        call start_merge(a, b, session_index, st)
         fortmacs_diff_default_variant = FORTMACS_DIFF_DEFAULT_VARIANT_COMBINED
 
         body: block
@@ -269,7 +271,8 @@ contains
             if (allocated(error)) exit body
             call check(error, text_of(get_buffer("*ediff-merge*")), text_of(b))
             if (allocated(error)) exit body
-            call check(error, fortmacs_diff_sessions(k)%merge_states(2)%state_of_merge, FORTMACS_DIFF_STATE_OF_MERGE_DEFAULT_B)
+            call check(error, fortmacs_diff_sessions(session_index)%merge_states(2)%state_of_merge, &
+                       FORTMACS_DIFF_STATE_OF_MERGE_DEFAULT_B)
             if (allocated(error)) exit body
             call check(error, fortmacs_diff_variant_state_of_merge(FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_B), &
                        FORTMACS_DIFF_STATE_OF_MERGE_DEFAULT_B)
@@ -284,11 +287,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b, merge
         type(status_type) :: st
-        integer :: k
+        integer :: session_index
         character(len=:), allocatable :: merged
 
         if (.not. has_program("diff", error)) return
-        call start_merge(a, b, k, st)
+        call start_merge(a, b, session_index, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -297,7 +300,7 @@ contains
             merged = text_of(merge)
             call keyboard_store_bytes("na")
             call command_loop(st)
-            call check(error, fortmacs_diff_sessions(k)%current_difference, 0)
+            call check(error, fortmacs_diff_sessions(session_index)%current_difference, 0)
             if (allocated(error)) exit body
             call check(error, index(text_of(merge), "1"//LF//"a"//LF//"3"//LF) == 1, text_of(merge))
             if (allocated(error)) exit body
@@ -309,7 +312,7 @@ contains
             call command_loop(st)
             call check(error, index(text_of(merge), "1"//LF//"A"//LF//"3"//LF) == 1, text_of(merge))
             if (allocated(error)) exit body
-            call combine_fortmacs_diff_diffs(k, 0, st, batch_invocation=.true.)
+            call fortmacs_diff_sessions(session_index)%combine_differences(0, st, batch_invocation=.true.)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, text_of(merge), merged)
@@ -324,16 +327,16 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
-        integer :: k
+        integer :: session_index
 
         if (.not. has_program("diff", error)) return
-        call start_merge(a, b, k, st)
+        call start_merge(a, b, session_index, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            fortmacs_diff_sessions(k)%default_variant%choice = FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_A
-            call do_fortmacs_diff_merge(k, 0, st, remerging=.true.)
+            fortmacs_diff_sessions(session_index)%default_variant%choice = FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_A
+            call fortmacs_diff_sessions(session_index)%merge_differences(0, st, remerging=.true.)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, text_of(get_buffer("*ediff-merge*")), text_of(a))
@@ -347,10 +350,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b, control
         type(status_type) :: st
-        integer :: k
+        integer :: session_index
 
         if (.not. has_program("diff", error)) return
-        call start_merge(a, b, k, st)
+        call start_merge(a, b, session_index, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -372,7 +375,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b, ancestor, control
         type(status_type) :: st
-        integer :: k
+        integer :: session_index
 
         if (.not. has_program("diff3", error)) return
         call setup()
@@ -385,18 +388,20 @@ contains
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             control = get_buffer("*Ediff Control Panel*")
-            k = fortmacs_diff_session_index(control)
-            call check(error, fortmacs_diff_sessions(k)%merge_with_ancestor_job, "merging with an ancestor")
+            session_index = fortmacs_diff_session_index(control)
+            call check(error, fortmacs_diff_sessions(session_index)%merge_with_ancestor_job, "merging with an ancestor")
             if (allocated(error)) exit body
-            call check(error, fortmacs_diff_sessions(k)%number_of_differences, 2)
+            call check(error, fortmacs_diff_sessions(session_index)%number_of_differences, 2)
             if (allocated(error)) exit body
-            call check(error, fortmacs_diff_sessions(k)%merge_states(1)%state_of_merge, FORTMACS_DIFF_STATE_OF_MERGE_PREFER_A)
+            call check(error, fortmacs_diff_sessions(session_index)%merge_states(1)%state_of_merge, &
+                       FORTMACS_DIFF_STATE_OF_MERGE_PREFER_A)
             if (allocated(error)) exit body
-            call check(error, fortmacs_diff_sessions(k)%merge_states(2)%state_of_merge, FORTMACS_DIFF_STATE_OF_MERGE_PREFER_B)
+            call check(error, fortmacs_diff_sessions(session_index)%merge_states(2)%state_of_merge, &
+                       FORTMACS_DIFF_STATE_OF_MERGE_PREFER_B)
             if (allocated(error)) exit body
             call check(error, text_of(get_buffer("*ediff-merge*")), "1"//LF//"x"//LF//"3"//LF//"y"//LF)
             if (allocated(error)) exit body
-            call check(error, is_window_live(fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR)), &
+            call check(error, is_window_live(fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR)), &
                        "ancestor window")
         end block body
 
@@ -409,7 +414,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b, ancestor, control
         type(status_type) :: st
-        integer :: k
+        integer :: session_index
 
         if (.not. has_program("diff3", error)) return
         call setup()
@@ -423,20 +428,20 @@ contains
             if (allocated(error)) exit body
             control = get_buffer("*Ediff Control Panel*")
             call set_buffer(control, st)
-            k = fortmacs_diff_session_index(control)
-            call check(error, fortmacs_diff_sessions(k)%number_of_differences, 3)
+            session_index = fortmacs_diff_session_index(control)
+            call check(error, fortmacs_diff_sessions(session_index)%number_of_differences, 3)
             if (allocated(error)) exit body
             call toggle_fortmacs_diff_show_clashes_only(st)
-            call check(error, fortmacs_diff_sessions(k)%show_clashes_only, "showing clashes only")
+            call check(error, fortmacs_diff_sessions(session_index)%show_clashes_only, "showing clashes only")
             if (allocated(error)) exit body
             ! Regions 1 and 2 are prefer-A and prefer-B; region 3 clashes.
             call next_fortmacs_diff_difference(st)
-            call check(error, fortmacs_diff_sessions(k)%current_difference, 2)
+            call check(error, fortmacs_diff_sessions(session_index)%current_difference, 2)
             if (allocated(error)) exit body
             call jump_to_fortmacs_diff_difference(0_int64, st)
             call toggle_fortmacs_diff_show_clashes_only(st)
             call next_fortmacs_diff_difference(st)
-            call check(error, fortmacs_diff_sessions(k)%current_difference, 0)
+            call check(error, fortmacs_diff_sessions(session_index)%current_difference, 0)
         end block body
 
         call end_merge(a, b, ancestor)
@@ -449,7 +454,7 @@ contains
         type(handle_type) :: a, b, merge, control
         type(status_type) :: st
         character(len=:), allocatable :: directory
-        integer :: k
+        integer :: session_index
 
         if (.not. has_program("diff", error)) return
         call setup()
@@ -459,7 +464,7 @@ contains
         call create_directory_internal(directory, st)
         call temporary_buffer("merge-a", "1"//LF//"a"//LF, a)
         call temporary_buffer("merge-b", "1"//LF//"b"//LF, b)
-        k = 0
+        session_index = 0
         call fortmacs_diff_merge_buffers(a, b, st, merge_buffer_file=directory//"merged.txt")
 
         body: block
@@ -467,13 +472,13 @@ contains
             if (allocated(error)) exit body
             control = get_buffer("*Ediff Control Panel*")
             call set_buffer(control, st)
-            k = fortmacs_diff_session_index(control)
-            merge = fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_C)
+            session_index = fortmacs_diff_session_index(control)
+            merge = fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_C)
             call check(error, buffers(merge%index)%filename, directory//"merged.txt")
             if (allocated(error)) exit body
-            call check(error, fortmacs_diff_sessions(k)%autostore_merges%value, "autostore")
+            call check(error, fortmacs_diff_sessions(session_index)%autostore_merges%value, "autostore")
             if (allocated(error)) exit body
-            call maybe_save_and_delete_fortmacs_diff_merge_session(k, .true., st)
+            call fortmacs_diff_sessions(session_index)%save_and_delete_merge(.true., st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, file_exists(directory//"merged.txt"), "the merge is saved")
@@ -483,7 +488,7 @@ contains
         end block body
 
         ! Quitting would save it again, asking before overwriting it.
-        if (k > 0) fortmacs_diff_sessions(k)%autostore_merges%value = .false.
+        if (session_index > 0) fortmacs_diff_sessions(session_index)%autostore_merges%value = .false.
         call end_merge(a, b)
         call delete_directory(directory, st, .true.)
     end subroutine test_merge_store_file

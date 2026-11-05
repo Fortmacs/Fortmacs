@@ -6,6 +6,7 @@
 
 ## Ported
 
+the procedures that act on one session, as type-bound procedures of `fortmacs_diff_session_type` (panel 14) in fortmacs_diff_settings_utilities_mod, a submodule of fortmacs_diff_settings_mod,
 `ediff-mode` (the hook, no derived mode),
 `ediff-setup` (the control buffer `*Ediff Control Panel*` and its suffix and number, the job's classification, the merge buffer `*ediff-merge*` in the major mode of its variant with `ediff-set-merge-mode` on its own `write-file-functions`, the ancestor buffer, `ediff-merge-split-window-function`, MERGE-BUFFER-FILE, `ediff-keep-variants` for buffer jobs, the error buffer, the bounds overlays, `ediff-prepare-buffer-hook`, `ediff-make-buffers-readonly-at-startup`, the difference regions, the current-difference overlays, the windows and points, `ediff-select-control-window-on-setup`, STARTUP-HOOKS, `ediff-startup-hook`),
 `ediff-setup-keymap` with `ediff-set-keys` (a keymap per control buffer, suppressed, the keys of the ported commands, 2-way, 3-way and merge copy keys, the merge keys /, r, s, +, $$, $* and &, wa, wb, wc and wd, `ediff-no-emacs-help-in-control-buffer`, `ediff-keymap-setup-hook`),
@@ -39,11 +40,11 @@
 `ediff-arrange-autosave-in-merge-jobs`,
 `ediff-save-buffer` (wa, wb, wc, wd),
 `ediff-compute-custom-diffs-maybe`,
-`ediff-maybe-save-and-delete-merge` (in `ediff-quit-merge-hook`; SAVE-AND-CONTINUE as `maybe_save_and_delete_fortmacs_diff_merge_session`),
+`ediff-maybe-save-and-delete-merge` (in `ediff-quit-merge-hook`; SAVE-AND-CONTINUE as the session's `save_and_delete_merge`),
 `ediff-write-merge-buffer-and-maybe-kill`,
 `ediff-verify-file-merge-buffer`,
 `ediff-quit` (q, C-u reverses `ediff-keep-variants`),
-`ediff-really-quit` (`quit_fortmacs_diff_session`; `ediff-quit-merge-hook` in merge jobs, a quit in it ignored),
+`ediff-really-quit` (the session's `quit`; `ediff-quit-merge-hook` in merge jobs, a quit in it ignored),
 `ediff-cleanup-mess` (in `ediff-quit-hook`),
 `ediff-janitor`,
 `ediff-dispose-of-variant-according-to-user`,

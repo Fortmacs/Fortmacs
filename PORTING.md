@@ -1792,6 +1792,11 @@ Checked by hand on every PR's diff (no script can tell):
   nested expression.
 - A dummy argument that hides a module entity of the same name in another
   case (`beginning` and `BEGINNING`).
+- A type-bound procedure called on a registry entry
+  (`fortmacs_diff_sessions(session_index)%quit(.false., status)`) whose body
+  can append to that registry, directly or through a hook: SELF then
+  points into the freed array.  Find the entry again on entry and work
+  through the registry (see "Type-bound procedures on registry objects").
 - A component of a registry passed as an `intent(in)` argument to a
   procedure that changes that registry (`call close_buffer(windows(w%index)%buffer,
   status)`: closing the buffer gives the window another buffer, so the
@@ -2187,6 +2192,48 @@ scroll = .not. compilation_scroll_output%is_off()
 - gfortran does not emit a private module procedure that only a submodule
   calls, so such helpers are made public with a comment saying so (they are
   not part of the config API); ibuffer_mod does this for ibuffer_extensions_mod.
+
+### Type-bound procedures on registry objects (panels 13, 14)
+
+An object kept in an allocatable registry and referred to by its integer
+index there (an Ediff session in `fortmacs_diff_sessions`, a session
+group in `fortmacs_diff_session_groups`) has no handle wrapper: the index
+is named for the thing, `session_index`, `group_index` (plain loop
+counters stay `i`, `j`, `k`).  A helper that acts on one such object is a
+type-bound procedure, called on the registry entry, verb first and
+spelled out: `call fortmacs_diff_sessions(session_index)%select_difference(difference,
+status)`, `fortmacs_diff_session_groups(group_index)%get_session_at(position)`
+(ediff-select-difference, ediff-get-session-number-at-pos).  Commands (the
+`execute_` procedures in `commands%`) keep their command names, and so do
+the procedures that find or make a registry entry
+(`make_fortmacs_diff_session_entry`, `fortmacs_diff_session_index`).
+
+- A binding is declared in the type's module and its procedure lives in
+  that module or one of its submodules.  When the procedures need modules
+  that use the type's module, they go into submodules of it named for
+  their upstream file: fortmacs_diff_settings_mod (ediff-init.el) holds
+  `fortmacs_diff_session_type` and has fortmacs_diff_settings_diff_mod,
+  `_merging_mod`, `_utilities_mod`, `_window_mod` and `_help_mod` for the
+  session procedures of ediff-diff.el, ediff-merg.el, ediff-util.el,
+  ediff-wind.el and ediff-help.el; those files' modules keep their
+  settings, commands and other procedures.  A procedure that needs a
+  private procedure of another submodule stays free and takes the index
+  (`set_up_fortmacs_diff_keymap`, which binds the commands of
+  fortmacs_diff_utilities_session_mod).
+- The registry can grow, and move, while a bound procedure runs (a new
+  session, a hook running user code), leaving SELF dangling: see the
+  Hazards checklist.  A bound subroutine looks its entry up again on entry
+  by a key that does not move (`findloc(fortmacs_diff_sessions%serial,
+  self%serial, dim=1)`, `fortmacs_diff_group_index(self%buffer)`) and works
+  through the registry from then on; a function, which has no side
+  effects, reads SELF.  SELF has `intent(inout), target` in a subroutine,
+  so changing the entry through the registry while SELF is associated
+  with it is allowed.
+- A binding whose name meets a name its submodule imports keeps the
+  binding name and renames the procedure: `procedure :: recenter =>
+  recenter_session` (window_mod's `recenter`).
+- Bindings used outside the type's module and its submodules are public;
+  the others are `private`.
 
 ## Design decisions
 

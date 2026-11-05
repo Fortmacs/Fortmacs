@@ -33,7 +33,8 @@
 !>
 !> The procedures that need the windows and diff modules are in the
 !> submodule fortmacs_diff_utilities_session_mod (fortmacs_diff_window_mod and fortmacs_diff_diff_mod use
-!> this module).
+!> this module); those that act on one session are type-bound procedures of
+!> `fortmacs_diff_session_type', in fortmacs_diff_settings_utilities_mod.
 module fortmacs_diff_utilities_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
@@ -78,17 +79,6 @@ module fortmacs_diff_utilities_mod
             type(hook_type), intent(inout), optional :: startup_hooks
             character(len=*), intent(in), optional :: merge_buffer_file
         end subroutine set_up_fortmacs_diff
-
-        !> Set up the selected window for control buffer CONTROL_BUFFER of
-        !> session K: show the help message, fit the window, mark the help
-        !> text and remember the window configuration.  Port of
-        !> ediff-util.el:ediff-setup-control-buffer.
-        recursive module subroutine set_up_fortmacs_diff_control_buffer(k, control_buffer, status)
-            implicit none(type, external)
-            integer, intent(in) :: k
-            type(handle_type), intent(in) :: control_buffer
-            type(status_type), intent(out) :: status
-        end subroutine set_up_fortmacs_diff_control_buffer
 
         !> Ediff mode controls all operations in a single Ediff session.
         !> This mode is entered through one of the following commands:
@@ -197,20 +187,6 @@ module fortmacs_diff_utilities_mod
             type(status_type), intent(out) :: status
         end subroutine jump_to_fortmacs_diff_difference_at_point
 
-        !> The difference of session K closest to POSITION (point if absent) in
-        !> BUFFER_TYPE, as the user counts them (from 1).  WHICH_DIFF 1
-        !> finds the difference after POSITION, -1 the one before; 0 the nearest.
-        !> Port of ediff-util.el:ediff-diff-at-point (WHICH-DIFF `after',
-        !> `before' or absent).
-        recursive module subroutine fortmacs_diff_diff_at_point(k, buffer_type, diff_no, status, position, which_diff)
-            implicit none(type, external)
-            integer, intent(in) :: k, buffer_type
-            integer, intent(out) :: diff_no
-            type(status_type), intent(out) :: status
-            integer(int64), intent(in), optional :: position
-            integer, intent(in), optional :: which_diff
-        end subroutine fortmacs_diff_diff_at_point
-
         !> Copy buffer-X'th difference region to buffer Y (X,Y are A, B, or
         !> C).
         !> With numerical prefix argument ARGUMENT, copy the difference specified
@@ -226,17 +202,6 @@ module fortmacs_diff_utilities_mod
             character(len=*), intent(in) :: keys
             type(status_type), intent(out) :: status
         end subroutine copy_fortmacs_diff_diff_to_diff
-
-        !> Copy difference N of session K from FROM_TYPE (or REGION_TO_COPY,
-        !> when given, with FROM_TYPE 0) to TO_TYPE, saving the old region
-        !> unless BATCH_INVOCATION.  Port of ediff-util.el:ediff-copy-diff.
-        recursive module subroutine copy_fortmacs_diff_diff(k, n, from_type, to_type, status, batch_invocation, region_to_copy)
-            implicit none(type, external)
-            integer, intent(in) :: k, n, from_type, to_type
-            type(status_type), intent(out) :: status
-            logical, intent(in), optional :: batch_invocation
-            character(len=*), intent(in), optional :: region_to_copy
-        end subroutine copy_fortmacs_diff_diff
 
         !> Restore ARGth diff from `fortmacs_diff_killed_diffs_alist'.
         !> ARGUMENT is a prefix argument.  If ARGUMENT is absent, restore the
@@ -268,51 +233,6 @@ module fortmacs_diff_utilities_mod
             logical, intent(in) :: reverse_default_keep_variants
             type(status_type), intent(out) :: status
         end subroutine quit_fortmacs_diff
-
-        !> Perform the quit operations of session K.  Port of
-        !> ediff-util.el:ediff-really-quit.
-        recursive module subroutine quit_fortmacs_diff_session(k, reverse_default_keep_variants, status)
-            implicit none(type, external)
-            integer, intent(in) :: k
-            logical, intent(in) :: reverse_default_keep_variants
-            type(status_type), intent(out) :: status
-        end subroutine quit_fortmacs_diff_session
-
-        !> Unselect the current difference of session K and select N, or
-        !> with FLAG 1 only select N, with FLAG -1 only unselect; recenter
-        !> unless NO_RECENTER.  Port of
-        !> ediff-util.el:ediff-unselect-and-select-difference (FLAG
-        !> `select-only' or `unselect-only').
-        recursive module subroutine unselect_and_select_fortmacs_diff_difference(k, n, status, flag, no_recenter)
-            implicit none(type, external)
-            integer, intent(in) :: k, n
-            type(status_type), intent(out) :: status
-            integer, intent(in), optional :: flag
-            logical, intent(in), optional :: no_recenter
-        end subroutine unselect_and_select_fortmacs_diff_difference
-
-        !> The position where difference N (the current one if absent) of
-        !> session K begins in BUFFER_TYPE, or with AT_END ends.  An error
-        !> condition occurs for an invalid N or a killed buffer.  Port of
-        !> ediff-util.el:ediff-get-diff-posn (AT_END for POSITION `end').
-        recursive module subroutine get_fortmacs_diff_diff_position(k, buffer_type, at_end, position, status, n)
-            implicit none(type, external)
-            integer, intent(in) :: k, buffer_type
-            logical, intent(in) :: at_end
-            integer(int64), intent(out) :: position
-            type(status_type), intent(out) :: status
-            integer, intent(in), optional :: n
-        end subroutine get_fortmacs_diff_diff_position
-
-        !> The text of difference N of session K in BUFFER_TYPE (from START
-        !> to END when given).  Port of ediff-util.el:ediff-get-region-contents.
-        recursive module subroutine get_fortmacs_diff_region_contents(k, n, buffer_type, text, status, start, end)
-            implicit none(type, external)
-            integer, intent(in) :: k, n, buffer_type
-            character(len=:), allocatable, intent(out) :: text
-            type(status_type), intent(out) :: status
-            integer(int64), intent(in), optional :: start, end
-        end subroutine get_fortmacs_diff_region_contents
 
         !> Read a file name with PROMPT (no trailing ": "), in DEFAULT_DIRECTORY
         !> (or that of DEFAULT_FILE, or `default_directory'), DEFAULT_FILE
@@ -404,7 +324,7 @@ module fortmacs_diff_utilities_mod
 
         !> Default hook to run on quitting a merge job.
         !> This can also be used to save merge buffer in the middle of an
-        !> Ediff session (`maybe_save_and_delete_fortmacs_diff_merge_session' with
+        !> Ediff session (`save_and_delete_merge' of the session with
         !> SAVE_AND_CONTINUE).
         !>
         !> If `fortmacs_diff_autostore_merges' is .false., this does nothing.
@@ -421,54 +341,53 @@ module fortmacs_diff_utilities_mod
             type(status_type), intent(out) :: status
         end subroutine maybe_save_and_delete_fortmacs_diff_merge
 
-        !> `maybe_save_and_delete_fortmacs_diff_merge' for session K: if
-        !> SAVE_AND_CONTINUE, save merge buffer and continue (as if
-        !> `fortmacs_diff_autostore_merges' were .true., without offering to close
-        !> the buffer).  Port of ediff-util.el:ediff-maybe-save-and-delete-merge.
-        recursive module subroutine maybe_save_and_delete_fortmacs_diff_merge_session(k, save_and_continue, status)
-            implicit none(type, external)
-            integer, intent(in) :: k
-            logical, intent(in) :: save_and_continue
-            type(status_type), intent(out) :: status
-        end subroutine maybe_save_and_delete_fortmacs_diff_merge_session
-
-        !> Compute the custom diff output of buffers A and B of session K into
-        !> its custom diff buffer, in Diff mode: `fortmacs_diff_custom_diff_program'
-        !> with `fortmacs_diff_custom_diff_options' on their files (temporary copies
-        !> when a buffer visits no existing file).  Port of
-        !> ediff-util.el:ediff-compute-custom-diffs-maybe (remote files are not
-        !> ported).
-        recursive module subroutine compute_fortmacs_diff_custom_diffs_maybe(k, status)
-            implicit none(type, external)
-            integer, intent(in) :: k
-            type(status_type), intent(out) :: status
-        end subroutine compute_fortmacs_diff_custom_diffs_maybe
-
         !> Register the commands of ediff-util.el, add `clean_up_fortmacs_diff_mess'
         !> to `fortmacs_diff_quit_hook' and `maybe_save_and_delete_fortmacs_diff_merge' to
         !> `fortmacs_diff_quit_merge_hook'.  Not a port.
         module subroutine initialize_fortmacs_diff_utility()
             implicit none(type, external)
         end subroutine initialize_fortmacs_diff_utility
+
+        !> Make BUFFER current, or return with the error condition of a killed
+        !> Ediff buffer (none while quitting).  Port of
+        !> ediff-init.el:ediff-with-current-buffer (its entry).
+        recursive module subroutine enter_fortmacs_diff_buffer(buffer, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(status_type), intent(out) :: status
+        end subroutine enter_fortmacs_diff_buffer
+
+        !> Select WINDOW (if live) for a while, saving the selected window and
+        !> the current buffer in OLD_WINDOW and OLD_BUFFER.  Not a port: the
+        !> entry of with-selected-window.
+        recursive module subroutine select_window_begin(window, old_window, old_buffer, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+            type(handle_type), intent(out) :: old_window, old_buffer
+            type(status_type), intent(out) :: status
+        end subroutine select_window_begin
+
+        !> Select OLD_WINDOW again and make OLD_BUFFER current.  Not a port:
+        !> the exit of with-selected-window.
+        recursive module subroutine select_window_end(old_window, old_buffer, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: old_window, old_buffer
+            type(status_type), intent(out) :: status
+        end subroutine select_window_end
     end interface
 
-    public :: set_up_fortmacs_diff, set_up_fortmacs_diff_control_buffer, fortmacs_diff_mode, update_fortmacs_diff_diffs, &
-              recenter_fortmacs_diff, &
+    public :: set_up_fortmacs_diff, fortmacs_diff_mode, update_fortmacs_diff_diffs, recenter_fortmacs_diff, &
               toggle_fortmacs_diff_split, toggle_fortmacs_diff_highlighting, toggle_fortmacs_diff_help, &
-              next_fortmacs_diff_difference, &
-              previous_fortmacs_diff_difference, jump_to_fortmacs_diff_difference, jump_to_fortmacs_diff_difference_at_point, &
-              fortmacs_diff_diff_at_point, &
-              copy_fortmacs_diff_diff_to_diff, copy_fortmacs_diff_diff, restore_fortmacs_diff_diff, quit_fortmacs_diff, &
-              quit_fortmacs_diff_session, &
-              unselect_and_select_fortmacs_diff_difference, get_fortmacs_diff_diff_position, get_fortmacs_diff_region_contents, &
-              read_fortmacs_diff_file_name, create_fortmacs_diff_temporary_file, verify_fortmacs_diff_file_buffer, &
-              fortmacs_diff_other_buffer, &
-              toggle_fortmacs_diff_show_ancestor, toggle_fortmacs_diff_show_clashes_only, &
-              toggle_fortmacs_diff_skip_changed_regions, &
-              save_fortmacs_diff_buffer, maybe_save_and_delete_fortmacs_diff_merge, &
-              maybe_save_and_delete_fortmacs_diff_merge_session, &
-              initialize_fortmacs_diff_utility, &
-              compute_fortmacs_diff_custom_diffs_maybe
+              next_fortmacs_diff_difference, previous_fortmacs_diff_difference, jump_to_fortmacs_diff_difference, &
+              jump_to_fortmacs_diff_difference_at_point, copy_fortmacs_diff_diff_to_diff, restore_fortmacs_diff_diff, &
+              quit_fortmacs_diff, read_fortmacs_diff_file_name, create_fortmacs_diff_temporary_file, &
+              verify_fortmacs_diff_file_buffer, fortmacs_diff_other_buffer, toggle_fortmacs_diff_show_ancestor, &
+              toggle_fortmacs_diff_show_clashes_only, toggle_fortmacs_diff_skip_changed_regions, save_fortmacs_diff_buffer, &
+              maybe_save_and_delete_fortmacs_diff_merge, initialize_fortmacs_diff_utility
+    ! Public for fortmacs_diff_settings_utilities_mod, the submodule of
+    ! fortmacs_diff_settings_mod with the session's procedures (not part of the
+    ! configuration interface).
+    public :: enter_fortmacs_diff_buffer, select_window_begin, select_window_end
 
 contains
 

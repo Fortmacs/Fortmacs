@@ -42,7 +42,6 @@ module test_fortmacs_diff_multiple_mod
     use files_mod, only: delete_directory
     use commands_mod, only: commands
     use fortmacs_diff_settings_mod, only: fortmacs_diff_sessions, fortmacs_diff_session_index, abbreviate_fortmacs_diff_job_name
-    use fortmacs_diff_utilities_mod, only: quit_fortmacs_diff_session
     use fortmacs_diff_mod, only: fortmacs_diff_directories
     use fortmacs_diff_multiple_mod, only: fortmacs_diff_session_group_type, fortmacs_diff_session_groups, &
                                           fortmacs_diff_group_index, intersect_fortmacs_diff_directories, &
@@ -178,16 +177,17 @@ contains
     subroutine teardown(directory)
         character(len=*), intent(in) :: directory
         type(status_type) :: st
-        integer :: k
+        integer :: group_index
 
         if (allocated(fortmacs_diff_session_groups)) then
-            do k = 1, size(fortmacs_diff_session_groups)
-                if (is_buffer_live(fortmacs_diff_session_groups(k)%directory_diffs_buffer)) then
-                    call close_buffer(fortmacs_diff_session_groups(k)%directory_diffs_buffer, st)
+            do group_index = 1, size(fortmacs_diff_session_groups)
+                if (is_buffer_live(fortmacs_diff_session_groups(group_index)%directory_diffs_buffer)) then
+                    call close_buffer(fortmacs_diff_session_groups(group_index)%directory_diffs_buffer, st)
                 end if
 
-                if (is_buffer_live(fortmacs_diff_session_groups(k)%buffer)) call close_buffer(fortmacs_diff_session_groups( &
-                                                                                              k)%buffer, st)
+                if (is_buffer_live(fortmacs_diff_session_groups(group_index)%buffer)) then
+                    call close_buffer(fortmacs_diff_session_groups(group_index)%buffer, st)
+                end if
             end do
         end if
 
@@ -213,16 +213,16 @@ contains
 
     !> Start M-x fortmacs_diff_directories on A and B; GROUP is its buffer's
     !> group, which is current.
-    subroutine start_group(directory, k, status)
+    subroutine start_group(directory, group_index, status)
         character(len=*), intent(in) :: directory
-        integer, intent(out) :: k
+        integer, intent(out) :: group_index
         type(status_type), intent(out) :: status
 
-        k = 0
+        group_index = 0
         call fortmacs_diff_directories(directory//"a", directory//"b", "", status)
         if (.not. status%ok()) return
-        k = fortmacs_diff_group_index(get_buffer("*Ediff Session Group Panel*"))
-        if (k > 0) call set_buffer(fortmacs_diff_session_groups(k)%buffer, status)
+        group_index = fortmacs_diff_group_index(get_buffer("*Ediff Session Group Panel*"))
+        if (group_index > 0) call set_buffer(fortmacs_diff_session_groups(group_index)%buffer, status)
     end subroutine start_group
 
     !> The files both directories have are the sessions, sorted, a
@@ -274,34 +274,35 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: directory, text
-        integer :: k
+        integer :: group_index
 
         call setup(directory)
-        call start_group(directory, k, st)
+        call start_group(directory, group_index, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error, k > 0, "a group")
+            call check(error, group_index > 0, "a group")
             if (allocated(error)) exit body
-            call check(error, associated(fortmacs_diff_session_groups(k)%job_name, commands%fortmacs_diff_directories), "job")
+            call check(error, associated(fortmacs_diff_session_groups(group_index)%job_name, &
+                                         commands%fortmacs_diff_directories), "job")
             if (allocated(error)) exit body
-            call check(error, abbreviate_fortmacs_diff_job_name(fortmacs_diff_session_groups(k)%job_name), &
+            call check(error, abbreviate_fortmacs_diff_job_name(fortmacs_diff_session_groups(group_index)%job_name), &
                        "Compare two directories")
             if (allocated(error)) exit body
-            text = text_of(fortmacs_diff_session_groups(k)%buffer)
+            text = text_of(fortmacs_diff_session_groups(group_index)%buffer)
             call check(error, index(text, "Ediff Session Group Panel: Compare two directories") == 1, text)
             if (allocated(error)) exit body
             call check(error, index(text, "  Session 3:"//LF) > 0, text)
             if (allocated(error)) exit body
             call check(error, index(text, "*** Directory A: ") > 0, text)
             if (allocated(error)) exit body
-            call check(error, trim(buffers(fortmacs_diff_session_groups(k)%buffer%index)%mode_name), "MetaEdiff")
+            call check(error, trim(buffers(fortmacs_diff_session_groups(group_index)%buffer%index)%mode_name), "MetaEdiff")
             if (allocated(error)) exit body
-            call check(error, any(same_handle(fortmacs_diff_session_registry, fortmacs_diff_session_groups(k)%buffer)), &
+            call check(error, any(same_handle(fortmacs_diff_session_registry, fortmacs_diff_session_groups(group_index)%buffer)), &
                        "registered")
             if (allocated(error)) exit body
-            call check(error, index(text_of(fortmacs_diff_session_groups(k)%directory_diffs_buffer), "only_a") > 0, &
+            call check(error, index(text_of(fortmacs_diff_session_groups(group_index)%directory_diffs_buffer), "only_a") > 0, &
                        "directory diffs")
             if (allocated(error)) exit body
             ! The registry lists the group.
@@ -311,10 +312,11 @@ contains
             call check(error, index(text_of(fortmacs_diff_registry_buffer), "*group*") > 0, text_of(fortmacs_diff_registry_buffer))
             if (allocated(error)) exit body
             ! ? shows the verbose help.
-            call show_fortmacs_diff_meta_buffer(st, fortmacs_diff_session_groups(k)%buffer)
+            call show_fortmacs_diff_meta_buffer(st, fortmacs_diff_session_groups(group_index)%buffer)
             call keyboard_store_bytes("?")
             call command_loop(st)
-            call check(error, index(text_of(fortmacs_diff_session_groups(k)%buffer), "Useful commands") > 0, "verbose help")
+            call check(error, index(text_of(fortmacs_diff_session_groups(group_index)%buffer), "Useful commands") > 0, &
+                       "verbose help")
         end block body
 
         call teardown(directory)
@@ -326,10 +328,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: directory
-        integer :: k
+        integer :: group_index
 
         call setup(directory)
-        call start_group(directory, k, st)
+        call start_group(directory, group_index, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -337,19 +339,20 @@ contains
             call goto_character(point_minimum())
             call keyboard_store_bytes("nm")
             call command_loop(st)
-            call check(error, fortmacs_diff_session_groups(k)%sessions(1)%status, FORTMACS_DIFF_SESSION_STATUS_MARKED)
+            call check(error, fortmacs_diff_session_groups(group_index)%sessions(1)%status, FORTMACS_DIFF_SESSION_STATUS_MARKED)
             if (allocated(error)) exit body
             ! m moved to session 2; h marks it for hiding, x hides it.
             call keyboard_store_bytes("hx")
             call command_loop(st)
-            call check(error, fortmacs_diff_session_groups(k)%sessions(2)%status, FORTMACS_DIFF_SESSION_STATUS_HIDDEN)
+            call check(error, fortmacs_diff_session_groups(group_index)%sessions(2)%status, FORTMACS_DIFF_SESSION_STATUS_HIDDEN)
             if (allocated(error)) exit body
-            call check(error, index(text_of(fortmacs_diff_session_groups(k)%buffer), "Session 2:") == 0, "session 2 hidden")
+            call check(error, index(text_of(fortmacs_diff_session_groups(group_index)%buffer), "Session 2:") == 0, &
+                       "session 2 hidden")
             if (allocated(error)) exit body
             ! um unmarks session 1.
             call keyboard_store_bytes("um")
             call command_loop(st)
-            call check(error, fortmacs_diff_session_groups(k)%sessions(1)%status, " ")
+            call check(error, fortmacs_diff_session_groups(group_index)%sessions(1)%status, " ")
         end block body
 
         call teardown(directory)
@@ -361,11 +364,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: directory
-        integer :: k
+        integer :: group_index
 
         if (.not. has_program("cmp", error)) return
         call setup(directory)
-        call start_group(directory, k, st)
+        call start_group(directory, group_index, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -373,13 +376,13 @@ contains
             ! Comparing the subdirectories asks whether to recurse: n.
             call keyboard_store_bytes("=hn")
             call command_loop(st)
-            call check(error, fortmacs_diff_session_groups(k)%sessions(1)%files(1)%is_equal, "f1 equal")
+            call check(error, fortmacs_diff_session_groups(group_index)%sessions(1)%files(1)%is_equal, "f1 equal")
             if (allocated(error)) exit body
-            call check(error,.not. fortmacs_diff_session_groups(k)%sessions(2)%files(1)%is_equal, "f2 different")
+            call check(error,.not. fortmacs_diff_session_groups(group_index)%sessions(2)%files(1)%is_equal, "f2 different")
             if (allocated(error)) exit body
-            call check(error, fortmacs_diff_session_groups(k)%sessions(1)%status, FORTMACS_DIFF_SESSION_STATUS_HIDE)
+            call check(error, fortmacs_diff_session_groups(group_index)%sessions(1)%status, FORTMACS_DIFF_SESSION_STATUS_HIDE)
             if (allocated(error)) exit body
-            call check(error, index(text_of(fortmacs_diff_session_groups(k)%buffer), "=  ") > 0, "the = marker")
+            call check(error, index(text_of(fortmacs_diff_session_groups(group_index)%buffer), "=  ") > 0, "the = marker")
         end block body
 
         call teardown(directory)
@@ -392,35 +395,35 @@ contains
         type(handle_type) :: control, meta
         type(status_type) :: st
         character(len=:), allocatable :: directory
-        integer :: k, s
+        integer :: group_index, session_index
 
         if (.not. has_program("diff", error)) return
         call setup(directory)
-        call start_group(directory, k, st)
+        call start_group(directory, group_index, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            meta = fortmacs_diff_session_groups(k)%buffer
+            meta = fortmacs_diff_session_groups(group_index)%buffer
             call goto_character(point_minimum())
             call keyboard_store_bytes("nn"//achar(13))
             call command_loop(st)
-            control = fortmacs_diff_session_groups(k)%sessions(2)%buffer
+            control = fortmacs_diff_session_groups(group_index)%sessions(2)%buffer
             call check(error, is_buffer_live(control), "session 2 started")
             if (allocated(error)) exit body
-            s = fortmacs_diff_session_index(control)
-            call check(error, s > 0, "a session")
+            session_index = fortmacs_diff_session_index(control)
+            call check(error, session_index > 0, "a session")
             if (allocated(error)) exit body
-            call check(error, same_handle(fortmacs_diff_sessions(s)%meta_buffer, meta), "its group")
+            call check(error, same_handle(fortmacs_diff_sessions(session_index)%meta_buffer, meta), "its group")
             if (allocated(error)) exit body
-            call check(error, fortmacs_diff_sessions(s)%meta_session_number, 2)
+            call check(error, fortmacs_diff_sessions(session_index)%meta_session_number, 2)
             if (allocated(error)) exit body
             call check(error, any(same_handle(fortmacs_diff_session_registry, control)), "registered")
             if (allocated(error)) exit body
             call check(error, index(text_of(meta), "+   Session 2:") > 0, text_of(meta))
             if (allocated(error)) exit body
             call set_buffer(control, st)
-            call quit_fortmacs_diff_session(s, .false., st)
+            call fortmacs_diff_sessions(session_index)%quit(.false., st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error,.not. is_buffer_live(control), "control buffer closed")
@@ -440,15 +443,15 @@ contains
         type(handle_type) :: meta
         type(status_type) :: st
         character(len=:), allocatable :: directory
-        integer :: k
+        integer :: group_index
 
         call setup(directory)
-        call start_group(directory, k, st)
+        call start_group(directory, group_index, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            meta = fortmacs_diff_session_groups(k)%buffer
+            meta = fortmacs_diff_session_groups(group_index)%buffer
             call keyboard_store_bytes("qy")
             call command_loop(st)
             call check(error,.not. is_buffer_live(meta), "group closed")
@@ -486,15 +489,15 @@ contains
         type(handle_type) :: diffs
         type(status_type) :: st
         character(len=:), allocatable :: directory
-        integer :: k, at
+        integer :: group_index, at
 
         call setup(directory)
-        call start_group(directory, k, st)
+        call start_group(directory, group_index, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            diffs = fortmacs_diff_session_groups(k)%directory_diffs_buffer
+            diffs = fortmacs_diff_session_groups(group_index)%directory_diffs_buffer
             call set_window_buffer(selected_frame%selected_window, diffs, st)
             call set_buffer(diffs, st)
             at = index(text_of(diffs), "only_a")
@@ -503,9 +506,9 @@ contains
             call command_loop(st)
             call check(error, file_exists(directory//"b/only_a"), "only_a copied to B")
             if (allocated(error)) exit body
-            call check(error, size(fortmacs_diff_session_groups(k)%sessions), 4)
+            call check(error, size(fortmacs_diff_session_groups(group_index)%sessions), 4)
             if (allocated(error)) exit body
-            call check(error, size(fortmacs_diff_session_groups(k)%directory_differences), 1)
+            call check(error, size(fortmacs_diff_session_groups(group_index)%directory_differences), 1)
             if (allocated(error)) exit body
             call check(error, is_buffer_live(diffs), "still shown")
             if (allocated(error)) exit body
