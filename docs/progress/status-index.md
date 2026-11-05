@@ -80,6 +80,7 @@
 | [fortmacs_mod](../status/fortmacs_mod.md) | emacs.c `main` (+ startup.el `command-line` terminal part, `-q`/`-Q` and the init file and `command-line-1` file arguments, faces.el `tty-run-terminal-initialization`, buffer.c `init_buffer` directory) | partial |
 | [fortmacs_tags_mod](../status/fortmacs_tags_mod.md) | progmodes/etags.el | partial |
 | [fortmacs_widget_for_object_collections_mod](../status/fortmacs_widget_for_object_collections_mod.md) | emacs-lisp/ewoc.el | done |
+| [fortran_completion_mod](../status/fortran_completion_mod.md) | — (an added feature, PORTING.md "Added features"; owner 2026-11-05) | partial |
 | [frame_mod](../status/frame_mod.md) | frame.h (+ window.h pixel edges, window.c `window_body_width` and `resize_frame_windows`, window.el `frame-windows-min-size`, frame.c's divider widths, frame.el's window dividers); step 44a: frame.c (terminal frames), frame.el (C-x 5), minibuf.c `move_minibuffers_onto_frame` | partial |
 | [glyph_matrices_mod](../status/glyph_matrices_mod.md) | dispextern.h | partial |
 | [grep_mod](../status/grep_mod.md) | progmodes/grep.el (+ find-dired.el `find-name-arg`) | partial |
