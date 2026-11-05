@@ -219,10 +219,14 @@ module fortmacs_diff_multiple_mod
         !> `fortmacs_diff_meta_buffer_map', the group buffer's own keymap.
         type(handle_type) :: keymap
     contains
-        !> The procedures acting on one group (ediff-mult.el); the group
+        !> Find the group's entry of `fortmacs_diff_session_groups' again.
+        procedure, private :: get_index => get_group_index
+        !> Update the activity markers and status of the sessions in the group buffer.
+        procedure :: update_markers
+        !> The other procedures acting on one group (ediff-mult.el); the group
         !> registry can grow under them, see fortmacs_diff_session_type.
         procedure, private :: is_registry, is_problematic_session, set_up_meta_map, redraw_directory_group_buffer, &
-            insert_session_information, insert_directories, set_session_invisible, update_markers, &
+            insert_session_information, insert_directories, set_session_invisible, &
             update_session_marker, replace_session_activity_marker, replace_session_status, get_session_at, &
             get_visible_session_at, get_registry_record_at, get_record_overlay_at, is_record_invisible, &
             get_next_overlay_start, get_previous_overlay_start, next_item, previous_item, skip_to_item, &
@@ -459,6 +463,25 @@ contains
         if (associated(this_command)) name = trim(this_command%name)
         call set_error(status, USER_ERROR_CODE, name//": This command runs in Ediff Control Buffer only!")
     end subroutine check_meta_buffer
+
+    !> Give in GROUP_INDEX the entry of `fortmacs_diff_session_groups' that is
+    !> the group, found again by its buffer (the array may have grown and
+    !> moved since the caller took the entry); a `user_error' if the group
+    !> has no entry (its buffer was closed).  Not a port: as
+    !> ediff-init.el:ediff-barf-if-not-control-buffer (META-BUF-P).
+    subroutine get_group_index(self, group_index, status)
+        class(fortmacs_diff_session_group_type), intent(in) :: self
+        integer, intent(out) :: group_index
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+
+        status = status_type()
+        group_index = fortmacs_diff_group_index(self%buffer)
+        if (group_index > 0) return
+        name = "null()"
+        if (associated(this_command)) name = trim(this_command%name)
+        call set_error(status, USER_ERROR_CODE, name//": This command runs in Ediff Control Buffer only!")
+    end subroutine get_group_index
 
     ! Whether the group is the registry.  Not a port.
     logical function is_registry(self)
@@ -1039,8 +1062,8 @@ contains
         integer :: d
         integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-        status = status_type()
+        call self%get_index(group_index, status)
+        if (.not. status%ok()) return
         call make_sparse_keymap(map)
         fortmacs_diff_session_groups(group_index)%keymap = map
         action = "execute_fortmacs_diff_filegroup_action"
@@ -1101,7 +1124,8 @@ contains
         integer :: n
         integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
+        call self%get_index(group_index, status)
+        if (.not. status%ok()) return
         old = current_buffer()
         call set_buffer(fortmacs_diff_session_groups(group_index)%buffer, status)
         if (.not. status%ok()) return
@@ -1198,7 +1222,8 @@ contains
         integer :: t
         integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
+        call self%get_index(group_index, status)
+        if (.not. status%ok()) return
 
         associate (s => fortmacs_diff_session_groups(group_index)%sessions(session_number))
             beginning_of_record = point()
@@ -1281,16 +1306,21 @@ contains
     !> ediff-mult.el:ediff-insert-dirs-in-meta-buffer.
     subroutine insert_directories(self)
         class(fortmacs_diff_session_group_type), intent(inout), target :: self
-        integer :: group_index
+        character(len=:), allocatable :: directory_a, directory_b, directory_c
+        logical :: has_b, has_c
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-
-        associate (g => fortmacs_diff_session_groups(group_index))
-            call insert_text("*** Directory A: "//abbreviate_file_name(g%directory_a)//LF)
-            if (allocated(g%directory_b)) call insert_text("*** Directory B: "//abbreviate_file_name(g%directory_b)//LF)
-            if (allocated(g%directory_c)) call insert_text("*** Directory C: "//abbreviate_file_name(g%directory_c)//LF)
-            call insert_text(LF)
-        end associate
+        ! Copies: inserting runs the change hooks, which may make groups.
+        directory_a = abbreviate_file_name(self%directory_a)
+        has_b = allocated(self%directory_b)
+        has_c = allocated(self%directory_c)
+        directory_b = ""
+        if (has_b) directory_b = abbreviate_file_name(self%directory_b)
+        directory_c = ""
+        if (has_c) directory_c = abbreviate_file_name(self%directory_c)
+        call insert_text("*** Directory A: "//directory_a//LF)
+        if (has_b) call insert_text("*** Directory B: "//directory_b//LF)
+        if (has_c) call insert_text("*** Directory C: "//directory_c//LF)
+        call insert_text(LF)
     end subroutine insert_directories
 
     !> Put an overlay around a record, from BEGINNING to END, in OVERLAY;
@@ -1319,12 +1349,10 @@ contains
         integer, intent(in) :: session_number
         logical, intent(in) :: invisible
         type(status_type) :: st
-        integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-        call overlay_put(fortmacs_diff_session_groups(group_index)%sessions(session_number)%overlay, "invisible", &
+        call overlay_put(self%sessions(session_number)%overlay, "invisible", &
                          value_type(invisible), st)
-        fortmacs_diff_session_groups(group_index)%sessions(session_number)%invisible = invisible
+        self%sessions(session_number)%invisible = invisible
     end subroutine set_session_invisible
 
     !> Update the activity markers and status of the sessions of the group
@@ -1337,8 +1365,8 @@ contains
         integer :: n, m
         integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-        status = status_type()
+        call self%get_index(group_index, status)
+        if (.not. status%ok()) return
         saved_point = point()
         call goto_character(point_minimum())
         call fortmacs_diff_session_groups(group_index)%next_item(status)
@@ -1385,8 +1413,8 @@ contains
         character(len=12) :: number
         integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-        status = status_type()
+        call self%get_index(group_index, status)
+        if (.not. status%ok()) return
 
         if (session_number < 1 .or. session_number > size(fortmacs_diff_session_groups(group_index)%sessions)) then
             write (number, "(i0)") session_number
@@ -1421,10 +1449,8 @@ contains
         class(fortmacs_diff_session_group_type), intent(inout), target :: self
         integer, intent(in) :: session_number
         character, intent(in) :: marker
-        integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-        call replace_character(overlay_start(fortmacs_diff_session_groups(group_index)%sessions(session_number)%overlay), marker)
+        call replace_character(overlay_start(self%sessions(session_number)%overlay), marker)
     end subroutine replace_session_activity_marker
 
     !> Replace the status of session SESSION_NUMBER of the group in the buffer by STATUS
@@ -1434,10 +1460,8 @@ contains
         class(fortmacs_diff_session_group_type), intent(inout), target :: self
         integer, intent(in) :: session_number
         character, intent(in) :: status
-        integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-        call replace_character(overlay_start(fortmacs_diff_session_groups(group_index)%sessions(session_number)%overlay) + 1, &
+        call replace_character(overlay_start(self%sessions(session_number)%overlay) + 1, &
                                status)
     end subroutine replace_session_status
 
@@ -1672,7 +1696,8 @@ contains
         integer(int64) :: position
         integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
+        call self%get_index(group_index, status)
+        if (.not. status%ok()) return
         position = fortmacs_diff_session_groups(group_index)%get_next_overlay_start(point())
         call goto_character(position)
         call fortmacs_diff_session_groups(group_index)%skip_to_item(position, status)
@@ -1686,7 +1711,8 @@ contains
         integer(int64) :: position
         integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
+        call self%get_index(group_index, status)
+        if (.not. status%ok()) return
         position = fortmacs_diff_session_groups(group_index)%get_previous_overlay_start(point())
         call goto_character(position)
         call fortmacs_diff_session_groups(group_index)%skip_to_item(position, status)
@@ -1702,8 +1728,8 @@ contains
         integer(int64) :: moved, found
         integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-        status = status_type()
+        call self%get_index(group_index, status)
+        if (.not. status%ok()) return
 
         if (fortmacs_diff_session_groups(group_index)%is_registry()) then
             if (fortmacs_diff_session_groups(group_index)%get_registry_record_at(position) > 0) then
@@ -1829,8 +1855,8 @@ contains
         integer :: j
         integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-        status = status_type()
+        call self%get_index(group_index, status)
+        if (.not. status%ok()) return
 
         if (.not. fortmacs_diff_session_groups(group_index)%has_directory_differences) then
             call set_error(status, USER_ERROR_CODE, "Lost difference info on these directories")
@@ -2733,11 +2759,8 @@ contains
         integer, intent(in) :: session_number, mode
         logical, intent(out), optional :: unmarked
         logical :: unmark, ignore
-        integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-
-        associate (s => fortmacs_diff_session_groups(group_index)%sessions(session_number))
+        associate (s => self%sessions(session_number))
             ignore = .false.
             unmark = mode == MARK_REMOVE
 
@@ -2770,11 +2793,8 @@ contains
         integer, intent(in) :: session_number, mode
         logical, intent(out), optional :: unmarked
         logical :: unmark, ignore
-        integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-
-        associate (s => fortmacs_diff_session_groups(group_index)%sessions(session_number))
+        associate (s => self%sessions(session_number))
             ignore = .false.
             unmark = mode == MARK_REMOVE
 
@@ -3033,8 +3053,8 @@ contains
         integer :: n, c, child
         integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-        status = status_type()
+        call self%get_index(group_index, status)
+        if (.not. status%ok()) return
         count = 0
         group_buffer = fortmacs_diff_session_groups(group_index)%buffer
         diff_buffer = fortmacs_diff_session_groups(group_index)%meta_diff_buffer
@@ -3083,8 +3103,8 @@ contains
         integer :: session_index
         integer :: group_index
 
-        group_index = fortmacs_diff_group_index(self%buffer)
-        status = status_type()
+        call self%get_index(group_index, status)
+        if (.not. status%ok()) return
 
         if (.not. is_fortmacs_diff_collect_diffs_metajob(fortmacs_diff_session_groups(group_index)%job_name)) then
             call set_error(status, GENERIC_ERROR_CODE, "Can't compute multifile patch in this context")

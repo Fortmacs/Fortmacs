@@ -37,13 +37,11 @@ contains
     recursive module subroutine refresh_mode_lines(self)
         class(fortmacs_diff_session_type), intent(inout), target :: self
         type(handle_type) :: control
-        integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        control = fortmacs_diff_sessions(session_index)%control_buffer
+        control = self%control_buffer
         if (.not. is_buffer_live(control)) return
         ! Control buffer id.
-        buffers(control%index)%mode_line_buffer_identification = fortmacs_diff_sessions(session_index)%make_wide_control_buffer_id()
+        buffers(control%index)%mode_line_buffer_identification = self%make_wide_control_buffer_id()
     end subroutine refresh_mode_lines
 
     module function make_wide_control_buffer_id(self) result(id)

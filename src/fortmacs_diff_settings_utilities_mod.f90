@@ -103,8 +103,8 @@ contains
         type(status_type) :: st
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         if (.not. fortmacs_diff_sessions(session_index)%merge_job) return
 
         if (present(merge_buffer_file)) then
@@ -133,7 +133,8 @@ contains
         integer(int64) :: moved
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         window = selected_frame%selected_window
         call set_buffer(control_buffer, status)
         if (.not. status%ok()) return
@@ -207,8 +208,8 @@ contains
         integer :: t
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         control = fortmacs_diff_sessions(session_index)%control_buffer
         all_live = is_buffer_live(fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_A)) .and. &
                    is_buffer_live(fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_B))
@@ -281,8 +282,8 @@ contains
         integer(int64) :: beginning, end
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         if (.not. fortmacs_diff_sessions(session_index)%is_valid_difference()) return
         ! Context must be saved before switching to windows A/B/C.
         control = fortmacs_diff_sessions(session_index)%control_buffer
@@ -359,7 +360,8 @@ contains
         integer :: maximum_dif_number, which
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         old = current_buffer()
         maximum_dif_number = fortmacs_diff_sessions(session_index)%number_of_differences - 1
         diff_no = -1
@@ -421,7 +423,8 @@ contains
         logical :: batch, saved
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         batch = .false.
         if (present(batch_invocation)) batch = batch_invocation
         to_buffer = fortmacs_diff_sessions(session_index)%buffers(to_type)
@@ -505,28 +508,26 @@ contains
         integer :: j
         character(len=:), allocatable :: recover
         character(len=20) :: digits
-        integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        j = fortmacs_diff_sessions(session_index)%get_replaced_region_index(difference, buffer_type)
+        j = self%get_replaced_region_index(difference, buffer_type)
 
         if (j > 0) then
-            fortmacs_diff_sessions(session_index)%replaced_regions(j)%text = text
+            self%replaced_regions(j)%text = text
         else
             entry%n = difference
             entry%buffer_type = buffer_type
             entry%text = text
 
-            if (.not. allocated(fortmacs_diff_sessions(session_index)%replaced_regions)) then
-                allocate (fortmacs_diff_sessions(session_index)%replaced_regions(0))
+            if (.not. allocated(self%replaced_regions)) then
+                allocate (self%replaced_regions(0))
             end if
 
-            fortmacs_diff_sessions(session_index)%replaced_regions = [fortmacs_diff_sessions(session_index)%replaced_regions, entry]
+            self%replaced_regions = [self%replaced_regions, entry]
         end if
 
         recover = ""
 
-        if (.not. fortmacs_diff_sessions(session_index)%merge_job) then
+        if (.not. self%merge_job) then
             recover = char(ichar(fortmacs_diff_buffer_type_name(buffer_type)) + 32)
         end if
 
@@ -554,8 +555,8 @@ contains
         character(len=20) :: digits
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         if (fortmacs_diff_sessions(session_index)%get_replaced_region_index(difference, buffer_type) == 0) return
         write (digits, "(i0)") difference + 1
         call read_yes_or_no("You've previously copied diff region "//trim(digits)//" to buffer "// &
@@ -578,7 +579,8 @@ contains
         character(len=20) :: digits
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         write (digits, "(i0)") difference + 1
         j = fortmacs_diff_sessions(session_index)%get_replaced_region_index(difference, buffer_type)
 
@@ -643,7 +645,8 @@ contains
         integer :: t, session_number
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         control_buffer = fortmacs_diff_sessions(session_index)%control_buffer
         meta_buffer = fortmacs_diff_sessions(session_index)%meta_buffer
         session_number = fortmacs_diff_sessions(session_index)%meta_session_number
@@ -711,7 +714,8 @@ contains
         type(handle_type) :: buffers_of(4)
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         buffers_of = fortmacs_diff_sessions(session_index)%buffers
         call dispose_of_fortmacs_diff_variant(buffers_of(FORTMACS_DIFF_BUFFER_TYPE_A), FORTMACS_DIFF_BUFFER_TYPE_A, ask, &
                                               keep_variants, status)
@@ -763,8 +767,8 @@ contains
         integer :: t
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         if (.not. is_buffer_live(fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_A))) return
         if (.not. is_buffer_live(fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_B))) return
         if (.not. fortmacs_diff_sessions(session_index)%is_valid_difference(difference)) return
@@ -795,8 +799,8 @@ contains
         integer :: t
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         if (.not. fortmacs_diff_sessions(session_index)%is_valid_difference(difference)) return
 
         if (has_fortmacs_diff_face_support() .and. fortmacs_diff_sessions(session_index)%use_faces) then
@@ -826,7 +830,8 @@ contains
         logical :: recentering
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         how = 0
         if (present(flag)) how = flag
         recentering = .true.
@@ -874,8 +879,8 @@ contains
         integer(int64) :: last, beginning, end, end_hilit
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         buffer = fortmacs_diff_sessions(session_index)%buffers(buffer_type)
         if (.not. is_buffer_live(buffer)) return
         if (.not. allocated(fortmacs_diff_sessions(session_index)%differences)) return
@@ -908,8 +913,8 @@ contains
         integer :: n
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         if (.not. is_buffer_live(fortmacs_diff_sessions(session_index)%buffers(buffer_type))) return
         call move_fortmacs_diff_overlay(fortmacs_diff_sessions(session_index)%current_diff_overlays(buffer_type), 1_int64, &
                                         1_int64, status)
@@ -935,7 +940,8 @@ contains
         integer :: t
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
 
         do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR
             call fortmacs_diff_sessions(session_index)%unselect_and_select_difference(-1, status)
@@ -964,8 +970,8 @@ contains
         logical :: ascii
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         if (.not. is_buffer_live(fortmacs_diff_sessions(session_index)%buffers(buffer_type))) return
         overlay = fortmacs_diff_sessions(session_index)%differences(buffer_type, difference + 1)%overlay
         ascii = fortmacs_diff_sessions(session_index)%highlighting_style == FORTMACS_DIFF_HIGHLIGHTING_STYLE_ASCII
@@ -1028,8 +1034,8 @@ contains
         integer :: m
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         position = 0
         m = fortmacs_diff_sessions(session_index)%current_difference
         if (present(difference)) m = difference
@@ -1069,7 +1075,8 @@ contains
         integer(int64) :: s, e
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         text = ""
 
         if (present(start)) then
@@ -1100,8 +1107,8 @@ contains
         type(status_type), intent(out) :: status
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
 
         if (has_fortmacs_diff_face_support() .and. fortmacs_diff_sessions(session_index)%use_faces &
             .and. fortmacs_diff_sessions(session_index)%highlight_all_diffs) then
@@ -1116,21 +1123,19 @@ contains
     module subroutine clear_differences(self)
         class(fortmacs_diff_session_type), intent(inout), target :: self
         integer :: t, n
-        integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        if (.not. allocated(fortmacs_diff_sessions(session_index)%differences)) return
+        if (.not. allocated(self%differences)) return
 
-        do n = 1, size(fortmacs_diff_sessions(session_index)%differences, 2)
+        do n = 1, size(self%differences, 2)
             do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR
-                if (is_overlay(fortmacs_diff_sessions(session_index)%differences(t, n)%overlay)) then
-                    call destroy_overlay(fortmacs_diff_sessions(session_index)%differences(t, n)%overlay)
+                if (is_overlay(self%differences(t, n)%overlay)) then
+                    call destroy_overlay(self%differences(t, n)%overlay)
                 end if
             end do
         end do
 
-        deallocate (fortmacs_diff_sessions(session_index)%differences)
-        allocate (fortmacs_diff_sessions(session_index)%differences(4, 0))
+        deallocate (self%differences)
+        allocate (self%differences(4, 0))
     end subroutine clear_differences
 
     recursive module subroutine make_current_difference_overlay(self, buffer_type, status)
@@ -1140,8 +1145,8 @@ contains
         integer(int64) :: position
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         if (.not. has_fortmacs_diff_face_support()) return
         ! (point-max) of the control buffer.
         position = point_maximum()
@@ -1161,8 +1166,8 @@ contains
         integer :: t
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
 
         associate (b => fortmacs_diff_sessions(session_index)%buffers)
             if (same_handle(b(FORTMACS_DIFF_BUFFER_TYPE_A), b(FORTMACS_DIFF_BUFFER_TYPE_B))) return
@@ -1209,8 +1214,8 @@ contains
         type(status_type), intent(out) :: status
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         if (is_buffer_live(fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR))) return
 
         if (fortmacs_diff_sessions(session_index)%merge_with_ancestor_job) then
@@ -1229,8 +1234,8 @@ contains
         logical :: always
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         ! Fake ediff-autostore-merges, if necessary.
         always = save_and_continue .or. fortmacs_diff_sessions(session_index)%autostore_merges%value
         if (.not. always .and. fortmacs_diff_sessions(session_index)%autostore_merges%choice &
@@ -1365,7 +1370,8 @@ contains
         type(status_type) :: st
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         call temporary_unless_visited(FORTMACS_DIFF_BUFFER_TYPE_A, file_a, status)
         if (.not. status%ok()) return
         call temporary_unless_visited(FORTMACS_DIFF_BUFFER_TYPE_B, file_b, status)

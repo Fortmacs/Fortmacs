@@ -70,8 +70,8 @@ contains
         integer :: j, m
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         text = ""
         m = 0
         if (allocated(fortmacs_diff_combination_pattern)) m = size(fortmacs_diff_combination_pattern)
@@ -107,8 +107,8 @@ contains
         integer :: n
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
 
         do n = 0, fortmacs_diff_sessions(session_index)%number_of_differences - 1
             call fortmacs_diff_sessions(session_index)%set_difference_state(n, status)
@@ -123,7 +123,8 @@ contains
         character(len=:), allocatable :: reg_a, reg_b, reg_c, combined
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         call fortmacs_diff_sessions(session_index)%get_region_contents(difference, FORTMACS_DIFF_BUFFER_TYPE_A, reg_a, status)
         if (.not. status%ok()) return
         call fortmacs_diff_sessions(session_index)%get_region_contents(difference, FORTMACS_DIFF_BUFFER_TYPE_B, reg_b, status)
@@ -172,8 +173,8 @@ contains
         character(len=96) :: progress
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         again = .false.
         if (present(remerging)) again = remerging
         n = max(0, diff_number)
@@ -250,7 +251,8 @@ contains
         logical :: batch
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         batch = .false.
         if (present(batch_invocation)) batch = batch_invocation
         call fortmacs_diff_sessions(session_index)%get_combined_region(difference, reg_combined, status)
@@ -272,7 +274,8 @@ contains
         logical :: prefers
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         changed = .false.
         prefers = .false.
         if (present(prefers_too)) prefers = prefers_too
@@ -306,8 +309,8 @@ contains
     integer :: session_index
     logical :: changed
 
-    session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-    status = status_type()
+    call self%get_index(session_index, status)
+    if (.not. status%ok()) return
     skip = .false.
     if (.not. fortmacs_diff_sessions(session_index)%merge_job) return
 

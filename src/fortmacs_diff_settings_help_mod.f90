@@ -59,7 +59,8 @@ contains
         integer :: shift, width
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         width = window_body_width(selected_frame%selected_window, status)
         if (.not. status%ok()) return
         shift = max(0, width - fortmacs_diff_sessions(session_index)%get_help_message_line_length())/2
@@ -86,7 +87,8 @@ contains
         type(status_type), intent(out) :: status
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
 
         if (fortmacs_diff_sessions(session_index)%merge_job) then
             fortmacs_diff_sessions(session_index)%long_help_message = FORTMACS_DIFF_LONG_HELP_MESSAGE_HEAD &

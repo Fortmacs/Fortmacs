@@ -2222,18 +2222,24 @@ the procedures that find or make a registry entry
   fortmacs_diff_utilities_session_mod).
 - The registry can grow, and move, while a bound procedure runs (a new
   session, a hook running user code), leaving SELF dangling: see the
-  Hazards checklist.  A bound subroutine looks its entry up again on entry
-  by a key that does not move (`findloc(fortmacs_diff_sessions%serial,
-  self%serial, dim=1)`, `fortmacs_diff_group_index(self%buffer)`) and works
-  through the registry from then on; a function, which has no side
-  effects, reads SELF.  SELF has `intent(inout), target` in a subroutine,
+  Hazards checklist.  A bound subroutine that can get there looks its
+  entry up again on entry by a key that does not move, through the private
+  binding `get_index` (`call self%get_index(session_index, status)`: the
+  serial number, or the group's buffer), and works through the registry
+  from then on.  A lookup that finds nothing (the control or group buffer
+  was closed) is a `user_error`, as for a command run outside an Ediff
+  buffer, never an index of 0.  A function, which has no side effects, and
+  a subroutine that calls nothing that can run user code or make a session
+  read SELF.  SELF has `intent(inout), target` in a subroutine,
   so changing the entry through the registry while SELF is associated
   with it is allowed.
 - A binding whose name meets a name its submodule imports keeps the
   binding name and renames the procedure: `procedure :: recenter =>
   recenter_session` (window_mod's `recenter`).
-- Bindings used outside the type's module and its submodules are public;
-  the others are `private`.
+- Bindings used outside the type's module and its submodules are public,
+  each with its own `!>` line (FORD documents every public entity;
+  tools/audit.awk does not look inside derived types); the others are
+  `private`, documented by a comment over each group of them.
 
 ## Design decisions
 

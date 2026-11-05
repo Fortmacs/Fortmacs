@@ -27,7 +27,7 @@ module test_fortmacs_diff_multiple_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use test_support_mod, only: show_alone
-    use error_mod, only: status_type, format_error
+    use error_mod, only: status_type, format_error, USER_ERROR_CODE
     use handle_mod, only: handle_type, same_handle
     use buffer_mod, only: buffers, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, get_buffer, &
                           is_buffer_live, restore_buffer_modified
@@ -74,6 +74,7 @@ contains
                     new_unittest("ediff-intersect-directories", test_intersect), &
                     new_unittest("ediff-directories", test_directories), &
                     new_unittest("ediff-meta-marks", test_marks), &
+                    new_unittest("ediff-closed-group", test_closed_group), &
                     new_unittest("ediff-meta-mark-equal-files", test_mark_equal_files), &
                     new_unittest("ediff-filegroup-action", test_filegroup_action), &
                     new_unittest("ediff-quit-meta-buffer", test_quit_meta_buffer), &
@@ -357,6 +358,34 @@ contains
 
         call teardown(directory)
     end subroutine test_marks
+
+    !> A procedure of a group called after the group buffer was closed finds
+    !> no entry for the group: a `user_error' error condition occurs.
+    subroutine test_closed_group(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(handle_type) :: meta
+        character(len=:), allocatable :: directory
+        integer :: group_index
+
+        call setup(directory)
+        call start_group(directory, group_index, st)
+
+        body: block
+            call check(error, st%ok(), format_error(st))
+            if (allocated(error)) exit body
+            meta = fortmacs_diff_session_groups(group_index)%buffer
+            call close_buffer(meta, st)
+            call check(error, st%ok(), format_error(st))
+            if (allocated(error)) exit body
+            call fortmacs_diff_session_groups(group_index)%update_markers(st)
+            call check(error, st%code == USER_ERROR_CODE, "a user_error")
+            if (allocated(error)) exit body
+            call check(error, index(format_error(st), "This command runs in Ediff Control Buffer only!") > 0, format_error(st))
+        end block body
+
+        call teardown(directory)
+    end subroutine test_closed_group
 
     !> == shows which files are equal, =h also marks their sessions for
     !> hiding.

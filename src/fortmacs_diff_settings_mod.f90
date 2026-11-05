@@ -168,13 +168,14 @@ module fortmacs_diff_settings_mod
     !> entry of `fortmacs_diff_sessions', the session index (panel 14):
     !> `call fortmacs_diff_sessions(session_index)%quit(.false., status)'.
     !> That array grows, and may move, when a session starts, which a hook
-    !> can do; so a subroutine finds its entry again by the serial number
-    !> on entry (`session_index = findloc(fortmacs_diff_sessions%serial,
-    !> self%serial, dim=1)') and works on `fortmacs_diff_sessions(session_index)',
-    !> never on SELF after that.  A function has no side effects, so it
-    !> reads SELF.  The procedures are in the submodules named for their
-    !> upstream file: fortmacs_diff_settings_diff_mod, _merging_mod,
-    !> _utilities_mod, _window_mod and _help_mod.
+    !> can do; so a subroutine that can get there finds its entry again by
+    !> the serial number on entry (`call self%get_index(session_index, status)',
+    !> a `user_error' if the entry is gone) and works on
+    !> `fortmacs_diff_sessions(session_index)', never on SELF after that.  A
+    !> function, which has no side effects, and a subroutine that calls
+    !> nothing that can run user code read SELF.  The procedures are in the
+    !> submodules named for their upstream file: fortmacs_diff_settings_diff_mod,
+    !> _merging_mod, _utilities_mod, _window_mod and _help_mod.
     type, public :: fortmacs_diff_session_type
         !> The control buffer's serial number (0 for a free entry).
         integer(int64) :: serial = 0
@@ -262,31 +263,76 @@ module fortmacs_diff_settings_mod
         !> `fortmacs_diff_custom_diff_program'.
         type(handle_type) :: custom_diff_buffer
     contains
-        !> ediff-init.el (this module).
+        !> Find the session's entry of `fortmacs_diff_sessions' again (this module).
+        procedure, private :: get_index => get_session_index
+        !> Activate or remove the faces of the difference regions.
         procedure :: paint_background_regions
-        !> ediff-diff.el, the difference regions (fortmacs_diff_settings_diff_mod).
-        procedure :: set_up_difference_regions, set_up_difference_regions3
+        !> Generate the difference regions and overlays for two files.
+        procedure :: set_up_difference_regions
+        !> Generate the difference regions and overlays for three files.
+        procedure :: set_up_difference_regions3
+        !> ediff-diff.el's other session procedures (fortmacs_diff_settings_diff_mod).
         procedure, private :: make_diff2_buffer, prepare_error_list, extract_differences, extract_differences3, &
             get_narrow_start, make_difference_overlays, set_difference_overlays_in_one_buffer
-        !> ediff-merg.el, merging (fortmacs_diff_settings_merging_mod).
-        procedure :: set_all_difference_states, merge_differences, combine_differences, check_region_skip
+        !> Set the state of every difference in buffers A, B and C.
+        procedure :: set_all_difference_states
+        !> Merge the differences from a difference on into buffer C.
+        procedure :: merge_differences
+        !> Combine a difference region of buffers A and B into buffer C.
+        procedure :: combine_differences
+        !> Whether n and p skip merge region DIFFERENCE (in SKIP).
+        procedure :: check_region_skip
+        !> ediff-merg.el's other session procedures (fortmacs_diff_settings_merging_mod).
         procedure, private :: get_state_of_merge, is_merge_region_non_clash, get_combined_region, set_difference_state, &
             check_region_changed
-        !> ediff-util.el, selecting, copying and quitting (fortmacs_diff_settings_utilities_mod).
-        procedure :: is_valid_difference, get_bad_difference_message, arrange_autosave_in_merge_jobs, set_up_control_buffer, &
-            recenter => recenter_session, get_difference_at_point, copy_difference, pop_difference, quit, &
-            unselect_and_select_difference, get_difference_position, clear_differences, &
-            make_current_difference_overlay, make_region_visible, check_ancestor_exists, save_and_delete_merge, &
-            compute_custom_diffs
+        !> Whether a difference number is a difference of the session.
+        procedure :: is_valid_difference
+        !> The message of an invalid difference number.
+        procedure :: get_bad_difference_message
+        !> Set the visited file name and auto-saving of the merge buffer.
+        procedure :: arrange_autosave_in_merge_jobs
+        !> Set up the selected window for the control buffer.
+        procedure :: set_up_control_buffer
+        !> Bring the current difference into view in all the windows.
+        procedure :: recenter => recenter_session
+        !> The difference closest to a position in a buffer.
+        procedure :: get_difference_at_point
+        !> Copy a difference region from one buffer to another.
+        procedure :: copy_difference
+        !> Restore the last replaced region of a difference.
+        procedure :: pop_difference
+        !> Perform the quit operations of the session.
+        procedure :: quit
+        !> Unselect the current difference and select another.
+        procedure :: unselect_and_select_difference
+        !> Where a difference begins or ends in a buffer.
+        procedure :: get_difference_position
+        !> Delete the difference overlays.
+        procedure :: clear_differences
+        !> Make the current difference overlay of a buffer.
+        procedure :: make_current_difference_overlay
+        !> Narrow buffers A, B (and C) to the visible bounds.
+        procedure :: make_region_visible
+        !> A `user_error' unless the session has a live ancestor buffer.
+        procedure :: check_ancestor_exists
+        !> Save the merge buffer and maybe close it.
+        procedure :: save_and_delete_merge
+        !> Compute the custom diff output of buffers A and B.
+        procedure :: compute_custom_diffs
+        !> ediff-util.el's other session procedures (fortmacs_diff_settings_utilities_mod).
         procedure, private :: recenter_one_window, save_difference_region, get_replaced_region_index, test_save_region, &
             dispose_of_variants, select_difference, unselect_difference, highlight_difference_in_one_buffer, &
             unhighlight_difference_in_one_buffer, unhighlight_differences_totally, place_flags_in_buffer, &
             get_region_contents, restore_highlighting
-        !> ediff-wind.el, the windows (fortmacs_diff_settings_window_mod).
-        procedure :: refresh_mode_lines, get_window_configuration
+        !> Revise the control buffer's mode line.
+        procedure :: refresh_mode_lines
+        !> What the saved window configuration records of the session.
+        procedure :: get_window_configuration
+        !> ediff-wind.el's other session procedure (fortmacs_diff_settings_window_mod).
         procedure, private :: make_wide_control_buffer_id
-        !> ediff-help.el, the help message (fortmacs_diff_settings_help_mod).
+        !> Compose the help message.
         procedure :: set_help_message
+        !> ediff-help.el's other session procedures (fortmacs_diff_settings_help_mod).
         procedure, private :: get_help_message_line_length, indent_help_message
     end type fortmacs_diff_session_type
 
@@ -1266,8 +1312,8 @@ contains
         integer :: buffer_type, n
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         if (.not. allocated(fortmacs_diff_sessions(session_index)%differences)) return
 
         do buffer_type = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR
@@ -1305,6 +1351,31 @@ contains
         if (associated(this_command)) name = trim(this_command%name)
         call set_error(status, USER_ERROR_CODE, name//": This command runs in Ediff Control Buffer only!")
     end subroutine check_fortmacs_diff_control_buffer
+
+    !> Give in SESSION_INDEX the entry of `fortmacs_diff_sessions' that is the
+    !> session, found again by its serial number (the array may have grown
+    !> and moved since the caller took the entry); a `user_error' if the
+    !> session has no entry (its control buffer was closed).  Not a port:
+    !> upstream's session variables are the control buffer's, as in
+    !> ediff-init.el:ediff-barf-if-not-control-buffer.
+    subroutine get_session_index(self, session_index, status)
+        class(fortmacs_diff_session_type), intent(in) :: self
+        integer, intent(out) :: session_index
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+
+        status = status_type()
+        session_index = 0
+
+        if (allocated(fortmacs_diff_sessions) .and. self%serial /= 0) then
+            session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        end if
+
+        if (session_index > 0) return
+        name = "null()"
+        if (associated(this_command)) name = trim(this_command%name)
+        call set_error(status, USER_ERROR_CODE, name//": This command runs in Ediff Control Buffer only!")
+    end subroutine get_session_index
 
     !> Kill buffer BUFFER if it exists.  Port of
     !> ediff-init.el:ediff-kill-buffer-carefully.

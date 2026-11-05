@@ -63,7 +63,8 @@ contains
 
         ! Looking for '-c', '-i', '-u', or 'c', 'i', 'u' among clustered
         ! non-long options.
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         matched = string_matches("^-[ciu]\| -[ciu]\|\(^\| \)-[^- ]+[ciu]", fortmacs_diff_diff_options, status)
         if (.not. status%ok()) return
 
@@ -102,8 +103,8 @@ contains
         type(handle_type) :: old
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         code = 1
 
         if (.not. file_exists(file1)) then
@@ -137,8 +138,8 @@ contains
         integer(int64) :: deleted, size
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         old = current_buffer()
 
         if (.not. is_buffer_live(fortmacs_diff_sessions(session_index)%error_buffer)) then
@@ -241,8 +242,8 @@ contains
         character(len=:), allocatable :: diff_type
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         allocate (records(0))
         buffer_a = fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_A)
         buffer_b = fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_B)
@@ -359,7 +360,8 @@ contains
         type(status_type), intent(out) :: status
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
 
         if (allocated(fortmacs_diff_sessions(session_index)%differences)) then
             deallocate (fortmacs_diff_sessions(session_index)%differences)
@@ -410,8 +412,8 @@ contains
         character(len=96) :: progress
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         buffer = fortmacs_diff_sessions(session_index)%buffers(buffer_type)
 
         do current_diff = 0, size(records) - 1
@@ -522,8 +524,8 @@ contains
         integer :: t, last
         integer :: session_index
 
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
-        status = status_type()
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         allocate (records(0))
         previous = 1
         ! The ancestor's lines are counted from its beginning.
@@ -648,7 +650,8 @@ contains
         integer :: session_index
 
         ! Looking for '-i' or a 'i' among clustered non-long options.
-        session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+        call self%get_index(session_index, status)
+        if (.not. status%ok()) return
         matched = string_matches("^-i\| -i\|\(^\| \)-[^- ]+i", fortmacs_diff_diff_options, status)
         if (.not. status%ok()) return
 
