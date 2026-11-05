@@ -125,6 +125,7 @@ module multilingual_environment_mod
     public :: define_language_environment, find_language_environment, set_language_environment, &
               reset_language_environment, describe_language_environment, read_language_name, &
               language_environment_procedure, language_environment_type, language_environments
+    public :: coding_system_from_name, canonicalize_coding_system_name
     public :: set_locale_environment, find_locale_entry, locale_charset_to_coding_system, locale_translate, &
               get_locale_names, set_display_table_and_terminal_coding_system
     public :: list_character_sets, list_charset_chars, describe_character_set, read_charset
@@ -3106,6 +3107,107 @@ contains
             if (scan(text(i:i), "-_") == 0) kept = kept//text(i:i)
         end do
     end function without_separators
+
+    !> The canonical form of the coding system name NAME (lower case
+    !> expected), for comparing names: "ms950", "ibm950" and "windows-950"
+    !> become "cp950", a leading "iso" before a number goes, and "-", "_",
+    !> " " and "/" are deleted, but "16-be" and "16-le" keep theirs.
+    !> Port of mule-cmds.el:canonicalize-coding-system-name.
+    function canonicalize_coding_system_name(name) result(canonical)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable :: canonical
+        integer :: at, k, prefix
+
+        prefix = 0
+        if (index(name, "ms") == 1) prefix = 2
+        if (index(name, "ibm") == 1) prefix = 3
+        if (index(name, "windows-") == 1) prefix = 8
+
+        if (prefix > 0 .and. len(name) > prefix) then
+            if (verify(name(prefix + 1:), "0123456789") == 0) then
+                ! "ms950", "ibm950", "windows-950" -> "cp950"
+                canonical = "cp"//name(prefix + 1:)
+                return
+            end if
+        end if
+
+        canonical = name
+
+        if (index(canonical, "iso") == 1 .and. len(canonical) >= 4) then
+            ! "iso-8859-1" -> "8859-1", "iso-2022-jp" ->"2022-jp"
+            k = 4
+            if (scan(canonical(4:4), "-_ ") == 1 .and. len(canonical) >= 5) k = 5
+            if (scan(canonical(k:k), "0123456789") == 1) canonical = canonical(k:)
+        end if
+
+        ! Delete "-", "_", " ", "/" but do distinguish "16-be" and "16be".
+        at = scan(canonical, "-_ /")
+
+        do while (at > 0)
+            if (is_utf_16_endian_suffix(at)) then
+                k = scan(canonical(at + 1:), "-_ /")
+                if (k > 0) k = k + at
+                at = k
+            else
+                canonical = canonical(1:at - 1)//canonical(at + 1:)
+                k = 0
+                if (at <= len(canonical)) k = scan(canonical(at:), "-_ /")
+                if (k > 0) k = k + at - 1
+                at = k
+            end if
+        end do
+
+    contains
+
+        ! Whether "16-[lb]e" ends CANONICAL with its "-" at AT.
+        logical function is_utf_16_endian_suffix(at)
+            integer, intent(in) :: at
+
+            is_utf_16_endian_suffix = .false.
+            if (at < 3 .or. at + 2 /= len(canonical)) return
+            if (canonical(at - 2:at) /= "16-") return
+            is_utf_16_endian_suffix = scan(canonical(at + 1:at + 1), "lb") == 1 .and. canonical(at + 2:at + 2) == "e"
+        end function is_utf_16_endian_suffix
+    end function canonicalize_coding_system_name
+
+    !> Return a coding system whose name matches with NAME ("" if none).
+    !> Port of mule-cmds.el:coding-system-from-name.
+    function coding_system_from_name(name) result(coding_system)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable :: coding_system
+        type(coding_system_list_entry_type), allocatable :: names(:)
+        character(len=:), allocatable :: base, wanted
+        integer :: eol_type, k, n
+
+        if (is_coding_system(name)) then
+            coding_system = name
+            return
+        end if
+
+        coding_system = ""
+        base = name
+        eol_type = EOL_UNDECIDED
+        n = len(name)
+
+        if (n >= 5) then
+            if (name(n - 4:) == "-unix") eol_type = EOL_UNIX
+            if (name(n - 3:) == "-dos") eol_type = EOL_DOS
+            if (name(n - 3:) == "-mac") eol_type = EOL_MAC
+        end if
+
+        if (eol_type == EOL_UNIX) base = name(1:n - 5)
+        if (eol_type == EOL_DOS .or. eol_type == EOL_MAC) base = name(1:n - 4)
+        wanted = canonicalize_coding_system_name(downcase_ascii(base))
+        call coding_system_list(names)
+
+        do k = 1, size(names)
+            if (canonicalize_coding_system_name(names(k)%name) == wanted) then
+                coding_system = names(k)%name
+                if (eol_type /= EOL_UNDECIDED) coding_system = coding_system_change_eol_conversion(coding_system, eol_type)
+                return
+            end if
+        end do
+    end function coding_system_from_name
 
     !> Find coding system corresponding to CHARSET.
     !> CHARSET is any sort of non-Emacs charset name, such as might be used

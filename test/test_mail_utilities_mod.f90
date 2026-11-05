@@ -1,7 +1,6 @@
 ! test_mail_utilities_mod.f90 -- tests for mail_utilities_mod.
 ! Ports GNU Emacs 31.1 test/lisp/mail/mail-utils-tests.el in part; the
-! tests of mail-rfc822-time-zone (obsolete, not ported) and mail-mbox-from
-! (it needs date-to-time) wait for those functions.
+! test of mail-rfc822-time-zone (obsolete, not ported) waits for it.
 !
 ! Copyright (C) 2021-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -37,7 +36,8 @@ module test_mail_utilities_mod
     use mail_utilities_mod, only: quote_mail_printable, quote_mail_printable_region, unquote_mail_printable, &
                                   unquote_mail_printable_region, strip_mail_quoted_names, mail_dont_reply_to, &
                                   get_mail_field, parse_mail_comma_list, mail_comma_list_regexp, mail_rfc822_date, &
-                                  mail_dont_reply_to_names
+                                  mail_dont_reply_to_names, mail_mbox_from
+    use time_functions_mod, only: set_time_zone_rule
     implicit none(type, external)
     private
 
@@ -64,6 +64,7 @@ contains
                     new_unittest("mail-utils-tests-mail-parse-comma-list", test_parse_comma_list), &
                     new_unittest("mail-utils-tests-mail-comma-list-regexp", test_comma_list_regexp), &
                     new_unittest("mail-utils-test-mail-rfc822-date/contains-year", test_rfc822_date), &
+                    new_unittest("mail-utils-test-mail-mbox-from", test_mbox_from), &
                     new_unittest("get-mail-field-options", test_fetch_field_options), &
                     new_unittest("strip-mail-quoted-names-comments", test_strip_comments) &
                     ]
@@ -229,6 +230,23 @@ contains
         date = mail_rfc822_date()
         call check(error, string_match(" 20[0-9][0-9] ", date, st) > 0, date)
     end subroutine test_rfc822_date
+
+    !> The date of the message is shown in local time, here a zone 5 hours
+    !> west of Greenwich.
+    subroutine test_mbox_from(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=:), allocatable :: line
+
+        call temp_buffer("Subject: Hello"//LF//"From: jrh@example.org"//LF//"To: emacs-devel@gnu.org"//LF// &
+                         "Date: Sun, 07 Feb 2021 22:46:37 -0500", h)
+        call set_time_zone_rule("EST5")
+        line = mail_mbox_from(st)
+        call set_time_zone_rule()
+        call check_string(error, line, "From jrh@example.org Sun Feb  7 22:46:37 2021"//LF)
+        call leave(h)
+    end subroutine test_mbox_from
 
     !> LAST, ALL, DELETE and continuation lines.
     subroutine test_fetch_field_options(error)

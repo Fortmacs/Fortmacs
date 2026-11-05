@@ -1,0 +1,6 @@
+# mail-headers-dates: the user options of rfc2047.el and mm-util.el.
+rfc2047_header_encodings
+rfc2047_allow_irregular_q_encoded_words
+rfc2047_allow_incomplete_encoded_text
+mime_coding_system_priorities
+mime_charset_overrides
