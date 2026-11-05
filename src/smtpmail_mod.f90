@@ -1627,8 +1627,8 @@ contains
     ! credentials is ported (auth-source.el): with ASK, the user name
     ! (`smtpmail_smtp_user' when set) and the password are read as the
     ! netrc source's creation asks for them; without, nothing is sent.
-    ! AUTHENTICATED tells whether a method returned a response (upstream's
-    ! non-nil result); FAILED and FAILURE give the reason when every
+    ! AUTHENTICATED tells whether a method returned a response (a result
+    ! upstream counts as true); FAILED and FAILURE give the reason when every
     ! method failed.  Port of smtpmail.el:smtpmail-try-auth-methods.
     recursive subroutine authenticate(process, server_mechanisms, host, ask, authenticated, failed, failure, status)
         type(smtp_stream_type), intent(inout) :: process
