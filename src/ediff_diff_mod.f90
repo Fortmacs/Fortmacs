@@ -31,17 +31,19 @@ module ediff_diff_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, list, make_list, command_type
+    use value_mod, only: value_type, list, make_list, command_type, list_elements, xstring, vtag, xfixnum, V_INTEGER
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, erase_buffer
     use editfns_mod, only: point, goto_char, point_min, point_max, buffer_substring, buffer_string, buffer_size
     use insdel_mod, only: insert
     use cmds_mod, only: forward_line, beginning_of_line
     use search_mod, only: re_search_forward, match_beginning, match_end, match_data, set_match_data, SEARCH_NOERROR
-    use subr_mod, only: string_matches, match_string
+    use subr_mod, only: string_matches, match_string, read_y_or_n
     use replace_mod, only: flush_lines
     use callproc_mod, only: execute_process
     use coding_mod, only: coding_system_for_read
-    use fileio_mod, only: file_exists
+    use fileio_mod, only: file_exists, is_file_directory, is_file_regular, expand_file_name, file_name_nondirectory
+    use dired_mod, only: directory_files
+    use string_type_mod, only: string_type
     use files_mod, only: file_name_unquote
     use window_mod, only: switch_to_buffer
     use xdisp_mod, only: message
@@ -59,7 +61,8 @@ module ediff_diff_mod
 
     public :: set_up_ediff_diff_regions, set_up_ediff_diff_regions3, make_ediff_diff2_buffer, prepare_ediff_error_list, &
               extract_ediff_diffs, extract_ediff_diffs3, convert_ediff_diffs_to_overlays, get_ediff_diff3_group, &
-              execute_ediff_process, set_ediff_actual_diff_options, toggle_ediff_ignore_case, init_ediff_diff
+              execute_ediff_process, set_ediff_actual_diff_options, toggle_ediff_ignore_case, init_ediff_diff, &
+              get_ediff_directory_files, compare_ediff_file_contents, compare_ediff_contents
 
     character, parameter :: CR = achar(13), LF = achar(10)
 
@@ -96,6 +99,11 @@ module ediff_diff_mod
     !> Options to pass to `ediff_custom_diff_program'.  Port of
     !> ediff-diff.el ediff-custom-diff-options.
     character(len=:), allocatable, public :: ediff_custom_diff_options
+
+    !> Utility to use to determine if two files are identical.
+    !> It must return code 0, if its arguments are identical files.  Port
+    !> of ediff-diff.el ediff-cmp-program.
+    character(len=:), allocatable, public :: ediff_cmp_program
 
     !> Options to pass to `ediff_diff_program'.
     !> If Unix diff is used as `ediff_diff_program',
@@ -932,6 +940,149 @@ contains
         end if
     end subroutine toggle_ediff_ignore_case
 
+    !> The files of DIRECTORY (full names with FULL, else relative) whose
+    !> names match REGEXP ("" for all), sorted, in NAMES.  Not a port: what
+    !> directory-files does with its MATCH argument.
+    recursive subroutine get_ediff_directory_files(directory, regexp, full, names, status)
+        character(len=*), intent(in) :: directory, regexp
+        logical, intent(in) :: full
+        type(string_type), allocatable, intent(out) :: names(:)
+        type(status_type), intent(out) :: status
+        type(value_type) :: files
+        type(value_type), allocatable :: all(:)
+        type(string_type), allocatable :: grown(:)
+        character(len=:), allocatable :: name
+        logical :: matches
+        integer :: j, n
+
+        allocate (names(0))
+        call directory_files(directory, files, status, full=full)
+        if (.not. status%ok()) return
+        call list_elements(files, all)
+        allocate (grown(size(all)))
+        n = 0
+
+        do j = 1, size(all)
+            name = xstring(all(j))
+
+            if (len(regexp) > 0) then
+                matches = string_matches(regexp, file_name_nondirectory(name), status)
+                if (.not. status%ok()) return
+                if (.not. matches) cycle
+            end if
+
+            n = n + 1
+            grown(n)%text = name
+        end do
+
+        names = grown(1:n)
+    end subroutine get_ediff_directory_files
+
+    !> SAME is .true. if files F1 and F2 have identical contents
+    !> (`ediff_cmp_program' exits with 0).  Port of
+    !> ediff-diff.el:ediff-same-file-contents (`ediff-cmp-options' and
+    !> remote files are Deferred: see docs/status/ediff_diff_mod.md).
+    recursive subroutine compare_ediff_file_contents(f1, f2, same, status)
+        character(len=*), intent(in) :: f1, f2
+        logical, intent(out) :: same
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: expanded1, expanded2
+        type(value_type) :: result, argument1, argument2
+
+        same = .false.
+        status = status_type()
+        if (is_file_directory(f1) .or. is_file_directory(f2)) return
+        call expand_file_name(f1, expanded1, status)
+        if (.not. status%ok()) return
+        call expand_file_name(f2, expanded2, status)
+        if (.not. status%ok()) return
+        argument1 = value_type(text=expanded1)
+        argument2 = value_type(text=expanded2)
+        call execute_process(ediff_cmp_program, result, status, args=list(argument1, argument2))
+        if (.not. status%ok()) return
+        if (vtag(result) == V_INTEGER) same = xfixnum(result) == 0
+    end subroutine compare_ediff_file_contents
+
+    !> SAME is .true. if D1 and D2 have the same content.
+    !> D1 and D2 can either be both directories or both regular files.
+    !> Symlinks and the likes are not handled.
+    !> If FILTER_REGEXP is not "", recursive checking in directories
+    !> affects only files whose names match the expression.  ASKED and
+    !> RECURSE are the session group's `ediff_recurse_to_subdirectories':
+    !> whether the user was asked to compare subdirectories recursively
+    !> (the first time two directories are compared), and the answer.  Port of ediff-diff.el:ediff-same-contents
+    !> (with ediff-same-file-contents-lists and ediff-delete-all-matches).
+    recursive subroutine compare_ediff_contents(d1, d2, filter_regexp, asked, recurse, same, status)
+        character(len=*), intent(in) :: d1, d2, filter_regexp
+        logical, intent(inout) :: asked, recurse
+        logical, intent(out) :: same
+        type(status_type), intent(out) :: status
+        type(string_type), allocatable :: entries1(:), entries2(:)
+        integer :: k
+
+        same = .false.
+        status = status_type()
+        ! Indicate progress.
+        call message("Comparing `"//d1//"' and `"//d2//"' modulo `"//filter_regexp//"'")
+
+        if (is_file_directory(d1) .and. is_file_directory(d2)) then
+            ! D1 & D2 directories => recurse.
+            if (.not. asked) then
+                call read_y_or_n("Compare subdirectories recursively? ", recurse, status)
+                if (.not. status%ok()) return
+                asked = .true.
+            end if
+
+            if (.not. recurse) return
+            call entries(d1, entries1)
+            if (.not. status%ok()) return
+            call entries(d2, entries2)
+            if (.not. status%ok()) return
+            ! First, check only the names (works quickly and ensures a
+            ! precondition for subsequent code).
+            if (size(entries1) /= size(entries2)) return
+
+            do k = 1, size(entries1)
+                if (file_name_nondirectory(entries1(k)%text) /= file_name_nondirectory(entries2(k)%text)) return
+            end do
+
+            ! With name equality established, compare the entries through
+            ! recursion.
+            do k = 1, size(entries1)
+                call compare_ediff_contents(entries1(k)%text, entries2(k)%text, filter_regexp, asked, recurse, same, status)
+                if (.not. status%ok()) return
+                if (.not. same) return
+            end do
+
+            ! If reached the end then lists are equal.
+            same = .true.
+        else if (is_file_regular(d1) .and. is_file_regular(d2)) then
+            ! D1 & D2 are both files => compare directly.
+            call compare_ediff_file_contents(d1, d2, same, status)
+        end if
+
+    contains
+
+        ! The files of DIR (full names) whose names match FILTER_REGEXP,
+        ! but . and ..
+        recursive subroutine entries(dir, names)
+            character(len=*), intent(in) :: dir
+            type(string_type), allocatable, intent(out) :: names(:)
+            type(string_type), allocatable :: all(:)
+            logical, allocatable :: keep(:)
+            integer :: j
+
+            call get_ediff_directory_files(dir, filter_regexp, .true., all, status)
+            allocate (keep(size(all)))
+
+            do j = 1, size(all)
+                keep(j) = file_name_nondirectory(all(j)%text) /= "." .and. file_name_nondirectory(all(j)%text) /= ".."
+            end do
+
+            names = pack(all, keep)
+        end subroutine entries
+    end subroutine compare_ediff_contents
+
     !> Register the command of ediff-diff.el and give the options their
     !> defaults.  Not a port.
     subroutine init_ediff_diff()
@@ -940,6 +1091,7 @@ contains
         if (.not. allocated(ediff_diff3_program)) ediff_diff3_program = "diff3"
         if (.not. allocated(ediff_custom_diff_program)) ediff_custom_diff_program = ediff_diff_program
         if (.not. allocated(ediff_custom_diff_options)) ediff_custom_diff_options = "-c"
+        if (.not. allocated(ediff_cmp_program)) ediff_cmp_program = "cmp"
         if (.not. allocated(ediff_diff_options)) ediff_diff_options = ""
         if (.not. allocated(ediff_ignore_case_option)) ediff_ignore_case_option = "-i"
         if (.not. allocated(ediff_ignore_case_option3)) ediff_ignore_case_option3 = ""

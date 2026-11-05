@@ -1,0 +1,98 @@
+# ediff_multiple_mod
+
+- Module: ediff_multiple_mod
+- Upstream: vc/ediff-mult.el
+- State: partial
+
+## Ported
+
+the meta list and its header as `ediff_session_group_type` (one per group buffer in `ediff_session_groups`: `ediff-metajob-name` as a pointer to the command, the regexp, the directories, the merge autostore directory, `ediff-meta-list`'s sessions as `ediff_group_session_type` records with their files as `ediff_group_file_type`, `ediff-dir-difference-list` as `ediff_dir_difference_type` records, `ediff-dir-diffs-buffer`, `ediff-parent-meta-buffer`, `ediff-meta-session-number`, `ediff-meta-diff-buffer`, `ediff-verbose-help-enabled`, `ediff-recurse-to-subdirectories`, `ediff-meta-buffer-map`),
+the session status as EDIFF_SESSION_STATUS_* (H, I, *),
+`ediff-registry-buffer`,
+`ediff-session-registry`,
+`ediff-meta-buffer-brief-message`,
+`ediff-meta-buffer-verbose-message`,
+`ediff-dir-diffs-buffer-map`,
+`ediff-default-filtering-regexp` (one setting object: a regular expression with `=` or a procedure with `%procedure =>`, R6-37; its example value, the newest entry of the history, as `get_latest_ediff_filtering_regexp`),
+`ediff-filtering-regexp-history`,
+`ediff-meta-truncate-filenames`,
+the hooks (`ediff-meta-mode-hook`, `ediff-registry-setup-hook`, `ediff-after-session-group-setup-hook`, `ediff-quit-session-group-hook`, `ediff-show-registry-hook`, `ediff-show-session-group-hook` with `delete-other-windows`, `ediff-meta-buffer-keymap-setup-hook`),
+`ediff-membership-code1`/`2`/`3` and `ediff-product-of-memcodes`,
+`ediff-make-new-meta-list-element`,
+`ediff-make-new-meta-list-header`,
+`ediff-get-session-activity-marker`,
+`ediff-meta-session-p`,
+`ediff-toggle-verbose-help-meta-buffer` (?),
+`ediff-setup-meta-map` (the keys of the ported commands),
+`ediff-meta-mode` (MetaEdiff),
+`ediff-next-meta-item` (n, SPC) and `ediff-next-meta-item1`,
+`ediff-previous-meta-item` (p, DEL, <delete>, <backspace>, C-h without help) and `ediff-previous-meta-item1`,
+`ediff-add-slash-if-directory`,
+`ediff-toggle-filename-truncation` (T),
+`ediff-intersect-directories`,
+`ediff-prepare-meta-buffer` (h, x, m, um, uh, P, ^ and D in group buffers; M in the registry),
+`ediff-insert-session-activity-marker-in-meta-buffer`,
+`ediff-insert-session-status-in-meta-buffer`,
+`ediff-replace-session-activity-marker-in-meta-buffer`,
+`ediff-replace-session-status-in-meta-buffer`,
+`ediff-insert-session-info-in-meta-buffer`,
+`ediff-redraw-directory-group-buffer`,
+`ediff-update-markers-in-dir-meta-buffer`,
+`ediff-update-session-marker-in-dir-meta-buffer`,
+`ediff-problematic-session-p`,
+`ediff-meta-insert-file-info1`,
+`ediff-months`,
+`ediff-fill-leading-zero`,
+`ediff-format-date`,
+`ediff-insert-dirs-in-meta-buffer`,
+`ediff-draw-dir-diffs`,
+`ediff-bury-dir-diffs-buffer` (q; it closes the buffer once C has redrawn it, as upstream),
+`ediff-show-dir-diffs` (D),
+`ediff-dir-diff-copy-file` (C),
+`ediff-up-meta-hierarchy` (^),
+`ediff-redraw-registry-buffer`,
+`ediff-set-meta-overlay` (the record's data kept with the group, found through the overlay),
+`ediff-mark-for-hiding-at-pos` (h; `mark_ediff_for_hiding_at_position`),
+`ediff-mark-session-for-hiding`,
+`ediff-mark-for-operation-at-pos` (m; `mark_ediff_for_operation_at_position`),
+`ediff-mark-session-for-operation`,
+`ediff-hide-marked-sessions` (x, C-u x),
+`ediff-operate-on-marked-sessions`,
+`ediff-append-custom-diff` (through `shell_command`, as upstream),
+`ediff-collect-custom-diffs` (P),
+`ediff-filegroup-action` (RET, v; as `execute_ediff_filegroup_action`),
+`ediff-registry-action` (RET, v in the registry; as `execute_ediff_registry_action`),
+`ediff-show-meta-buffer`,
+`ediff-show-current-session-meta-buffer` (M in a session),
+`ediff-show-meta-buff-from-registry` (M in the registry),
+`ediff-show-registry` (R, `eregistry`),
+`ediff-update-meta-buffer` (the registry without a redraw gives upstream's errors),
+`ediff-update-registry`,
+`ediff-cleanup-meta-buffer`,
+`ediff-safe-to-quit`,
+`ediff-quit-meta-buffer` (q),
+`ediff-dispose-of-meta-buffer`,
+`ediff-get-meta-info`,
+`ediff-get-meta-overlay-at-pos`,
+`ediff-get-session-number-at-pos`,
+`ediff-next-meta-overlay-start`,
+`ediff-previous-meta-overlay-start`,
+`ediff-unmark-all-for-operation` (um),
+`ediff-unmark-all-for-hiding` (uh),
+`ediff-meta-mark-equal-files` (==, =h, =m),
+`ediff-mark-if-equal`;
+from subr-x.el: `string-truncate-left` (private)
+
+## Deferred
+
+the revision jobs (`ediff-get-directory-files-under-revision`, the revision subdirectories of `ediff-filegroup-action`: ediff-vers.el),
+the multifile patch (`ediff-meta-show-patch`, `ediff-patch-file-form-meta`, `ediff-meta-patchbufer`: ediff-ptch.el),
+E (`ediff-documentation`, the Ediff manual),
+the menu bar menu,
+the mouse (mouse-2, `mouse-face` and `follow-link` of the records, `ediff-reset-mouse`, `raise-frame` of a graphic display),
+the window choices of `ediff-show-meta-buffer` and `ediff-show-registry` that need a graphic display (`ediff-window-A`/`-B`/`-C` are those of the group buffer, unset, so a terminal frame takes the visible window or the selected one),
+`ediff-before-session-group-setup-hooks` (obsolete and never run)
+
+## Tests
+
+test_ediff_multiple_mod (own: the intersection with a filter, the group buffer and its registration, the registry, ?, n, m, h, x, um, =h, RET starting a session of the group and quitting back to it, q, the default filter as a string or a procedure, C copying a file and q closing the directory difference buffer, the registry updated without a redraw)

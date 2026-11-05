@@ -52,6 +52,7 @@
 | [ediff_init_mod](../status/ediff_init_mod.md) | vc/ediff-init.el | partial |
 | [ediff_merg_mod](../status/ediff_merg_mod.md) | vc/ediff-merg.el | partial |
 | [ediff_mod](../status/ediff_mod.md) | vc/ediff.el | partial |
+| [ediff_multiple_mod](../status/ediff_multiple_mod.md) | vc/ediff-mult.el | partial |
 | [ediff_util_mod](../status/ediff_util_mod.md) | vc/ediff-util.el | partial |
 | [ediff_wind_mod](../status/ediff_wind_mod.md) | vc/ediff-wind.el | partial |
 | [editfns_mod](../status/editfns_mod.md) | editfns.c (+ buffer.c `validate_region`, intervals.c `set_point_from_marker`) | partial |
