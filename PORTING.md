@@ -427,8 +427,9 @@ a compile-time thing through a name string against
 --update` after removing some; tools/test-lisp-data.sh tests it on
 tools/lisp-data-test), and `tools/unported-commands.sh` writes
 `tools/unported-commands`, the interactive subprograms of every cited Elisp file
-that are not commands yet, which `tools/check.sh` compares (and `--fix`
-regenerates) when upstream/emacs is present (see "Known debt").
+that are not commands yet, which the Progress workflow regenerates and
+commits on main after each merge (see "Known debt" and "Status"); branches
+do not edit it.
 
 ## Status
 
@@ -481,6 +482,20 @@ generated on main: the Progress workflow writes it with `tools/status.sh
 charts.  Pull requests never edit it (kept by hand it would be the shared
 line every pull request edits again); a branch's changes show in it once
 merged.
+
+The same goes for the other tables most pull requests added to, which
+conflicted almost every time (GitHub's mergeability check ignores
+`merge=union` in .gitattributes).  tools/fortran-names.d and
+tools/user-options.d are directories: `0-base` holds the entries made
+before 2026-11-04, and each pull request adds its own in a file named
+like its session log, `DATE-BRANCH` (`2026-11-04-step49b-project`),
+never editing another's except to fix an entry; their readers take the
+files in `LC_ALL=C` sorted order, so `0-base` comes first.
+tools/unported-commands is generated on main by the Progress workflow,
+as the index is.  A branch written before this moves its additions after
+merging main with `tools/split-table-additions.sh` (lines git carried
+over into a `0-base` go to the branch's own files, and its edits of
+tools/unported-commands are dropped).
 
 A branch written before the status files, which edited a row of the
 table: merge main, resolve the conflict in this section by taking main's
@@ -542,7 +557,7 @@ existing rule (decided and reported), or by the decision panel
 | `syms_of_X` (a module's one-time startup setup) | `init_X` (`init_X_commands` where upstream has an `init_X` of its own) | `init_simple`, `init_files`; `init_buffer_commands`, `init_display_commands`, `init_window_commands`, `init_macros_commands` |
 | a predicate (`*-p`, `*p`) | `is_*` or `has_*`, a logical function | `is_region_active`, `is_derived_mode`, `is_process_live`, `is_bob`, `has_overlay_strings`; a verb phrase where it reads so: `file_exists`, `string_matches` (logical, no longer the match position); `set_buffer_modified`, `restore_buffer_modified`; a predicate that only wrapped an intrinsic or a tag test is gone (`frame_window_p` is `associated(f%rif)`) |
 | y-or-n-p, yes-or-no-p (prompts) | `read_y_or_n`, `read_yes_or_no` | `read_y_or_n_map`, `read_y_or_n_use_read_key`, `map_read_y_or_n`, `read_yes_or_no_history` |
-| `*_NIL`, `*_T` named constants | the meaning, after the option's full name (R2-Q15; a stem several options share is the common start of their names, else each option has its own family: changed by #261, owner, 2026-11-04): `_NO`/`_YES` for plain off/on, `_NONE`, `_ASK`, `_ALWAYS` only beside `_YES`, `_UNLIMITED`, else the meaning itself (R2-Q17) | `COMPILATION_SCROLL_OUTPUT_NO`/`_YES`/`_FIRST_ERROR`, `LOG_EDIT_CONFIRM_YES`, `DIRED_LOCALP_ABSOLUTE`/`_RELATIVE`, `KMACRO_REPEAT_YES`/`_NO` (upstream's NO-REPEAT read positively; the argument is REPEAT), `CASE_FOLD_NO`/`_YES`/`_FORCED`, one family per setting (`GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*`); every family has three or more states upstream, so none became a logical (the full table: tools/fortran-names, "A1"); since R6-38 a setting's on and off states are `.true.` and `.false.` of a `choice_setting_type` (`compilation_scroll_output = .true.`): `_NO`/`_YES` remain only in internal enumerations ("Choice settings" below) |
+| `*_NIL`, `*_T` named constants | the meaning, after the option's full name (R2-Q15; a stem several options share is the common start of their names, else each option has its own family: changed by #261, owner, 2026-11-04): `_NO`/`_YES` for plain off/on, `_NONE`, `_ASK`, `_ALWAYS` only beside `_YES`, `_UNLIMITED`, else the meaning itself (R2-Q17) | `COMPILATION_SCROLL_OUTPUT_NO`/`_YES`/`_FIRST_ERROR`, `LOG_EDIT_CONFIRM_YES`, `DIRED_LOCALP_ABSOLUTE`/`_RELATIVE`, `KMACRO_REPEAT_YES`/`_NO` (upstream's NO-REPEAT read positively; the argument is REPEAT), `CASE_FOLD_NO`/`_YES`/`_FORCED`, one family per setting (`GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*`); every family has three or more states upstream, so none became a logical (the full table: tools/fortran-names.d/0-base, "A1"); since R6-38 a setting's on and off states are `.true.` and `.false.` of a `choice_setting_type` (`compilation_scroll_output = .true.`): `_NO`/`_YES` remain only in internal enumerations ("Choice settings" below) |
 | nil, NILP (the null value) | `value_type()`; `.not. allocated(v%a)` | the intrinsic itself, no helper; a function result is tested as `vtag(f(x)) == V_NULL`; the value tags are `V_NULL`, `V_INTEGER`, `V_NAME`, `V_STRING`, `V_ARRAY` (were `V_NIL`, `V_INT`, `V_SYMBOL`, `V_STRING`, `V_LIST`) |
 | FIXNUMP, STRINGP, CONSP, SYMBOLP, LISTP, BUFFERP, MARKERP, WINDOWP and value_mod's keymap and syntax-table tests | the tag test itself: `vtag(v) == V_INTEGER`, `vtag(v) /= V_STRING`, `(vtag(v) == V_NAME .or. vtag(v) == V_NULL)` | no wrapper; `vtag` gives `V_NULL` for the null value, and is elemental like the wrappers were; window.c's `windowp` (a handle test) is `is_window` |
 | the argument list C-h f shows | the call line, then the declaration block | `call insert(string, status)` followed by `character(len=*), intent(in) :: string` and `type(status_type), intent(out) :: status`; a function's result is declared too (`integer(int64) :: point`); tools/gen-docstrings.sh takes the lines from the dummy arguments' declarations (the help entry's `declarations`) |
@@ -569,8 +584,10 @@ definition: "Port of lisp.el:beginning-of-defun", "Port of
 syntax.c:scan_lists", and upstream names quoted as such ("upstream's
 `forward-sexp`").
 
-**The tools.**  tools/fortran-names is the single table (its header gives
-the format: `term`, `name`, `file` and `keep` entries).
+**The tools.**  tools/fortran-names.d is the single table: its files read
+in `LC_ALL=C` sorted order, `0-base` (whose header gives the format:
+`term`, `name`, `file` and `keep` entries) first, then one file per pull
+request named like its session log ("Status").
 tools/fortran-names.sh applies it, by default to src, test, app, tools,
 docs/init.f90, fpm.toml, PORTING.md and README.md, or to the paths given:
 it renames files (with `git mv`) and contents, protects citations
@@ -881,7 +898,7 @@ docstrings: grammar the article fix does not cover ("balanced expression
 Lisp-derived term found while porting is confirmed by the owner, by an
 existing rule (decided and reported), or by the decision panel
 (CLAUDE.md), never renamed otherwise; once confirmed it becomes a line of
-tools/fortran-names and a row above.
+tools/fortran-names.d and a row above.
 <!-- fortran-names: on -->
 
 ## Intrinsics first
@@ -1100,7 +1117,7 @@ and make, push and append; Fortmacs gives each meaning one word, in
 identifiers, bindings and the docstrings that describe them (owner's
 decisions V1 and V2, 2026-10-31).  Where Emacs gives two words to two
 different behaviors, both stay.  The renames are per-name lines of
-tools/fortran-names (never a `term`, so nouns such as `runs`,
+tools/fortran-names.d (never a `term`, so nouns such as `runs`,
 `run_prop`, `excluded_run` and `makefile_runtime_macros_list` keep
 their word), and tools/intrinsics.awk's verb rule rejects a new
 procedure, procedure pointer or binding named `run`, `run_*` or
@@ -1168,7 +1185,7 @@ print, insert, and init_ (one-time setup at startup).
 ### The second review (R2, 2026-11-01)
 
 The owner's second review settled the words V1 and V2 left open.  Each
-table is before and after; the per-name lines are in tools/fortran-names
+table is before and after; the per-name lines are in tools/fortran-names.d
 (scoped by file where the name is local), and tools/intrinsics.awk
 rejects the forms a script can see (below).
 
@@ -1193,7 +1210,7 @@ unchanged (C-w, M-w, C-y, M-y, C-x k, C-x C-c); help and messages follow
 | `kill_local_variable`, `kill_all_local_variables`, `kill_local`, `kill_X_locals`, `kill_delayed_mode_hooks`, `kill_all_abbrevs`, data_mod's `killers` | `clear_local_variable`, `clear_all_local_variables`, `clear_local`, `clear_X_locals`, `clear_delayed_mode_hooks`, `clear_all_abbrevs`, `locals_clearers` |
 
 R6-43 (2026-11-04): "stop" ends a process and "suspend" pauses it
-(SIGTSTP), as the table above says; tools/fortran-names now records
+(SIGTSTP), as the table above says; tools/fortran-names.d now records
 the whole chain, so upstream's comint-stop-subjob and stop-process map
 to `comint_suspend_subjob` and `suspend_process` in freshly ported code
 and in tools/unported-commands.sh's probe, while the ported
@@ -1344,7 +1361,7 @@ The owner settled the questions steps 41 and 40d raised; the audit of
 | sgml-tag-alist's end-tag field (R4-8) | `SGML_END_TAG_NONE` (absent), `_DEFAULT` (an explicit nil), `_NO` (t), `_NEWLINES`, `_SKELETON` |
 | sgml-quick-keys and html-quick-keys (R4-9; changed by #261) | `.false.`, `.true.` (R6-38) and a family each (owner, #261, 2026-11-04): `SGML_QUICK_KEYS_INDENT`, `_CLOSE`; `HTML_QUICK_KEYS_INDENT`, `_CLOSE` (taken from sgml-quick-keys), with `HTML_QUICK_KEYS_DEFAULT` for "follow sgml-quick-keys"; R4-9 had one shared `QUICK_KEYS_*` set |
 | the command and the variable sgml-tag-help (R4-10) | `sgml_tag_help` and `sgml_tag_help_variable` (the `_variable` rule) |
-| procedure-valued variables (R4-11) | plain procedure pointers (`sgml_transformation_function => upcase_tag_name`); tools/gen-docstrings.sh documents them (the value is `null()`, the default target's name while it is the target, else "a procedure set by the configuration"); the defcustoms among them are in tools/user-options |
+| procedure-valued variables (R4-11) | plain procedure pointers (`sgml_transformation_function => upcase_tag_name`); tools/gen-docstrings.sh documents them (the value is `null()`, the default target's name while it is the target, else "a procedure set by the configuration"); the defcustoms among them are in tools/user-options.d |
 | a place in our own helper names (R5-1) | "beginning", as in upstream's names: `_beginning`/`_end`, `line_beginning`, `hunk_beginning`; "start" only as a verb.  The `_start` names (58 procedures) are renamed in a PR of their own |
 <!-- fortran-names: on -->
 
@@ -1478,7 +1495,7 @@ nil/t → `.false.`/`.true.` of a choice setting, `_p` → `is_*`) are
 decided by Claude and reported, not asked.  The report names each case
 and the rule it follows, so the owner can still overrule it.
 
-A Lisp-derived term with no line in tools/fortran-names, a case where
+A Lisp-derived term with no line in tools/fortran-names.d, a case where
 rules conflict, or a choice the questions above do not settle exactly,
 goes to the decision panel (CLAUDE.md), and what the panel does not
 settle to the "Owner questions" issue (#261) for the owner; it is never
@@ -1491,15 +1508,16 @@ one decision at a time:
   ("findloc is a standard intrinsic", "the standard calls it ...");
 - show real before/after examples from the code for each option;
 - never offer an option that contradicts an earlier decision (check this
-  section and tools/fortran-names first);
+  section and tools/fortran-names.d first);
 - when the owner asks "which is more Fortran?" or for more examples,
   answer that and ask again; do not take the question as a choice.
 - answer such a request in the question itself, with the options and
   their previews again, not in text outside it.
 
-Each answer is recorded at once: a line of tools/fortran-names (or a keep
-entry), a row in "Fortran names for Lisp terms", a rule in CLAUDE.md when
-it is general, and the check that enforces it.
+Each answer is recorded at once: a line in the pull request's own file
+of tools/fortran-names.d (or a keep entry), a row in "Fortran names for
+Lisp terms", a rule in CLAUDE.md when it is general, and the check that
+enforces it.
 
 ### Catching what nobody has decided yet
 
@@ -1508,7 +1526,7 @@ tools/lisp-candidates.sh, run by tools/check.sh, lists Lisp vocabulary
 progn, interactive, vector, ...) in the lines a branch adds.  It only
 warns: many hits are fine (a keyboard macro, a POSIX signal).  Every PR
 description lists the candidates it adds with their decision: asked and
-confirmed (now in tools/fortran-names), or why it is not a Lisp-ism here.
+confirmed (now in tools/fortran-names.d), or why it is not a Lisp-ism here.
 
 ### The review of 2026-10-31, as examples
 
@@ -1975,7 +1993,8 @@ scroll = .not. compilation_scroll_output%is_off()
   committed, before fpm builds).
 
 - User options: a variable that upstream defines with `defcustom` (or
-  lists in lisp/cus-start.el) goes in `tools/user-options`, so C-h v
+  lists in lisp/cus-start.el) goes in the pull request's own file of
+  `tools/user-options.d` (`DATE-BRANCH`, "Status"), so C-h v
   says "You can customize this variable.", `set_variable` offers it and
   `apropos_user_option` lists it; gen-docstrings.sh generates its
   setter (a variable listed there must be documented).
@@ -2088,7 +2107,7 @@ scroll = .not. compilation_scroll_output%is_off()
   the owner, by an existing rule (decided and reported), or by the
   decision panel (CLAUDE.md).
   So that the names never drift and new upstream versions port without
-  bringing the old ones back, the renames are data (tools/fortran-names)
+  bringing the old ones back, the renames are data (tools/fortran-names.d)
   applied by a script (tools/fortran-names.sh) and enforced by
   tools/check.sh; citations keep upstream names.  See "Fortran names for
   Lisp terms".
@@ -2101,7 +2120,7 @@ scroll = .not. compilation_scroll_output%is_off()
   into make, release and free into destroy, push and add into
   append/prepend, ...), while
   Emacs words whose behavior differs stay distinct.  The renames are
-  per-name lines of tools/fortran-names and tools/intrinsics.awk rejects
+  per-name lines of tools/fortran-names.d and tools/intrinsics.awk rejects
   new run_ and call_ procedures.  See "One word per meaning".
 
 - **Values stay a flat array of tagged nodes (2026-10-31, decided by the
@@ -2591,7 +2610,7 @@ Each lists the default being used meanwhile.
    option's named constants; where Fortran encodes an upstream `nil` or
    symbol another way (a negative number, an empty string), the mapping
    is per option. *Default: record each option's type in
-   tools/user-options as a second column, in upstream's notation with
+   tools/user-options.d as a second column, in upstream's notation with
    underscore names, plus, for each `const`, the Fortran value it maps to;
    gen-docstrings generates the type tree (an internal derived type, not
    part of the config API). `repeat`, `hook` and other types whose values

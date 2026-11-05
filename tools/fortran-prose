@@ -1,6 +1,6 @@
 # fortran-prose -- Lisp wording that Fortmacs's prose no longer uses.
 #
-# The companion of tools/fortran-names for words rather than names: the
+# The companion of tools/fortran-names.d for words rather than names: the
 # owner's wording decisions (PORTING.md, "Fortran names for Lisp terms",
 # "Wording") say a value by its Fortran type, an error by its condition
 # and a status, and Lisp data by the Fortran form that replaced it.

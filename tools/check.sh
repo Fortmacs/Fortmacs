@@ -74,23 +74,9 @@ if $style; then
         echo "fortitude $FORTITUDE_VERSION not found" >&2
         exit 1
     fi
-    # tools/unported-commands, the Deferred list for commands (CLAUDE.md), is
-    # regenerated (--fix) or compared when upstream/emacs is present.
-    if [ -d upstream/emacs/lisp ]; then
-        if $fix; then
-            tools/unported-commands.sh >/dev/null
-        else
-            fresh=${TMPDIR:-/tmp}/unported-commands.$$
-            tools/unported-commands.sh "$fresh" >/dev/null
-            if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
-                tools/unported-commands "$fresh"; then
-                rm -f "$fresh"
-                echo "tools/unported-commands is out of date: run tools/unported-commands.sh" >&2
-                exit 1
-            fi
-            rm -f "$fresh"
-        fi
-    fi
+    # tools/unported-commands (the Deferred list for commands, CLAUDE.md) is
+    # not checked here: the Progress workflow regenerates it on main after
+    # each merge, so branches never touch it.
 
     if $fix; then
         fortitude check --fix $DIRS >/dev/null 2>&1 || true
@@ -145,17 +131,19 @@ if $style; then
 
     # Fortran names for Lisp terms (PORTING.md, "Fortran names for Lisp
     # terms"): tools/fortran-names.awk, and its rename script's own test.
-    if ! awk -v mode=check -v table=tools/fortran-names -f tools/fortran-names-lib.awk -f tools/fortran-names.awk \
+    if ! awk -v mode=check -v table=tools/fortran-names.d -f tools/fortran-names-lib.awk -f tools/fortran-names.awk \
         $(find $DIRS -name '*.f90' | sort); then
         echo "old names for Lisp terms: run tools/fortran-names.sh (PORTING.md, \"Fortran names for Lisp terms\")" >&2
         exit 1
     fi
     tools/test-fortran-names.sh
-    # A union merge of tools/fortran-names (.gitattributes) can leave the same
-    # entry twice when two branches add it: an exact duplicate line is an error.
-    dups=$(awk '($1 == "name" || $1 == "keep") { if ($0 in seen) print NR ": " $0; seen[$0] = 1 }' tools/fortran-names)
+    # Two branches can add the same entry, each in its own file of
+    # tools/fortran-names.d: an exact duplicate line in any two files (or one)
+    # is an error.
+    dups=$(find tools/fortran-names.d -type f | LC_ALL=C sort |
+        xargs awk '($1 == "name" || $1 == "keep") { if ($0 in seen) print FILENAME ":" FNR ": " $0 " (also " seen[$0] ")"; seen[$0] = FILENAME ":" FNR }')
     if [ -n "$dups" ]; then
-        echo "tools/fortran-names: duplicate entries:" >&2
+        echo "tools/fortran-names.d: duplicate entries:" >&2
         echo "$dups" >&2
         exit 1
     fi

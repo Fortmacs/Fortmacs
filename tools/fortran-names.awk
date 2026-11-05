@@ -1,5 +1,5 @@
 # fortran-names.awk -- apply or check the Fortran names for Lisp terms
-# (tools/fortran-names).
+# (tools/fortran-names.d).
 #
 # Copyright (C) 2026 The Fortmacs authors
 #
@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-# Usage: awk -v mode=MODE -v table=tools/fortran-names \
+# Usage: awk -v mode=MODE -v table=tools/fortran-names.d \
 #            -f tools/fortran-names-lib.awk -f tools/fortran-names.awk FILE...
 #
 #   mode=apply  print FILE (one file) with the table applied; run by
@@ -38,7 +38,7 @@
 
 BEGIN {
     if (mode != "apply" && mode != "path" && mode != "check") fail("mode must be apply, path or check")
-    if (table == "") fail("no table (-v table=tools/fortran-names)")
+    if (table == "") fail("no table (-v table=tools/fortran-names.d)")
     load_names(table)
 }
 

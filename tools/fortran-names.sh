@@ -1,6 +1,6 @@
 #!/bin/sh
 # fortran-names.sh -- give Lisp-derived terms their Fortran names
-# (tools/fortran-names) in files and file names.
+# (tools/fortran-names.d) in files and file names.
 #
 # Copyright (C) 2026 The Fortmacs authors
 #
@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-# Usage: tools/fortran-names.sh [--table FILE] [--merge] [PATH...]
+# Usage: tools/fortran-names.sh [--table FILE-OR-DIRECTORY] [--merge] [PATH...]
 #
 # Applies the table to each PATH (a file, or every file under a
 # directory), relative to the current directory; with no PATH, to the
@@ -50,7 +50,7 @@
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
-table=$here/fortran-names
+table=$here/fortran-names.d
 engine=$here/fortran-names.awk
 lib=$here/fortran-names-lib.awk
 if [ "${1:-}" = --table ]; then
@@ -79,7 +79,7 @@ list_files() {
             echo "fortran-names.sh: no such file: $p" >&2
             exit 1
         fi
-    done | grep -v -e '/fortran-names$' -e '/fortran-names\.awk$' -e '/fortran-names-lib\.awk$' -e '/fortran-names-clash\.awk$' -e '/fortran-names\.sh$' \
+    done | grep -v -e '/fortran-names\.d/' -e '/fortran-names\.awk$' -e '/fortran-names-lib\.awk$' -e '/fortran-names-clash\.awk$' -e '/fortran-names\.sh$' \
         -e '/test-fortran-names\.sh$' -e '/fortran-names-test/' -e '\.\(svg\|png\|jpg\|ico\)$' || true
 }
 

@@ -59,7 +59,7 @@ trap 'rm -f "$tmp".*' EXIT
 # (The program is in a file, to be run with tools/fortran-names-lib.awk,
 # which gives the cited upstream names their Fortran names.)
 cat >"$tmp.pass1" <<'EOF'
-BEGIN { load_names("tools/fortran-names") }
+BEGIN { load_names("tools/fortran-names.d") }
 function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
 function help_name(s) { return s }
 # A declaration line with deferred lengths (len=:) written as len=*, so
@@ -122,7 +122,7 @@ function citation(b, var,    flat, k, rest, file, name) {
         name = substr(name, 2)
     }
     # Fortmacs names use underscores where Emacs uses hyphens, and Fortran
-    # words for Lisp terms (tools/fortran-names).
+    # words for Lisp terms (tools/fortran-names.d).
     gsub(/-/, "_", name)
     return rename(name)
 }
@@ -625,8 +625,9 @@ find src -name '*.f90' ! -name docstrings_mod.f90 | sort |
             if (!cont) { print names "\037" line; names = "" }
         }' >"$tmp.params" || true
 
-# The user options (tools/user-options), without comments.
-grep -v '^#' tools/user-options | grep -v '^[ \t]*$' >"$tmp.uopts" || true
+# The user options (tools/user-options.d: its files in LC_ALL=C sorted
+# order, so 0-base comes first), without comments.
+find tools/user-options.d -type f | LC_ALL=C sort | xargs awk '!/^#/ && !/^[ \t]*$/' >"$tmp.uopts"
 
 # Pass 2: the Fortran module.
 awk -F '\037' -v params="$tmp.params" -v uopts="$tmp.uopts" '
@@ -679,7 +680,7 @@ function constructor(spec, decl, name, items, n,    nl, i, k, p, last, out, join
 
 # A string literal for s, in pieces of at most 90 characters, each
 # ending after a character that cannot be part of a name, so no name is
-# split between two pieces (tools/fortran-names reads the pieces).
+# split between two pieces (tools/fortran-names.d reads the pieces).
 function lit(s, ind,    out, n) {
     out = ""
     while (length(s) > 90) {
@@ -821,7 +822,7 @@ END {
     for (i = 1; i <= nv; i++) vidx[vname[i]] = i
     for (k = 1; k <= nu; k++)
         if (!(uname[k] in vidx)) {
-            print "tools/user-options: " uname[k] " is not a documented variable" > "/dev/stderr"
+            print "tools/user-options.d: " uname[k] " is not a documented variable" > "/dev/stderr"
             exit 1
         }
     print "! docstrings_mod.f90 -- the documentation C-h f, C-h k and C-h v show."
@@ -904,7 +905,7 @@ END {
     print "        !> A variable: its value and its value at startup (\"\" when"
     print "        !> unknown), as Fortran."
     print "        character(len=:), allocatable :: value, original"
-    print "        !> A variable that is a user option (tools/user-options)."
+    print "        !> A variable that is a user option (tools/user-options.d)."
     print "        logical :: user_option = .false."
     print "    end type doc_entry_type"
     print ""
@@ -936,7 +937,7 @@ END {
     }
     spec = sprintf("character(len=%d)", w)
     c = constructor(spec " :: ", spec ", parameter", "user_option_names", citem, nu)
-    printf "    !> The user options (tools/user-options), sorted.\n"
+    printf "    !> The user options (tools/user-options.d), sorted.\n"
     printf "    %s, parameter, public :: user_option_names(%d) = %s\n", spec, nu, c
     print ""
     print "    character(len=*), parameter :: LF = achar(10)"

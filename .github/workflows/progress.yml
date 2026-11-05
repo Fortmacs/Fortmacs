@@ -2,15 +2,18 @@ name: Progress
 
 # After each merge, redraw the README's progress block and pie charts
 # (tools/progress.sh --update-readme) and the index of the status files
-# (tools/status.sh --index, docs/progress/status-index.md), and commit them
-# to main. Branches never touch them, so open PRs don't conflict over them.
+# (tools/status.sh --index, docs/progress/status-index.md), regenerate the
+# list of unported commands (tools/unported-commands.sh,
+# tools/unported-commands), and commit them to main. Branches never touch
+# them, so open PRs don't conflict over them.
 #
 # The push uses the repository secret PROGRESS_TOKEN: a fine-grained
 # personal access token for this repository only, with Contents read and
 # write and nothing else (the organization keeps GITHUB_TOKEN read-only).
 # Secrets never reach pull_request runs, and this workflow runs only on
-# main. Its commit changes only README.md and docs/progress, which CI and
-# this workflow ignore, so it starts no further runs.
+# main. Its commit changes only README.md, docs/progress and
+# tools/unported-commands, which CI and this workflow ignore, so it starts
+# no further runs.
 on:
   push:
     branches: [main]
@@ -21,6 +24,16 @@ on:
       - tools/progress.sh
       - tools/package-totals
       - tools/ported-packages
+      # What tools/unported-commands.sh reads: the commands (made from src/
+      # by tools/gen-commands.sh) and the Fortran names of upstream's.
+      - tools/unported-commands.sh
+      - tools/gen-commands.sh
+      - tools/build.sh
+      - "tools/fortran-names.d/**"
+      - tools/fortran-names.sh
+      - tools/fortran-names.awk
+      - tools/fortran-names-lib.awk
+      - tools/fortran-names-clash.awk
       - .github/workflows/progress.yml
   workflow_dispatch:
 
@@ -62,18 +75,21 @@ jobs:
           for attempt in 1 2 3; do
             tools/progress.sh --update-readme
             tools/status.sh --index >docs/progress/status-index.md
+            # It runs tools/build.sh --generate for src/commands_mod.f90
+            # (awk only: neither fpm nor gfortran is needed).
+            tools/unported-commands.sh
             # Added first, so that a new file (the first index) counts.
-            git add README.md docs/progress
+            git add README.md docs/progress tools/unported-commands
             if git diff --cached --quiet; then
-              echo "The progress block is current."
+              echo "The progress block and the unported commands are current."
               exit 0
             fi
-            git commit -q -m "README: update the progress block"
+            git commit -q -m "Progress: update the README block, status index and unported commands"
             if git push origin HEAD:main; then
               exit 0
             fi
             git fetch -q origin main
             git reset -q --hard origin/main
           done
-          echo "::error title=Progress not pushed::main refused the push; run tools/progress.sh --update-readme on main by hand"
+          echo "::error title=Progress not pushed::main refused the push; run tools/progress.sh --update-readme and tools/unported-commands.sh on main by hand"
           exit 1

@@ -82,7 +82,7 @@ off { next }
         while ((p = index(tolower(text), keeptext[k])) > 0)
             text = substr(text, 1, p - 1) " " substr(text, p + length(keeptext[k]))
     }
-    # Identifiers are names, not prose (tools/fortran-names checks them):
+    # Identifiers are names, not prose (tools/fortran-names.d checks them):
     # a quoted name (`plist'), a name with an underscore, and an
     # argument in capitals (PLIST).
     gsub(/`[A-Za-z0-9_]+'/, " ", text)

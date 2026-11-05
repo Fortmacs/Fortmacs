@@ -1,5 +1,5 @@
 # fortran-names-lib.awk -- the functions that read and apply the Fortran
-# names for Lisp terms (tools/fortran-names), for tools/fortran-names.awk
+# names for Lisp terms (tools/fortran-names.d), for tools/fortran-names.awk
 # and tools/gen-docstrings.sh.
 #
 # Copyright (C) 2026 The Fortmacs authors
@@ -37,39 +37,60 @@ function fail(msg) {
     exit 2
 }
 
-# Reads TABLE.
-function load_names(table, line, f, n, lineno) {
+# The files of TABLE in FILES[1..n], and n: TABLE itself, or when it is a
+# directory (tools/fortran-names.d), its files in LC_ALL=C sorted order,
+# so 0-base comes first.
+function table_files(table, files, n, cmd, f) {
+    if (system("test -d '" table "'") != 0) {
+        files[1] = table
+        return 1
+    }
+    n = 0
+    cmd = "LC_ALL=C ls '" table "'"
+    while ((cmd | getline f) > 0) files[++n] = table "/" f
+    close(cmd)
+    return n
+}
+
+# Reads TABLE: a file, or a directory of files read one after another.
+function load_names(table, line, f, n, lineno, files, nfiles, k, file, total) {
     fn_cand = ""
     fn_maxparts = 1
     fn_nliterals = 0
-    lineno = 0
-    while ((getline line <table) > 0) {
-        lineno++
-        if (line ~ /^#/ || line ~ /^[ \t]*$/) continue
-        n = split(line, f, "\t")
-        if (f[1] == "term" && n == 3) {
-            fn_terms[tolower(f[2])] = f[3]
-            fn_terms[tolower(f[2]) "s"] = f[3] "s"
-            fn_cand = fn_cand (fn_cand == "" ? "" : "|") tolower(f[2])
-        } else if (f[1] == "name" && n == 4) {
-            add_scoped_name(f[2], f[3], f[4])
-        } else if (f[1] == "name" && n == 3) {
-            add_name(f[2], f[3])
-        } else if (f[1] == "file" && n == 3) {
-            add_name(f[2], f[3])
-            if (f[2] ~ /_mod$/ && f[3] ~ /_mod$/) add_name(substr(f[2], 1, length(f[2]) - 4), substr(f[3], 1, length(f[3]) - 4))
-        } else if (f[1] == "keep" && n == 2 && f[2] ~ /^".+"$/) {
-            fn_literal[++fn_nliterals] = substr(f[2], 2, length(f[2]) - 2)
-        } else if (f[1] == "keep" && n == 2 && f[2] ~ /\//) {
-            fn_keepfiles[f[2]] = 1
-        } else if (f[1] == "keep" && (n == 2 || n == 3)) {
-            fn_keeps[tolower(f[2])] = (n == 3 ? " " f[3] " " : "")
-        } else {
-            fail(table ":" lineno ": not an entry: " line)
+    total = 0
+    nfiles = table_files(table, files)
+    for (k = 1; k <= nfiles; k++) {
+        file = files[k]
+        lineno = 0
+        while ((getline line <file) > 0) {
+            lineno++
+            if (line ~ /^#/ || line ~ /^[ \t]*$/) continue
+            n = split(line, f, "\t")
+            if (f[1] == "term" && n == 3) {
+                fn_terms[tolower(f[2])] = f[3]
+                fn_terms[tolower(f[2]) "s"] = f[3] "s"
+                fn_cand = fn_cand (fn_cand == "" ? "" : "|") tolower(f[2])
+            } else if (f[1] == "name" && n == 4) {
+                add_scoped_name(f[2], f[3], f[4])
+            } else if (f[1] == "name" && n == 3) {
+                add_name(f[2], f[3])
+            } else if (f[1] == "file" && n == 3) {
+                add_name(f[2], f[3])
+                if (f[2] ~ /_mod$/ && f[3] ~ /_mod$/) add_name(substr(f[2], 1, length(f[2]) - 4), substr(f[3], 1, length(f[3]) - 4))
+            } else if (f[1] == "keep" && n == 2 && f[2] ~ /^".+"$/) {
+                fn_literal[++fn_nliterals] = substr(f[2], 2, length(f[2]) - 2)
+            } else if (f[1] == "keep" && n == 2 && f[2] ~ /\//) {
+                fn_keepfiles[f[2]] = 1
+            } else if (f[1] == "keep" && (n == 2 || n == 3)) {
+                fn_keeps[tolower(f[2])] = (n == 3 ? " " f[3] " " : "")
+            } else {
+                fail(file ":" lineno ": not an entry: " line)
+            }
         }
+        close(file)
+        total += lineno
     }
-    close(table)
-    if (lineno == 0) fail(table ": no such table")
+    if (total == 0) fail(table ": no such table")
 }
 
 # A name for the FILES only (paths separated by spaces).
