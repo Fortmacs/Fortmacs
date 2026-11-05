@@ -318,7 +318,11 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        rmailedit.el, rmailkwd.el, rmailmm.el; mbox files and movemail).
        In progress: 52a mail-utils.el, mailabbrev.el, sendmail.el (Mail
        mode, `mail`, sending through `sendmail-program`, Fcc) and
-       `compose-mail` with `sendmail-user-agent` — done; 52b smtpmail.el;
+       `compose-mail` with `sendmail-user-agent` — done; 52b smtpmail.el
+       (SMTP over a TCP socket in src/sys, AUTH PLAIN, LOGIN, CRAM-MD5 and
+       XOAUTH2, the queue; TLS, STARTTLS, auth-source and the From field's
+       address, which needs mail-extr.el, deferred; see
+       docs/status/smtpmail_mod.md) — partial;
        52c message.el (`message-user-agent`, the default of
        `mail-user-agent`); then Rmail.
    53. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and

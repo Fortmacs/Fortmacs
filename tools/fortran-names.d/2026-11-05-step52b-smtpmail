@@ -1,0 +1,5 @@
+# Step 52b (smtpmail.el).  smtpmail-send-it is send_mail_with_smtp (owner,
+# 2026-11-04, step 52); smtpmail-recipient-address-list is an array, so its
+# name drops _list (CLAUDE.md: arrays have plain plural names; rule-decided).
+name	smtpmail_send_it	send_mail_with_smtp
+name	smtpmail_recipient_address_list	smtpmail_recipient_addresses

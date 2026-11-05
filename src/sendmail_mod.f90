@@ -382,6 +382,21 @@ module sendmail_mod
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
+    interface
+        !> Ask the user how to send mail, showing the choices in a help
+        !> buffer; CHOSEN is the function chosen.  The "mail client" choice
+        !> names a function not ported yet (mailclient.el), so choosing it
+        !> is a `void_function' error condition.  Port of
+        !> sendmail.el:sendmail-query-user-about-smtp.  (In submodule
+        !> sendmail_query_mod, as the "smtp" choice is smtpmail_mod's
+        !> `send_mail_with_smtp', and smtpmail_mod uses this module.)
+        recursive module subroutine query_sendmail_user_about_smtp(chosen, status)
+            implicit none(type, external)
+            procedure(command_procedure), pointer, intent(out) :: chosen
+            type(status_type), intent(out) :: status
+        end subroutine query_sendmail_user_about_smtp
+    end interface
+
 contains
 
     ! ------------------------------------------------------------------
@@ -590,92 +605,6 @@ contains
         if (.not. status%ok()) return
         if (save) send_mail_function => chosen
     end subroutine query_sendmail_once
-
-    ! Ask the user how to send mail, showing the choices in a help
-    ! buffer; CHOSEN is the function chosen.  The "mail client" and "smtp"
-    ! choices name functions not ported yet (mailclient.el and
-    ! smtpmail.el), so choosing them is a `void_function' error condition.
-    ! Port of sendmail.el:sendmail-query-user-about-smtp.
-    recursive subroutine query_sendmail_user_about_smtp(chosen, status)
-        procedure(command_procedure), pointer, intent(out) :: chosen
-        type(status_type), intent(out) :: status
-        type(value_type), allocatable :: options(:)
-        type(value_type) :: item
-        type(completion_table_type) :: table
-        type(handle_type) :: old, help, window
-        character(len=:), allocatable :: choice, path, first
-        logical :: transport, saved_ignore
-        type(status_type) :: st
-
-        chosen => null()
-        transport = .false.
-
-        if (allocated(sendmail_program)) then
-            call executable_find(sendmail_program, path)
-            transport = len(path) > 0
-        end if
-
-        allocate (options(0))
-        item = value_type(text="mail client")
-        options = [options, item]
-
-        if (transport) then
-            item = value_type(text="transport")
-            options = [options, item]
-        end if
-
-        item = value_type(text="smtp")
-        options = [options, item]
-        first = "mail client"
-        ! Query the user.
-        old = current_buffer()
-        call generate_new_buffer("*Fortmacs Mail Setup Help*", help, status)
-        if (.not. status%ok()) return
-        call set_buffer(help, status)
-        call insert(substitute_command_keys(" Fortmacs is about to send an email message, but it has not been"//LF// &
-                                            " configured for sending email.  To tell Fortmacs how to send email:"//LF// &
-                                            LF//" - Type `")//"mail client"// &
-                    substitute_command_keys("' to start your default email client and"//LF// &
-                                            "   pass it the message text."//LF//LF), status)
-
-        if (transport) then
-            call insert(substitute_command_keys(" - Type `")//"transport"// &
-                        substitute_command_keys("' to invoke the system's mail transport agent"//LF//"   (the `")// &
-                        sendmail_program//substitute_command_keys("' program)."//LF//LF), status)
-        end if
-
-        call insert(substitute_command_keys(" - Type `")//"smtp"// &
-                    substitute_command_keys("' to send mail directly to an ""outgoing mail"" server."//LF// &
-                                            "   (Fortmacs may prompt you for SMTP settings)."//LF//LF// &
-                                            " Fortmacs will record your selection and will use it thereafter."//LF// &
-                                            " To change it later, set `send_mail_function'."//LF), status)
-        call goto_char(point_min())
-        call display_buffer(help, window, status)
-
-        if (status%ok()) then
-            table%kind = TABLE_LIST
-            table%list = make_list(options)
-            saved_ignore = completion_ignore_case%value
-            completion_ignore_case%value = .true.
-            call completing_read(format_prompt("Send mail via", first), table, choice, status, &
-                                 require_match=REQUIRE_MATCH_YES, default=first)
-            completion_ignore_case%value = saved_ignore
-        end if
-
-        ! The buffer of with-temp-buffer goes away.
-        call close_buffer(help, st)
-        if (is_buffer_live(old)) call set_buffer(old, st)
-        if (.not. status%ok()) return
-
-        select case (downcase_string(choice))
-        case ("transport")
-            chosen => send_mail_with_sendmail
-        case ("smtp")
-            call set_error(status, FM_VOID_FUNCTION, "smtpmail_send_it")
-        case default
-            call set_error(status, FM_VOID_FUNCTION, "mailclient_send_it")
-        end select
-    end subroutine query_sendmail_user_about_smtp
 
     ! ------------------------------------------------------------------
     ! Composing

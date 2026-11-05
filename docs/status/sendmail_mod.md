@@ -1,6 +1,6 @@
 # sendmail_mod
 
-- Module: sendmail_mod
+- Module: sendmail_mod (+ submodule sendmail_query_mod)
 - Upstream: mail/sendmail.el (+ mule-cmds.el `select-message-coding-system`, message.el `message-narrow-to-headers` and `message-make-date`)
 - State: partial
 
@@ -48,7 +48,7 @@ MML (`mail-encode-mml`, `mail-add-attachment`, long lines);
 `mail-split-line` and its remap of `split-line` (not ported);
 `mail-fill-yanked-message` (C-c C-q, needs `fill-individual-paragraphs`);
 the `header` value of `mail-envelope-from` (mail-extr.el);
-the mail client and SMTP choices of `sendmail-query-once` (mailclient.el, smtpmail.el, step 52b: choosing them is a `void_function` error) and saving the choice into init.f90 (`customize-save-variable`);
+the mail client choice of `sendmail-query-once` (mailclient.el: choosing it is a `void_function` error; the SMTP choice is smtpmail_mod's `send_mail_with_smtp`) and saving the choice into init.f90 (`customize-save-variable`);
 the bold choices in its help buffer;
 the `category` property of the separator;
 `adaptive-fill-regexp` and `adaptive-fill-first-line-regexp` as buffer-local values;
