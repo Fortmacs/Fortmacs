@@ -58,7 +58,7 @@ module mail_utilities_mod
 
     public :: is_mail_file_babyl, quote_mail_printable, quote_mail_printable_region, unquote_mail_printable, &
               unquote_mail_printable_region, strip_mail_quoted_names, mail_dont_reply_to, get_mail_field, &
-              parse_mail_comma_list, mail_comma_list_regexp, mail_rfc822_date, init_mail_utils
+              parse_mail_comma_list, mail_comma_list_regexp, mail_rfc822_date, wrap_mail_re_regexp, init_mail_utils
 
     !> Regexp specifying addresses to prune from a reply message.
     !> If this is unallocated, it is set the first time you compose a reply, to
@@ -68,6 +68,13 @@ module mail_utilities_mod
     !> also the To field, unless this would leave an empty To field.
     !> Port of mail-utils.el mail-dont-reply-to-names.
     character(len=:), allocatable, public :: mail_dont_reply_to_names
+
+    !> List of localized "Re" abbreviations in various languages.
+    !> Each component can be a regular expression or a simple string.  Matching
+    !> is done case-insensitively.  Used to initialize
+    !> `message_subject_re_regexp'.  Port of mail-utils.el mail-re-regexps
+    !> (set by `init_mail_utils' unless already set).
+    character(len=:), allocatable, public :: mail_re_regexps(:)
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
@@ -800,8 +807,44 @@ contains
         if (present(flag)) opt = flag
     end function opt
 
-    !> Register the commands of mail-utils.el.  Not a port.
+    !> ALTERNATIVES (the alternatives of "Re" abbreviations) as a regexp matching
+    !> any number of them at the start of a subject, each followed by a
+    !> colon: "Re: ", "Re[2]: ", "AW: Re: ".  Port of
+    !> mail-utils.el:mail--wrap-re-regexp.
+    function wrap_mail_re_regexp(alternatives) result(regexp)
+        use multilingual_environment_configuration_mod, only: password_colon_equivalents, init_mule_conf
+        use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
+        character(len=*), intent(in) :: alternatives
+        character(len=:), allocatable :: regexp
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        character(len=:), allocatable :: colons
+        type(status_type) :: st
+        integer(int32) :: nbytes
+        integer :: i
+
+        if (.not. allocated(password_colon_equivalents)) call init_mule_conf()
+        colons = ""
+
+        do i = 1, size(password_colon_equivalents)
+            call char_string(password_colon_equivalents(i), buffer, nbytes, st)
+            colons = colons//buffer(1:nbytes)
+        end do
+
+        ! Re(1) or Re[1] or Re^1, then SPC/NBSP followed by various colon
+        ! variants and TAB/SPC; repeated, as in "Re[1]: Re[2]:".
+       regexp = "\`[ "//TAB//"]*\("//alternatives//"\(([0-9]+)\|\[[0-9]+\]\|\^[0-9]+\)? ?"//achar(194)//achar(160)//"*["//colons// &
+                 "][ "//TAB//"]*\)*[ "//TAB//"]*"
+    end function wrap_mail_re_regexp
+
+    !> Register the commands of mail-utils.el and set `mail_re_regexps'.
+    !> Not a port.
     subroutine init_mail_utils()
+        if (.not. allocated(mail_re_regexps)) then
+            mail_re_regexps = [character(len=16) :: "RE", "RÉ\.?", "FWD?", "رد", "回复", "回覆", &
+                               "SV", "Antw\.?", "VS", "REF", "AW", &
+                               "ΑΠ", "ΣΧΕΤ", "השב", "Vá", "R", "RIF", "BLS", "RES", "Odp", "YNT", "ATB"]
+        end if
+
         commands%quote_mail_printable_region%execute => cmd_quote_mail_printable_region
         commands%unquote_mail_printable_region%execute => cmd_unquote_mail_printable_region
     end subroutine init_mail_utils

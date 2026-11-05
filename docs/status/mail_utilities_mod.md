@@ -18,12 +18,13 @@
 `mail-fetch-field` (`get_mail_field`: LAST, ALL, DELETE; no value is unallocated),
 `mail-parse-comma-list` (`parse_mail_comma_list`, a blank-padded array),
 `mail-comma-list-regexp`,
-`mail-rfc822-date`
+`mail-rfc822-date`,
+`mail-re-regexps`,
+`mail--wrap-re-regexp` (`wrap_mail_re_regexp`)
 
 ## Deferred
 
 `mail-use-rfc822` (with rfc822.el's `rfc822-addresses`),
-`mail-re-regexps` and `mail--wrap-re-regexp` (for Rmail and Message),
 the LIST argument of `mail-fetch-field`,
 `mail-mbox-from` (needs time-date.el's `date-to-time`),
 the obsolete `mail-string-delete` and `mail-rfc822-time-zone`

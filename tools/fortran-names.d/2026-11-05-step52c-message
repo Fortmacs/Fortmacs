@@ -1,0 +1,62 @@
+# Step 52c (message.el).  The commands and functions of Message mode are verb
+# first, the package name after the verb (R6-17, R6-40; as mail-insert-file is
+# insert_mail_file and vc-annotate-goto-line goto_vc_annotate_line; decided by
+# rule): message-goto-to is goto_message_to, message-send send_message.
+name	message_mail	mail_message
+name	message_send	send_message
+name	message_bury	bury_message
+name	message_goto	goto_message
+name	message_insert	insert_message
+name	message_add	add_message
+name	message_sort_headers	sort_message_headers
+name	message_reduce_to_to_cc	reduce_message_to_to_cc
+name	message_mark_inserted_region	mark_message_inserted_region
+name	message_mark_insert_file	mark_message_insert_file
+name	message_change_subject	change_message_subject
+name	message_elide_region	elide_message_region
+name	message_delete_not_region	delete_message_not_region
+name	message_rename_buffer	rename_message_buffer
+name	message_newline_and_reformat	newline_and_reformat_message
+name	message_widen_and_recenter	widen_and_recenter_message
+name	message_check_recipients	check_message_recipients
+# message-setup is set_up_message, as mail-setup is set_up_mail (and
+# message-setup-hook set_up_message_hook, as mail-setup-hook is
+# set_up_mail_hook; decided by rule).
+name	message_setup	set_up_message
+# message-insert-or-toggle-importance keeps its two verbs first
+# (R6-17; decided by rule).
+name	message_insert_or_toggle_importance	insert_or_toggle_message_importance
+# Text is cut, a buffer closed (R2-Q2, decided by rule): message-kill-buffer,
+# message-kill-to-signature, message-kill-address and the options of
+# message-kill-buffer.
+name	message_kill_buffer	close_message_buffer
+name	message_kill_buffer_on_exit	message_close_buffer_on_exit
+name	message_kill_buffer_query	message_close_buffer_query
+name	message_kill_to_signature	cut_message_to_signature
+name	message_kill_address	cut_message_address
+# No abbreviations in any name (owner 2026-11-05; decided by rule): eoh is
+# end_of_headers, fqdn fully_qualified_domain_name.
+name	message_goto_eoh	goto_message_end_of_headers
+name	message_user_fqdn	message_user_fully_qualified_domain_name
+name	message_make_fqdn	make_message_fully_qualified_domain_name
+# Identifiers of message_mod that contain the runs message_mail and
+# message_send (variables, hooks, and the procedures named for what they
+# do): kept whole.
+keep	message_send_hook
+keep	message_send_mail_hook
+keep	message_send_mail_function
+keep	message_send_rename_function
+keep	use_message_send_mail_function
+keep	send_message_mail
+keep	send_message_mail_with_sendmail
+keep	send_message_mail_by_default
+keep	send_message_mail_by_method
+keep	is_message_mail
+# Commands whose names hold the runs message_mail and message_insert after
+# the verb (goto_message_mail_followup_to, mark_message_insert_file): kept whole.
+keep	goto_message_mail_followup_to
+keep	mark_message_insert_file
+keep	cmd_mark_message_insert_file
+# message-strip-subject-re strips the "Re:" prefix: _re is not an
+# abbreviation of regexp here (decided by rule: names read as words).
+name	message_strip_subject_re	strip_message_subject_re_prefix
