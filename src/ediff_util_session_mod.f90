@@ -1,6 +1,6 @@
 ! ediff_util_session_mod.f90 -- the Ediff session's commands.
 ! Ported from GNU Emacs 31.1 lisp/vc/ediff-util.el (in part: comparing
-! two and three buffers on a terminal frame).
+! two and three buffers and merging on a terminal frame).
 !
 ! Copyright (C) 1994-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -25,17 +25,21 @@
 submodule(ediff_util_mod) ediff_util_session_mod
     use error_mod, only: set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, FM_QUIT
     use handle_mod, only: null_handle
-    use value_mod, only: value_type, vtag, xfixnum, V_INTEGER
+    use value_mod, only: value_type, vtag, xfixnum, V_INTEGER, choice_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, buffer_list, is_buffer_modified, &
-                          header_line_format_type, restore_buffer_modified
+                          header_line_format_type, restore_buffer_modified, erase_buffer, get_file_buffer
     use syntax_mod, only: skip_chars_forward
-    use data_mod, only: clear_all_local_variables
-    use editfns_mod, only: point, goto_char, is_bol, buffer_substring, delete_region, narrow_to_region
+    use data_mod, only: clear_all_local_variables, choice_state
+    use editfns_mod, only: point, goto_char, is_bol, buffer_substring, delete_region, narrow_to_region, widen, &
+                           insert_buffer_substring
+    use derived_mod, only: major_mode_type, major_mode_named
+    use diff_mode_mod, only: diff_mode
     use insdel_mod, only: insert
     use cmds_mod, only: backward_char
     use simple_mod, only: count_lines, deactivate_mark
     use keymap_mod, only: make_sparse_keymap, keymap_set, use_local_map, destroy_keymap
-    use keyboard_mod, only: last_command_event
+    use keyboard_mod, only: last_command_event, sit_for
+    use help_mod, only: with_output_to_temp_buffer
     use callint_mod, only: this_command, current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER, &
                            PREFIX_RAW, PREFIX_MINUS
     use commands_mod, only: commands
@@ -43,11 +47,12 @@ submodule(ediff_util_mod) ediff_util_session_mod
     use window_mod, only: windows, select_window, delete_window, is_window_live, set_window_start, set_window_dedication, &
                           is_pos_visible_in_window, move_to_window_line, recenter, window_total_height, frame_root_window, &
                           fit_window_to_buffer, switch_to_buffer, window_parent, split_window_below, &
-                          split_window_right, DEDICATED_WEAK
+                          split_window_right, window_min_height, DEDICATED_WEAK
     use frame_mod, only: selected_frame
     use fileio_mod, only: expand_file_name, file_name_directory, file_name_nondirectory, file_name_as_directory, &
-                          is_file_directory, write_region, set_file_modes, is_visited_file_modtime_current
-    use files_mod, only: create_temp_file, abbreviate_file_name, delete_file, save_buffer, revert_buffer
+                          is_file_directory, write_region, set_file_modes, is_visited_file_modtime_current, file_exists
+    use files_mod, only: create_temp_file, abbreviate_file_name, delete_file, save_buffer, revert_buffer, &
+                         set_visited_file_name, write_file_functions
     use minibuffer_mod, only: read_file_name, REQUIRE_MATCH_YES
     use subr_mod, only: read_y_or_n
     use fns_mod, only: read_yes_or_no
@@ -67,13 +72,19 @@ submodule(ediff_util_mod) ediff_util_session_mod
                               EDIFF_CURRENT_DIFF_FACES, EDIFF_KILLED_VITAL_BUFFER, EDIFF_NO_DIFFERENCES, &
                               EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B, EDIFF_BUFFER_TYPE_C, EDIFF_BUFFER_TYPE_ANCESTOR, &
                               EDIFF_HIGHLIGHTING_STYLE_FACE, &
-                              EDIFF_HIGHLIGHTING_STYLE_ASCII, EDIFF_HIGHLIGHTING_STYLE_NONE
+                              EDIFF_HIGHLIGHTING_STYLE_ASCII, EDIFF_HIGHLIGHTING_STYLE_NONE, ediff_show_ancestor, &
+                              ediff_autostore_merges, EDIFF_AUTOSTORE_MERGES_GROUP_JOBS_ONLY, ediff_split_window_procedure
     use ediff_help_mod, only: ediff_use_long_help_message, set_ediff_help_message, indent_ediff_help_message, &
                               set_ediff_help_overlays
-    use ediff_wind_mod, only: ediff_split_window_function, set_up_ediff_windows, refresh_ediff_mode_lines, &
-                              get_ediff_visible_buffer_window, ediff_window_config
+    use ediff_wind_mod, only: ediff_split_window_function, ediff_merge_split_window_function, set_up_ediff_windows, &
+                              refresh_ediff_mode_lines, get_ediff_visible_buffer_window, ediff_window_config
     use ediff_diff_mod, only: set_up_ediff_diff_regions, set_up_ediff_diff_regions3, set_ediff_actual_diff_options, &
-                              ediff_actual_diff_options
+                              ediff_actual_diff_options, execute_ediff_process, ediff_custom_diff_program, &
+                              ediff_custom_diff_options
+    use ediff_merg_mod, only: ediff_default_variant, ediff_show_clashes_only, ediff_skip_merge_regions_that_differ_from_default, &
+                              ediff_quit_merge_hook, is_ediff_merge_region_non_clash_to_skip, &
+                              is_ediff_skip_merge_region_if_changed_from_default, set_ediff_state_of_diff_in_all_buffers, &
+                              set_ediff_state_of_all_diffs_in_all_buffers, set_ediff_merge_mode, EDIFF_DEFAULT_VARIANT_DEFAULT_B
     implicit none(type, external)
 
     character, parameter :: LF = achar(10)
@@ -213,7 +224,19 @@ contains
         call bind("?", "toggle_ediff_help")
         call bind("!", "update_ediff_diffs")
 
-        if (ediff_sessions(k)%three_way_comparison_job) then
+        if (ediff_sessions(k)%merge_job) then
+            ! Will barf if no ancestor.
+            call bind("/", "toggle_ediff_show_ancestor")
+            ! In merging, we allow only A->C and B->C copying.
+            call bind("a", "copy_ediff_a_to_c")
+            call bind("b", "copy_ediff_b_to_c")
+            call bind("r", "restore_ediff_diff_in_merge_buffer")
+            call bind("s", "shrink_ediff_window_c")
+            call bind("+", "combine_ediff_diffs")
+            call bind("$ $", "toggle_ediff_show_clashes_only")
+            call bind("$ *", "toggle_ediff_skip_changed_regions")
+            call bind("&", "re_merge_ediff")
+        else if (ediff_sessions(k)%three_way_comparison_job) then
             call bind("a b", "copy_ediff_a_to_b")
             call bind("b a", "copy_ediff_b_to_a")
             call bind("a c", "copy_ediff_a_to_c")
@@ -232,7 +255,15 @@ contains
         end if
 
         call bind("# c", "toggle_ediff_ignore_case")
-        if (ediff_sessions(k)%three_way_job) call bind("g c", "jump_to_ediff_difference_at_point")
+        call bind("w a", "save_ediff_buffer")
+        call bind("w b", "save_ediff_buffer")
+        call bind("w d", "save_ediff_buffer")
+
+        if (ediff_sessions(k)%three_way_job) then
+            call bind("w c", "save_ediff_buffer")
+            call bind("g c", "jump_to_ediff_difference_at_point")
+        end if
+
         if (.not. status%ok()) return
         call use_local_map(map, status)
         if (.not. status%ok()) return
@@ -254,15 +285,16 @@ contains
     ! ------------------------------------------------------------------
 
     recursive module subroutine set_up_ediff(buffer_a, file_a, buffer_b, file_b, buffer_c, file_c, job_name, &
-                                             control_buffer, status, startup_hooks)
+                                             control_buffer, status, startup_hooks, merge_buffer_file)
         type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_c
         character(len=*), intent(in) :: file_a, file_b, file_c
         type(command_type), pointer, intent(in) :: job_name
         type(handle_type), intent(out) :: control_buffer
         type(status_type), intent(out) :: status
         type(hook_type), intent(inout), optional :: startup_hooks
-        character(len=:), allocatable :: name, fa, fb, fc
-        type(handle_type) :: old, old_window, old_buffer
+        character(len=*), intent(in), optional :: merge_buffer_file
+        character(len=:), allocatable :: name, fa, fb, fc, merge_file
+        type(handle_type) :: old, old_window, old_buffer, buffer_c_of_job
         type(status_type) :: st
         integer(int64) :: shift
         integer :: k, t, lt, gt, digits
@@ -280,6 +312,25 @@ contains
             if (.not. status%ok()) return
         end if
 
+        if (present(merge_buffer_file)) then
+            call expand_file_name(merge_buffer_file, merge_file, status)
+            if (.not. status%ok()) return
+
+            ! Check the directory exists.
+            if (.not. file_exists(file_name_directory(merge_file))) then
+                call set_error(status, FM_GENERIC_ERROR, "Directory "// &
+                               abbreviate_file_name(file_name_directory(merge_file))// &
+                               " given as place to save the merge doesn't exist")
+                return
+            end if
+
+            if (file_exists(merge_file) .and. is_file_directory(merge_file)) then
+                call set_error(status, FM_GENERIC_ERROR, "The merge buffer file "//abbreviate_file_name(merge_file)// &
+                               " must not be a directory")
+                return
+            end if
+        end if
+
         name = ediff_unique_buffer_name("*Ediff Control Panel", "*")
         old = current_buffer()
         call set_buffer(buffer_a, status)
@@ -295,9 +346,15 @@ contains
         associate (s => ediff_sessions(k))
             s%use_long_help_message = ediff_use_long_help_message
             s%split_window_function => ediff_split_window_function
+            s%default_variant = choice_state(ediff_default_variant)
             s%keep_variants = ediff_keep_variants
             s%use_faces = ediff_use_faces
             s%highlight_all_diffs = ediff_highlight_all_diffs
+            ! The buffer-local user options of ediff-merg.el and
+            ! ediff-init.el.
+            s%autostore_merges = choice_state(ediff_autostore_merges)
+            s%show_clashes_only = ediff_show_clashes_only
+            s%skip_merge_regions_that_differ_from_default = ediff_skip_merge_regions_that_differ_from_default
 
             if (has_ediff_face_support() .and. s%use_faces) then
                 s%highlighting_style = EDIFF_HIGHLIGHTING_STYLE_FACE
@@ -307,20 +364,39 @@ contains
 
             ! Unwrap set up parameters passed as argument.
             s%job_name => job_name
-            ! Set variables classifying the current ediff job.  The merge,
-            ! window and region jobs are Deferred (docs/status/ediff_mod.md):
-            ! their classes stay .false.
+            ! Set variables classifying the current ediff job.  The window
+            ! and region jobs are Deferred (docs/status/ediff_mod.md): their
+            ! classes stay .false.
             s%three_way_comparison_job = associated(job_name, commands%ediff_files3) .or. &
                                          associated(job_name, commands%ediff_buffers3)
+            s%merge_with_ancestor_job = associated(job_name, commands%ediff_merge_files_with_ancestor) .or. &
+                                        associated(job_name, commands%ediff_merge_buffers_with_ancestor)
+            s%merge_job = s%merge_with_ancestor_job .or. associated(job_name, commands%ediff_merge_files) .or. &
+                          associated(job_name, commands%ediff_merge_buffers)
             s%three_way_job = s%three_way_comparison_job .or. s%merge_job
             s%diff3_job = s%three_way_comparison_job .or. s%merge_with_ancestor_job
             ! Don't delete variants in case of ediff-buffer-* jobs without
             ! asking.  This is because one may lose work---dangerous.
             if (is_ediff_buffer_job(job_name)) s%keep_variants = .true.
-            buffers(current)%read_only = .false.
+        end associate
+
+        buffer_c_of_job = buffer_c
+
+        ! Adjust for merge jobs.
+        if (ediff_sessions(k)%merge_job) then
+            ediff_sessions(k)%split_window_function => ediff_merge_split_window_function
+            ! Remember the ancestor buffer, if any.
+            ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_ANCESTOR) = buffer_c
+            call make_ediff_merge_buffer(buffer_c_of_job, status)
+            if (.not. status%ok()) return
+        end if
+
+        buffers(current)%read_only = .false.
+
+        associate (s => ediff_sessions(k))
             s%buffers(EDIFF_BUFFER_TYPE_A) = buffer_a
             s%buffers(EDIFF_BUFFER_TYPE_B) = buffer_b
-            s%buffers(EDIFF_BUFFER_TYPE_C) = buffer_c
+            s%buffers(EDIFF_BUFFER_TYPE_C) = buffer_c_of_job
             s%control_buffer = control_buffer
             ! The suffix of the control buffer's name, "<2>", and its
             ! number less one.
@@ -359,6 +435,8 @@ contains
             if (t == EDIFF_BUFFER_TYPE_C .and. .not. ediff_sessions(k)%three_way_job) exit
             call set_buffer(ediff_sessions(k)%buffers(t), status)
             if (.not. status%ok()) return
+            ! The merge buffer should never be narrowed.
+            if (t == EDIFF_BUFFER_TYPE_C .and. ediff_sessions(k)%merge_job) call widen()
             call ediff_prepare_buffer_hook%execute(status)
             if (.not. status%ok()) return
             if (ediff_sessions(k)%merge_job .and. t /= EDIFF_BUFFER_TYPE_C) buffers(current)%read_only = .true.
@@ -369,6 +447,14 @@ contains
                 buffers(current)%read_only = .false.
             end if
         end do
+
+        if (is_buffer_live(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_ANCESTOR))) then
+            call set_buffer(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_ANCESTOR), status)
+            if (.not. status%ok()) return
+            buffers(current)%read_only = .true.
+            call ediff_prepare_buffer_hook%execute(status)
+            if (.not. status%ok()) return
+        end if
 
         call set_buffer(control_buffer, status)
         if (.not. status%ok()) return
@@ -386,13 +472,14 @@ contains
         ediff_sessions(k)%number_of_differences = size(ediff_sessions(k)%differences, 2)
         ediff_sessions(k)%current_difference = -1
 
-        do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
-            if (t == EDIFF_BUFFER_TYPE_C .and. .not. ediff_sessions(k)%three_way_job) exit
+        do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_ANCESTOR
+            if (t == EDIFF_BUFFER_TYPE_C .and. .not. ediff_sessions(k)%three_way_job) cycle
+            if (t == EDIFF_BUFFER_TYPE_ANCESTOR .and. .not. ediff_sessions(k)%merge_with_ancestor_job) cycle
             call make_ediff_current_diff_overlay(k, t, status)
             if (.not. status%ok()) return
         end do
 
-        call set_up_ediff_windows(buffer_a, buffer_b, buffer_c, control_buffer, status)
+        call set_up_ediff_windows(buffer_a, buffer_b, buffer_c_of_job, control_buffer, status)
         if (.not. status%ok()) return
 
         ! Position point in buffers A, B (and C).
@@ -425,6 +512,16 @@ contains
 
         call set_buffer(control_buffer, status)
         if (.not. status%ok()) return
+
+        if (allocated(merge_file)) then
+            call arrange_ediff_autosave_in_merge_jobs(k, status, merge_file)
+        else
+            call arrange_ediff_autosave_in_merge_jobs(k, status)
+        end if
+
+        if (.not. status%ok()) return
+        call set_buffer(control_buffer, status)
+        if (.not. status%ok()) return
         call refresh_ediff_mode_lines(k)
         buffers(current)%read_only = .true.
         call ediff_startup_hook%execute(status)
@@ -434,7 +531,77 @@ contains
             call set_buffer(old, st)
             if (status%ok()) status = st
         end if
+
+    contains
+
+        ! Make the merge buffer *ediff-merge* in BUFFER, a copy of buffer A
+        ! (or of buffer B with the default variant default-B) in its major
+        ! mode, whose own `write_file_functions' give it its mode when it
+        ! is saved.  The control buffer is current again afterwards.
+        recursive subroutine make_ediff_merge_buffer(buffer, status)
+            type(handle_type), intent(out) :: buffer
+            type(status_type), intent(out) :: status
+            type(handle_type) :: variant
+            type(major_mode_type), pointer :: mode
+
+            ! If default variant is `combined', the right stuff is inserted
+            ! by do_ediff_merge.
+            variant = buffer_a
+            if (ediff_sessions(k)%default_variant%choice == EDIFF_DEFAULT_VARIANT_DEFAULT_B) variant = buffer_b
+            call get_or_make_buffer(ediff_unique_buffer_name("*ediff-merge", "*"), buffer, status)
+            if (.not. status%ok()) return
+            call set_buffer(buffer, status)
+            if (.not. status%ok()) return
+            call insert_buffer_substring(variant, status)
+            if (.not. status%ok()) return
+            call goto_char(point_min())
+            mode => null()
+            if (allocated(buffers(variant%index)%major_mode)) mode => major_mode_named(buffers(variant%index)%major_mode)
+
+            if (associated(mode)) then
+                if (associated(mode%execute)) call mode%execute(status)
+                if (.not. status%ok()) return
+            end if
+
+            ! Merge buffer is always widened.
+            call widen()
+            call write_file_functions%prepend(set_ediff_merge_mode, local=.true.)
+            call set_buffer(control_buffer, status)
+        end subroutine make_ediff_merge_buffer
     end subroutine set_up_ediff
+
+    ! Set the visited file name and auto-saving of the merge buffer of
+    ! session K: with MERGE_BUFFER_FILE, the merge is stored there (and
+    ! `ediff_autostore_merges' becomes .true. for the session).  Runs in
+    ! the control buffer.  Port of
+    ! ediff-util.el:ediff-arrange-autosave-in-merge-jobs (`buffer-offer-save'
+    ! and `auto-save-mode' are Deferred, see docs/status/ediff_util_mod.md).
+    recursive subroutine arrange_ediff_autosave_in_merge_jobs(k, status, merge_buffer_file)
+        integer, intent(in) :: k
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: merge_buffer_file
+        type(handle_type) :: old
+        type(status_type) :: st
+
+        status = status_type()
+        if (.not. ediff_sessions(k)%merge_job) return
+
+        if (present(merge_buffer_file)) then
+            ediff_sessions(k)%autostore_merges = choice_type(value=.true.)
+            ediff_sessions(k)%merge_store_file = merge_buffer_file
+        end if
+
+        if (.not. allocated(ediff_sessions(k)%merge_store_file)) return
+        ! Save before leaving ctl buffer.
+        call verify_ediff_file_merge_buffer(ediff_sessions(k)%merge_store_file, status)
+        if (.not. status%ok()) return
+        old = current_buffer()
+        call set_buffer(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_C), status)
+        if (status%ok()) call set_visited_file_name(ediff_sessions(k)%merge_store_file, status)
+        ! Make the old buffer current again, keeping the first error.
+        call set_buffer(old, st)
+        if (status%ok()) status = st
+    end subroutine arrange_ediff_autosave_in_merge_jobs
 
     recursive module subroutine set_up_ediff_control_buffer(k, control_buffer, status)
         integer, intent(in) :: k
@@ -497,7 +664,6 @@ contains
 
         ! (erase-buffer) in the read-only control buffer.
         subroutine erase_control_buffer()
-            use buffer_mod, only: erase_buffer
             logical :: saved
 
             saved = buffers(current)%read_only
@@ -515,7 +681,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(status_type) :: st
-        character(len=:), allocatable :: file_a, file_b, file_c
+        character(len=:), allocatable :: file_a, file_b, file_c, file_ancestor
         integer(int64) :: point_a
         integer :: k, diff_no
 
@@ -540,13 +706,22 @@ contains
             if (.not. status%ok()) return
         end if
 
+        file_ancestor = ""
+
+        if (ediff_sessions(k)%merge_with_ancestor_job) then
+            call make_temp(EDIFF_BUFFER_TYPE_ANCESTOR, file_ancestor)
+            if (.not. status%ok()) return
+        end if
+
         call clear_ediff_differences(k)
         ! Invalidate the replaced regions.
         if (allocated(ediff_sessions(k)%replaced_regions)) deallocate (ediff_sessions(k)%replaced_regions)
         call set_buffer(ediff_sessions(k)%control_buffer, status)
 
         if (status%ok()) then
-            if (ediff_sessions(k)%diff3_job) then
+            if (ediff_sessions(k)%merge_with_ancestor_job) then
+                call set_up_ediff_diff_regions3(k, file_a, file_b, file_ancestor, status)
+            else if (ediff_sessions(k)%diff3_job) then
                 call set_up_ediff_diff_regions3(k, file_a, file_b, file_c, status)
             else
                 call set_up_ediff_diff_regions(k, file_a, file_b, status)
@@ -564,8 +739,19 @@ contains
             if (status%ok()) status = st
         end if
 
+        if (len(file_ancestor) > 0) then
+            call delete_file(file_ancestor, st)
+            if (status%ok()) status = st
+        end if
+
         if (.not. status%ok()) return
         ediff_sessions(k)%number_of_differences = size(ediff_sessions(k)%differences, 2)
+
+        if (ediff_sessions(k)%three_way_job) then
+            call set_ediff_state_of_all_diffs_in_all_buffers(k, status)
+            if (.not. status%ok()) return
+        end if
+
         call set_buffer(ediff_sessions(k)%control_buffer, status)
         if (.not. status%ok()) return
         call ediff_diff_at_point(k, EDIFF_BUFFER_TYPE_A, diff_no, status, pos=point_a)
@@ -834,6 +1020,8 @@ contains
         integer(int64), intent(in), optional :: arg
         integer(int64) :: count
         integer :: k, n
+        logical :: skip
+        character(len=64) :: progress
 
         call check_ediff_control_buffer(k, status)
         if (.not. status%ok()) return
@@ -845,6 +1033,28 @@ contains
                         ediff_sessions(k)%current_difference + count))
             call make_ediff_region_visible(k, status)
             if (.not. status%ok()) return
+            skip = .false.
+
+            if (n < ediff_sessions(k)%number_of_differences) then
+                call is_merge_region_to_skip(k, n, skip, status)
+                if (.not. status%ok()) return
+            end if
+
+            ! Skip loop.
+            do while (n < ediff_sessions(k)%number_of_differences .and. skip)
+                n = n + 1
+
+                if (modulo(n, 20) == 0) then
+                    write (progress, '("Skipped over region ", i0, " and counting ...")') n
+                    call message(trim(progress))
+                end if
+
+                if (n < ediff_sessions(k)%number_of_differences) then
+                    call is_merge_region_to_skip(k, n, skip, status)
+                    if (.not. status%ok()) return
+                end if
+            end do
+
             call message("")
             call unselect_and_select_ediff_difference(k, n, status)
         else
@@ -858,6 +1068,8 @@ contains
         integer(int64), intent(in), optional :: arg
         integer(int64) :: count
         integer :: k, n
+        logical :: skip
+        character(len=64) :: progress
 
         call check_ediff_control_buffer(k, status)
         if (.not. status%ok()) return
@@ -868,6 +1080,27 @@ contains
             n = int(max(-1_int64, ediff_sessions(k)%current_difference - count))
             call make_ediff_region_visible(k, status)
             if (.not. status%ok()) return
+            skip = .false.
+
+            if (n >= 0) then
+                call is_merge_region_to_skip(k, n, skip, status)
+                if (.not. status%ok()) return
+            end if
+
+            do while (n > -1 .and. skip)
+                if (modulo(n + 1, 20) == 0) then
+                    write (progress, '("Skipped over region ", i0, " and counting ...")') n + 1
+                    call message(trim(progress))
+                end if
+
+                n = n - 1
+
+                if (n >= 0) then
+                    call is_merge_region_to_skip(k, n, skip, status)
+                    if (.not. status%ok()) return
+                end if
+            end do
+
             call message("")
             call unselect_and_select_ediff_difference(k, n, status)
         else
@@ -875,6 +1108,24 @@ contains
             if (status%ok()) call set_error(status, FM_USER_ERROR, "At beginning of the difference list")
         end if
     end subroutine previous_ediff_difference
+
+    ! Whether n and p skip region N of session K (SKIP): the merge regions
+    ! without clashes when the session shows only clashes ($$), and the
+    ! merge regions changed from the default when it skips them ($*).
+    ! Not a port: the tests of ediff-util.el:ediff-next-difference and
+    ! ediff-previous-difference (the regexp filters and the regions
+    ! differing only in white space are Deferred with those features).
+    recursive subroutine is_merge_region_to_skip(k, n, skip, status)
+        integer, intent(in) :: k, n
+        logical, intent(out) :: skip
+        type(status_type), intent(out) :: status
+        logical :: skip_changed
+
+        skip = is_ediff_merge_region_non_clash_to_skip(k, n)
+        call is_ediff_skip_merge_region_if_changed_from_default(k, n, skip_changed, status)
+        if (.not. status%ok()) return
+        skip = skip .or. skip_changed
+    end subroutine is_merge_region_to_skip
 
     recursive module subroutine jump_to_ediff_difference(difference_number, status)
         integer(int64), intent(in) :: difference_number
@@ -1065,10 +1316,11 @@ contains
         call recenter_ediff_session(k, .false., status)
     end subroutine copy_ediff_diff_to_diff
 
-    recursive module subroutine copy_ediff_diff(k, n, from_type, to_type, status, batch_invocation)
+    recursive module subroutine copy_ediff_diff(k, n, from_type, to_type, status, batch_invocation, region_to_copy)
         integer, intent(in) :: k, n, from_type, to_type
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: batch_invocation
+        character(len=*), intent(in), optional :: region_to_copy
         type(handle_type) :: to_buffer, old
         type(status_type) :: st, restore_status
         character(len=:), allocatable :: reg_to_copy, reg_to_delete, messg
@@ -1084,8 +1336,14 @@ contains
         if (.not. status%ok()) return
         call get_ediff_diff_position(k, to_type, .true., reg_to_delete_end, status, n)
         if (.not. status%ok()) return
-        call get_ediff_region_contents(k, n, from_type, reg_to_copy, status)
-        if (.not. status%ok()) return
+
+        if (present(region_to_copy)) then
+            reg_to_copy = region_to_copy
+        else
+            call get_ediff_region_contents(k, n, from_type, reg_to_copy, status)
+            if (.not. status%ok()) return
+        end if
+
         call get_ediff_region_contents(k, n, to_type, reg_to_delete, status, reg_to_delete_beginning, reg_to_delete_end)
         if (.not. status%ok()) return
 
@@ -1124,6 +1382,12 @@ contains
                 ! Let the user see the error msg.
                 saved = .false.
             end if
+        end if
+
+        ! Adjust state of difference in case 3-way and diff was copied ok.
+        if (saved .and. ediff_sessions(k)%three_way_job) then
+            call set_ediff_state_of_diff_in_all_buffers(k, n, status)
+            if (.not. status%ok()) return
         end if
 
         if (.not. batch) then
@@ -1248,6 +1512,12 @@ contains
             call ding()
         end if
 
+        ! Adjust state of difference.
+        if (ediff_sessions(k)%three_way_job .and. recovered) then
+            call set_ediff_state_of_diff_in_all_buffers(k, n, status)
+            if (.not. status%ok()) return
+        end if
+
         call refresh_ediff_mode_lines(k)
 
         if (recovered) then
@@ -1329,6 +1599,14 @@ contains
             ediff_sessions(k)%visible_bounds(t) = null_handle()
         end do
 
+        ! If the user interrupts (canceling saving the merge buffer),
+        ! continue normally.
+        if (ediff_sessions(k)%merge_job) then
+            call ediff_quit_merge_hook%execute(status)
+            if (status%code == FM_QUIT) status = status_type()
+            if (.not. status%ok()) return
+        end if
+
         call ediff_cleanup_hook%execute(status)
         if (.not. status%ok()) return
         ! reverse-default-keep-variants is t if the user quits with a
@@ -1349,6 +1627,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: buff_a, buff_b, buff_c, control_buffer, control_window, new
         type(status_type) :: st
+        procedure(ediff_split_window_procedure), pointer :: split_window_function
         logical :: three_way_job
         integer :: k
 
@@ -1361,7 +1640,10 @@ contains
         control_buffer = ediff_sessions(k)%control_buffer
         control_window = get_ediff_visible_buffer_window(control_buffer)
         three_way_job = ediff_sessions(k)%three_way_job
+        split_window_function => ediff_sessions(k)%split_window_function
         call close_ediff_buffer_carefully(ediff_sessions(k)%diff_buffer, status)
+        if (.not. status%ok()) return
+        call close_ediff_buffer_carefully(ediff_sessions(k)%custom_diff_buffer, status)
         if (.not. status%ok()) return
         call close_ediff_buffer_carefully(get_buffer(" *ediff-tmp*"), status)
         if (.not. status%ok()) return
@@ -1393,8 +1675,8 @@ contains
         if (.not. is_window_live(get_ediff_visible_buffer_window(buff_a)) .and. is_buffer_live(buff_a)) then
             st = status_type()
 
-            if (is_window_live(get_ediff_visible_buffer_window(buff_b)) .and. associated(ediff_split_window_function)) then
-                call ediff_split_window_function(new, st)
+            if (is_window_live(get_ediff_visible_buffer_window(buff_b)) .and. associated(split_window_function)) then
+                call split_window_function(new, st)
             end if
 
             if (st%ok()) call switch_to_buffer(buffers(buff_a%index)%name, st)
@@ -1406,7 +1688,7 @@ contains
 
                 if (is_window_live(get_ediff_visible_buffer_window(buff_a)) .or. &
                     is_window_live(get_ediff_visible_buffer_window(buff_b))) then
-                    if (associated(ediff_split_window_function)) call ediff_split_window_function(new, st)
+                    if (associated(split_window_function)) call split_window_function(new, st)
                 end if
 
                 if (st%ok()) call switch_to_buffer(buffers(buff_c%index)%name, st)
@@ -2125,6 +2407,415 @@ contains
     end subroutine ediff_other_buffer
 
     ! ------------------------------------------------------------------
+    ! Merging
+    ! ------------------------------------------------------------------
+
+    ! A `user_error' unless session K has a live ancestor buffer.  Port of
+    ! ediff-util.el:ediff--check-ancestor-exists.
+    subroutine check_ediff_ancestor_exists(k, status)
+        integer, intent(in) :: k
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (is_buffer_live(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_ANCESTOR))) return
+
+        if (ediff_sessions(k)%merge_with_ancestor_job) then
+            call set_error(status, FM_USER_ERROR, "Lost connection to ancestor buffer.  This shouldn't happen.  "// &
+                           "Please report this bug to bug-gnu-emacs@gnu.org")
+        else
+            call set_error(status, FM_USER_ERROR, "Not merging with ancestor")
+        end if
+    end subroutine check_ediff_ancestor_exists
+
+    ! Restore `ediff_show_ancestor' on exit: a function of
+    ! `ediff_quit_hook', run in the control buffer of the session that
+    ! quits.  Port of ediff-util.el:ediff--restore-options-on-exit.
+    recursive subroutine restore_ediff_options_on_exit(status)
+        type(status_type), intent(out) :: status
+        integer :: k
+
+        status = status_type()
+        k = ediff_session_index()
+        if (k == 0) return
+
+        if (ediff_sessions(k)%show_ancestor_original) then
+            call message("Restoring ediff_show_ancestor to .true....")
+        else
+            call message("Restoring ediff_show_ancestor to .false....")
+        end if
+
+        ediff_show_ancestor = ediff_sessions(k)%show_ancestor_original
+        ediff_sessions(k)%show_ancestor_original = .false.
+        call ediff_quit_hook%remove(restore_ediff_options_on_exit)
+    end subroutine restore_ediff_options_on_exit
+
+    recursive module subroutine toggle_ediff_show_ancestor(status)
+        type(status_type), intent(out) :: status
+        integer :: k
+
+        call check_ediff_control_buffer(k, status)
+        if (.not. status%ok()) return
+        call check_ediff_ancestor_exists(k, status)
+        if (.not. status%ok()) return
+
+        ! Save original value if not yet, and add hook to restore it on
+        ! exit.
+        if (.not. ediff_sessions(k)%show_ancestor_original) then
+            ediff_sessions(k)%show_ancestor_original = ediff_show_ancestor
+            call ediff_quit_hook%prepend(restore_ediff_options_on_exit)
+        end if
+
+        ediff_show_ancestor = .not. ediff_show_ancestor
+
+        ! If equal than orig, then nothing to restore on exit.
+        if (ediff_show_ancestor .eqv. ediff_sessions(k)%show_ancestor_original) then
+            ediff_sessions(k)%show_ancestor_original = .false.
+            call ediff_quit_hook%remove(restore_ediff_options_on_exit)
+        end if
+
+        if (.not. ediff_show_ancestor) then
+            call delete_window(ediff_sessions(k)%windows(EDIFF_BUFFER_TYPE_ANCESTOR), status)
+            if (.not. status%ok()) return
+            call recenter_ediff_session(k, .false., status)
+            if (.not. status%ok()) return
+            call message("Ancestor buffer is hidden")
+        else
+            ! The ancestor's frame is the selected one (control frames are
+            ! Deferred).
+            call recenter_ediff_session(k, .false., status)
+            if (.not. status%ok()) return
+            call message("Showing ancestor buffer")
+        end if
+    end subroutine toggle_ediff_show_ancestor
+
+    recursive module subroutine toggle_ediff_show_clashes_only(status)
+        type(status_type), intent(out) :: status
+        integer :: k
+
+        call check_ediff_control_buffer(k, status)
+        if (.not. status%ok()) return
+
+        if (.not. ediff_sessions(k)%merge_with_ancestor_job) then
+            call set_error(status, FM_USER_ERROR, "This command makes sense only when merging with an ancestor")
+            return
+        end if
+
+        ediff_sessions(k)%show_clashes_only = .not. ediff_sessions(k)%show_clashes_only
+
+        if (ediff_sessions(k)%show_clashes_only) then
+            call message("Focus on regions where both buffers differ from the ancestor")
+        else
+            call message("Canceling focus on regions where changes clash")
+        end if
+    end subroutine toggle_ediff_show_clashes_only
+
+    recursive module subroutine toggle_ediff_skip_changed_regions(status)
+        type(status_type), intent(out) :: status
+        integer :: k
+
+        call check_ediff_control_buffer(k, status)
+        if (.not. status%ok()) return
+        ediff_sessions(k)%skip_merge_regions_that_differ_from_default = &
+            .not. ediff_sessions(k)%skip_merge_regions_that_differ_from_default
+
+        if (ediff_sessions(k)%skip_merge_regions_that_differ_from_default) then
+            call message("Skipping regions that differ from default setting")
+        else
+            call message("Showing regions that differ from default setting")
+        end if
+    end subroutine toggle_ediff_skip_changed_regions
+
+    recursive module subroutine maybe_save_and_delete_ediff_merge(status)
+        type(status_type), intent(out) :: status
+        integer :: k
+
+        status = status_type()
+        k = ediff_session_index()
+        if (k == 0) return
+        call maybe_save_and_delete_ediff_merge_session(k, .false., status)
+    end subroutine maybe_save_and_delete_ediff_merge
+
+    recursive module subroutine maybe_save_and_delete_ediff_merge_session(k, save_and_continue, status)
+        integer, intent(in) :: k
+        logical, intent(in) :: save_and_continue
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: merge_store_file
+        logical :: always
+
+        status = status_type()
+        ! Fake ediff-autostore-merges, if necessary.
+        always = save_and_continue .or. ediff_sessions(k)%autostore_merges%value
+        if (.not. always .and. ediff_sessions(k)%autostore_merges%choice /= EDIFF_AUTOSTORE_MERGES_GROUP_JOBS_ONLY) return
+
+        if (allocated(ediff_sessions(k)%merge_store_file)) then
+            ! Store, ask to delete.
+            call write_ediff_merge_buffer_and_maybe_close(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_C), &
+                                                          ediff_sessions(k)%merge_store_file, .true., save_and_continue, &
+                                                          status)
+        else if (always) then
+            ! Ask for file name.
+            call read_file_name("Save the result of the merge in file: ", merge_store_file, status)
+            if (.not. status%ok()) return
+            call write_ediff_merge_buffer_and_maybe_close(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_C), merge_store_file, &
+                                                          .false., save_and_continue, status)
+        end if
+        ! Otherwise the parent session group's job passed no file (session
+        ! groups are Deferred with ediff-mult.el).
+    end subroutine maybe_save_and_delete_ediff_merge_session
+
+    ! Write merge buffer BUFFER into FILE (asking before overwriting an
+    ! existing file); with SHOW_FILE, say where.  Unless
+    ! SAVE_AND_CONTINUE, offer to close the buffer.  Port of
+    ! ediff-util.el:ediff-write-merge-buffer-and-maybe-kill.
+    recursive subroutine write_ediff_merge_buffer_and_maybe_close(buffer, file, show_file, save_and_continue, status)
+        type(handle_type), intent(in) :: buffer
+        character(len=*), intent(in) :: file
+        logical, intent(in) :: show_file, save_and_continue
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: expanded, warn_message
+        type(handle_type) :: visiting, old
+        type(status_type) :: st
+        logical :: answer
+
+        call expand_file_name(file, expanded, status)
+        if (.not. status%ok()) return
+        visiting = get_file_buffer(expanded)
+
+        if (.not. same_handle(visiting, buffer)) then
+            warn_message = "Another buffer is visiting file "//file//". Too dangerous to save the merge buffer"
+            call ding()
+            call message(warn_message)
+            call with_output_to_temp_buffer(" *ediff-message*", LF//LF//warn_message//LF//LF, status)
+            if (.not. status%ok()) return
+            call sit_for(2000)
+            return
+        end if
+
+        old = current_buffer()
+        call enter_ediff_buffer(buffer, status)
+        if (.not. status%ok()) return
+        answer = .true.
+        if (file_exists(file)) call read_y_or_n("File "//file//" exists, overwrite? ", answer, status)
+
+        if (status%ok() .and. answer) then
+            call set_visited_file_name(file, status)
+            if (status%ok()) call save_buffer(1_int64, .false., status)
+
+            if (status%ok() .and. show_file) then
+                call message("Merge buffer saved in: "//file)
+                call restore_buffer_modified(.false.)
+                call sit_for(3000)
+            end if
+
+            if (status%ok() .and. .not. save_and_continue) then
+                call read_y_or_n("Merge buffer saved.  Now kill the buffer? ", answer, status)
+                if (status%ok() .and. answer) call close_ediff_buffer_carefully(buffer, status)
+            end if
+        end if
+
+        ! Make the old buffer current again, keeping the first error.
+        if (is_buffer_live(old)) then
+            call set_buffer(old, st)
+            if (status%ok()) status = st
+        end if
+
+    contains
+
+        ! Whether A and B are the same buffer.
+        logical function same_handle(a, b)
+            type(handle_type), intent(in) :: a, b
+
+            same_handle = a%index == b%index .and. a%generation == b%generation
+        end function same_handle
+    end subroutine write_ediff_merge_buffer_and_maybe_close
+
+    ! If a buffer visits FILE, where the merge is to be saved, offer to
+    ! save and close it; an error condition occurs if the user declines.
+    ! Port of ediff-util.el:ediff-verify-file-merge-buffer.
+    recursive subroutine verify_ediff_file_merge_buffer(file, status)
+        character(len=*), intent(in) :: file
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: expanded, warn_message
+        type(handle_type) :: buff, old
+        type(status_type) :: st
+        logical :: answer
+
+        call expand_file_name(file, expanded, status)
+        if (.not. status%ok()) return
+        buff = get_file_buffer(expanded)
+        if (.not. is_buffer_live(buff)) return
+        warn_message = "Buffer "//buffers(buff%index)%name//" is visiting "//file//". Save and kill the buffer? "
+        call with_output_to_temp_buffer(" *ediff-message*", LF//LF//warn_message//LF//LF, status)
+        if (.not. status%ok()) return
+        call message(warn_message)
+        call read_y_or_n(warn_message, answer, status)
+        if (.not. status%ok()) return
+
+        if (.not. answer) then
+            call set_error(status, FM_GENERIC_ERROR, "Too dangerous to merge versions of a file visited by another buffer")
+            return
+        end if
+
+        old = current_buffer()
+        call set_buffer(buff, status)
+        if (.not. status%ok()) return
+        call save_buffer(1_int64, .false., status)
+        if (status%ok()) call close_buffer(buff, status)
+
+        ! Make the old buffer current again, keeping the first error.
+        if (is_buffer_live(old)) then
+            call set_buffer(old, st)
+            if (status%ok()) status = st
+        end if
+    end subroutine verify_ediff_file_merge_buffer
+
+    ! ------------------------------------------------------------------
+    ! Saving
+    ! ------------------------------------------------------------------
+
+    recursive module subroutine save_ediff_buffer(arg, key, status)
+        logical, intent(in) :: arg
+        character, intent(in) :: key
+        type(status_type), intent(out) :: status
+        type(handle_type) :: buffer, old
+        type(status_type) :: st
+        integer :: k, saved_window_min_height
+
+        call check_ediff_control_buffer(k, status)
+        if (.not. status%ok()) return
+        call compute_ediff_custom_diffs_maybe(k, status)
+        if (.not. status%ok()) return
+
+        select case (key)
+        case ("a", "b", "c")
+            buffer = ediff_sessions(k)%buffers(ediff_char_to_buffer_type(key))
+        case ("d")
+            call message("Saving diff output ...")
+            ! Give the user time to see the message.
+            call sit_for(1000)
+
+            if (arg .and. is_buffer_live(ediff_sessions(k)%diff_buffer)) then
+                buffer = ediff_sessions(k)%diff_buffer
+            else if (is_buffer_live(ediff_sessions(k)%custom_diff_buffer)) then
+                buffer = ediff_sessions(k)%custom_diff_buffer
+            else if (is_buffer_live(ediff_sessions(k)%diff_buffer)) then
+                buffer = ediff_sessions(k)%diff_buffer
+            else
+                call set_error(status, FM_USER_ERROR, format_message("Output from `diff' not found"))
+                return
+            end if
+        case default
+            buffer = ediff_sessions(k)%control_buffer
+        end select
+
+        old = current_buffer()
+        call enter_ediff_buffer(buffer, status)
+        if (.not. status%ok()) return
+        ! window_min_height is 2 while the buffer is saved.
+        saved_window_min_height = window_min_height
+        window_min_height = 2
+        call save_buffer(1_int64, .false., status)
+        window_min_height = saved_window_min_height
+
+        ! Make the old buffer current again, keeping the first error.
+        if (is_buffer_live(old)) then
+            call set_buffer(old, st)
+            if (status%ok()) status = st
+        end if
+    end subroutine save_ediff_buffer
+
+    ! Compute the custom diff output of buffers A and B of session K into
+    ! its custom diff buffer, in Diff mode: `ediff_custom_diff_program'
+    ! with `ediff_custom_diff_options' on their files (temporary copies
+    ! when a buffer visits no existing file).  Port of
+    ! ediff-util.el:ediff-compute-custom-diffs-maybe (remote files are not
+    ! ported).
+    recursive subroutine compute_ediff_custom_diffs_maybe(k, status)
+        integer, intent(in) :: k
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: file_a, file_b
+        type(handle_type) :: old
+        type(status_type) :: st
+
+        call temp_unless_visited(EDIFF_BUFFER_TYPE_A, file_a, status)
+        if (.not. status%ok()) return
+        call temp_unless_visited(EDIFF_BUFFER_TYPE_B, file_b, status)
+        if (.not. status%ok()) return
+
+        if (.not. is_buffer_live(ediff_sessions(k)%custom_diff_buffer)) then
+            call get_or_make_buffer(ediff_unique_buffer_name("*ediff-custom-diff", "*"), &
+                                    ediff_sessions(k)%custom_diff_buffer, status)
+            if (.not. status%ok()) return
+        end if
+
+        old = current_buffer()
+        call set_buffer(ediff_sessions(k)%custom_diff_buffer, status)
+        if (.not. status%ok()) return
+        buffers(current)%read_only = .false.
+        call erase_buffer(status)
+        if (status%ok()) call set_buffer(old, status)
+        if (.not. status%ok()) return
+        call execute_ediff_process(ediff_custom_diff_program, ediff_sessions(k)%custom_diff_buffer, ediff_custom_diff_options, &
+                                   status, file1=file_a, file2=file_b)
+
+        ! Put the diff file in diff-mode.
+        if (status%ok()) then
+            call set_buffer(ediff_sessions(k)%custom_diff_buffer, status)
+            if (status%ok()) call diff_mode(status)
+            call set_buffer(old, st)
+            if (status%ok()) status = st
+        end if
+
+        ! Delete the temporary files, keeping the first error.
+        call delete_temp(EDIFF_BUFFER_TYPE_A, file_a)
+        call delete_temp(EDIFF_BUFFER_TYPE_B, file_b)
+
+    contains
+
+        ! The file of buffer BUFFER_TYPE in FILE: the one it visits if that
+        ! exists, else a temporary copy.
+        recursive subroutine temp_unless_visited(buffer_type, file, status)
+            integer, intent(in) :: buffer_type
+            character(len=:), allocatable, intent(out) :: file
+            type(status_type), intent(out) :: status
+            type(handle_type) :: buffer
+
+            status = status_type()
+            buffer = ediff_sessions(k)%buffers(buffer_type)
+
+            if (is_buffer_live(buffer)) then
+                if (allocated(buffers(buffer%index)%filename)) then
+                    if (file_exists(buffers(buffer%index)%filename)) then
+                        file = buffers(buffer%index)%filename
+                        return
+                    end if
+                end if
+            end if
+
+            call create_ediff_temp_file(buffer, file, status)
+        end subroutine temp_unless_visited
+
+        ! Delete FILE if it is a temporary copy of buffer BUFFER_TYPE.
+        subroutine delete_temp(buffer_type, file)
+            integer, intent(in) :: buffer_type
+            character(len=*), intent(in) :: file
+            type(handle_type) :: buffer
+
+            buffer = ediff_sessions(k)%buffers(buffer_type)
+
+            if (is_buffer_live(buffer)) then
+                if (allocated(buffers(buffer%index)%filename)) then
+                    if (buffers(buffer%index)%filename == file) return
+                end if
+            end if
+
+            if (.not. file_exists(file)) return
+            call delete_file(file, st)
+            if (status%ok()) status = st
+        end subroutine delete_temp
+    end subroutine compute_ediff_custom_diffs_maybe
+
+    ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
 
@@ -2242,6 +2933,24 @@ contains
         call copy_ediff_diff_to_diff(current_prefix_arg, "ca", status)
     end subroutine copy_ediff_c_to_a
 
+    !> Restore ARGth diff in the merge buffer.
+    !> ARG is a prefix argument.  If absent, restore the current diff.
+    !> Port of ediff-util.el:ediff-restore-diff-in-merge-buffer.
+    recursive subroutine restore_ediff_diff_in_merge_buffer(status)
+        type(status_type), intent(out) :: status
+
+        call restore_ediff_diff(current_prefix_arg, "c", status)
+    end subroutine restore_ediff_diff_in_merge_buffer
+
+    recursive subroutine cmd_save_ediff_buffer(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: c
+
+        c = last_command_char()
+        if (len(c) == 0) c = " "
+        call save_ediff_buffer(current_prefix_arg%kind /= PREFIX_NONE, c(1:1), status)
+    end subroutine cmd_save_ediff_buffer
+
     module subroutine init_ediff_util()
         if (associated(commands%quit_ediff%execute)) return
         commands%next_ediff_difference%execute => cmd_next_ediff_difference
@@ -2261,6 +2970,12 @@ contains
         commands%copy_ediff_c_to_b%execute => copy_ediff_c_to_b
         commands%copy_ediff_c_to_a%execute => copy_ediff_c_to_a
         commands%restore_ediff_diff%execute => cmd_restore_ediff_diff
+        commands%restore_ediff_diff_in_merge_buffer%execute => restore_ediff_diff_in_merge_buffer
+        commands%toggle_ediff_show_ancestor%execute => toggle_ediff_show_ancestor
+        commands%toggle_ediff_show_clashes_only%execute => toggle_ediff_show_clashes_only
+        commands%toggle_ediff_skip_changed_regions%execute => toggle_ediff_skip_changed_regions
+        commands%save_ediff_buffer%execute => cmd_save_ediff_buffer
         call ediff_quit_hook%prepend(clean_up_ediff_mess)
+        call ediff_quit_merge_hook%prepend(maybe_save_and_delete_ediff_merge)
     end subroutine init_ediff_util
 end submodule ediff_util_session_mod

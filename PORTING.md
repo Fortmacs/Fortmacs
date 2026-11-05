@@ -276,7 +276,10 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    43. Spelling: `ispell` and `flyspell` over an external speller process.
        43a ispell.el (M-$, `ispell-region`, `ispell-buffer`, the choices
        buffer, personal and per-file dictionaries, Aspell discovery) —
-       done; 43b flyspell.el (`flyspell-mode`, `flyspell-prog-mode`).
+       done; 43b flyspell.el (`flyspell-mode`, `flyspell-prog-mode`, the
+       highlighting, `flyspell-region` with large regions through the
+       speller's list run, M-TAB auto-correction) — in progress (the
+       correction menu of C-c $ waits for TTY menus).
    44. Terminal frames: several frames on one terminal (C-x 5), and
        `tab-bar-mode`/`tab-line-mode`.
    45. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
@@ -296,8 +299,11 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        three files or buffers on one terminal frame (ediff.el,
        ediff-util.el, ediff-diff.el, ediff-init.el, ediff-wind.el,
        ediff-help.el; see docs/status/ediff_mod.md) — done; 48c merging
-       (ediff-merg.el, `ediff-merge-*`) and session groups (ediff-mult.el);
-       then revisions (ediff-vers.el) and patches (ediff-ptch.el).
+       files and buffers (ediff-merg.el, `ediff-merge-files`,
+       `ediff-merge-buffers` and their `-with-ancestor` forms; see
+       docs/status/ediff_merg_mod.md) — done; then session groups
+       (ediff-mult.el), revisions (ediff-vers.el) and patches
+       (ediff-ptch.el).
    49. Projects and cross-references: project.el (C-x p), xref.el and
        etags.el (M-., M-?, M-,) — 49a partial (docs/status/xref_mod.md and
        etags_mod.md), 49b partial (docs/status/project_mod.md), Imenu and

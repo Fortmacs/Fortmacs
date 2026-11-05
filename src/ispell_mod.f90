@@ -44,7 +44,7 @@
 !> (isearch's lazy highlighting is not ported), the *Choices* buffer's
 !> mode line (no `mode_line_format'), electric help
 !> (`ispell_help_in_buffer' electric, ehelp.el), horizontal scrolling
-!> (`truncate_lines' is not ported) and flyspell.el.
+!> (`truncate_lines' is not ported).
 module ispell_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
@@ -75,7 +75,7 @@ module ispell_mod
     use files_mod, only: executable_find, temporary_file_directory
     use dired_mod, only: directory_files
     use env_mod, only: getenv
-    use callproc_mod, only: execute_process
+    use callproc_mod, only: execute_process, execute_process_region
     use coding_mod, only: decode_coding_string, encode_coding_string
     use string_type_mod, only: string_type, append_string, prepend_string
     use process_mod, only: make_process, delete_process, is_process_live, process_status, &
@@ -120,7 +120,8 @@ module ispell_mod
               ispell_get_casechars, ispell_get_not_casechars, ispell_get_otherchars, ispell_get_many_otherchars, &
               ispell_get_coding_system, ispell_get_extended_character_mode, &
               prepend_ispell_buffer_session_localword, ispell_format_word_procedure, ispell_skip_procedure, &
-              ispell_tex_arg_end, init_ispell
+              ispell_tex_arg_end, init_ispell, ispell_get_ispell_args, ispell_buffer_session_localwords, &
+              ispell_execute_process_region
 
     !> A dictionary and its parameters, an element of `ispell_dictionaries'
     !> and `ispell_local_dictionaries' (upstream's (DICTIONARY-NAME
@@ -603,21 +604,26 @@ module ispell_mod
     ! Internal state
     ! ------------------------------------------------------------------
 
-    ! ispell-process: the process object for Ispell.
-    type(handle_type) :: ispell_process
+    !> The process object for Ispell.  Port of ispell.el ispell-process.
+    type(handle_type), public :: ispell_process
     ! ispell-process-directory: the directory where it was started.
     character(len=:), allocatable :: ispell_process_directory
-    ! ispell-filter: the output lines, in the order they arrived.
-    type(string_type), allocatable :: ispell_filter_variable(:)
+    !> Output filter from piped calls to Ispell: the output lines, in the
+    !> order they arrived (upstream's list holds the newest first).  Port
+    !> of ispell.el ispell-filter.
+    type(string_type), allocatable, public :: ispell_filter_variable(:)
     ! ispell-filter-continue: the last line is incomplete.
     logical :: ispell_filter_continue = .false.
     ! ispell-last-program-name (unallocated: never set).
     character(len=:), allocatable :: ispell_last_program_name
-    ! ispell-buffer-local-name ("" for none).
-    character(len=:), allocatable :: ispell_buffer_local_name
-    ! ispell-quit: the session is terminated; with `quit_position', the
-    ! position to continue from.
-    logical :: ispell_quit = .false.
+    !> Contains the buffer name if local word definitions were used.
+    !> Ispell is then restarted because the local words could conflict
+    !> ("" for none).  Port of ispell.el ispell-buffer-local-name.
+    character(len=:), allocatable, public :: ispell_buffer_local_name
+    !> True when the spell session is terminated (with
+    !> `ispell_quit_position', the position to continue from).  Port of
+    !> ispell.el ispell-quit.
+    logical, public :: ispell_quit = .false.
     integer(int64) :: ispell_quit_position = 0
     ! ispell-region-end and ispell-recursive-edit-marker.
     type(handle_type) :: ispell_region_end, ispell_recursive_edit_marker
@@ -802,6 +808,26 @@ contains
         call execute_process(program, result, status, destination=value_type(.true.), args=args)
         call restore_directory(saved)
     end subroutine ispell_execute_process
+
+    !> Like `execute_process_region', but defend against bad
+    !> `default_directory': run PROGRAM with ARGS on the text from START to
+    !> END, its output inserted in buffer DESTINATION (a buffer name);
+    !> RESULT is its exit status or the signal description.  Port of
+    !> ispell.el:ispell-call-process-region.
+    subroutine ispell_execute_process_region(start, end, program, destination, args, result, status)
+        integer(int64), intent(in) :: start, end
+        character(len=*), intent(in) :: program, destination
+        type(value_type), intent(in) :: args
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: saved
+
+        call save_directory(saved)
+        buffers(current)%directory = safe_default_directory()
+        call execute_process_region(program, result, status, start=start, end=end, &
+                                    destination=value_type(text=destination), args=args)
+        call restore_directory(saved)
+    end subroutine ispell_execute_process_region
 
     !> Ensure that `ispell_program_name' is valid and has the correct
     !> version.  Return version number if called interactively, or if
@@ -2118,6 +2144,22 @@ contains
 
         call prepend_string(session_localwords(k)%words, word)
     end subroutine prepend_ispell_buffer_session_localword
+
+    !> The current buffer's `ispell_buffer_session_localwords' in WORDS: the
+    !> words accepted for the session in this buffer, the newest first.
+    !> Port of ispell.el ispell-buffer-session-localwords (its value).
+    subroutine ispell_buffer_session_localwords(words)
+        type(string_type), allocatable, intent(out) :: words(:)
+        integer :: k
+
+        k = session_slot()
+
+        if (k == 0) then
+            allocate (words(0))
+        else
+            words = session_localwords(k)%words
+        end if
+    end subroutine ispell_buffer_session_localwords
 
     ! Forget the current buffer's session local words.  Not a port.
     subroutine clear_session_localwords()

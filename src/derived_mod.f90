@@ -53,6 +53,16 @@ module derived_mod
 
     public :: major_mode_named, is_derived_mode, provided_mode_derived_p
 
+    abstract interface
+        !> A test a major mode makes of the text at point, such as the
+        !> `flyspell_mode_test_function' of `major_mode_type'.  Not a port.
+        recursive logical function mode_test_procedure()
+            implicit none(type, external)
+        end function mode_test_procedure
+    end interface
+
+    public :: mode_test_procedure
+
     !> Return true if the current major mode is derived from one of
     !> MODES (mode objects, or names).  MODES can also be a single mode
     !> instead of an array.  Port of subr.el:derived-mode-p.
@@ -93,6 +103,11 @@ module derived_mod
         !> `mode_class' property `special'); inherited from the parent when
         !> the mode runs.
         logical :: special = .false.
+        !> Whether Flyspell checks the word at point in this mode (the
+        !> `flyspell-mode-predicate' property: `flyspell_mode' makes it the
+        !> buffer's `flyspell_generic_check_word_test_function'); null for
+        !> none.
+        procedure(mode_test_procedure), pointer, nopass :: flyspell_mode_test_function => null()
     contains
         !> Make the mode known by NAME.
         procedure :: define => major_mode_define
