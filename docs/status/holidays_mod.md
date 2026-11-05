@@ -44,7 +44,7 @@ cal-islam.el: `calendar-islamic-leap-year-p`,
 
 ## Deferred
 
-`holiday-hebrew-holidays` (cal-hebrew.el),
+`holiday-hebrew-holidays` (waits for cal-hebrew.el, a later part of step 46, the other calendars),
 `holiday-bahai-holidays` (cal-bahai.el, which needs solar.el and lunar.el),
 `holiday-oriental-holidays` (cal-china.el, which needs solar.el and lunar.el),
 `holiday-solar-holidays` and `solar-equinoxes-solstices` (solar.el, cal-dst.el),
