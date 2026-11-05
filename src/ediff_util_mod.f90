@@ -25,9 +25,11 @@
 !> an overlay on each difference region and arranges the windows
 !> (ediff_wind_mod); the control buffer's keys then move between the
 !> differences (n, p, j, ga, gb), copy them between the buffers (a, b
-!> or ab, ba, ..., restored with ra, rb, ...), recenter (C-l), toggle
+!> or ab, ba, ..., restored with ra, rb, ...; in merge jobs a and b copy
+!> into the merge buffer C and r restores it), recenter (C-l), toggle
 !> the split (|), the highlighting (h) and the help (?), recompute the
-!> differences (!) and quit (q).
+!> differences (!), save a buffer (wa, wb, wc, wd) and quit (q, which
+!> runs `ediff_quit_merge_hook' in merge jobs).
 !>
 !> The procedures that need the windows and diff modules are in the
 !> submodule ediff_util_session_mod (ediff_wind_mod and ediff_diff_mod use
@@ -60,11 +62,13 @@ module ediff_util_mod
         !> and FILE_C: make the control buffer in Ediff mode, compute the
         !> difference regions, set up the windows and run STARTUP_HOOKS and
         !> `ediff_startup_hook'.  JOB_NAME (a command, as commands%ediff_files) is
-        !> the kind of job.  CONTROL_BUFFER is the control buffer.  Port of
-        !> ediff-util.el:ediff-setup (the merge jobs and MERGE-BUFFER-FILE
-        !> are deferred; SETUP-PARAMETERS is JOB_NAME).
+        !> the kind of job.  CONTROL_BUFFER is the control buffer.  In a merge
+        !> job, BUFFER_C is the ancestor (or null) and buffer C becomes a new
+        !> merge buffer *ediff-merge*, which is to be saved in
+        !> MERGE_BUFFER_FILE if present.  Port of ediff-util.el:ediff-setup
+        !> (SETUP-PARAMETERS is JOB_NAME).
         recursive module subroutine set_up_ediff(buffer_a, file_a, buffer_b, file_b, buffer_c, file_c, job_name, &
-                                                 control_buffer, status, startup_hooks)
+                                                 control_buffer, status, startup_hooks, merge_buffer_file)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_c
             character(len=*), intent(in) :: file_a, file_b, file_c
@@ -72,6 +76,7 @@ module ediff_util_mod
             type(handle_type), intent(out) :: control_buffer
             type(status_type), intent(out) :: status
             type(hook_type), intent(inout), optional :: startup_hooks
+            character(len=*), intent(in), optional :: merge_buffer_file
         end subroutine set_up_ediff
 
         !> Set up the selected window for control buffer CONTROL_BUFFER of
@@ -88,7 +93,9 @@ module ediff_util_mod
         !> Ediff mode controls all operations in a single Ediff session.
         !> This mode is entered through one of the following commands:
         !> `ediff', `ediff_files', `ediff_buffers', `ebuffers', `ediff3',
-        !> `ediff_files3', `ediff_buffers3', `ebuffers3' and
+        !> `ediff_files3', `ediff_buffers3', `ebuffers3', `ediff_merge',
+        !> `ediff_merge_files', `ediff_merge_files_with_ancestor',
+        !> `ediff_merge_buffers', `ediff_merge_buffers_with_ancestor' and
         !> `ediff_current_file'.
         !>
         !> Commands:
@@ -103,8 +110,8 @@ module ediff_util_mod
         !> Buffers are not synchronized with their respective files, so
         !> changes done to these buffers are not saved at this point---the
         !> user can do this later, if necessary.  Port of
-        !> ediff-util.el:ediff-update-diffs (word mode and the ancestor are
-        !> deferred with those jobs).
+        !> ediff-util.el:ediff-update-diffs (word mode is deferred with its
+        !> jobs).
         recursive module subroutine update_ediff_diffs(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -220,15 +227,15 @@ module ediff_util_mod
             type(status_type), intent(out) :: status
         end subroutine copy_ediff_diff_to_diff
 
-        !> Copy difference N of session K from FROM_TYPE to TO_TYPE, saving
-        !> the old region unless BATCH_INVOCATION.  Port of
-        !> ediff-util.el:ediff-copy-diff (REG-TO-COPY is deferred with
-        !> merging).
-        recursive module subroutine copy_ediff_diff(k, n, from_type, to_type, status, batch_invocation)
+        !> Copy difference N of session K from FROM_TYPE (or REGION_TO_COPY,
+        !> when given, with FROM_TYPE 0) to TO_TYPE, saving the old region
+        !> unless BATCH_INVOCATION.  Port of ediff-util.el:ediff-copy-diff.
+        recursive module subroutine copy_ediff_diff(k, n, from_type, to_type, status, batch_invocation, region_to_copy)
             implicit none(type, external)
             integer, intent(in) :: k, n, from_type, to_type
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: batch_invocation
+            character(len=*), intent(in), optional :: region_to_copy
         end subroutine copy_ediff_diff
 
         !> Restore ARGth diff from `ediff_killed_diffs_alist'.
@@ -357,8 +364,76 @@ module ediff_util_mod
             character(len=:), allocatable, intent(out) :: name
         end subroutine ediff_other_buffer
 
-        !> Register the commands of ediff-util.el and add
-        !> `clean_up_ediff_mess' to `ediff_quit_hook'.  Not a port.
+        !> Toggle to show/hide the ancestor buffer.  Port of
+        !> ediff-util.el:ediff-toggle-show-ancestor.
+        recursive module subroutine toggle_ediff_show_ancestor(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine toggle_ediff_show_ancestor
+
+        !> Toggle mode showing only merge regions where both variants differ
+        !> from ancestor.  Port of ediff-util.el:ediff-toggle-show-clashes-only.
+        recursive module subroutine toggle_ediff_show_clashes_only(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine toggle_ediff_show_clashes_only
+
+        !> Toggle the mode that skips the merge regions that differ from the
+        !> default.  Port of ediff-util.el:ediff-toggle-skip-changed-regions.
+        recursive module subroutine toggle_ediff_skip_changed_regions(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine toggle_ediff_skip_changed_regions
+
+        !> Safe way of saving buffers A, B, C, and the diff output.
+        !> `wa' saves buffer A, `wb' saves buffer B, `wc' saves buffer C,
+        !> and `wd' saves the diff output; KEY is the last key of the
+        !> command (a, b, c or d).
+        !>
+        !> With prefix argument ARG, `wd' saves plain diff output.
+        !> Without an argument, it saves customized diff argument, if
+        !> available (and plain output, if customized output was not
+        !> generated).  Port of ediff-util.el:ediff-save-buffer.
+        recursive module subroutine save_ediff_buffer(arg, key, status)
+            implicit none(type, external)
+            logical, intent(in) :: arg
+            character, intent(in) :: key
+            type(status_type), intent(out) :: status
+        end subroutine save_ediff_buffer
+
+        !> Default hook to run on quitting a merge job.
+        !> This can also be used to save merge buffer in the middle of an
+        !> Ediff session (`maybe_save_and_delete_ediff_merge_session' with
+        !> SAVE_AND_CONTINUE).
+        !>
+        !> If `ediff_autostore_merges' is .false., this does nothing.
+        !> If it is .true., it saves the merge buffer in the file
+        !> `ediff_merge_store_file' or asks the user, if the latter is not
+        !> set.  It then asks the user whether to delete the merge buffer.
+        !> If `ediff_autostore_merges' is EDIFF_AUTOSTORE_MERGES_GROUP_JOBS_ONLY,
+        !> the merge buffer is saved only if this merge job is part of a
+        !> group, i.e., was invoked from within `ediff_merge_directories',
+        !> `ediff_merge_directory_revisions', and such.  Port of
+        !> ediff-util.el:ediff-maybe-save-and-delete-merge.
+        recursive module subroutine maybe_save_and_delete_ediff_merge(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine maybe_save_and_delete_ediff_merge
+
+        !> `maybe_save_and_delete_ediff_merge' for session K: if
+        !> SAVE_AND_CONTINUE, save merge buffer and continue (as if
+        !> `ediff_autostore_merges' were .true., without offering to close
+        !> the buffer).  Port of ediff-util.el:ediff-maybe-save-and-delete-merge.
+        recursive module subroutine maybe_save_and_delete_ediff_merge_session(k, save_and_continue, status)
+            implicit none(type, external)
+            integer, intent(in) :: k
+            logical, intent(in) :: save_and_continue
+            type(status_type), intent(out) :: status
+        end subroutine maybe_save_and_delete_ediff_merge_session
+
+        !> Register the commands of ediff-util.el, add `clean_up_ediff_mess'
+        !> to `ediff_quit_hook' and `maybe_save_and_delete_ediff_merge' to
+        !> `ediff_quit_merge_hook'.  Not a port.
         module subroutine init_ediff_util()
             implicit none(type, external)
         end subroutine init_ediff_util
@@ -369,7 +444,9 @@ module ediff_util_mod
               previous_ediff_difference, jump_to_ediff_difference, jump_to_ediff_difference_at_point, ediff_diff_at_point, &
               copy_ediff_diff_to_diff, copy_ediff_diff, restore_ediff_diff, quit_ediff, quit_ediff_session, &
               unselect_and_select_ediff_difference, get_ediff_diff_position, get_ediff_region_contents, &
-              read_ediff_file_name, create_ediff_temp_file, verify_ediff_file_buffer, ediff_other_buffer, init_ediff_util
+              read_ediff_file_name, create_ediff_temp_file, verify_ediff_file_buffer, ediff_other_buffer, &
+              toggle_ediff_show_ancestor, toggle_ediff_show_clashes_only, toggle_ediff_skip_changed_regions, &
+              save_ediff_buffer, maybe_save_and_delete_ediff_merge, maybe_save_and_delete_ediff_merge_session, init_ediff_util
 
 contains
 
