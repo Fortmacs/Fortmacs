@@ -283,9 +283,11 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        `window-divider` and side windows.
    46. Calendar and diary, in parts: 46a the calendar core (calendar.el
        and cal-move.el: M-x calendar, Calendar mode, movement and
-       scrolling) — done; then the holidays, the diary, the other
-       calendars (cal-iso.el, cal-julian.el and the rest), lunar.el
-       and solar.el.
+       scrolling) — done; 46b the holidays (holidays.el, with the
+       Julian and Islamic conversions of cal-julian.el and cal-islam.el;
+       docs/status/holidays_mod.md) — partial; then the diary, the
+       other calendars (cal-iso.el, the rest of cal-julian.el and the
+       others), lunar.el and solar.el (and the holidays that need them).
    47. VC, the rest: `vc-annotate` (C-x v g), branches and tags, pull
        and push, incoming and outgoing logs, and the vc-hg and vc-svn
        backends (vc-svn: done).

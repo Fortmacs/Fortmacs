@@ -1,0 +1,11 @@
+# The user options of step 46's holidays (holidays.el, calendar.el).
+calendar_christian_all_holidays_flag
+calendar_holidays
+calendar_islamic_all_holidays_flag
+calendar_mark_holidays_flag
+calendar_view_holidays_initially_flag
+holiday_christian_holidays
+holiday_general_holidays
+holiday_islamic_holidays
+holiday_local_holidays
+holiday_other_holidays

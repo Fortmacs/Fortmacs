@@ -1,0 +1,21 @@
+# fortran-names.d/2026-11-05-step46-holidays -- the names of step 46's
+# holidays (holidays.el, cal-julian.el, cal-islam.el, calendar.el).
+#
+# Decided by existing rules: predicates (_p) are is_* logical functions;
+# no abbreviations (abs -> absolute).  calendar.el's variable
+# calendar-mark-holidays is calendar_mark_holidays_variable (the clash
+# rule's _variable suffix: the function calendar_mark_holidays has the
+# name), by hand.  holiday-sexp is holiday_expression by the term entry
+# sexp -> expression; its SEXP and the other Lisp forms of a holiday list
+# are procedure pointers (R6-37; R6-29, the owner's decision on the
+# calendar's procedure pointers).
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+name	calendar_month_overlap_p	is_calendar_month_overlap
+name	calendar_month_visible_p	is_calendar_month_visible
+name	calendar_nongregorian_date_visible_p	is_calendar_nongregorian_date_visible
+name	calendar_islamic_leap_year_p	is_calendar_islamic_leap_year
+name	holiday_easter_etc_abs	holiday_easter_etc_absolute
+name	holiday_greek_orthodox_easter_abs	holiday_greek_orthodox_easter_absolute
