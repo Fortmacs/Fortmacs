@@ -370,7 +370,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: errbuf, tembuf, mailbuf, delimline
         character(len=:), allocatable :: saved_address, saved_conv, saved_sendmail_coding, conv, failure, character_set, &
-                message_id, &
+                                         message_id, &
                                          sanitized
         logical :: had_address, had_conv, had_sendmail_coding, saved_fold, found, failed
         integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion, moved
@@ -742,7 +742,7 @@ contains
 
             do while (status%ok())
                 call search_regular_expression("\(\=\|[^\]\(\\\\\)*\)\\(\(\([^\]\|\\\\\)*\)\\)", found, status, &
-                                   marked_position(fullname_end), move=.true.)
+                                               marked_position(fullname_end), move=.true.)
                 if (.not. (status%ok() .and. found)) exit
                 call replace_match("\1(\3)", status, fixedcase=.true.)
                 call goto_character(fullname_start)
@@ -2629,7 +2629,7 @@ contains
         if (.not. allocated(smtpmail_queue_directory)) smtpmail_queue_directory = "~/Mail/queued-mail/"
         if (.not. allocated(smtpmail_queue_index_file)) smtpmail_queue_index_file = "index"
         if (.not. allocated(smtpmail_authentication_supported)) smtpmail_authentication_supported = [character( &
-                len=8) :: "cram-md5", "plain", "login"]
+                                                                                             len=8) :: "cram-md5", "plain", "login"]
         if (.not. allocated(smtpmail_recipient_addresses)) allocate (smtpmail_recipient_addresses(0))
         commands%send_queued_mail_with_smtp%execute => send_queued_mail_with_smtp
     end subroutine initialize_smtpmail

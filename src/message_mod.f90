@@ -1016,7 +1016,7 @@ contains
         call goto_character(point_minimum())
 
         if (search_regular_expression("\("//LF//"\)"//LF//"\|^\("//regular_expression_quote(mail_header_separator)//LF//"\)", &
-                status)) then
+                                      status)) then
             e = match_end(1, status)
             if (e <= 0) e = match_beginning(2, status)
         else
@@ -2994,7 +2994,7 @@ contains
         call goto_character(point_minimum())
         moved = skip_characters_forward(achar(0)//"-"//achar(127), status)
         if (status%ok() .and. .not. is_end_of_buffer()) call set_error(status, VOID_FUNCTION_CODE, &
-                "mail_encode_encoded_word_buffer")
+                                                                       "mail_encode_encoded_word_buffer")
     end subroutine encode_message_header
 
     ! ------------------------------------------------------------------
@@ -3705,7 +3705,7 @@ contains
         if (.not. allocated(message_cite_prefix_regular_expression)) then
             message_cite_prefix_regular_expression = "\(?:[ "//TAB//"]*\(?:[[:word:]_.]+>\|[>|]\)\)+"
             if (allocated(mail_citation_prefix_regular_expression)) message_cite_prefix_regular_expression = &
-                    mail_citation_prefix_regular_expression
+                mail_citation_prefix_regular_expression
         end if
 
         if (.not. allocated(message_signature_file) .and. allocated(mail_signature_file)) then
@@ -4142,7 +4142,7 @@ contains
         if (.not. found) return
         choices(1) = read_multiple_choice_choice_type(iachar("d"), "delete", "Remove non-printable characters and send")
         choices(2) = read_multiple_choice_choice_type(iachar("r"), "replace", "Replace non-printable characters with """// &
-                                     message_replacement_character//""" and send")
+                                                      message_replacement_character//""" and send")
         choices(3) = read_multiple_choice_choice_type(iachar("u"), "url-encode", "Use URL %hex encoding")
         choices(4) = read_multiple_choice_choice_type(iachar("s"), "send", "Send as is without removing anything")
         choices(5) = read_multiple_choice_choice_type(iachar("e"), "edit", "Continue editing")
@@ -5999,13 +5999,13 @@ contains
         call mark_message_inserted_region(beginning, end, status, current_prefix_argument%kind /= PREFIX_NONE)
     end subroutine execute_mark_message_inserted_region
 
-    recursive subroutine cmd_mark_message_insert_file(status)
+    recursive subroutine execute_mark_message_insert_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         call read_file_name("File to insert: ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (status%ok()) call mark_message_insert_file(file, status, current_prefix_argument%kind /= PREFIX_NONE)
-    end subroutine cmd_mark_message_insert_file
+    end subroutine execute_mark_message_insert_file
 
     recursive subroutine execute_change_message_subject(status)
         type(status_type), intent(out) :: status
@@ -6215,7 +6215,7 @@ contains
         commands%reduce_message_to_to_cc%execute => reduce_message_to_to_cc
         commands%add_message_archive_header%execute => execute_add_message_archive_header
         commands%mark_message_inserted_region%execute => execute_mark_message_inserted_region
-        commands%mark_message_insert_file%execute => cmd_mark_message_insert_file
+        commands%mark_message_insert_file%execute => execute_mark_message_insert_file
         commands%change_message_subject%execute => execute_change_message_subject
         commands%elide_message_region%execute => execute_elide_message_region
         commands%delete_message_not_region%execute => execute_delete_message_not_region

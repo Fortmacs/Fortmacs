@@ -57,8 +57,8 @@ module mail_utilities_mod
 
     public :: is_mail_file_babyl, quote_mail_printable, quote_mail_printable_region, unquote_mail_printable, &
               unquote_mail_printable_region, strip_mail_quoted_names, mail_dont_reply_to, get_mail_field, &
-        parse_mail_comma_list, mail_comma_list_regular_expression, mail_rfc822_date, wrap_mail_re_regular_expression, &
-                initialize_mail_utilities
+              parse_mail_comma_list, mail_comma_list_regular_expression, mail_rfc822_date, wrap_mail_re_regular_expression, &
+              initialize_mail_utilities
 
     !> Regexp specifying addresses to prune from a reply message.
     !> If this is unallocated, it is set the first time you compose a reply, to
@@ -138,7 +138,7 @@ contains
         type(status_type) :: st
 
         r%narrowed = buffers(current)%beginning_of_accessible_portion /= 1 .or. buffers(current)%end_of_accessible_portion &
-                /= buffers(current)%text%z
+                     /= buffers(current)%text%z
         if (.not. r%narrowed) return
         call copy_marker_at(buffers(current)%beginning_of_accessible_portion, r%beginning, .false., st)
         call copy_marker_at(buffers(current)%end_of_accessible_portion, r%end, .true., st)
@@ -334,7 +334,7 @@ contains
 
             if (character_at(string, b) /= 10) then
                 call character_to_string(16*unquote_mail_printable_hexdigit(character_at(string, b)) &
-                                    + unquote_mail_printable_hexdigit(character_at(string, b + 1)), text, st)
+                                         + unquote_mail_printable_hexdigit(character_at(string, b + 1)), text, st)
                 result = result//text
             end if
 
@@ -395,7 +395,7 @@ contains
 
             do
                 call regular_expression_search_forward("=\(\([0-9A-F][0-9A-F]\)\|[="//LF//"]\|..\)", found, status, &
-                                       noerror=SEARCH_NOERROR)
+                                                       noerror=SEARCH_NOERROR)
                 if (.not. status%ok() .or. found == 0) exit
                 call goto_character(match_end(0, st))
                 m1 = match_beginning(1, st)
@@ -474,7 +474,7 @@ contains
 
         do
             position = string_match("\([ "//TAB//"]?\)\([ "//TAB//"]*""\([^""\]\|\\.\|\\"//LF//"\)*""[ "//TAB//LF//"]*\)", &
-                               address, st, start=position)
+                                    address, st, start=position)
             if (position == 0) exit
             me = match_end(0, st)
 
@@ -834,9 +834,9 @@ contains
 
         ! Re(1) or Re[1] or Re^1, then SPC/NBSP followed by various colon
         ! variants and TAB/SPC; repeated, as in "Re[1]: Re[2]:".
-       regular_expression = "\`[ "//TAB//"]*\("//alternatives//"\(([0-9]+)\|\[[0-9]+\]\|\^[0-9]+\)? ?"//achar(194)//achar( &
-               160)//"*["//colons// &
-                 "][ "//TAB//"]*\)*[ "//TAB//"]*"
+        regular_expression = "\`[ "//TAB//"]*\("//alternatives//"\(([0-9]+)\|\[[0-9]+\]\|\^[0-9]+\)? ?"//achar(194)//achar( &
+                             160)//"*["//colons// &
+                             "][ "//TAB//"]*\)*[ "//TAB//"]*"
     end function wrap_mail_re_regular_expression
 
     !> Register the commands of mail-utils.el and set `mail_re_regular_expressions'.
@@ -844,8 +844,8 @@ contains
     subroutine initialize_mail_utilities()
         if (.not. allocated(mail_re_regular_expressions)) then
             mail_re_regular_expressions = [character(len=16) :: "RE", "RÉ\.?", "FWD?", "رد", "回复", "回覆", &
-                               "SV", "Antw\.?", "VS", "REF", "AW", &
-                               "ΑΠ", "ΣΧΕΤ", "השב", "Vá", "R", "RIF", "BLS", "RES", "Odp", "YNT", "ATB"]
+                                           "SV", "Antw\.?", "VS", "REF", "AW", &
+                                           "ΑΠ", "ΣΧΕΤ", "השב", "Vá", "R", "RIF", "BLS", "RES", "Odp", "YNT", "ATB"]
         end if
 
         commands%quote_mail_printable_region%execute => execute_quote_mail_printable_region
