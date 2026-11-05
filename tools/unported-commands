@@ -123,6 +123,7 @@ dired.el	dired-mouse-find-file-other-window	dired_mouse_find_file_other_window
 dired.el	dired-toggle-read-only	dired_toggle_read_only
 ediff-help.el	ediff-customize	ediff_customize
 ediff-help.el	ediff-help-for-quick-help	ediff_help_for_quick_help
+ediff-mult.el	ediff-meta-show-patch	show_ediff_meta_patch
 ediff-util.el	ediff-debug-info	ediff_debug_info
 ediff-util.el	ediff-diff-to-diff	copy_ediff_diff_to_diff
 ediff-util.el	ediff-inferior-compare-regions	ediff_inferior_compare_regions
@@ -144,12 +145,8 @@ ediff-util.el	ediff-toggle-regexp-match	ediff_toggle_regexp_match
 ediff-util.el	ediff-toggle-skip-similar	ediff_toggle_skip_similar
 ediff-util.el	ediff-toggle-use-toolbar	ediff_toggle_use_toolbar
 ediff-util.el	ediff-toggle-wide-display	ediff_toggle_wide_display
-ediff.el	ediff-directories	ediff_directories
-ediff.el	ediff-directories3	ediff_directories3
 ediff.el	ediff-directory-revisions	ediff_directory_revisions
 ediff.el	ediff-documentation	ediff_documentation
-ediff.el	ediff-merge-directories	ediff_merge_directories
-ediff.el	ediff-merge-directories-with-ancestor	ediff_merge_directories_with_ancestor
 ediff.el	ediff-merge-directory-revisions	ediff_merge_directory_revisions
 ediff.el	ediff-merge-directory-revisions-with-ancestor	ediff_merge_directory_revisions_with_ancestor
 ediff.el	ediff-merge-revisions	ediff_merge_revisions
