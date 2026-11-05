@@ -80,6 +80,7 @@
 | [fortmacs_mod](../status/fortmacs_mod.md) | emacs.c `main` (+ startup.el `command-line` terminal part, `-q`/`-Q` and the init file and `command-line-1` file arguments, faces.el `tty-run-terminal-initialization`, buffer.c `init_buffer` directory) | partial |
 | [fortmacs_tags_mod](../status/fortmacs_tags_mod.md) | progmodes/etags.el | partial |
 | [fortmacs_widget_for_object_collections_mod](../status/fortmacs_widget_for_object_collections_mod.md) | emacs-lisp/ewoc.el | done |
+| [fortran_completion_mod](../status/fortran_completion_mod.md) | — (an added feature, PORTING.md "Added features"; owner 2026-11-05) | partial |
 | [frame_mod](../status/frame_mod.md) | frame.h (+ window.h pixel edges, window.c `window_body_width` and `resize_frame_windows`, window.el `frame-windows-min-size`, frame.c's divider widths, frame.el's window dividers); step 44a: frame.c (terminal frames), frame.el (C-x 5), minibuf.c `move_minibuffers_onto_frame` | partial |
 | [glyph_matrices_mod](../status/glyph_matrices_mod.md) | dispextern.h | partial |
 | [grep_mod](../status/grep_mod.md) | progmodes/grep.el (+ find-dired.el `find-name-arg`) | partial |
@@ -115,6 +116,7 @@
 | [make_mode_mod](../status/make_mode_mod.md) | progmodes/make-mode.el | partial |
 | [marker_mod](../status/marker_mod.md) | marker.c (+ alloc.c `Fmake_marker`) | done |
 | [md5_mod](../status/md5_mod.md) | Gnulib lib/md5.c | done |
+| [message_mod](../status/message_mod.md) | gnus/message.el (+ rfc2047.el `rfc2047-fold-field`, gnus-util.el `gnus-output-to-mail`, mailheader.el `mail-header-format`, and what mml.el's `mml-generate-mime` makes of a plain ASCII body) | partial |
 | [minibuffer_mod](../status/minibuffer_mod.md) | minibuffer.el | partial |
 | [minibuffer_reading_mod](../status/minibuffer_reading_mod.md) | minibuf.c | partial |
 | [minibuffer_reading_tables_mod](../status/minibuffer_reading_tables_mod.md) | minibuf.c, minibuffer.el (split from minibuffer_reading_mod so that hooks_mod's hooks can hold completion-at-point functions) | done |
@@ -165,7 +167,7 @@
 | [simple_set_variable_mod](../status/simple_set_variable_mod.md) | simple.el `set-variable` (+ minibuf.c `read-variable`, the reading of the value) | partial |
 | [simple_shell_mod](../status/simple_shell_mod.md) | simple.el (shell commands; + subr.el `call-process-shell-command`, `call-shell-region`; window.el `count-screen-lines`; buffer.c `set-buffer-major-mode`) | partial |
 | [skeleton_mod](../status/skeleton_mod.md) | skeleton.el | done |
-| [smtpmail_mod](../status/smtpmail_mod.md) | mail/smtpmail.el (+ network-stream.el `open-network-stream` and `network-stream-open-starttls` without TLS, `network-stream-get-response`; rfc2104.el `rfc2104-hash` with MD5; message.el `message-make-message-id`, `message-unique-id`, `message-number-base36`, `message-make-fqdn`, `message-user-mail-address`, `message-narrow-to-headers`; process.c's blocking connect, `send_process` and the default sentinel's messages for this connection) | partial |
+| [smtpmail_mod](../status/smtpmail_mod.md) | mail/smtpmail.el (+ network-stream.el `open-network-stream` and `network-stream-open-starttls` without TLS, `network-stream-get-response`; rfc2104.el `rfc2104-hash` with MD5; message.el `message-narrow-to-headers` (the Message-ID comes from message_mod's `make_message_id`); process.c's blocking connect, `send_process` and the default sentinel's messages for this connection) | partial |
 | [spellcheck_mod](../status/spellcheck_mod.md) | textmodes/ispell.el | partial |
 | [spellcheck_mode_mod](../status/spellcheck_mode_mod.md) | textmodes/flyspell.el | partial |
 | [string_type_mod](../status/string_type_mod.md) | — (fortran-lang stdlib's `string_type`) | done |

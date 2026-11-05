@@ -152,6 +152,7 @@ module bindings_mod
     use mail_extract_mod, only: initialize_mail_extract
     use send_mail_mod, only: initialize_sendmail, mail_mode_map
     use smtpmail_mod, only: initialize_smtpmail
+    use message_mod, only: initialize_message
     use mail_abbreviations_mod, only: initialize_mailabbrev
     use simple_mod, only: initialize_simple_mail
     use modes_mod, only: minor_modes
@@ -796,13 +797,14 @@ contains
         call initialize_view()
         call initialize_follow()
         call initialize_directory_editor_mode(control_x_map, control_x_4_map, control_x_5_map, tab_prefix_map)
-        ! Mail: mail-utils.el, mail-extr.el, sendmail.el, smtpmail.el, mailabbrev.el and
+        ! Mail: mail-utils.el, mail-extr.el, sendmail.el, smtpmail.el, mailabbrev.el, message.el and
         ! simple.el's compose-mail, with their keys from bindings.el.
         call initialize_mail_utilities()
         call initialize_mail_extract()
         call initialize_sendmail()
         call initialize_smtpmail()
         call initialize_mailabbrev()
+        call initialize_message()
         call initialize_simple_mail()
         call bind(control_x_map, "m", "compose_mail")
         call bind(control_x_4_map, "m", "compose_mail_other_window")

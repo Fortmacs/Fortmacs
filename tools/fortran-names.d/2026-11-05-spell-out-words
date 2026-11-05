@@ -339,7 +339,7 @@ name	cmd_u	command_u	test/test_repeat_mod.f90
 # The private helpers that give the position of a marker, or 0 where it
 # points nowhere (marker_position, marker_mod, is the subroutine with a
 # status).
-name	mpos	marked_position	src/ansi_color_mod.f90 src/directory_editor_mode_mod.f90 src/f90_mod.f90 src/fortmacs_widget_for_object_collections_mod.f90 src/log_edit_mod.f90 src/make_mode_mod.f90 src/newcomment_mod.f90 src/python_mod.f90 src/send_mail_mod.f90 src/shell_script_mod.f90
+name	mpos	marked_position	src/ansi_color_mod.f90 src/directory_editor_mode_mod.f90 src/f90_mod.f90 src/fortmacs_widget_for_object_collections_mod.f90 src/log_edit_mod.f90 src/make_mode_mod.f90 src/newcomment_mod.f90 src/python_mod.f90 src/send_mail_mod.f90 src/shell_script_mod.f90 src/message_mod.f90
 name	marker_pos	marked_position	src/command_interpreter_mod.f90 src/smtpmail_mod.f90 src/spellcheck_mod.f90 src/window_configuration_mod.f90 src/window_display_mod.f90
 name	comint_args	comint_range_arguments
 # which-func-mode (a variable) beside the minor mode which-function-mode
@@ -532,3 +532,6 @@ name	simple_minded_indentation_engine_token_procedure	simple_minded_indentation_
 name	version_control_mercurial_symbolic_revision_style_type	version_control_mercurial_revision_style_type
 # The new name holds stop_process (0-base): kept so it is not renamed again.
 keep	asynchronous_shell_command_buffer_confirm_stop_process
+# "Re:", the reply prefix of a mail subject, is no abbreviation of regexp.
+keep	mail_re
+keep	subject_re
