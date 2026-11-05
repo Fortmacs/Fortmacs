@@ -83,7 +83,7 @@ submodule(ediff_util_mod) ediff_util_session_mod
                               ediff_custom_diff_options
     use ediff_merg_mod, only: ediff_default_variant, ediff_show_clashes_only, ediff_skip_merge_regions_that_differ_from_default, &
                               ediff_quit_merge_hook, is_ediff_merge_region_non_clash_to_skip, &
-                              is_ediff_merge_region_changed_from_default_to_skip, set_ediff_state_of_diff_in_all_buffers, &
+                              is_ediff_skip_merge_region_if_changed_from_default, set_ediff_state_of_diff_in_all_buffers, &
                               set_ediff_state_of_all_diffs_in_all_buffers, set_ediff_merge_mode, EDIFF_DEFAULT_VARIANT_DEFAULT_B
     implicit none(type, external)
 
@@ -1121,7 +1121,7 @@ contains
         logical :: skip_changed
 
         skip = is_ediff_merge_region_non_clash_to_skip(k, n)
-        call is_ediff_merge_region_changed_from_default_to_skip(k, n, skip_changed, status)
+        call is_ediff_skip_merge_region_if_changed_from_default(k, n, skip_changed, status)
         if (.not. status%ok()) return
         skip = skip .or. skip_changed
     end subroutine is_merge_region_to_skip

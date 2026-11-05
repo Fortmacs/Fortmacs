@@ -50,7 +50,7 @@ module ediff_merg_mod
     private
 
     public :: ediff_variant_state_of_merge, get_ediff_state_of_merge, is_ediff_merge_region_non_clash, &
-              is_ediff_merge_region_non_clash_to_skip, is_ediff_merge_region_changed_from_default_to_skip, &
+              is_ediff_merge_region_non_clash_to_skip, is_ediff_skip_merge_region_if_changed_from_default, &
               get_ediff_combined_region, set_ediff_state_of_all_diffs_in_all_buffers, set_ediff_state_of_diff_in_all_buffers, &
               set_ediff_merge_mode, do_ediff_merge, re_merge_ediff, shrink_ediff_window_c, combine_ediff_diffs, &
               is_ediff_merge_changed_from_default, ediff_default_variant_name, init_ediff_merg
@@ -206,7 +206,7 @@ contains
     !> means that the user has made determination as to how to merge for
     !> this particular region.  Port of
     !> ediff-merg.el:ediff-skip-merge-region-if-changed-from-default-p.
-    recursive subroutine is_ediff_merge_region_changed_from_default_to_skip(k, n, skip, status)
+    recursive subroutine is_ediff_skip_merge_region_if_changed_from_default(k, n, skip, status)
         integer, intent(in) :: k, n
         logical, intent(out) :: skip
         type(status_type), intent(out) :: status
@@ -216,7 +216,7 @@ contains
         if (.not. ediff_sessions(k)%merge_job) return
         if (.not. ediff_sessions(k)%skip_merge_regions_that_differ_from_default) return
         call is_ediff_merge_changed_from_default(k, n, skip, status, prefers_too=.true.)
-    end subroutine is_ediff_merge_region_changed_from_default_to_skip
+    end subroutine is_ediff_skip_merge_region_if_changed_from_default
 
     !> The combination of difference region N of buffers A and B (and the
     !> ancestor) of session K by `ediff_combination_pattern', in TEXT.  A

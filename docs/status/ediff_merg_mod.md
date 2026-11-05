@@ -13,7 +13,7 @@
 `ediff-skip-merge-regions-that-differ-from-default`,
 `ediff-merge-region-is-non-clash`,
 `ediff-merge-region-is-non-clash-to-skip`,
-`ediff-skip-merge-region-if-changed-from-default-p` (`is_ediff_merge_region_changed_from_default_to_skip`),
+`ediff-skip-merge-region-if-changed-from-default-p` (`is_ediff_skip_merge_region_if_changed_from_default`),
 `ediff-get-combined-region`,
 `ediff-set-state-of-all-diffs-in-all-buffers`,
 `ediff-set-state-of-diff-in-all-buffers`,

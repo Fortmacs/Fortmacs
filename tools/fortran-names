@@ -2519,10 +2519,8 @@ name	ediff_select_lowest_window	select_lowest_ediff_window
 name	ediff_compute_custom_diffs_maybe	compute_ediff_custom_diffs_maybe
 # The hook keeps its name (a hook, not the command quit_ediff).
 keep	ediff_quit_merge_hook
-# Awaiting the owner (open question in the step 48c PR): the predicate
-# ediff-skip-merge-region-if-changed-from-default-p, named like its sibling
-# ediff-merge-region-is-non-clash-to-skip.
-name	ediff_skip_merge_region_if_changed_from_default_p	is_ediff_merge_region_changed_from_default_to_skip
+# _p is is_* (CLAUDE.md, decided by rule).
+name	ediff_skip_merge_region_if_changed_from_default_p	is_ediff_skip_merge_region_if_changed_from_default
 # Step 42e (owner's decision): options are named positively, the value
 # inverted (as shell_command_keep_output); R6-21: Emacs help in this
 # option's name means this program's help.
