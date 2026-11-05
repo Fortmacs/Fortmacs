@@ -125,7 +125,9 @@ ediff-util.el	ediff-inferior-compare-regions	ediff_inferior_compare_regions
 ediff-util.el	ediff-make-or-kill-fine-diffs	ediff_make_or_kill_fine_diffs
 ediff-util.el	ediff-profile	ediff_profile
 ediff-util.el	ediff-reload-keymap	ediff_reload_keymap
+ediff-util.el	ediff-restore-diff-in-merge-buffer	restore_ediff_diff_in_merge_buffer
 ediff-util.el	ediff-revert-buffers-then-recompute-diffs	ediff_revert_buffers_then_recompute_diffs
+ediff-util.el	ediff-save-buffer	ediff_save_buffer
 ediff-util.el	ediff-scroll-horizontally	ediff_scroll_horizontally
 ediff-util.el	ediff-scroll-vertically	ediff_scroll_vertically
 ediff-util.el	ediff-status-info	ediff_status_info
@@ -137,6 +139,9 @@ ediff-util.el	ediff-toggle-multiframe	ediff_toggle_multiframe
 ediff-util.el	ediff-toggle-narrow-region	ediff_toggle_narrow_region
 ediff-util.el	ediff-toggle-read-only	ediff_toggle_read_only
 ediff-util.el	ediff-toggle-regexp-match	ediff_toggle_regexp_match
+ediff-util.el	ediff-toggle-show-ancestor	ediff_toggle_show_ancestor
+ediff-util.el	ediff-toggle-show-clashes-only	ediff_toggle_show_clashes_only
+ediff-util.el	ediff-toggle-skip-changed-regions	ediff_toggle_skip_changed_regions
 ediff-util.el	ediff-toggle-skip-similar	ediff_toggle_skip_similar
 ediff-util.el	ediff-toggle-use-toolbar	ediff_toggle_use_toolbar
 ediff-util.el	ediff-toggle-wide-display	ediff_toggle_wide_display
@@ -144,10 +149,14 @@ ediff.el	ediff-directories	ediff_directories
 ediff.el	ediff-directories3	ediff_directories3
 ediff.el	ediff-directory-revisions	ediff_directory_revisions
 ediff.el	ediff-documentation	ediff_documentation
+ediff.el	ediff-merge-buffers	ediff_merge_buffers
+ediff.el	ediff-merge-buffers-with-ancestor	ediff_merge_buffers_with_ancestor
 ediff.el	ediff-merge-directories	ediff_merge_directories
 ediff.el	ediff-merge-directories-with-ancestor	ediff_merge_directories_with_ancestor
 ediff.el	ediff-merge-directory-revisions	ediff_merge_directory_revisions
 ediff.el	ediff-merge-directory-revisions-with-ancestor	ediff_merge_directory_revisions_with_ancestor
+ediff.el	ediff-merge-files	ediff_merge_files
+ediff.el	ediff-merge-files-with-ancestor	ediff_merge_files_with_ancestor
 ediff.el	ediff-merge-revisions	ediff_merge_revisions
 ediff.el	ediff-merge-revisions-with-ancestor	ediff_merge_revisions_with_ancestor
 ediff.el	ediff-patch-buffer	ediff_patch_buffer

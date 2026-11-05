@@ -219,7 +219,6 @@ dired_use_ls_dired
 ediff_after_flag_eol
 ediff_after_flag_mol
 ediff_after_setup_windows_hook
-ediff_autostore_merges
 ediff_before_flag_bol
 ediff_before_flag_mol
 ediff_before_setup_hook
@@ -227,10 +226,6 @@ ediff_before_setup_windows_hook
 ediff_cleanup_hook
 ediff_coding_system_for_read
 ediff_coding_system_for_write
-ediff_combination_pattern
-ediff_custom_diff_options
-ediff_custom_diff_program
-ediff_default_variant
 ediff_diff3_ok_lines_regexp
 ediff_diff3_options
 ediff_diff3_program
@@ -244,15 +239,11 @@ ediff_ignore_case_option3
 ediff_keep_variants
 ediff_keymap_setup_hook
 ediff_make_buffers_readonly_at_startup
-ediff_merge_split_window_function
 ediff_mode_hook
 ediff_prepare_buffer_hook
 ediff_quit_hook
-ediff_quit_merge_hook
 ediff_select_hook
 ediff_show_ancestor
-ediff_show_clashes_only
-ediff_skip_merge_regions_that_differ_from_default
 ediff_split_window_function
 ediff_startup_hook
 ediff_temp_file_mode
