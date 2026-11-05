@@ -36,7 +36,7 @@ module test_mail_extract_mod
     use bindings_mod, only: init_bindings
     use mail_extract_mod, only: extract_mail_address_components, what_domain, mail_address_components_type, &
                                 mail_extr_guess_middle_initial, mail_extr_mangle_uucp, &
-                                mail_extr_at_binds_tighter_than_exclamation_mark, mail_extr_ignore_single_names, &
+                                mail_extract_at_sign_binds_tighter_than_exclamation_mark, mail_extr_ignore_single_names, &
                                 mail_extr_ignore_realname_equals_mailbox_name, mail_extr_disable_voodoo
     implicit none(type, external)
     private
@@ -45,7 +45,7 @@ module test_mail_extract_mod
 
     character(len=*), parameter :: LF = achar(10), TAB = achar(9)
     ! "Ååå Äää" in UTF-8.
-    character(len=*), parameter :: AAA = char(195)//char(133)//char(195)//char(165)//char(195)//char(165)//" "// &
+    character(len=*), parameter :: SWEDISH_NAME = char(195)//char(133)//char(195)//char(165)//char(195)//char(165)//" "// &
                                    char(195)//char(132)//char(195)//char(164)//char(195)//char(164)
 
 contains
@@ -125,7 +125,7 @@ contains
         call check_address(error, "foo@example.org", "NIL|foo@example.org")
         call check_address(error, "J. Random Hacker <foo@example.org>", "J. Random Hacker|foo@example.org")
         call check_address(error, """J. Random Hacker"" <foo@example.org>", "J. Random Hacker|foo@example.org")
-        call check_address(error, AAA//" <foo@example.org>", AAA//"|foo@example.org")
+        call check_address(error, SWEDISH_NAME//" <foo@example.org>", SWEDISH_NAME//"|foo@example.org")
     end subroutine test_extract
 
     subroutine test_what_domain(error)
@@ -286,10 +286,10 @@ contains
         call check_address(error, "foo!bar!baz", "NIL|baz@bar.uucp")
         call check_address(error, "a!b%c@d", "b.|b@a.uucp")
         call check_address(error, "x!y.com!z", "z.|z@y.com")
-        mail_extr_at_binds_tighter_than_exclamation_mark = .true.
+        mail_extract_at_sign_binds_tighter_than_exclamation_mark = .true.
         call check_address(error, "foo!bar!baz@host", "NIL|baz%host@bar.uucp")
         call check_address(error, "foo!bar", "NIL|bar@foo.uucp")
-        mail_extr_at_binds_tighter_than_exclamation_mark = .false.
+        mail_extract_at_sign_binds_tighter_than_exclamation_mark = .false.
         mail_extr_mangle_uucp = .false.
         mail_extr_ignore_single_names = .true.
         call check_address(error, "Idiot <dumb@stupid.com>", "NIL|dumb@stupid.com")

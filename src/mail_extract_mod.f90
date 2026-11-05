@@ -112,7 +112,7 @@ module mail_extract_mod
 
     !> Whether the local mail transport agent looks at ! before @.  Port of
     !> mail-extr.el mail-extr-@-binds-tighter-than-!.
-    logical, public :: mail_extr_at_binds_tighter_than_exclamation_mark = .false.
+    logical, public :: mail_extract_at_sign_binds_tighter_than_exclamation_mark = .false.
 
     !> Whether to throw away information in UUCP addresses
     !> by translating things like "foo!bar!baz@host" into "baz@bar.UUCP".
@@ -130,9 +130,9 @@ module mail_extract_mod
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10), CR = achar(13)
     ! U+00A0 NO-BREAK SPACE, which upstream counts as whitespace.
-    character(len=*), parameter :: NBSP = char(194)//char(160)
-    integer(int32), parameter :: NBSP_CHAR = 160
-    character(len=*), parameter :: WHITESPACE = " "//TAB//LF//CR//NBSP
+    character(len=*), parameter :: NO_BREAK_SPACE = char(194)//char(160)
+    integer(int32), parameter :: NO_BREAK_SPACE_CODE = 160
+    character(len=*), parameter :: WHITESPACE = " "//TAB//LF//CR//NO_BREAK_SPACE
 
     ! Any character that can occur in a name, not counting characters that
     ! separate parts of a multipart name (hyphen and period).
@@ -627,21 +627,21 @@ contains
         ! mail-extr-address-comment-syntax-table
         call modify(address_comment_syntax_table, 0, 255, "w")
         call modify_each(address_comment_syntax_table, " "//TAB//CR//LF, " ")
-        call modify(address_comment_syntax_table, NBSP_CHAR, NBSP_CHAR, " ")
+        call modify(address_comment_syntax_table, NO_BREAK_SPACE_CODE, NO_BREAK_SPACE_CODE, " ")
         call modify(address_comment_syntax_table, iachar("("), iachar("("), "()")
         call modify(address_comment_syntax_table, iachar(")"), iachar(")"), ")(")
         call modify(address_comment_syntax_table, iachar("\"), iachar("\"), "\")
         ! mail-extr-address-domain-literal-syntax-table
         call modify(address_domain_literal_syntax_table, 0, 255, "w")
         call modify_each(address_domain_literal_syntax_table, " "//TAB//CR//LF, " ")
-        call modify(address_domain_literal_syntax_table, NBSP_CHAR, NBSP_CHAR, " ")
+        call modify(address_domain_literal_syntax_table, NO_BREAK_SPACE_CODE, NO_BREAK_SPACE_CODE, " ")
         call modify(address_domain_literal_syntax_table, iachar("["), iachar("["), "(]")
         call modify(address_domain_literal_syntax_table, iachar("]"), iachar("]"), ")[")
         call modify(address_domain_literal_syntax_table, iachar("\"), iachar("\"), "\")
         ! mail-extr-address-text-comment-syntax-table
         call modify(address_text_comment_syntax_table, 0, 255, "w")
         call modify_each(address_text_comment_syntax_table, " "//TAB//CR//LF, " ")
-        call modify(address_text_comment_syntax_table, NBSP_CHAR, NBSP_CHAR, " ")
+        call modify(address_text_comment_syntax_table, NO_BREAK_SPACE_CODE, NO_BREAK_SPACE_CODE, " ")
         call modify(address_text_comment_syntax_table, iachar("("), iachar("("), "()")
         call modify(address_text_comment_syntax_table, iachar(")"), iachar(")"), ")(")
         call modify(address_text_comment_syntax_table, iachar("["), iachar("["), "(]")
@@ -960,10 +960,10 @@ contains
         type(mail_address_components_type) :: value
         type(excursion_type) :: excursion
         type(status_type) :: st
-        integer(int32) :: ch, next, fi, li, mi
+        integer(int32) :: code, next, first_initial, last_initial, middle_initial
         integer(int64) :: opening_angle, closing_angle, at_sign, group_colon, group_semicolon, route_colon, first_real, &
                           last_real, phrase_beginning, phrase_end, comment_beginning, comment_end, quote_beginning, &
-                          quote_end, atom_beginning, atom_end, mbox_beginning, mbox_end, temp, position, found, moved, &
+                          quote_end, atom_beginning, atom_end, mailbox_beginning, mailbox_end, temp, position, found, moved, &
                           buffer_length, i
         logical :: has_end_of_address, split, blank, moved_over, dot_ends_name, disable_initial_guessing, names_match
         integer :: k
@@ -999,12 +999,12 @@ contains
             call skip_whitespace_forward(status)
             if (.not. status%ok()) return
             if (is_eob()) exit
-            ch = char_at(point())
-            if (first_real == 0 .and. ch /= iachar("(")) first_real = point()
+            code = char_at(point())
+            if (first_real == 0 .and. code /= iachar("(")) first_real = point()
             split = .false.
 
             ! Commas delimit addresses when outside < > pairs.
-            if (ch == iachar(",")) then
+            if (code == iachar(",")) then
                 ! Handle ROUTE-ADDR address that is missing its <.
                 if (size(opening_angles) == 0 .and. char_at(point() + 1) /= iachar("@")) then
                     split = .true.
@@ -1019,7 +1019,7 @@ contains
                 end if
             end if
 
-            if (ch == iachar("(")) then
+            if (code == iachar("(")) then
                 ! A comment.
                 call set_syntax_table(address_comment_syntax_table, status)
                 if (.not. status%ok()) return
@@ -1040,7 +1040,7 @@ contains
                 call set_syntax_table(address_syntax_table, status)
                 if (.not. status%ok()) return
                 if (comment_beginning /= 0 .and. comment_end == 0) comment_end = point()
-            else if (ch == iachar("""")) then
+            else if (code == iachar("""")) then
                 ! Quoted text: only record the first non-empty quote's position.
                 if (quote_beginning == 0) then
                     call save_excursion_begin(excursion)
@@ -1055,7 +1055,7 @@ contains
                 call move_or_step(status)
                 if (.not. status%ok()) return
                 if (quote_beginning /= 0 .and. quote_end == 0) quote_end = point()
-            else if (ch == iachar("[")) then
+            else if (code == iachar("[")) then
                 ! Domain literals.
                 call set_syntax_table(address_domain_literal_syntax_table, status)
                 if (.not. status%ok()) return
@@ -1073,11 +1073,11 @@ contains
                 if (.not. status%ok()) return
                 call delete_char(1_int64, status)
                 if (.not. status%ok()) return
-                ch = iachar("(")
-            else if (is_one_of(ch, "<>@:,!%;")) then
+                code = iachar("(")
+            else if (is_one_of(code, "<>@:,!%;")) then
                 ! Record the position of various interesting chars, determine
                 ! validity later.
-                select case (achar(ch))
+                select case (achar(code))
                 case ("<")
                     opening_angles = [point(), opening_angles]
                 case (">")
@@ -1100,10 +1100,10 @@ contains
 
                 call forward_char(status, 1_int64)
                 if (.not. status%ok()) return
-            else if (ch == iachar(".")) then
+            else if (code == iachar(".")) then
                 call forward_char(status, 1_int64)
                 if (.not. status%ok()) return
-            else if (is_one_of(ch, ")]\")) then
+            else if (is_one_of(code, ")]\")) then
                 ! A comment terminator or domain literal terminator is invalid
                 ! here, and \ is allowed only within quoted strings, domain
                 ! literals and comments.
@@ -1115,20 +1115,20 @@ contains
                 ! Move over a word, recognizing non-ASCII characters except
                 ! Latin-1 nbsp as words.
                 do
-                    moved = skip_chars_forward("^"//achar(0)//"-"//achar(127)//NBSP, status)
+                    moved = skip_chars_forward("^"//achar(0)//"-"//achar(127)//NO_BREAK_SPACE, status)
                     if (.not. status%ok()) return
                     if (is_eob()) exit
                     if (char_syntax(char_at(point())) /= "w") exit
                     call forward_word(1_int64)
                     if (is_eob()) exit
                     next = char_at(point())
-                    if (next <= 127 .or. next == NBSP_CHAR) exit
+                    if (next <= 127 .or. next == NO_BREAK_SPACE_CODE) exit
                 end do
             end if
 
             ! At the end of first address of a multiple address header, no
             ! last real position.
-            if (ch /= iachar("(") .and. .not. (ch == iachar(",") .and. is_eob())) last_real = point()
+            if (code /= iachar("(") .and. .not. (code == iachar(",") .and. is_eob())) last_real = point()
         end do
 
         ! Use only the leftmost <, if any.  Replace all others with spaces.
@@ -1381,7 +1381,7 @@ contains
 
         call set_syntax_table(address_text_syntax_table, status)
         if (.not. status%ok()) return
-        call clean_up_name(mbox_beginning, mbox_end, canonicalization_buffer, comment_beginning, comment_end, &
+        call clean_up_name(mailbox_beginning, mailbox_end, canonicalization_buffer, comment_beginning, comment_end, &
                            disable_initial_guessing, status)
         if (.not. status%ok()) return
         call goto_char(point_min())
@@ -1389,25 +1389,25 @@ contains
         ! the middle initial is the second letter in the userid.
         call goto_char(point_min())
 
-        if (mail_extr_guess_middle_initial .and. .not. disable_initial_guessing .and. mbox_end - mbox_beginning == 3) then
+        if (mail_extr_guess_middle_initial .and. .not. disable_initial_guessing .and. mailbox_end - mailbox_beginning == 3) then
             call goto_char(point_min())
 
             if (looking_at(TWO_NAME_PATTERN, status)) then
-                fi = char_at(match_beginning(0, st))
-                li = char_at(match_beginning(3, st))
-                mi = -1
+                first_initial = char_at(match_beginning(0, st))
+                last_initial = char_at(match_beginning(3, st))
+                middle_initial = -1
                 call set_buffer(canonicalization_buffer, status)
                 if (.not. status%ok()) return
                 ! Comparing ignoring case (char-equal with case-fold-search).
-                if (downcase(fi) == downcase(char_at(mbox_beginning)) .and. &
-                    downcase(li) == downcase(char_at(mbox_end - 1))) mi = char_at(mbox_beginning + 1)
+                if (downcase(first_initial) == downcase(char_at(mailbox_beginning)) .and. &
+                    downcase(last_initial) == downcase(char_at(mailbox_end - 1))) middle_initial = char_at(mailbox_beginning + 1)
                 call set_buffer(extraction_buffer, status)
                 if (.not. status%ok()) return
 
-                if (mi >= 0) then
-                    if (char_syntax(mi) == "w") then
+                if (middle_initial >= 0) then
+                    if (char_syntax(middle_initial) == "w") then
                         call goto_char(match_beginning(3, st))
-                        call insert_char(upcase(mi), status)
+                        call insert_char(upcase(middle_initial), status)
                         if (status%ok()) call insert(". ", status)
                         if (.not. status%ok()) return
                     end if
@@ -1420,9 +1420,9 @@ contains
         ! Drop name if it is the same as mailbox name.
         buffer_length = point_max() - point_min()
 
-        if (buffer_length > 0 .and. buffer_length == mbox_end - mbox_beginning) then
+        if (buffer_length > 0 .and. buffer_length == mailbox_end - mailbox_beginning) then
             call goto_char(point_max())
-            call insert_buffer_substring(canonicalization_buffer, status, mbox_beginning, mbox_end)
+            call insert_buffer_substring(canonicalization_buffer, status, mailbox_beginning, mailbox_end)
             if (.not. status%ok()) return
             names_match = .true.
             i = 0
@@ -1513,7 +1513,7 @@ contains
         end subroutine percent_to_at_sign
 
         ! Make the canonical address in the canonicalization buffer, and
-        ! set MBOX_BEGINNING and MBOX_END.
+        ! set MAILBOX_BEGINNING and MAILBOX_END.
         subroutine canonicalize(status)
             type(status_type), intent(out) :: status
             type(restriction_type) :: restriction
@@ -1568,14 +1568,14 @@ contains
                 allocate (saved_percent_markers(0))
                 call save_restriction_begin(restriction)
 
-                if (at_sign /= 0 .and. mail_extr_at_binds_tighter_than_exclamation_mark) then
+                if (at_sign /= 0 .and. mail_extract_at_sign_binds_tighter_than_exclamation_mark) then
                     call goto_char(at_sign)
                     percent_signs = [point(), percent_signs]
                     at_sign = 0
                     call delete_char(1_int64, status)
                     if (status%ok()) call insert("%", status)
                     insert_point = point_max()
-                else if (mail_extr_at_binds_tighter_than_exclamation_mark) then
+                else if (mail_extract_at_sign_binds_tighter_than_exclamation_mark) then
                     insert_point = point_max()
                 else if (size(percent_signs) > 0) then
                     insert_point = percent_signs(size(percent_signs))
@@ -1707,14 +1707,14 @@ contains
                 end if
             end do
 
-            mbox_beginning = point_min()
+            mailbox_beginning = point_min()
 
             if (size(percent_signs) > 0) then
-                mbox_end = percent_signs(1)
+                mailbox_end = percent_signs(1)
             else if (at_sign /= 0) then
-                mbox_end = at_sign
+                mailbox_end = at_sign
             else
-                mbox_end = point_max()
+                mailbox_end = point_max()
             end if
 
             ! Make the domain-name part lowercase since it's case
@@ -1754,7 +1754,7 @@ contains
             call goto_char(point_max())
             call narrow_to_region(point(), point(), status)
             if (.not. status%ok()) return
-            call insert_buffer_substring(canonicalization_buffer, status, mbox_beginning, mbox_end)
+            call insert_buffer_substring(canonicalization_buffer, status, mailbox_beginning, mailbox_end)
             if (.not. status%ok()) return
             call goto_char(point_min())
             ! Example: First_Last.XXX@foo.bar.dom
@@ -1772,9 +1772,9 @@ contains
                 call skip_whitespace_forward(status)
                 if (.not. status%ok()) exit
                 if (is_eob()) exit
-                ch = char_at(point())
+                code = char_at(point())
 
-                if (ch == iachar("""")) then
+                if (code == iachar("""")) then
                     quote_beginning = point()
                     call move_or_step(status)
                     if (.not. status%ok()) exit
@@ -1796,7 +1796,7 @@ contains
                     if (char_at(point()) /= iachar(" ")) call insert(" ", status)
                     if (.not. status%ok()) exit
                     dot_ends_name = .true.
-                else if (ch == iachar(".")) then
+                else if (code == iachar(".")) then
                     next = char_at(point() + 1)
 
                     if (next == iachar("_") .or. next == iachar("=")) then
@@ -1811,7 +1811,7 @@ contains
                     end if
 
                     if (.not. status%ok()) exit
-                else if (char_syntax(ch) == "." .or. char_syntax(ch) == "\") then
+                else if (char_syntax(code) == "." .or. char_syntax(code) == "\") then
                     call delete_char(1_int64, status)
                     if (status%ok()) call insert(" ", status)
                     if (.not. status%ok()) exit
@@ -1913,15 +1913,15 @@ contains
     ! Make a full name of the text the extraction buffer is narrowed to:
     ! drop comments, titles, trailing comments and the like, put a last
     ! name given first at the end, and compress whitespace, unless
-    ! `mail_extr_disable_voodoo' says not to.  MBOX_BEGINNING and
-    ! MBOX_END are the mailbox in CANONICALIZATION_BUFFER (for a name
+    ! `mail_extr_disable_voodoo' says not to.  MAILBOX_BEGINNING and
+    ! MAILBOX_END are the mailbox in CANONICALIZATION_BUFFER (for a name
     ! with &); COMMENT_BEGINNING and COMMENT_END are upstream's
-    ! mailextr-cbeg and mailextr-cend; DISABLE_INITIAL_GUESSING is set
+    ! mailextr-comment_start and mailextr-cend; DISABLE_INITIAL_GUESSING is set
     ! when the name was made from the mailbox.  Port of
     ! mail-extr.el:mail-extr-voodoo.
-    subroutine clean_up_name(mbox_beginning, mbox_end, canonicalization_buffer, comment_beginning, comment_end, &
+    subroutine clean_up_name(mailbox_beginning, mailbox_end, canonicalization_buffer, comment_beginning, comment_end, &
                              disable_initial_guessing, status)
-        integer(int64), intent(in) :: mbox_beginning, mbox_end
+        integer(int64), intent(in) :: mailbox_beginning, mailbox_end
         type(handle_type), intent(in) :: canonicalization_buffer
         integer(int64), intent(inout) :: comment_beginning, comment_end
         logical, intent(inout) :: disable_initial_guessing
@@ -1943,7 +1943,7 @@ contains
         saved_fold = case_fold_search%value
         case_fold_search%value = .false.
         call save_excursion_begin(excursion)
-        call clean_up_words(mbox_beginning, mbox_end, canonicalization_buffer, comment_beginning, comment_end, &
+        call clean_up_words(mailbox_beginning, mailbox_end, canonicalization_buffer, comment_beginning, comment_end, &
                             disable_initial_guessing, status)
         call save_excursion_end(excursion)
         case_fold_search%value = saved_fold
@@ -1951,17 +1951,17 @@ contains
 
     ! The work of `clean_up_name' (the arguments are the same).  Port of
     ! mail-extr.el:mail-extr-voodoo.
-    subroutine clean_up_words(mbox_beginning, mbox_end, canonicalization_buffer, comment_beginning, comment_end, &
+    subroutine clean_up_words(mailbox_beginning, mailbox_end, canonicalization_buffer, comment_beginning, comment_end, &
                               disable_initial_guessing, status)
-        integer(int64), intent(in) :: mbox_beginning, mbox_end
+        integer(int64), intent(in) :: mailbox_beginning, mailbox_end
         type(handle_type), intent(in) :: canonicalization_buffer
         integer(int64), intent(inout) :: comment_beginning, comment_end
         logical, intent(inout) :: disable_initial_guessing
         type(status_type), intent(out) :: status
         type(status_type) :: st
-        integer(int64) :: cbeg, moved, suffix, last_word_beginning, this_word_beginning, name_beginning, name_end, &
+        integer(int64) :: comment_start, moved, suffix, last_word_beginning, this_word_beginning, name_beginning, name_end, &
                           found, repeat, position
-        integer(int32) :: c, initial
+        integer(int32) :: next_code, initial
         integer :: word_count
         logical :: mixed_case, lower_case, last_name_comma, begin_again, drop_this_word_if_trailing, &
                    drop_last_word_if_trailing, word_found, name_done, moved_over, matched, saved
@@ -1986,14 +1986,14 @@ contains
         do while (.not. is_eob())
             moved = skip_chars_forward("^({[""'`", status)
             if (.not. status%ok()) return
-            cbeg = point()
+            comment_start = point()
             call set_syntax_table(address_text_comment_syntax_table, status)
             if (.not. status%ok()) return
-            c = following_char()
+            next_code = following_char()
 
-            if (c == iachar("'") .or. c == iachar("`")) then
+            if (next_code == iachar("'") .or. next_code == iachar("`")) then
                 repeat = 1
-                if (c == iachar("'")) repeat = 2
+                if (next_code == iachar("'")) repeat = 2
                 call search_forward("'", found, status, noerror=SEARCH_MOVE, count=repeat)
             else
                 call move_over_expression(1_int64, moved_over, status)
@@ -2004,9 +2004,9 @@ contains
             call set_syntax_table(address_text_syntax_table, status)
             if (.not. status%ok()) return
 
-            if (char_at(cbeg) == iachar("(")) then
+            if (char_at(comment_start) == iachar("(")) then
                 ! Delete the comment itself.
-                call delete_region(cbeg, point(), status)
+                call delete_region(comment_start, point(), status)
                 if (.not. status%ok()) return
                 ! Canonicalize whitespace where the comment was.
                 moved = skip_chars_backward(" "//TAB, status)
@@ -2015,12 +2015,12 @@ contains
                 if (looking_at("\([ "//TAB//"]+$\|[ "//TAB//"]+,\)", status)) then
                     call replace_match("", status)
                 else if (status%ok()) then
-                    cbeg = point()
+                    comment_start = point()
                     moved = skip_chars_forward(" "//TAB, status)
 
                     if (status%ok()) then
                         if (is_bob()) then
-                            call delete_region(point(), cbeg, status)
+                            call delete_region(point(), comment_start, status)
                         else
                             call just_one_space(1_int64, status)
                         end if
@@ -2105,7 +2105,7 @@ contains
 
             this_word_beginning = point()
             drop_this_word_if_trailing = .false.
-            c = following_char()
+            next_code = following_char()
             ! Decide what to do based on what we are looking at.
             matched = .false.
 
@@ -2128,12 +2128,12 @@ contains
                 call goto_char(match_beginning(1, st))
                 call narrow_to_region(point(), point_max(), status)
                 begin_again = .true.
-            else if (c == iachar(",") .and. word_count == 1) then
+            else if (next_code == iachar(",") .and. word_count == 1) then
                 ! Check for initial last name followed by comma.
                 call forward_char(status, 1_int64)
                 last_name_comma = .true.
                 if (status%ok() .and. following_char() /= iachar(" ")) call insert(" ", status)
-            else if (is_one_of(c, "({[""'`")) then
+            else if (is_one_of(next_code, "({[""'`")) then
                 ! Delete parenthesized/quoted comment/nickname.
                 call delete_comment(status)
             else if (is_looking_at(STUPID_VMS_DATE_STAMP_PATTERN)) then
@@ -2154,7 +2154,7 @@ contains
                 call delete_region(match_beginning(0, st), match_end(0, st), status)
             else if (is_looking_at(INITIAL_PATTERN)) then
                 ! Fixup initials.
-                if (c /= upcase(c)) lower_case = .true.
+                if (next_code /= upcase(next_code)) lower_case = .true.
                 call forward_char(status, 1_int64)
 
                 if (status%ok()) then
@@ -2172,16 +2172,16 @@ contains
                 call narrow_to_region(match_beginning(1, st), match_end(1, st), status)
                 word_found = .true.
                 name_done = .true.
-            else if (word_count > 0 .and. preceding_char() == iachar(" ") .and. c == iachar("&") .and. &
+            else if (word_count > 0 .and. preceding_char() == iachar(" ") .and. next_code == iachar("&") .and. &
                      point() + 1 == point_max()) then
                 ! Handle & substitution, when & is last and is not first.
                 call delete_char(1_int64, status)
                 position = point()
-                if (status%ok()) call insert_buffer_substring(canonicalization_buffer, status, mbox_beginning, mbox_end)
+                if (status%ok()) call insert_buffer_substring(canonicalization_buffer, status, mailbox_beginning, mailbox_end)
                 if (status%ok()) call capitalize_region(position, point(), status)
                 disable_initial_guessing = .true.
                 word_found = .true.
-            else if (word_count > 0 .and. c == iachar("&")) then
+            else if (word_count > 0 .and. next_code == iachar("&")) then
                 ! Handle & between names, as in "Bob & Susie".
                 name_beginning = point()
                 name_end = name_beginning + 1
@@ -2389,9 +2389,9 @@ contains
             call set_syntax_table(address_text_comment_syntax_table, status)
             if (.not. status%ok()) return
 
-            if (c == iachar("'") .or. c == iachar("`")) then
+            if (next_code == iachar("'") .or. next_code == iachar("`")) then
                 repeat = 1
-                if (c == iachar("'")) repeat = 2
+                if (next_code == iachar("'")) repeat = 2
                 call search_forward("'", found, status, noerror=SEARCH_NOERROR, count=repeat)
                 if (status%ok() .and. found == 0) call delete_char(1_int64, status)
             else

@@ -11,6 +11,7 @@ name	smtpmail_send_queued_mail	send_queued_mail_with_smtp
 # mail-envelope-from, the function, is get_mail_envelope_from beside the
 # variable mail_envelope_from (no entry: the variable keeps the name).
 name	mail_extract_address_components	extract_mail_address_components
-# mail-extr-@-binds-tighter-than-! spells its @ and ! out (pending the
-# panel; the name C-h v shows comes from this entry).
-name	mail_extr_@_binds_tighter_than_!	mail_extr_at_binds_tighter_than_exclamation_mark
+# mail-extr-861binds-tighter-than-! spells out its words and symbols: extr
+# is extract, @ at_sign and ! exclamation_mark (owner, no abbreviations in
+# any name, CLAUDE.md PR #287; the name C-h v shows comes from this entry).
+name	mail_extr_@_binds_tighter_than_!	mail_extract_at_sign_binds_tighter_than_exclamation_mark

@@ -15,12 +15,12 @@ smtpmail_queue_index_file
 smtpmail_servers_requiring_authorization
 smtpmail_retries
 smtpmail_store_queue_variables
-# Step 52b: the user options of mail-extr.el (mail-extr-@-binds-tighter-than-!
-# is mail_extr_at_binds_tighter_than_exclamation_mark, pending the panel).
+# Step 52b: the user options of mail-extr.el (mail-extr-438binds-tighter-than-!
+# is mail_extract_at_sign_binds_tighter_than_exclamation_mark: owner, CLAUDE.md PR #287).
 mail_extr_guess_middle_initial
 mail_extr_ignore_single_names
 mail_extr_ignore_realname_equals_mailbox_name
 mail_extr_full_name_prefixes
-mail_extr_at_binds_tighter_than_exclamation_mark
+mail_extract_at_sign_binds_tighter_than_exclamation_mark
 mail_extr_mangle_uucp
 mail_extr_disable_voodoo

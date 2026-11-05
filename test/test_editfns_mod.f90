@@ -346,16 +346,16 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         ! "\u00c5\u00e5" and "\u00c4\u00e4" in UTF-8.
-        character(len=*), parameter :: AA = char(195)//char(133)//char(195)//char(165)
-        character(len=*), parameter :: AE = char(195)//char(132)//char(195)//char(164)
+        character(len=*), parameter :: A_RING_PAIR = char(195)//char(133)//char(195)//char(165)
+        character(len=*), parameter :: A_DIAERESIS_PAIR = char(195)//char(132)//char(195)//char(164)
 
         call enter("te-narrow-multibyte", h, old)
-        call insert(" "//AA//" "//AE//" <a@b>", st)
+        call insert(" "//A_RING_PAIR//" "//A_DIAERESIS_PAIR//" <a@b>", st)
         call narrow_to_region(2_int64, 7_int64, st)
-        call check(error, buffer_string(), AA//" "//AE)
+        call check(error, buffer_string(), A_RING_PAIR//" "//A_DIAERESIS_PAIR)
         if (allocated(error)) return
         call narrow_to_region(5_int64, 7_int64, st)
-        call check(error, buffer_string(), AE)
+        call check(error, buffer_string(), A_DIAERESIS_PAIR)
         call widen()
         call leave(h, old)
     end subroutine test_narrow_multibyte
