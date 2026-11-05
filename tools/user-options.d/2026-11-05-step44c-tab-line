@@ -1,0 +1,23 @@
+# user-options.d/2026-11-05-step44c-tab-line -- the user options of step 44c
+# (tab-line.el's defcustoms that are ported).
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+tab_line_tab_face_functions
+tab_line_new_button_show
+tab_line_close_button_show
+tab_line_close_modified_button_show
+tab_line_tab_name_function
+tab_line_tab_name_truncated_max
+tab_line_tabs_function
+tab_line_tabs_buffer_group_function
+tab_line_tabs_buffer_group_sort_function
+tab_line_tabs_buffer_groups_sort_function
+tab_line_tabs_window_buffers_filter_function
+tab_line_tab_name_format_function
+tab_line_auto_hscroll
+tab_line_switch_cycling
+tab_line_close_tab_function
+tab_line_define_keys
+tab_line_exclude_modes

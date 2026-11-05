@@ -165,6 +165,7 @@ program tester
     use test_save_history_mod, only: collect_save_history_mod
     use test_winner_mod, only: collect_winner_mod
     use test_tab_bar_mod, only: collect_tab_bar_mod
+    use test_tab_line_mod, only: collect_tab_line_mod
     use test_window_move_mod, only: collect_window_move_mod
     use test_saveplace_mod, only: collect_saveplace_mod
     use test_recent_files_mod, only: collect_recent_files_mod
@@ -340,6 +341,7 @@ program tester
                  new_testsuite("save_history_mod", collect_save_history_mod), &
                  new_testsuite("winner_mod", collect_winner_mod), &
                  new_testsuite("tab_bar_mod", collect_tab_bar_mod), &
+                 new_testsuite("tab_line_mod", collect_tab_line_mod), &
                  new_testsuite("window_move_mod", collect_window_move_mod), &
                  new_testsuite("saveplace_mod", collect_saveplace_mod), &
                  new_testsuite("recent_files_mod", collect_recent_files_mod), &

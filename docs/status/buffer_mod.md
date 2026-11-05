@@ -44,7 +44,8 @@ the window part of `kill-buffer` (through a hook to window_mod),
 `fill-column`,
 `left-margin` and `auto-fill-function` (one global value each);
 BVAR `invisibility_spec` (`buffer-invisibility-spec`: t, or ATOM and (ATOM . ELLIPSIS) entries; reset by kill-all-local-variables);
-BVAR `header_line_format` (a `header_line_format_type`: text segments with a face and a column each, `add` and `clear`);
+BVAR `header_line_format` (a `header_line_format_type`: text segments with faces and a column each, or a procedure giving them (`(:eval FORM)`, decision 44 Q8), `append`, `clear` and `is_set`);
+BVAR `tab_line_format` (the same type; cleared by `kill-all-local-variables`);
 the overlay functions of buffer.c are interval_tree_mod's,
 `buffer-local-value` and `buffer-local-variables` (with `buffer_local_value`, `buffer_lisp_local_variables`, `buffer_local_variables_1`) data_mod's;
 step 44a: the frames' buffer lists exchanged on a frame switch (`exchange_frame_buffers`; closed buffers leave a frame's lists when it is selected again);

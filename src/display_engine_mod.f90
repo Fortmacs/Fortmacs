@@ -96,7 +96,8 @@ module display_engine_mod
                                    get_char_property_and_overlay, next_char_property_change, &
                                    next_single_char_property_change, text_prop_means_invisible, propertized_substring
     use interval_tree_mod, only: overlays_in, overlay_start, overlay_end, overlay_get
-    use buffer_mod, only: current, set_buffer_internal, header_line_format_type
+    use buffer_mod, only: current, set_buffer_internal, header_line_format_type, header_line_segment_type, &
+                          header_line_format_procedure
     use buffer_mod, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
                           buf_fetch_byte, buf_next_char_len, is_buffer_modified, transient_mark_mode
     use marker_mod, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
@@ -105,7 +106,7 @@ module display_engine_mod
     use glyph_matrices_mod, only: glyph_type, glyph_row_type, DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, &
                                   HEADER_LINE_ACTIVE_FACE_ID, HEADER_LINE_INACTIVE_FACE_ID, &
                                   MODE_LINE_INACTIVE_FACE_ID, VERTICAL_BORDER_FACE_ID, STRETCH_GLYPH, FILLED_BOX_CURSOR, &
-                                  TAB_BAR_FACE_ID
+                                  TAB_BAR_FACE_ID, TAB_LINE_ACTIVE_FACE_ID, TAB_LINE_INACTIVE_FACE_ID
     use font_mod, only: font_type, font_metrics_type
     use face_realization_mod, only: face_at_buffer_position, face_at_string_position, merge_faces, realize_basic_faces, &
                                     TEXT_PROP_DISTANCE_LIMIT
@@ -113,7 +114,8 @@ module display_engine_mod
                          window_pixel_top, window_pixel_width, window_pixel_height, window_body_pixel_width, frame_top_margin
     use window_mod, only: execute_window_change_functions
     use window_mod, only: window_type, set_window_buffer, window_start, &
-                          set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
+                          set_window_start, window_body_lines, window_wants_header_line, window_wants_tab_line, window_point, &
+                          window_text_cols, windows, &
                           is_window_valid, make_window, resize_window_tree, window_leaves, same_window, &
                           set_window_point, window_scroll_functions
     use display_update_mod, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame, redisplaying
@@ -148,10 +150,15 @@ module display_engine_mod
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline, current_message
     public :: highlight_region_procedure, unhighlight_region_procedure, pre_redisplay_procedure
     public :: bidi_find_overridden_directionality, current_bidi_paragraph_direction
+    public :: is_mode_line_window_selected
 
     !> The window redisplay is displaying (it->w); the null handle
     !> between windows.
     type(handle_type) :: displayed_window
+
+    !> Whether the window redisplay is displaying is the selected window,
+    !> or the one the active minibuffer was entered from.
+    logical :: displayed_window_selected = .true.
 
     abstract interface
         !> Highlight the region START..END of the current buffer in
@@ -2316,14 +2323,16 @@ contains
     !> recentered around point; a forced start is kept and point moves to
     !> the middle of the window when it does not show (on a terminal frame).
     !> `window_scroll_functions' run for a forced or new start.  Then its
-    !> mode line.  `pt' is the window's point; `selected' says whether it
-    !> is the selected window.  Port of the core of
+    !> mode line, header line (when HAS_HEADER, showing HEADER) and tab line
+    !> (when HAS_TAB, showing TAB).  `pt' is the window's point; `selected'
+    !> says whether it is the selected window.  Port of the core of
     !> xdisp.c:redisplay_window.
-    subroutine redisplay_window(f, w, pt, selected)
+    subroutine redisplay_window(f, w, pt, selected, has_header, header, has_tab, tab)
         type(frame_type), intent(inout) :: f
         type(window_type), intent(inout) :: w
         integer(int64), intent(in) :: pt
-        logical, intent(in) :: selected
+        logical, intent(in) :: selected, has_header, has_tab
+        type(header_line_segment_type), allocatable, intent(in) :: header(:), tab(:)
         type(glyph_row_type), allocatable :: rows(:)
         type(status_type) :: status
         integer(int64) :: bi, start, end_pos
@@ -2340,6 +2349,7 @@ contains
         gui = associated(f%rif)
         body = window_body_lines(w)
         w%header_line_height = 0
+        w%tab_line_height = 0
         width = window_text_cols(w)
         capacity = width
 
@@ -2353,7 +2363,7 @@ contains
             last_y = window_pixel_height(f, w)
             if (.not. w%mini) last_y = last_y - estimate_mode_line_height(f, mode_line_face)
 
-            if (window_wants_header_line(w)) then
+            if (has_header) then
                 if (selected) then
                     w%header_line_height = estimate_mode_line_height(f, HEADER_LINE_ACTIVE_FACE_ID)
                 else
@@ -2361,6 +2371,16 @@ contains
                 end if
 
                 last_y = last_y - w%header_line_height
+            end if
+
+            if (has_tab) then
+                if (selected) then
+                    w%tab_line_height = estimate_mode_line_height(f, TAB_LINE_ACTIVE_FACE_ID)
+                else
+                    w%tab_line_height = estimate_mode_line_height(f, TAB_LINE_INACTIVE_FACE_ID)
+                end if
+
+                last_y = last_y - w%tab_line_height
             end if
 
             body = last_y/max(1, f%smallest_font_height) + 2
@@ -2416,14 +2436,15 @@ contains
             ! update_window: the rows, the mode line, then the cursor's
             ! place and the borders (gui_update_window_end).
             left = window_pixel_left(f, w)
-            top = window_pixel_top(f, w) + w%header_line_height
+            top = window_pixel_top(f, w) + w%tab_line_height + w%header_line_height
 
             do r = 1, nrows
                 if (rows(r)%enabled_p) call update_window_line(f, rows(r), left, top, left + width)
             end do
 
             if (.not. w%mini) call display_mode_line(f, w, bi, start, pt, selected)
-            if (window_wants_header_line(w)) call display_header_line(f, w, bi, selected)
+            if (has_tab) call display_header_line(f, w, tab, selected, .true.)
+            if (has_header) call display_header_line(f, w, header, selected, .false.)
             if (cursor_row >= 0) call get_phys_cursor_geometry(f, w, rows(cursor_row + 1), cursor_col, cursor_hpos, last_y)
             if (.not. w%mini) call gui_draw_vertical_border(f, w, last_y)
             return
@@ -2449,7 +2470,8 @@ contains
             ! (the first row whose bottom is at half the window's height, or
             ! the row the text ends in).
             hl = 0
-            if (window_wants_header_line(w)) hl = 1
+            if (has_header) hl = 1
+            if (has_tab) hl = hl + 1
 
             do r = 1, size(rows) - 1
                 if (hl + r >= body/2) exit
@@ -2479,8 +2501,10 @@ contains
         w%window_end_valid = reached_end
         w%cursor_vpos = cursor_row
         w%cursor_hpos = cursor_col
-        if (window_wants_header_line(w)) call display_header_line(f, w, bi, selected)
-        call put_rows(f, w%top_line + w%header_line_height, w%left_col, rows, w%divider .and. .not. w%mini)
+        if (has_tab) call display_header_line(f, w, tab, selected, .true.)
+        if (has_header) call display_header_line(f, w, header, selected, .false.)
+        call put_rows(f, w%top_line + w%tab_line_height + w%header_line_height, w%left_col, rows, &
+                      w%divider .and. .not. w%mini)
         if (.not. w%mini) call display_mode_line(f, w, bi, start, cpt, selected)
     end subroutine redisplay_window
 
@@ -3548,30 +3572,39 @@ contains
         if (saved > 0 .and. saved /= current) call set_buffer_internal(saved)
     end subroutine mode_line_misc_info_faces
 
-    !> Draw the header line of window `w' (showing buffer slot `bi') at the
-    !> top of the window: the segments of the buffer's
-    !> `header_line_format', each from its column, in its face merged
-    !> into header_line_active (`w' selected) or header_line_inactive,
-    !> cut at the right edge of the text area and filled with spaces.
-    !> Sets `w%header_line_height'.  Port of xdisp.c:display_mode_line
-    !> for the header line (HEADER_LINE_FACE_ID; the segments stand for
-    !> the strings and `(space :align-to N)' specs of the format).
-    subroutine display_header_line(f, w, bi, selected)
+    !> Draw the header line of window `w' at the top of the window, below
+    !> its tab line, or with TAB_LINE its tab line at the top: SEGMENTS
+    !> (what the buffer's `header_line_format' or `tab_line_format' gives),
+    !> each from its column, in its faces merged into header_line_active
+    !> or tab_line_active (`w' selected), else header_line_inactive or
+    !> tab_line_inactive, cut at the right edge of the text area and filled
+    !> with spaces.  Sets `w%header_line_height' or `w%tab_line_height'.
+    !> Port of xdisp.c:display_mode_line for the header line
+    !> (HEADER_LINE_FACE_ID) and the tab line (TAB_LINE_FACE_ID; the
+    !> segments stand for the strings and `(space :align-to N)' specs of
+    !> the format).
+    subroutine display_header_line(f, w, segments, selected, tab_line)
         type(frame_type), intent(inout) :: f
         type(window_type), intent(inout) :: w
-        integer(int64), intent(in) :: bi
-        logical, intent(in) :: selected
+        type(header_line_segment_type), allocatable, intent(in) :: segments(:)
+        logical, intent(in) :: selected, tab_line
         type(glyph_row_type) :: line
         type(glyph_row_type) :: rows(1)
         type(glyph_type) :: cells(MAX_CHAR_CELLS), g
         integer(int32), allocatable :: chars(:)
         integer(int32) :: base, face
-        integer :: width, x, k, i, j, n, nchars, nglyphs, asc, desc, column
+        integer :: width, x, k, i, j, n, nchars, nglyphs, asc, desc, column, top
         logical :: gui
 
         gui = associated(f%rif)
-        base = HEADER_LINE_INACTIVE_FACE_ID
-        if (selected) base = HEADER_LINE_ACTIVE_FACE_ID
+
+        if (tab_line) then
+            base = TAB_LINE_INACTIVE_FACE_ID
+            if (selected) base = TAB_LINE_ACTIVE_FACE_ID
+        else
+            base = HEADER_LINE_INACTIVE_FACE_ID
+            if (selected) base = HEADER_LINE_ACTIVE_FACE_ID
+        end if
 
         if (gui) then
             width = window_body_pixel_width(f, w)
@@ -3585,31 +3618,7 @@ contains
         x = 0
         column = 0
         nglyphs = 0
-
-        associate (segs => buffers(bi)%header_line_format%segments)
-            segments: do k = 1, size(segs)
-                face = base
-                if (len(segs(k)%face) > 0) face = merge_faces(f, segs(k)%face, 0_int32, base)
-
-                ! The stretch of a `(space :align-to N)' spec (N columns of the
-                ! frame on a window system).
-                do while (behind(segs(k)%align_to))
-                    if (.not. put(glyph_type(face_id=base), 1)) exit segments
-                end do
-
-                call decode_string(segs(k)%text, chars, nchars)
-
-                do i = 1, nchars
-                    cells = glyph_type()
-                    call produce_char(chars(i), column, cells, n, gui=gui)
-                    cells(1:n)%face_id = face
-
-                    do j = 1, n
-                        if (.not. put(cells(j), 1)) exit segments
-                    end do
-                end do
-            end do segments
-        end associate
+        if (allocated(segments)) call put_segments()
 
         if (gui) then
             ! Fill up with spaces, then the row's metrics.
@@ -3637,16 +3646,62 @@ contains
             line%height = asc + desc
             line%enabled_p = .true.
             line%y = 0
-            w%header_line_height = estimate_mode_line_height(f, base)
-            line%visible_height = min(line%height, w%header_line_height)
-            call update_window_line(f, line, window_pixel_left(f, w), window_pixel_top(f, w), &
-                                    window_pixel_left(f, w) + width)
+
+            if (tab_line) then
+                w%tab_line_height = estimate_mode_line_height(f, base)
+                line%visible_height = min(line%height, w%tab_line_height)
+                top = window_pixel_top(f, w)
+            else
+                w%header_line_height = estimate_mode_line_height(f, base)
+                line%visible_height = min(line%height, w%header_line_height)
+                top = window_pixel_top(f, w) + w%tab_line_height
+            end if
+
+            call update_window_line(f, line, window_pixel_left(f, w), top, window_pixel_left(f, w) + width)
+        else if (tab_line) then
+            w%tab_line_height = 1
+            call put_rows(f, w%top_line, w%left_col, rows, w%divider .and. .not. w%mini)
         else
             w%header_line_height = 1
-            call put_rows(f, w%top_line, w%left_col, rows, w%divider .and. .not. w%mini)
+            call put_rows(f, w%top_line + w%tab_line_height, w%left_col, rows, w%divider .and. .not. w%mini)
         end if
 
     contains
+
+        !> Put the segments, each in its faces, until the right edge.
+        subroutine put_segments()
+            parts: do k = 1, size(segments)
+                face = base
+
+                if (allocated(segments(k)%extra_faces)) then
+                    do i = size(segments(k)%extra_faces), 1, -1
+                        if (len_trim(segments(k)%extra_faces(i)) > 0) then
+                            face = merge_faces(f, trim(segments(k)%extra_faces(i)), 0_int32, face)
+                        end if
+                    end do
+                end if
+
+                if (len(segments(k)%face) > 0) face = merge_faces(f, segments(k)%face, 0_int32, face)
+
+                ! The stretch of a `(space :align-to N)' spec (N columns of the
+                ! frame on a window system).
+                do while (behind(segments(k)%align_to))
+                    if (.not. put(glyph_type(face_id=base), 1)) exit parts
+                end do
+
+                call decode_string(segments(k)%text, chars, nchars)
+
+                do i = 1, nchars
+                    cells = glyph_type()
+                    call produce_char(chars(i), column, cells, n, gui=gui)
+                    cells(1:n)%face_id = face
+
+                    do j = 1, n
+                        if (.not. put(cells(j), 1)) exit parts
+                    end do
+                end do
+            end do parts
+        end subroutine put_segments
 
         !> Whether the next place is left of column TARGET.
         logical function behind(target)
@@ -3684,6 +3739,46 @@ contains
             ok = .true.
         end function put
     end subroutine display_header_line
+
+    !> SEGMENTS, what the `tab_line_format' (with TAB_LINE) or the
+    !> `header_line_format' of buffer slot BI shows in WINDOW: its
+    !> segments, or what its procedure gives with the buffer current.
+    !> Port of xdisp.c:display_mode_element for a header line or tab line
+    !> format (its strings and `(:eval FORM)'), with display_mode_lines's
+    !> current buffer.
+    recursive subroutine line_format_segments(bi, window, tab_line, segments)
+        integer(int64), intent(in) :: bi
+        type(handle_type), intent(in) :: window
+        logical, intent(in) :: tab_line
+        type(header_line_segment_type), allocatable, intent(out) :: segments(:)
+        procedure(header_line_format_procedure), pointer :: format
+        integer(int64) :: saved
+
+        if (tab_line) then
+            format => buffers(bi)%tab_line_format%procedure
+            if (allocated(buffers(bi)%tab_line_format%segments)) segments = buffers(bi)%tab_line_format%segments
+        else
+            format => buffers(bi)%header_line_format%procedure
+            if (allocated(buffers(bi)%header_line_format%segments)) segments = buffers(bi)%header_line_format%segments
+        end if
+
+        if (.not. associated(format)) return
+        saved = current
+        if (bi /= current) call set_buffer_internal(bi)
+        call format(window, segments)
+        if (saved > 0 .and. saved /= current) call set_buffer_internal(saved)
+    end subroutine line_format_segments
+
+    !> Return true if we're updating the mode line for the selected window.
+    !> This function is meant to be called in procedures of mode line, header
+    !> line and tab line formats to allow altering the look of the mode line
+    !> depending on whether the mode line belongs to the currently selected
+    !> window or not.  Port of bindings.el:mode-line-window-selected-p
+    !> (outside redisplay the selected window is the one being updated:
+    !> true).
+    logical function is_mode_line_window_selected() result(selected)
+        selected = displayed_window_selected
+    end function is_mode_line_window_selected
 
     !> Draw the tab bar of terminal frame F on its tab bar lines: the runs
     !> `get_tab_bar_items' gives, each in its faces merged into the
@@ -3798,7 +3893,7 @@ contains
         end if
 
         w%phys_cursor_x = window_pixel_left(f, w) + cx
-        w%phys_cursor_y = window_pixel_top(f, w) + w%header_line_height + y
+        w%phys_cursor_y = window_pixel_top(f, w) + w%tab_line_height + w%header_line_height + y
         w%phys_cursor_width = wd
         w%phys_cursor_height = h
     end subroutine get_phys_cursor_geometry
@@ -3818,7 +3913,7 @@ contains
         x0 = window_pixel_left(f, w)
         x1 = x0 + window_body_pixel_width(f, w)
         y0 = window_pixel_top(f, w)
-        y1 = y0 + w%header_line_height + text_bottom - 1
+        y1 = y0 + w%tab_line_height + w%header_line_height + text_bottom - 1
         if (w%divider) call f%rif%draw_vertical_window_border(x1 - 1, y0, y1, VERTICAL_BORDER_FACE_ID)
         if (w%left_col > 0) call f%rif%draw_vertical_window_border(x0 - 1, y0, y1, VERTICAL_BORDER_FACE_ID)
     end subroutine gui_draw_vertical_border
@@ -4437,7 +4532,8 @@ contains
         type(handle_type), allocatable :: restricted(:)
         integer(int64) :: bi, pt
         integer :: endcol, mini_col, k, r
-        logical :: showing_message, mini_active, selected, gui
+        logical :: showing_message, mini_active, selected, gui, has_header, has_tab
+        type(header_line_segment_type), allocatable :: header(:), tab(:)
         type(handle_type) :: none(0)
 
         status = status_type()
@@ -4489,8 +4585,16 @@ contains
                 end if
 
                 displayed_window = leaves(k)
-                call redisplay_window(f, w, pt, selected)
+                displayed_window_selected = selected
+                ! The header line and the tab line (display_mode_lines
+                ! evaluates their formats with the window's buffer current).
+                has_header = window_wants_header_line(w)
+                has_tab = window_wants_tab_line(w)
+                if (has_header) call line_format_segments(bi, leaves(k), .false., header)
+                if (has_tab) call line_format_segments(bi, leaves(k), .true., tab)
+                call redisplay_window(f, w, pt, selected, has_header, header, has_tab, tab)
                 displayed_window = handle_type()
+                displayed_window_selected = .true.
             end associate
         end do
 
@@ -4520,7 +4624,7 @@ contains
                 f%cursor_vpos = mw%top_line
                 f%cursor_hpos = min(endcol, mw%total_cols - 1)
             else if (sw%cursor_vpos >= 0) then
-                f%cursor_vpos = sw%top_line + sw%header_line_height + sw%cursor_vpos
+                f%cursor_vpos = sw%top_line + sw%tab_line_height + sw%header_line_height + sw%cursor_vpos
                 f%cursor_hpos = sw%left_col + sw%cursor_hpos
                 ! display_and_set_cursor: the selected window's cursor (in
                 ! the echo area or minibuffer: Deferred).

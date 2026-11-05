@@ -90,6 +90,7 @@ contains
                 p%normal_cols = x%normal_cols
                 p%hscroll = x%hscroll
                 p%dedicated = x%dedicated
+                if (allocated(x%tab_line%buffers)) p%tab_line_buffers = x%tab_line%buffers
                 p%parent = parent
                 p%prev = prev
                 x%config_refs = x%config_refs + 1
@@ -354,6 +355,8 @@ contains
                     w%hscroll = p%hscroll
                     w%dedicated = p%dedicated
                     w%window_end_valid = .false.
+                    ! The persistent window parameters it had then.
+                    if (allocated(p%tab_line_buffers)) w%tab_line%buffers = p%tab_line_buffers
                 end associate
 
                 if (is_buffer_live(p%buffer)) then
@@ -536,6 +539,7 @@ contains
                 q%total_lines = p%total_lines
                 q%hscroll = p%hscroll
                 q%dedicated = p%dedicated
+                if (allocated(p%tab_line_buffers)) q%tab_line_buffers = p%tab_line_buffers
                 q%divider = p%divider
                 q%normal_lines = p%normal_lines
                 q%normal_cols = p%normal_cols
@@ -638,6 +642,7 @@ contains
                 p%total_lines = x%total_lines
                 p%normal_lines = x%normal_lines
                 p%normal_cols = x%normal_cols
+                if (allocated(x%tab_line%buffers)) p%tab_line_buffers = x%tab_line%buffers
 
                 if (p%live .and. is_buffer_live(x%buffer)) then
                     p%buffer = x%buffer
@@ -760,6 +765,12 @@ contains
             end associate
 
             if (.not. state%windows(k)%live) cycle
+
+            ! The saved window parameters (window--state-put-2).
+            if (allocated(state%windows(k)%tab_line_buffers)) then
+                windows(made(k)%index)%tab_line%buffers = state%windows(k)%tab_line_buffers
+            end if
+
             b = state%windows(k)%buffer
             if (.not. is_buffer_live(b)) b = other_buffer_safely(current_buffer())
             call set_window_buffer_internal(made(k), b, .false.)

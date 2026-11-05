@@ -13,8 +13,9 @@
 `set-window-start`,
 `window-point`,
 `set-window-point`,
-`window-body-height` (less the header line),
-`window_wants_header_line`;
+`window-body-height` (less the header line and the tab line),
+`window_wants_header_line`,
+`window_wants_tab_line` (step 44c; with the tab line's height and window parameters, `window_tab_line_type`, `tab-line-buffers` persistent in window configurations and states);
 scrolling: `scroll-up`,
 `scroll-down`,
 `recenter`,
@@ -169,7 +170,6 @@ resizing whole combinations other than a frame's root window and combination lim
 resizing the minibuffer window (`resize-mini-windows`) (`Fresize_mini_window_internal`, `grow_mini_window`, `shrink_mini_window`, `resize_mini_window_apply`);
 the window change hooks other than `window-configuration-change-hook` (`window-buffer-change-functions`, `window-size-change-functions`, `window-selection-change-functions`, `window-state-change-functions`, `window-state-change-hook`) (step 45) (`run_window_change_functions_globally`, `run_window_change_functions_locally`, `Fwindow_old_buffer`, `Fwindow_old_point`, `Fframe_old_selected_window`, `Fold_selected_window`);
 an error in `window-configuration-change-hook` during redisplay is not reported (redisplay has no way to pass it to the command loop yet);
-the tab line (step 44) (`window_wants_tab_line`);
 display tables (`Fwindow_display_table`, `Fset_window_display_table`, `window_display_table`);
 `scroll-margin` (`window_scroll_margin`);
 long-line optimizations (`window_scroll_for_long_lines`);

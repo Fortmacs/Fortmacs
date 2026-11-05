@@ -108,6 +108,9 @@ module derived_mod
         !> buffer's `flyspell_generic_check_word_test_function'); null for
         !> none.
         procedure(mode_test_procedure), pointer, nopass :: flyspell_mode_test_function => null()
+        !> Whether `global_tab_line_mode' leaves the buffers of this mode
+        !> without a tab line (the `tab-line-exclude' property).
+        logical :: tab_line_exclude = .false.
     contains
         !> Make the mode known by NAME.
         procedure :: define => major_mode_define

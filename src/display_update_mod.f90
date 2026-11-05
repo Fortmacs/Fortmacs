@@ -393,7 +393,10 @@ contains
         if (is_window_valid(f%selected_window)) then
             associate (w => windows(f%selected_window%index))
                 if (w%cursor_hpos >= w%left_col + window_text_cols(w)) w%cursor_hpos = 0
-                if (w%cursor_vpos >= w%top_line + w%header_line_height + window_body_lines(w)) w%cursor_vpos = 0
+
+                if (w%cursor_vpos >= w%top_line + w%tab_line_height + w%header_line_height + window_body_lines(w)) then
+                    w%cursor_vpos = 0
+                end if
             end associate
         end if
 

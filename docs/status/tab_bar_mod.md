@@ -95,7 +95,6 @@ C-S-TAB
 
 ## Deferred
 
-tab-line.el (`tab-line-mode`, step 44c),
 the mouse on the tab bar (`tab-bar-map`, `tab-bar-mouse-down-1`, `tab-bar-mouse-1`, `tab-bar-mouse-close-tab`, `tab-bar-mouse-context-menu`, `tab-bar-mouse-move-tab`, `tab-bar--event-to-item`, `tab-bar--key-to-number`, the touchscreen functions, `tab-bar-tab-name-format-mouse-face`),
 the GUI tab bar and the icons' images (`tab-bar-button-margin`, `tab-bar-button-relief`),
 the menu bar's button (`tab-bar-format-menu-bar`, `tab-bar-menu-bar`, `tab-bar-menu-bar-button`),

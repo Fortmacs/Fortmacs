@@ -123,6 +123,7 @@ module bindings_mod
     use save_history_mod, only: init_savehist
     use winner_mod, only: init_winner
     use tab_bar_mod, only: init_tab_bar
+    use tab_line_mod, only: initialize_tab_line
     use window_move_mod, only: init_windmove
     use saveplace_mod, only: init_saveplace
     use recent_files_mod, only: init_recentf
@@ -774,6 +775,7 @@ contains
         key(1) = value_type(int(iachar("t"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(tab_prefix_map), status)
         call init_tab_bar(tab_prefix_map)
+        call initialize_tab_line(ctl_x_map)
         call init_vc_hooks(ctl_x_map)
         ! (After vc_hooks: `grep_find_ignored_directories' defaults to
         ! `vc_directory_exclusions'.)
