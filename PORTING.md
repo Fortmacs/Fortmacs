@@ -306,9 +306,11 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        ediff-help.el; see docs/status/ediff_mod.md) — done; 48c merging
        files and buffers (ediff-merg.el, `ediff-merge-files`,
        `ediff-merge-buffers` and their `-with-ancestor` forms; see
-       docs/status/ediff_merg_mod.md) — done; then session groups
-       (ediff-mult.el), revisions (ediff-vers.el) and patches
-       (ediff-ptch.el).
+       docs/status/ediff_merg_mod.md) — done; 48d session groups
+       (ediff-mult.el, `ediff-directories`, `ediff-directories3`,
+       `ediff-merge-directories` and `-with-ancestor`, the registry; see
+       docs/status/ediff_multiple_mod.md) — done; then revisions
+       (ediff-vers.el) and patches (ediff-ptch.el).
    49. Projects and cross-references: project.el (C-x p), xref.el and
        etags.el (M-., M-?, M-,) — 49a partial (docs/status/xref_mod.md and
        etags_mod.md), 49b partial (docs/status/project_mod.md), Imenu and

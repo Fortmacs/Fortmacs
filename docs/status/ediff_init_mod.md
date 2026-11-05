@@ -23,6 +23,11 @@ the buffer types A, B, C and Ancestor as named constants,
 `ediff-state-of-merge` (`merge_states` of `ediff_merge_state_type` records, with the internal EDIFF_STATE_OF_MERGE_* states),
 `ediff--show-ancestor-orig`,
 `ediff-merge-store-file` (a session component),
+`ediff-merge-filename-prefix`,
+`ediff-meta-buffer` and `ediff-meta-session-number` (session components),
+the metajob tests (`ediff-ancestor-metajob`, `ediff-collect-diffs-metajob`, `ediff-merge-metajob`, `ediff-metajob3`, `ediff-comparison-metajob3`, of the ported directory jobs),
+`ediff-abbrev-jobname` (the ported jobs),
+`ediff-strip-last-dir`,
 `ediff-no-emacs-help-in-control-buffer` (`ediff_fortmacs_help_in_control_buffer`, named positively: `.true.`, the default, keeps C-h for help),
 `ediff-temp-file-mode`,
 the hooks (`ediff-before-setup-hook`, `-before-setup-windows-hook`, `-after-setup-windows-hook`, `-startup-hook`, `-select-hook`, `-unselect-hook`, `-prepare-buffer-hook`, `-mode-hook`, `-keymap-setup-hook`, `-display-help-hook`, `-quit-hook`, `-cleanup-hook`),
@@ -46,20 +51,17 @@ control frames,
 the mouse and the toolbar (`ediff-grab-mouse`, `ediff-reset-mouse`, `ediff-before-setup-control-frame-hook` and `-after-`),
 `ediff-suspend-hook`,
 `ediff-version-control-package`,
-`ediff-merge-filename-prefix`,
 `ediff-metachars`,
-the metajob tests (ediff-mult.el),
+the metajob tests of the revision, patch and file group jobs (`ediff-revision-metajob`, `ediff-patch-metajob`, `ediff-one-filegroup-metajob`),
 the regexp filters' variables,
 `ediff-start-narrowed`,
 `ediff-quit-widened`,
 `ediff-temp-indirect-buffer`,
 `ediff-strip-mode-line-format`,
 the faces' stipples,
-`ediff-region-help-echo`,
-`ediff-abbrev-jobname`,
-`ediff-strip-last-dir`;
+`ediff-region-help-echo`;
 not applicable: `ediff-load-hook` (obsolete)
 
 ## Tests
 
-through test_ediff_diff_mod and test_ediff_util_mod
+through test_ediff_diff_mod, test_ediff_util_mod and test_ediff_multiple_mod

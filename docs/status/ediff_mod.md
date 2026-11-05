@@ -1,6 +1,6 @@
 # ediff_mod
 
-- Module: ediff_mod
+- Module: ediff_mod, ediff_directories_mod (submodule)
 - Upstream: vc/ediff.el
 - State: partial
 
@@ -21,13 +21,20 @@
 `ediff-merge-buffers`,
 `ediff-merge-buffers-with-ancestor`,
 `ediff-merge-on-startup`,
-`ediff-get-default-file-name` (outside Dired);
+`ediff-get-default-file-name` (outside Dired),
+`ediff-directories` (`edirs`),
+`ediff-directories3` (`edirs3`),
+`ediff-merge-directories` (`edirs-merge`, MERGE-AUTOSTORE-DIR),
+`ediff-merge-directories-with-ancestor` (`edirs-merge-with-ancestor`, MERGE-AUTOSTORE-DIR),
+`ediff-directories-internal` (the job gives the session action; in ediff_directories_mod),
+`ediff-get-default-directory-name` (outside Dired),
+`ediff-last-merge-autostore-dir`;
 STARTUP-HOOKS as a `hook_type`
 
 ## Deferred
 
-the directory, window, region, patch and revision jobs (`ediff-directories`, `-directories3`, `-directory-revisions`, `ediff-merge-directories` and `-with-ancestor`, `ediff-merge-directory-revisions` and `-with-ancestor`, `ediff-windows-wordwise`/`-linewise`, `ediff-regions-wordwise`/`-linewise`, `ediff-patch-file`/`-buffer`, `ediff-revision`, `ediff-merge-revisions` and `-with-ancestor`: ediff-mult.el, ediff-vers.el and ediff-ptch.el come next),
-`ediff-last-merge-autostore-dir`,
+the window, region, patch and revision jobs (`ediff-directory-revisions` (`edir-revisions`), `ediff-merge-directory-revisions` and `-with-ancestor` (`edir-merge-revisions` and `-with-ancestor`), `ediff-directory-revisions-internal`, `ediff-windows-wordwise`/`-linewise`, `ediff-regions-wordwise`/`-linewise`, `ediff-patch-file`/`-buffer`, `ediff-revision`, `ediff-merge-revisions` and `-with-ancestor`: ediff-vers.el and ediff-ptch.el come next),
+Dired's directory at point in `ediff-get-default-directory-name`,
 `ediff-version`,
 `ediff-documentation` (the Ediff manual),
 the `*-command` functions of the command line,
@@ -40,4 +47,4 @@ auto-save files in `ediff-current-file`
 
 ## Tests
 
-test_ediff_util_mod (own: ediff-files); test_ediff_merg_mod (own: ediff-merge-buffers, ediff-merge-buffers-with-ancestor, MERGE-BUFFER-FILE)
+test_ediff_util_mod (own: ediff-files); test_ediff_merg_mod (own: ediff-merge-buffers, ediff-merge-buffers-with-ancestor, MERGE-BUFFER-FILE); test_ediff_multiple_mod (own: ediff-directories)
