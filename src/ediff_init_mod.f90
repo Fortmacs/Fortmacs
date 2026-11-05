@@ -30,7 +30,7 @@
 !> The arrays of a session indexed by buffer type (`buffers', `windows',
 !> `differences', the bounds and the current-difference overlays) have
 !> room for all four types, so merge jobs (buffer C the merge buffer, the
-!> ancestor) and session groups (`meta_buffer') fit in later.
+!> ancestor) and session groups (`meta_buffer', ediff_multiple_mod) fit.
 module ediff_init_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, FM_USER_ERROR
@@ -45,13 +45,17 @@ module ediff_init_mod
     use itree_mod, only: overlay_put, overlay_buffer, move_overlay, delete_overlay, is_overlay
     use frame_mod, only: selected_frame
     use callint_mod, only: this_command
+    use fileio_mod, only: expand_file_name, file_name_directory, is_file_directory
+    use files_mod, only: abbreviate_file_name
     implicit none(type, external)
     private
 
     public :: ediff_session_index, has_ediff_face_support, is_ediff_buffer_job, ediff_char_to_buffer_type, &
               ediff_buffer_type_name, set_ediff_overlay_face, move_ediff_overlay, ediff_background_face, &
               paint_ediff_background_regions, check_ediff_control_buffer, close_ediff_buffer_carefully, &
-              make_ediff_session_entry, drop_ediff_session, init_ediff_init
+              make_ediff_session_entry, drop_ediff_session, init_ediff_init, is_ediff_ancestor_metajob, &
+              is_ediff_collect_diffs_metajob, is_ediff_merge_metajob, is_ediff_metajob3, is_ediff_comparison_metajob3, &
+              abbreviate_ediff_job_name, strip_ediff_last_dir
 
     ! ------------------------------------------------------------------
     ! Buffer types
@@ -172,8 +176,10 @@ module ediff_init_mod
         !> `ediff_diff_buffer' and `ediff_error_buffer'.
         type(handle_type) :: diff_buffer, error_buffer
         !> `ediff_meta_buffer': the session group this session belongs to
-        !> (none until ediff-mult.el is ported).
+        !> (the null handle for none), and `ediff_meta_session_number', its
+        !> number in that group.
         type(handle_type) :: meta_buffer
+        integer :: meta_session_number = 0
         !> The regions copies replaced (upstream's `ediff-killed-diffs-alist').
         type(ediff_replaced_region_type), allocatable :: replaced_regions(:)
         !> `ediff_highlighting_style' (EDIFF_HIGHLIGHTING_STYLE_*).
@@ -321,6 +327,10 @@ module ediff_init_mod
     !> Mode for Ediff temporary files.  Port of ediff-init.el
     !> ediff-temp-file-mode.
     integer, public :: ediff_temp_file_mode = int(o"600")
+
+    !> Prefix to be attached to saved merge buffers.  Port of ediff-init.el
+    !> ediff-merge-filename-prefix.
+    character(len=:), allocatable, public :: ediff_merge_filename_prefix
 
     ! ------------------------------------------------------------------
     ! Hooks
@@ -646,6 +656,125 @@ contains
         if (is_buffer_live(buffer)) call close_buffer(buffer, status)
     end subroutine close_ediff_buffer_carefully
 
+    !> Whether session group job JOB_NAME merges with ancestors.  Port of
+    !> ediff-init.el:ediff-ancestor-metajob (the file group job is
+    !> Deferred).
+    logical function is_ediff_ancestor_metajob(job_name)
+        type(command_type), pointer, intent(in) :: job_name
+
+        is_ediff_ancestor_metajob = associated(job_name, commands%ediff_merge_directories_with_ancestor)
+    end function is_ediff_ancestor_metajob
+
+    !> Whether session group job JOB_NAME can collect the custom diffs of
+    !> its sessions into a multifile patch.  Port of
+    !> ediff-init.el:ediff-collect-diffs-metajob (the revision jobs are
+    !> Deferred).
+    logical function is_ediff_collect_diffs_metajob(job_name)
+        type(command_type), pointer, intent(in) :: job_name
+
+        is_ediff_collect_diffs_metajob = associated(job_name, commands%ediff_directories) .or. &
+                                         associated(job_name, commands%ediff_merge_directories) .or. &
+                                         associated(job_name, commands%ediff_merge_directories_with_ancestor)
+    end function is_ediff_collect_diffs_metajob
+
+    !> Whether session group job JOB_NAME merges.  Port of
+    !> ediff-init.el:ediff-merge-metajob (the revision and file group jobs
+    !> are Deferred).
+    logical function is_ediff_merge_metajob(job_name)
+        type(command_type), pointer, intent(in) :: job_name
+
+        is_ediff_merge_metajob = associated(job_name, commands%ediff_merge_directories) .or. &
+                                 associated(job_name, commands%ediff_merge_directories_with_ancestor)
+    end function is_ediff_merge_metajob
+
+    !> Whether the sessions of session group job JOB_NAME involve three
+    !> files.  Port of ediff-init.el:ediff-metajob3 (the file group jobs
+    !> are Deferred).
+    logical function is_ediff_metajob3(job_name)
+        type(command_type), pointer, intent(in) :: job_name
+
+        is_ediff_metajob3 = associated(job_name, commands%ediff_merge_directories_with_ancestor) .or. &
+                            associated(job_name, commands%ediff_directories3)
+    end function is_ediff_metajob3
+
+    !> Whether session group job JOB_NAME compares three files.  Port of
+    !> ediff-init.el:ediff-comparison-metajob3 (the file group job is
+    !> Deferred).
+    logical function is_ediff_comparison_metajob3(job_name)
+        type(command_type), pointer, intent(in) :: job_name
+
+        is_ediff_comparison_metajob3 = associated(job_name, commands%ediff_directories3)
+    end function is_ediff_comparison_metajob3
+
+    !> What the session group and registry buffers call job JOB_NAME
+    !> ("Compare two directories"), "" for a job not ported.  Port of
+    !> ediff-init.el:ediff-abbrev-jobname (the jobs it names by
+    !> capitalizing the words of their names are spelled out).
+    function abbreviate_ediff_job_name(job_name) result(text)
+        type(command_type), pointer, intent(in) :: job_name
+        character(len=:), allocatable :: text
+
+        if (associated(job_name, commands%ediff_directories)) then
+            text = "Compare two directories"
+        else if (associated(job_name, commands%ediff_files)) then
+            text = "Compare two files"
+        else if (associated(job_name, commands%ediff_buffers)) then
+            text = "Compare two buffers"
+        else if (associated(job_name, commands%ediff_directories3)) then
+            text = "Compare three directories"
+        else if (associated(job_name, commands%ediff_files3)) then
+            text = "Compare three files"
+        else if (associated(job_name, commands%ediff_buffers3)) then
+            text = "Compare three buffers"
+        else if (associated(job_name, commands%ediff_merge_files)) then
+            text = "Merge Files"
+        else if (associated(job_name, commands%ediff_merge_buffers)) then
+            text = "Merge Buffers"
+        else if (associated(job_name, commands%ediff_merge_files_with_ancestor)) then
+            text = "Merge Files With Ancestor"
+        else if (associated(job_name, commands%ediff_merge_buffers_with_ancestor)) then
+            text = "Merge Buffers With Ancestor"
+        else if (associated(job_name, commands%ediff_merge_directories)) then
+            text = "Merge Directories"
+        else if (associated(job_name, commands%ediff_merge_directories_with_ancestor)) then
+            text = "Merge Directories With Ancestor"
+        else
+            text = ""
+        end if
+    end function abbreviate_ediff_job_name
+
+    !> The parent directory of DIR (`default_directory' if DIR is "");
+    !> does nothing to "/".  If DIR is a regular file, strip the file AND
+    !> the last dir.  Port of ediff-init.el:ediff-strip-last-dir.
+    subroutine strip_ediff_last_dir(dir_in, result, status)
+        character(len=*), intent(in) :: dir_in
+        character(len=:), allocatable, intent(out) :: result
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: dir
+        integer :: pos
+
+        result = ""
+        dir = dir_in
+
+        if (len(dir) == 0) then
+            if (current > 0) then
+                if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+            end if
+        end if
+
+        call expand_file_name(dir, result, status)
+        if (.not. status%ok()) return
+        dir = result
+        if (.not. is_file_directory(dir)) dir = file_name_directory(dir)
+        pos = len(dir)
+
+        if (pos > 1) then
+            if (dir(pos:pos) == "/") dir = dir(1:pos - 1)
+        end if
+
+        result = abbreviate_file_name(file_name_directory(dir))
+    end subroutine strip_ediff_last_dir
+
     !> Define the faces of ediff-init.el.  Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
@@ -864,5 +993,6 @@ contains
         if (.not. allocated(ediff_after_flag_mol)) ediff_after_flag_mol = "<<-"
         if (.not. allocated(ediff_coding_system_for_read)) ediff_coding_system_for_read = "raw-text"
         if (.not. allocated(ediff_coding_system_for_write)) ediff_coding_system_for_write = "emacs-internal"
+        if (.not. allocated(ediff_merge_filename_prefix)) ediff_merge_filename_prefix = "merge_"
     end subroutine init_ediff_init
 end module ediff_init_mod

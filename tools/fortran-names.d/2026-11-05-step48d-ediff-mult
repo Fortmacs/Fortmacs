@@ -1,0 +1,87 @@
+# Step 48d (R6-17 verb first, word order only; R6-40 a verb from what the
+# command does; is_* for predicates; buff spelled out; decided by rule and
+# reported in the PR): Ediff session groups (ediff-mult.el) and the
+# session group predicates of ediff-init.el.
+name	ediff_show_registry	show_ediff_registry
+name	ediff_show_meta_buffer	show_ediff_meta_buffer
+name	ediff_show_current_session_meta_buffer	show_ediff_current_session_meta_buffer
+name	ediff_show_meta_buff_from_registry	show_ediff_meta_buffer_from_registry
+name	ediff_next_meta_item	next_ediff_meta_item
+name	ediff_previous_meta_item	previous_ediff_meta_item
+name	ediff_next_meta_item1	next_ediff_meta_item1
+name	ediff_previous_meta_item1	previous_ediff_meta_item1
+name	ediff_toggle_verbose_help_meta_buffer	toggle_ediff_verbose_help_meta_buffer
+name	ediff_toggle_filename_truncation	toggle_ediff_filename_truncation
+name	ediff_quit_meta_buffer	quit_ediff_meta_buffer
+name	ediff_mark_for_hiding_at_pos	mark_ediff_for_hiding_at_pos
+name	ediff_mark_for_operation_at_pos	mark_ediff_for_operation_at_pos
+name	ediff_hide_marked_sessions	hide_ediff_marked_sessions
+name	ediff_unmark_all_for_operation	unmark_ediff_all_for_operation
+name	ediff_unmark_all_for_hiding	unmark_ediff_all_for_hiding
+name	ediff_collect_custom_diffs	collect_ediff_custom_diffs
+name	ediff_up_meta_hierarchy	up_ediff_meta_hierarchy
+name	ediff_show_dir_diffs	show_ediff_dir_diffs
+name	ediff_dir_diff_copy_file	copy_ediff_dir_diff_file
+name	ediff_bury_dir_diffs_buffer	bury_ediff_dir_diffs_buffer
+name	ediff_meta_mark_equal_files	mark_ediff_meta_equal_files
+name	ediff_meta_show_patch	show_ediff_meta_patch
+name	ediff_intersect_directories	intersect_ediff_directories
+name	ediff_prepare_meta_buffer	prepare_ediff_meta_buffer
+name	ediff_update_meta_buffer	update_ediff_meta_buffer
+name	ediff_update_registry	update_ediff_registry
+name	ediff_cleanup_meta_buffer	clean_up_ediff_meta_buffer
+name	ediff_dispose_of_meta_buffer	dispose_of_ediff_meta_buffer
+name	ediff_get_meta_info	get_ediff_meta_info
+name	ediff_redraw_directory_group_buffer	redraw_ediff_directory_group_buffer
+name	ediff_redraw_registry_buffer	redraw_ediff_registry_buffer
+name	ediff_insert_session_info_in_meta_buffer	insert_ediff_session_info_in_meta_buffer
+name	ediff_meta_insert_file_info1	insert_ediff_meta_file_info
+name	ediff_format_date	format_ediff_date
+name	ediff_insert_dirs_in_meta_buffer	insert_ediff_dirs_in_meta_buffer
+name	ediff_set_meta_overlay	set_ediff_meta_overlay
+name	ediff_update_markers_in_dir_meta_buffer	update_ediff_markers_in_dir_meta_buffer
+name	ediff_update_session_marker_in_dir_meta_buffer	update_ediff_session_marker_in_dir_meta_buffer
+name	ediff_replace_session_activity_marker_in_meta_buffer	replace_ediff_session_activity_marker
+name	ediff_replace_session_status_in_meta_buffer	replace_ediff_session_status
+name	ediff_next_meta_overlay_start	next_ediff_meta_overlay_start
+name	ediff_previous_meta_overlay_start	previous_ediff_meta_overlay_start
+name	ediff_draw_dir_diffs	draw_ediff_dir_diffs
+name	ediff_mark_session_for_hiding	mark_ediff_session_for_hiding
+name	ediff_mark_session_for_operation	mark_ediff_session_for_operation
+name	ediff_operate_on_marked_sessions	operate_on_ediff_marked_sessions
+name	ediff_append_custom_diff	append_ediff_custom_diff
+name	ediff_get_session_activity_marker	get_ediff_session_activity_marker
+name	ediff_setup_meta_map	set_up_ediff_meta_map
+name	ediff_abbrev_jobname	abbreviate_ediff_job_name
+name	ediff_strip_last_dir	strip_ediff_last_dir
+# _p is is_* (CLAUDE.md, decided by rule).
+name	ediff_meta_session_p	is_ediff_meta_session
+name	ediff_problematic_session_p	is_ediff_problematic_session
+# Predicates without _p upstream (they answer yes or no): is_*.
+name	ediff_safe_to_quit	is_ediff_safe_to_quit
+name	ediff_ancestor_metajob	is_ediff_ancestor_metajob
+name	ediff_collect_diffs_metajob	is_ediff_collect_diffs_metajob
+name	ediff_merge_metajob	is_ediff_merge_metajob
+name	ediff_metajob3	is_ediff_metajob3
+name	ediff_comparison_metajob3	is_ediff_comparison_metajob3
+# The new names contain the old runs: kept whole.
+keep	is_ediff_safe_to_quit
+keep	is_ediff_ancestor_metajob
+keep	is_ediff_collect_diffs_metajob
+keep	is_ediff_merge_metajob
+keep	is_ediff_metajob3
+keep	is_ediff_comparison_metajob3
+# The meta-action commands take execute_, the verb for running something
+# (R6-40, CLAUDE.md "One word per meaning"; as run_action is execute_action).
+name	ediff_filegroup_action	execute_ediff_filegroup_action
+name	ediff_registry_action	execute_ediff_registry_action
+keep	execute_ediff_filegroup_action
+keep	execute_ediff_registry_action
+# ediff-same-contents and ediff-same-file-contents ask (y-or-n) and can
+# fail, so they are subroutines with a logical result: compare_.
+name	ediff_same_contents	compare_ediff_contents
+name	ediff_same_file_contents	compare_ediff_file_contents
+# Hooks keep their names (hooks, not the commands quit_ediff and
+# show_ediff_registry).
+keep	ediff_quit_session_group_hook
+keep	ediff_show_registry_hook
