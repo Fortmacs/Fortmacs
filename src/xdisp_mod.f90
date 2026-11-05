@@ -4209,7 +4209,7 @@ contains
         logical, intent(in) :: nlflag
         type(handle_type) :: oldbuf, buffer, oldpoint, oldbegv, oldzv
         type(status_type) :: st
-        integer(int64) :: this_bol, this_bol_byte, prev_bol, prev_bol_byte, dups, pos
+        integer(int64) :: this_bol, this_bol_byte, prev_bol, prev_bol_byte, dups, pos, pos_byte
         logical :: newbuffer, point_at_end, zv_at_end, old_inhibit
         character(len=24) :: dupstr
 
@@ -4285,17 +4285,21 @@ contains
             inhibit_modification_hooks%value = old_inhibit
         end if
 
+        ! The byte position first, while begv still matches its byte
+        ! position.
         call marker_position(oldbegv, pos, st)
+        pos_byte = buf_charpos_to_bytepos(current, pos)
         buffers(current)%begv = pos
-        buffers(current)%begv_byte = buf_charpos_to_bytepos(current, pos)
+        buffers(current)%begv_byte = pos_byte
 
         if (zv_at_end) then
             buffers(current)%zv = buffers(current)%text%z
             buffers(current)%zv_byte = buffers(current)%text%z_byte
         else
             call marker_position(oldzv, pos, st)
+            pos_byte = buf_charpos_to_bytepos(current, pos)
             buffers(current)%zv = pos
-            buffers(current)%zv_byte = buf_charpos_to_bytepos(current, pos)
+            buffers(current)%zv_byte = pos_byte
         end if
 
         if (point_at_end) then

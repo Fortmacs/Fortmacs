@@ -173,8 +173,10 @@ program tester
     use test_info_look_mod, only: collect_info_look_mod
     use test_pcomplete_mod, only: collect_pcomplete_mod
     use test_mail_utils_mod, only: collect_mail_utils_mod
+    use test_mail_extract_mod, only: collect_mail_extract_mod
     use test_mailabbrev_mod, only: collect_mailabbrev_mod
     use test_sendmail_mod, only: collect_sendmail_mod
+    use test_smtpmail_mod, only: collect_smtpmail_mod
     use test_ansi_color_mod, only: collect_ansi_color_mod
     use test_buff_menu_mod, only: collect_buff_menu_mod
     use test_calendar_mod, only: collect_calendar_mod
@@ -355,8 +357,10 @@ program tester
                  new_testsuite("ansi_color_mod", collect_ansi_color_mod), &
                  new_testsuite("pcomplete_mod", collect_pcomplete_mod), &
                  new_testsuite("mail_utils_mod", collect_mail_utils_mod), &
+                 new_testsuite("mail_extract_mod", collect_mail_extract_mod), &
                  new_testsuite("mailabbrev_mod", collect_mailabbrev_mod), &
-                 new_testsuite("sendmail_mod", collect_sendmail_mod) &
+                 new_testsuite("sendmail_mod", collect_sendmail_mod), &
+                 new_testsuite("smtpmail_mod", collect_smtpmail_mod) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)
