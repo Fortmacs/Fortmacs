@@ -50,6 +50,7 @@
 | [ediff_diff_mod](../status/ediff_diff_mod.md) | vc/ediff-diff.el | partial |
 | [ediff_help_mod](../status/ediff_help_mod.md) | vc/ediff-help.el | partial |
 | [ediff_init_mod](../status/ediff_init_mod.md) | vc/ediff-init.el | partial |
+| [ediff_merg_mod](../status/ediff_merg_mod.md) | vc/ediff-merg.el | partial |
 | [ediff_mod](../status/ediff_mod.md) | vc/ediff.el | partial |
 | [ediff_util_mod](../status/ediff_util_mod.md) | vc/ediff-util.el | partial |
 | [ediff_wind_mod](../status/ediff_wind_mod.md) | vc/ediff-wind.el | partial |
