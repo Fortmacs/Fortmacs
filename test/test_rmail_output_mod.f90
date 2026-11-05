@@ -27,8 +27,8 @@ module test_rmail_output_mod
     use error_mod, only: status_type, format_error, FM_VOID_FUNCTION
     use files_mod, only: delete_file
     use file_input_output_mod, only: file_exists
-    use rmail_mod, only: rmail_get_header
-    use rmail_output_mod, only: rmail_output, rmail_output_as_seen, rmail_output_body_to_file
+    use rmail_mod, only: get_rmail_header
+    use rmail_output_mod, only: output_rmail_message, output_rmail_message_as_seen, output_rmail_message_body_to_file
     use test_rmail_support_mod, only: set_up_rmail, leave_rmail, visit_rmail, write_file, read_file_text, SAMPLE_MBOX, LF
     implicit none(type, external)
     private
@@ -58,7 +58,7 @@ contains
         output = file//"-out"
         call write_file(output, "")
         call visit_rmail(file, SAMPLE_MBOX, st)
-        call rmail_output(output, st)
+        call output_rmail_message(output, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         text = read_file_text(output)
@@ -74,7 +74,7 @@ contains
                    ">From the archives."//LF// &
                    LF, text)
         if (allocated(error)) return
-        call rmail_get_header("X-RMAIL-ATTRIBUTES", value, st, 1_int64)
+        call get_rmail_header("X-RMAIL-ATTRIBUTES", value, st, 1_int64)
         call check(error, value == "---F----", value)
         call leave_rmail(file, output)
     end subroutine test_output
@@ -88,7 +88,7 @@ contains
         call set_up_rmail(file)
         output = file//"-body"
         call visit_rmail(file, SAMPLE_MBOX, st)
-        call rmail_output_body_to_file(output, st)
+        call output_rmail_message_body_to_file(output, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         text = read_file_text(output)
@@ -107,7 +107,7 @@ contains
         output = file//"-seen"
         call write_file(output, "")
         call visit_rmail(file, SAMPLE_MBOX, st)
-        call rmail_output_as_seen(output, st)
+        call output_rmail_message_as_seen(output, st)
         call check(error, st%code == FM_VOID_FUNCTION, format_error(st))
         call leave_rmail(file, output)
     end subroutine test_output_as_seen

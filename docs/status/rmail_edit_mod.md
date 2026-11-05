@@ -10,7 +10,7 @@
 `rmail-edit-current-message`,
 `rmail-cease-edit` (escaping "From " lines, rewriting the charset, adding a lost Content-Type field, encoding the body by its coding system and content transfer encoding, the edited attribute),
 `rmail-abort-edit`,
-`rmail-edit-headers-alist` (`rmail_edit_headers`),
+`rmail-edit-headers-alist` (`get_rmail_edit_headers`),
 `rmail-edit-diff-headers`,
 `rmail-edit-update-headers`,
 `rmail-edit-mode-hook`,

@@ -95,23 +95,24 @@ module rmail_mod
     implicit none(type, external)
     private
 
-    public :: rmail, rmail_mode, rmail_input, rmail_get_new_mail, rmail_show_message, rmail_next_message, &
-              rmail_previous_message, rmail_next_undeleted_message, rmail_previous_undeleted_message, rmail_first_message, &
-              rmail_last_message, rmail_search, rmail_search_backwards, rmail_delete_message, rmail_delete_forward, &
-              rmail_delete_backward, rmail_undelete_previous_message, rmail_only_expunge, rmail_expunge, &
-              rmail_expunge_and_save, rmail_quit, rmail_bury, rmail_toggle_header, rmail_beginning_of_message, &
-              rmail_end_of_message, rmail_widen
-    public :: rmail_mode_1, rmail_variables, rmail_get_header, rmail_set_header, rmail_get_attribute_names, &
-              rmail_get_keywords, rmail_get_labels, rmail_display_labels, rmail_set_attribute, has_rmail_message_attributes, &
+    public :: rmail, rmail_mode, rmail_input, get_rmail_new_mail, show_rmail_message, next_rmail_message, &
+              previous_rmail_message, next_rmail_undeleted_message, previous_rmail_undeleted_message, show_first_rmail_message, &
+              show_last_rmail_message, search_rmail, search_rmail_backwards, delete_rmail_message, delete_rmail_message_forward, &
+              delete_rmail_message_backward, undelete_previous_rmail_message, expunge_rmail_only, expunge_rmail, &
+              expunge_and_save_rmail, quit_rmail, bury_rmail, toggle_rmail_header, beginning_of_rmail_message, &
+              end_of_rmail_message, widen_rmail
+    public :: set_up_rmail_mode_1, set_rmail_variables, get_rmail_header, set_rmail_header, get_rmail_attribute_names, &
+              get_rmail_keywords, get_rmail_labels, display_rmail_labels, set_rmail_attribute, has_rmail_message_attributes, &
               is_rmail_message_unseen, has_rmail_message_labels, rmail_message_beginning, rmail_message_end, &
-              rmail_in_message_begin, rmail_in_message_end, rmail_maybe_set_message_counters, rmail_count_new_messages, &
-              rmail_set_message_counters, is_rmail_message_pruned, rmail_show_message_1, rmail_highlight_headers, &
-              rmail_what_message, rmail_first_unseen_message, is_rmail_message_deleted, set_rmail_message_deleted, &
-              rmail_summary_exists, rmail_summary_displayed, rmail_maybe_display_summary, rmail_select_summary, &
-              rmail_swap_buffers, rmail_swap_buffers_maybe, is_rmail_buffers_swapped, rmail_modify_format, &
-              rmail_dont_modify_format, rmail_ensure_blank_line, rmail_get_coding_system, is_rmail_text, rmail_buffer, &
-              set_rmail_buffer, rmail_state_index, rmail_error_bad_format, rmail_write_region_annotate, &
-              rmail_summary_procedure, rmail_pop_to_buffer, read_rmail_search, rmail_expunge_confirmed, init_rmail
+              apply_in_rmail_message_begin, apply_in_rmail_message_end, set_rmail_message_counters_maybe, &
+              count_rmail_new_messages, &
+              set_rmail_message_counters, is_rmail_message_pruned, show_rmail_message_1, highlight_rmail_headers, &
+              get_rmail_message_at, get_first_rmail_unseen_message, is_rmail_message_deleted, set_rmail_message_deleted, &
+              rmail_summary_exists, rmail_summary_displayed, display_rmail_summary_maybe, select_rmail_summary, &
+              swap_rmail_buffers, swap_rmail_buffers_maybe, is_rmail_buffers_swapped, modify_rmail_format, &
+              keep_rmail_format, ensure_rmail_blank_line, get_rmail_coding_system, is_rmail_text, rmail_buffer, &
+              set_rmail_buffer, rmail_state_index, set_rmail_bad_format_error, annotate_rmail_write_region, &
+              rmail_summary_procedure, pop_to_rmail_buffer, read_rmail_search, is_rmail_expunge_confirmed, init_rmail
     public :: rmail_states, rmail_state_type
 
     !> The name of the header field that records a message's attributes.
@@ -149,13 +150,13 @@ module rmail_mod
 
     !> Values of `rmail_mbox_format'.  Port of the values of rmail.el
     !> rmail-mbox-format.
-    integer, parameter, public :: RMAIL_MBOX_FORMAT_MBOXRD = 1, RMAIL_MBOX_FORMAT_MBOXO = 2
+    integer, parameter, public :: RMAIL_MBOX_FORMAT_MBOXRD = 2, RMAIL_MBOX_FORMAT_MBOXO = 3
 
     !> The header style messages are shown with: RMAIL_HEADER_STYLE_NORMAL
     !> or RMAIL_HEADER_STYLE_FULL.  Port of rmail.el rmail-header-style.
     integer, public :: rmail_header_style = RMAIL_HEADER_STYLE_NORMAL
 
-    !> The label last given to \[rmail_add_label] or \[rmail_remove_label]
+    !> The label last given to \[add_rmail_label] or \[remove_rmail_label]
     !> (unallocated for none).  Port of rmail.el rmail-last-label.
     character(len=:), allocatable, public :: rmail_last_label
 
@@ -227,7 +228,7 @@ module rmail_mod
     !> when you view the message for the first time in Rmail.
     !> To make a change in this variable take effect
     !> for a message that you have already viewed,
-    !> go to that message and type \[rmail_toggle_header] twice.
+    !> go to that message and type \[toggle_rmail_header] twice.
     !> Port of rmail.el rmail-ignored-headers (set by `init_rmail' unless
     !> already set).
     character(len=:), allocatable, public :: rmail_ignored_headers
@@ -242,7 +243,7 @@ module rmail_mod
     !> when you view the message for the first time in Rmail.
     !> To make a change in this variable take effect
     !> for a message that you have already viewed,
-    !> go to that message and type \[rmail_toggle_header] twice.
+    !> go to that message and type \[toggle_rmail_header] twice.
     !> Port of rmail.el rmail-nonignored-headers (set by `init_rmail'
     !> unless already set).
     character(len=:), allocatable, public :: rmail_nonignored_headers
@@ -292,11 +293,11 @@ module rmail_mod
     !> Values of `rmail_confirm_expunge' besides .true. (ask with
     !> `read_y_or_n') and .false. (don't ask): ask with `read_yes_or_no',
     !> which wants a full answer.
-    integer, parameter, public :: RMAIL_CONFIRM_EXPUNGE_FULL_ANSWER = 2
+    integer, parameter, public :: RMAIL_CONFIRM_EXPUNGE_READ_YES_OR_NO = 2
 
     !> Whether and how to ask for confirmation before expunging deleted messages.
     !> If .true., ask the question with `read_y_or_n'; with
-    !> RMAIL_CONFIRM_EXPUNGE_FULL_ANSWER, ask it with `read_yes_or_no'.
+    !> RMAIL_CONFIRM_EXPUNGE_READ_YES_OR_NO, ask it with `read_yes_or_no'.
     !> Port of rmail.el rmail-confirm-expunge (a function of your own is
     !> Deferred).
     type(choice_setting_type), public :: rmail_confirm_expunge = &
@@ -312,11 +313,11 @@ module rmail_mod
     !> Port of rmail.el rmail-get-new-mail-hook.
     type(hook_type), target, public :: rmail_get_new_mail_hook = hook_type(name="rmail_get_new_mail_hook")
 
-    !> Run by \[rmail_get_new_mail] before it does anything.  Port of
+    !> Run by \[get_rmail_new_mail] before it does anything.  Port of
     !> rmail.el rmail-before-get-new-mail-hook.
     type(hook_type), target, public :: rmail_before_get_new_mail_hook = hook_type(name="rmail_before_get_new_mail_hook")
 
-    !> Run by \[rmail_get_new_mail] just before it returns, whether or not
+    !> Run by \[get_rmail_new_mail] just before it returns, whether or not
     !> there is new mail.  Port of rmail.el rmail-after-get-new-mail-hook.
     type(hook_type), target, public :: rmail_after_get_new_mail_hook = hook_type(name="rmail_after_get_new_mail_hook")
 
@@ -342,11 +343,11 @@ module rmail_mod
     !> rmail.el rmail-display-summary.
     logical, public :: rmail_display_summary = .false.
 
-    !> Default file name for \[rmail_output].  Port of rmail.el
+    !> Default file name for \[output_rmail_message].  Port of rmail.el
     !> rmail-default-file (set by `init_rmail' unless already set).
     character(len=:), allocatable, public :: rmail_default_file
 
-    !> Default file name for \[rmail_output_body_to_file].  Port of
+    !> Default file name for \[output_rmail_message_body_to_file].  Port of
     !> rmail.el rmail-default-body-file (set by `init_rmail' unless
     !> already set).
     character(len=:), allocatable, public :: rmail_default_body_file
@@ -395,7 +396,9 @@ module rmail_mod
     !> It is not critical to set this to the correct value; it only affects
     !> how Rmail displays lines starting with ">*From " in non-MIME messages.
     !> Port of rmail.el rmail-mbox-format.
-    integer, public :: rmail_mbox_format = RMAIL_MBOX_FORMAT_MBOXRD
+    type(choice_setting_type), public :: rmail_mbox_format = &
+                                         choice_setting_type(name="rmail_mbox_format", true_valid=.false., false_valid=.false., &
+                                                             choice=RMAIL_MBOX_FORMAT_MBOXRD)
 
     !> If true, displaying an unseen message marks the Rmail buffer as
     !> modified.  Port of rmail.el rmail-show-message-set-modified.
@@ -423,7 +426,7 @@ module rmail_mod
     type(handle_type), public :: rmail_mode_map
 
     abstract interface
-        !> A summary operation that `rmail_select_summary' runs in the
+        !> A summary operation that `select_rmail_summary' runs in the
         !> summary buffer, for message N.  Not a port.
         recursive subroutine rmail_summary_procedure(n, status)
             import :: int64, status_type
@@ -438,33 +441,33 @@ module rmail_mod
 
     !> Move to message N in the summary (rmailsum.el's
     !> rmail-summary-goto-msg with NOWARN and SKIP-RMAIL).
-    procedure(rmail_summary_procedure), pointer, public :: rmail_summary_goto_message_function => null()
+    procedure(rmail_summary_procedure), pointer, public :: goto_rmail_summary_message_function => null()
 
     !> Mark message N deleted in the summary (rmailsum.el's
     !> rmail-summary-mark-deleted).
-    procedure(rmail_summary_procedure), pointer, public :: rmail_summary_mark_deleted_function => null()
+    procedure(rmail_summary_procedure), pointer, public :: mark_rmail_summary_deleted_function => null()
 
     !> Mark message N undeleted in the summary (rmailsum.el's
     !> rmail-summary-mark-undeleted).
-    procedure(rmail_summary_procedure), pointer, public :: rmail_summary_mark_undeleted_function => null()
+    procedure(rmail_summary_procedure), pointer, public :: mark_rmail_summary_undeleted_function => null()
 
     !> Update the summary line of message N (rmailsum.el's
     !> rmail-summary-update-line).
-    procedure(rmail_summary_procedure), pointer, public :: rmail_summary_update_line_function => null()
+    procedure(rmail_summary_procedure), pointer, public :: update_rmail_summary_line_function => null()
 
     !> Remake the summary (rmailsum.el's rmail-update-summary).
-    procedure(rmail_summary_procedure), pointer, public :: rmail_update_summary_function => null()
+    procedure(rmail_summary_procedure), pointer, public :: update_rmail_summary_function => null()
 
     !> Make a summary of all messages (rmailsum.el's rmail-summary).
     procedure(rmail_summary_procedure), pointer, public :: rmail_summary_function => null()
 
     !> Disable the summary's commands while a message is edited
     !> (rmailsum.el's rmail-summary-disable).
-    procedure(rmail_summary_procedure), pointer, public :: rmail_summary_disable_function => null()
+    procedure(rmail_summary_procedure), pointer, public :: disable_rmail_summary_function => null()
 
     !> Enable the summary's commands again (rmailsum.el's
     !> rmail-summary-enable).
-    procedure(rmail_summary_procedure), pointer, public :: rmail_summary_enable_function => null()
+    procedure(rmail_summary_procedure), pointer, public :: enable_rmail_summary_function => null()
 
     !> The state of an Rmail buffer, in upstream its buffer-local
     !> variables: the viewer buffer holding the other text and whether
@@ -507,7 +510,7 @@ module rmail_mod
         type(handle_type), allocatable :: overlays(:)
     end type rmail_state_type
 
-    !> What `rmail_in_message_begin' saved for `rmail_in_message_end': the
+    !> What `apply_in_rmail_message_begin' saved for `apply_in_rmail_message_end': the
     !> buffer to return to and, when a message was found, the excursion
     !> and restriction of the buffer holding it.  Not a port.
     type, public :: rmail_message_scope_type
@@ -529,7 +532,7 @@ module rmail_mod
 
     type(rmail_link_type), allocatable :: links(:)
 
-    ! The default regexp of `rmail_search' (rmail-search-last-regexp).
+    ! The default regexp of `search_rmail' (rmail-search-last-regexp).
     character(len=:), allocatable :: search_last_regexp
 
     ! The encoding of the current message while the collection is saved
@@ -649,7 +652,7 @@ contains
     !> Create the buffer if necessary.  Port of
     !> rmail.el:rmail-generate-viewer-buffer (the viewer buffer's
     !> kill-buffer hook, which refuses to kill it alone, is Deferred).
-    subroutine rmail_generate_viewer_buffer(k, view, status)
+    subroutine generate_rmail_viewer_buffer(k, view, status)
         integer, intent(in) :: k
         type(handle_type), intent(out) :: view
         type(status_type), intent(out) :: status
@@ -672,13 +675,13 @@ contains
         end if
 
         call get_or_make_buffer(generate_new_buffer_name(" *message-viewer "//name//"*"), view, status)
-    end subroutine rmail_generate_viewer_buffer
+    end subroutine generate_rmail_viewer_buffer
 
     !> Swap text between current buffer and `rmail_view_buffer'.
     !> This function preserves the current buffer's modified flag, and also
     !> sets the current buffer's `buffer_file_coding_system' to that of
     !> `rmail_view_buffer'.  Port of rmail.el:rmail-swap-buffers.
-    subroutine rmail_swap_buffers(status)
+    subroutine swap_rmail_buffers(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: this, view
         character(len=:), allocatable :: coding_this, coding_that
@@ -716,11 +719,11 @@ contains
         call set_buffer(this, status)
         if (.not. status%ok()) return
         call restore_buffer_modified(modified_this)
-    end subroutine rmail_swap_buffers
+    end subroutine swap_rmail_buffers
 
     ! Bring the actual Rmail messages back into the main buffer.  Port of
     ! rmail.el:rmail-change-major-mode-hook.
-    recursive subroutine rmail_change_major_mode(status)
+    recursive subroutine change_rmail_major_mode(status)
         type(status_type), intent(out) :: status
         integer :: k
 
@@ -729,15 +732,15 @@ contains
         if (k == 0) return
 
         if (rmail_states(k)%swapped) then
-            call rmail_swap_buffers(status)
+            call swap_rmail_buffers(status)
             rmail_states(k)%swapped = .false.
         end if
-    end subroutine rmail_change_major_mode
+    end subroutine change_rmail_major_mode
 
     !> Determine if the Rmail buffer is showing a message.
     !> If so restore the actual mbox message collection.  Port of
     !> rmail.el:rmail-swap-buffers-maybe.
-    subroutine rmail_swap_buffers_maybe(status)
+    subroutine swap_rmail_buffers_maybe(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: saved, h
         integer :: k
@@ -752,17 +755,17 @@ contains
 
         if (k > 0) then
             if (rmail_states(k)%swapped) then
-                call rmail_swap_buffers(status)
+                call swap_rmail_buffers(status)
                 rmail_states(k)%swapped = .false.
             end if
         end if
 
         if (is_buffer_live(saved)) call set_buffer(saved, status)
-    end subroutine rmail_swap_buffers_maybe
+    end subroutine swap_rmail_buffers_maybe
 
     !> Warn if important modifications would change Rmail file's format.
     !> Port of rmail.el:rmail-modify-format.
-    recursive subroutine rmail_modify_format(status)
+    recursive subroutine modify_rmail_format(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: saved
         character(len=:), allocatable :: name, question
@@ -791,11 +794,11 @@ contains
 
         rmail_states(k)%seriously_modified = .true.
         call set_buffer(saved, status)
-    end subroutine rmail_modify_format
+    end subroutine modify_rmail_format
 
     !> Mark the buffer unmodified rather than rewrite a converted Babyl
     !> file as mbox.  Port of rmail.el:rmail-dont-modify-format.
-    subroutine rmail_dont_modify_format()
+    subroutine keep_rmail_format()
         integer :: k
 
         k = current_state()
@@ -805,11 +808,11 @@ contains
             call set_buffer_modified(.false.)
             call message("Marking buffer unmodified to avoid rewriting Babyl file as mbox file")
         end if
-    end subroutine rmail_dont_modify_format
+    end subroutine keep_rmail_format
 
     ! Turn off the hook on the view buffer, so we can kill it, then kill
     ! it.  Port of rmail.el:rmail-mode-kill-buffer-hook.
-    recursive subroutine rmail_mode_close_buffer(status)
+    recursive subroutine close_rmail_view_buffer(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: view
         integer :: k
@@ -819,11 +822,11 @@ contains
         if (k == 0) return
         view = rmail_states(k)%view_buffer
         if (is_buffer_live(view)) call close_buffer(view, status)
-    end subroutine rmail_mode_close_buffer
+    end subroutine close_rmail_view_buffer
 
     ! Close the summary buffer too.  Port of
     ! rmail.el:rmail-mode-kill-summary.
-    recursive subroutine rmail_mode_close_summary(status)
+    recursive subroutine close_rmail_summary(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: summary
         integer :: k
@@ -833,7 +836,7 @@ contains
         if (k == 0) return
         summary = rmail_states(k)%summary_buffer
         if (is_buffer_live(summary)) call close_buffer(summary, status)
-    end subroutine rmail_mode_close_summary
+    end subroutine close_rmail_summary
 
     ! ------------------------------------------------------------------
     ! Rmail mode
@@ -843,51 +846,51 @@ contains
     !> All normal editing commands are turned off.
     !> Instead, these commands are available:
     !>
-    !> \[rmail_beginning_of_message]        Move point to front of this message.
-    !> \[rmail_end_of_message]        Move point to bottom of this message.
+    !> \[beginning_of_rmail_message]        Move point to front of this message.
+    !> \[end_of_rmail_message]        Move point to bottom of this message.
     !> \[scroll_up]        Scroll to next screen of this message.
     !> \[scroll_down]        Scroll to previous screen of this message.
-    !> \[rmail_next_undeleted_message]        Move to Next non-deleted message.
-    !> \[rmail_previous_undeleted_message]        Move to Previous non-deleted message.
-    !> \[rmail_next_message]        Move to Next message whether deleted or not.
-    !> \[rmail_previous_message]        Move to Previous message whether deleted or not.
-    !> \[rmail_first_message]        Move to the first message in Rmail file.
-    !> \[rmail_last_message]        Move to the last message in Rmail file.
-    !> \[rmail_show_message]        Jump to message specified by numeric position in file.
-    !> \[rmail_search]        Search for string and show message it is found in.
-    !> \[rmail_delete_forward]        Delete this message, move to next nondeleted.
-    !> \[rmail_delete_backward]        Delete this message, move to previous nondeleted.
-    !> \[rmail_undelete_previous_message]        Undelete message.  Tries current message, then earlier messages
+    !> \[next_rmail_undeleted_message]        Move to Next non-deleted message.
+    !> \[previous_rmail_undeleted_message]        Move to Previous non-deleted message.
+    !> \[next_rmail_message]        Move to Next message whether deleted or not.
+    !> \[previous_rmail_message]        Move to Previous message whether deleted or not.
+    !> \[show_first_rmail_message]        Move to the first message in Rmail file.
+    !> \[show_last_rmail_message]        Move to the last message in Rmail file.
+    !> \[show_rmail_message]        Jump to message specified by numeric position in file.
+    !> \[search_rmail]        Search for string and show message it is found in.
+    !> \[delete_rmail_message_forward]        Delete this message, move to next nondeleted.
+    !> \[delete_rmail_message_backward]        Delete this message, move to previous nondeleted.
+    !> \[undelete_previous_rmail_message]        Undelete message.  Tries current message, then earlier messages
     !>         till a deleted message is found.
-    !> \[rmail_edit_current_message]        Edit the current message.  \[rmail_cease_edit] to return to Rmail.
+    !> \[edit_rmail_current_message]        Edit the current message.  \[cease_rmail_edit] to return to Rmail.
     !> \[rmail_epa_decrypt]        Decrypt the current message.
-    !> \[rmail_expunge]        Expunge deleted messages.
-    !> \[rmail_expunge_and_save]        Expunge and save the file.
-    !> \[rmail_quit]       Quit Rmail: expunge, save, then switch to another buffer.
+    !> \[expunge_rmail]        Expunge deleted messages.
+    !> \[expunge_and_save_rmail]        Expunge and save the file.
+    !> \[quit_rmail]       Quit Rmail: expunge, save, then switch to another buffer.
     !> \[save_buffer] Save without expunging.
-    !> \[rmail_get_new_mail]        Move new mail from system spool directory into this file.
+    !> \[get_rmail_new_mail]        Move new mail from system spool directory into this file.
     !> \[rmail_mail]        Mail a message (same as \[mail_other_window]).
     !> \[rmail_continue]        Continue composing outgoing message started before.
     !> \[rmail_reply]        Reply to this message.  Like \[rmail_mail] but initializes some fields.
     !> \[rmail_retry_failure]        Send this message again.  Used on a mailer failure message.
     !> \[rmail_forward]        Forward this message to another user.
-    !> \[rmail_output]        Output (append) this message to another mail file.
-    !> \[rmail_output_as_seen]        Output (append) this message to file as it's displayed.
-    !> \[rmail_output_body_to_file]        Save message body to a file.  Default filename comes from Subject line.
+    !> \[output_rmail_message]        Output (append) this message to another mail file.
+    !> \[output_rmail_message_as_seen]        Output (append) this message to file as it's displayed.
+    !> \[output_rmail_message_body_to_file]        Save message body to a file.  Default filename comes from Subject line.
     !> \[rmail_input]        Input Rmail file.  Run Rmail on that file.
-    !> \[rmail_add_label]        Add label to message.  It will be displayed in the mode line.
-    !> \[rmail_remove_label]        Remove label.  Remove a label from current message.
-    !> \[rmail_next_labeled_message]   Move to Next message with specified label
+    !> \[add_rmail_label]        Add label to message.  It will be displayed in the mode line.
+    !> \[remove_rmail_label]        Remove label.  Remove a label from current message.
+    !> \[next_rmail_labeled_message]   Move to Next message with specified label
     !>           (label defaults to last one specified).
     !>           Standard labels: filed, unseen, answered, forwarded, deleted.
-    !>           Any other label is present only if you add it with \[rmail_add_label].
-    !> \[rmail_previous_labeled_message]   Move to Previous message with specified label
+    !>           Any other label is present only if you add it with \[add_rmail_label].
+    !> \[previous_rmail_labeled_message]   Move to Previous message with specified label
     !> \[rmail_summary]        Show headers buffer, with a one line summary of each message.
     !> \[rmail_summary_by_labels]        Summarize only messages with particular label(s).
     !> \[rmail_summary_by_recipients]   Summarize only messages with particular recipient(s).
     !> \[rmail_summary_by_regexp]   Summarize only messages with particular regexp(s).
     !> \[rmail_summary_by_topic]   Summarize only messages with subject line regexp(s).
-    !> \[rmail_toggle_header]        Toggle display of complete header.
+    !> \[toggle_rmail_header]        Toggle display of complete header.
     !> Port of rmail.el:rmail-mode (`rmail_require_mime_maybe' waits for
     !> rmailmm.el, and making the buffer multibyte for set-buffer-multibyte).
     recursive subroutine rmail_mode(status)
@@ -896,18 +899,18 @@ contains
         integer :: k
 
         finding_rmail_file = buffers(current)%major_mode /= "rmail_mode"
-        call rmail_mode_2(status)
+        call set_up_rmail_mode_2(status)
         if (.not. status%ok()) return
 
         if (finding_rmail_file .and. .not. allocated(coding_system_for_read%value)) then
-            call rmail_convert_file_maybe(status)
+            call convert_rmail_file_maybe(status)
             if (.not. status%ok()) return
             call goto_char(point_max())
         end if
 
-        call rmail_set_message_counters()
+        call set_rmail_message_counters()
         k = current_state()
-        call rmail_show_message(status, rmail_states(k)%total_messages)
+        call show_rmail_message(status, rmail_states(k)%total_messages)
         if (.not. status%ok()) return
 
         if (finding_rmail_file .and. rmail_display_summary) then
@@ -920,23 +923,23 @@ contains
 
     ! Set up Rmail mode in the current buffer, with its local variables.
     ! Port of rmail.el:rmail-mode-2.
-    recursive subroutine rmail_mode_2(status)
+    recursive subroutine set_up_rmail_mode_2(status)
         type(status_type), intent(out) :: status
 
         call clear_all_local_variables()
-        call rmail_mode_1(status)
+        call set_up_rmail_mode_1(status)
         if (.not. status%ok()) return
-        call rmail_permanent_variables(status)
+        call set_rmail_permanent_variables(status)
         if (.not. status%ok()) return
-        call rmail_variables()
+        call set_rmail_variables()
         call execute_mode_hooks(status)
-    end subroutine rmail_mode_2
+    end subroutine set_up_rmail_mode_2
 
     !> Make the current buffer an Rmail mode buffer: read-only, with the
     !> keymap, syntax table and the hooks that support buffer swapping.
     !> Port of rmail.el:rmail-mode-1 (no auto-save file name: auto-saving
     !> is not ported).
-    recursive subroutine rmail_mode_1(status)
+    recursive subroutine set_up_rmail_mode_1(status)
         type(status_type), intent(out) :: status
 
         buffers(current)%major_mode = "rmail_mode"
@@ -946,15 +949,15 @@ contains
         if (.not. status%ok()) return
         buffers(current)%syntax_table = text_mode_syntax_table
         ! Functions to support buffer swapping:
-        call write_region_annotate_functions%prepend(rmail_write_region_annotate, local=.true.)
-        call close_buffer_hook%prepend(rmail_mode_close_buffer, local=.true.)
-        call change_major_mode_hook%prepend(rmail_change_major_mode, local=.true.)
-    end subroutine rmail_mode_1
+        call write_region_annotate_functions%prepend(annotate_rmail_write_region, local=.true.)
+        call close_buffer_hook%prepend(close_rmail_view_buffer, local=.true.)
+        call change_major_mode_hook%prepend(change_rmail_major_mode, local=.true.)
+    end subroutine set_up_rmail_mode_1
 
     ! Set up the permanent locals associated with an Rmail file.  Port of
     ! rmail.el:rmail-perm-variables (set-buffer-multibyte is Deferred: the
     ! message collection stays multibyte, its bytes being the same).
-    subroutine rmail_permanent_variables(status)
+    subroutine set_rmail_permanent_variables(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: this, view
         character(len=:), allocatable :: expanded, mail, true_name
@@ -966,7 +969,7 @@ contains
         call set_rmail_buffer(this)
         rmail_states(k)%was_converted = .false.
         rmail_states(k)%seriously_modified = .false.
-        call rmail_generate_viewer_buffer(k, view, status)
+        call generate_rmail_viewer_buffer(k, view, status)
         if (.not. status%ok()) return
         rmail_states(k)%view_buffer = view
         call set_buffer(view, status)
@@ -1012,24 +1015,24 @@ contains
                 end if
             end if
         end if
-    end subroutine rmail_permanent_variables
+    end subroutine set_rmail_permanent_variables
 
     !> Set up the non-permanent locals associated with Rmail mode.
     !> Port of rmail.el:rmail-variables (undo and the summary's kill hook; the
     !> other local settings wait for their variables: see
     !> docs/status/rmail_mod.md).
-    subroutine rmail_variables()
+    subroutine set_rmail_variables()
         ! Turn off undo.  We turn it back on in rmail-edit.
         buffers(current)%undo_enabled = .false.
         buffers(current)%undo_count = 0
-        call close_buffer_hook%prepend(rmail_mode_close_summary, local=.true.)
-    end subroutine rmail_variables
+        call close_buffer_hook%prepend(close_rmail_summary, local=.true.)
+    end subroutine set_rmail_variables
 
     !> Used in `write_region_annotate_functions' to write rmail files: when
     !> the whole buffer is written and the message collection is in the
     !> viewer buffer, write that.  Port of
     !> rmail.el:rmail-write-region-annotate.
-    recursive subroutine rmail_write_region_annotate(beginning, end, status)
+    recursive subroutine annotate_rmail_write_region(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: view_name, name
@@ -1054,12 +1057,12 @@ contains
         call set_buffer(rmail_states(k)%view_buffer, status)
         if (.not. status%ok()) return
         call widen()
-    end subroutine rmail_write_region_annotate
+    end subroutine annotate_rmail_write_region
 
     ! Used to restore the encoding of the buffer where we show the
     ! current message, after we save the message collection.  Port of
     ! rmail.el:rmail-after-save-hook.
-    recursive subroutine rmail_after_save(status)
+    recursive subroutine update_rmail_after_save(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: saved, target
         integer :: k
@@ -1088,7 +1091,7 @@ contains
                 return
             end if
         end do
-    end subroutine rmail_after_save
+    end subroutine update_rmail_after_save
 
     ! Whether handles A and B name the same live buffer.  Not a port.
     logical function is_same_buffer(a, b)
@@ -1174,9 +1177,9 @@ contains
             if (.not. status%ok()) return
 
             if (is_visited_file_modtime_current() .and. buffers(current)%major_mode == "rmail_mode") then
-                call rmail_swap_buffers_maybe(status)
+                call swap_rmail_buffers_maybe(status)
                 if (.not. status%ok()) return
-                call rmail_set_message_counters()
+                call set_rmail_message_counters()
             end if
         else
             ! The mail file is either unchanged or not visited.  Visit it.
@@ -1197,7 +1200,7 @@ contains
         ! Ensure that the collection and view buffers are in sync and
         ! ensure that a message is not being edited.
         if (buffers(current)%major_mode == "rmail_mode") then
-            call rmail_swap_buffers_maybe(status)
+            call swap_rmail_buffers_maybe(status)
             if (.not. status%ok()) return
         end if
 
@@ -1215,26 +1218,26 @@ contains
         ! Ensure that the Rmail file is in mbox format, the buffer is in
         ! Rmail mode and has been scanned to find all the messages
         ! (setting the global message variables in the process).
-        call rmail_convert_file_maybe(status)
+        call convert_rmail_file_maybe(status)
         if (.not. status%ok()) return
 
         if (buffers(current)%major_mode /= "rmail_mode") then
-            call rmail_mode_2(status)
+            call set_up_rmail_mode_2(status)
             if (.not. status%ok()) return
         end if
 
         call goto_char(point_max())
-        call rmail_maybe_set_message_counters()
+        call set_rmail_message_counters_maybe()
         mail_buffer = rmail_buffer()
         message_shown = .false.
         ! Show the first unread message and process summary mode.
         ! Only get new mail when there is not a file name argument.
-        if (.not. present(file_name_arg)) call rmail_get_new_mail(status, shown=message_shown)
+        if (.not. present(file_name_arg)) call get_rmail_new_mail(status, shown=message_shown)
         call set_buffer(mail_buffer, st)
 
         if (.not. message_shown) then
             k = current_state()
-            call rmail_show_message(st, rmail_first_unseen_message())
+            call show_rmail_message(st, get_first_rmail_unseen_message())
             if (status%ok()) status = st
         end if
 
@@ -1259,7 +1262,7 @@ contains
     !> Determine if the file needs to be converted to mbox format.
     !> Port of rmail.el:rmail-convert-file-maybe (converting Babyl files waits
     !> for unrmail.el: a `void_function' error condition occurs).
-    subroutine rmail_convert_file_maybe(status)
+    subroutine convert_rmail_file_maybe(status)
         type(status_type), intent(out) :: status
         logical :: saved_fold
 
@@ -1280,12 +1283,12 @@ contains
         end if
 
         case_fold_search%value = saved_fold
-    end subroutine rmail_convert_file_maybe
+    end subroutine convert_rmail_file_maybe
 
     !> Report that the buffer is not in the mbox file format.
     !> MSGNUM, if present, indicates the malformed message.  Port of
     !> rmail.el:rmail-error-bad-format.
-    subroutine rmail_error_bad_format(status, msgnum)
+    subroutine set_rmail_bad_format_error(status, msgnum)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: msgnum
         character(len=100) :: text
@@ -1296,13 +1299,13 @@ contains
         else
             call set_error(status, FM_GENERIC_ERROR, "Message is not a valid RFC 822 (or later) message")
         end if
-    end subroutine rmail_error_bad_format
+    end subroutine set_rmail_bad_format_error
 
     !> Return a suitable coding system to use for the current mail message.
     !> The buffer is expected to be narrowed to just the header of the
     !> message.  Port of rmail.el:rmail-get-coding-system (with
     !> `rmail_get_coding_function' unset, which is Deferred).
-    function rmail_get_coding_system() result(coding)
+    function get_rmail_coding_system() result(coding)
         character(len=:), allocatable :: coding
         type(excursion_type) :: saved
         type(status_type) :: st
@@ -1318,7 +1321,7 @@ contains
         case_fold_search%value = saved_fold
         if (found > 0 .and. st%ok()) coding = coding_system_from_name(match_text(1))
         call save_excursion_end(saved)
-    end function rmail_get_coding_system
+    end function get_rmail_coding_system
 
     ! The text matched by subexpression N of the last search in the
     ! current buffer ("" if it did not match).  Not a port.
@@ -1364,7 +1367,7 @@ contains
     !> not be a new one).  SHOWN is true if it got any new messages.
     !> Port of rmail.el:rmail-get-new-mail (the spam filter waits for
     !> rmail-spam-filter.el).
-    recursive subroutine rmail_get_new_mail(status, file_name, shown)
+    recursive subroutine get_rmail_new_mail(status, file_name, shown)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: file_name
         logical, intent(out), optional :: shown
@@ -1388,11 +1391,11 @@ contains
 
         call enter_rmail_buffer(k, status)
         if (.not. status%ok()) return
-        call rmail_modify_format(status)
+        call modify_rmail_format(status)
         if (.not. status%ok()) return
-        call rmail_swap_buffers_maybe(status)
+        call swap_rmail_buffers_maybe(status)
         if (.not. status%ok()) return
-        call rmail_maybe_set_message_counters()
+        call set_rmail_message_counters_maybe()
         call widen()
         ! Get rid of all undo records for this buffer.
         buffers(current)%undo_count = 0
@@ -1437,7 +1440,7 @@ contains
                 end do
             end if
 
-            if (status%ok()) call rmail_get_new_mail_1(present(file_name), files, found_one, status)
+            if (status%ok()) call get_rmail_new_mail_1(present(file_name), files, found_one, status)
             buffers(current)%read_only = saved_read_only
             deallocate (files, names)
             if (.not. status%ok()) exit
@@ -1447,21 +1450,21 @@ contains
         if (status%ok()) then
             ! Move to the first new message unless we have other unseen
             ! messages before it.
-            if (found) call rmail_show_message(status, rmail_first_unseen_message())
+            if (found) call show_rmail_message(status, get_first_rmail_unseen_message())
             if (status%ok()) call rmail_after_get_new_mail_hook%execute(status)
         else
             ! Don't leave the buffer screwed up if we get a disk-full
             ! error.
-            call rmail_show_message(st)
+            call show_rmail_message(st)
         end if
 
         if (present(shown)) shown = found .and. status%ok()
-    end subroutine rmail_get_new_mail
+    end subroutine get_rmail_new_mail
 
     ! Read the inbox files FILES (not to be deleted when ONE_FILE) and
     ! add their messages; FOUND is true if new messages were found
     ! without error.  Port of rmail.el:rmail-get-new-mail-1.
-    recursive subroutine rmail_get_new_mail_1(one_file, files, found, status)
+    recursive subroutine get_rmail_new_mail_1(one_file, files, found, status)
         logical, intent(in) :: one_file
         type(string_type), intent(in) :: files(:)
         logical, intent(out) :: found
@@ -1489,7 +1492,7 @@ contains
             ! Set modified now to lock the file, so that we don't encounter
             ! locking problems later in the middle of reading the mail.
             call set_buffer_modified(.true.)
-            call rmail_insert_inbox_text(files,.not. one_file, delete_files, status)
+            call insert_rmail_inbox_text(files,.not. one_file, delete_files, status)
             ! If there was no new mail, or we aborted before actually trying
             ! to get any, mark buffer unmodified, unless it was modified
             ! originally.  Otherwise the buffer is correctly marked modified
@@ -1501,7 +1504,7 @@ contains
             moved = skip_chars_forward(" "//LF, st)
             call narrow_to_region(point(), point_max(), status)
             if (.not. status%ok()) exit body
-            call rmail_add_mbox_headers(new_messages, status)
+            call add_rmail_mbox_headers(new_messages, status)
 
             if (.not. status%ok()) then
                 ! Try to delete the garbage just inserted.
@@ -1530,7 +1533,7 @@ contains
             if (new_messages /= 0) then
                 ! There are.  Process them.
                 call goto_char(point_min())
-                call rmail_count_new_messages()
+                call count_rmail_new_messages()
                 call rmail_get_new_mail_hook%execute(status)
                 if (.not. status%ok()) exit body
                 call save_buffer(1_int64, .false., status)
@@ -1552,7 +1555,7 @@ contains
             end if
 
             if (rmail_summary_exists()) then
-                call rmail_select_summary(rmail_update_summary_function, 0_int64, status)
+                call select_rmail_summary(update_rmail_summary_function, 0_int64, status)
                 if (.not. status%ok()) exit body
             end if
 
@@ -1577,7 +1580,7 @@ contains
             k = current_state()
             if (k > 0) has_inboxes = allocated(rmail_states(k)%inboxes)
         end function has_inboxes
-    end subroutine rmail_get_new_mail_1
+    end subroutine get_rmail_new_mail_1
 
     ! Move the mail of the inbox FILES into the current buffer at its
     ! end, renaming each inbox to .newmail-NAME in the directory of the
@@ -1586,7 +1589,7 @@ contains
     ! (local inboxes: remote mailboxes (POP and IMAP URLs) and their
     ! passwords are Deferred, and so is converting new mail in Babyl
     ! format).
-    recursive subroutine rmail_insert_inbox_text(files, rename, delete_files, status)
+    recursive subroutine insert_rmail_inbox_text(files, rename, delete_files, status)
         type(string_type), intent(in) :: files(:)
         logical, intent(in) :: rename
         type(string_type), allocatable, intent(out) :: delete_files(:)
@@ -1640,7 +1643,7 @@ contains
             else if (file_exists(tofile) .or. .not. file_exists(file)) then
                 continue
             else
-                call rmail_move_mail(file, tofile, errors, status)
+                call move_rmail_mail(file, tofile, errors, status)
                 if (.not. status%ok()) return
 
                 if (len(errors) > 0) then
@@ -1720,7 +1723,7 @@ contains
             call message("movemail: "//line)
             call sit_for(3000)
         end subroutine report_movemail_errors
-    end subroutine rmail_insert_inbox_text
+    end subroutine insert_rmail_inbox_text
 
     ! Add TEXT at the front of LIST.  Not a port.
     subroutine prepend_string_to(list, text)
@@ -1738,7 +1741,7 @@ contains
     ! `rmail_movemail_program' if one was found or set, else movemail_mod;
     ! ERRORS is what it wrote.  Port of the movemail call of
     ! rmail.el:rmail-insert-inbox-text, with rmail.el:rmail-movemail-variant-p.
-    subroutine rmail_move_mail(file, tofile, errors, status)
+    subroutine move_rmail_mail(file, tofile, errors, status)
         character(len=*), intent(in) :: file, tofile
         character(len=:), allocatable, intent(out) :: errors
         type(status_type), intent(out) :: status
@@ -1751,7 +1754,7 @@ contains
 
         errors = ""
         status = status_type()
-        call rmail_autodetect_movemail()
+        call autodetect_rmail_movemail()
 
         if (.not. allocated(rmail_movemail_program)) then
             call move_mail(file, tofile, rmail_preserve_inbox, errors)
@@ -1788,13 +1791,13 @@ contains
 
         call set_buffer(saved, st)
         call close_buffer(temporary, st)
-    end subroutine rmail_move_mail
+    end subroutine move_rmail_mail
 
     ! Find the movemail program and its variant, once: a movemail in
     ! `rmail_movemail_search_path' or on the search path for programs,
     ! else the movemail of movemail_mod (variant "emacs").  Port of
     ! rmail.el:rmail-autodetect and rmail.el:rmail-probe.
-    subroutine rmail_autodetect_movemail()
+    subroutine autodetect_rmail_movemail()
         use files_mod, only: executable_find
         use file_input_output_mod, only: is_file_executable
         character(len=:), allocatable :: program
@@ -1861,13 +1864,13 @@ contains
             call close_buffer(temporary, st)
             if (index(output, "movemail (GNU Mailutils") == 1) rmail_movemail_variant_in_use = "mailutils"
         end subroutine probe
-    end subroutine rmail_autodetect_movemail
+    end subroutine autodetect_rmail_movemail
 
     !> Decode the region FROM TO by CODING into DESTINATION at its point
     !> (a buffer; the current one if absent).  If CODING is "" or an
     !> invalid coding system, decode by `undecided'.  Port of
     !> rmail.el:rmail-decode-region.
-    subroutine rmail_decode_region(from, to, coding, status, destination)
+    subroutine decode_rmail_region(from, to, coding, status, destination)
         integer(int64), intent(in) :: from, to
         character(len=*), intent(in) :: coding
         type(status_type), intent(out) :: status
@@ -1905,12 +1908,12 @@ contains
         last_coding_system_used%value = coding_system_change_eol_conversion(used, EOL_UNIX)
         call buffer_file_coding_system%set_local(last_coding_system_used%value)
         call set_buffer(saved, status)
-    end subroutine rmail_decode_region
+    end subroutine decode_rmail_region
 
     !> Ensure a message ends in a blank line.
     !> Call with point at the end of the message.  Port of
     !> rmail.el:rmail-ensure-blank-line.
-    subroutine rmail_ensure_blank_line(status)
+    subroutine ensure_rmail_blank_line(status)
         type(status_type), intent(out) :: status
         type(status_type) :: st
 
@@ -1918,7 +1921,7 @@ contains
         if (.not. is_bol()) call insert(LF, status)
         if (.not. status%ok()) return
         if (.not. looking_back(LF//LF, st, point() - 2)) call insert(LF, status)
-    end subroutine rmail_ensure_blank_line
+    end subroutine ensure_rmail_blank_line
 
     ! Validate the RFC 822 (or later) format for the new messages.  Point
     ! should be at the first new message.  An error condition occurs if
@@ -1926,7 +1929,7 @@ contains
     ! Rmail attribute header already exists, add it to the new messages.
     ! COUNT is the number of new messages.  Port of
     ! rmail.el:rmail-add-mbox-headers.
-    subroutine rmail_add_mbox_headers(count, status)
+    subroutine add_rmail_mbox_headers(count, status)
         integer(int64), intent(out) :: count
         type(status_type), intent(out) :: status
         type(excursion_type) :: saved
@@ -1973,7 +1976,7 @@ contains
 
                         call widen()
                     else
-                        call rmail_error_bad_format(status)
+                        call set_rmail_bad_format_error(status)
                         exit
                     end if
 
@@ -1991,14 +1994,14 @@ contains
                     start = point()
                 end do
             else
-                call rmail_error_bad_format(status)
+                call set_rmail_bad_format_error(status)
             end if
         end if
 
         case_fold_search%value = saved_fold
         call save_restriction_end(restriction)
         call save_excursion_end(saved)
-    end subroutine rmail_add_mbox_headers
+    end subroutine add_rmail_mbox_headers
 
     ! ------------------------------------------------------------------
     ! Header fields, attributes and keywords
@@ -2008,7 +2011,7 @@ contains
     !> none.  MSGNUM specifies the message number to get it from.
     !> If MSGNUM is absent, use the current message.  Port of
     !> rmail.el:rmail-get-header (with rmail.el:rmail-get-header-1).
-    subroutine rmail_get_header(name, value, status, msgnum)
+    subroutine get_rmail_header(name, value, status, msgnum)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: value
         type(status_type), intent(out) :: status
@@ -2016,7 +2019,7 @@ contains
         type(rmail_message_scope_type) :: scope
         integer(int64) :: found
 
-        call rmail_in_message_begin(scope, status, msgnum)
+        call apply_in_rmail_message_begin(scope, status, msgnum)
         if (.not. status%ok() .or. .not. scope%active) return
         call search_forward(LF//LF, found, status, noerror=SEARCH_NOERROR)
 
@@ -2025,12 +2028,12 @@ contains
                 call narrow_to_region(point_min(), point(), status)
                 if (status%ok()) call get_mail_field(name, value, status)
             else
-                call rmail_error_bad_format(status)
+                call set_rmail_bad_format_error(status)
             end if
         end if
 
-        call rmail_in_message_end(scope)
-    end subroutine rmail_get_header
+        call apply_in_rmail_message_end(scope)
+    end subroutine get_rmail_header
 
     !> Set message header NAME to VALUE in message number MSGNUM.
     !> If MSGNUM is absent, use the current message.  VALUE absent means
@@ -2038,7 +2041,7 @@ contains
     !> If VALUE is multi-line, continuation lines should already be
     !> indented.  VALUE should not end in a newline.  Port of
     !> rmail.el:rmail-set-header (with rmail.el:rmail-set-header-1).
-    recursive subroutine rmail_set_header(name, status, msgnum, value)
+    recursive subroutine set_rmail_header(name, status, msgnum, value)
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: msgnum
@@ -2048,7 +2051,7 @@ contains
         integer(int64) :: found, start, end
         logical :: saved_fold, saved_inhibit
 
-        call rmail_in_message_begin(scope, status, msgnum)
+        call apply_in_rmail_message_begin(scope, status, msgnum)
         if (.not. status%ok()) return
 
         if (scope%active) then
@@ -2057,7 +2060,7 @@ contains
             call search_forward(LF//LF, found, status, noerror=SEARCH_NOERROR)
 
             if (status%ok() .and. found == 0) then
-                call rmail_error_bad_format(status)
+                call set_rmail_bad_format_error(status)
             else if (status%ok()) then
                 call goto_char(point() - 1)
                 call narrow_to_region(point_min(), point(), status)
@@ -2095,7 +2098,7 @@ contains
             buffers(current)%read_only = saved_inhibit
         end if
 
-        call rmail_in_message_end(scope)
+        call apply_in_rmail_message_end(scope)
         if (.not. status%ok()) return
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
@@ -2104,22 +2107,22 @@ contains
         call set_buffer_modified(.true.)
         ! However: don't save in mbox format over a Babyl file merely
         ! because of this.
-        call rmail_dont_modify_format()
+        call keep_rmail_format()
         call set_buffer(saved, status)
-    end subroutine rmail_set_header
+    end subroutine set_rmail_header
 
     !> Return the message attributes in a comma separated string
     !> (unallocated for none).  MSG specifies the message number to get it
     !> from.  If MSG is absent, use the current message.  Port of
     !> rmail.el:rmail-get-attr-names.
-    subroutine rmail_get_attribute_names(names, status, msg)
+    subroutine get_rmail_attribute_names(names, status, msg)
         character(len=:), allocatable, intent(out) :: names
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: msg
         character(len=:), allocatable :: value
         integer :: i
 
-        call rmail_get_header(RMAIL_ATTRIBUTE_HEADER, value, status, msg)
+        call get_rmail_header(RMAIL_ATTRIBUTE_HEADER, value, status, msg)
         if (.not. status%ok() .or. .not. allocated(value)) return
 
         if (len(value) > len(RMAIL_ATTRIBUTE_CHARACTERS)) then
@@ -2136,26 +2139,26 @@ contains
                 names = trim(RMAIL_ATTRIBUTE_NAMES(i))
             end if
         end do
-    end subroutine rmail_get_attribute_names
+    end subroutine get_rmail_attribute_names
 
     !> Return the message keywords in a comma separated string
     !> (unallocated for none).  MSG, if present, identifies the message
     !> number to use.  If absent, that means the current message.  Port of
     !> rmail.el:rmail-get-keywords.
-    subroutine rmail_get_keywords(keywords, status, msg)
+    subroutine get_rmail_keywords(keywords, status, msg)
         character(len=:), allocatable, intent(out) :: keywords
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: msg
 
-        call rmail_get_header(RMAIL_KEYWORD_HEADER, keywords, status, msg)
-    end subroutine rmail_get_keywords
+        call get_rmail_header(RMAIL_KEYWORD_HEADER, keywords, status, msg)
+    end subroutine get_rmail_keywords
 
     !> Return a string with the labels (attributes and keywords) of msg MSG.
     !> It is put in comma-separated form.
     !> MSG, if present, identifies the message number to use.
     !> If absent, that means the current message.  Port of
     !> rmail.el:rmail-get-labels.
-    subroutine rmail_get_labels(labels, status, msg)
+    subroutine get_rmail_labels(labels, status, msg)
         character(len=:), allocatable, intent(out) :: labels
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: msg
@@ -2175,9 +2178,9 @@ contains
 
         ! Combine the message attributes and keywords into a
         ! comma-separated list.
-        call rmail_get_attribute_names(attribute_names, status, n)
+        call get_rmail_attribute_names(attribute_names, status, n)
         if (.not. status%ok()) return
-        call rmail_get_keywords(keywords, status, n)
+        call get_rmail_keywords(keywords, status, n)
         if (.not. status%ok()) return
 
         if (allocated(keywords)) then
@@ -2191,18 +2194,18 @@ contains
         else if (allocated(keywords)) then
             labels = " "//keywords
         end if
-    end subroutine rmail_get_labels
+    end subroutine get_rmail_labels
 
     !> Update the current messages's attributes and keywords in mode line.
     !> Port of rmail.el:rmail-display-labels.
-    subroutine rmail_display_labels(status)
+    subroutine display_rmail_labels(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: blurb
         character(len=40) :: counts
         type(mode_line_part_type) :: parts(1)
         integer :: k
 
-        call rmail_get_labels(blurb, status)
+        call get_rmail_labels(blurb, status)
         if (.not. status%ok()) return
         k = rmail_state_index(rmail_buffer())
         if (k == 0) return
@@ -2210,22 +2213,22 @@ contains
         parts(1)%text = trim(counts)//blurb
         parts(1)%face = ""
         call set_mode_line_process(parts)
-    end subroutine rmail_display_labels
+    end subroutine display_rmail_labels
 
     ! The character value for attribute ATTR in STATE (.true.: on).
     ! Port of rmail.el:rmail-get-attr-value.
-    character function rmail_get_attribute_value(attr, state) result(c)
+    character function get_rmail_attribute_value(attr, state) result(c)
         integer, intent(in) :: attr
         logical, intent(in) :: state
 
         c = "-"
         if (state) c = RMAIL_ATTRIBUTE_CHARACTERS(attr + 1:attr + 1)
-    end function rmail_get_attribute_value
+    end function get_rmail_attribute_value
 
     ! Set Rmail attribute ATTR to STATE in `RMAIL_ATTRIBUTE_HEADER',
     ! creating the header if necessary; ALTERED is true if a significant
     ! attribute change was made.  Port of rmail.el:rmail-set-attribute-1.
-    subroutine rmail_set_attribute_1(attr, state, altered, status)
+    subroutine set_rmail_attribute_1(attr, state, altered, status)
         integer, intent(in) :: attr
         logical, intent(in) :: state
         logical, intent(out) :: altered
@@ -2239,7 +2242,7 @@ contains
         altered = .false.
         call search_forward(LF//LF, limit, status, noerror=SEARCH_NOERROR)
         if (.not. status%ok()) return
-        value = rmail_get_attribute_value(attr, state)
+        value = get_rmail_attribute_value(attr, state)
         saved_inhibit = buffers(current)%read_only
         buffers(current)%read_only = .false.
         call goto_char(point_min())
@@ -2290,14 +2293,14 @@ contains
         end if
 
         buffers(current)%read_only = saved_inhibit
-    end subroutine rmail_set_attribute_1
+    end subroutine set_rmail_attribute_1
 
     !> Turn an attribute of a message on or off according to STATE.
     !> ATTR is the index number of the attribute (RMAIL_ANSWERED_ATTRIBUTE_INDEX ...)
     !> or NAME its name, from `RMAIL_ATTRIBUTE_NAMES'.  MSGNUM is message
     !> number to change; absent means current message.  Port of
     !> rmail.el:rmail-set-attribute.
-    recursive subroutine rmail_set_attribute(attr, state, status, msgnum, name)
+    recursive subroutine set_rmail_attribute(attr, state, status, msgnum, name)
         integer, intent(in) :: attr
         logical, intent(in) :: state
         type(status_type), intent(out) :: status
@@ -2323,7 +2326,7 @@ contains
         ! Ask for confirmation before setting any attribute except
         ! `unseen' if it would force a format change.
         if (index /= RMAIL_UNSEEN_ATTRIBUTE_INDEX) then
-            call rmail_modify_format(status)
+            call modify_rmail_format(status)
             if (.not. status%ok()) return
         end if
 
@@ -2337,20 +2340,20 @@ contains
             ! The "deleted" attribute is also stored in a special array
             ! so update that too.
             if (index == RMAIL_DELETED_ATTRIBUTE_INDEX) call set_rmail_message_deleted(n, state)
-            call rmail_in_message_begin(scope, status, n)
+            call apply_in_rmail_message_begin(scope, status, n)
             if (.not. status%ok()) return
             altered = .false.
-            if (scope%active) call rmail_set_attribute_1(index, state, altered, status)
-            call rmail_in_message_end(scope)
+            if (scope%active) call set_rmail_attribute_1(index, state, altered, status)
+            call apply_in_rmail_message_end(scope)
             if (.not. status%ok()) return
-            if (n == rmail_states(k)%current_message) call rmail_display_labels(status)
+            if (n == rmail_states(k)%current_message) call display_rmail_labels(status)
             if (.not. status%ok()) return
 
             if (altered) then
                 ! Don't save in mbox format over a Babyl file merely
                 ! because of a change in `unseen' attribute.
                 if (index == RMAIL_UNSEEN_ATTRIBUTE_INDEX) then
-                    call rmail_dont_modify_format()
+                    call keep_rmail_format()
                 else
                     ! Otherwise, if we modified the file text via the view
                     ! buffer, mark the main buffer modified too.
@@ -2360,7 +2363,7 @@ contains
         end if
 
         if (is_buffer_live(saved)) call set_buffer(saved, status)
-    end subroutine rmail_set_attribute
+    end subroutine set_rmail_attribute
 
     !> Return true if message number MSG has attributes matching regexp
     !> ATTRS.  Port of rmail.el:rmail-message-attr-p.
@@ -2371,7 +2374,7 @@ contains
         type(status_type) :: st
 
         found = .false.
-        call rmail_get_header(RMAIL_ATTRIBUTE_HEADER, value, st, msg)
+        call get_rmail_header(RMAIL_ATTRIBUTE_HEADER, value, st, msg)
         if (.not. st%ok() .or. .not. allocated(value)) return
         found = string_match(attrs, value, st) > 0
     end function has_rmail_message_attributes
@@ -2392,7 +2395,7 @@ contains
         character(len=:), allocatable :: text
         type(status_type) :: st
 
-        call rmail_get_labels(text, st, msg)
+        call get_rmail_labels(text, st, msg)
         found = string_match(labels, text, st) > 0
     end function has_rmail_message_labels
 
@@ -2429,10 +2432,10 @@ contains
     !> Narrow to message MSGNUM (the current message if absent) of the
     !> current buffer's Rmail buffer, in the buffer holding the message
     !> collection, with point at the start of the message, until
-    !> `rmail_in_message_end'; SCOPE is what to restore (inactive when
+    !> `apply_in_rmail_message_end'; SCOPE is what to restore (inactive when
     !> there is no such message).  Port of rmail.el:rmail-apply-in-message
     !> (two steps, before and after the code upstream calls).
-    subroutine rmail_in_message_begin(scope, status, msgnum)
+    subroutine apply_in_rmail_message_begin(scope, status, msgnum)
         type(rmail_message_scope_type), intent(out) :: scope
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: msgnum
@@ -2467,11 +2470,11 @@ contains
         call widen()
         call goto_char(beginning)
         call narrow_to_region(beginning, end, status)
-    end subroutine rmail_in_message_begin
+    end subroutine apply_in_rmail_message_begin
 
-    !> End what `rmail_in_message_begin' began.  Port of
+    !> End what `apply_in_rmail_message_begin' began.  Port of
     !> rmail.el:rmail-apply-in-message (its end).
-    subroutine rmail_in_message_end(scope)
+    subroutine apply_in_rmail_message_end(scope)
         type(rmail_message_scope_type), intent(inout) :: scope
         type(status_type) :: st
 
@@ -2482,7 +2485,7 @@ contains
         end if
 
         if (is_buffer_live(scope%saved)) call set_buffer(scope%saved, st)
-    end subroutine rmail_in_message_end
+    end subroutine apply_in_rmail_message_end
 
     ! ------------------------------------------------------------------
     ! The message arrays and counters
@@ -2490,7 +2493,7 @@ contains
 
     ! Forget the message arrays of state K, detaching their markers.
     ! Port of rmail.el:rmail-forget-messages.
-    subroutine rmail_forget_messages(k)
+    subroutine forget_rmail_messages(k)
         integer, intent(in) :: k
         type(status_type) :: st
         integer :: i
@@ -2506,17 +2509,17 @@ contains
         if (allocated(rmail_states(k)%deleted)) deallocate (rmail_states(k)%deleted)
         if (allocated(rmail_states(k)%summaries)) deallocate (rmail_states(k)%summaries)
         rmail_states(k)%counted = .false.
-    end subroutine rmail_forget_messages
+    end subroutine forget_rmail_messages
 
     !> Count the messages unless that is done.  Port of
     !> rmail.el:rmail-maybe-set-message-counters.
-    subroutine rmail_maybe_set_message_counters()
+    subroutine set_rmail_message_counters_maybe()
         integer :: k
 
         k = current_state()
         if (k == 0) return
-        if (.not. rmail_states(k)%counted) call rmail_set_message_counters()
-    end subroutine rmail_maybe_set_message_counters
+        if (.not. rmail_states(k)%counted) call set_rmail_message_counters()
+    end subroutine set_rmail_message_counters_maybe
 
     ! The start positions of the messages from point back to the
     ! beginning of the accessible text, in buffer order (STARTS), whether
@@ -2526,7 +2529,7 @@ contains
     ! the number of messages more.  Port of
     ! rmail.el:rmail-set-message-counters-counter (with
     ! rmail.el:rmail-collect-deleted).
-    subroutine rmail_set_message_counters_counter(spot_to_find, starts, deleted, total, after)
+    subroutine set_rmail_message_counters_counter(spot_to_find, starts, deleted, total, after)
         integer(int64), intent(in) :: spot_to_find
         integer(int64), allocatable, intent(out) :: starts(:)
         logical, allocatable, intent(out) :: deleted(:)
@@ -2601,13 +2604,13 @@ contains
             call save_excursion_end(saved)
             total = total + 1
         end subroutine collect
-    end subroutine rmail_set_message_counters_counter
+    end subroutine set_rmail_message_counters_counter
 
     !> Count the number of new messages.
     !> The buffer should be narrowed to include only the new messages.
     !> Output a helpful message unless NOMSG is true.  Port of
     !> rmail.el:rmail-count-new-messages.
-    subroutine rmail_count_new_messages(nomsg)
+    subroutine count_rmail_new_messages(nomsg)
         logical, intent(in), optional :: nomsg
         integer(int64), allocatable :: starts(:)
         logical, allocatable :: deleted(:), deleted_array(:)
@@ -2631,7 +2634,7 @@ contains
         call goto_char(point_max())
         ! The entry for message N+1 marks the end of message N.
         call copy_marker_at(point(), end_marker, .false., st)
-        call rmail_set_message_counters_counter(point_min(), starts, deleted, total, after)
+        call set_rmail_message_counters_counter(point_min(), starts, deleted, total, after)
         old_total = rmail_states(k)%total_messages
         rmail_states(k)%current_message = old_total + 1
         rmail_states(k)%total_messages = old_total + total
@@ -2669,12 +2672,12 @@ contains
             write (text, '("Counting new messages...done (", i0, ")")') total
             call message(trim(text))
         end if
-    end subroutine rmail_count_new_messages
+    end subroutine count_rmail_new_messages
 
     !> Find the messages of the current Rmail buffer and set its message
     !> arrays and counters; the current message is the one containing
     !> point.  Port of rmail.el:rmail-set-message-counters.
-    subroutine rmail_set_message_counters()
+    subroutine set_rmail_message_counters()
         integer(int64), allocatable :: starts(:)
         logical, allocatable :: deleted(:)
         type(excursion_type) :: saved
@@ -2687,7 +2690,7 @@ contains
 
         k = current_state()
         if (k == 0) return
-        call rmail_forget_messages(k)
+        call forget_rmail_messages(k)
         call save_excursion_begin(saved)
         call save_restriction_begin(restriction)
         call widen()
@@ -2700,7 +2703,7 @@ contains
         call goto_char(point_max())
         ! The entry for message N+1 marks the end of message N.
         call copy_marker_at(point(), end_marker, .false., st)
-        call rmail_set_message_counters_counter(min(point(), point_save), starts, deleted, total, after)
+        call set_rmail_message_counters_counter(min(point(), point_save), starts, deleted, total, after)
         if (after < 0) after = 0
         rmail_states(k)%total_messages = total
         rmail_states(k)%current_message = min(total, max(1_int64, total - after))
@@ -2726,7 +2729,7 @@ contains
         call message("Counting messages...done")
         call save_restriction_end(restriction)
         call save_excursion_end(saved)
-    end subroutine rmail_set_message_counters
+    end subroutine set_rmail_message_counters
 
     !> Return true if message number N is deleted (in the deleted array).
     !> Port of rmail.el:rmail-message-deleted-p.
@@ -2779,7 +2782,7 @@ contains
     !> With optional integer ARG, show the normal message header if ARG
     !> is greater than zero; otherwise, show it in full.  Port of
     !> rmail.el:rmail-toggle-header.
-    recursive subroutine rmail_toggle_header(status, arg)
+    recursive subroutine toggle_rmail_header(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
         integer :: saved
@@ -2798,25 +2801,25 @@ contains
             rmail_header_style = RMAIL_HEADER_STYLE_NORMAL
         end if
 
-        call rmail_show_message(status)
+        call show_rmail_message(status)
         rmail_header_style = saved
-    end subroutine rmail_toggle_header
+    end subroutine toggle_rmail_header
 
     !> Show current message starting from the beginning.  Port of
     !> rmail.el:rmail-beginning-of-message.
-    recursive subroutine rmail_beginning_of_message(status)
+    recursive subroutine beginning_of_rmail_message(status)
         type(status_type), intent(out) :: status
 
         call show_current_message(.false., status)
-    end subroutine rmail_beginning_of_message
+    end subroutine beginning_of_rmail_message
 
     !> Show bottom of current message.  Port of
     !> rmail.el:rmail-end-of-message.
-    recursive subroutine rmail_end_of_message(status)
+    recursive subroutine end_of_rmail_message(status)
         type(status_type), intent(out) :: status
 
         call show_current_message(.true., status)
-    end subroutine rmail_end_of_message
+    end subroutine end_of_rmail_message
 
     ! Show the current message again with its header style, with point
     ! at its end (and the end at the bottom of the window) if AT_END,
@@ -2848,7 +2851,7 @@ contains
         end if
 
         status = status_type()
-        if (k > 0) call rmail_show_message(status, rmail_states(k)%current_message)
+        if (k > 0) call show_rmail_message(status, rmail_states(k)%current_message)
         rmail_show_message_hook = saved_hook
         rmail_header_style = saved_style
     end subroutine show_current_message
@@ -2876,16 +2879,16 @@ contains
     end subroutine goto_end_and_recenter
 
     !> Display the entire mailbox file.  Port of rmail.el:rmail-widen.
-    recursive subroutine rmail_widen(status)
+    recursive subroutine widen_rmail(status)
         type(status_type), intent(out) :: status
 
-        call rmail_swap_buffers_maybe(status)
+        call swap_rmail_buffers_maybe(status)
         call widen()
-    end subroutine rmail_widen
+    end subroutine widen_rmail
 
     ! "No mail." if there are no messages (erasing the viewer buffer),
     ! else unallocated.  Port of rmail.el:rmail-no-mail-p.
-    subroutine rmail_check_no_mail(k, blurb)
+    subroutine check_rmail_no_mail(k, blurb)
         integer, intent(in) :: k
         character(len=:), allocatable, intent(out) :: blurb
         type(handle_type) :: saved
@@ -2900,7 +2903,7 @@ contains
         call erase_buffer(st)
         call set_buffer(saved, st)
         blurb = "No mail."
-    end subroutine rmail_check_no_mail
+    end subroutine check_rmail_no_mail
 
     !> Show message number N (prefix argument), counting from start of file.
     !> If summary buffer is currently displayed, update current message there also.
@@ -2908,7 +2911,7 @@ contains
     !> left alone.  Port of rmail.el:rmail-show-message (asking whether to
     !> add a Mail-Followup-To list to `mail_mailing_lists' waits for
     !> saving settings into init.f90).
-    recursive subroutine rmail_show_message(status, n, no_summary)
+    recursive subroutine show_rmail_message(status, n, no_summary)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n
         logical, intent(in), optional :: no_summary
@@ -2933,11 +2936,11 @@ contains
             return
         end if
 
-        call rmail_swap_buffers_maybe(status)
+        call swap_rmail_buffers_maybe(status)
         if (.not. status%ok()) return
-        call rmail_maybe_set_message_counters()
+        call set_rmail_message_counters_maybe()
         call widen()
-        call rmail_show_message_1(blurb, status, n)
+        call show_rmail_message_1(blurb, status, n)
         if (.not. status%ok()) return
 
         if (rmail_states(k)%total_messages /= 0) then
@@ -2947,13 +2950,13 @@ contains
             ! that buffer.  But don't complain if this message is not
             ! mentioned in the summary.
             if (rmail_summary_exists() .and. .not. skip_summary) then
-                call rmail_select_summary(rmail_summary_goto_message_function, rmail_states(k)%current_message, status)
+                call select_rmail_summary(goto_rmail_summary_message_function, rmail_states(k)%current_message, status)
                 if (.not. status%ok()) return
             end if
         end if
 
         if (allocated(blurb)) call message(blurb)
-    end subroutine rmail_show_message
+    end subroutine show_rmail_message
 
     !> Return true if the region contains a text message.  Port of
     !> rmail.el:rmail-is-text-p.
@@ -2980,7 +2983,7 @@ contains
     !> other messages until rmailmm.el is ported: `rmail_show_mime_function'
     !> is unset; decoding RFC 2047 header fields waits for rfc2047.el,
     !> and the suspicious From check for textsec.el).
-    recursive subroutine rmail_show_message_1(blurb, status, msg)
+    recursive subroutine show_rmail_message_1(blurb, status, msg)
         character(len=:), allocatable, intent(out) :: blurb
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: msg
@@ -3000,7 +3003,7 @@ contains
         showing_message = .false.
         n = rmail_states(k)%current_message
         if (present(msg)) n = msg
-        call rmail_check_no_mail(k, blurb)
+        call check_rmail_no_mail(k, blurb)
         if (allocated(blurb)) return
 
         if (n <= 0) then
@@ -3019,13 +3022,13 @@ contains
         ! Mark the message as seen, but preserve buffer modified flag.
         call is_buffer_modified(mbox_buffer, modified, status)
         if (.not. status%ok()) return
-        call rmail_set_attribute(RMAIL_UNSEEN_ATTRIBUTE_INDEX, .false., status)
+        call set_rmail_attribute(RMAIL_UNSEEN_ATTRIBUTE_INDEX, .false., status)
         if (.not. status%ok()) return
         if (rmail_show_message_set_modified) modified = .true.
         if (.not. modified) call restore_buffer_modified(modified)
         ! Bracket the message in the mail buffer and determine the coding
         ! system the transfer encoding.
-        call rmail_swap_buffers_maybe(status)
+        call swap_rmail_buffers_maybe(status)
         if (.not. status%ok()) return
         beginning = rmail_message_beginning(n)
         end = rmail_message_end(n)
@@ -3041,7 +3044,7 @@ contains
         call goto_char(beginning)
         ! We give the view buffer a buffer-local value of
         ! rmail-header-style based on the binding in effect when this
-        ! function is called; `rmail_toggle_header' can inspect this value
+        ! function is called; `toggle_rmail_header' can inspect this value
         ! to determine how to toggle.
         rmail_states(k)%view_header_style = header_style
         ! In case viewing the previous message sets the paragraph direction,
@@ -3062,7 +3065,7 @@ contains
         if (found > 0) then
             coding_system = match_text(1)
         else
-            coding_system = rmail_get_coding_system()
+            coding_system = get_rmail_coding_system()
         end if
 
         call goto_char(beginning)
@@ -3084,7 +3087,7 @@ contains
 
         if (.not. allocated(character_coding)) then
             ! Do it directly since that is fast.
-            call rmail_decode_region(body_start, end, coding_system, status, view_buffer)
+            call decode_rmail_region(body_start, end, coding_system, status, view_buffer)
             if (.not. status%ok()) return
         else
             call buffer_substring_no_properties(body_start, end, text, status)
@@ -3106,7 +3109,7 @@ contains
                     if (.not. st%ok()) call message(format_error(st))
                 end if
 
-                call rmail_decode_region(point_min(), point_max(), coding_system, status, view_buffer)
+                call decode_rmail_region(point_min(), point_max(), coding_system, status, view_buffer)
             end if
 
             call set_buffer(mbox_buffer, st)
@@ -3125,7 +3128,7 @@ contains
         case_fold_search%value = .false.
 
         do
-            if (rmail_mbox_format == RMAIL_MBOX_FORMAT_MBOXRD) then
+            if (rmail_mbox_format%choice == RMAIL_MBOX_FORMAT_MBOXRD) then
                 call re_search_forward("^>+From ", found, status, noerror=SEARCH_NOERROR)
             else
                 call re_search_forward("^>From ", found, status, noerror=SEARCH_NOERROR)
@@ -3144,21 +3147,21 @@ contains
         call set_buffer(mbox_buffer, status)
         if (.not. status%ok()) return
         ! Copy the headers to the front of the message view buffer.
-        call rmail_copy_headers(k, beginning, status)
+        call copy_rmail_headers(k, beginning, status)
         if (.not. status%ok()) return
         ! Highlight the message.
         call set_buffer(view_buffer, status)
         if (.not. status%ok()) return
         call goto_char(point_min())
-        call rmail_highlight_headers(status)
+        call highlight_rmail_headers(status)
         if (.not. status%ok()) return
         ! Update the mode-line with message status information and swap
         ! the view buffer/mail buffer contents.
         call set_buffer(mbox_buffer, status)
         if (.not. status%ok()) return
-        call rmail_display_labels(status)
+        call display_rmail_labels(status)
         if (.not. status%ok()) return
-        call rmail_swap_buffers(status)
+        call swap_rmail_buffers(status)
         if (.not. status%ok()) return
         rmail_states(k)%swapped = .true.
 
@@ -3168,7 +3171,7 @@ contains
         end if
 
         call rmail_show_message_hook%execute(status)
-    end subroutine rmail_show_message_1
+    end subroutine show_rmail_message_1
 
     !> Copy displayed header fields to the message viewer buffer.
     !> BEGINNING marks the start position of the message in the mbox
@@ -3180,7 +3183,7 @@ contains
     !> `rmail_ignored_headers' (unless they also match
     !> `rmail_nonignored_headers').  Moves point in the message viewer
     !> buffer to the end of the headers.  Port of rmail.el:rmail-copy-headers.
-    recursive subroutine rmail_copy_headers(k, beginning, status, ignored_headers)
+    recursive subroutine copy_rmail_headers(k, beginning, status, ignored_headers)
         integer, intent(in) :: k
         integer(int64), intent(in) :: beginning
         type(status_type), intent(out) :: status
@@ -3208,7 +3211,7 @@ contains
             if (.not. status%ok()) exit body
 
             if (found == 0) then
-                call rmail_error_bad_format(status)
+                call set_rmail_bad_format_error(status)
                 exit body
             end if
 
@@ -3302,12 +3305,12 @@ contains
             call insert(field, status)
             call set_buffer(here, st2)
         end subroutine append_to_view
-    end subroutine rmail_copy_headers
+    end subroutine copy_rmail_headers
 
     !> Highlight the headers specified by `rmail_highlighted_headers'.
     !> Uses the face `rmail_highlight'.  Port of
     !> rmail.el:rmail-highlight-headers.
-    subroutine rmail_highlight_headers(status)
+    subroutine highlight_rmail_headers(status)
         type(status_type), intent(out) :: status
         type(excursion_type) :: saved
         type(restriction_type) :: restriction
@@ -3371,7 +3374,7 @@ contains
         case_fold_search%value = saved_fold
         call save_restriction_end(restriction)
         call save_excursion_end(saved)
-    end subroutine rmail_highlight_headers
+    end subroutine highlight_rmail_headers
 
     ! The state whose viewer buffer is the current buffer, or whose Rmail
     ! buffer is current (0 if none).  Not a port.
@@ -3393,26 +3396,26 @@ contains
     !> Show following message whether deleted or not.
     !> With prefix arg N, moves forward N messages, or backward if N is
     !> negative.  Port of rmail.el:rmail-next-message.
-    recursive subroutine rmail_next_message(n, status)
+    recursive subroutine next_rmail_message(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
         integer :: k
 
         call enter_rmail_buffer(k, status)
         if (.not. status%ok()) return
-        call rmail_maybe_set_message_counters()
-        call rmail_show_message(status, rmail_states(k)%current_message + n)
-    end subroutine rmail_next_message
+        call set_rmail_message_counters_maybe()
+        call show_rmail_message(status, rmail_states(k)%current_message + n)
+    end subroutine next_rmail_message
 
     !> Show previous message whether deleted or not.
     !> With prefix arg N, moves backward N messages, or forward if N is
     !> negative.  Port of rmail.el:rmail-previous-message.
-    recursive subroutine rmail_previous_message(n, status)
+    recursive subroutine previous_rmail_message(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
 
-        call rmail_next_message(-n, status)
-    end subroutine rmail_previous_message
+        call next_rmail_message(-n, status)
+    end subroutine previous_rmail_message
 
     !> Show following non-deleted message.
     !> With prefix arg N, moves forward N non-deleted messages,
@@ -3420,7 +3423,7 @@ contains
     !>
     !> SHOWN is true if a new message is being shown.  Port of
     !> rmail.el:rmail-next-undeleted-message.
-    recursive subroutine rmail_next_undeleted_message(n, status, shown)
+    recursive subroutine next_rmail_undeleted_message(n, status, shown)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
         logical, intent(out), optional :: shown
@@ -3430,7 +3433,7 @@ contains
         if (present(shown)) shown = .false.
         call enter_rmail_buffer(k, status)
         if (.not. status%ok()) return
-        call rmail_maybe_set_message_counters()
+        call set_rmail_message_counters_maybe()
         count = n
         last_win = rmail_states(k)%current_message
         at = rmail_states(k)%current_message
@@ -3454,47 +3457,47 @@ contains
         end do
 
         if (last_win /= rmail_states(k)%current_message) then
-            call rmail_show_message(status, last_win)
+            call show_rmail_message(status, last_win)
             if (present(shown)) shown = status%ok()
         else
             if (count < 0) call message("No previous nondeleted message")
             if (count > 0) call message("No following nondeleted message")
         end if
-    end subroutine rmail_next_undeleted_message
+    end subroutine next_rmail_undeleted_message
 
     !> Show previous non-deleted message.
     !> With prefix argument N, moves backward N non-deleted messages,
     !> or forward if N is negative.  Port of
     !> rmail.el:rmail-previous-undeleted-message.
-    recursive subroutine rmail_previous_undeleted_message(n, status)
+    recursive subroutine previous_rmail_undeleted_message(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
 
-        call rmail_next_undeleted_message(-n, status)
-    end subroutine rmail_previous_undeleted_message
+        call next_rmail_undeleted_message(-n, status)
+    end subroutine previous_rmail_undeleted_message
 
     !> Show first message in file.  Port of rmail.el:rmail-first-message.
-    recursive subroutine rmail_first_message(status)
+    recursive subroutine show_first_rmail_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_maybe_set_message_counters()
-        call rmail_show_message(status, 1_int64)
-    end subroutine rmail_first_message
+        call set_rmail_message_counters_maybe()
+        call show_rmail_message(status, 1_int64)
+    end subroutine show_first_rmail_message
 
     !> Show last message in file.  Port of rmail.el:rmail-last-message.
-    recursive subroutine rmail_last_message(status)
+    recursive subroutine show_last_rmail_message(status)
         type(status_type), intent(out) :: status
         integer :: k
 
-        call rmail_maybe_set_message_counters()
+        call set_rmail_message_counters_maybe()
         k = rmail_state_index(rmail_buffer())
         status = status_type()
-        if (k > 0) call rmail_show_message(status, rmail_states(k)%total_messages)
-    end subroutine rmail_last_message
+        if (k > 0) call show_rmail_message(status, rmail_states(k)%total_messages)
+    end subroutine show_last_rmail_message
 
     !> Return message number POS (or point) is in.  Port of
     !> rmail.el:rmail-what-message.
-    integer(int64) function rmail_what_message(pos) result(n)
+    integer(int64) function get_rmail_message_at(pos) result(n)
         integer(int64), intent(in), optional :: pos
         type(handle_type) :: saved
         type(status_type) :: st
@@ -3531,12 +3534,12 @@ contains
 
         n = low
         if (where >= rmail_message_beginning(high)) n = high
-    end function rmail_what_message
+    end function get_rmail_message_at
 
     ! Whether regexp REGEXP matches in message number MSG; point is moved
     ! there.  Port of rmail.el:rmail-search-message (the MIME search waits
     ! for rmailmm.el).
-    logical function rmail_search_message(msg, regexp, status) result(found)
+    logical function search_rmail_message(msg, regexp, status) result(found)
         integer(int64), intent(in) :: msg
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
@@ -3545,14 +3548,14 @@ contains
         call goto_char(rmail_message_beginning(msg))
         call re_search_forward(regexp, at, status, bound=rmail_message_end(msg), noerror=SEARCH_NOERROR)
         found = at > 0 .and. status%ok()
-    end function rmail_search_message
+    end function search_rmail_message
 
     !> Show message containing next match for REGEXP (but not the current msg).
     !> Prefix argument gives repeat count; negative argument means search
     !> backwards (through earlier messages).
     !> Interactively, empty argument means use same regexp used last time.
     !> Port of rmail.el:rmail-search.
-    recursive subroutine rmail_search(regexp, status, n)
+    recursive subroutine search_rmail(regexp, status, n)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n
@@ -3574,9 +3577,9 @@ contains
         reversep = count < 0
         had_opoint = rmail_states(k)%swapped
         opoint = point()
-        call rmail_swap_buffers_maybe(status)
+        call swap_rmail_buffers_maybe(status)
         if (.not. status%ok()) return
-        call rmail_maybe_set_message_counters()
+        call set_rmail_message_counters_maybe()
         call widen()
         found = .false.
 
@@ -3586,13 +3589,13 @@ contains
             if (reversep) then
                 do while (.not. found .and. msg > 1)
                     msg = msg - 1
-                    found = rmail_search_message(msg, regexp, status)
+                    found = search_rmail_message(msg, regexp, status)
                     if (.not. status%ok()) exit
                 end do
             else
                 do while (.not. found .and. msg < rmail_states(k)%total_messages)
                     msg = msg + 1
-                    found = rmail_search_message(msg, regexp, status)
+                    found = search_rmail_message(msg, regexp, status)
                     if (.not. status%ok()) exit
                 end do
             end if
@@ -3601,7 +3604,7 @@ contains
         end do
 
         if (found .and. status%ok()) then
-            call rmail_show_message(status, msg)
+            call show_rmail_message(status, msg)
             if (.not. status%ok()) return
 
             ! Search forward (if this is a normal search) or backward (if
@@ -3619,19 +3622,19 @@ contains
 
             call message(reverse//"Rmail search for "//regexp//"...done")
         else
-            call rmail_show_message(st, orig_message)
+            call show_rmail_message(st, orig_message)
             if (had_opoint) call goto_char(opoint)
             call ding(.false., st)
             if (status%ok()) call message("Search failed: "//regexp)
         end if
-    end subroutine rmail_search
+    end subroutine search_rmail
 
     !> Show message containing previous match for REGEXP.
     !> Prefix argument gives repeat count; negative argument means search
     !> forward (through later messages).
     !> Interactively, empty argument means use same regexp used last time.
     !> Port of rmail.el:rmail-search-backwards.
-    recursive subroutine rmail_search_backwards(regexp, status, n)
+    recursive subroutine search_rmail_backwards(regexp, status, n)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n
@@ -3639,11 +3642,11 @@ contains
 
         count = 1
         if (present(n)) count = n
-        call rmail_search(regexp, status, -count)
-    end subroutine rmail_search_backwards
+        call search_rmail(regexp, status, -count)
+    end subroutine search_rmail_backwards
 
-    !> Read the REGEXP and the count N of \[rmail_search] (if BACKWARDS, of
-    !> \[rmail_search_backwards]); empty input means the last regexp.
+    !> Read the REGEXP and the count N of \[search_rmail] (if BACKWARDS, of
+    !> \[search_rmail_backwards]); empty input means the last regexp.
     !> Port of the argument reading of rmail.el:rmail-search and
     !> rmail.el:rmail-search-backwards.
     recursive subroutine read_rmail_search(backwards, regexp, n, status)
@@ -3686,13 +3689,13 @@ contains
 
     !> Return message number of first message which has `unseen'
     !> attribute (0 for none).  Port of rmail.el:rmail-first-unseen-message.
-    integer(int64) function rmail_first_unseen_message() result(found)
+    integer(int64) function get_first_rmail_unseen_message() result(found)
         type(restriction_type) :: restriction
         integer(int64) :: at
         integer :: k
 
         found = 0
-        call rmail_maybe_set_message_counters()
+        call set_rmail_message_counters_maybe()
         k = rmail_state_index(rmail_buffer())
         if (k == 0) return
         call save_restriction_begin(restriction)
@@ -3705,7 +3708,7 @@ contains
         end do
 
         call save_restriction_end(restriction)
-    end function rmail_first_unseen_message
+    end function get_first_rmail_unseen_message
 
     ! ------------------------------------------------------------------
     ! Deleting and expunging
@@ -3713,24 +3716,24 @@ contains
 
     !> Delete this message and stay on it.  Port of
     !> rmail.el:rmail-delete-message.
-    recursive subroutine rmail_delete_message(status)
+    recursive subroutine delete_rmail_message(status)
         type(status_type), intent(out) :: status
         integer(int64) :: deleted_message
         integer :: k
 
-        call rmail_set_attribute(RMAIL_DELETED_ATTRIBUTE_INDEX, .true., status)
+        call set_rmail_attribute(RMAIL_DELETED_ATTRIBUTE_INDEX, .true., status)
         if (.not. status%ok()) return
         call rmail_delete_message_hook%execute(status)
         if (.not. status%ok()) return
         k = rmail_state_index(rmail_buffer())
         if (k == 0) return
         deleted_message = rmail_states(k)%current_message
-        if (rmail_summary_exists()) call rmail_select_summary(rmail_summary_mark_deleted_function, deleted_message, status)
-    end subroutine rmail_delete_message
+        if (rmail_summary_exists()) call select_rmail_summary(mark_rmail_summary_deleted_function, deleted_message, status)
+    end subroutine delete_rmail_message
 
     !> Back up to deleted message, select it, and undelete it.  Port of
     !> rmail.el:rmail-undelete-previous-message.
-    recursive subroutine rmail_undelete_previous_message(count, status)
+    recursive subroutine undelete_previous_rmail_message(count, status)
         integer(int64), intent(in) :: count
         type(status_type), intent(out) :: status
         type(handle_type) :: saved
@@ -3755,33 +3758,33 @@ contains
             end if
 
             if (msg /= rmail_states(k)%current_message) then
-                call rmail_show_message(status, msg)
+                call show_rmail_message(status, msg)
                 if (.not. status%ok()) return
             end if
 
-            call rmail_set_attribute(RMAIL_DELETED_ATTRIBUTE_INDEX, .false., status)
+            call set_rmail_attribute(RMAIL_DELETED_ATTRIBUTE_INDEX, .false., status)
             if (.not. status%ok()) return
 
-            if (rmail_summary_exists() .and. associated(rmail_summary_mark_undeleted_function)) then
+            if (rmail_summary_exists() .and. associated(mark_rmail_summary_undeleted_function)) then
                 saved = current_buffer()
                 call set_buffer(rmail_states(k)%summary_buffer, status)
-                if (status%ok()) call rmail_summary_mark_undeleted_function(msg, status)
+                if (status%ok()) call mark_rmail_summary_undeleted_function(msg, status)
                 call set_buffer(saved, st)
                 if (.not. status%ok()) return
             end if
         end do
 
-        call rmail_maybe_display_summary(status)
-    end subroutine rmail_undelete_previous_message
+        call display_rmail_summary_maybe(status)
+    end subroutine undelete_previous_rmail_message
 
     !> Delete this message and move to next nondeleted one.
-    !> Deleted messages stay in the file until the \[rmail_expunge] command is given.
+    !> Deleted messages stay in the file until the \[expunge_rmail] command is given.
     !> Optional argument COUNT (interactively, prefix argument) is a repeat count;
     !> negative argument means move backwards instead of forwards.
     !>
     !> SHOWN is true if a new message is displayed after the delete.
     !> Port of rmail.el:rmail-delete-forward.
-    recursive subroutine rmail_delete_forward(status, count, shown)
+    recursive subroutine delete_rmail_message_forward(status, count, shown)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
         logical, intent(out), optional :: shown
@@ -3796,7 +3799,7 @@ contains
         n = abs(n)
 
         do i = 1, n
-            call rmail_set_attribute(RMAIL_DELETED_ATTRIBUTE_INDEX, .true., status)
+            call set_rmail_attribute(RMAIL_DELETED_ATTRIBUTE_INDEX, .true., status)
             if (.not. status%ok()) return
             call rmail_delete_message_hook%execute(status)
             if (.not. status%ok()) return
@@ -3804,26 +3807,26 @@ contains
             deleted_message = rmail_states(k)%current_message
 
             if (rmail_summary_exists()) then
-                call rmail_select_summary(rmail_summary_mark_deleted_function, deleted_message, status)
+                call select_rmail_summary(mark_rmail_summary_deleted_function, deleted_message, status)
                 if (.not. status%ok()) return
             end if
 
-            call rmail_next_undeleted_message(merge(-1_int64, 1_int64, backward), status, value)
+            call next_rmail_undeleted_message(merge(-1_int64, 1_int64, backward), status, value)
             if (.not. status%ok()) return
         end do
 
-        call rmail_maybe_display_summary(status)
+        call display_rmail_summary_maybe(status)
         if (present(shown)) shown = value
-    end subroutine rmail_delete_forward
+    end subroutine delete_rmail_message_forward
 
     !> Delete this message and move to previous nondeleted one.
-    !> Deleted messages stay in the file until the \[rmail_expunge] command is given.
+    !> Deleted messages stay in the file until the \[expunge_rmail] command is given.
     !> Optional argument COUNT (interactively, prefix argument) is a repeat count;
     !> negative argument means move forwards instead of backwards.
     !>
     !> SHOWN is true if a new message is displayed after the delete.
     !> Port of rmail.el:rmail-delete-backward.
-    recursive subroutine rmail_delete_backward(status, count, shown)
+    recursive subroutine delete_rmail_message_backward(status, count, shown)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
         logical, intent(out), optional :: shown
@@ -3831,13 +3834,13 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call rmail_delete_forward(status, -n, shown)
-    end subroutine rmail_delete_backward
+        call delete_rmail_message_forward(status, -n, shown)
+    end subroutine delete_rmail_message_backward
 
     !> CONFIRMED is true if expunge is needed and desirable: there are
     !> deleted messages and, if `rmail_confirm_expunge' asks, the user
     !> confirms.  Port of rmail.el:rmail-expunge-confirmed.
-    recursive subroutine rmail_expunge_confirmed(confirmed, status)
+    recursive subroutine is_rmail_expunge_confirmed(confirmed, status)
         logical, intent(out) :: confirmed
         type(status_type), intent(out) :: status
         character(len=*), parameter :: QUESTION = "Erase deleted messages from Rmail file? "
@@ -3851,16 +3854,16 @@ contains
 
         if (rmail_confirm_expunge%is_off()) then
             confirmed = .true.
-        else if (rmail_confirm_expunge%choice == RMAIL_CONFIRM_EXPUNGE_FULL_ANSWER) then
+        else if (rmail_confirm_expunge%choice == RMAIL_CONFIRM_EXPUNGE_READ_YES_OR_NO) then
             call read_yes_or_no(QUESTION, confirmed, status)
         else
             call read_y_or_n(QUESTION, confirmed, status)
         end if
-    end subroutine rmail_expunge_confirmed
+    end subroutine is_rmail_expunge_confirmed
 
     !> Actually erase all deleted messages in the file.  Port of
     !> rmail.el:rmail-only-expunge.
-    recursive subroutine rmail_only_expunge(status, dont_show)
+    recursive subroutine expunge_rmail_only(status, dont_show)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: dont_show
         type(excursion_type) :: saved
@@ -3873,14 +3876,14 @@ contains
         logical :: win, showing, saved_read_only
         integer :: k
 
-        call rmail_swap_buffers_maybe(status)
+        call swap_rmail_buffers_maybe(status)
         if (.not. status%ok()) return
         call enter_rmail_buffer(k, status)
         if (.not. status%ok()) return
         call message("Expunging deleted messages...")
         ! Discard all undo records for this buffer.
         buffers(current)%undo_count = 0
-        call rmail_maybe_set_message_counters()
+        call set_rmail_message_counters_maybe()
         omax = buffer_size() - point_max()
         omin = buffer_size() - point_min()
         opoint = 0
@@ -3959,7 +3962,7 @@ contains
         if (present(dont_show)) showing = .not. dont_show
 
         if (showing) then
-            call rmail_show_message(status, min(rmail_states(k)%current_message, rmail_states(k)%total_messages))
+            call show_rmail_message(status, min(rmail_states(k)%current_message, rmail_states(k)%total_messages))
             if (.not. status%ok()) return
         end if
 
@@ -3968,14 +3971,14 @@ contains
         else
             call goto_char(point() + opoint)
         end if
-    end subroutine rmail_only_expunge
+    end subroutine expunge_rmail_only
 
     !> Erase deleted messages from Rmail file and summary buffer.
     !> This always shows a message (so as not to leave the Rmail buffer
     !> unswapped), and always updates any summary (so that it remains
     !> consistent with the Rmail buffer).  If DONT_SHOW is true, it
     !> does not pop any summary buffer.  Port of rmail.el:rmail-expunge.
-    recursive subroutine rmail_expunge(status, dont_show)
+    recursive subroutine expunge_rmail(status, dont_show)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: dont_show
         character(len=:), allocatable :: blurb
@@ -3984,15 +3987,15 @@ contains
         logical :: confirmed, was_deleted, was_swapped, quiet
         integer :: k
 
-        call rmail_expunge_confirmed(confirmed, status)
+        call is_rmail_expunge_confirmed(confirmed, status)
         if (.not. status%ok() .or. .not. confirmed) return
-        call rmail_modify_format(status)
+        call modify_rmail_format(status)
         if (.not. status%ok()) return
         k = current_state()
         if (k == 0) return
         was_deleted = is_rmail_message_deleted(rmail_states(k)%current_message)
         was_swapped = rmail_states(k)%swapped
-        call rmail_only_expunge(status, .true.)
+        call expunge_rmail_only(status, .true.)
         if (.not. status%ok()) return
         quiet = .false.
         if (present(dont_show)) quiet = dont_show
@@ -4001,14 +4004,14 @@ contains
         ! consistent with the rmail buffer.
         if (rmail_summary_exists()) then
             if (quiet) then
-                if (associated(rmail_update_summary_function)) then
+                if (associated(update_rmail_summary_function)) then
                     saved = current_buffer()
                     call set_buffer(rmail_states(k)%summary_buffer, status)
-                    if (status%ok()) call rmail_update_summary_function(0_int64, status)
+                    if (status%ok()) call update_rmail_summary_function(0_int64, status)
                     call set_buffer(saved, st)
                 end if
             else
-                call rmail_select_summary(rmail_update_summary_function, 0_int64, status)
+                call select_rmail_summary(update_rmail_summary_function, 0_int64, status)
             end if
 
             if (.not. status%ok()) return
@@ -4019,33 +4022,33 @@ contains
         ! a new one is current now, so show it.  If we weren't showing a
         ! message, show it.
         if (was_deleted .or. .not. was_swapped) then
-            call rmail_show_message_1(blurb, status, rmail_states(k)%current_message)
+            call show_rmail_message_1(blurb, status, rmail_states(k)%current_message)
         else
             ! We can just show the same message that was being shown before.
-            call rmail_display_labels(status)
+            call display_rmail_labels(status)
             if (.not. status%ok()) return
-            call rmail_swap_buffers(status)
+            call swap_rmail_buffers(status)
             if (.not. status%ok()) return
             rmail_states(k)%swapped = .true.
         end if
-    end subroutine rmail_expunge
+    end subroutine expunge_rmail
 
     !> Expunge and save RMAIL file.  Port of
     !> rmail.el:rmail-expunge-and-save.
-    recursive subroutine rmail_expunge_and_save(status)
+    recursive subroutine expunge_and_save_rmail(status)
         type(status_type), intent(out) :: status
         integer :: k
 
         call enter_rmail_buffer(k, status)
         if (.not. status%ok()) return
-        call rmail_expunge(status)
+        call expunge_rmail(status)
         if (.not. status%ok()) return
         ! No need to swap buffers: rmail-write-region-annotate takes care
         ! of it.
         call save_buffer(1_int64, .false., status)
         if (.not. status%ok()) return
-        if (rmail_summary_exists()) call rmail_select_summary(mark_unmodified, 0_int64, status)
-    end subroutine rmail_expunge_and_save
+        if (rmail_summary_exists()) call select_rmail_summary(mark_unmodified, 0_int64, status)
+    end subroutine expunge_and_save_rmail
 
     ! Mark the current buffer unmodified.  Not a port: the
     ! (set-buffer-modified-p nil) upstream runs in the summary.
@@ -4061,7 +4064,7 @@ contains
     !> Quit out of RMAIL.
     !> Hook `rmail_quit_hook' is run after expunging.  Port of
     !> rmail.el:rmail-quit.
-    recursive subroutine rmail_quit(status)
+    recursive subroutine quit_rmail(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: summary, rmail_buffer_handle, saved
         type(status_type) :: st
@@ -4069,7 +4072,7 @@ contains
 
         call enter_rmail_buffer(k, status)
         if (.not. status%ok()) return
-        call rmail_expunge(status, .true.)
+        call expunge_rmail(status, .true.)
         if (.not. status%ok()) return
         call save_buffer(1_int64, .false., status)
         if (.not. status%ok()) return
@@ -4093,11 +4096,11 @@ contains
         call quit_window(.false., status)
         if (.not. status%ok()) return
         call replace_buffer_in_windows(rmail_buffer_handle)
-    end subroutine rmail_quit
+    end subroutine quit_rmail
 
     !> Bury current Rmail buffer and its summary buffer.  Port of
     !> rmail.el:rmail-bury.
-    recursive subroutine rmail_bury(status)
+    recursive subroutine bury_rmail(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: window, summary
         integer :: k
@@ -4122,7 +4125,7 @@ contains
         end if
 
         call quit_window(.false., status)
-    end subroutine rmail_bury
+    end subroutine bury_rmail
 
     ! ------------------------------------------------------------------
     ! The summary, as Rmail uses it
@@ -4155,7 +4158,7 @@ contains
     !> Put the summary buffer back on the screen, if user wants that.
     !> Port of rmail.el:rmail-maybe-display-summary (resizing the window
     !> with `rmail_summary_window_size' waits for window-resize-no-error).
-    recursive subroutine rmail_maybe_display_summary(status)
+    recursive subroutine display_rmail_summary_maybe(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: window
         integer :: k
@@ -4170,12 +4173,12 @@ contains
             ! buffer is displayed.
             call display_buffer(rmail_states(k)%summary_buffer, window, status)
         end if
-    end subroutine rmail_maybe_display_summary
+    end subroutine display_rmail_summary_maybe
 
     !> Perform BODY (with message number N) in the summary buffer in such a
     !> way that its cursor is properly updated in its own window.  Port of
     !> rmail.el:rmail-select-summary (code upstream expands in place).
-    recursive subroutine rmail_select_summary(body, n, status)
+    recursive subroutine select_rmail_summary(body, n, status)
         use window_mod, only: pop_to_buffer, select_window
         procedure(rmail_summary_procedure), optional :: body
         integer(int64), intent(in) :: n
@@ -4193,7 +4196,7 @@ contains
         if (rmail_summary_displayed()) then
             window = selected_window()
             call save_excursion_begin(excursion)
-            call rmail_pop_to_buffer(summary, status)
+            call pop_to_rmail_buffer(summary, status)
             if (status%ok() .and. present(body)) call body(n, status)
             call select_window(window, st)
             call save_excursion_end(excursion)
@@ -4205,13 +4208,13 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call rmail_maybe_display_summary(status)
-    end subroutine rmail_select_summary
+        call display_rmail_summary_maybe(status)
+    end subroutine select_rmail_summary
 
     !> Like `pop_to_buffer', but with `split_width_threshold' set to
     !> none: Rmail does not expect horizontal splitting.  Port of
     !> rmail.el:rmail-pop-to-buffer.
-    subroutine rmail_pop_to_buffer(buffer, status)
+    subroutine pop_to_rmail_buffer(buffer, status)
         use window_mod, only: pop_to_buffer, split_width_threshold
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
@@ -4221,7 +4224,7 @@ contains
         split_width_threshold = huge(saved)
         call pop_to_buffer(buffer, status)
         split_width_threshold = saved
-    end subroutine rmail_pop_to_buffer
+    end subroutine pop_to_rmail_buffer
 
     ! ------------------------------------------------------------------
     ! Commands
@@ -4247,105 +4250,105 @@ contains
         if (status%ok()) call rmail_input(file, status)
     end subroutine cmd_rmail_input
 
-    recursive subroutine cmd_rmail_get_new_mail(status)
+    recursive subroutine cmd_get_rmail_new_mail(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         if (current_prefix_arg%kind /= PREFIX_NONE) then
             call read_file_name("Get new mail from file: ", file, status)
-            if (status%ok()) call rmail_get_new_mail(status, file)
+            if (status%ok()) call get_rmail_new_mail(status, file)
         else
-            call rmail_get_new_mail(status)
+            call get_rmail_new_mail(status)
         end if
-    end subroutine cmd_rmail_get_new_mail
+    end subroutine cmd_get_rmail_new_mail
 
-    recursive subroutine cmd_rmail_show_message(status)
+    recursive subroutine cmd_show_rmail_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_show_message(status, prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_rmail_show_message
+        call show_rmail_message(status, prefix_numeric_value(current_prefix_arg))
+    end subroutine cmd_show_rmail_message
 
-    recursive subroutine cmd_rmail_next_message(status)
+    recursive subroutine cmd_next_rmail_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_next_message(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rmail_next_message
+        call next_rmail_message(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_next_rmail_message
 
-    recursive subroutine cmd_rmail_previous_message(status)
+    recursive subroutine cmd_previous_rmail_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_previous_message(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rmail_previous_message
+        call previous_rmail_message(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_previous_rmail_message
 
-    recursive subroutine cmd_rmail_next_undeleted_message(status)
+    recursive subroutine cmd_next_rmail_undeleted_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_next_undeleted_message(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rmail_next_undeleted_message
+        call next_rmail_undeleted_message(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_next_rmail_undeleted_message
 
-    recursive subroutine cmd_rmail_previous_undeleted_message(status)
+    recursive subroutine cmd_previous_rmail_undeleted_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_previous_undeleted_message(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rmail_previous_undeleted_message
+        call previous_rmail_undeleted_message(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_previous_rmail_undeleted_message
 
-    recursive subroutine cmd_rmail_search(status)
+    recursive subroutine cmd_search_rmail(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
         integer(int64) :: n
 
         call read_rmail_search(.false., regexp, n, status)
-        if (status%ok()) call rmail_search(regexp, status, n)
-    end subroutine cmd_rmail_search
+        if (status%ok()) call search_rmail(regexp, status, n)
+    end subroutine cmd_search_rmail
 
-    recursive subroutine cmd_rmail_search_backwards(status)
+    recursive subroutine cmd_search_rmail_backwards(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
         integer(int64) :: n
 
         call read_rmail_search(.true., regexp, n, status)
-        if (status%ok()) call rmail_search_backwards(regexp, status, n)
-    end subroutine cmd_rmail_search_backwards
+        if (status%ok()) call search_rmail_backwards(regexp, status, n)
+    end subroutine cmd_search_rmail_backwards
 
-    recursive subroutine cmd_rmail_delete_forward(status)
+    recursive subroutine cmd_delete_rmail_message_forward(status)
         type(status_type), intent(out) :: status
 
-        call rmail_delete_forward(status, prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_rmail_delete_forward
+        call delete_rmail_message_forward(status, prefix_numeric_value(current_prefix_arg))
+    end subroutine cmd_delete_rmail_message_forward
 
-    recursive subroutine cmd_rmail_delete_backward(status)
+    recursive subroutine cmd_delete_rmail_message_backward(status)
         type(status_type), intent(out) :: status
 
-        call rmail_delete_backward(status, prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_rmail_delete_backward
+        call delete_rmail_message_backward(status, prefix_numeric_value(current_prefix_arg))
+    end subroutine cmd_delete_rmail_message_backward
 
-    recursive subroutine cmd_rmail_undelete_previous_message(status)
+    recursive subroutine cmd_undelete_previous_rmail_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_undelete_previous_message(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rmail_undelete_previous_message
+        call undelete_previous_rmail_message(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_undelete_previous_rmail_message
 
-    recursive subroutine cmd_rmail_only_expunge(status)
+    recursive subroutine cmd_expunge_rmail_only(status)
         type(status_type), intent(out) :: status
 
-        call rmail_only_expunge(status)
-    end subroutine cmd_rmail_only_expunge
+        call expunge_rmail_only(status)
+    end subroutine cmd_expunge_rmail_only
 
-    recursive subroutine cmd_rmail_expunge(status)
+    recursive subroutine cmd_expunge_rmail(status)
         type(status_type), intent(out) :: status
 
-        call rmail_expunge(status)
-    end subroutine cmd_rmail_expunge
+        call expunge_rmail(status)
+    end subroutine cmd_expunge_rmail
 
-    recursive subroutine cmd_rmail_toggle_header(status)
+    recursive subroutine cmd_toggle_rmail_header(status)
         type(status_type), intent(out) :: status
 
         if (current_prefix_arg%kind == PREFIX_NONE) then
-            call rmail_toggle_header(status)
+            call toggle_rmail_header(status)
         else
-            call rmail_toggle_header(status, prefix_numeric_value(current_prefix_arg))
+            call toggle_rmail_header(status, prefix_numeric_value(current_prefix_arg))
         end if
-    end subroutine cmd_rmail_toggle_header
+    end subroutine cmd_toggle_rmail_header
 
     ! ------------------------------------------------------------------
     ! Definitions
@@ -4482,41 +4485,41 @@ contains
             call keymap_set(map, digit, "digit_argument", st)
         end do
 
-        call keymap_set(map, "a", "rmail_add_label", st)
-        call keymap_set(map, "b", "rmail_bury", st)
-        call keymap_set(map, "d", "rmail_delete_forward", st)
-        call keymap_set(map, "C-d", "rmail_delete_backward", st)
-        call keymap_set(map, "e", "rmail_edit_current_message", st)
-        call keymap_set(map, "g", "rmail_get_new_mail", st)
+        call keymap_set(map, "a", "add_rmail_label", st)
+        call keymap_set(map, "b", "bury_rmail", st)
+        call keymap_set(map, "d", "delete_rmail_message_forward", st)
+        call keymap_set(map, "C-d", "delete_rmail_message_backward", st)
+        call keymap_set(map, "e", "edit_rmail_current_message", st)
+        call keymap_set(map, "g", "get_rmail_new_mail", st)
         call keymap_set(map, "h", "rmail_summary", st)
         call keymap_set(map, "i", "rmail_input", st)
-        call keymap_set(map, "j", "rmail_show_message", st)
-        call keymap_set(map, "k", "rmail_remove_label", st)
+        call keymap_set(map, "j", "show_rmail_message", st)
+        call keymap_set(map, "k", "remove_rmail_label", st)
         call keymap_set(map, "l", "rmail_summary_by_labels", st)
         call keymap_set(map, "C-M-h", "rmail_summary", st)
         call keymap_set(map, "C-M-l", "rmail_summary_by_labels", st)
         call keymap_set(map, "C-M-r", "rmail_summary_by_recipients", st)
         call keymap_set(map, "C-M-f", "rmail_summary_by_senders", st)
-        call keymap_set(map, "n", "rmail_next_undeleted_message", st)
-        call keymap_set(map, "M-n", "rmail_next_message", st)
-        call keymap_set(map, "C-M-n", "rmail_next_labeled_message", st)
-        call keymap_set(map, "o", "rmail_output", st)
-        call keymap_set(map, "C-o", "rmail_output_as_seen", st)
-        call keymap_set(map, "p", "rmail_previous_undeleted_message", st)
-        call keymap_set(map, "M-p", "rmail_previous_message", st)
-        call keymap_set(map, "C-M-p", "rmail_previous_labeled_message", st)
-        call keymap_set(map, "q", "rmail_quit", st)
-        call keymap_set(map, "s", "rmail_expunge_and_save", st)
-        call keymap_set(map, "M-s", "rmail_search", st)
-        call keymap_set(map, "t", "rmail_toggle_header", st)
-        call keymap_set(map, "u", "rmail_undelete_previous_message", st)
-        call keymap_set(map, "w", "rmail_output_body_to_file", st)
-        call keymap_set(map, "C-c C-w", "rmail_widen", st)
-        call keymap_set(map, "x", "rmail_expunge", st)
-        call keymap_set(map, ".", "rmail_beginning_of_message", st)
-        call keymap_set(map, "/", "rmail_end_of_message", st)
-        call keymap_set(map, "<", "rmail_first_message", st)
-        call keymap_set(map, ">", "rmail_last_message", st)
+        call keymap_set(map, "n", "next_rmail_undeleted_message", st)
+        call keymap_set(map, "M-n", "next_rmail_message", st)
+        call keymap_set(map, "C-M-n", "next_rmail_labeled_message", st)
+        call keymap_set(map, "o", "output_rmail_message", st)
+        call keymap_set(map, "C-o", "output_rmail_message_as_seen", st)
+        call keymap_set(map, "p", "previous_rmail_undeleted_message", st)
+        call keymap_set(map, "M-p", "previous_rmail_message", st)
+        call keymap_set(map, "C-M-p", "previous_rmail_labeled_message", st)
+        call keymap_set(map, "q", "quit_rmail", st)
+        call keymap_set(map, "s", "expunge_and_save_rmail", st)
+        call keymap_set(map, "M-s", "search_rmail", st)
+        call keymap_set(map, "t", "toggle_rmail_header", st)
+        call keymap_set(map, "u", "undelete_previous_rmail_message", st)
+        call keymap_set(map, "w", "output_rmail_message_body_to_file", st)
+        call keymap_set(map, "C-c C-w", "widen_rmail", st)
+        call keymap_set(map, "x", "expunge_rmail", st)
+        call keymap_set(map, ".", "beginning_of_rmail_message", st)
+        call keymap_set(map, "/", "end_of_rmail_message", st)
+        call keymap_set(map, "<", "show_first_rmail_message", st)
+        call keymap_set(map, ">", "show_last_rmail_message", st)
         call keymap_set(map, "SPC", "scroll_up_command", st)
         call keymap_set(map, "S-SPC", "scroll_down_command", st)
         call keymap_set(map, "DEL", "scroll_down_command", st)
@@ -4524,30 +4527,30 @@ contains
         commands%rmail%execute => cmd_rmail
         commands%rmail_mode%execute => rmail_mode
         commands%rmail_input%execute => cmd_rmail_input
-        commands%rmail_get_new_mail%execute => cmd_rmail_get_new_mail
-        commands%rmail_show_message%execute => cmd_rmail_show_message
-        commands%rmail_next_message%execute => cmd_rmail_next_message
-        commands%rmail_previous_message%execute => cmd_rmail_previous_message
-        commands%rmail_next_undeleted_message%execute => cmd_rmail_next_undeleted_message
-        commands%rmail_previous_undeleted_message%execute => cmd_rmail_previous_undeleted_message
-        commands%rmail_first_message%execute => rmail_first_message
-        commands%rmail_last_message%execute => rmail_last_message
-        commands%rmail_search%execute => cmd_rmail_search
-        commands%rmail_search_backwards%execute => cmd_rmail_search_backwards
-        commands%rmail_delete_message%execute => rmail_delete_message
-        commands%rmail_delete_forward%execute => cmd_rmail_delete_forward
-        commands%rmail_delete_backward%execute => cmd_rmail_delete_backward
-        commands%rmail_undelete_previous_message%execute => cmd_rmail_undelete_previous_message
-        commands%rmail_only_expunge%execute => cmd_rmail_only_expunge
-        commands%rmail_expunge%execute => cmd_rmail_expunge
-        commands%rmail_expunge_and_save%execute => rmail_expunge_and_save
-        commands%rmail_quit%execute => rmail_quit
-        commands%rmail_bury%execute => rmail_bury
-        commands%rmail_toggle_header%execute => cmd_rmail_toggle_header
-        commands%rmail_beginning_of_message%execute => rmail_beginning_of_message
-        commands%rmail_end_of_message%execute => rmail_end_of_message
-        commands%rmail_widen%execute => rmail_widen
+        commands%get_rmail_new_mail%execute => cmd_get_rmail_new_mail
+        commands%show_rmail_message%execute => cmd_show_rmail_message
+        commands%next_rmail_message%execute => cmd_next_rmail_message
+        commands%previous_rmail_message%execute => cmd_previous_rmail_message
+        commands%next_rmail_undeleted_message%execute => cmd_next_rmail_undeleted_message
+        commands%previous_rmail_undeleted_message%execute => cmd_previous_rmail_undeleted_message
+        commands%show_first_rmail_message%execute => show_first_rmail_message
+        commands%show_last_rmail_message%execute => show_last_rmail_message
+        commands%search_rmail%execute => cmd_search_rmail
+        commands%search_rmail_backwards%execute => cmd_search_rmail_backwards
+        commands%delete_rmail_message%execute => delete_rmail_message
+        commands%delete_rmail_message_forward%execute => cmd_delete_rmail_message_forward
+        commands%delete_rmail_message_backward%execute => cmd_delete_rmail_message_backward
+        commands%undelete_previous_rmail_message%execute => cmd_undelete_previous_rmail_message
+        commands%expunge_rmail_only%execute => cmd_expunge_rmail_only
+        commands%expunge_rmail%execute => cmd_expunge_rmail
+        commands%expunge_and_save_rmail%execute => expunge_and_save_rmail
+        commands%quit_rmail%execute => quit_rmail
+        commands%bury_rmail%execute => bury_rmail
+        commands%toggle_rmail_header%execute => cmd_toggle_rmail_header
+        commands%beginning_of_rmail_message%execute => beginning_of_rmail_message
+        commands%end_of_rmail_message%execute => end_of_rmail_message
+        commands%widen_rmail%execute => widen_rmail
         ! FIXME: Don't do it globally!!
-        call after_save_hook%prepend(rmail_after_save)
+        call after_save_hook%prepend(update_rmail_after_save)
     end subroutine init_rmail
 end module rmail_mod

@@ -24,8 +24,8 @@ module test_rmail_keywords_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
-    use rmail_mod, only: rmail_states, rmail_get_header, rmail_get_labels, is_rmail_message_deleted, rmail_first_message
-    use rmail_keywords_mod, only: rmail_add_label, rmail_remove_label, rmail_set_label, rmail_next_labeled_message, &
+    use rmail_mod, only: rmail_states, get_rmail_header, get_rmail_labels, is_rmail_message_deleted, show_first_rmail_message
+    use rmail_keywords_mod, only: add_rmail_label, remove_rmail_label, set_rmail_label, next_rmail_labeled_message, &
                                   rmail_labels
     use test_rmail_support_mod, only: set_up_rmail, leave_rmail, visit_rmail, rmail_state, SAMPLE_MBOX
     implicit none(type, external)
@@ -54,25 +54,25 @@ contains
 
         call set_up_rmail(file)
         call visit_rmail(file, SAMPLE_MBOX, st)
-        call rmail_add_label("work", st)
+        call add_rmail_label("work", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call rmail_add_label("urgent", st)
-        call rmail_get_header("X-RMAIL-KEYWORDS", value, st)
+        call add_rmail_label("urgent", st)
+        call get_rmail_header("X-RMAIL-KEYWORDS", value, st)
         call check(error, value == "work, urgent", value)
         if (allocated(error)) return
-        call rmail_get_labels(labels, st)
+        call get_rmail_labels(labels, st)
         call check(error, labels == " work, urgent", labels)
         if (allocated(error)) return
-        call rmail_remove_label("work", st)
-        call rmail_get_header("X-RMAIL-KEYWORDS", value, st)
+        call remove_rmail_label("work", st)
+        call get_rmail_header("X-RMAIL-KEYWORDS", value, st)
         call check(error, value == "urgent", value)
         if (allocated(error)) return
-        call rmail_remove_label("urgent", st)
-        call rmail_get_header("X-RMAIL-KEYWORDS", value, st)
+        call remove_rmail_label("urgent", st)
+        call get_rmail_header("X-RMAIL-KEYWORDS", value, st)
         call check(error,.not. allocated(value), "the header is removed")
         if (allocated(error)) return
-        call rmail_set_label("a,b", .true., st)
+        call set_rmail_label("a,b", .true., st)
         call check(error, format_error(st) == "More than one label specified", format_error(st))
         call leave_rmail(file)
     end subroutine test_add_remove
@@ -85,7 +85,7 @@ contains
 
         call set_up_rmail(file)
         call visit_rmail(file, SAMPLE_MBOX, st)
-        call rmail_add_label("deleted", st)
+        call add_rmail_label("deleted", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, is_rmail_message_deleted(1_int64))
@@ -104,13 +104,13 @@ contains
         call set_up_rmail(file)
         call visit_rmail(file, SAMPLE_MBOX, st)
         k = rmail_state(file)
-        call rmail_set_label("todo", .true., st, 2_int64)
-        call rmail_next_labeled_message(1_int64, "todo, later", st)
+        call set_rmail_label("todo", .true., st, 2_int64)
+        call next_rmail_labeled_message(1_int64, "todo, later", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, rmail_states(k)%current_message == 2_int64)
         if (allocated(error)) return
-        call rmail_next_labeled_message(1_int64, "", st)
+        call next_rmail_labeled_message(1_int64, "", st)
         call check(error, format_error(st) == "No following message with labels todo, later", format_error(st))
         call leave_rmail(file)
     end subroutine test_next_labeled

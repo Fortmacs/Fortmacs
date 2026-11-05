@@ -20,7 +20,7 @@
 ## Deferred
 
 Babyl files (`rmail-output-as-babyl`, `rmail-output-to-babyl-buffer`, `rmail-convert-to-babyl-format`, `rmail-nuke-pinhead-header`: a `void_function` error condition),
-a message without a "From " line (mail-utils.el's `mail-mbox-from`, which needs time-date.el's `date-to-time`: a `void_function` error condition; so \[rmail_output_as_seen] of a shown message waits for it),
+a message without a "From " line (mail-utils.el's `mail-mbox-from`, which needs time-date.el's `date-to-time`: a `void_function` error condition; so \[output_rmail_message_as_seen] of a shown message waits for it),
 encrypted output files (NAME.gpg),
 `rmail-output-file-alist`,
 Auto Save mode in an Rmail buffer given a message

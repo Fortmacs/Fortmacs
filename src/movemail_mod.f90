@@ -70,7 +70,7 @@ contains
         errors = ""
 
         if (len(destination) == 0) then
-            call fatal("Destination file name is empty")
+            call report_fatal_error("Destination file name is empty")
             return
         end if
 
@@ -89,8 +89,8 @@ contains
             err = fortmacs_mkostemp(tempname, desc)
 
             if (err /= 0) then
-                call error("error while creating what would become the lock file")
-                call fatal(fortmacs_strerror(err)//" for "//tempname)
+                call report_error("error while creating what would become the lock file")
+                call report_fatal_error(fortmacs_strerror(err)//" for "//tempname)
                 return
             end if
 
@@ -98,7 +98,7 @@ contains
             err = sys_link(tempname, lockname)
 
             if (err /= 0 .and. err /= EEXIST) then
-                call fatal(fortmacs_strerror(err)//" for "//lockname)
+                call report_fatal_error(fortmacs_strerror(err)//" for "//lockname)
                 return
             end if
 
@@ -125,7 +125,7 @@ contains
         err = fortmacs_open_read(inbox, indesc)
 
         if (err /= 0) then
-            call fatal(fortmacs_strerror(err)//" for "//inbox, lockname)
+            call report_fatal_error(fortmacs_strerror(err)//" for "//inbox, lockname)
             return
         end if
 
@@ -137,7 +137,7 @@ contains
 
         if (err /= 0) then
             call close_fd(indesc)
-            call fatal(fortmacs_strerror(err)//" for "//destination, lockname)
+            call report_fatal_error(fortmacs_strerror(err)//" for "//destination, lockname)
             return
         end if
 
@@ -147,7 +147,7 @@ contains
             if (.not. rst%ok()) then
                 call close_fd(indesc)
                 call close_fd(outdesc)
-                call fatal(fortmacs_strerror(err)//" for "//inbox, lockname)
+                call report_fatal_error(fortmacs_strerror(err)//" for "//inbox, lockname)
                 return
             end if
 
@@ -157,7 +157,7 @@ contains
                 tem = sys_unlink(destination)
                 call close_fd(indesc)
                 call close_fd(outdesc)
-                call fatal(fortmacs_strerror(err)//" for "//destination, lockname)
+                call report_fatal_error(fortmacs_strerror(err)//" for "//destination, lockname)
                 return
             end if
 
@@ -170,7 +170,7 @@ contains
             call close_fd(indesc)
             call close_fd(outdesc)
             tem = sys_unlink(destination)
-            call fatal(fortmacs_strerror(err)//" for "//destination, lockname)
+            call report_fatal_error(fortmacs_strerror(err)//" for "//destination, lockname)
             return
         end if
 
@@ -189,21 +189,21 @@ contains
     contains
 
         ! Report an error.  Port of movemail.c:error.
-        subroutine error(text)
+        subroutine report_error(text)
             character(len=*), intent(in) :: text
 
             errors = errors//"movemail: "//text//LF
-        end subroutine error
+        end subroutine report_error
 
         ! Report an error and give up, deleting the lock file LOCK if
         ! present.  Port of movemail.c:fatal.
-        subroutine fatal(text, lock)
+        subroutine report_fatal_error(text, lock)
             character(len=*), intent(in) :: text
             character(len=*), intent(in), optional :: lock
             integer(int32) :: ignored
 
             if (present(lock)) ignored = sys_unlink(lock)
-            call error(text)
-        end subroutine fatal
+            call report_error(text)
+        end subroutine report_fatal_error
     end subroutine move_mail
 end module movemail_mod

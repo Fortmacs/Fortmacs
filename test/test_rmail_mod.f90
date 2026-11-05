@@ -31,12 +31,12 @@ module test_rmail_mod
     use editing_functions_mod, only: buffer_string, point, goto_char
     use commands_mod, only: commands
     use file_input_output_mod, only: file_exists
-    use rmail_mod, only: rmail, rmail_states, rmail_next_undeleted_message, rmail_previous_undeleted_message, &
-                         rmail_delete_forward, rmail_undelete_previous_message, rmail_expunge, rmail_expunge_and_save, &
-                         rmail_get_header, rmail_get_attribute_names, has_rmail_message_attributes, rmail_toggle_header, &
-                         rmail_search, rmail_show_message, rmail_first_message, rmail_last_message, rmail_get_new_mail, &
-                         rmail_primary_inboxes, rmail_file_name, is_rmail_message_deleted, rmail_what_message, &
-                         rmail_widen, is_rmail_buffers_swapped
+    use rmail_mod, only: rmail, rmail_states, next_rmail_undeleted_message, previous_rmail_undeleted_message, &
+                         delete_rmail_message_forward, undelete_previous_rmail_message, expunge_rmail, expunge_and_save_rmail, &
+                         get_rmail_header, get_rmail_attribute_names, has_rmail_message_attributes, toggle_rmail_header, &
+                         search_rmail, show_rmail_message, show_first_rmail_message, show_last_rmail_message, get_rmail_new_mail, &
+                         rmail_primary_inboxes, rmail_file_name, is_rmail_message_deleted, get_rmail_message_at, &
+                         widen_rmail, is_rmail_buffers_swapped
     use test_rmail_support_mod, only: set_up_rmail, leave_rmail, write_file, read_file_text, visit_rmail, rmail_state, &
                                       SAMPLE_MBOX, SAMPLE_INBOX, LF
     implicit none(type, external)
@@ -75,7 +75,7 @@ contains
                     ]
     end subroutine collect_rmail_mod
 
-    !> Test that `rmail_edit_current_message' is a command (upstream: that
+    !> Test that `edit_rmail_current_message' is a command (upstream: that
     !> it has been autoloaded; Fortmacs builds Rmail in).  Ports
     !> rmail-tests.el:rmail-autoload.
     subroutine test_rmail_autoload(error)
@@ -83,7 +83,7 @@ contains
         character(len=:), allocatable :: file
 
         call set_up_rmail(file)
-        call check(error, associated(commands%rmail_edit_current_message%execute))
+        call check(error, associated(commands%edit_rmail_current_message%execute))
     end subroutine test_rmail_autoload
 
     !> Visiting a file shows its first unseen message, its header pruned
@@ -123,15 +123,15 @@ contains
         call visit_rmail(file, SAMPLE_MBOX, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call rmail_get_header("X-RMAIL-ATTRIBUTES", value, st, 1_int64)
+        call get_rmail_header("X-RMAIL-ATTRIBUTES", value, st, 1_int64)
         call check(error, allocated(value))
         if (allocated(error)) return
         call check(error, value == "--------", value)
         if (allocated(error)) return
-        call rmail_get_header("X-RMAIL-ATTRIBUTES", value, st, 2_int64)
+        call get_rmail_header("X-RMAIL-ATTRIBUTES", value, st, 2_int64)
         call check(error, value == "------U-", value)
         if (allocated(error)) return
-        call rmail_get_attribute_names(names, st, 2_int64)
+        call get_rmail_attribute_names(names, st, 2_int64)
         call check(error, names == "unseen", names)
         if (allocated(error)) return
         call check(error, has_rmail_message_attributes(2_int64, "......U"))
@@ -148,23 +148,23 @@ contains
         call set_up_rmail(file)
         call visit_rmail(file, SAMPLE_MBOX, st)
         k = rmail_state(file)
-        call rmail_next_undeleted_message(1_int64, st)
+        call next_rmail_undeleted_message(1_int64, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, rmail_states(k)%current_message == 2_int64)
         if (allocated(error)) return
         call check(error, index(buffer_string(), "Subject: Second message") > 0, buffer_string())
         if (allocated(error)) return
-        call rmail_previous_undeleted_message(1_int64, st)
+        call previous_rmail_undeleted_message(1_int64, st)
         call check(error, rmail_states(k)%current_message == 1_int64)
         if (allocated(error)) return
-        call rmail_last_message(st)
+        call show_last_rmail_message(st)
         call check(error, rmail_states(k)%current_message == 2_int64)
         if (allocated(error)) return
-        call rmail_first_message(st)
+        call show_first_rmail_message(st)
         call check(error, rmail_states(k)%current_message == 1_int64)
         if (allocated(error)) return
-        call rmail_show_message(st, 5_int64)
+        call show_rmail_message(st, 5_int64)
         call check(error, rmail_states(k)%current_message == 2_int64)
         call leave_rmail(file)
     end subroutine test_move
@@ -179,17 +179,17 @@ contains
         call set_up_rmail(file)
         call visit_rmail(file, SAMPLE_MBOX, st)
         k = rmail_state(file)
-        call rmail_delete_forward(st)
+        call delete_rmail_message_forward(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, is_rmail_message_deleted(1_int64))
         if (allocated(error)) return
         call check(error, rmail_states(k)%current_message == 2_int64)
         if (allocated(error)) return
-        call rmail_get_header("X-RMAIL-ATTRIBUTES", value, st, 1_int64)
+        call get_rmail_header("X-RMAIL-ATTRIBUTES", value, st, 1_int64)
         call check(error, value == "-D------", value)
         if (allocated(error)) return
-        call rmail_undelete_previous_message(1_int64, st)
+        call undelete_previous_rmail_message(1_int64, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error,.not. is_rmail_message_deleted(1_int64))
@@ -208,8 +208,8 @@ contains
         call set_up_rmail(file)
         call visit_rmail(file, SAMPLE_MBOX, st)
         k = rmail_state(file)
-        call rmail_delete_forward(st)
-        call rmail_expunge_and_save(st)
+        call delete_rmail_message_forward(st)
+        call expunge_and_save_rmail(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, rmail_states(k)%total_messages == 1_int64)
@@ -237,12 +237,12 @@ contains
 
         call set_up_rmail(file)
         call visit_rmail(file, SAMPLE_MBOX, st)
-        call rmail_toggle_header(st)
+        call toggle_rmail_header(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, index(buffer_string(), "Received: from mail.example.com") > 0, buffer_string())
         if (allocated(error)) return
-        call rmail_toggle_header(st)
+        call toggle_rmail_header(st)
         call check(error, buffer_string() == FIRST_SHOWN, buffer_string())
         call leave_rmail(file)
     end subroutine test_toggle_header
@@ -257,12 +257,12 @@ contains
         call set_up_rmail(file)
         call visit_rmail(file, SAMPLE_MBOX, st)
         k = rmail_state(file)
-        call rmail_search("Second b[a-z]+", st)
+        call search_rmail("Second b[a-z]+", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, rmail_states(k)%current_message == 2_int64)
         if (allocated(error)) return
-        call rmail_search("no such text", st)
+        call search_rmail("no such text", st)
         call check(error, rmail_states(k)%current_message == 2_int64)
         call leave_rmail(file)
     end subroutine test_search
@@ -276,16 +276,16 @@ contains
 
         call set_up_rmail(file)
         call visit_rmail(file, SAMPLE_MBOX, st)
-        call rmail_widen(st)
+        call widen_rmail(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error,.not. is_rmail_buffers_swapped())
         if (allocated(error)) return
         call check(error, index(buffer_string(), "From bob@example.com  Tue Nov  3") > 0, buffer_string())
         if (allocated(error)) return
-        call check(error, rmail_what_message(1_int64) == 1_int64)
+        call check(error, get_rmail_message_at(1_int64) == 1_int64)
         if (allocated(error)) return
-        call check(error, rmail_what_message(int(index(buffer_string(), "From bob"), int64)) == 2_int64)
+        call check(error, get_rmail_message_at(int(index(buffer_string(), "From bob"), int64)) == 2_int64)
         call leave_rmail(file)
     end subroutine test_widen
 

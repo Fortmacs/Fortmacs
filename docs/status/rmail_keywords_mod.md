@@ -9,7 +9,7 @@
 `rmail-label-obarray` (`rmail_labels`, an array of names, starting with the attribute names),
 `rmail-make-label` (`append_rmail_label`),
 `rmail-add-label`,
-`rmail-kill-label` (`rmail_remove_label`),
+`rmail-kill-label` (`remove_rmail_label`),
 `rmail-read-label` (`read_rmail_label`),
 `rmail-set-label`,
 `rmail-previous-labeled-message`,

@@ -73,28 +73,30 @@ module rmail_summary_mod
     use incremental_search_mod, only: isearch_active
     use mail_utilities_mod, only: get_mail_field, strip_mail_quoted_names, mail_comma_list_regexp
     use rmail_mod, only: rmail_states, rmail_state_index, rmail_buffer, set_rmail_buffer, rmail_message_beginning, &
-                         rmail_message_end, is_rmail_message_deleted, rmail_get_header, has_rmail_message_labels, &
-                         rmail_in_message_begin, rmail_in_message_end, rmail_message_scope_type, rmail_error_bad_format, &
-                         rmail_show_message, rmail_set_attribute, is_rmail_message_unseen, rmail_delete_message, &
-                         rmail_undelete_previous_message, rmail_expunge_confirmed, rmail_only_expunge, &
-                         rmail_expunge_and_save, rmail_get_new_mail, rmail, rmail_quit, rmail_search, rmail_toggle_header, &
-                         rmail_select_summary, rmail_pop_to_buffer, rmail_summary_window_size, &
+                         rmail_message_end, is_rmail_message_deleted, get_rmail_header, has_rmail_message_labels, &
+                         apply_in_rmail_message_begin, apply_in_rmail_message_end, rmail_message_scope_type, &
+                         set_rmail_bad_format_error, &
+                         show_rmail_message, set_rmail_attribute, is_rmail_message_unseen, delete_rmail_message, &
+                         undelete_previous_rmail_message, is_rmail_expunge_confirmed, expunge_rmail_only, &
+                         expunge_and_save_rmail, get_rmail_new_mail, rmail, quit_rmail, search_rmail, toggle_rmail_header, &
+                         select_rmail_summary, pop_to_rmail_buffer, rmail_summary_window_size, &
                          rmail_user_mail_address_regexp, rmail_last_multi_labels, RMAIL_ATTRIBUTE_HEADER, &
-                         RMAIL_KEYWORD_HEADER, RMAIL_UNSEEN_ATTRIBUTE_INDEX, rmail_summary_goto_message_function, &
-                         rmail_summary_mark_deleted_function, rmail_summary_mark_undeleted_function, &
-                         rmail_summary_update_line_function, rmail_update_summary_function, rmail_summary_function, &
-                         rmail_summary_disable_function, rmail_summary_enable_function, read_rmail_search
-    use rmail_keywords_mod, only: append_rmail_label, read_rmail_label, rmail_add_label, rmail_set_label, &
-                                  rmail_next_labeled_message, rmail_previous_labeled_message
-    use rmail_edit_mod, only: rmail_edit_current_message, rmail_cease_edit, rmail_abort_edit
-    use rmail_output_mod, only: rmail_output, rmail_output_as_seen, rmail_output_body_to_file, rmail_output_read_file_name
+                         RMAIL_KEYWORD_HEADER, RMAIL_UNSEEN_ATTRIBUTE_INDEX, goto_rmail_summary_message_function, &
+                         mark_rmail_summary_deleted_function, mark_rmail_summary_undeleted_function, &
+                         update_rmail_summary_line_function, update_rmail_summary_function, rmail_summary_function, &
+                         disable_rmail_summary_function, enable_rmail_summary_function, read_rmail_search
+    use rmail_keywords_mod, only: append_rmail_label, read_rmail_label, add_rmail_label, set_rmail_label, &
+                                  next_rmail_labeled_message, previous_rmail_labeled_message
+    use rmail_edit_mod, only: edit_rmail_current_message, cease_rmail_edit, abort_rmail_edit
+    use rmail_output_mod, only: output_rmail_message, output_rmail_message_as_seen, output_rmail_message_body_to_file, &
+                                read_rmail_output_file_name
     implicit none(type, external)
     private
 
     public :: rmail_summary, rmail_summary_by_labels, rmail_summary_by_recipients, rmail_summary_by_senders, &
-              rmail_update_summary, rmail_summary_goto_message, rmail_summary_mark_deleted, rmail_summary_mark_undeleted, &
-              rmail_summary_update_line, rmail_summary_mode, rmail_summary_recipient_strip_quoted_names, &
-              rmail_summary_strip_sender, rmail_header_summary, init_rmail_summary
+              update_rmail_summary, goto_rmail_summary_message, mark_rmail_summary_deleted, mark_rmail_summary_undeleted, &
+              update_rmail_summary_line, rmail_summary_mode, strip_rmail_summary_recipient_quoted_names, &
+              strip_rmail_summary_sender, summarize_rmail_header, init_rmail_summary
 
     !> The kinds of summary `rmail_summary_redo' remakes: of all messages,
     !> by labels, by recipients, by senders.  Not a port.
@@ -113,9 +115,9 @@ module rmail_summary_mod
     end interface
 
     !> True means Rmail summary scroll commands move between messages.
-    !> That is, after `rmail_summary_scroll_message_up' reaches the end of a
+    !> That is, after `scroll_rmail_summary_message_up' reaches the end of a
     !> message, it moves to the next message; and similarly for
-    !> `rmail_summary_scroll_message_down'.  Port of rmailsum.el
+    !> `scroll_rmail_summary_message_down'.  Port of rmailsum.el
     !> rmail-summary-scroll-between-messages.
     logical, public :: rmail_summary_scroll_between_messages = .true.
 
@@ -238,18 +240,18 @@ contains
 
     !> Strip quoted names from TEXT, a From field (`strip_mail_quoted_names'):
     !> the default of `rmail_summary_sender_function'.  Not a port.
-    subroutine rmail_summary_strip_sender(text, shown)
+    subroutine strip_rmail_summary_sender(text, shown)
         character(len=*), intent(in) :: text
         character(len=:), allocatable, intent(out) :: shown
 
         shown = strip_mail_quoted_names(text)
-    end subroutine rmail_summary_strip_sender
+    end subroutine strip_rmail_summary_sender
 
     !> Strip quoted names from the first line of RECIPIENT field.
     !> Applies `strip_mail_quoted_names' to the first physical line of the
     !> header field value.  Port of
     !> rmailsum.el:rmail-summary-recipient-strip-quoted-names.
-    subroutine rmail_summary_recipient_strip_quoted_names(recipient, shown)
+    subroutine strip_rmail_summary_recipient_quoted_names(recipient, shown)
         character(len=*), intent(in) :: recipient
         character(len=:), allocatable, intent(out) :: shown
         character(len=:), allocatable :: first
@@ -260,7 +262,7 @@ contains
         if (k > 0) first = first(1:k - 1)
         k = verify(first, " "//TAB, back=.true.)
         shown = strip_mail_quoted_names(first(1:k))
-    end subroutine rmail_summary_recipient_strip_quoted_names
+    end subroutine strip_rmail_summary_recipient_quoted_names
 
     ! ------------------------------------------------------------------
     ! Making summaries
@@ -268,7 +270,7 @@ contains
 
     !> Remake the current summary as it was made.  Port of
     !> rmailsum.el:rmail-update-summary.
-    recursive subroutine rmail_update_summary(n, status)
+    recursive subroutine update_rmail_summary(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
         integer :: k
@@ -290,9 +292,9 @@ contains
         case default
             continue
         end select
-    end subroutine rmail_update_summary
+    end subroutine update_rmail_summary
 
-    ! `rmail_update_summary' as the revert function of summary buffers.
+    ! `update_rmail_summary' as the revert function of summary buffers.
     ! Not a port.
     recursive subroutine revert_summary(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
@@ -300,12 +302,12 @@ contains
 
         status = status_type()
         if (ignore_auto .and. noconfirm) continue
-        call rmail_update_summary(0_int64, status)
+        call update_rmail_summary(0_int64, status)
     end subroutine revert_summary
 
     ! Set the array of the messages the summary shows from its lines.
     ! Port of rmailsum.el:rmail-summary-populate-displayed-messages.
-    subroutine rmail_summary_populate_displayed_messages()
+    subroutine populate_rmail_summary_displayed_messages()
         type(handle_type) :: saved, summary
         type(status_type) :: st
         integer(int64) :: total, number, moved
@@ -330,7 +332,7 @@ contains
         end do
 
         call set_buffer(saved, st)
-    end subroutine rmail_summary_populate_displayed_messages
+    end subroutine populate_rmail_summary_displayed_messages
 
     ! The number at the start of the line at point (string-to-number of
     ! the line: 0 if none).  Not a port.
@@ -399,18 +401,18 @@ contains
     recursive subroutine rmail_summary(status)
         type(status_type), intent(out) :: status
 
-        call rmail_new_summary("All", SUMMARY_ALL, "", .false., status)
+        call make_rmail_new_summary("All", SUMMARY_ALL, "", .false., status)
     end subroutine rmail_summary
 
     ! `rmail_summary' as `rmail_summary_function'.  Not a port.
-    recursive subroutine rmail_summary_for_rmail(n, status)
+    recursive subroutine make_rmail_summary_for_rmail(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
 
         status = status_type()
         if (n < 0) return
         call rmail_summary(status)
-    end subroutine rmail_summary_for_rmail
+    end subroutine make_rmail_summary_for_rmail
 
     !> Display a summary of all messages with one or more LABELS.
     !> LABELS should be a string containing the desired labels, separated by commas.
@@ -432,8 +434,8 @@ contains
         end if
 
         rmail_last_multi_labels = wanted
-        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call rmail_summary_populate_displayed_messages()
-        call rmail_new_summary("labels "//wanted, SUMMARY_LABELS, wanted, .false., status)
+        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call populate_rmail_summary_displayed_messages()
+        call make_rmail_new_summary("labels "//wanted, SUMMARY_LABELS, wanted, .false., status)
     end subroutine rmail_summary_by_labels
 
     !> Display a summary of all messages with the given RECIPIENTS.
@@ -450,8 +452,8 @@ contains
 
         primary = .false.
         if (present(primary_only)) primary = primary_only
-        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call rmail_summary_populate_displayed_messages()
-        call rmail_new_summary("recipients "//recipients, SUMMARY_RECIPIENTS, recipients, primary, status)
+        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call populate_rmail_summary_displayed_messages()
+        call make_rmail_new_summary("recipients "//recipients, SUMMARY_RECIPIENTS, recipients, primary, status)
     end subroutine rmail_summary_by_recipients
 
     !> Display a summary of all messages whose "From" field matches SENDERS.
@@ -462,8 +464,8 @@ contains
         character(len=*), intent(in) :: senders
         type(status_type), intent(out) :: status
 
-        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call rmail_summary_populate_displayed_messages()
-        call rmail_new_summary("senders "//senders, SUMMARY_SENDERS, senders, .false., status)
+        if (rmail_summary_progressively_narrow .and. summary_exists_1()) call populate_rmail_summary_displayed_messages()
+        call make_rmail_new_summary("senders "//senders, SUMMARY_SENDERS, senders, .false., status)
     end subroutine rmail_summary_by_senders
 
     ! Whether message MSG goes in a summary of kind KIND with TEXT and
@@ -495,7 +497,7 @@ contains
             included = has_rmail_message_labels(msg, " \("//mail_comma_list_regexp(text)//"\)\(,\|\'\)")
         case (SUMMARY_RECIPIENTS)
             included = .false.
-            call rmail_in_message_begin(scope, st, msg)
+            call apply_in_rmail_message_begin(scope, st, msg)
 
             if (scope%active) then
                 ! mail-fetch-field does not care where it starts from.
@@ -505,9 +507,9 @@ contains
                 if (.not. included .and. .not. primary_only) included = matches("Cc")
             end if
 
-            call rmail_in_message_end(scope)
+            call apply_in_rmail_message_end(scope)
         case (SUMMARY_SENDERS)
-            call rmail_get_header("From", value, st, msg)
+            call get_rmail_header("From", value, st, msg)
             if (.not. allocated(value)) value = ""
             included = string_match(text, value, st) > 0
         case default
@@ -534,7 +536,7 @@ contains
     ! information and which messages it includes (all for SUMMARY_ALL).
     ! Port of rmailsum.el:rmail-new-summary (the I/O menu waits for the
     ! menu bar).
-    recursive subroutine rmail_new_summary(description, kind, text, primary_only, status)
+    recursive subroutine make_rmail_new_summary(description, kind, text, primary_only, status)
         character(len=*), intent(in) :: description, text
         integer, intent(in) :: kind
         logical, intent(in) :: primary_only
@@ -557,7 +559,7 @@ contains
         call set_buffer(rmail_buffer(), status)
         if (.not. status%ok()) return
         k = rmail_state_index(rmail_buffer())
-        call rmail_new_summary_1(description, kind, text, primary_only, summary, status)
+        call make_rmail_new_summary_1(description, kind, text, primary_only, summary, status)
         if (.not. status%ok()) return
         rmail_states(k)%summary_buffer = summary
         mesg = rmail_states(k)%current_message
@@ -571,20 +573,20 @@ contains
                 if (.not. status%ok()) return
                 call select_window(next_window(frame_first_window(), MINIBUF_ACTIVE, st), status)
                 if (.not. status%ok()) return
-                call rmail_pop_to_buffer(summary, status)
+                call pop_to_rmail_buffer(summary, status)
                 if (.not. status%ok()) return
                 ! If pop-to-buffer did not use that window, delete that
                 ! window.
                 window = window_buffer(frame_first_window(), st)
                 if (window%index /= summary%index) call delete_other_windows(selected_window(), status)
             else
-                call rmail_pop_to_buffer(summary, status)
+                call pop_to_rmail_buffer(summary, status)
             end if
 
             if (.not. status%ok()) return
             call set_buffer(rmail_buffer(), status)
             ! This is how rmail makes the summary buffer reappear.
-            call rmail_select_summary(n=0_int64, status=status)
+            call select_rmail_summary(n=0_int64, status=status)
             if (.not. status%ok()) return
             call set_buffer(summary, status)
             if (.not. status%ok()) return
@@ -593,10 +595,10 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call rmail_summary_goto_message(status, mesg, .true., .true., found)
+        call goto_rmail_summary_message(status, mesg, .true., .true., found)
         if (.not. status%ok()) return
         call message("Computing summary lines...done")
-    end subroutine rmail_new_summary
+    end subroutine make_rmail_new_summary
 
     ! Whether the selected window is the only one of the frame (but the
     ! minibuffer).  Port of window.el:one-window-p (NOMINI absent).
@@ -615,7 +617,7 @@ contains
     ! of mbox formatted messages or displaying a single message.  Port of
     ! rmailsum.el:rmail-new-summary-1 (the description in the mode line
     ! waits for buffer-local minor-mode-alist entries).
-    recursive subroutine rmail_new_summary_1(description, kind, text, primary_only, summary, status)
+    recursive subroutine make_rmail_new_summary_1(description, kind, text, primary_only, summary, status)
         character(len=*), intent(in) :: description, text
         integer, intent(in) :: kind
         logical, intent(in) :: primary_only
@@ -630,7 +632,7 @@ contains
         integer :: k, s, i
 
         new_summary_line_count = 0
-        call rmail_get_create_summary_buffer(summary, status)
+        call get_or_make_rmail_summary_buffer(summary, status)
         if (.not. status%ok()) return
         main_buffer = current_buffer()
         k = rmail_state_index(main_buffer)
@@ -643,7 +645,7 @@ contains
         do while (total >= msgnum)
             ! First test whether to include this message.
             if (is_summarized(msgnum, kind, text, primary_only)) then
-                call rmail_get_summary(msgnum, line, status)
+                call get_rmail_summary(msgnum, line, status)
                 if (.not. status%ok()) return
                 call append_string(lines, line)
             end if
@@ -688,11 +690,11 @@ contains
         if (len(description) == 0) continue
         call set_buffer(main_buffer, status)
         if (saved_read_only) continue
-    end subroutine rmail_new_summary_1
+    end subroutine make_rmail_new_summary_1
 
     ! The Rmail summary buffer, made if necessary with undo disabled.
     ! Port of rmailsum.el:rmail-get-create-summary-buffer.
-    subroutine rmail_get_create_summary_buffer(summary, status)
+    subroutine get_or_make_rmail_summary_buffer(summary, status)
         type(handle_type), intent(out) :: summary
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
@@ -711,7 +713,7 @@ contains
         call get_or_make_buffer(generate_new_buffer_name(name//"-summary"), summary, status)
         if (.not. status%ok()) return
         buffers(summary%index)%undo_enabled = .false.
-    end subroutine rmail_get_create_summary_buffer
+    end subroutine get_or_make_rmail_summary_buffer
 
     ! The state of the current buffer as an Rmail buffer.  Not a port.
     integer function current_state_here() result(k)
@@ -722,7 +724,7 @@ contains
     ! none yet.  The mbox buffer must be current when you call this
     ! function even if its text is swapped.  Port of
     ! rmailsum.el:rmail-get-summary.
-    subroutine rmail_get_summary(msgnum, line, status)
+    subroutine get_rmail_summary(msgnum, line, status)
         integer(int64), intent(in) :: msgnum
         character(len=:), allocatable, intent(out) :: line
         type(status_type), intent(out) :: status
@@ -738,16 +740,16 @@ contains
 
         ! Register a summary line for MSGNUM.
         new_summary_line_count = new_summary_line_count + 1
-        call rmail_create_summary_line(msgnum, line, status)
+        call create_rmail_summary_line(msgnum, line, status)
         if (.not. status%ok()) return
         ! Cache the summary line for use during this Rmail session.
         rmail_states(k)%summaries(msgnum)%text = line
-    end subroutine rmail_get_summary
+    end subroutine get_rmail_summary
 
     ! The summary line LINE of message MSGNUM.  The mbox buffer must be
     ! current when you call this function even if its text is swapped.
     ! Port of rmailsum.el:rmail-create-summary-line.
-    subroutine rmail_create_summary_line(msgnum, line, status)
+    subroutine create_rmail_summary_line(msgnum, line, status)
         integer(int64), intent(in) :: msgnum
         character(len=:), allocatable, intent(out) :: line
         type(status_type), intent(out) :: status
@@ -784,20 +786,20 @@ contains
             call search_forward(RMAIL_ATTRIBUTE_HEADER//": ", found, st, noerror=SEARCH_NOERROR)
             if (found > 0) unseen = looking_at("......U", st)
             ! Generate a status line from the message.
-            call rmail_create_summary(msgnum, deleted, unseen, lines, line, status)
+            call create_rmail_summary(msgnum, deleted, unseen, lines, line, status)
         else if (status%ok()) then
-            call rmail_error_bad_format(status, msgnum)
+            call set_rmail_bad_format_error(status, msgnum)
         end if
 
         call save_restriction_end(restriction)
         call save_excursion_end(excursion)
         call set_buffer(saved, st)
-    end subroutine rmail_create_summary_line
+    end subroutine create_rmail_summary_line
 
     ! A string with the current message labels, in curly braces ("" when
     ! there are none).  The current buffer must already be narrowed to the
     ! message headers.  Port of rmailsum.el:rmail-get-summary-labels.
-    function rmail_get_summary_labels() result(text)
+    function get_rmail_summary_labels() result(text)
         character(len=:), allocatable :: text
         character(len=:), allocatable :: labels, made
         type(status_type) :: st
@@ -823,14 +825,14 @@ contains
         end do
 
         text = "{ "//labels//" } "
-    end function rmail_get_summary_labels
+    end function get_rmail_summary_labels
 
     ! The summary line LINE of message MSGNUM.  The current buffer should
     ! already be narrowed to the header for that message.  DELETED is true
     ! if this message is marked deleted, UNSEEN if it is marked unseen,
     ! LINES is the number of lines in the message (or -1 not to show it).
     ! Port of rmailsum.el:rmail-create-summary.
-    subroutine rmail_create_summary(msgnum, deleted, unseen, lines, line, status)
+    subroutine create_rmail_summary(msgnum, deleted, unseen, lines, line, status)
         integer(int64), intent(in) :: msgnum, lines
         logical, intent(in) :: deleted, unseen
         character(len=:), allocatable, intent(out) :: line
@@ -840,9 +842,9 @@ contains
         character :: state
 
         call goto_char(point_min())
-        call rmail_header_summary(basic_start, basic_end, status)
+        call summarize_rmail_header(basic_start, basic_end, status)
         if (.not. status%ok()) return
-        labels = rmail_get_summary_labels()
+        labels = get_rmail_summary_labels()
 
         if (lines < 0) then
             linecount = ""
@@ -879,14 +881,14 @@ contains
             call rmail_summary_line_decoder(line, decoded)
             line = decoded
         end if
-    end subroutine rmail_create_summary
+    end subroutine create_rmail_summary
 
     !> The message summary BASIC_START, BASIC_END (the first and second
     !> parts of the summary) based on the message headers.  The current
     !> buffer must already be narrowed to the message headers for the
     !> message being processed.  Port of rmailsum.el:rmail-header-summary
     !> (decoding RFC 2047 words in the address waits for rfc2047.el).
-    subroutine rmail_header_summary(basic_start, basic_end, status)
+    subroutine summarize_rmail_header(basic_start, basic_end, status)
         character(len=:), allocatable, intent(out) :: basic_start, basic_end
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: date, from_raw, from, from_display, to, subject, more
@@ -964,7 +966,7 @@ contains
             if (associated(rmail_summary_sender_function)) then
                 call rmail_summary_sender_function(from_raw, from_display)
             else
-                call rmail_summary_strip_sender(from_raw, from_display)
+                call strip_rmail_summary_sender(from_raw, from_display)
             end if
         end if
 
@@ -996,7 +998,7 @@ contains
                 if (associated(rmail_summary_recipient_function)) then
                     call rmail_summary_recipient_function(to, more)
                 else
-                    call rmail_summary_recipient_strip_quoted_names(to, more)
+                    call strip_rmail_summary_recipient_quoted_names(to, more)
                 end if
 
                 from_display = "to: "//more
@@ -1115,7 +1117,7 @@ contains
 
             is_this_user = string_match(regexp, from, st2) > 0
         end function is_this_user
-    end subroutine rmail_header_summary
+    end subroutine summarize_rmail_header
 
     ! The number at the start of TEXT (string-to-number: 0 if none).
     ! Not a port.
@@ -1145,7 +1147,7 @@ contains
 
     !> Move NUMBER lines in the summary, deleted messages or not.  Port of
     !> rmailsum.el:rmail-summary-next-all.
-    recursive subroutine rmail_summary_next_all(number, status)
+    recursive subroutine next_rmail_summary_all(number, status)
         integer(int64), intent(in) :: number
         type(status_type), intent(out) :: status
         integer(int64) :: moved
@@ -1154,22 +1156,22 @@ contains
         ! It doesn't look nice to move forward past the last message line.
         if (is_eob() .and. number > 0) moved = forward_line(-1_int64)
         call display_rmail_buffer(status)
-    end subroutine rmail_summary_next_all
+    end subroutine next_rmail_summary_all
 
     !> Move back NUMBER lines in the summary, deleted messages or not.
     !> Port of rmailsum.el:rmail-summary-previous-all.
-    recursive subroutine rmail_summary_previous_all(number, status)
+    recursive subroutine previous_rmail_summary_all(number, status)
         integer(int64), intent(in) :: number
         type(status_type), intent(out) :: status
 
-        call rmail_summary_next_all(-number, status)
-    end subroutine rmail_summary_previous_all
+        call next_rmail_summary_all(-number, status)
+    end subroutine previous_rmail_summary_all
 
     !> Display next non-deleted msg from rmail file.
     !> With optional prefix argument NUMBER, moves forward this number of non-deleted
     !> messages, or backward if NUMBER is negative.  Port of
     !> rmailsum.el:rmail-summary-next-msg.
-    recursive subroutine rmail_summary_next_message(number, status)
+    recursive subroutine next_rmail_summary_message(number, status)
         integer(int64), intent(in) :: number
         type(status_type), intent(out) :: status
         integer(int64) :: count, found
@@ -1194,43 +1196,43 @@ contains
 
         call beginning_of_line(1_int64)
         call display_rmail_buffer(status)
-    end subroutine rmail_summary_next_message
+    end subroutine next_rmail_summary_message
 
     !> Display previous non-deleted msg from rmail file.
     !> With optional prefix argument NUMBER, moves backward this number of
     !> non-deleted messages.  Port of rmailsum.el:rmail-summary-previous-msg.
-    recursive subroutine rmail_summary_previous_message(number, status)
+    recursive subroutine previous_rmail_summary_message(number, status)
         integer(int64), intent(in) :: number
         type(status_type), intent(out) :: status
 
-        call rmail_summary_next_message(-number, status)
-    end subroutine rmail_summary_previous_message
+        call next_rmail_summary_message(-number, status)
+    end subroutine previous_rmail_summary_message
 
     !> Show next message with LABELS.  Defaults to last labels used.
     !> With prefix argument N moves forward N messages with these labels.
     !> Port of rmailsum.el:rmail-summary-next-labeled-message.
-    recursive subroutine rmail_summary_next_labeled_message(n, labels, status)
+    recursive subroutine next_rmail_summary_labeled_message(n, labels, status)
         integer(int64), intent(in) :: n
         character(len=*), intent(in) :: labels
         type(status_type), intent(out) :: status
 
-        call in_rmail_buffer_labeled(n, labels, status)
-    end subroutine rmail_summary_next_labeled_message
+        call move_labeled_in_rmail_buffer(n, labels, status)
+    end subroutine next_rmail_summary_labeled_message
 
     !> Show previous message with LABELS.  Defaults to last labels used.
     !> With prefix argument N moves backward N messages with these labels.
     !> Port of rmailsum.el:rmail-summary-previous-labeled-message.
-    recursive subroutine rmail_summary_previous_labeled_message(n, labels, status)
+    recursive subroutine previous_rmail_summary_labeled_message(n, labels, status)
         integer(int64), intent(in) :: n
         character(len=*), intent(in) :: labels
         type(status_type), intent(out) :: status
 
-        call in_rmail_buffer_labeled(-n, labels, status)
-    end subroutine rmail_summary_previous_labeled_message
+        call move_labeled_in_rmail_buffer(-n, labels, status)
+    end subroutine previous_rmail_summary_labeled_message
 
     ! Move N messages with LABELS in the Rmail buffer, then to its line.
     ! Not a port: the bodies of the two commands above.
-    recursive subroutine in_rmail_buffer_labeled(n, labels, status)
+    recursive subroutine move_labeled_in_rmail_buffer(n, labels, status)
         integer(int64), intent(in) :: n
         character(len=*), intent(in) :: labels
         type(status_type), intent(out) :: status
@@ -1243,24 +1245,24 @@ contains
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
         if (.not. status%ok()) return
-        call rmail_next_labeled_message(n, labels, status)
+        call next_rmail_labeled_message(n, labels, status)
         k = rmail_index()
         msg = rmail_states(k)%current_message
         call set_buffer(saved, st)
         if (.not. status%ok()) return
-        call rmail_summary_goto_message(status, msg, found=found)
-    end subroutine in_rmail_buffer_labeled
+        call goto_rmail_summary_message(status, msg, found=found)
+    end subroutine move_labeled_in_rmail_buffer
 
     ! ------------------------------------------------------------------
     ! Deleting
     ! ------------------------------------------------------------------
 
     !> Delete this message and move to next nondeleted one.
-    !> Deleted messages stay in the file until the \[rmail_expunge] command is given.
+    !> Deleted messages stay in the file until the \[expunge_rmail] command is given.
     !> A prefix argument serves as a repeat count;
     !> a negative argument means to delete and move backward.  Port of
     !> rmailsum.el:rmail-summary-delete-forward.
-    recursive subroutine rmail_summary_delete_forward(status, count)
+    recursive subroutine delete_rmail_summary_message_forward(status, count)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
         type(handle_type) :: saved
@@ -1277,17 +1279,17 @@ contains
             ! Don't waste time counting down without doing anything if we
             ! are at the beginning and trying to go backward.
             if (backward .and. is_bob()) n = -1
-            call rmail_summary_goto_message(status, found=found)
+            call goto_rmail_summary_message(status, found=found)
             if (.not. status%ok()) return
             saved = current_buffer()
             call set_buffer(rmail_buffer(), status)
             if (.not. status%ok()) return
             k = rmail_index()
             deleted_message = rmail_states(k)%current_message
-            call rmail_delete_message(status)
+            call delete_rmail_message(status)
             call set_buffer(saved, st)
             if (.not. status%ok()) return
-            call rmail_summary_mark_deleted(deleted_message, status)
+            call mark_rmail_summary_deleted(deleted_message, status)
             if (.not. status%ok()) return
 
             do
@@ -1320,7 +1322,7 @@ contains
                 moved = forward_line(-1_int64)
             end if
         end do
-    end subroutine rmail_summary_delete_forward
+    end subroutine delete_rmail_summary_message_forward
 
     ! Whether the text from the beginning of the line matches REGEXP.
     ! Not a port.
@@ -1336,37 +1338,37 @@ contains
     end function line_looking_at
 
     !> Delete this message and move to previous nondeleted one.
-    !> Deleted messages stay in the file until the \[rmail_expunge] command is given.
+    !> Deleted messages stay in the file until the \[expunge_rmail] command is given.
     !> A prefix argument serves as a repeat count;
     !> a negative argument means to delete and move forward.  Port of
     !> rmailsum.el:rmail-summary-delete-backward.
-    recursive subroutine rmail_summary_delete_backward(status, count)
+    recursive subroutine delete_rmail_summary_message_backward(status, count)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
         integer(int64) :: n
 
         n = 1
         if (present(count)) n = count
-        call rmail_summary_delete_forward(status, -n)
-    end subroutine rmail_summary_delete_backward
+        call delete_rmail_summary_message_forward(status, -n)
+    end subroutine delete_rmail_summary_message_backward
 
     !> Mark message N (that of the line at point if 0) deleted in the
     !> summary.  Port of rmailsum.el:rmail-summary-mark-deleted.
-    recursive subroutine rmail_summary_mark_deleted(n, status)
+    recursive subroutine mark_rmail_summary_deleted(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
 
         call mark_deleted(n, .false., status)
-    end subroutine rmail_summary_mark_deleted
+    end subroutine mark_rmail_summary_deleted
 
     !> Mark message N undeleted in the summary.  Port of
     !> rmailsum.el:rmail-summary-mark-undeleted.
-    recursive subroutine rmail_summary_mark_undeleted(n, status)
+    recursive subroutine mark_rmail_summary_undeleted(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
 
         call mark_deleted(n, .true., status)
-    end subroutine rmail_summary_mark_undeleted
+    end subroutine mark_rmail_summary_undeleted
 
     ! Mark message N (that of the line at point if 0) deleted in the
     ! summary, or undeleted if UNDELETE.  Port of
@@ -1386,7 +1388,7 @@ contains
         ! Since third arg is .true., this only alters summary, not the
         ! Rmail buffer.
         if (n /= 0 .and. n /= rmail_summary_message_number()) then
-            call rmail_summary_goto_message(status, n, .true., .true., found)
+            call goto_rmail_summary_message(status, n, .true., .true., found)
             if (.not. status%ok()) return
         end if
 
@@ -1425,7 +1427,7 @@ contains
 
     !> Update the summary line for message N.  Port of
     !> rmailsum.el:rmail-summary-update-line.
-    recursive subroutine rmail_summary_update_line(n, status)
+    recursive subroutine update_rmail_summary_line(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: line
@@ -1436,7 +1438,7 @@ contains
         logical :: found, saved_read_only, highlighted
         integer :: k, s
 
-        call rmail_summary_goto_message(status, n, .true., .true., found)
+        call goto_rmail_summary_message(status, n, .true., .true., found)
         if (.not. status%ok() .or. .not. found) return
         saved_read_only = buffers(current)%read_only
         buffers(current)%read_only = .false.
@@ -1457,7 +1459,7 @@ contains
             saved = current_buffer()
             call set_buffer(rmail_buffer(), status)
             k = rmail_index()
-            if (status%ok()) call rmail_create_summary_line(n, line, status)
+            if (status%ok()) call create_rmail_summary_line(n, line, status)
             if (status%ok()) rmail_states(k)%summaries(n)%text = line
             call set_buffer(saved, st)
             if (status%ok()) call insert(line, status)
@@ -1468,7 +1470,7 @@ contains
 
         if (highlighted) then
             moved = forward_line(-1_int64)
-            call rmail_summary_update_highlight(.false., status)
+            call update_rmail_summary_highlight(.false., status)
         end if
 
     contains
@@ -1482,7 +1484,7 @@ contains
             overlay_on_line = overlay_start(overlay) < end .and. overlay_end(overlay) >= start
             if (overlay_start(overlay) == 0) overlay_on_line = .false.
         end function overlay_on_line
-    end subroutine rmail_summary_update_line
+    end subroutine update_rmail_summary_line
 
     ! Whether message N (that of the line at point if 0) is marked
     ! deleted in the summary.  Port of rmailsum.el:rmail-summary-deleted-p.
@@ -1494,7 +1496,7 @@ contains
         logical :: found
 
         call save_excursion_begin(saved)
-        if (n /= 0) call rmail_summary_goto_message(st, n, .false., .true., found)
+        if (n /= 0) call goto_rmail_summary_message(st, n, .false., .true., found)
         moved = skip_chars_forward(" ", st)
         moved = skip_chars_forward("0-9", st)
         deleted = looking_at("D", st)
@@ -1504,7 +1506,7 @@ contains
     !> Undelete current message.
     !> Optional prefix ARG means undelete ARG previous messages.  Port of
     !> rmailsum.el:rmail-summary-undelete.
-    recursive subroutine rmail_summary_undelete(arg, status)
+    recursive subroutine undelete_rmail_summary(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: opoint, found
@@ -1512,7 +1514,7 @@ contains
         integer :: k
 
         if (arg /= 1) then
-            call rmail_summary_undelete_many(status, arg)
+            call undelete_rmail_summary_many(status, arg)
             return
         end if
 
@@ -1527,27 +1529,27 @@ contains
             call replace_match("\1 ", status)
             buffers(current)%read_only = saved_read_only
             if (.not. status%ok()) return
-            call rmail_summary_goto_message(status, found=ok)
+            call goto_rmail_summary_message(status, found=ok)
             if (.not. status%ok()) return
-            call rmail_pop_to_buffer(rmail_buffer(), status)
+            call pop_to_rmail_buffer(rmail_buffer(), status)
             if (.not. status%ok()) return
             k = rmail_index()
 
             if (is_rmail_message_deleted(rmail_states(k)%current_message)) then
-                call rmail_undelete_previous_message(1_int64, status)
+                call undelete_previous_rmail_message(1_int64, status)
                 if (.not. status%ok()) return
             end if
 
-            call rmail_pop_to_buffer(rmail_states(k)%summary_buffer, status)
+            call pop_to_rmail_buffer(rmail_states(k)%summary_buffer, status)
         else
             buffers(current)%read_only = saved_read_only
             call goto_char(opoint)
         end if
-    end subroutine rmail_summary_undelete
+    end subroutine undelete_rmail_summary
 
     !> Undelete all deleted msgs, optional prefix arg N means undelete N
     !> prev msgs.  Port of rmailsum.el:rmail-summary-undelete-many.
-    recursive subroutine rmail_summary_undelete_many(status, n)
+    recursive subroutine undelete_rmail_summary_many(status, n)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n
         type(handle_type) :: saved
@@ -1562,13 +1564,13 @@ contains
             count = n
 
             do while (count > 0 .and. .not. is_eob())
-                call rmail_summary_goto_message(status, found=found)
+                call goto_rmail_summary_message(status, found=found)
                 if (.not. status%ok()) return
 
                 if (is_summary_message_deleted(0_int64)) then
                     call undelete_in_rmail(deleted_message)
                     if (.not. status%ok()) return
-                    call rmail_summary_mark_undeleted(deleted_message, status)
+                    call mark_rmail_summary_undeleted(deleted_message, status)
                     if (.not. status%ok()) return
                 end if
 
@@ -1580,20 +1582,20 @@ contains
                 count = count - 1
             end do
         else
-            call rmail_summary_goto_message(status, 1_int64, found=found)
+            call goto_rmail_summary_message(status, 1_int64, found=found)
             if (.not. status%ok()) return
             k = summary_state_index(.false.)
             total = 0
             if (k > 0) total = summary_states(k)%total_messages
 
             do i = 1, total
-                call rmail_summary_goto_message(status, found=found)
+                call goto_rmail_summary_message(status, found=found)
                 if (.not. status%ok()) return
 
                 if (is_summary_message_deleted(0_int64)) then
                     call undelete_in_rmail(deleted_message)
                     if (.not. status%ok()) return
-                    call rmail_summary_mark_undeleted(deleted_message, status)
+                    call mark_rmail_summary_undeleted(deleted_message, status)
                     if (.not. status%ok()) return
                 end if
 
@@ -1615,12 +1617,12 @@ contains
             saved = current_buffer()
             call set_buffer(rmail_buffer(), status)
             if (.not. status%ok()) return
-            call rmail_undelete_previous_message(1_int64, status)
+            call undelete_previous_rmail_message(1_int64, status)
             j = rmail_index()
             message_number = rmail_states(j)%current_message
             call set_buffer(saved, st)
         end subroutine undelete_in_rmail
-    end subroutine rmail_summary_undelete_many
+    end subroutine undelete_rmail_summary_many
 
     ! ------------------------------------------------------------------
     ! Rmail Summary mode
@@ -1636,8 +1638,8 @@ contains
     !>
     !> These additional commands exist:
     !>
-    !> \[rmail_summary_undelete_many]        Undelete all or prefix arg deleted messages.
-    !> \[rmail_summary_wipe] Delete the summary and go to the Rmail buffer.
+    !> \[undelete_rmail_summary_many]        Undelete all or prefix arg deleted messages.
+    !> \[wipe_rmail_summary] Delete the summary and go to the Rmail buffer.
     !>
     !> Commands for sorting the summary:
     !>
@@ -1658,14 +1660,14 @@ contains
         if (.not. status%ok()) return
         buffers(current)%read_only = .true.
         buffers(current)%syntax_table = text_mode_syntax_table
-        call rmail_summary_enable(0_int64, status)
+        call enable_rmail_summary(0_int64, status)
         if (.not. status%ok()) return
         call major_modes%rmail_summary_mode%end(saved, status)
     end subroutine rmail_summary_mode
 
     !> Summary features need to be disabled during edit mode.  Port of
     !> rmailsum.el:rmail-summary-disable.
-    recursive subroutine rmail_summary_disable(n, status)
+    recursive subroutine disable_rmail_summary(n, status)
         use files_mod, only: revert_buffer_function
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -1673,9 +1675,9 @@ contains
         status = status_type()
         if (n < 0) return
         call use_local_map(text_mode_map, status)
-        call post_command_hook%remove(rmail_summary_rmail_update, local=.true.)
+        call post_command_hook%remove(update_rmail_from_summary, local=.true.)
         call revert_buffer_function%set_local(revert_default)
-    end subroutine rmail_summary_disable
+    end subroutine disable_rmail_summary
 
     ! The default revert function, for a summary whose own is unset.
     ! Not a port.
@@ -1689,7 +1691,7 @@ contains
 
     !> Enable the summary's features again.  Port of
     !> rmailsum.el:rmail-summary-enable.
-    recursive subroutine rmail_summary_enable(n, status)
+    recursive subroutine enable_rmail_summary(n, status)
         use files_mod, only: revert_buffer_function
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -1697,15 +1699,15 @@ contains
         status = status_type()
         if (n < 0) return
         call use_local_map(rmail_summary_mode_map, status)
-        call post_command_hook%prepend(rmail_summary_rmail_update, local=.true.)
+        call post_command_hook%prepend(update_rmail_from_summary, local=.true.)
         call revert_buffer_function%set_local(revert_summary)
-    end subroutine rmail_summary_enable
+    end subroutine enable_rmail_summary
 
     ! Remove the unseen mark from the current message N, update the
     ! summary array.  NOMOVE true means we are already at the right
     ! column.  UNSEEN true means mark the message as unseen.  Port of
     ! rmailsum.el:rmail-summary-mark-seen.
-    subroutine rmail_summary_mark_seen(n, status, nomove, unseen)
+    subroutine mark_rmail_summary_seen(n, status, nomove, unseen)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: nomove, unseen
@@ -1758,13 +1760,13 @@ contains
         end if
 
         call save_excursion_end(saved)
-    end subroutine rmail_summary_mark_seen
+    end subroutine mark_rmail_summary_seen
 
     ! Show in Rmail the message described by the summary line that point
     ! is on, but only if the Rmail buffer is already visible.  This is a
     ! post-command-hook in summary buffers.  Port of
     ! rmailsum.el:rmail-summary-rmail-update (linum-update is not ported).
-    recursive subroutine rmail_summary_rmail_update(status)
+    recursive subroutine update_rmail_from_summary(status)
         type(status_type), intent(out) :: status
         type(excursion_type) :: saved
         type(handle_type) :: window, owin, rmail_buffer_handle, summary_buffer
@@ -1813,12 +1815,12 @@ contains
                     ! and we have gone to a different message while
                     ! searching, put back `unseen' on the former one.
                     if (put_back_unseen /= 0) then
-                        call rmail_set_attribute(RMAIL_UNSEEN_ATTRIBUTE_INDEX, .true., status, &
+                        call set_rmail_attribute(RMAIL_UNSEEN_ATTRIBUTE_INDEX, .true., status, &
                                                  rmail_states(k)%current_message)
                         if (.not. status%ok()) exit body
                         here = point()
                         call goto_char(put_back_unseen)
-                        call rmail_summary_mark_seen(rmail_states(k)%current_message, status, .true., .true.)
+                        call mark_rmail_summary_seen(rmail_states(k)%current_message, status, .true., .true.)
                         call goto_char(here)
                     end if
 
@@ -1833,34 +1835,34 @@ contains
                 ! Go to the desired message.
                 rmail_states(k)%current_message = message_number
                 ! Update the summary to show the message has been seen.
-                call rmail_summary_mark_seen(message_number, status, .true.)
+                call mark_rmail_summary_seen(message_number, status, .true.)
                 if (.not. status%ok()) exit body
 
                 if (window%index /= 0) then
                     ! Using save-window-excursion would cause the new value
                     ! of point to get lost.
                     call select_window(window, status)
-                    if (status%ok()) call rmail_show_message(status, message_number, .true.)
+                    if (status%ok()) call show_rmail_message(status, message_number, .true.)
                     call select_window(owin, st)
                 else if (is_buffer_live(rmail_buffer_handle)) then
                     call set_buffer(rmail_buffer_handle, status)
-                    if (status%ok()) call rmail_show_message(status, message_number, .true.)
+                    if (status%ok()) call show_rmail_message(status, message_number, .true.)
                 end if
 
                 call set_buffer(summary_buffer, st)
                 if (.not. status%ok()) exit body
             end if
 
-            call rmail_summary_update_highlight(.false., status)
+            call update_rmail_summary_highlight(.false., status)
         end block body
 
         call save_excursion_end(saved)
         buffers(current)%read_only = saved_read_only
-    end subroutine rmail_summary_rmail_update
+    end subroutine update_rmail_from_summary
 
     !> Save the buffer associated with this RMAIL summary.  Port of
     !> rmailsum.el:rmail-summary-save-buffer.
-    recursive subroutine rmail_summary_save_buffer(status)
+    recursive subroutine save_rmail_summary_buffer(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: saved
         type(status_type) :: st
@@ -1869,7 +1871,7 @@ contains
         call set_buffer(rmail_buffer(), status)
         if (status%ok()) call save_buffer(1_int64, .false., status)
         call set_buffer(saved, st)
-    end subroutine rmail_summary_save_buffer
+    end subroutine save_rmail_summary_buffer
 
     ! The number of the message of the line at point.  Port of
     ! rmailsum.el:rmail-summary-msg-number.
@@ -1890,7 +1892,7 @@ contains
     !> If SKIP_RMAIL, don't do anything to the Rmail buffer.
     !> FOUND is true if message N was found.  Port of
     !> rmailsum.el:rmail-summary-goto-msg.
-    recursive subroutine rmail_summary_goto_message(status, n, nowarn, skip_rmail, found)
+    recursive subroutine goto_rmail_summary_message(status, n, nowarn, skip_rmail, found)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n
         logical, intent(in), optional :: nowarn, skip_rmail
@@ -1931,7 +1933,7 @@ contains
             if (number > total .and. total > 0) then
                 call message("No following message")
                 call goto_char(point_max())
-                call rmail_summary_goto_message(status, nowarn=nowarn, skip_rmail=skip_rmail, found=sub_found)
+                call goto_rmail_summary_message(status, nowarn=nowarn, skip_rmail=skip_rmail, found=sub_found)
             end if
 
             call goto_char(point_min())
@@ -1953,16 +1955,16 @@ contains
 
         ! N can be 0 now, along with CURMSG, if the summary is empty.
         if (number /= 0) then
-            call rmail_summary_mark_seen(number, status)
+            call mark_rmail_summary_seen(number, status)
             if (.not. status%ok()) return
-            call rmail_summary_update_highlight(message_not_found, status)
+            call update_rmail_summary_highlight(message_not_found, status)
             if (.not. status%ok()) return
             call beginning_of_line(1_int64)
 
             if (.not. skip) then
                 selwin = selected_window()
-                call rmail_pop_to_buffer(mail_buffer, status)
-                if (status%ok()) call rmail_show_message(status, number)
+                call pop_to_rmail_buffer(mail_buffer, status)
+                if (status%ok()) call show_rmail_message(status, number)
                 call select_window(selwin, st)
                 ! The actions above can alter the current buffer.
                 ! Preserve it.
@@ -1971,23 +1973,23 @@ contains
         end if
 
         if (present(found)) found = .not. message_not_found
-    end subroutine rmail_summary_goto_message
+    end subroutine goto_rmail_summary_message
 
-    ! `rmail_summary_goto_message' with NOWARN and SKIP_RMAIL, as Rmail
+    ! `goto_rmail_summary_message' with NOWARN and SKIP_RMAIL, as Rmail
     ! calls it.  Not a port.
     recursive subroutine goto_message_for_rmail(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
         logical :: found
 
-        call rmail_summary_goto_message(status, n, .true., .true., found)
+        call goto_rmail_summary_message(status, n, .true., .true., found)
     end subroutine goto_message_for_rmail
 
     ! Update the highlighted line in an rmail summary buffer.  That should
     ! be current.  We highlight the line point is on.  If NOT_FOUND is
     ! true, we turn off highlighting.  Port of
     ! rmailsum.el:rmail-summary-update-highlight.
-    subroutine rmail_summary_update_highlight(not_found, status)
+    subroutine update_rmail_summary_highlight(not_found, status)
         logical, intent(in) :: not_found
         type(status_type), intent(out) :: status
         type(excursion_type) :: saved
@@ -2020,29 +2022,29 @@ contains
             if (status%ok()) call overlay_put(summary_states(s)%overlay, "face", value_type(name=trim(highlight%name)), &
                                               status)
         end if
-    end subroutine rmail_summary_update_highlight
+    end subroutine update_rmail_summary_highlight
 
     !> Scroll the Rmail window forward.
     !> If the Rmail window is displaying the end of a message,
     !> advance to the next message.  Port of
     !> rmailsum.el:rmail-summary-scroll-msg-up.
-    recursive subroutine rmail_summary_scroll_message_up(dist, status)
+    recursive subroutine scroll_rmail_summary_message_up(dist, status)
         type(prefix_arg_type), intent(in) :: dist
         type(status_type), intent(out) :: status
 
         call scroll_message(dist, .true., status)
-    end subroutine rmail_summary_scroll_message_up
+    end subroutine scroll_rmail_summary_message_up
 
     !> Scroll the Rmail window backward.
     !> If the Rmail window is now displaying the beginning of a message,
     !> move to the previous message.  Port of
     !> rmailsum.el:rmail-summary-scroll-msg-down.
-    recursive subroutine rmail_summary_scroll_message_down(dist, status)
+    recursive subroutine scroll_rmail_summary_message_down(dist, status)
         type(prefix_arg_type), intent(in) :: dist
         type(status_type), intent(out) :: status
 
         call scroll_message(dist, .false., status)
-    end subroutine rmail_summary_scroll_message_down
+    end subroutine scroll_rmail_summary_message_down
 
     ! The bodies of the two commands above, UP for the first.  Port of
     ! rmailsum.el:rmail-summary-scroll-msg-up and
@@ -2066,7 +2068,7 @@ contains
 
         if (rmail_window%index == 0) then
             ! If it isn't visible at all, show the beginning.
-            call rmail_summary_show_message(.false., status)
+            call show_rmail_summary_message(.false., status)
             return
         end if
 
@@ -2097,9 +2099,9 @@ contains
                     call set_error(status, FM_GENERIC_ERROR, "Beginning of buffer")
                 end if
             else if (up) then
-                call rmail_summary_next_message(count, status)
+                call next_rmail_summary_message(count, status)
             else
-                call rmail_summary_previous_message(count, status)
+                call previous_rmail_summary_message(count, status)
             end if
         else if (up) then
             call scroll_other_window(dist, status)
@@ -2110,23 +2112,23 @@ contains
 
     !> Show current message from the beginning.  Port of
     !> rmailsum.el:rmail-summary-beginning-of-message.
-    recursive subroutine rmail_summary_beginning_of_message(status)
+    recursive subroutine beginning_of_rmail_summary_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_show_message(.false., status)
-    end subroutine rmail_summary_beginning_of_message
+        call show_rmail_summary_message(.false., status)
+    end subroutine beginning_of_rmail_summary_message
 
     !> Show bottom of current message.  Port of
     !> rmailsum.el:rmail-summary-end-of-message.
-    recursive subroutine rmail_summary_end_of_message(status)
+    recursive subroutine end_of_rmail_summary_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_show_message(.true., status)
-    end subroutine rmail_summary_end_of_message
+        call show_rmail_summary_message(.true., status)
+    end subroutine end_of_rmail_summary_message
 
     ! Show current mail message, at its beginning (after the header) or,
     ! with AT_END, its end.  Port of rmailsum.el:rmail-summary-show-message.
-    recursive subroutine rmail_summary_show_message(at_end, status)
+    recursive subroutine show_rmail_summary_message(at_end, status)
         logical, intent(in) :: at_end
         type(status_type), intent(out) :: status
         type(handle_type) :: window, buffer, summary
@@ -2144,14 +2146,14 @@ contains
             if (.not. status%ok()) return
             call select_window(frame_first_window(), status)
             if (.not. status%ok()) return
-            call rmail_pop_to_buffer(buffer, status)
+            call pop_to_rmail_buffer(buffer, status)
             if (.not. status%ok()) return
             ! If pop-to-buffer did not use that window, delete that
             ! window.
             window = window_buffer(next_window(frame_first_window(), MINIBUF_ACTIVE, st), st)
             if (window%index /= buffer%index) call delete_other_windows(selected_window(), status)
         else
-            call rmail_pop_to_buffer(buffer, status)
+            call pop_to_rmail_buffer(buffer, status)
         end if
 
         if (.not. status%ok()) return
@@ -2166,12 +2168,12 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call rmail_pop_to_buffer(summary, status)
-    end subroutine rmail_summary_show_message
+        call pop_to_rmail_buffer(summary, status)
+    end subroutine show_rmail_summary_message
 
     !> Bury the Rmail buffer and the Rmail summary buffer.  Port of
     !> rmailsum.el:rmail-summary-bury.
-    recursive subroutine rmail_summary_bury(status)
+    recursive subroutine bury_rmail_summary(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer_to_bury, window, other
         character(len=:), allocatable :: name
@@ -2191,20 +2193,20 @@ contains
         call buffer_name(other, name, status)
         if (status%ok()) call switch_to_buffer(name, status)
         if (status%ok()) call bury_buffer(status, buffer_to_bury)
-    end subroutine rmail_summary_bury
+    end subroutine bury_rmail_summary
 
     !> Quit out of Rmail and Rmail summary.  Port of
     !> rmailsum.el:rmail-summary-quit.
-    recursive subroutine rmail_summary_quit(status)
+    recursive subroutine quit_rmail_summary(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_wipe(status)
-        if (status%ok()) call rmail_quit(status)
-    end subroutine rmail_summary_quit
+        call wipe_rmail_summary(status)
+        if (status%ok()) call quit_rmail(status)
+    end subroutine quit_rmail_summary
 
     !> Kill and wipe away Rmail summary, remaining within Rmail.  Port of
     !> rmailsum.el:rmail-summary-wipe.
-    recursive subroutine rmail_summary_wipe(status)
+    recursive subroutine wipe_rmail_summary(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: local_rmail_buffer, next, this
         type(status_type) :: st
@@ -2219,12 +2221,12 @@ contains
         next = next_window(this, MINIBUF_NO, st)
         if (next%index /= this%index) call delete_window(this, status)
         if (.not. status%ok()) return
-        call rmail_pop_to_buffer(local_rmail_buffer, status)
-    end subroutine rmail_summary_wipe
+        call pop_to_rmail_buffer(local_rmail_buffer, status)
+    end subroutine wipe_rmail_summary
 
     !> Actually erase all deleted messages and recompute summary headers.
     !> Port of rmailsum.el:rmail-summary-expunge.
-    recursive subroutine rmail_summary_expunge(status)
+    recursive subroutine expunge_rmail_summary(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: saved
         type(status_type) :: st
@@ -2233,27 +2235,27 @@ contains
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
         if (.not. status%ok()) return
-        call rmail_expunge_confirmed(confirmed, status)
-        if (status%ok() .and. confirmed) call rmail_only_expunge(status)
+        call is_rmail_expunge_confirmed(confirmed, status)
+        if (status%ok() .and. confirmed) call expunge_rmail_only(status)
         call set_buffer(saved, st)
         if (.not. status%ok()) return
-        call rmail_update_summary(0_int64, status)
-    end subroutine rmail_summary_expunge
+        call update_rmail_summary(0_int64, status)
+    end subroutine expunge_rmail_summary
 
     !> Expunge and save RMAIL file.  Port of
     !> rmailsum.el:rmail-summary-expunge-and-save.
-    recursive subroutine rmail_summary_expunge_and_save(status)
+    recursive subroutine expunge_and_save_rmail_summary(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: saved
         type(status_type) :: st
 
         saved = current_buffer()
-        call rmail_expunge_and_save(status)
+        call expunge_and_save_rmail(status)
         call set_buffer(saved, st)
         if (.not. status%ok()) return
-        call rmail_update_summary(0_int64, status)
+        call update_rmail_summary(0_int64, status)
         call set_buffer_modified(.false.)
-    end subroutine rmail_summary_expunge_and_save
+    end subroutine expunge_and_save_rmail_summary
 
     !> Get new mail and recompute summary headers.
     !>
@@ -2262,7 +2264,7 @@ contains
     !> pass the inbox file name as an argument.  Interactively, a prefix
     !> argument says to read a file name and use that file as the inbox.
     !> Port of rmailsum.el:rmail-summary-get-new-mail.
-    recursive subroutine rmail_summary_get_new_mail(status, file_name)
+    recursive subroutine get_rmail_summary_new_mail(status, file_name)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: file_name
         type(handle_type) :: saved
@@ -2274,84 +2276,84 @@ contains
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
         if (.not. status%ok()) return
-        call rmail_get_new_mail(status, file_name)
+        call get_rmail_new_mail(status, file_name)
         k = rmail_index()
         msg = rmail_states(k)%current_message
         call set_buffer(saved, st)
         if (.not. status%ok()) return
-        if (msg /= 0) call rmail_summary_goto_message(status, msg, found=found)
-    end subroutine rmail_summary_get_new_mail
+        if (msg /= 0) call goto_rmail_summary_message(status, msg, found=found)
+    end subroutine get_rmail_summary_new_mail
 
     !> Run Rmail on file FILENAME.  Port of rmailsum.el:rmail-summary-input.
     recursive subroutine rmail_summary_input(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
 
-        call rmail_pop_to_buffer(rmail_buffer(), status)
+        call pop_to_rmail_buffer(rmail_buffer(), status)
         if (status%ok()) call rmail(status, filename)
     end subroutine rmail_summary_input
 
     !> Show first message in Rmail file from summary buffer.  Port of
     !> rmailsum.el:rmail-summary-first-message.
-    recursive subroutine rmail_summary_first_message(status)
+    recursive subroutine show_first_rmail_summary_message(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call beginning_of_buffer(prefix_arg_type(PREFIX_NONE, 1_int64))
-    end subroutine rmail_summary_first_message
+    end subroutine show_first_rmail_summary_message
 
     !> Show last message in Rmail file from summary buffer.  Port of
     !> rmailsum.el:rmail-summary-last-message.
-    recursive subroutine rmail_summary_last_message(status)
+    recursive subroutine show_last_rmail_summary_message(status)
         type(status_type), intent(out) :: status
         integer(int64) :: moved
 
         status = status_type()
         call end_of_buffer(prefix_arg_type(PREFIX_NONE, 1_int64))
         moved = forward_line(-1_int64)
-    end subroutine rmail_summary_last_message
+    end subroutine show_last_rmail_summary_message
 
     !> Edit the contents of this message.  Port of
     !> rmailsum.el:rmail-summary-edit-current-message.
-    recursive subroutine rmail_summary_edit_current_message(status)
+    recursive subroutine edit_rmail_summary_current_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_pop_to_buffer(rmail_buffer(), status)
-        if (status%ok()) call rmail_edit_current_message(status)
+        call pop_to_rmail_buffer(rmail_buffer(), status)
+        if (status%ok()) call edit_rmail_current_message(status)
         if (status%ok()) call use_local_map(rmail_summary_edit_map, status)
-    end subroutine rmail_summary_edit_current_message
+    end subroutine edit_rmail_summary_current_message
 
     !> Finish editing message, then go back to Rmail summary buffer.
     !> Port of rmailsum.el:rmail-summary-cease-edit.
-    recursive subroutine rmail_summary_cease_edit(status)
+    recursive subroutine cease_rmail_summary_edit(status)
         type(status_type), intent(out) :: status
         integer :: k
 
-        call rmail_cease_edit(status)
+        call cease_rmail_edit(status)
         if (.not. status%ok()) return
         k = rmail_index()
-        call rmail_pop_to_buffer(rmail_states(k)%summary_buffer, status)
-    end subroutine rmail_summary_cease_edit
+        call pop_to_rmail_buffer(rmail_states(k)%summary_buffer, status)
+    end subroutine cease_rmail_summary_edit
 
     !> Abort edit of current message; restore original contents.
     !> Go back to summary buffer.  Port of
     !> rmailsum.el:rmail-summary-abort-edit.
-    recursive subroutine rmail_summary_abort_edit(status)
+    recursive subroutine abort_rmail_summary_edit(status)
         type(status_type), intent(out) :: status
         integer :: k
 
-        call rmail_abort_edit(status)
+        call abort_rmail_edit(status)
         if (.not. status%ok()) return
         k = rmail_index()
-        call rmail_pop_to_buffer(rmail_states(k)%summary_buffer, status)
-    end subroutine rmail_summary_abort_edit
+        call pop_to_rmail_buffer(rmail_states(k)%summary_buffer, status)
+    end subroutine abort_rmail_summary_edit
 
     !> Show message containing next match for REGEXP.
     !> Prefix argument gives repeat count; negative argument means search
     !> backwards (through earlier messages).
     !> Interactively, empty argument means use same regexp used last time.
     !> Port of rmailsum.el:rmail-summary-search.
-    recursive subroutine rmail_summary_search(regexp, status, n)
+    recursive subroutine search_rmail_summary(regexp, status, n)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n
@@ -2360,18 +2362,18 @@ contains
 
         buffer = current_buffer()
         selwin = selected_window()
-        call rmail_pop_to_buffer(rmail_buffer(), status)
-        if (status%ok()) call rmail_search(regexp, status, n)
+        call pop_to_rmail_buffer(rmail_buffer(), status)
+        if (status%ok()) call search_rmail(regexp, status, n)
         call select_window(selwin, st)
         call set_buffer(buffer, st)
-    end subroutine rmail_summary_search
+    end subroutine search_rmail_summary
 
     !> Show message containing next match for REGEXP.
     !> Prefix argument gives repeat count; negative argument means search
     !> backwards (through earlier messages).
     !> Interactively, empty argument means use same regexp used last time.
     !> Port of rmailsum.el:rmail-summary-search-backward.
-    recursive subroutine rmail_summary_search_backward(regexp, status, n)
+    recursive subroutine search_rmail_summary_backward(regexp, status, n)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n
@@ -2383,20 +2385,20 @@ contains
         if (present(n)) count = n
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
-        if (status%ok()) call rmail_search(regexp, status, -count)
+        if (status%ok()) call search_rmail(regexp, status, -count)
         call set_buffer(saved, st)
-    end subroutine rmail_summary_search_backward
+    end subroutine search_rmail_summary_backward
 
     !> Show original message header if pruned header currently shown, or
     !> vice versa.  Port of rmailsum.el:rmail-summary-toggle-header.
-    recursive subroutine rmail_summary_toggle_header(status)
+    recursive subroutine toggle_rmail_summary_header(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: saved, window, owin
         type(status_type) :: st
 
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
-        if (status%ok()) call rmail_toggle_header(status)
+        if (status%ok()) call toggle_rmail_header(status)
         call set_buffer(saved, st)
         if (.not. status%ok()) return
         window = get_buffer_window(rmail_buffer())
@@ -2408,7 +2410,7 @@ contains
             call select_window(owin, st)
             call set_buffer(saved, st)
         end if
-    end subroutine rmail_summary_toggle_header
+    end subroutine toggle_rmail_summary_header
 
     ! ------------------------------------------------------------------
     ! Commands
@@ -2436,7 +2438,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: def, sender, prompt, senders
 
-        call rmail_get_header("From", def, status)
+        call get_rmail_header("From", def, status)
         if (.not. status%ok()) return
         if (.not. allocated(def)) def = ""
         ! We quote the default argument, because if it contains regexp
@@ -2447,112 +2449,112 @@ contains
         if (status%ok()) call rmail_summary_by_senders(senders, status)
     end subroutine cmd_rmail_summary_by_senders
 
-    recursive subroutine cmd_rmail_summary_next_all(status)
+    recursive subroutine cmd_next_rmail_summary_all(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_next_all(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rmail_summary_next_all
+        call next_rmail_summary_all(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_next_rmail_summary_all
 
-    recursive subroutine cmd_rmail_summary_previous_all(status)
+    recursive subroutine cmd_previous_rmail_summary_all(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_previous_all(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rmail_summary_previous_all
+        call previous_rmail_summary_all(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_previous_rmail_summary_all
 
-    recursive subroutine cmd_rmail_summary_next_message(status)
+    recursive subroutine cmd_next_rmail_summary_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_next_message(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rmail_summary_next_message
+        call next_rmail_summary_message(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_next_rmail_summary_message
 
-    recursive subroutine cmd_rmail_summary_previous_message(status)
+    recursive subroutine cmd_previous_rmail_summary_message(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_previous_message(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rmail_summary_previous_message
+        call previous_rmail_summary_message(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_previous_rmail_summary_message
 
-    recursive subroutine cmd_rmail_summary_next_labeled_message(status)
+    recursive subroutine cmd_next_rmail_summary_labeled_message(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: labels
         integer(int64) :: n
 
         n = prefix_numeric_value(current_prefix_arg)
         call read_string("Move to next msg with labels: ", labels, status)
-        if (status%ok()) call rmail_summary_next_labeled_message(n, labels, status)
-    end subroutine cmd_rmail_summary_next_labeled_message
+        if (status%ok()) call next_rmail_summary_labeled_message(n, labels, status)
+    end subroutine cmd_next_rmail_summary_labeled_message
 
-    recursive subroutine cmd_rmail_summary_previous_labeled_message(status)
+    recursive subroutine cmd_previous_rmail_summary_labeled_message(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: labels
         integer(int64) :: n
 
         n = prefix_numeric_value(current_prefix_arg)
         call read_string("Move to previous msg with labels: ", labels, status)
-        if (status%ok()) call rmail_summary_previous_labeled_message(n, labels, status)
-    end subroutine cmd_rmail_summary_previous_labeled_message
+        if (status%ok()) call previous_rmail_summary_labeled_message(n, labels, status)
+    end subroutine cmd_previous_rmail_summary_labeled_message
 
-    recursive subroutine cmd_rmail_summary_delete_forward(status)
+    recursive subroutine cmd_delete_rmail_summary_message_forward(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_delete_forward(status, prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_rmail_summary_delete_forward
+        call delete_rmail_summary_message_forward(status, prefix_numeric_value(current_prefix_arg))
+    end subroutine cmd_delete_rmail_summary_message_forward
 
-    recursive subroutine cmd_rmail_summary_delete_backward(status)
+    recursive subroutine cmd_delete_rmail_summary_message_backward(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_delete_backward(status, prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_rmail_summary_delete_backward
+        call delete_rmail_summary_message_backward(status, prefix_numeric_value(current_prefix_arg))
+    end subroutine cmd_delete_rmail_summary_message_backward
 
-    recursive subroutine cmd_rmail_summary_undelete(status)
+    recursive subroutine cmd_undelete_rmail_summary(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_undelete(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rmail_summary_undelete
+        call undelete_rmail_summary(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_undelete_rmail_summary
 
-    recursive subroutine cmd_rmail_summary_undelete_many(status)
+    recursive subroutine cmd_undelete_rmail_summary_many(status)
         type(status_type), intent(out) :: status
 
         if (current_prefix_arg%kind == PREFIX_NONE) then
-            call rmail_summary_undelete_many(status)
+            call undelete_rmail_summary_many(status)
         else
-            call rmail_summary_undelete_many(status, prefix_numeric_value(current_prefix_arg))
+            call undelete_rmail_summary_many(status, prefix_numeric_value(current_prefix_arg))
         end if
-    end subroutine cmd_rmail_summary_undelete_many
+    end subroutine cmd_undelete_rmail_summary_many
 
-    recursive subroutine cmd_rmail_summary_goto_message(status)
+    recursive subroutine cmd_goto_rmail_summary_message(status)
         type(status_type), intent(out) :: status
         logical :: found
 
         if (current_prefix_arg%kind == PREFIX_NONE) then
-            call rmail_summary_goto_message(status, found=found)
+            call goto_rmail_summary_message(status, found=found)
         else
-            call rmail_summary_goto_message(status, prefix_numeric_value(current_prefix_arg), found=found)
+            call goto_rmail_summary_message(status, prefix_numeric_value(current_prefix_arg), found=found)
         end if
-    end subroutine cmd_rmail_summary_goto_message
+    end subroutine cmd_goto_rmail_summary_message
 
-    recursive subroutine cmd_rmail_summary_scroll_message_up(status)
+    recursive subroutine cmd_scroll_rmail_summary_message_up(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_scroll_message_up(current_prefix_arg, status)
-    end subroutine cmd_rmail_summary_scroll_message_up
+        call scroll_rmail_summary_message_up(current_prefix_arg, status)
+    end subroutine cmd_scroll_rmail_summary_message_up
 
-    recursive subroutine cmd_rmail_summary_scroll_message_down(status)
+    recursive subroutine cmd_scroll_rmail_summary_message_down(status)
         type(status_type), intent(out) :: status
 
-        call rmail_summary_scroll_message_down(current_prefix_arg, status)
-    end subroutine cmd_rmail_summary_scroll_message_down
+        call scroll_rmail_summary_message_down(current_prefix_arg, status)
+    end subroutine cmd_scroll_rmail_summary_message_down
 
-    recursive subroutine cmd_rmail_summary_get_new_mail(status)
+    recursive subroutine cmd_get_rmail_summary_new_mail(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         if (current_prefix_arg%kind /= PREFIX_NONE) then
             call read_file_name("Get new mail from file: ", file, status)
-            if (status%ok()) call rmail_summary_get_new_mail(status, file)
+            if (status%ok()) call get_rmail_summary_new_mail(status, file)
         else
-            call rmail_summary_get_new_mail(status)
+            call get_rmail_summary_new_mail(status)
         end if
-    end subroutine cmd_rmail_summary_get_new_mail
+    end subroutine cmd_get_rmail_summary_new_mail
 
     recursive subroutine cmd_rmail_summary_input(status)
         type(status_type), intent(out) :: status
@@ -2562,28 +2564,28 @@ contains
         if (status%ok()) call rmail_summary_input(file, status)
     end subroutine cmd_rmail_summary_input
 
-    recursive subroutine cmd_rmail_summary_search(status)
+    recursive subroutine cmd_search_rmail_summary(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
         integer(int64) :: n
 
         call read_rmail_search(.false., regexp, n, status)
-        if (status%ok()) call rmail_summary_search(regexp, status, n)
-    end subroutine cmd_rmail_summary_search
+        if (status%ok()) call search_rmail_summary(regexp, status, n)
+    end subroutine cmd_search_rmail_summary
 
-    recursive subroutine cmd_rmail_summary_search_backward(status)
+    recursive subroutine cmd_search_rmail_summary_backward(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
         integer(int64) :: n
 
         call read_rmail_search(.true., regexp, n, status)
-        if (status%ok()) call rmail_summary_search_backward(regexp, status, n)
-    end subroutine cmd_rmail_summary_search_backward
+        if (status%ok()) call search_rmail_summary_backward(regexp, status, n)
+    end subroutine cmd_search_rmail_summary_backward
 
     !> Add LABEL to labels associated with current Rmail message.
     !> Completion is performed over known labels when reading.  Port of
     !> rmailsum.el:rmail-summary-add-label.
-    recursive subroutine cmd_rmail_summary_add_label(status)
+    recursive subroutine cmd_add_rmail_summary_label(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: label
         type(handle_type) :: saved
@@ -2592,14 +2594,14 @@ contains
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
         if (status%ok()) call read_rmail_label("Add label", label, status)
-        if (status%ok()) call rmail_add_label(label, status)
+        if (status%ok()) call add_rmail_label(label, status)
         call set_buffer(saved, st)
-    end subroutine cmd_rmail_summary_add_label
+    end subroutine cmd_add_rmail_summary_label
 
     !> Remove LABEL from labels associated with current Rmail message.
     !> Completion is performed over known labels when reading.  Port of
     !> rmailsum.el:rmail-summary-kill-label.
-    recursive subroutine cmd_rmail_summary_remove_label(status)
+    recursive subroutine cmd_remove_rmail_summary_label(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: label
         type(handle_type) :: saved
@@ -2608,15 +2610,15 @@ contains
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
         if (status%ok()) call read_rmail_label("Kill label", label, status)
-        if (status%ok()) call rmail_set_label(label, .false., status)
+        if (status%ok()) call set_rmail_label(label, .false., status)
         call set_buffer(saved, st)
-    end subroutine cmd_rmail_summary_remove_label
+    end subroutine cmd_remove_rmail_summary_label
 
-    ! Output N messages from the summary to FILE_NAME with rmail_output
-    ! (or, if AS_SEEN, rmail_output_as_seen), moving the summary along.
+    ! Output N messages from the summary to FILE_NAME with output_rmail_message
+    ! (or, if AS_SEEN, output_rmail_message_as_seen), moving the summary along.
     ! Port of rmailsum.el:rmail-summary-output and
     ! rmailsum.el:rmail-summary-output-as-seen.
-    recursive subroutine summary_output(file_name, n, as_seen, status)
+    recursive subroutine output_from_summary(file_name, n, as_seen, status)
         use rmail_mod, only: rmail_delete_after_output
         character(len=*), intent(in) :: file_name
         integer(int64), intent(in) :: n
@@ -2632,7 +2634,7 @@ contains
         previous_message = -1
 
         do while (i < n)
-            call rmail_summary_goto_message(status, found=found)
+            call goto_rmail_summary_message(status, found=found)
             if (.not. status%ok()) return
             k = rmail_index()
             if (rmail_states(k)%current_message == previous_message) exit
@@ -2646,9 +2648,9 @@ contains
             current_message = rmail_states(k)%current_message
 
             if (as_seen) then
-                call rmail_output_as_seen(file_name, status, 1_int64)
+                call output_rmail_message_as_seen(file_name, status, 1_int64)
             else
-                call rmail_output(file_name, status, 1_int64)
+                call output_rmail_message(file_name, status, 1_int64)
             end if
 
             rmail_delete_after_output = saved_delete
@@ -2657,19 +2659,19 @@ contains
 
             ! rmail-output sometimes moves to the next message; undo that.
             if (.not. as_seen .and. current_message /= rmail_summary_message_number()) then
-                call rmail_summary_goto_message(status, current_message, found=found)
+                call goto_rmail_summary_message(status, current_message, found=found)
                 if (.not. status%ok()) return
             end if
 
             if (rmail_delete_after_output) then
-                call rmail_summary_delete_forward(status)
+                call delete_rmail_summary_message_forward(status)
             else if (i < n) then
-                call rmail_summary_next_message(1_int64, status)
+                call next_rmail_summary_message(1_int64, status)
             end if
 
             if (.not. status%ok()) return
         end do
-    end subroutine summary_output
+    end subroutine output_from_summary
 
     !> Append this message to mail file FILE_NAME.
     !> This works with both mbox format and Babyl format files,
@@ -2685,7 +2687,7 @@ contains
     !> This command always outputs the complete message header,
     !> even if the header display is currently pruned.  Port of
     !> rmailsum.el:rmail-summary-output.
-    recursive subroutine cmd_rmail_summary_output(status)
+    recursive subroutine cmd_output_rmail_summary_message(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         type(handle_type) :: saved
@@ -2695,10 +2697,10 @@ contains
         n = prefix_numeric_value(current_prefix_arg)
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
-        if (status%ok()) call rmail_output_read_file_name(file, status)
+        if (status%ok()) call read_rmail_output_file_name(file, status)
         call set_buffer(saved, st)
-        if (status%ok()) call summary_output(file, n, .false., status)
-    end subroutine cmd_rmail_summary_output
+        if (status%ok()) call output_from_summary(file, n, .false., status)
+    end subroutine cmd_output_rmail_summary_message
 
     !> Append this message to mbox file named FILE_NAME.
     !> A prefix argument N says to output that many consecutive messages,
@@ -2712,7 +2714,7 @@ contains
     !> The default file name comes from `rmail_default_file',
     !> which is updated to the name you use in this command.  Port of
     !> rmailsum.el:rmail-summary-output-as-seen.
-    recursive subroutine cmd_rmail_summary_output_as_seen(status)
+    recursive subroutine cmd_output_rmail_summary_message_as_seen(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         type(handle_type) :: saved
@@ -2722,15 +2724,15 @@ contains
         n = prefix_numeric_value(current_prefix_arg)
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
-        if (status%ok()) call rmail_output_read_file_name(file, status)
+        if (status%ok()) call read_rmail_output_file_name(file, status)
         call set_buffer(saved, st)
-        if (status%ok()) call summary_output(file, n, .true., status)
-    end subroutine cmd_rmail_summary_output_as_seen
+        if (status%ok()) call output_from_summary(file, n, .true., status)
+    end subroutine cmd_output_rmail_summary_message_as_seen
 
     !> Write this message body to the file FILE_NAME.
     !> FILE_NAME defaults, interactively, from the Subject field of the
     !> message.  Port of rmailsum.el:rmail-summary-output-body.
-    recursive subroutine cmd_rmail_summary_output_body(status)
+    recursive subroutine cmd_output_rmail_summary_message_body(status)
         use rmail_mod, only: rmail_delete_after_output
         type(status_type), intent(out) :: status
         type(handle_type) :: saved
@@ -2741,12 +2743,12 @@ contains
         call set_buffer(rmail_buffer(), status)
         saved_delete = rmail_delete_after_output
         rmail_delete_after_output = .false.
-        if (status%ok()) call commands%rmail_output_body_to_file%execute(status)
+        if (status%ok()) call commands%output_rmail_message_body_to_file%execute(status)
         rmail_delete_after_output = saved_delete
         call set_buffer(saved, st)
         if (.not. status%ok()) return
-        if (rmail_delete_after_output) call rmail_summary_delete_forward(status)
-    end subroutine cmd_rmail_summary_output_body
+        if (rmail_delete_after_output) call delete_rmail_summary_message_forward(status)
+    end subroutine cmd_output_rmail_summary_message_body
 
     !> Define Rmail Summary mode, its keymap and commands.  Not a port: the
     !> top-level forms of rmailsum.el.
@@ -2754,109 +2756,109 @@ contains
         type(status_type) :: st
         type(handle_type) :: map
 
-        rmail_summary_sender_function => rmail_summary_strip_sender
-        rmail_summary_recipient_function => rmail_summary_recipient_strip_quoted_names
+        rmail_summary_sender_function => strip_rmail_summary_sender
+        rmail_summary_recipient_function => strip_rmail_summary_recipient_quoted_names
         call major_modes%rmail_summary_mode%define("rmail_summary_mode", "RMAIL Summary", rmail_summary_mode, &
                                                    rmail_summary_mode_hook, parent=major_modes%special_mode)
         ! Rmail Summary mode is suitable only for specially formatted data.
         major_modes%rmail_summary_mode%special = .true.
         rmail_summary_mode_map = major_modes%rmail_summary_mode%map
         map = rmail_summary_mode_map
-        call keymap_set(map, "a", "rmail_summary_add_label", st)
-        call keymap_set(map, "b", "rmail_summary_bury", st)
-        call keymap_set(map, "d", "rmail_summary_delete_forward", st)
-        call keymap_set(map, "C-d", "rmail_summary_delete_backward", st)
-        call keymap_set(map, "e", "rmail_summary_edit_current_message", st)
-        call keymap_set(map, "g", "rmail_summary_get_new_mail", st)
+        call keymap_set(map, "a", "add_rmail_summary_label", st)
+        call keymap_set(map, "b", "bury_rmail_summary", st)
+        call keymap_set(map, "d", "delete_rmail_summary_message_forward", st)
+        call keymap_set(map, "C-d", "delete_rmail_summary_message_backward", st)
+        call keymap_set(map, "e", "edit_rmail_summary_current_message", st)
+        call keymap_set(map, "g", "get_rmail_summary_new_mail", st)
         call keymap_set(map, "h", "rmail_summary", st)
         call keymap_set(map, "i", "rmail_summary_input", st)
-        call keymap_set(map, "j", "rmail_summary_goto_message", st)
-        call keymap_set(map, "RET", "rmail_summary_goto_message", st)
-        call keymap_set(map, "k", "rmail_summary_remove_label", st)
+        call keymap_set(map, "j", "goto_rmail_summary_message", st)
+        call keymap_set(map, "RET", "goto_rmail_summary_message", st)
+        call keymap_set(map, "k", "remove_rmail_summary_label", st)
         call keymap_set(map, "l", "rmail_summary_by_labels", st)
         call keymap_set(map, "C-M-h", "rmail_summary", st)
         call keymap_set(map, "C-M-l", "rmail_summary_by_labels", st)
         call keymap_set(map, "C-M-r", "rmail_summary_by_recipients", st)
         ! `f' for "from".
         call keymap_set(map, "C-M-f", "rmail_summary_by_senders", st)
-        call keymap_set(map, "n", "rmail_summary_next_message", st)
-        call keymap_set(map, "M-n", "rmail_summary_next_all", st)
-        call keymap_set(map, "C-M-n", "rmail_summary_next_labeled_message", st)
-        call keymap_set(map, "o", "rmail_summary_output", st)
-        call keymap_set(map, "C-o", "rmail_summary_output_as_seen", st)
-        call keymap_set(map, "p", "rmail_summary_previous_message", st)
-        call keymap_set(map, "M-p", "rmail_summary_previous_all", st)
-        call keymap_set(map, "C-M-p", "rmail_summary_previous_labeled_message", st)
-        call keymap_set(map, "q", "rmail_summary_quit", st)
-        call keymap_set(map, "Q", "rmail_summary_wipe", st)
-        call keymap_set(map, "s", "rmail_summary_expunge_and_save", st)
-        call keymap_set(map, "M-s", "rmail_summary_search", st)
-        call keymap_set(map, "t", "rmail_summary_toggle_header", st)
-        call keymap_set(map, "u", "rmail_summary_undelete", st)
-        call keymap_set(map, "M-u", "rmail_summary_undelete_many", st)
-        call keymap_set(map, "x", "rmail_summary_expunge", st)
-        call keymap_set(map, "w", "rmail_summary_output_body", st)
-        call keymap_set(map, ".", "rmail_summary_beginning_of_message", st)
-        call keymap_set(map, "/", "rmail_summary_end_of_message", st)
-        call keymap_set(map, "<", "rmail_summary_first_message", st)
-        call keymap_set(map, ">", "rmail_summary_last_message", st)
-        call keymap_set(map, "SPC", "rmail_summary_scroll_message_up", st)
-        call keymap_set(map, "S-SPC", "rmail_summary_scroll_message_down", st)
-        call keymap_set(map, "DEL", "rmail_summary_scroll_message_down", st)
+        call keymap_set(map, "n", "next_rmail_summary_message", st)
+        call keymap_set(map, "M-n", "next_rmail_summary_all", st)
+        call keymap_set(map, "C-M-n", "next_rmail_summary_labeled_message", st)
+        call keymap_set(map, "o", "output_rmail_summary_message", st)
+        call keymap_set(map, "C-o", "output_rmail_summary_message_as_seen", st)
+        call keymap_set(map, "p", "previous_rmail_summary_message", st)
+        call keymap_set(map, "M-p", "previous_rmail_summary_all", st)
+        call keymap_set(map, "C-M-p", "previous_rmail_summary_labeled_message", st)
+        call keymap_set(map, "q", "quit_rmail_summary", st)
+        call keymap_set(map, "Q", "wipe_rmail_summary", st)
+        call keymap_set(map, "s", "expunge_and_save_rmail_summary", st)
+        call keymap_set(map, "M-s", "search_rmail_summary", st)
+        call keymap_set(map, "t", "toggle_rmail_summary_header", st)
+        call keymap_set(map, "u", "undelete_rmail_summary", st)
+        call keymap_set(map, "M-u", "undelete_rmail_summary_many", st)
+        call keymap_set(map, "x", "expunge_rmail_summary", st)
+        call keymap_set(map, "w", "output_rmail_summary_message_body", st)
+        call keymap_set(map, ".", "beginning_of_rmail_summary_message", st)
+        call keymap_set(map, "/", "end_of_rmail_summary_message", st)
+        call keymap_set(map, "<", "show_first_rmail_summary_message", st)
+        call keymap_set(map, ">", "show_last_rmail_summary_message", st)
+        call keymap_set(map, "SPC", "scroll_rmail_summary_message_up", st)
+        call keymap_set(map, "S-SPC", "scroll_rmail_summary_message_down", st)
+        call keymap_set(map, "DEL", "scroll_rmail_summary_message_down", st)
         call keymap_set(map, "?", "describe_mode", st)
-        call keymap_set(map, "C-x C-s", "rmail_summary_save_buffer", st)
+        call keymap_set(map, "C-x C-s", "save_rmail_summary_buffer", st)
         call make_sparse_keymap(rmail_summary_edit_map)
         call set_keymap_parent(rmail_summary_edit_map, text_mode_map, st)
-        call keymap_set(rmail_summary_edit_map, "C-c C-c", "rmail_cease_edit", st)
-        call keymap_set(rmail_summary_edit_map, "C-c C-]", "rmail_abort_edit", st)
+        call keymap_set(rmail_summary_edit_map, "C-c C-c", "cease_rmail_edit", st)
+        call keymap_set(rmail_summary_edit_map, "C-c C-]", "abort_rmail_edit", st)
         commands%rmail_summary%execute => rmail_summary
         commands%rmail_summary_mode%execute => rmail_summary_mode
         commands%rmail_summary_by_labels%execute => cmd_rmail_summary_by_labels
         commands%rmail_summary_by_recipients%execute => cmd_rmail_summary_by_recipients
         commands%rmail_summary_by_senders%execute => cmd_rmail_summary_by_senders
-        commands%rmail_summary_next_all%execute => cmd_rmail_summary_next_all
-        commands%rmail_summary_previous_all%execute => cmd_rmail_summary_previous_all
-        commands%rmail_summary_next_message%execute => cmd_rmail_summary_next_message
-        commands%rmail_summary_previous_message%execute => cmd_rmail_summary_previous_message
-        commands%rmail_summary_next_labeled_message%execute => cmd_rmail_summary_next_labeled_message
-        commands%rmail_summary_previous_labeled_message%execute => cmd_rmail_summary_previous_labeled_message
-        commands%rmail_summary_delete_forward%execute => cmd_rmail_summary_delete_forward
-        commands%rmail_summary_delete_backward%execute => cmd_rmail_summary_delete_backward
-        commands%rmail_summary_undelete%execute => cmd_rmail_summary_undelete
-        commands%rmail_summary_undelete_many%execute => cmd_rmail_summary_undelete_many
-        commands%rmail_summary_save_buffer%execute => rmail_summary_save_buffer
-        commands%rmail_summary_goto_message%execute => cmd_rmail_summary_goto_message
-        commands%rmail_summary_scroll_message_up%execute => cmd_rmail_summary_scroll_message_up
-        commands%rmail_summary_scroll_message_down%execute => cmd_rmail_summary_scroll_message_down
-        commands%rmail_summary_beginning_of_message%execute => rmail_summary_beginning_of_message
-        commands%rmail_summary_end_of_message%execute => rmail_summary_end_of_message
-        commands%rmail_summary_bury%execute => rmail_summary_bury
-        commands%rmail_summary_quit%execute => rmail_summary_quit
-        commands%rmail_summary_wipe%execute => rmail_summary_wipe
-        commands%rmail_summary_expunge%execute => rmail_summary_expunge
-        commands%rmail_summary_expunge_and_save%execute => rmail_summary_expunge_and_save
-        commands%rmail_summary_get_new_mail%execute => cmd_rmail_summary_get_new_mail
+        commands%next_rmail_summary_all%execute => cmd_next_rmail_summary_all
+        commands%previous_rmail_summary_all%execute => cmd_previous_rmail_summary_all
+        commands%next_rmail_summary_message%execute => cmd_next_rmail_summary_message
+        commands%previous_rmail_summary_message%execute => cmd_previous_rmail_summary_message
+        commands%next_rmail_summary_labeled_message%execute => cmd_next_rmail_summary_labeled_message
+        commands%previous_rmail_summary_labeled_message%execute => cmd_previous_rmail_summary_labeled_message
+        commands%delete_rmail_summary_message_forward%execute => cmd_delete_rmail_summary_message_forward
+        commands%delete_rmail_summary_message_backward%execute => cmd_delete_rmail_summary_message_backward
+        commands%undelete_rmail_summary%execute => cmd_undelete_rmail_summary
+        commands%undelete_rmail_summary_many%execute => cmd_undelete_rmail_summary_many
+        commands%save_rmail_summary_buffer%execute => save_rmail_summary_buffer
+        commands%goto_rmail_summary_message%execute => cmd_goto_rmail_summary_message
+        commands%scroll_rmail_summary_message_up%execute => cmd_scroll_rmail_summary_message_up
+        commands%scroll_rmail_summary_message_down%execute => cmd_scroll_rmail_summary_message_down
+        commands%beginning_of_rmail_summary_message%execute => beginning_of_rmail_summary_message
+        commands%end_of_rmail_summary_message%execute => end_of_rmail_summary_message
+        commands%bury_rmail_summary%execute => bury_rmail_summary
+        commands%quit_rmail_summary%execute => quit_rmail_summary
+        commands%wipe_rmail_summary%execute => wipe_rmail_summary
+        commands%expunge_rmail_summary%execute => expunge_rmail_summary
+        commands%expunge_and_save_rmail_summary%execute => expunge_and_save_rmail_summary
+        commands%get_rmail_summary_new_mail%execute => cmd_get_rmail_summary_new_mail
         commands%rmail_summary_input%execute => cmd_rmail_summary_input
-        commands%rmail_summary_first_message%execute => rmail_summary_first_message
-        commands%rmail_summary_last_message%execute => rmail_summary_last_message
-        commands%rmail_summary_edit_current_message%execute => rmail_summary_edit_current_message
-        commands%rmail_summary_cease_edit%execute => rmail_summary_cease_edit
-        commands%rmail_summary_abort_edit%execute => rmail_summary_abort_edit
-        commands%rmail_summary_search%execute => cmd_rmail_summary_search
-        commands%rmail_summary_search_backward%execute => cmd_rmail_summary_search_backward
-        commands%rmail_summary_toggle_header%execute => rmail_summary_toggle_header
-        commands%rmail_summary_add_label%execute => cmd_rmail_summary_add_label
-        commands%rmail_summary_remove_label%execute => cmd_rmail_summary_remove_label
-        commands%rmail_summary_output%execute => cmd_rmail_summary_output
-        commands%rmail_summary_output_as_seen%execute => cmd_rmail_summary_output_as_seen
-        commands%rmail_summary_output_body%execute => cmd_rmail_summary_output_body
-        rmail_summary_goto_message_function => goto_message_for_rmail
-        rmail_summary_mark_deleted_function => rmail_summary_mark_deleted
-        rmail_summary_mark_undeleted_function => rmail_summary_mark_undeleted
-        rmail_summary_update_line_function => rmail_summary_update_line
-        rmail_update_summary_function => rmail_update_summary
-        rmail_summary_function => rmail_summary_for_rmail
-        rmail_summary_disable_function => rmail_summary_disable
-        rmail_summary_enable_function => rmail_summary_enable
+        commands%show_first_rmail_summary_message%execute => show_first_rmail_summary_message
+        commands%show_last_rmail_summary_message%execute => show_last_rmail_summary_message
+        commands%edit_rmail_summary_current_message%execute => edit_rmail_summary_current_message
+        commands%cease_rmail_summary_edit%execute => cease_rmail_summary_edit
+        commands%abort_rmail_summary_edit%execute => abort_rmail_summary_edit
+        commands%search_rmail_summary%execute => cmd_search_rmail_summary
+        commands%search_rmail_summary_backward%execute => cmd_search_rmail_summary_backward
+        commands%toggle_rmail_summary_header%execute => toggle_rmail_summary_header
+        commands%add_rmail_summary_label%execute => cmd_add_rmail_summary_label
+        commands%remove_rmail_summary_label%execute => cmd_remove_rmail_summary_label
+        commands%output_rmail_summary_message%execute => cmd_output_rmail_summary_message
+        commands%output_rmail_summary_message_as_seen%execute => cmd_output_rmail_summary_message_as_seen
+        commands%output_rmail_summary_message_body%execute => cmd_output_rmail_summary_message_body
+        goto_rmail_summary_message_function => goto_message_for_rmail
+        mark_rmail_summary_deleted_function => mark_rmail_summary_deleted
+        mark_rmail_summary_undeleted_function => mark_rmail_summary_undeleted
+        update_rmail_summary_line_function => update_rmail_summary_line
+        update_rmail_summary_function => update_rmail_summary
+        rmail_summary_function => make_rmail_summary_for_rmail
+        disable_rmail_summary_function => disable_rmail_summary
+        enable_rmail_summary_function => enable_rmail_summary
     end subroutine init_rmail_summary
 end module rmail_summary_mod

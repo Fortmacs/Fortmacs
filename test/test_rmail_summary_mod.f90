@@ -31,8 +31,8 @@ module test_rmail_summary_mod
     use editing_functions_mod, only: buffer_string
     use startup_mod, only: user_mail_address
     use rmail_mod, only: rmail_states, is_rmail_message_deleted
-    use rmail_summary_mod, only: rmail_summary, rmail_summary_by_senders, rmail_summary_recipient_strip_quoted_names, &
-                                 rmail_summary_goto_message
+    use rmail_summary_mod, only: rmail_summary, rmail_summary_by_senders, strip_rmail_summary_recipient_quoted_names, &
+                                 goto_rmail_summary_message
     use test_rmail_support_mod, only: set_up_rmail, leave_rmail, visit_rmail, rmail_state, SAMPLE_MBOX, LF
     implicit none(type, external)
     private
@@ -63,7 +63,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: shown
 
-        call rmail_summary_recipient_strip_quoted_names("Foo Bar <foo@example.test>,"//LF// &
+        call strip_rmail_summary_recipient_quoted_names("Foo Bar <foo@example.test>,"//LF// &
                                                         " Baz Quux <baz@example.test>", shown)
         call check(error, shown == "foo@example.test,", shown)
     end subroutine test_strip_first_line
@@ -117,7 +117,7 @@ contains
         call visit_rmail(file, SAMPLE_MBOX, st)
         k = rmail_state(file)
         call rmail_summary(st)
-        call rmail_summary_goto_message(st, 2_int64, found=found)
+        call goto_rmail_summary_message(st, 2_int64, found=found)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, found .and. rmail_states(k)%current_message == 2_int64)
