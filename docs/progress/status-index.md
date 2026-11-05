@@ -167,6 +167,7 @@
 | [sys_linux_mod](../status/sys_linux_mod.md) | — (glibc/kernel headers) | done |
 | [sys_worker_mod](../status/sys_worker_mod.md) | — (replaces select and SIGCHLD in process.c) | done |
 | [sysdep_mod](../status/sysdep_mod.md) | sysdep.c (+ dispnew.c SIGWINCH flag, process.c `allocate_pty`) | done |
+| [tab_bar_mod](../status/tab_bar_mod.md) | tab-bar.el (step 44b; with xdisp.c's display_tab_bar for terminal frames in xdisp_mod, frame.c's set_tab_bar_lines in frame_mod, window.el's window-state-get/put in part in window_mod) | partial |
 | [tabulated_list_mod](../status/tabulated_list_mod.md) | emacs-lisp/tabulated-list.el | partial |
 | [term_mod](../status/term_mod.md) | term.c (+ sysdep.c `reset_all_sys_modes`, `init_all_sys_modes`, dispnew.c `no-redraw-on-reenter`) | partial |
 | [term_xterm_mod](../status/term_xterm_mod.md) | term/xterm.el | partial |
