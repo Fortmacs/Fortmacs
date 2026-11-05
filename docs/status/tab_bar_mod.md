@@ -14,7 +14,7 @@ the tab bar line of terminal frames, drawn by redisplay from the items of `tab-b
 `tab-bar--format-tab-group` with `tab-bar-tab-group-format-default`,
 `tab-bar-tab-face-default`,
 `tab-bar-tab-group-face-default`,
-`tab-bar-auto-width` (the default widths and predicate),
+`tab-bar-auto-width` (with the default widths, for the tabs and groups),
 the faces `tab-bar-tab`, `tab-bar-tab-inactive`, `tab-bar-tab-group-current`, `tab-bar-tab-group-inactive`, `tab-bar-tab-ungrouped`, `tab-bar-tab-highlight`,
 the tabs as the frame parameter `tabs` (frame_mod's `tab_type`: name, explicit name, group, time, window configuration with its point, buffer lists, history),
 `tab-bar-tabs` (`update_tab_bar_tabs`),
