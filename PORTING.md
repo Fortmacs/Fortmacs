@@ -2074,6 +2074,32 @@ scroll = .not. compilation_scroll_output%is_off()
   calls, so such helpers are made public with a comment saying so (they are
   not part of the config API); ibuffer_mod does this for ibuffer_extensions_mod.
 
+## Added features
+
+Features that upstream Emacs 31.1 does not have, each an owner decision
+(CLAUDE.md: behavior mirrors Emacs except for these).
+
+- **Completion after `%` in f90 buffers** (owner, 2026-11-05): the minor
+  mode `fortran_completion_mode` (fortran_completion_mod), off by
+  default: M-x, or `call f90_mode_hook%prepend(turn_on_fortran_completion_mode)`
+  in init.f90.  While it is on, completion-at-point (M-TAB, C-M-i,
+  completion-preview, icomplete) offers, after a designator and `%`
+  (`faces%`, `commands%upcase_region%`, `ediff_sessions(k)%`), the
+  components and type-bound procedures of the designator's derived type
+  and its parent types.  The types come from the current buffer, then
+  the project's .f90 files (read only when the first name is not
+  declared in the buffer), then the configuration API, in that order:
+  fortran_declarations_mod parses the source (type definitions and the
+  declarations that use them, with their scopes), each buffer and file
+  is parsed again only when it changes, and fortran_completion_table_mod
+  is the table of the configuration API's types that
+  tools/gen-completion-table.sh writes at build time (from what
+  src/fortmacs.f90 gathers; not committed).  The owner asked for the
+  parsing on the worker thread; it is synchronous behind the caches for
+  now (system_worker_mod's workers only read subprocess output), Deferred
+  in docs/status/fortran_completion_mod.md with the rest of what is not
+  done.  f90_mode without the mode is unchanged.
+
 ## Design decisions
 
 - **Generated at build time (2026-11-04, decided by the owner).**  The
