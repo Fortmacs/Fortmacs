@@ -29,14 +29,15 @@
 !> The Deferred list is in docs/status/version_control_mercurial_mod.md.
 module version_control_mercurial_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xfixnum, vtag, V_INTEGER
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, &
                           generate_new_buffer_name, get_file_buffer, is_buffer_live
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, is_eob, pos_eol, buffer_substring
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_string, is_end_of_buffer, &
+                                     position_end_of_line, buffer_substring
     use editing_commands_mod, only: forward_line
-    use search_mod, only: string_match, re_search_forward, looking_at, SEARCH_NOERROR
+    use search_mod, only: string_match, regular_expression_search_forward, looking_at, SEARCH_NOERROR
     use basic_subprograms_mod, only: match_string, version, operator(<=)
     use file_input_output_mod, only: expand_file_name, is_file_directory, file_exists, file_name_directory, rename_file, &
                                      insert_file_contents
@@ -45,12 +46,12 @@ module version_control_mercurial_mod
     use string_type_mod, only: string_type, append_string
     use version_control_hooks_mod, only: vc_backends, vc_switches_type, register_vc_backend, &
                                          vc_backend_named, vc_find_root, vc_state, vc_mode_line_state, vc_working_revision, &
-                                         vc_file_set_state, vc_display_status, vc_use_short_revision, vc_dir_entry_type, &
-                                         vc_dir_fileinfo_type, vc_dir_update_procedure, VC_DISPLAY_STATUS_NO_BACKEND, &
+                                         vc_file_set_state, vc_display_status, vc_use_short_revision, vc_directory_entry_type, &
+                                         vc_directory_fileinfo_type, vc_directory_update_procedure, VC_DISPLAY_STATUS_NO_BACKEND, &
                                          VC_SWITCHES_NONE, VC_SWITCHES_LIST, VC_UP_TO_DATE, VC_EDITED, VC_ADDED, VC_REMOVED, &
                                          VC_MISSING, VC_IGNORED, VC_UNREGISTERED, VC_STATE_UNKNOWN, VC_MODEL_IMPLICIT, &
                                          VC_RENAME_COPY, VC_RENAME_RENAME
-    use version_control_dispatcher_mod, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
+    use version_control_dispatcher_mod, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DESTINATION_CURRENT
     use fortmacs_widget_for_object_collections_mod, only: ewoc_part_type
     use version_control_mod, only: vc_switches
     use hooks_mod, only: hook_type
@@ -60,13 +61,13 @@ module version_control_mercurial_mod
     use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use log_edit_mod, only: log_edit_extract_headers, log_edit_toggle_amend, &
-                            log_edit_header_type, init_log_edit, LOG_EDIT_HEADER_FN
+                            log_edit_header_type, initialize_log_edit, LOG_EDIT_HEADER_FN
     implicit none(type, external)
     private
 
-    public :: init_vc_hg, vc_hg_registered, vc_hg_state, vc_hg_state_slow, vc_hg_working_revision, &
+    public :: initialize_vc_hg, vc_hg_registered, vc_hg_state, vc_hg_state_slow, vc_hg_working_revision, &
               vc_hg_mode_line_string, vc_hg_root, vc_hg_command, vc_hg_previous_revision, vc_hg_next_revision, &
-              vc_hg_revision_table, vc_hg_diff_flags, vc_hg_after_dir_status, vc_hg_parse_program_version
+              vc_hg_revision_table, vc_hg_diff_flags, vc_hg_after_directory_status, vc_hg_parse_program_version
 
     !> String or list of strings: global switches to pass to any Hg
     !> command (VC_SWITCHES_LIST; the other kinds pass none).  Port of
@@ -92,14 +93,14 @@ module version_control_mercurial_mod
     !> string, a regular expression matching the resulting Mercurial output,
     !> and the highlights of its match for the Log View buffer.
     type, public :: vc_hg_root_log_format_type
-        character(len=:), allocatable :: template, regexp
+        character(len=:), allocatable :: template, regular_expression
         type(font_lock_highlight_type), allocatable :: highlights(:)
     end type vc_hg_root_log_format_type
 
     !> Mercurial log template for `vc_hg_print_log' short format.
-    !> This should be a TEMPLATE, a REGEXP and KEYWORDS, where TEMPLATE
+    !> This should be a TEMPLATE, a REGULAR_EXPRESSION and KEYWORDS, where TEMPLATE
     !> is the "--template" argument string to pass to Mercurial,
-    !> REGEXP is a regular expression matching the resulting Mercurial
+    !> REGULAR_EXPRESSION is a regular expression matching the resulting Mercurial
     !> output, and KEYWORDS is a list of `font_lock_keywords' for
     !> highlighting the Log View buffer.  Port of vc-hg.el
     !> vc-hg-root-log-format.
@@ -172,16 +173,16 @@ module version_control_mercurial_mod
     !> vc-hg-log-edit-mode-map.
     type(handle_type), public :: vc_hg_log_edit_mode_map
 
-    ! A `vc_hg_dir_status_files' computation waiting for its process: the
+    ! A `vc_hg_directory_status_files' computation waiting for its process: the
     ! update function and the VC-Dir buffer it updates.
-    type :: dir_status_type
+    type :: directory_status_type
         logical :: live = .false.
-        procedure(vc_dir_update_procedure), pointer, nopass :: update_function => null()
+        procedure(vc_directory_update_procedure), pointer, nopass :: update_function => null()
         type(handle_type) :: buffer
-    end type dir_status_type
+    end type directory_status_type
 
-    ! The computations of `vc_hg_dir_status_files' in progress.
-    type(dir_status_type), allocatable :: dir_states(:)
+    ! The computations of `vc_hg_directory_status_files' in progress.
+    type(directory_status_type), allocatable :: directory_states(:)
 
     !> The version of Mercurial (vc-hg--program-version), unallocated until
     !> known.
@@ -241,44 +242,44 @@ contains
     end subroutine append_switches
 
     !> The current buffer's `default_directory'.  Not a port.
-    function buffer_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function buffer_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = "./"
+        directory = "./"
         if (current == 0) return
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
     end function buffer_directory
 
-    !> Set the current buffer's `default_directory' to DIR.  Not a port.
-    subroutine set_buffer_directory(dir)
-        character(len=*), intent(in) :: dir
+    !> Set the current buffer's `default_directory' to DIRECTORY.  Not a port.
+    subroutine set_buffer_directory(directory)
+        character(len=*), intent(in) :: directory
 
         if (current == 0) return
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
     end subroutine set_buffer_directory
 
-    !> Make a temporary buffer TMP current (with-temp-buffer); OLD is the
+    !> Make a temporary buffer TEMPORARY current (with-temp-buffer); OLD is the
     !> buffer to go back to.  Not a port.
-    subroutine temp_begin(old, tmp)
-        type(handle_type), intent(out) :: old, tmp
+    subroutine temporary_begin(old, temporary)
+        type(handle_type), intent(out) :: old, temporary
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
         old = current_buffer()
-        dir = buffer_directory()
-        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, st)
-        call set_buffer(tmp, st)
-        call set_buffer_directory(dir)
-    end subroutine temp_begin
+        directory = buffer_directory()
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, st)
+        call set_buffer(temporary, st)
+        call set_buffer_directory(directory)
+    end subroutine temporary_begin
 
-    !> Kill the temporary buffer TMP and make OLD current again.  Not a port.
-    subroutine temp_end(old, tmp)
-        type(handle_type), intent(in) :: old, tmp
+    !> Kill the temporary buffer TEMPORARY and make OLD current again.  Not a port.
+    subroutine temporary_end(old, temporary)
+        type(handle_type), intent(in) :: old, temporary
         type(status_type) :: st
 
-        call close_buffer(tmp, st)
+        call close_buffer(temporary, st)
         call set_buffer(old, st)
-    end subroutine temp_end
+    end subroutine temporary_end
 
     !> The index of the Hg backend.  Not a port.
     integer function hg_backend_index() result(b)
@@ -331,13 +332,13 @@ contains
         type(handle_type), intent(in), optional :: buffer
         logical, intent(in), optional :: in_current, stderr
         integer, intent(out), optional :: exit_status
-        type(string_type), allocatable :: all(:), env(:)
+        type(string_type), allocatable :: all(:), environment_variables(:)
         type(handle_type) :: buffer_handle
         logical :: to_current
 
         status = status_type()
         ! Disable pager.
-        env = strings("HGPLAIN=1")
+        environment_variables = strings("HGPLAIN=1")
         all = strings("--config", "ui.report_untrusted=0")
         call append_switches(all, vc_hg_global_switches)
         call append_all(all, flags)
@@ -345,8 +346,8 @@ contains
         if (present(in_current)) to_current = in_current
 
         if (to_current) then
-            call vc_do_command(VC_DEST_CURRENT, okstatus, vc_hg_program, files, all, status, stderr=stderr, &
-                               exit_status=exit_status, environment=env)
+            call vc_do_command(VC_DESTINATION_CURRENT, okstatus, vc_hg_program, files, all, status, stderr=stderr, &
+                               exit_status=exit_status, environment=environment_variables)
         else
             if (present(buffer)) then
                 buffer_handle = buffer
@@ -355,8 +356,8 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            call vc_do_command(VC_DEST_CURRENT, okstatus, vc_hg_program, files, all, status, buffer=buffer_handle, &
-                               stderr=stderr, exit_status=exit_status, environment=env)
+            call vc_do_command(VC_DESTINATION_CURRENT, okstatus, vc_hg_program, files, all, status, buffer=buffer_handle, &
+                               stderr=stderr, exit_status=exit_status, environment=environment_variables)
         end if
     end subroutine vc_hg_command
 
@@ -378,14 +379,14 @@ contains
         character(len=:), allocatable, intent(out) :: out
         logical, intent(out) :: ok
         type(string_type) :: none(0)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
 
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         call vc_hg_command(okstatus, none, flags, st, in_current=.true.)
         ok = st%ok()
         out = buffer_string()
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine command_output
 
     !> The version of Mercurial, "0" if unknown.  Port of
@@ -494,10 +495,10 @@ contains
     !> vc-hg.el:vc-hg-state-slow.
     integer function vc_hg_state_slow(file) result(state)
         character(len=*), intent(in) :: file
-        character(len=:), allocatable :: name, root, rel, saved, out
+        character(len=:), allocatable :: name, root, relative, saved, out
         type(value_type), allocatable :: argv(:), envv(:)
         type(value_type) :: result
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         logical :: found
         integer :: code
@@ -507,8 +508,8 @@ contains
         if (.not. st%ok()) return
         call vc_hg_root(name, root, found)
         if (.not. found) root = buffer_directory()
-        rel = file_relative_name(name, root)
-        call temp_begin(old, tmp)
+        relative = file_relative_name(name, root)
+        call temporary_begin(old, temporary)
         saved = buffer_directory()
         call set_buffer_directory(root)
         ! One element at a time: function results in an array constructor
@@ -522,14 +523,14 @@ contains
         argv(6) = value_type(text="defaults.status=")
         argv(7) = value_type(text="status")
         argv(8) = value_type(text="-A")
-        argv(9) = value_type(text=file_relative_name(rel))
+        argv(9) = value_type(text=file_relative_name(relative))
         ! Avoid localization of messages so we can parse the output.
         ! Disable pager.
         envv(1) = value_type(text="TERM=dumb")
         envv(2) = value_type(text="LANGUAGE=C")
         envv(3) = value_type(text="HGPLAIN=1")
         ! Ignore all errors (e.g. we can't find an `hg' executable).
-        call execute_process(vc_hg_program, result, st, destination=value_type(.true.), args=make_list(argv), &
+        call execute_process(vc_hg_program, result, st, destination=value_type(.true.), arguments=make_list(argv), &
                              environment=make_list(envv))
         code = -1
 
@@ -539,7 +540,7 @@ contains
 
         out = buffer_string()
         call set_buffer_directory(saved)
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
         if (code /= 0 .or. len(out) == 0) return
         if (string_match(".*: No such file or directory$", out, st) > 0) return
 
@@ -568,13 +569,13 @@ contains
 
     !> Hg-specific version of `vc_working_revision'.  Port of
     !> vc-hg.el:vc-hg-working-revision.
-    subroutine vc_hg_working_revision(file, rev, found)
+    subroutine vc_hg_working_revision(file, revision, found)
         character(len=*), intent(in) :: file
-        character(len=:), allocatable, intent(out) :: rev
+        character(len=:), allocatable, intent(out) :: revision
         logical, intent(out) :: found
         character(len=:), allocatable :: template
 
-        rev = ""
+        revision = ""
         found = .false.
         if (len(file) < 0) return
 
@@ -584,42 +585,42 @@ contains
             template = "{node}"
         end if
 
-        call command_output(0, strings("log", "-r", ".", "--template", template), rev, found)
-        if (.not. found) rev = ""
+        call command_output(0, strings("log", "-r", ".", "--template", template), revision, found)
+        if (.not. found) revision = ""
     end subroutine vc_hg_working_revision
 
-    !> The active bookmark of REV, if REV is "." and a bookmark is active.
+    !> The active bookmark of REVISION, if REVISION is "." and a bookmark is active.
     !> Port of vc-hg.el:vc-hg--active-bookmark-internal.
-    subroutine vc_hg_active_bookmark_internal(rev, bookmark, found)
-        character(len=*), intent(in) :: rev
+    subroutine vc_hg_active_bookmark_internal(revision, bookmark, found)
+        character(len=*), intent(in) :: revision
         character(len=:), allocatable, intent(out) :: bookmark
         logical, intent(out) :: found
         character(len=:), allocatable :: root, current_bookmarks_file
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         integer(int64) :: inserted
         logical :: has_root
 
         bookmark = ""
         found = .false.
-        if (rev /= ".") return
+        if (revision /= ".") return
         call vc_hg_root(buffer_directory(), root, has_root)
         if (.not. has_root) root = buffer_directory()
         call expand_file_name(".hg/bookmarks.current", current_bookmarks_file, st, root)
         if (.not. st%ok()) return
         if (.not. file_exists(current_bookmarks_file)) return
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         call insert_file_contents(current_bookmarks_file, .false., inserted, st)
         found = st%ok()
         if (found) bookmark = buffer_string()
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine vc_hg_active_bookmark_internal
 
-    !> The output of `hg log' with TEMPLATE for REV, or for the file PATH
+    !> The output of `hg log' with TEMPLATE for REVISION, or for the file PATH
     !> (following its history) when given; FOUND is false on errors.
     !> Port of vc-hg.el:vc-hg--run-log.
-    subroutine vc_hg_execute_log(template, rev, out, found, path)
-        character(len=*), intent(in) :: template, rev
+    subroutine vc_hg_execute_log(template, revision, out, found, path)
+        character(len=*), intent(in) :: template, revision
         character(len=:), allocatable, intent(out) :: out
         logical, intent(out) :: found
         character(len=*), intent(in), optional :: path
@@ -627,18 +628,18 @@ contains
         if (present(path)) then
             call command_output(0, strings("log", "-f", "-l1", "--template", template, path), out, found)
         else
-            call command_output(0, strings("log", "-r", rev, "-l1", "--template", template), out, found)
+            call command_output(0, strings("log", "-r", revision, "-l1", "--template", template), out, found)
         end if
     end subroutine vc_hg_execute_log
 
     !> Make a Mercurial revision human-readable.
-    !> REV is a Mercurial revision.  `default_directory' is assumed to
+    !> REVISION is a Mercurial revision.  `default_directory' is assumed to
     !> be in the repository root of interest.  PATH, if present, is a
     !> specific file to query.  FOUND is false if no style of
     !> `vc_hg_symbolic_revision_styles' produced one.  Port of
     !> vc-hg.el:vc-hg--symbolic-revision.
-    subroutine vc_hg_symbolic_revision(rev, symbolic_revision, found, path)
-        character(len=*), intent(in) :: rev
+    subroutine vc_hg_symbolic_revision(revision, symbolic_revision, found, path)
+        character(len=*), intent(in) :: revision
         character(len=:), allocatable, intent(out) :: symbolic_revision
         logical, intent(out) :: found
         character(len=*), intent(in), optional :: path
@@ -652,9 +653,9 @@ contains
             associate (style => vc_hg_symbolic_revision_styles(k))
                 select case (style%kind)
                 case (VC_HG_SYMBOLIC_REVISION_STYLES_ACTIVE_BOOKMARK)
-                    if (.not. present(path)) call vc_hg_active_bookmark_internal(rev, symbolic_revision, found)
+                    if (.not. present(path)) call vc_hg_active_bookmark_internal(revision, symbolic_revision, found)
                 case (VC_HG_SYMBOLIC_REVISION_STYLES_TEMPLATE)
-                    call vc_hg_execute_log(trim(style%template), rev, symbolic_revision, found, path)
+                    call vc_hg_execute_log(trim(style%template), revision, symbolic_revision, found, path)
                 case default
                     continue
                 end select
@@ -670,38 +671,38 @@ contains
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: s
         logical, intent(out) :: found
-        character(len=:), allocatable :: truename, echo, face, indicator, rev, root, dir, saved
+        character(len=:), allocatable :: truename, echo, face, indicator, revision, root, directory, saved
         type(status_type) :: st
-        logical :: has_rev, has_root
+        logical :: has_revision, has_root
         integer :: state
 
         call file_truename(file, truename, st)
         if (.not. st%ok()) truename = file
         state = vc_state(truename)
         call vc_mode_line_state(state, echo, face, indicator)
-        has_rev = .false.
+        has_revision = .false.
 
         if (state /= VC_STATE_UNKNOWN) then
             call vc_hg_root(truename, root, has_root)
             if (.not. has_root) root = buffer_directory()
-            call expand_file_name(root, dir, st)
-            if (.not. st%ok()) dir = root
+            call expand_file_name(root, directory, st)
+            if (.not. st%ok()) directory = root
             saved = buffer_directory()
-            call set_buffer_directory(dir)
+            call set_buffer_directory(directory)
 
             if (vc_hg_use_file_version_for_mode_line_version) then
-                call vc_hg_symbolic_revision(".", rev, has_rev, truename)
+                call vc_hg_symbolic_revision(".", revision, has_revision, truename)
             else
-                call vc_hg_symbolic_revision(".", rev, has_rev)
+                call vc_hg_symbolic_revision(".", revision, has_revision)
             end if
 
             call set_buffer_directory(saved)
         end if
 
-        if (.not. has_rev) rev = "???"
+        if (.not. has_revision) revision = "???"
         s = ""
         if (vc_display_status%choice /= VC_DISPLAY_STATUS_NO_BACKEND) s = "Hg"
-        s = s//indicator//rev
+        s = s//indicator//revision
         found = .true.
     end subroutine vc_hg_mode_line_string
 
@@ -799,9 +800,9 @@ contains
     recursive subroutine vc_hg_log_view_mode(status)
         use version_control_mod, only: vc_log_view_type, vc_shortlog, VC_LOG_VIEW_LOG_UNINTEGRATED, VC_LOG_VIEW_SHORT, &
                                        VC_LOG_VIEW_LOG_INCOMING, VC_LOG_VIEW_LOG_OUTGOING
-        use log_view_mod, only: set_log_view_file_regexp, set_log_view_message_regexp, set_log_view_per_file_logs, &
-                                set_log_view_expanded_log_entry_function, set_log_view_font_lock_keywords, &
-                                log_view_font_lock_keywords
+        use log_view_mod, only: set_log_view_file_regular_expression, set_log_view_message_regular_expression, &
+                                set_log_view_per_file_logs, set_log_view_expanded_log_entry_function, &
+                                set_log_view_font_lock_keywords, log_view_font_lock_keywords
         use display_engine_mod, only: tab_width
         type(status_type), intent(out) :: status
         type(font_lock_keyword_type), allocatable :: keywords(:), more(:)
@@ -821,13 +822,13 @@ contains
         end if
 
         ! A file regexp that matches nothing (regexp-unmatchable).
-        call set_log_view_file_regexp("\`a\`")
+        call set_log_view_file_regular_expression("\`a\`")
         call set_log_view_per_file_logs(.false.)
 
         if (shortp) then
-            call set_log_view_message_regexp(vc_hg_root_log_format%regexp)
+            call set_log_view_message_regular_expression(vc_hg_root_log_format%regular_expression)
         else
-            call set_log_view_message_regexp("^changeset:[ "//TAB//"]*\([0-9]+\):\(.+\)")
+            call set_log_view_message_regular_expression("^changeset:[ "//TAB//"]*\([0-9]+\):\(.+\)")
         end if
 
         call tab_width%set_local(2_int64)
@@ -837,7 +838,7 @@ contains
 
         if (shortp) then
             allocate (keywords(1))
-            keywords(1) = font_lock_keyword(vc_hg_root_log_format%regexp, highlights=vc_hg_root_log_format%highlights)
+            keywords(1) = font_lock_keyword(vc_hg_root_log_format%regular_expression, highlights=vc_hg_root_log_format%highlights)
         else
             call log_view_font_lock_keywords(keywords)
             allocate (more(5))
@@ -880,35 +881,35 @@ contains
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
         type(string_type) :: none(0)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
 
         found = .false.
         text = ""
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("log", "-r", revision, "--template", &
                                                                     vc_hg_log_format), st, in_current=.true.)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        if (.not. is_eob()) then
+        if (.not. is_end_of_buffer()) then
             ! Indent the expanded log entry.
-            call indent_region(point_min(), point_max(), st, 2_int64)
-            call goto_char(point_max())
+            call indent_region(point_minimum(), point_maximum(), st, 2_int64)
+            call goto_character(point_maximum())
             text = buffer_string()
             found = .true.
         end if
 
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine vc_hg_expanded_log_entry
 
     ! Define Hg's Log View mode.  Not a port.
     subroutine define_log_view_mode()
-        use log_view_mod, only: init_log_view
-        use add_log_mod, only: init_add_log
+        use log_view_mod, only: initialize_log_view
+        use add_log_mod, only: initialize_add_log
 
         ! (require 'add-log): we need the add-log faces.
-        if (.not. associated(major_modes%change_log_mode%execute)) call init_add_log()
-        if (.not. associated(major_modes%log_view_mode%execute)) call init_log_view()
+        if (.not. associated(major_modes%change_log_mode%execute)) call initialize_add_log()
+        if (.not. associated(major_modes%log_view_mode%execute)) call initialize_log_view()
         call major_modes%vc_hg_log_view_mode%define("vc_hg_log_view_mode", "Hg-Log-View", vc_hg_log_view_mode, &
                                                     vc_hg_log_view_mode_hook, parent=major_modes%log_view_mode)
         vc_hg_log_view_mode_map = major_modes%vc_hg_log_view_mode%map
@@ -917,16 +918,16 @@ contains
 
     ! The defaults of `vc_hg_root_log_format' and `vc_hg_log_format'.
     ! Not a port.
-    subroutine init_log_formats()
+    subroutine initialize_log_formats()
         if (.not. allocated(vc_hg_root_log_format%template)) then
             vc_hg_root_log_format%template = "{rev}:{ifeq(branch, 'default','', '{branch}')}" &
                                              //":{bookmarks}:{tags}:{author|person}" &
                                              //" {date|shortdate} {desc|firstline}\n"
             ! Graph data, then the fields.
-            vc_hg_root_log_format%regexp = "^\(?:[+@o x|-]*\)" &
-                                           //"\([0-9]+\):\([^:]*\)" &
-                                           //":\([^:]*\):\([^:]*\):\(.*?\)" &
-                                           //"[ "//TAB//"]+\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\)"
+            vc_hg_root_log_format%regular_expression = "^\(?:[+@o x|-]*\)" &
+                                                       //"\([0-9]+\):\([^:]*\)" &
+                                                       //":\([^:]*\):\([^:]*\):\(.*?\)" &
+                                                       //"[ "//TAB//"]+\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\)"
             allocate (vc_hg_root_log_format%highlights(6))
             vc_hg_root_log_format%highlights(1) = font_lock_highlight(1, face="log_view_message")
             vc_hg_root_log_format%highlights(2) = font_lock_highlight(2, face="change_log_file")
@@ -952,7 +953,7 @@ contains
             vc_hg_symbolic_revision_styles(2)%template = &
                 "{if(bookmarks,sub(' ',',',bookmarks),if(phabdiff,phabdiff,shortest(node,6)))}"
         end if
-    end subroutine init_log_formats
+    end subroutine initialize_log_formats
 
     ! ------------------------------------------------------------------
     ! Diff and revisions
@@ -1024,33 +1025,33 @@ contains
         type(string_type), intent(in) :: files(:)
         type(string_type), allocatable, intent(out) :: table(:)
         type(string_type) :: none(0)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
 
         allocate (table(0))
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         if (size(files) > 0) call set_buffer_directory(file_name_directory(files(1)%text))
         call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("branches", "-q"), st, in_current=.true.)
         call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("bookmarks", "-q"), st, in_current=.true.)
         call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("tags", "-q"), st, in_current=.true.)
         call append_words(table, buffer_string())
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine vc_hg_revision_table
 
     !> Hg-specific version of `vc_previous_revision'.  Port of
     !> vc-hg.el:vc-hg-previous-revision.
-    subroutine vc_hg_previous_revision(file, rev, prev, found)
-        character(len=*), intent(in) :: file, rev
-        character(len=:), allocatable, intent(out) :: prev
+    subroutine vc_hg_previous_revision(file, revision, previous, found)
+        character(len=*), intent(in) :: file, revision
+        character(len=:), allocatable, intent(out) :: previous
         logical, intent(out) :: found
         type(string_type) :: none(0)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         character(len=:), allocatable :: digits
         character(len=16) :: text
         integer :: n, code, ios
 
-        prev = ""
+        previous = ""
         found = .false.
         if (len(file) < 0) return
 
@@ -1058,45 +1059,45 @@ contains
         ! compatible with MS-Windows (see `vc_git_previous_revision').
         !
         ! See <https://repo.mercurial-scm.org/hg/help/revsets> for reference.
-        if (string_match("\`\.\(\^*\)\'", rev, st) > 0) then
-            write (text, '(".~", i0)') 1 + len(match_string(1, rev))
-            prev = trim(text)
+        if (string_match("\`\.\(\^*\)\'", revision, st) > 0) then
+            write (text, '(".~", i0)') 1 + len(match_string(1, revision))
+            previous = trim(text)
             found = .true.
-        else if (string_match("\`\.~\([0-9]+\)\'", rev, st) > 0) then
-            digits = match_string(1, rev)
+        else if (string_match("\`\.~\([0-9]+\)\'", revision, st) > 0) then
+            digits = match_string(1, revision)
             read (digits, *, iostat=ios) n
             if (ios /= 0) n = 0
             write (text, '(".~", i0)') 1 + n
-            prev = trim(text)
+            previous = trim(text)
             found = .true.
         else
             ! We can't simply decrement by 1, because that revision might
             ! be e.g. on a different branch (bug#22032).
-            call temp_begin(old, tmp)
-            call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("id", "-n", "-r", rev//"~1"), st, &
+            call temporary_begin(old, temporary)
+            call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("id", "-n", "-r", revision//"~1"), st, &
                                in_current=.true., exit_status=code)
 
-            if (st%ok() .and. code == 0 .and. point_max() > point_min()) then
+            if (st%ok() .and. code == 0 .and. point_maximum() > point_minimum()) then
                 ! Trim the trailing newline.
-                call buffer_substring(point_min(), point_max() - 1, prev, st)
+                call buffer_substring(point_minimum(), point_maximum() - 1, previous, st)
                 found = st%ok()
             end if
 
-            call temp_end(old, tmp)
+            call temporary_end(old, temporary)
         end if
     end subroutine vc_hg_previous_revision
 
     !> Hg-specific version of `vc_next_revision': the revision number
-    !> after REV, if it does not exceed the tip.  Port of
+    !> after REVISION, if it does not exceed the tip.  Port of
     !> vc-hg.el:vc-hg-next-revision.
-    subroutine vc_hg_next_revision(file, rev, next, found)
-        character(len=*), intent(in) :: file, rev
+    subroutine vc_hg_next_revision(file, revision, next, found)
+        character(len=*), intent(in) :: file, revision
         character(len=:), allocatable, intent(out) :: next
         logical, intent(out) :: found
         type(string_type) :: none(0)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
-        integer(int64) :: pos, newrev, tip_revision
+        integer(int64) :: position, newrev, tip_revision
         character(len=:), allocatable :: digits
         character(len=21) :: revision_text
         integer :: ios
@@ -1104,25 +1105,25 @@ contains
         next = ""
         found = .false.
         if (len(file) < 0) return
-        read (rev, *, iostat=ios) newrev
+        read (revision, *, iostat=ios) newrev
         if (ios /= 0) newrev = 0
         newrev = newrev + 1
         tip_revision = -1
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         call vc_hg_command(0, none, strings("tip", "--style=default"), st, in_current=.true.)
 
         if (st%ok()) then
-            call goto_char(point_min())
-            call re_search_forward("^changeset:[ "//TAB//"]*\([0-9]+\):", pos, st, noerror=SEARCH_NOERROR)
+            call goto_character(point_minimum())
+            call regular_expression_search_forward("^changeset:[ "//TAB//"]*\([0-9]+\):", position, st, noerror=SEARCH_NOERROR)
 
-            if (pos > 0) then
+            if (position > 0) then
                 digits = match_string(1)
                 read (digits, *, iostat=ios) tip_revision
                 if (ios /= 0) tip_revision = -1
             end if
         end if
 
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
 
         ! We don't want to exceed the maximum possible revision number, ie
         ! the tip revision.
@@ -1139,12 +1140,12 @@ contains
 
     !> Create a new Mercurial repository.  Port of
     !> vc-hg.el:vc-hg-create-repo.
-    recursive subroutine vc_hg_create_repo(status)
+    recursive subroutine vc_hg_create_repository(status)
         type(status_type), intent(out) :: status
         type(string_type) :: none(0)
 
         call vc_hg_command(0, none, strings("init"), status)
-    end subroutine vc_hg_create_repo
+    end subroutine vc_hg_create_repository
 
     !> Register FILES under hg.  COMMENT is ignored.  Port of
     !> vc-hg.el:vc-hg-register.
@@ -1170,7 +1171,7 @@ contains
     recursive subroutine vc_hg_delete_file(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: root, rel, saved
+        character(len=:), allocatable :: root, relative, saved
         type(status_type) :: st
         logical :: found
 
@@ -1178,12 +1179,12 @@ contains
         ! subdirectories containing each of FILES may no longer exist.
         call vc_hg_root(file, root, found)
         if (.not. found) root = buffer_directory()
-        rel = file_relative_name(file, root)
+        relative = file_relative_name(file, root)
         saved = buffer_directory()
         call set_buffer_directory(root)
         ! Errors deleting the file are ignored.
-        call delete_file(rel, st)
-        call vc_hg_command(0, strings(rel), strings("remove", "--after", "--force"), status)
+        call delete_file(relative, st)
+        call vc_hg_command(0, strings(relative), strings("remove", "--after", "--force"), status)
         call set_buffer_directory(saved)
     end subroutine vc_hg_delete_file
 
@@ -1227,15 +1228,15 @@ contains
         call vc_hg_command(0, strings(new_name), strings("mv", "--after", old_name), status)
     end subroutine vc_hg_rename_file
 
-    !> Get revision REV of FILE into BUFFER (the working revision when REV
+    !> Get revision REVISION of FILE into BUFFER (the working revision when REVISION
     !> is "").  Port of vc-hg.el:vc-hg-find-revision.
-    recursive subroutine vc_hg_find_revision(file, rev, buffer, status)
-        character(len=*), intent(in) :: file, rev
+    recursive subroutine vc_hg_find_revision(file, revision, buffer, status)
+        character(len=*), intent(in) :: file, revision
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
 
-        if (len(rev) > 0) then
-            call vc_hg_command(0, strings(file), strings("cat", "-r", rev), status, buffer=buffer)
+        if (len(revision) > 0) then
+            call vc_hg_command(0, strings(file), strings("cat", "-r", revision), status, buffer=buffer)
         else
             call vc_hg_command(0, strings(file), strings("cat"), status, buffer=buffer)
         end if
@@ -1257,13 +1258,13 @@ contains
     end subroutine vc_hg_find_ignore_file
 
     !> Retrieve a revision of FILE.
-    !> REV is the revision to check out into the buffer of FILE (or the
+    !> REVISION is the revision to check out into the buffer of FILE (or the
     !> current buffer).  Port of vc-hg.el:vc-hg-checkout (modeled after the
     !> similar function in vc-bzr.el).
-    recursive subroutine vc_hg_checkout(file, status, rev)
+    recursive subroutine vc_hg_checkout(file, status, revision)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: rev
+        character(len=*), intent(in), optional :: revision
         type(handle_type) :: old, buffer
         type(status_type) :: st
 
@@ -1271,8 +1272,8 @@ contains
         buffer = get_file_buffer(file)
         if (is_buffer_live(buffer)) call set_buffer(buffer, st)
 
-        if (present(rev)) then
-            call vc_hg_command(0, strings(file), strings("cat", "-r", rev), status, in_current=.true.)
+        if (present(revision)) then
+            call vc_hg_command(0, strings(file), strings("cat", "-r", revision), status, in_current=.true.)
         else
             call vc_hg_command(0, strings(file), strings("cat"), status, in_current=.true.)
         end if
@@ -1299,13 +1300,13 @@ contains
         type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: flags(:)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
 
         flags = strings("revert")
         call append_switches(flags, vc_hg_revert_switches)
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         call vc_hg_command(0, files, flags, status, in_current=.true.)
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine vc_hg_revert_files
 
     ! ------------------------------------------------------------------
@@ -1314,16 +1315,16 @@ contains
 
     ! The message of the last commit, for `vc_hg_log_edit_toggle_amend'.
     ! Port of the message function vc-hg.el:vc-hg-log-edit-toggle-amend gives.
-    recursive subroutine last_message(msg, status)
-        character(len=:), allocatable, intent(out) :: msg
+    recursive subroutine last_message(message, status)
+        character(len=:), allocatable, intent(out) :: message
         type(status_type), intent(out) :: status
         type(string_type) :: none(0)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
 
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         call vc_hg_command(1, none, strings("log", "--limit=1", "--template", "{desc}"), status, in_current=.true.)
-        msg = buffer_string()
-        call temp_end(old, tmp)
+        message = buffer_string()
+        call temporary_end(old, temporary)
     end subroutine last_message
 
     !> Toggle whether this will amend the previous commit.
@@ -1352,7 +1353,7 @@ contains
     subroutine define_log_edit_mode()
         type(status_type) :: st
 
-        if (.not. associated(major_modes%log_edit_mode%execute)) call init_log_edit()
+        if (.not. associated(major_modes%log_edit_mode%execute)) call initialize_log_edit()
         call major_modes%vc_hg_log_edit_mode%define("vc_hg_log_edit_mode", "Log-Edit/hg", vc_hg_log_edit_mode, &
                                                     vc_hg_log_edit_mode_hook, parent=major_modes%log_edit_mode)
         vc_hg_log_edit_mode_map = major_modes%vc_hg_log_edit_mode%map
@@ -1363,24 +1364,24 @@ contains
 
     ! The argument "--amend" if the Amend header's VALUE is "yes".
     ! Not a port.
-    subroutine amend_arg(value, args)
+    subroutine amend_argument(value, arguments)
         character(len=*), intent(in) :: value
-        type(string_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: arguments(:)
 
         if (value == "yes") then
-            allocate (args(1))
-            args(1)%text = "--amend"
+            allocate (arguments(1))
+            arguments(1)%text = "--amend"
         else
-            allocate (args(0))
+            allocate (arguments(0))
         end if
-    end subroutine amend_arg
+    end subroutine amend_argument
 
-    ! The log message MSG of COMMENT and the command line arguments ARGS
+    ! The log message MESSAGE of COMMENT and the command line arguments ARGUMENTS
     ! of its headers.  Port of vc-hg.el:vc-hg--extract-headers.
-    recursive subroutine extract_headers(comment, msg, args, status)
+    recursive subroutine extract_headers(comment, message, arguments, status)
         character(len=*), intent(in) :: comment
-        character(len=:), allocatable, intent(out) :: msg
-        type(string_type), allocatable, intent(out) :: args(:)
+        character(len=:), allocatable, intent(out) :: message
+        type(string_type), allocatable, intent(out) :: arguments(:)
         type(status_type), intent(out) :: status
         type(log_edit_header_type) :: headers(3)
 
@@ -1390,42 +1391,42 @@ contains
         headers(2)%cmdarg = "--date"
         headers(3)%name = "Amend"
         headers(3)%kind = LOG_EDIT_HEADER_FN
-        headers(3)%fn => amend_arg
-        call log_edit_extract_headers(headers, comment, msg, args, status)
+        headers(3)%fn => amend_argument
+        call log_edit_extract_headers(headers, comment, message, arguments, status)
     end subroutine extract_headers
 
     !> Hg-specific version of `vc_backend_checkin'.
-    !> REV is ignored.  Port of vc-hg.el:vc-hg-checkin with
+    !> REVISION is ignored.  Port of vc-hg.el:vc-hg-checkin with
     !> vc-hg.el:vc-hg--checkin (checking in a patch, the asynchronous
     !> commit of `vc_async_checkin' and the message file of MS-Windows are
     !> deferred or not applicable).
-    recursive subroutine vc_hg_checkin(files, comment, status, rev)
+    recursive subroutine vc_hg_checkin(files, comment, status, revision)
         type(string_type), intent(in) :: files(:)
         character(len=*), intent(in) :: comment
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: rev
+        character(len=*), intent(in), optional :: revision
         type(string_type), allocatable :: extracted(:)
-        type(string_type), allocatable :: args(:)
-        character(len=:), allocatable :: msg
+        type(string_type), allocatable :: arguments(:)
+        character(len=:), allocatable :: message
         integer :: k
 
         status = status_type()
-        if (present(rev)) continue
+        if (present(revision)) continue
 
         if (size(files) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid call to `vc_hg_checkin'")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid call to `vc_hg_checkin'")
             return
         end if
 
-        call extract_headers(comment, msg, extracted, status)
+        call extract_headers(comment, message, extracted, status)
         if (.not. status%ok()) return
-        args = strings("commit", "-A", "-m", msg)
+        arguments = strings("commit", "-A", "-m", message)
 
         do k = 1, size(extracted)
-            call append_string(args, extracted(k)%text)
+            call append_string(arguments, extracted(k)%text)
         end do
 
-        call vc_hg_command(0, files, args, status)
+        call vc_hg_command(0, files, arguments, status)
     end subroutine vc_hg_checkin
 
     ! ------------------------------------------------------------------
@@ -1434,12 +1435,12 @@ contains
 
     !> Pretty-printer for the vc-dir-fileinfo structure.  Port of
     !> vc-hg.el:vc-hg-dir-printer.
-    recursive subroutine vc_hg_dir_printer(info)
-        use version_control_directory_mod, only: vc_default_dir_printer, insert_with_face
-        type(vc_dir_fileinfo_type), intent(in) :: info
+    recursive subroutine vc_hg_directory_printer(info)
+        use version_control_directory_mod, only: vc_default_directory_printer, insert_with_face
+        type(vc_directory_fileinfo_type), intent(in) :: info
         character(len=:), allocatable :: rename_state
 
-        call vc_default_dir_printer(info)
+        call vc_default_directory_printer(info)
         if (.not. info%entry%has_extra) return
 
         if (info%entry%rename_state == VC_RENAME_COPY) then
@@ -1450,8 +1451,8 @@ contains
             rename_state = "renamed from"
         end if
 
-        call insert_with_face("   ("//rename_state//" "//info%entry%orig_name//")", "font_lock_comment_face")
-    end subroutine vc_hg_dir_printer
+        call insert_with_face("   ("//rename_state//" "//info%entry%original_name//")", "font_lock_comment_face")
+    end subroutine vc_hg_directory_printer
 
     !> Pass the states of `hg status -C' in the current buffer to UPDATE
     !> for the VC-Dir buffer BUFFER.  The extra information of a copy is
@@ -1459,11 +1460,11 @@ contains
     !> VC_RENAME_RENAME with the original name on the added file
     !> (`renamed-from') and the new name on the removed one
     !> (`renamed-to').  Port of vc-hg.el:vc-hg-after-dir-status.
-    recursive subroutine vc_hg_after_dir_status(update, buffer)
-        procedure(vc_dir_update_procedure) :: update
+    recursive subroutine vc_hg_after_directory_status(update, buffer)
+        procedure(vc_directory_update_procedure) :: update
         type(handle_type), intent(in) :: buffer
-        type(vc_dir_entry_type), allocatable :: result(:), reversed(:)
-        type(vc_dir_entry_type) :: entry
+        type(vc_directory_entry_type), allocatable :: result(:), reversed(:)
+        type(vc_directory_entry_type) :: entry
         type(string_type), allocatable :: copy_names(:)
         integer, allocatable :: copy_entries(:)
         character(len=:), allocatable :: line, file
@@ -1472,13 +1473,13 @@ contains
         integer :: k, last, n
 
         allocate (result(0), copy_names(0), copy_entries(0))
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        do while (.not. is_eob())
-            call buffer_substring(point(), pos_eol(), line, st)
+        do while (.not. is_end_of_buffer())
+            call buffer_substring(point(), position_end_of_line(), line, st)
             file = ""
             if (len(line) > 2) file = line(3:)
-            entry = vc_dir_entry_type()
+            entry = vc_directory_entry_type()
             entry%name = file
 
             if (len(line) == 0) then
@@ -1500,7 +1501,7 @@ contains
                 if (last > 0) then
                     result(last)%has_extra = .true.
                     result(last)%rename_state = VC_RENAME_COPY
-                    result(last)%orig_name = file
+                    result(last)%original_name = file
                     k = copy_index(file)
 
                     if (k == 0) then
@@ -1522,7 +1523,7 @@ contains
                     ! `renamed-to' on the removed file.
                     entry%has_extra = .true.
                     entry%rename_state = VC_RENAME_RENAME
-                    entry%orig_name = result(last)%name
+                    entry%original_name = result(last)%name
                 end if
 
                 result = [result, entry]
@@ -1577,12 +1578,12 @@ contains
                 state = VC_STATE_UNKNOWN
             end select
         end function translate
-    end subroutine vc_hg_after_dir_status
+    end subroutine vc_hg_after_directory_status
 
-    ! The action run after the `hg status' of `vc_hg_dir_status_files':
-    ! `vc_hg_after_dir_status' in the process buffer.  Port of the
+    ! The action run after the `hg status' of `vc_hg_directory_status_files':
+    ! `vc_hg_after_directory_status' in the process buffer.  Port of the
     ! delayed part of vc-hg.el:vc-hg-dir-status-files.
-    recursive subroutine after_dir_status_action(action, status)
+    recursive subroutine after_directory_status_action(action, status)
         use version_control_dispatcher_mod, only: vc_action_type
         type(vc_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
@@ -1592,44 +1593,44 @@ contains
 
         status = status_type()
         k = action%n
-        dir_states(k)%live = .false.
+        directory_states(k)%live = .false.
         if (.not. is_buffer_live(action%buffer)) return
         old = current_buffer()
         call set_buffer(action%buffer, st)
-        call vc_hg_after_dir_status(dir_states(k)%update_function, dir_states(k)%buffer)
+        call vc_hg_after_directory_status(directory_states(k)%update_function, directory_states(k)%buffer)
         if (is_buffer_live(old)) call set_buffer(old, st)
-    end subroutine after_dir_status_action
+    end subroutine after_directory_status_action
 
-    !> Compute the states of FILES (all when empty) in DIR asynchronously
+    !> Compute the states of FILES (all when empty) in DIRECTORY asynchronously
     !> and pass them to UPDATE for BUFFER.  Port of
     !> vc-hg.el:vc-hg-dir-status-files.
-    recursive subroutine vc_hg_dir_status_files(dir, files, update, buffer, status)
+    recursive subroutine vc_hg_directory_status_files(directory, files, update, buffer, status)
         use version_control_dispatcher_mod, only: vc_action_type, vc_exec_after
-        character(len=*), intent(in) :: dir
+        character(len=*), intent(in) :: directory
         type(string_type), intent(in) :: files(:)
-        procedure(vc_dir_update_procedure) :: update
+        procedure(vc_directory_update_procedure) :: update
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
-        type(dir_status_type) :: state
+        type(directory_status_type) :: state
         type(vc_action_type) :: action
         type(string_type), allocatable :: flags(:)
         character(len=:), allocatable :: saved, options
         integer :: k
 
-        if (.not. allocated(dir_states)) allocate (dir_states(0))
+        if (.not. allocated(directory_states)) allocate (directory_states(0))
 
-        do k = 1, size(dir_states)
-            if (.not. dir_states(k)%live) exit
+        do k = 1, size(directory_states)
+            if (.not. directory_states(k)%live) exit
         end do
 
-        if (k > size(dir_states)) dir_states = [dir_states, state]
-        dir_states(k)%live = .true.
-        dir_states(k)%update_function => update
-        dir_states(k)%buffer = buffer
-        ! XXX: We can't pass DIR directly to 'hg status' because that
+        if (k > size(directory_states)) directory_states = [directory_states, state]
+        directory_states(k)%live = .true.
+        directory_states(k)%update_function => update
+        directory_states(k)%buffer = buffer
+        ! XXX: We can't pass DIRECTORY directly to 'hg status' because that
         ! returns all ignored files if FILES is not empty (bug#22481).
         saved = buffer_directory()
-        call set_buffer_directory(dir)
+        call set_buffer_directory(directory)
         options = "-mardu"
         if (size(files) > 0) options = options//"i"
         flags = strings("status", options, "-C")
@@ -1646,17 +1647,17 @@ contains
         call set_buffer_directory(saved)
 
         if (.not. status%ok()) then
-            dir_states(k)%live = .false.
+            directory_states(k)%live = .false.
             return
         end if
 
         ! (vc-run-delayed-success 0 ...)
-        action%execute => after_dir_status_action
+        action%execute => after_directory_status_action
         action%n = k
         action%buffer = current_buffer()
         action%okstatus = 0
         call vc_exec_after(action, status)
-    end subroutine vc_hg_dir_status_files
+    end subroutine vc_hg_directory_status_files
 
     ! Append TEXT with FACE to PARTS.  Not a port.
     subroutine append_part(parts, text, face)
@@ -1669,61 +1670,61 @@ contains
         parts = [parts, part]
     end subroutine append_part
 
-    !> Generate extra status headers for a repository in DIR.
+    !> Generate extra status headers for a repository in DIRECTORY.
     !> This runs the command "hg summary".  Port of
     !> vc-hg.el:vc-hg-dir-extra-headers.
-    recursive subroutine vc_hg_dir_extra_headers(dir, parts)
+    recursive subroutine vc_hg_directory_extra_headers(directory, parts)
         use casefiddle_mod, only: capitalize_string
-        character(len=*), intent(in) :: dir
+        character(len=*), intent(in) :: directory
         type(ewoc_part_type), allocatable, intent(out) :: parts(:)
         type(string_type) :: none(0)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         character(len=:), allocatable :: key, value
         character(len=11) :: padded
         integer(int64) :: shortage
 
         allocate (parts(0))
-        call temp_begin(old, tmp)
-        call set_buffer_directory(dir)
+        call temporary_begin(old, temporary)
+        call set_buffer_directory(directory)
         call vc_hg_command(0, none, strings("summary"), st, in_current=.true.)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        do while (.not. is_eob())
+        do while (.not. is_end_of_buffer())
             if (looking_at("\([^ ].*\): \(.*\)", st)) then
                 key = capitalize_string(match_string(1))
                 value = match_string(2)
             else
                 key = ""
-                call buffer_substring(point(), pos_eol(), value, st)
+                call buffer_substring(point(), position_end_of_line(), value, st)
             end if
 
             if (size(parts) > 0) call append_part(parts, LF, "")
 
             if (len(key) >= 11) then
-                call append_part(parts, key//": ", "vc_dir_header")
+                call append_part(parts, key//": ", "vc_directory_header")
             else
                 padded = key
-                call append_part(parts, padded//": ", "vc_dir_header")
+                call append_part(parts, padded//": ", "vc_directory_header")
             end if
 
-            call append_part(parts, value, "vc_dir_header_value")
+            call append_part(parts, value, "vc_directory_header_value")
             shortage = forward_line(1_int64)
         end do
 
-        call temp_end(old, tmp)
-    end subroutine vc_hg_dir_extra_headers
+        call temporary_end(old, temporary)
+    end subroutine vc_hg_directory_extra_headers
 
     ! ------------------------------------------------------------------
     ! Initialization
     ! ------------------------------------------------------------------
 
     !> Make the Hg backend known to VC.  Not a port.
-    subroutine init_vc_hg()
+    subroutine initialize_vc_hg()
         integer :: k
 
         if (.not. allocated(vc_hg_program)) vc_hg_program = "hg"
-        call init_log_formats()
+        call initialize_log_formats()
         call define_log_edit_mode()
         call define_log_view_mode()
         call register_vc_backend("Hg", k)
@@ -1754,14 +1755,14 @@ contains
             b%previous_revision => vc_hg_previous_revision
             b%next_revision => vc_hg_next_revision
             b%revision_completion_table => vc_hg_revision_table
-            b%create_repo => vc_hg_create_repo
+            b%create_repository => vc_hg_create_repository
             b%checkin => vc_hg_checkin
             b%log_edit_mode => vc_hg_log_edit_mode
             b%print_log => vc_hg_print_log
             b%log_view_mode => vc_hg_log_view_mode
-            b%dir_status_files => vc_hg_dir_status_files
-            b%dir_extra_headers => vc_hg_dir_extra_headers
-            b%dir_printer => vc_hg_dir_printer
+            b%directory_status_files => vc_hg_directory_status_files
+            b%directory_extra_headers => vc_hg_directory_extra_headers
+            b%directory_printer => vc_hg_directory_printer
         end associate
-    end subroutine init_vc_hg
+    end subroutine initialize_vc_hg
 end module version_control_mercurial_mod

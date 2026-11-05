@@ -29,14 +29,15 @@
 !> their own.
 module fortmacs_diff_diff_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, make_list, command_type, list_elements, xstring, vtag, xfixnum, V_INTEGER
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, erase_buffer
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_substring, buffer_string, buffer_size
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_substring, buffer_string, &
+                                     buffer_size
     use insert_delete_mod, only: insert
     use editing_commands_mod, only: forward_line, beginning_of_line
-    use search_mod, only: re_search_forward, match_beginning, match_end, match_data, set_match_data, SEARCH_NOERROR
+    use search_mod, only: regular_expression_search_forward, match_beginning, match_end, match_data, set_match_data, SEARCH_NOERROR
     use basic_subprograms_mod, only: string_matches, match_string, read_y_or_n
     use replace_mod, only: flush_lines
     use execute_process_mod, only: execute_process
@@ -61,7 +62,7 @@ module fortmacs_diff_diff_mod
 
     public :: set_up_ediff_diff_regions, set_up_ediff_diff_regions3, make_ediff_diff2_buffer, prepare_ediff_error_list, &
               extract_ediff_diffs, extract_ediff_diffs3, convert_ediff_diffs_to_overlays, get_ediff_diff3_group, &
-              execute_ediff_process, set_ediff_actual_diff_options, toggle_ediff_ignore_case, init_ediff_diff, &
+              execute_ediff_process, set_ediff_actual_diff_options, toggle_ediff_ignore_case, initialize_ediff_diff, &
               get_ediff_directory_files, compare_ediff_file_contents, compare_ediff_contents
 
     character, parameter :: CR = achar(13), LF = achar(10)
@@ -134,7 +135,7 @@ module fortmacs_diff_diff_mod
     !> Regexp that matches normal output lines from `ediff_diff3_program'.
     !> Lines that do not match are assumed to be error messages.  Port of
     !> ediff-diff.el ediff-diff3-ok-lines-regexp.
-    character(len=:), allocatable, public :: ediff_diff3_ok_lines_regexp
+    character(len=:), allocatable, public :: ediff_diff3_ok_lines_regular_expression
 
     !> The actual options used in comparison.  Port of ediff-diff.el
     !> ediff-actual-diff-options.
@@ -153,7 +154,7 @@ module fortmacs_diff_diff_mod
     !> warnings and `Missing newline'-type messages to be normal output.
     !> Lines that do not match are assumed to be error messages.  Port of
     !> ediff-diff.el ediff-diff-ok-lines-regexp.
-    character(len=*), parameter, public :: EDIFF_DIFF_OK_LINES_REGEXP = &
+    character(len=*), parameter, public :: EDIFF_DIFF_OK_LINES_REGULAR_EXPRESSION = &
                                            "^\([0-9,]+[acd][0-9,]+"//CR//"?$\|[<>] \|---\|.*Warning *:\|.*No +newline"// &
                                            "\|.*missing +newline\|^"//CR//"?$\)"
 
@@ -181,7 +182,7 @@ contains
         if (.not. status%ok()) return
 
         if (matched) then
-            call set_error(status, FM_GENERIC_ERROR, &
+            call set_error(status, GENERIC_ERROR_CODE, &
                            format_message("Options `-c', `-u', and `-i' are not allowed in `ediff_diff_options'"))
             return
         end if
@@ -194,7 +195,7 @@ contains
 
         call make_ediff_diff2_buffer(k, ediff_sessions(k)%diff_buffer, file_a, file_b, code, status)
         if (.not. status%ok()) return
-        call prepare_ediff_error_list(k, EDIFF_DIFF_OK_LINES_REGEXP, ediff_sessions(k)%diff_buffer, status)
+        call prepare_ediff_error_list(k, EDIFF_DIFF_OK_LINES_REGULAR_EXPRESSION, ediff_sessions(k)%diff_buffer, status)
         if (.not. status%ok()) return
         call extract_ediff_diffs(k, ediff_sessions(k)%diff_buffer, records, status)
         if (.not. status%ok()) return
@@ -236,14 +237,14 @@ contains
         call set_buffer(old, status)
     end subroutine make_ediff_diff2_buffer
 
-    !> Copy the output in DIFF_BUFFER that does not match OK_REGEXP into
+    !> Copy the output in DIFF_BUFFER that does not match OK_REGULAR_EXPRESSION into
     !> session K's error buffer; if there is any, show it, kill the
     !> control buffer and return with a `user_error'.  Port of
     !> ediff-diff.el:ediff-prepare-error-list (the output is shown
     !> undecoded).
-    recursive subroutine prepare_ediff_error_list(k, ok_regexp, diff_buffer, status)
+    recursive subroutine prepare_ediff_error_list(k, ok_regular_expression, diff_buffer, status)
         integer, intent(in) :: k
-        character(len=*), intent(in) :: ok_regexp
+        character(len=*), intent(in) :: ok_regular_expression
         type(handle_type), intent(in) :: diff_buffer
         type(status_type), intent(out) :: status
         type(handle_type) :: old, control
@@ -273,8 +274,8 @@ contains
         if (status%ok()) call insert(text, status)
 
         if (status%ok()) then
-            call goto_char(point_min())
-            call flush_lines(ok_regexp, deleted, status)
+            call goto_character(point_minimum())
+            call flush_lines(ok_regular_expression, deleted, status)
         end if
 
         size = buffer_size()
@@ -291,34 +292,34 @@ contains
             if (.not. status%ok()) return
             call close_ediff_buffer_carefully(control, status)
             if (.not. status%ok()) return
-            call set_error(status, FM_USER_ERROR, "Errors in diff output.  Diff output is in #<buffer "//diff_name//">")
+            call set_error(status, USER_ERROR_CODE, "Errors in diff output.  Diff output is in #<buffer "//diff_name//">")
         end if
     end subroutine prepare_ediff_error_list
 
-    !> Give in POS the point in buffer BUFFER LINES lines after FROM
+    !> Give in POSITION the point in buffer BUFFER LINES lines after FROM
     !> (point-min if FROM is 0).  Not a port: (goto-char FROM)
     !> (forward-line LINES) in ediff-extract-diffs.
-    recursive subroutine get_line_position(buffer, from, lines, pos, status)
+    recursive subroutine get_line_position(buffer, from, lines, position, status)
         type(handle_type), intent(in) :: buffer
         integer(int64), intent(in) :: from, lines
-        integer(int64), intent(out) :: pos
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         integer(int64) :: shortage
 
-        pos = 0
+        position = 0
         old = current_buffer()
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
 
         if (from == 0) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
         else
-            call goto_char(from)
+            call goto_character(from)
         end if
 
         shortage = forward_line(lines)
-        pos = point()
+        position = point()
         call set_buffer(old, status)
     end subroutine get_line_position
 
@@ -351,7 +352,8 @@ contains
         type(ediff_diff_record_type) :: record
         type(handle_type) :: old, buffer_a, buffer_b, buffer_c
         type(status_type) :: st
-        integer(int64) :: a_prev, b_prev, c_prev, a_prev_pt, b_prev_pt, c_prev_pt, found, a_begin, a_end, b_begin, &
+        integer(int64) :: a_previous, b_previous, c_previous, a_previous_point, b_previous_point, c_previous_point, found, &
+                          a_begin, a_end, b_begin, &
                           b_end, c_begin, c_end
         character(len=:), allocatable :: diff_type
 
@@ -361,20 +363,20 @@ contains
         buffer_b = ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_B)
         buffer_c = ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_C)
         ! This is needed to set the first diff line correctly.
-        a_prev = 1
-        b_prev = 1
-        c_prev = 1
+        a_previous = 1
+        b_previous = 1
+        c_previous = 1
         ! The narrow bounds: the beginnings of buffers A and B.
-        a_prev_pt = narrow_start(k, EDIFF_BUFFER_TYPE_A)
-        b_prev_pt = narrow_start(k, EDIFF_BUFFER_TYPE_B)
-        c_prev_pt = 0
+        a_previous_point = narrow_start(k, EDIFF_BUFFER_TYPE_A)
+        b_previous_point = narrow_start(k, EDIFF_BUFFER_TYPE_B)
+        c_previous_point = 0
         old = current_buffer()
         call set_buffer(diff_buffer, status)
         if (.not. status%ok()) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward(EDIFF_MATCH_DIFF_LINE, found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(EDIFF_MATCH_DIFF_LINE, found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) exit
             if (found == 0) exit
             a_begin = matched_number(1, 0_int64)
@@ -408,30 +410,30 @@ contains
 
             ! Else convert lines to points.
             record = ediff_diff_record_type()
-            call get_line_position(buffer_a, a_prev_pt, a_begin - a_prev, record%beginning(EDIFF_BUFFER_TYPE_A), status)
+            call get_line_position(buffer_a, a_previous_point, a_begin - a_previous, record%beginning(EDIFF_BUFFER_TYPE_A), status)
             if (.not. status%ok()) exit
             call get_line_position(buffer_a, record%beginning(EDIFF_BUFFER_TYPE_A), a_end - a_begin, &
                                    record%end(EDIFF_BUFFER_TYPE_A), status)
             if (.not. status%ok()) exit
-            a_prev = a_end
-            a_prev_pt = record%end(EDIFF_BUFFER_TYPE_A)
-            call get_line_position(buffer_b, b_prev_pt, b_begin - b_prev, record%beginning(EDIFF_BUFFER_TYPE_B), status)
+            a_previous = a_end
+            a_previous_point = record%end(EDIFF_BUFFER_TYPE_A)
+            call get_line_position(buffer_b, b_previous_point, b_begin - b_previous, record%beginning(EDIFF_BUFFER_TYPE_B), status)
             if (.not. status%ok()) exit
             call get_line_position(buffer_b, record%beginning(EDIFF_BUFFER_TYPE_B), b_end - b_begin, &
                                    record%end(EDIFF_BUFFER_TYPE_B), status)
             if (.not. status%ok()) exit
-            b_prev = b_end
-            b_prev_pt = record%end(EDIFF_BUFFER_TYPE_B)
+            b_previous = b_end
+            b_previous_point = record%end(EDIFF_BUFFER_TYPE_B)
 
             if (is_buffer_live(buffer_c)) then
-                call get_line_position(buffer_c, c_prev_pt, c_begin - c_prev, record%beginning(EDIFF_BUFFER_TYPE_C), &
+                call get_line_position(buffer_c, c_previous_point, c_begin - c_previous, record%beginning(EDIFF_BUFFER_TYPE_C), &
                                        status)
                 if (.not. status%ok()) exit
                 call get_line_position(buffer_c, record%beginning(EDIFF_BUFFER_TYPE_C), c_end - c_begin, &
                                        record%end(EDIFF_BUFFER_TYPE_C), status)
                 if (.not. status%ok()) exit
-                c_prev = c_end
-                c_prev_pt = record%end(EDIFF_BUFFER_TYPE_C)
+                c_previous = c_end
+                c_previous_point = record%end(EDIFF_BUFFER_TYPE_C)
 
                 ! State of diff: shows which buff is different from the
                 ! other two.
@@ -458,11 +460,11 @@ contains
     !> Not a port: (ediff-overlay-start
     !> (ediff-get-value-according-to-buffer-type BUFFER-TYPE
     !> ediff-narrow-bounds)).
-    integer(int64) function narrow_start(k, buffer_type) result(pos)
+    integer(int64) function narrow_start(k, buffer_type) result(position)
         use interval_tree_mod, only: overlay_start
         integer, intent(in) :: k, buffer_type
 
-        pos = overlay_start(ediff_sessions(k)%narrow_bounds(buffer_type))
+        position = overlay_start(ediff_sessions(k)%narrow_bounds(buffer_type))
     end function narrow_start
 
     !> Make an overlay for each difference region of RECORDS in each buffer
@@ -560,7 +562,7 @@ contains
         character(len=*), intent(in) :: file
         integer(int64), intent(out) :: beginning, end
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, found, x, second
+        integer(int64) :: original_point, found, x, second
         character(len=:), allocatable :: kind
 
         ! This save-excursion allows ediff-get-diff3-group to be called
@@ -568,20 +570,20 @@ contains
         ! the lines to appear in any order.  The reason this is necessary
         ! is that GNU diff3 can produce the groups in the order 1, 2, 3 or
         ! 1, 3, 2.
-        opoint = point()
+        original_point = point()
         beginning = 0
         end = 0
-        call re_search_forward("^"//file//":\([0-9]+\)\(,\([0-9]+\)\)?\([ac]\)"//CR//"?$", found, status)
+        call regular_expression_search_forward("^"//file//":\([0-9]+\)\(,\([0-9]+\)\)?\([ac]\)"//CR//"?$", found, status)
 
         if (.not. status%ok()) then
-            call goto_char(opoint)
+            call goto_character(original_point)
             return
         end if
 
         second = match_beginning(2, status)
 
         if (.not. status%ok()) then
-            call goto_char(opoint)
+            call goto_character(original_point)
             return
         end if
 
@@ -606,7 +608,7 @@ contains
             end = x + 1
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine get_ediff_diff3_group
 
     !> Parse the diff3 output in DIFF_BUFFER into RECORDS for session K.
@@ -625,17 +627,17 @@ contains
         type(ediff_diff_record_type) :: record
         type(handle_type) :: old
         type(status_type) :: st
-        integer(int64) :: prev(4), prev_pt(4), found, beginning(4), end(4)
+        integer(int64) :: previous(4), previous_point(4), found, beginning(4), end(4)
         character(len=1) :: group(3)
         character(len=:), allocatable :: agreement
         integer :: t, last
 
         status = status_type()
         allocate (records(0))
-        prev = 1
+        previous = 1
         ! The ancestor's lines are counted from its beginning.
-        prev_pt = [narrow_start(k, EDIFF_BUFFER_TYPE_A), narrow_start(k, EDIFF_BUFFER_TYPE_B), 0_int64, 0_int64]
-        if (three_way_comp) prev_pt(EDIFF_BUFFER_TYPE_C) = narrow_start(k, EDIFF_BUFFER_TYPE_C)
+        previous_point = [narrow_start(k, EDIFF_BUFFER_TYPE_A), narrow_start(k, EDIFF_BUFFER_TYPE_B), 0_int64, 0_int64]
+        if (three_way_comp) previous_point(EDIFF_BUFFER_TYPE_C) = narrow_start(k, EDIFF_BUFFER_TYPE_C)
         ! The groups of buffers A, B and C (or the ancestor) in diff3's
         ! output.
         group = ["1", "3", "2"]
@@ -649,10 +651,10 @@ contains
         old = current_buffer()
         call set_buffer(diff_buffer, status)
         if (.not. status%ok()) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward(EDIFF_MATCH_DIFF3_LINE, found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(EDIFF_MATCH_DIFF3_LINE, found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) exit
             if (found == 0) exit
             agreement = match_string(1)
@@ -688,14 +690,14 @@ contains
 
             ! Compute the regions: convert lines to points.
             do t = EDIFF_BUFFER_TYPE_A, last
-                call get_line_position(ediff_sessions(k)%buffers(t), prev_pt(t), beginning(t) - prev(t), &
+                call get_line_position(ediff_sessions(k)%buffers(t), previous_point(t), beginning(t) - previous(t), &
                                        record%beginning(t), status)
                 if (.not. status%ok()) exit
                 call get_line_position(ediff_sessions(k)%buffers(t), record%beginning(t), end(t) - beginning(t), &
                                        record%end(t), status)
                 if (.not. status%ok()) exit
-                prev(t) = end(t)
-                prev_pt(t) = record%end(t)
+                previous(t) = end(t)
+                previous_point(t) = record%end(t)
             end do
 
             if (.not. status%ok()) exit
@@ -749,7 +751,7 @@ contains
         if (.not. status%ok()) return
 
         if (matched) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("Option `-i' is not allowed in `ediff_diff3_options'"))
+            call set_error(status, GENERIC_ERROR_CODE, format_message("Option `-i' is not allowed in `ediff_diff3_options'"))
             return
         end if
 
@@ -770,7 +772,7 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call prepare_ediff_error_list(k, ediff_diff3_ok_lines_regexp, ediff_sessions(k)%diff_buffer, status)
+        call prepare_ediff_error_list(k, ediff_diff3_ok_lines_regular_expression, ediff_sessions(k)%diff_buffer, status)
         if (.not. status%ok()) return
         call extract_ediff_diffs3(k, ediff_sessions(k)%diff_buffer, ediff_sessions(k)%three_way_comparison_job, &
                                   records, status)
@@ -868,7 +870,7 @@ contains
         end if
 
         ! Avoid localization of messages so we can parse the output.
-        call execute_process(program, result, status, destination=value_type(.true.), args=make_list(argv), &
+        call execute_process(program, result, status, destination=value_type(.true.), arguments=make_list(argv), &
                              environment=list(value_type(text="LC_MESSAGES=C")))
 
         if (had_coding) then
@@ -885,7 +887,7 @@ contains
 
     contains
 
-        ! Append FILE, unquoted, to ARGS unless it is "".
+        ! Append FILE, unquoted, to ARGUMENTS unless it is "".
         subroutine append_file(file)
             character(len=*), intent(in) :: file
 
@@ -941,10 +943,10 @@ contains
     end subroutine toggle_ediff_ignore_case
 
     !> The files of DIRECTORY (full names with FULL, else relative) whose
-    !> names match REGEXP ("" for all), sorted, in NAMES.  Not a port: what
+    !> names match REGULAR_EXPRESSION ("" for all), sorted, in NAMES.  Not a port: what
     !> directory-files does with its MATCH argument.
-    recursive subroutine get_ediff_directory_files(directory, regexp, full, names, status)
-        character(len=*), intent(in) :: directory, regexp
+    recursive subroutine get_ediff_directory_files(directory, regular_expression, full, names, status)
+        character(len=*), intent(in) :: directory, regular_expression
         logical, intent(in) :: full
         type(string_type), allocatable, intent(out) :: names(:)
         type(status_type), intent(out) :: status
@@ -965,8 +967,8 @@ contains
         do j = 1, size(all)
             name = xstring(all(j))
 
-            if (len(regexp) > 0) then
-                matches = string_matches(regexp, file_name_nondirectory(name), status)
+            if (len(regular_expression) > 0) then
+                matches = string_matches(regular_expression, file_name_nondirectory(name), status)
                 if (.not. status%ok()) return
                 if (.not. matches) cycle
             end if
@@ -998,7 +1000,7 @@ contains
         if (.not. status%ok()) return
         argument1 = value_type(text=expanded1)
         argument2 = value_type(text=expanded2)
-        call execute_process(ediff_cmp_program, result, status, args=list(argument1, argument2))
+        call execute_process(ediff_cmp_program, result, status, arguments=list(argument1, argument2))
         if (.not. status%ok()) return
         if (vtag(result) == V_INTEGER) same = xfixnum(result) == 0
     end subroutine compare_ediff_file_contents
@@ -1006,14 +1008,14 @@ contains
     !> SAME is .true. if D1 and D2 have the same content.
     !> D1 and D2 can either be both directories or both regular files.
     !> Symlinks and the likes are not handled.
-    !> If FILTER_REGEXP is not "", recursive checking in directories
+    !> If FILTER_REGULAR_EXPRESSION is not "", recursive checking in directories
     !> affects only files whose names match the expression.  ASKED and
     !> RECURSE are the session group's `ediff_recurse_to_subdirectories':
     !> whether the user was asked to compare subdirectories recursively
     !> (the first time two directories are compared), and the answer.  Port of ediff-diff.el:ediff-same-contents
     !> (with ediff-same-file-contents-lists and ediff-delete-all-matches).
-    recursive subroutine compare_ediff_contents(d1, d2, filter_regexp, asked, recurse, same, status)
-        character(len=*), intent(in) :: d1, d2, filter_regexp
+    recursive subroutine compare_ediff_contents(d1, d2, filter_regular_expression, asked, recurse, same, status)
+        character(len=*), intent(in) :: d1, d2, filter_regular_expression
         logical, intent(inout) :: asked, recurse
         logical, intent(out) :: same
         type(status_type), intent(out) :: status
@@ -1023,7 +1025,7 @@ contains
         same = .false.
         status = status_type()
         ! Indicate progress.
-        call message("Comparing `"//d1//"' and `"//d2//"' modulo `"//filter_regexp//"'")
+        call message("Comparing `"//d1//"' and `"//d2//"' modulo `"//filter_regular_expression//"'")
 
         if (is_file_directory(d1) .and. is_file_directory(d2)) then
             ! D1 & D2 directories => recurse.
@@ -1049,7 +1051,8 @@ contains
             ! With name equality established, compare the entries through
             ! recursion.
             do k = 1, size(entries1)
-                call compare_ediff_contents(entries1(k)%text, entries2(k)%text, filter_regexp, asked, recurse, same, status)
+                call compare_ediff_contents(entries1(k)%text, entries2(k)%text, filter_regular_expression, asked, recurse, same, &
+                                            status)
                 if (.not. status%ok()) return
                 if (.not. same) return
             end do
@@ -1063,16 +1066,16 @@ contains
 
     contains
 
-        ! The files of DIR (full names) whose names match FILTER_REGEXP,
+        ! The files of DIRECTORY (full names) whose names match FILTER_REGULAR_EXPRESSION,
         ! but . and ..
-        recursive subroutine entries(dir, names)
-            character(len=*), intent(in) :: dir
+        recursive subroutine entries(directory, names)
+            character(len=*), intent(in) :: directory
             type(string_type), allocatable, intent(out) :: names(:)
             type(string_type), allocatable :: all(:)
             logical, allocatable :: keep(:)
             integer :: j
 
-            call get_ediff_directory_files(dir, filter_regexp, .true., all, status)
+            call get_ediff_directory_files(directory, filter_regular_expression, .true., all, status)
             allocate (keep(size(all)))
 
             do j = 1, size(all)
@@ -1085,7 +1088,7 @@ contains
 
     !> Register the command of ediff-diff.el and give the options their
     !> defaults.  Not a port.
-    subroutine init_ediff_diff()
+    subroutine initialize_ediff_diff()
         commands%toggle_ediff_ignore_case%execute => toggle_ediff_ignore_case
         if (.not. allocated(ediff_diff_program)) ediff_diff_program = "diff"
         if (.not. allocated(ediff_diff3_program)) ediff_diff3_program = "diff3"
@@ -1097,9 +1100,9 @@ contains
         if (.not. allocated(ediff_ignore_case_option3)) ediff_ignore_case_option3 = ""
         if (.not. allocated(ediff_diff3_options)) ediff_diff3_options = ""
 
-        if (.not. allocated(ediff_diff3_ok_lines_regexp)) then
-            ediff_diff3_ok_lines_regexp = "^\([1-3]:\|====\|  \|.*Warning *:\|.*No newline\|.*missing newline\|^"// &
-                                          CR//"$\)"
+        if (.not. allocated(ediff_diff3_ok_lines_regular_expression)) then
+            ediff_diff3_ok_lines_regular_expression = "^\([1-3]:\|====\|  \|.*Warning *:\|.*No newline\|.*missing newline\|^"// &
+                                                      CR//"$\)"
         end if
-    end subroutine init_ediff_diff
+    end subroutine initialize_ediff_diff
 end module fortmacs_diff_diff_mod

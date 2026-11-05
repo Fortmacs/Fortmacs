@@ -55,7 +55,7 @@ module derived_mod
 
     abstract interface
         !> A test a major mode makes of the text at point, such as the
-        !> `flyspell_mode_test_function' of `major_mode_type'.  Not a port.
+        !> `spellcheck_mode_test_function' of `major_mode_type'.  Not a port.
         recursive logical function mode_test_procedure()
             implicit none(type, external)
         end function mode_test_procedure
@@ -104,10 +104,10 @@ module derived_mod
         !> the mode runs.
         logical :: special = .false.
         !> Whether Flyspell checks the word at point in this mode (the
-        !> `flyspell-mode-predicate' property: `flyspell_mode' makes it the
-        !> buffer's `flyspell_generic_check_word_test_function'); null for
+        !> `flyspell-mode-predicate' property: `spellcheck_mode' makes it the
+        !> buffer's `spellcheck_generic_check_word_test_function'); null for
         !> none.
-        procedure(mode_test_procedure), pointer, nopass :: flyspell_mode_test_function => null()
+        procedure(mode_test_procedure), pointer, nopass :: spellcheck_mode_test_function => null()
     contains
         !> Make the mode known by NAME.
         procedure :: define => major_mode_define
@@ -121,12 +121,12 @@ module derived_mod
     end type major_mode_type
 
     !> A pointer to a major mode.
-    type :: major_mode_ref_type
+    type :: major_mode_reference_type
         type(major_mode_type), pointer :: p => null()
-    end type major_mode_ref_type
+    end type major_mode_reference_type
 
     !> The defined major modes.
-    type(major_mode_ref_type), allocatable :: defined(:)
+    type(major_mode_reference_type), allocatable :: defined(:)
 
 contains
 
@@ -161,7 +161,7 @@ contains
         type(major_mode_type), intent(in), target, optional :: parent
         type(handle_type), intent(in), optional :: syntax_table
         type(abbrev_table_type), intent(inout), target, optional :: abbrev_table
-        type(major_mode_ref_type) :: ref
+        type(major_mode_reference_type) :: reference
         type(status_type) :: st
 
         self%name = name
@@ -197,10 +197,10 @@ contains
 
         select type (self)
         type is (major_mode_type)
-            ref%p => self
+            reference%p => self
         end select
 
-        defined = [defined, ref]
+        defined = [defined, reference]
     end subroutine major_mode_define
 
     !> Start the body of the mode: run the parent mode with its mode hooks

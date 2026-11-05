@@ -37,25 +37,25 @@ submodule(coding_mod) vietnamese_mod
 contains
 
     !> Port of the `charset' coding systems of vietnamese.el.
-    module subroutine init_vietnamese()
+    module subroutine initialize_vietnamese()
         call define_charset_coding_system("vietnamese-viscii", iachar("V"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "viscii"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "viscii"], &
                                           mime_charset="viscii", &
                                           doc="8-bit encoding for Vietnamese VISCII 1.1 (MIME:VISCII).")
         call define_coding_system_alias("viscii", "vietnamese-viscii")
         call define_charset_coding_system("vietnamese-vscii", iachar("v"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "vscii"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "vscii"], &
                                           doc="8-bit encoding for Vietnamese VSCII-1 (TCVN-5712).")
         call define_coding_system_alias("vscii", "vietnamese-vscii")
         call define_coding_system_alias("vietnamese-tcvn", "vietnamese-vscii")
         call define_coding_system_alias("tcvn", "vietnamese-vscii")
         call define_coding_system_alias("tcvn-5712", "vietnamese-vscii")
         call define_charset_coding_system("windows-1258", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1258"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "windows-1258"], &
                                           mime_charset="windows-1258", &
                                           doc="windows-1258 encoding for Vietnamese (MIME: WINDOWS-1258)")
         call define_coding_system_alias("cp1258", "windows-1258")
-    end subroutine init_vietnamese
+    end subroutine initialize_vietnamese
 
     !> Port of the language environments of vietnamese.el.
     module subroutine define_vietnamese_language_environments()

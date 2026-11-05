@@ -32,10 +32,10 @@ module test_fortmacs_diff_merging_mod
                           get_buffer, is_buffer_live, restore_buffer_modified
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string
-    use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop
-    use bindings_mod, only: init_bindings
+    use keyboard_mod, only: discard_input, keyboard_store_bytes, command_loop
+    use bindings_mod, only: initialize_bindings
     use window_mod, only: is_window_live, window_top_line
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
                                      create_directory_internal, file_exists
     use files_mod, only: delete_directory
     use fortmacs_diff_settings_mod, only: ediff_sessions, ediff_session_index, EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C, &
@@ -55,7 +55,7 @@ module test_fortmacs_diff_merging_mod
     character, parameter :: LF = achar(10)
 
     !> The test directory, under the build directory.
-    character(len=*), parameter :: subdir = "build/test-ediff-merg"
+    character(len=*), parameter :: subdirectory = "build/test-ediff-merg"
 
 contains
 
@@ -79,7 +79,7 @@ contains
     logical function has_program(program, error)
         character(len=*), intent(in) :: program
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: path, dir
+        character(len=:), allocatable :: path, directory
         integer :: n, st, k
 
         has_program = .false.
@@ -92,7 +92,7 @@ contains
             do while (len(path) > 0 .and. .not. has_program)
                 k = index(path, ":")
                 if (k == 0) k = len(path) + 1
-                dir = path(1:k - 1)
+                directory = path(1:k - 1)
 
                 if (k > len(path)) then
                     path = ""
@@ -100,7 +100,7 @@ contains
                     path = path(k + 1:)
                 end if
 
-                if (len(dir) > 0) inquire (file=dir//"/"//program, exist=has_program)
+                if (len(directory) > 0) inquire (file=directory//"/"//program, exist=has_program)
             end do
         end if
 
@@ -108,7 +108,7 @@ contains
     end function has_program
 
     !> A fresh buffer NAME holding TEXT.
-    subroutine temp_buffer(name, text, h)
+    subroutine temporary_buffer(name, text, h)
         character(len=*), intent(in) :: name, text
         type(handle_type), intent(out) :: h
         type(handle_type) :: old
@@ -120,7 +120,7 @@ contains
         call erase_buffer(st)
         call insert(text, st)
         call set_buffer(old, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> The text of buffer H.
     function text_of(h) result(s)
@@ -140,7 +140,7 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
@@ -157,8 +157,8 @@ contains
         type(handle_type) :: control
 
         call setup()
-        call temp_buffer("merge-a", "1"//LF//"a"//LF//"3"//LF//"b"//LF//"5"//LF, a)
-        call temp_buffer("merge-b", "1"//LF//"A"//LF//"3"//LF//"B"//LF//"5"//LF, b)
+        call temporary_buffer("merge-a", "1"//LF//"a"//LF//"3"//LF//"b"//LF//"5"//LF, a)
+        call temporary_buffer("merge-b", "1"//LF//"A"//LF//"3"//LF//"B"//LF//"5"//LF, b)
         call ediff_merge_buffers(a, b, status)
         k = 0
         if (.not. status%ok()) return
@@ -288,17 +288,17 @@ contains
             if (allocated(error)) exit body
             merge = get_buffer("*ediff-merge*")
             merged = text_of(merge)
-            call kbd_store_bytes("na")
+            call keyboard_store_bytes("na")
             call command_loop(st)
             call check(error, ediff_sessions(k)%current_difference, 0)
             if (allocated(error)) exit body
             call check(error, index(text_of(merge), "1"//LF//"a"//LF//"3"//LF) == 1, text_of(merge))
             if (allocated(error)) exit body
-            call kbd_store_bytes("r")
+            call keyboard_store_bytes("r")
             call command_loop(st)
             call check(error, text_of(merge), merged)
             if (allocated(error)) exit body
-            call kbd_store_bytes("b")
+            call keyboard_store_bytes("b")
             call command_loop(st)
             call check(error, index(text_of(merge), "1"//LF//"A"//LF//"3"//LF) == 1, text_of(merge))
             if (allocated(error)) exit body
@@ -369,9 +369,9 @@ contains
 
         if (.not. has_program("diff3", error)) return
         call setup()
-        call temp_buffer("merge-a", "1"//LF//"x"//LF//"3"//LF//"4"//LF, a)
-        call temp_buffer("merge-b", "1"//LF//"2"//LF//"3"//LF//"y"//LF, b)
-        call temp_buffer("merge-ancestor", "1"//LF//"2"//LF//"3"//LF//"4"//LF, ancestor)
+        call temporary_buffer("merge-a", "1"//LF//"x"//LF//"3"//LF//"4"//LF, a)
+        call temporary_buffer("merge-b", "1"//LF//"2"//LF//"3"//LF//"y"//LF, b)
+        call temporary_buffer("merge-ancestor", "1"//LF//"2"//LF//"3"//LF//"4"//LF, ancestor)
         call ediff_merge_buffers_with_ancestor(a, b, ancestor, st)
 
         body: block
@@ -405,9 +405,9 @@ contains
 
         if (.not. has_program("diff3", error)) return
         call setup()
-        call temp_buffer("merge-a", "1"//LF//"x"//LF//"3"//LF//"4"//LF//"5"//LF//"p"//LF//"7"//LF, a)
-        call temp_buffer("merge-b", "1"//LF//"2"//LF//"3"//LF//"y"//LF//"5"//LF//"q"//LF//"7"//LF, b)
-        call temp_buffer("merge-ancestor", "1"//LF//"2"//LF//"3"//LF//"4"//LF//"5"//LF//"6"//LF//"7"//LF, ancestor)
+        call temporary_buffer("merge-a", "1"//LF//"x"//LF//"3"//LF//"4"//LF//"5"//LF//"p"//LF//"7"//LF, a)
+        call temporary_buffer("merge-b", "1"//LF//"2"//LF//"3"//LF//"y"//LF//"5"//LF//"q"//LF//"7"//LF, b)
+        call temporary_buffer("merge-ancestor", "1"//LF//"2"//LF//"3"//LF//"4"//LF//"5"//LF//"6"//LF//"7"//LF, ancestor)
         call ediff_merge_buffers_with_ancestor(a, b, ancestor, st)
 
         body: block
@@ -440,19 +440,19 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b, merge, control
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         integer :: k
 
         if (.not. has_program("diff", error)) return
         call setup()
-        call init_fileio()
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
-        if (is_file_directory(dir)) call delete_directory(dir, st, .true.)
-        call create_directory_internal(dir, st)
-        call temp_buffer("merge-a", "1"//LF//"a"//LF, a)
-        call temp_buffer("merge-b", "1"//LF//"b"//LF, b)
+        call initialize_fileio()
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdirectory)
+        if (is_file_directory(directory)) call delete_directory(directory, st, .true.)
+        call create_directory_internal(directory, st)
+        call temporary_buffer("merge-a", "1"//LF//"a"//LF, a)
+        call temporary_buffer("merge-b", "1"//LF//"b"//LF, b)
         k = 0
-        call ediff_merge_buffers(a, b, st, merge_buffer_file=dir//"merged.txt")
+        call ediff_merge_buffers(a, b, st, merge_buffer_file=directory//"merged.txt")
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -461,14 +461,14 @@ contains
             call set_buffer(control, st)
             k = ediff_session_index(control)
             merge = ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_C)
-            call check(error, buffers(merge%index)%filename, dir//"merged.txt")
+            call check(error, buffers(merge%index)%filename, directory//"merged.txt")
             if (allocated(error)) exit body
             call check(error, ediff_sessions(k)%autostore_merges%value, "autostore")
             if (allocated(error)) exit body
             call maybe_save_and_delete_ediff_merge_session(k, .true., st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error, file_exists(dir//"merged.txt"), "the merge is saved")
+            call check(error, file_exists(directory//"merged.txt"), "the merge is saved")
             if (allocated(error)) exit body
             call check(error, text_of(merge), "1"//LF//"<<<<<<< variant A"//LF//"a"//LF//">>>>>>> variant B"//LF//"b"//LF// &
                        "======= end"//LF)
@@ -477,6 +477,6 @@ contains
         ! Quitting would save it again, asking before overwriting it.
         if (k > 0) ediff_sessions(k)%autostore_merges%value = .false.
         call end_merge(a, b)
-        call delete_directory(dir, st, .true.)
+        call delete_directory(directory, st, .true.)
     end subroutine test_merge_store_file
 end module test_fortmacs_diff_merging_mod

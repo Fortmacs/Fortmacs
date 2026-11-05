@@ -37,11 +37,11 @@ submodule(coding_mod) lao_mod
 contains
 
     !> Port of the `charset' coding systems of lao.el.
-    module subroutine init_lao()
+    module subroutine initialize_lao()
         call define_charset_coding_system("lao", iachar("L"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "lao"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "lao"], &
                                           doc="8-bit encoding for ASCII (MSB=0) and LAO (MSB=1).")
-    end subroutine init_lao
+    end subroutine initialize_lao
 
     !> Port of the language environments of lao.el.
     module subroutine define_lao_language_environments()

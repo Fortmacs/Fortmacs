@@ -20,7 +20,7 @@
 # along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 # A built-in command is defined by assigning its procedure to a component
-# of `commands`, `commands%upcase_region%execute => cmd_upcase_region`, in
+# of `commands`, `commands%upcase_region%execute => execute_upcase_region`, in
 # the module that ports it.  This script collects those components from
 # src/ and writes the type with one `command_type` component per
 # command, the `commands` variable, and the lookup by name.  A command's

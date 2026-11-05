@@ -33,9 +33,9 @@ module completing_read_multiple_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current
-    use editing_functions_mod, only: point, goto_char, point_max, is_eob, buffer_string
-    use search_mod, only: re_search_forward, re_search_backward, looking_at, match_beginning, match_end, string_match, &
-                          string_index_to_offset, string_chars
+    use editing_functions_mod, only: point, goto_character, point_maximum, is_end_of_buffer, buffer_string
+    use search_mod, only: regular_expression_search_forward, regular_expression_search_backward, looking_at, match_beginning, &
+                          match_end, string_match, string_index_to_offset, string_characters
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, define_key, use_local_map, is_keymap_live, destroy_keymap
     use value_mod, only: list_elements, value_type, make_list, list, xstring
     use commands_mod, only: commands
@@ -51,7 +51,7 @@ module completing_read_multiple_mod
     private
 
     public :: completing_read_multiple, crm_complete, crm_complete_word, crm_complete_and_exit, crm_completion_help, &
-              init_crm
+              initialize_crm
 
     !> Separator regexp used for separating strings in
     !> `completing_read_multiple'.  It should be a regexp that does not
@@ -129,29 +129,29 @@ contains
     ! START and END.  Port of crm.el:crm--current-element.
     subroutine current_element(start, end)
         integer(int64), intent(out) :: start, end
-        integer(int64) :: bob, saved, found
+        integer(int64) :: beginning_of_buffer, saved, found
         type(status_type) :: st
 
-        bob = minibuffer_prompt_end()
+        beginning_of_buffer = minibuffer_prompt_end()
         saved = point()
-        call re_search_backward(crm_separator, found, st, bound=bob, noerror=1)
+        call regular_expression_search_backward(crm_separator, found, st, bound=beginning_of_buffer, noerror=1)
 
         if (st%ok() .and. found /= 0) then
             start = match_end(0, st)
         else
-            start = bob
+            start = beginning_of_buffer
         end if
 
-        call goto_char(saved)
-        call re_search_forward(crm_separator, found, st, noerror=1)
+        call goto_character(saved)
+        call regular_expression_search_forward(crm_separator, found, st, noerror=1)
 
         if (st%ok() .and. found /= 0) then
             end = match_beginning(0, st)
         else
-            end = point_max()
+            end = point_maximum()
         end if
 
-        call goto_char(saved)
+        call goto_character(saved)
     end subroutine current_element
 
     !> Display a list of possible completions of the current minibuffer
@@ -206,7 +206,7 @@ contains
     !> adjusted for the presence of multiple elements.  Port of
     !> crm.el:crm-complete-and-exit (NO_EXIT is the prefix argument).
     recursive subroutine crm_complete_and_exit(status)
-        use execute_interactively_mod, only: current_prefix_arg
+        use execute_interactively_mod, only: current_prefix_argument
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end, m, endpos
         type(handle_type) :: endm
@@ -214,26 +214,26 @@ contains
         logical :: more
 
         status = status_type()
-        doexit = current_prefix_arg%kind == PREFIX_NONE
-        call goto_char(minibuffer_prompt_end())
+        doexit = current_prefix_argument%kind == PREFIX_NONE
+        call goto_character(minibuffer_prompt_end())
 
         do
             if (.not. doexit) exit
             call current_element(beginning, end)
             call copy_marker_at(end, endm, .true., st)
-            call goto_char(end)
+            call goto_character(end)
             doexit = .false.
             call completion_complete_and_exit(beginning, end, set_doexit, status)
             call marker_position(endm, endpos, st)
             call destroy_marker(endm, st)
-            call goto_char(endpos)
+            call goto_character(endpos)
             if (.not. status%ok()) return
-            more = .not. is_eob()
+            more = .not. is_end_of_buffer()
             if (.not. more) exit
             if (.not. looking_at(crm_separator, st)) exit
             ! Skip to the next element.
             m = match_end(0, st)
-            call goto_char(m)
+            call goto_character(m)
         end do
 
         if (doexit) call exit_minibuffer(status)
@@ -381,7 +381,7 @@ contains
 
             ! (An empty match at START does not split.)
             if (me == mb .and. mb == start) then
-                if (start > string_chars(string)) then
+                if (start > string_characters(string)) then
                     call append(string(string_index_to_offset(string, start) + 1:))
                     exit
                 end if
@@ -433,7 +433,7 @@ contains
     end subroutine remap
 
     !> Define crm.el's variables, keymaps and commands.  Not a port.
-    subroutine init_crm()
+    subroutine initialize_crm()
         type(status_type) :: st
 
         if (.not. allocated(crm_separator)) crm_separator = "[ "//achar(9)//"]*,[ "//achar(9)//"]*"
@@ -458,5 +458,5 @@ contains
         call remap(crm_local_must_match_map, "minibuffer_complete_word", "crm_complete_word")
         call remap(crm_local_must_match_map, "minibuffer_completion_help", "crm_completion_help")
         call remap(crm_local_must_match_map, "minibuffer_complete_and_exit", "crm_complete_and_exit")
-    end subroutine init_crm
+    end subroutine initialize_crm
 end module completing_read_multiple_mod

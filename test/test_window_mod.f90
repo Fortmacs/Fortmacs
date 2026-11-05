@@ -24,10 +24,10 @@
 !> starts at 7k - 6.  The window has 10 lines of text.
 module test_window_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
+    use execute_interactively_mod, only: prefix_argument_type, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use commands_mod, only: commands
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
+    use error_mod, only: status_type, END_OF_BUFFER_CODE, BEGINNING_OF_BUFFER_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, buffers, current, buffer_list, current_buffer, &
@@ -35,12 +35,12 @@ module test_window_mod
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, last_message
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point
+    use editing_functions_mod, only: goto_character, point
     use handle_mod, only: null_handle
-    use frame_mod, only: selected_frame, frame_selected_window_ref, ensure_frame_windows
+    use frame_mod, only: selected_frame, frame_selected_window_reference, ensure_frame_windows
     use window_mod, only: window_type, set_window_buffer, set_window_start, window_start, delete_window_tree, &
                           resize_window_tree, &
-                          windows, window_leaves, same_window, window_text_cols, other_buffer, &
+                          windows, window_leaves, same_window, window_text_columns, other_buffer, &
                           scroll_up, scroll_down, recenter, move_to_window_line, &
                           scroll_up_command, scroll_down_command, recenter_top_bottom, &
                           move_to_window_line_top_bottom, scroll_error_top_bottom, display_buffer, quit_window, &
@@ -48,7 +48,7 @@ module test_window_mod
                           window_configuration_type, current_window_configuration, set_window_configuration, &
                           destroy_window_configuration, fit_window_to_buffer, bury_buffer, is_window_live, &
                           is_window, window_buffer, window_parent, window_top_child, window_left_child, &
-                          window_next_sibling, window_prev_sibling, frame_root_window, frame_selected_window, &
+                          window_next_sibling, window_previous_sibling, frame_root_window, frame_selected_window, &
                           minibuffer_window, is_window_minibuffer, minibuffer_selected_window, window_total_height, &
                           window_total_width, window_left_column, window_top_line, window_body_height, &
                           window_body_width, window_mode_line_height, window_header_line_height, &
@@ -56,12 +56,12 @@ module test_window_mod
                           window_use_time, window_bump_use_time, next_window, previous_window, window_list, &
                           window_list_1, window_part_at, window_at, force_window_update, MINIBUF_YES, MINIBUF_NO, &
                           ON_TEXT, ON_VERTICAL_BORDER, ON_MODE_LINE, ON_NOTHING, DEDICATED_NONE, window_end, &
-                          is_pos_visible_in_window, window_scroll_functions, split_window
+                          is_position_visible_in_window, window_scroll_functions, split_window
     use simple_mod, only: goal_column
-    use keyboard_mod, only: this_command, last_command, kbd_store_bytes, command_loop, &
+    use keyboard_mod, only: this_command, last_command, keyboard_store_bytes, command_loop, &
                             discard_input
-    use execute_interactively_mod, only: prefix_arg
-    use bindings_mod, only: init_bindings
+    use execute_interactively_mod, only: prefix_argument
+    use bindings_mod, only: initialize_bindings
     implicit none(type, external)
     private
 
@@ -109,11 +109,11 @@ contains
     end subroutine collect_window_mod
 
     !> The selected window.
-    function win() result(w)
+    function window() result(w)
         type(window_type), pointer :: w
 
-        w => frame_selected_window_ref()
-    end function win
+        w => frame_selected_window_reference()
+    end function window
 
     !> Line `k` of the test buffer starts here.
     pure integer(int64) function line(k)
@@ -139,14 +139,14 @@ contains
             call insert(text, st)
         end do
 
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         selected_frame%minibuffer_selected = .false.
         ! One window, 11 lines by 80 columns.
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
         call ensure_frame_windows()
         call resize_window_tree(selected_frame%root_window, 0, 0, 11, 80, 80)
-        w => win()
+        w => window()
         call set_window_buffer(selected_frame%selected_window, h, st)
         this_command => null()
         last_command => null()
@@ -169,40 +169,40 @@ contains
 
         call enter(h)
         ! A screenful less two lines of context; point follows the top.
-        call scroll_up(prefix_arg_type(), st)
-        call check(error, st%ok() .and. window_start(win()) == line(9) &
+        call scroll_up(prefix_argument_type(), st)
+        call check(error, st%ok() .and. window_start(window()) == line(9) &
                    .and. point() == line(9), "scroll_up")
         if (allocated(error)) return
-        call scroll_up(prefix_arg_type(), st)
-        call check(error, window_start(win()) == line(17) .and. point() == line(17))
+        call scroll_up(prefix_argument_type(), st)
+        call check(error, window_start(window()) == line(17) .and. point() == line(17))
         if (allocated(error)) return
         ! Point is still in the window: it stays.
-        call scroll_down(prefix_arg_type(), st)
-        call check(error, st%ok() .and. window_start(win()) == line(9) &
+        call scroll_down(prefix_argument_type(), st)
+        call check(error, st%ok() .and. window_start(window()) == line(9) &
                    .and. point() == line(17), "scroll_down")
         if (allocated(error)) return
         ! Point would fall off the bottom: the last line of the window.
-        call scroll_down(prefix_arg_type(), st)
-        call check(error, window_start(win()) == line(1) .and. point() == line(10))
+        call scroll_down(prefix_argument_type(), st)
+        call check(error, window_start(window()) == line(1) .and. point() == line(10))
         if (allocated(error)) return
-        call scroll_down(prefix_arg_type(), st)
-        call check(error, st%code == FM_BEGINNING_OF_BUFFER, "beginning_of_buffer")
+        call scroll_down(prefix_argument_type(), st)
+        call check(error, st%code == BEGINNING_OF_BUFFER_CODE, "beginning_of_buffer")
         if (allocated(error)) return
         ! By lines; `-` reverses a screenful.
-        call scroll_up(prefix_arg_type(PREFIX_NUMBER, 3_int64), st)
-        call check(error, window_start(win()) == line(4) .and. point() == line(10))
+        call scroll_up(prefix_argument_type(PREFIX_NUMBER, 3_int64), st)
+        call check(error, window_start(window()) == line(4) .and. point() == line(10))
         if (allocated(error)) return
-        call scroll_down(prefix_arg_type(PREFIX_MINUS), st)
-        call check(error, window_start(win()) == line(12) .and. point() == line(12))
+        call scroll_down(prefix_argument_type(PREFIX_MINUS), st)
+        call check(error, window_start(window()) == line(12) .and. point() == line(12))
         if (allocated(error)) return
-        call scroll_up(prefix_arg_type(PREFIX_NUMBER, -2_int64), st)
-        call check(error, window_start(win()) == line(10) .and. point() == line(12))
+        call scroll_up(prefix_argument_type(PREFIX_NUMBER, -2_int64), st)
+        call check(error, window_start(window()) == line(10) .and. point() == line(12))
         if (allocated(error)) return
         ! Near the end: nothing more to show.
-        call set_window_start(win(), line(25), st)
-        call goto_char(line(25))
-        call scroll_up(prefix_arg_type(), st)
-        call check(error, st%code == FM_END_OF_BUFFER .and. point() == line(25), "end_of_buffer")
+        call set_window_start(window(), line(25), st)
+        call goto_character(line(25))
+        call scroll_up(prefix_argument_type(), st)
+        call check(error, st%code == END_OF_BUFFER_CODE .and. point() == line(25), "end_of_buffer")
         call leave(h)
     end subroutine test_scroll
 
@@ -213,9 +213,9 @@ contains
 
         call enter(h)
         ! Point below the window: scroll from point recentered.
-        call goto_char(line(20))
-        call scroll_up(prefix_arg_type(PREFIX_NUMBER, 1_int64), st)
-        call check(error, st%ok() .and. window_start(win()) == line(16) &
+        call goto_character(line(20))
+        call scroll_up(prefix_argument_type(PREFIX_NUMBER, 1_int64), st)
+        call check(error, st%ok() .and. window_start(window()) == line(16) &
                    .and. point() == line(20))
         call leave(h)
     end subroutine test_not_visible
@@ -235,23 +235,23 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call set_window_start(win(), line(25), st)
-        call goto_char(line(26))
-        call scroll_up_command(prefix_arg_type(), st)
+        call set_window_start(window(), line(25), st)
+        call goto_character(line(26))
+        call scroll_up_command(prefix_argument_type(), st)
         call check(error, st%ok() .and. point() == line(31), "to the end")
         if (allocated(error)) return
-        call scroll_up_command(prefix_arg_type(), st)
-        call check(error, st%code == FM_END_OF_BUFFER, "then signal")
+        call scroll_up_command(prefix_argument_type(), st)
+        call check(error, st%code == END_OF_BUFFER_CODE, "then signal")
         if (allocated(error)) return
         ! By lines when a scroll can't be done.
-        call set_window_start(win(), line(1), st)
-        call goto_char(line(3))
-        call scroll_down_command(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
+        call set_window_start(window(), line(1), st)
+        call goto_character(line(3))
+        call scroll_down_command(prefix_argument_type(PREFIX_NUMBER, 2_int64), st)
         call check(error, st%ok() .and. point() == line(1), "forward-line back")
         if (allocated(error)) return
         ! A negative argument scrolls the other way.
-        call scroll_down_command(prefix_arg_type(PREFIX_NUMBER, -2_int64), st)
-        call check(error, st%ok() .and. window_start(win()) == line(3) &
+        call scroll_down_command(prefix_argument_type(PREFIX_NUMBER, -2_int64), st)
+        call check(error, st%ok() .and. window_start(window()) == line(3) &
                    .and. point() == line(3))
     end subroutine check_error_top_bottom
 
@@ -262,19 +262,19 @@ contains
 
         call enter(h)
         goal_column = 3
-        call scroll_up_command(prefix_arg_type(), st)
+        call scroll_up_command(prefix_argument_type(), st)
         goal_column = -1
         call check(error, st%ok() .and. point() == line(9) + 3)
         if (allocated(error)) return
         ! truncate-partial-width-windows is set: the goal is a column
         ! as move-to-column counts it (column 3 is in the middle of the
         ! wide character, so point goes after it), not a screen x.
-        call set_window_start(win(), line(1), st)
-        call goto_char(line(9) + 2)
+        call set_window_start(window(), line(1), st)
+        call goto_character(line(9) + 2)
         call insert(char(230)//char(188)//char(162), st)
-        call goto_char(line(1))
+        call goto_character(line(1))
         goal_column = 3
-        call scroll_up_command(prefix_arg_type(), st)
+        call scroll_up_command(prefix_argument_type(), st)
         goal_column = -1
         call check(error, st%ok() .and. point() == line(9) + 3, "move-to-column")
         call leave(h)
@@ -286,36 +286,36 @@ contains
         type(status_type) :: st
 
         call enter(h)
-        call goto_char(line(20) + 2)
+        call goto_character(line(20) + 2)
         selected_frame%needs_redraw = .false.
         ! Point on the middle line, the frame redrawn.
-        call recenter(prefix_arg_type(), .true., st)
-        call check(error, st%ok() .and. window_start(win()) == line(15) &
+        call recenter(prefix_argument_type(), .true., st)
+        call check(error, st%ok() .and. window_start(window()) == line(15) &
                    .and. point() == line(20) + 2 .and. selected_frame%needs_redraw, "middle")
         if (allocated(error)) return
         selected_frame%needs_redraw = .false.
-        call recenter(prefix_arg_type(PREFIX_NUMBER, 0_int64), .true., st)
-        call check(error, window_start(win()) == line(20), "top")
+        call recenter(prefix_argument_type(PREFIX_NUMBER, 0_int64), .true., st)
+        call check(error, window_start(window()) == line(20), "top")
         if (allocated(error)) return
-        call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .true., st)
-        call check(error, window_start(win()) == line(11), "bottom")
+        call recenter(prefix_argument_type(PREFIX_NUMBER, -1_int64), .true., st)
+        call check(error, window_start(window()) == line(11), "bottom")
         if (allocated(error)) return
-        call recenter(prefix_arg_type(PREFIX_NUMBER, 3_int64), .true., st)
-        call check(error, window_start(win()) == line(17), "line 3")
+        call recenter(prefix_argument_type(PREFIX_NUMBER, 3_int64), .true., st)
+        call check(error, window_start(window()) == line(17), "line 3")
         if (allocated(error)) return
         ! Too large: the last line.
-        call recenter(prefix_arg_type(PREFIX_NUMBER, 50_int64), .true., st)
-        call check(error, window_start(win()) == line(11), "clipped")
+        call recenter(prefix_argument_type(PREFIX_NUMBER, 50_int64), .true., st)
+        call check(error, window_start(window()) == line(11), "clipped")
         if (allocated(error)) return
         ! C-u: center without redrawing.
-        call recenter(prefix_arg_type(PREFIX_RAW, 4_int64), .true., st)
-        call check(error, window_start(win()) == line(15) &
+        call recenter(prefix_argument_type(PREFIX_RAW, 4_int64), .true., st)
+        call check(error, window_start(window()) == line(15) &
                    .and. .not. selected_frame%needs_redraw, "C-u")
         if (allocated(error)) return
         ! Near the top: the start can't go before the buffer.
-        call goto_char(line(2))
-        call recenter(prefix_arg_type(), .false., st)
-        call check(error, window_start(win()) == line(1) &
+        call goto_character(line(2))
+        call recenter(prefix_argument_type(), .false., st)
+        call check(error, window_start(window()) == line(1) &
                    .and. .not. selected_frame%needs_redraw, "near the top")
         call leave(h)
     end subroutine test_recenter
@@ -328,26 +328,26 @@ contains
         integer :: k
 
         call enter(h)
-        call goto_char(line(20))
+        call goto_character(line(20))
         this_command => commands%recenter_top_bottom
 
         ! Middle, top, bottom, then middle again.
         do k = 1, 4
-            call recenter_top_bottom(prefix_arg_type(), st)
-            call check(error, st%ok() .and. window_start(win()) == line(int(expected(k))))
+            call recenter_top_bottom(prefix_argument_type(), st)
+            call check(error, st%ok() .and. window_start(window()) == line(int(expected(k))))
             if (allocated(error)) return
             last_command => this_command
         end do
 
         ! Another command in between starts over.
-        call recenter_top_bottom(prefix_arg_type(), st)
+        call recenter_top_bottom(prefix_argument_type(), st)
         last_command => null()
-        call recenter_top_bottom(prefix_arg_type(), st)
-        call check(error, window_start(win()) == line(15), "starts over")
+        call recenter_top_bottom(prefix_argument_type(), st)
+        call check(error, window_start(window()) == line(15), "starts over")
         if (allocated(error)) return
         ! With an argument: as recenter.
-        call recenter_top_bottom(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
-        call check(error, window_start(win()) == line(18), "argument")
+        call recenter_top_bottom(prefix_argument_type(PREFIX_NUMBER, 2_int64), st)
+        call check(error, window_start(window()) == line(18), "argument")
         call leave(h)
     end subroutine test_recenter_top_bottom
 
@@ -356,24 +356,24 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64), parameter :: expected(4) = [6, 1, 10, 6]
-        integer(int64) :: vpos
+        integer(int64) :: vertical_position
         integer :: k
 
         call enter(h)
-        call goto_char(line(4))
-        call move_to_window_line(prefix_arg_type(), vpos, st)
-        call check(error, st%ok() .and. point() == line(6) .and. vpos == 5, "middle")
+        call goto_character(line(4))
+        call move_to_window_line(prefix_argument_type(), vertical_position, st)
+        call check(error, st%ok() .and. point() == line(6) .and. vertical_position == 5, "middle")
         if (allocated(error)) return
-        call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, -1_int64), vpos, st)
-        call check(error, point() == line(10) .and. vpos == 9, "bottom")
+        call move_to_window_line(prefix_argument_type(PREFIX_NUMBER, -1_int64), vertical_position, st)
+        call check(error, point() == line(10) .and. vertical_position == 9, "bottom")
         if (allocated(error)) return
-        call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, 2_int64), vpos, st)
-        call check(error, point() == line(3) .and. vpos == 2, "line 2")
+        call move_to_window_line(prefix_argument_type(PREFIX_NUMBER, 2_int64), vertical_position, st)
+        call check(error, point() == line(3) .and. vertical_position == 2, "line 2")
         if (allocated(error)) return
         this_command => commands%move_to_window_line_top_bottom
 
         do k = 1, 4
-            call move_to_window_line_top_bottom(prefix_arg_type(), st)
+            call move_to_window_line_top_bottom(prefix_argument_type(), st)
             call check(error, st%ok() .and. point() == line(int(expected(k))))
             if (allocated(error)) return
             last_command => this_command
@@ -389,17 +389,17 @@ contains
         type(status_type) :: st
 
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        call init_bindings()
+        prefix_argument = prefix_argument_type()
+        call initialize_bindings()
         call enter(h)
-        call kbd_store_bytes(achar(22)//achar(22)//achar(27)//"v")
+        call keyboard_store_bytes(achar(22)//achar(22)//achar(27)//"v")
         call command_loop(st)
-        call check(error, window_start(win()) == line(9) .and. point() == line(17))
+        call check(error, window_start(window()) == line(9) .and. point() == line(17))
         if (allocated(error)) return
-        call goto_char(line(20))
-        call kbd_store_bytes(achar(12)//achar(12))
+        call goto_character(line(20))
+        call keyboard_store_bytes(achar(12)//achar(12))
         call command_loop(st)
-        call check(error, window_start(win()) == line(20), "C-l C-l")
+        call check(error, window_start(window()) == line(20), "C-l C-l")
         call leave(h)
     end subroutine test_keys
 
@@ -413,8 +413,8 @@ contains
         type(window_type), pointer :: w
 
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        call init_bindings()
+        prefix_argument = prefix_argument_type()
+        call initialize_bindings()
         selected_frame%minibuffer_selected = .false.
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
@@ -423,8 +423,8 @@ contains
         call get_or_make_buffer("split-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
-        call goto_char(1_int64)
-        w => win()
+        call goto_character(1_int64)
+        w => window()
         call set_window_buffer(selected_frame%selected_window, h, st)
     end subroutine enter_frame
 
@@ -475,35 +475,37 @@ contains
     subroutine test_split(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
 
         call enter_frame("abc", h)
         call execute_keys("C-x 2")
-        ws = leaves()
-        call check(error, size(ws) == 2, "two windows")
+        leaf_windows = leaves()
+        call check(error, size(leaf_windows) == 2, "two windows")
         if (allocated(error)) return
-        call check(error, windows(ws(1)%index)%top_line == 0 .and. windows(ws(1)%index)%total_lines == 12 .and. &
-                   windows(ws(2)%index)%top_line == 12 .and. windows(ws(2)%index)%total_lines == 11, &
+        call check(error, &
+                   windows(leaf_windows(1)%index)%top_line == 0 .and. windows(leaf_windows(1)%index)%total_lines == 12 .and. &
+                   windows(leaf_windows(2)%index)%top_line == 12 .and. windows(leaf_windows(2)%index)%total_lines == 11, &
                    "12 and 11 lines")
         if (allocated(error)) return
-        call check(error, same_window(selected_frame%selected_window, ws(1)) .and. &
-                   windows(ws(2)%index)%buffer%index == h%index, "same buffer, top selected")
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(1)) .and. &
+                   windows(leaf_windows(2)%index)%buffer%index == h%index, "same buffer, top selected")
         if (allocated(error)) return
         call execute_keys("C-x 3")
-        ws = leaves()
-        call check(error, size(ws) == 3, "three windows")
+        leaf_windows = leaves()
+        call check(error, size(leaf_windows) == 3, "three windows")
         if (allocated(error)) return
-        call check(error, windows(ws(1)%index)%total_cols == 40 .and. windows(ws(1)%index)%divider .and. &
-                   window_text_cols(windows(ws(1)%index)) == 39 .and. windows(ws(2)%index)%left_col == 40 .and. &
-                   windows(ws(2)%index)%total_cols == 40 .and. .not. windows(ws(2)%index)%divider .and. &
-                   windows(ws(2)%index)%total_lines == 12, "side by side")
+        call check(error, windows(leaf_windows(1)%index)%total_columns == 40 .and. windows(leaf_windows(1)%index)%divider .and. &
+                   window_text_columns(windows(leaf_windows(1)%index)) == 39 .and. windows(leaf_windows(2)%index)%left_column &
+                   == 40 .and. &
+                   windows(leaf_windows(2)%index)%total_columns == 40 .and. .not. windows(leaf_windows(2)%index)%divider .and. &
+                   windows(leaf_windows(2)%index)%total_lines == 12, "side by side")
         if (allocated(error)) return
         ! C-u 5 C-x 2: the upper window gets 5 lines.
         call execute_keys("C-u 5 C-x 2")
-        ws = leaves()
-        call check(error, size(ws) == 4, "C-u 5 C-x 2")
-        if (.not. allocated(error)) call check(error, windows(ws(1)%index)%total_lines == 5 .and. &
-                                               windows(ws(2)%index)%total_lines == 7, "C-u 5 C-x 2")
+        leaf_windows = leaves()
+        call check(error, size(leaf_windows) == 4, "C-u 5 C-x 2")
+        if (.not. allocated(error)) call check(error, windows(leaf_windows(1)%index)%total_lines == 5 .and. &
+                                               windows(leaf_windows(2)%index)%total_lines == 7, "C-u 5 C-x 2")
         if (allocated(error)) return
         ! A window too small to split.
         call execute_keys("C-x 2 C-x 2")
@@ -515,25 +517,25 @@ contains
     subroutine test_other_window(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
 
         call enter_frame("abcdef", h)
         call execute_keys("C-x 2 C-x 3")
-        ws = leaves()
-        call goto_char(3_int64)
+        leaf_windows = leaves()
+        call goto_character(3_int64)
         call execute_keys("C-x o")
-        call check(error, same_window(selected_frame%selected_window, ws(2)) .and. point() == 1, "second window")
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(2)) .and. point() == 1, "second window")
         if (allocated(error)) return
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call execute_keys("C-x o C-x o")
-        call check(error, same_window(selected_frame%selected_window, ws(1)) .and. point() == 3, &
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(1)) .and. point() == 3, &
                    "back to the first, at its point")
         if (allocated(error)) return
         call execute_keys("C-u -1 C-x o")
-        call check(error, same_window(selected_frame%selected_window, ws(3)), "backwards")
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(3)), "backwards")
         if (allocated(error)) return
         call execute_keys("C-x o C-x o")
-        call check(error, same_window(selected_frame%selected_window, ws(2)) .and. point() == 5, "its point")
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(2)) .and. point() == 5, "its point")
         call leave_frame()
     end subroutine test_other_window
 
@@ -542,35 +544,35 @@ contains
     subroutine test_delete(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
 
         call enter_frame("abc", h)
         call execute_keys("C-x 0")
         call check(error, last_message == "Attempt to delete minibuffer or sole ordinary window", last_message)
         if (allocated(error)) return
         call execute_keys("C-x 2 C-x 3 C-x o C-x o")
-        ws = leaves()
+        leaf_windows = leaves()
         ! The third (bottom) window is selected; delete it.
         call execute_keys("C-x 0")
-        ws = leaves()
-        call check(error, size(ws) == 2, "the top windows take the space")
-        if (.not. allocated(error)) call check(error, windows(ws(1)%index)%total_lines == 23 .and. &
-                                               windows(ws(2)%index)%total_lines == 23, "the top windows take the space")
+        leaf_windows = leaves()
+        call check(error, size(leaf_windows) == 2, "the top windows take the space")
+        if (.not. allocated(error)) call check(error, windows(leaf_windows(1)%index)%total_lines == 23 .and. &
+                                               windows(leaf_windows(2)%index)%total_lines == 23, "the top windows take the space")
         if (allocated(error)) return
-        call check(error, same_window(selected_frame%selected_window, ws(2)), "the most recently used")
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(2)), "the most recently used")
         if (allocated(error)) return
         call execute_keys("C-x 0")
-        ws = leaves()
-        call check(error, size(ws) == 1, "one window again")
-        if (.not. allocated(error)) call check(error, windows(ws(1)%index)%total_cols == 80 .and. &
-                                               same_window(ws(1), selected_frame%root_window), "one window again")
+        leaf_windows = leaves()
+        call check(error, size(leaf_windows) == 1, "one window again")
+        if (.not. allocated(error)) call check(error, windows(leaf_windows(1)%index)%total_columns == 80 .and. &
+                                               same_window(leaf_windows(1), selected_frame%root_window), "one window again")
         if (allocated(error)) return
         call execute_keys("C-x 2 C-x 3 C-x o C-x 1")
-        ws = leaves()
-        call check(error, size(ws) == 1, "C-x 1")
-        if (.not. allocated(error)) call check(error, same_window(ws(1), selected_frame%selected_window) .and. &
-                                               windows(ws(1)%index)%total_lines == 23 .and. &
-                                               windows(ws(1)%index)%total_cols == 80, "C-x 1")
+        leaf_windows = leaves()
+        call check(error, size(leaf_windows) == 1, "C-x 1")
+        if (.not. allocated(error)) call check(error, same_window(leaf_windows(1), selected_frame%selected_window) .and. &
+                                               windows(leaf_windows(1)%index)%total_lines == 23 .and. &
+                                               windows(leaf_windows(1)%index)%total_columns == 80, "C-x 1")
         call leave_frame()
     end subroutine test_delete
 
@@ -579,20 +581,20 @@ contains
     subroutine test_switch_to_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, o, d
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
 
         call enter_frame("abc", h)
         call execute_keys("C-x 2 C-x b o t h e r - t e s t RET")
-        ws = leaves()
+        leaf_windows = leaves()
         o = current_buffer()
-        call check(error, buffers(current)%name == "other-test" .and. windows(ws(1)%index)%buffer%index == o%index &
-                   .and. windows(ws(2)%index)%buffer%index == h%index, "the selected window shows the new buffer")
+        call check(error, buffers(current)%name == "other-test" .and. windows(leaf_windows(1)%index)%buffer%index == o%index &
+                   .and. windows(leaf_windows(2)%index)%buffer%index == h%index, "the selected window shows the new buffer")
         if (allocated(error)) return
         ! RET takes the default, the other buffer (one not shown in a
         ! window if there is one).
         d = other_buffer(o)
         call execute_keys("C-x b RET")
-        call check(error, same_buffer(current_buffer(), d) .and. same_buffer(windows(ws(1)%index)%buffer, d))
+        call check(error, same_buffer(current_buffer(), d) .and. same_buffer(windows(leaf_windows(1)%index)%buffer, d))
         if (allocated(error)) return
         call execute_keys("C-x b s p l i t - t e s t RET")
         call check(error, same_buffer(current_buffer(), h))
@@ -612,17 +614,17 @@ contains
     subroutine test_close_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
 
         call enter_frame("abc", h)
         call execute_keys("C-x 2 C-x b o t h e r - t e s t RET C-x o C-x b o t h e r - t e s t RET")
-        ws = leaves()
+        leaf_windows = leaves()
         ! Both windows show other-test now; the bottom one is selected.
         call execute_keys("C-x k RET")
         call check(error,.not. is_buffer_live(get_buffer("other-test")), "killed")
         if (allocated(error)) return
-        call check(error, windows(ws(1)%index)%buffer%index == h%index .and. &
-                   windows(ws(2)%index)%buffer%index == h%index .and. buffers(current)%name == "split-test", &
+        call check(error, windows(leaf_windows(1)%index)%buffer%index == h%index .and. &
+                   windows(leaf_windows(2)%index)%buffer%index == h%index .and. buffers(current)%name == "split-test", &
                    "both windows show split-test")
         if (allocated(error)) return
         ! A modified buffer visiting a file asks; "no" keeps it.
@@ -641,18 +643,18 @@ contains
     subroutine test_display_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, o, w, again
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
         type(status_type) :: st
 
         call enter_frame("abc", h)
         call get_or_make_buffer("other-test", o, st)
         call display_buffer(o, w, st)
-        ws = leaves()
-        call check(error, st%ok() .and. size(ws) == 2, "a new window below")
-        if (.not. allocated(error)) call check(error, same_window(w, ws(2)) .and. &
+        leaf_windows = leaves()
+        call check(error, st%ok() .and. size(leaf_windows) == 2, "a new window below")
+        if (.not. allocated(error)) call check(error, same_window(w, leaf_windows(2)) .and. &
                                                windows(w%index)%buffer%index == o%index, "a new window below")
         if (allocated(error)) return
-        call check(error, same_window(selected_frame%selected_window, ws(1)) .and. buffers(current)%name == "split-test" &
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(1)) .and. buffers(current)%name == "split-test" &
                    .and. windows(w%index)%quit_restore%kind == QR_WINDOW, "selection unchanged")
         if (allocated(error)) return
         call display_buffer(o, again, st)
@@ -660,9 +662,9 @@ contains
         if (allocated(error)) return
         call select_window(w, st)
         call quit_window(.false., st)
-        ws = leaves()
-        call check(error, st%ok() .and. size(ws) == 1, "quit-window deletes it")
-        if (.not. allocated(error)) call check(error, windows(ws(1)%index)%buffer%index == h%index .and. &
+        leaf_windows = leaves()
+        call check(error, st%ok() .and. size(leaf_windows) == 1, "quit-window deletes it")
+        if (.not. allocated(error)) call check(error, windows(leaf_windows(1)%index)%buffer%index == h%index .and. &
                                                buffers(current)%name == "split-test", "quit-window deletes it")
         call leave_frame()
     end subroutine test_display_buffer
@@ -675,7 +677,7 @@ contains
         type(status_type) :: st
 
         call enter_frame("abcdef", h)
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call execute_keys("C-x b o t h e r - t e s t RET")
         call check(error, buffers(current)%name == "other-test", buffers(current)%name)
         if (allocated(error)) return
@@ -687,7 +689,7 @@ contains
         if (allocated(error)) return
         ! Point moves in split-test meanwhile; the window's point stays.
         call set_buffer(h, st)
-        call goto_char(6_int64)
+        call goto_character(6_int64)
         call execute_keys("C-x b s p l i t - t e s t RET")
         call check(error, buffers(current)%name == "split-test" .and. point() == 3, "window point restored")
         call leave_frame()
@@ -698,7 +700,7 @@ contains
     subroutine test_switch_dedicated(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
         type(status_type) :: st
 
         call enter_frame("abc", h)
@@ -710,11 +712,11 @@ contains
         call check(error, st%code /= 0 .and. size(leaves()) == 1, "forced: error")
         if (allocated(error)) return
         call switch_to_buffer("other-test", st)
-        ws = leaves()
-        call check(error, st%ok() .and. size(ws) == 2, "popped to another window")
-        if (.not. allocated(error)) call check(error, same_window(selected_frame%selected_window, ws(2)) .and. &
+        leaf_windows = leaves()
+        call check(error, st%ok() .and. size(leaf_windows) == 2, "popped to another window")
+        if (.not. allocated(error)) call check(error, same_window(selected_frame%selected_window, leaf_windows(2)) .and. &
                                                buffers(current)%name == "other-test" .and. &
-                                               windows(ws(1)%index)%buffer%index == h%index, "popped to another window")
+                                               windows(leaf_windows(1)%index)%buffer%index == h%index, "popped to another window")
         call leave_frame()
     end subroutine test_switch_dedicated
 
@@ -723,7 +725,7 @@ contains
     subroutine test_scroll_other_window(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
         character(len=:), allocatable :: text
         character(len=7) :: one
         integer :: k
@@ -737,15 +739,15 @@ contains
 
         call enter_frame(text, h)
         call execute_keys("C-x 2")
-        ws = leaves()
-        call goto_char(line(2))
+        leaf_windows = leaves()
+        call goto_character(line(2))
         ! The bottom window has 10 text lines: a screenful is 8 lines.
         call execute_keys("C-M-v")
-        call check(error, window_start(windows(ws(2)%index)) == line(9) .and. &
-                   same_window(selected_frame%selected_window, ws(1)) .and. point() == line(2), "scrolled the other")
+        call check(error, window_start(windows(leaf_windows(2)%index)) == line(9) .and. &
+                   same_window(selected_frame%selected_window, leaf_windows(1)) .and. point() == line(2), "scrolled the other")
         if (allocated(error)) return
         call execute_keys("M-<prior>")
-        call check(error, window_start(windows(ws(2)%index)) == line(1), "and back")
+        call check(error, window_start(windows(leaf_windows(2)%index)) == line(1), "and back")
         if (allocated(error)) return
         call execute_keys("C-x 1 C-M-v")
         call check(error, last_message == "There is no other window", last_message)
@@ -757,27 +759,28 @@ contains
     subroutine test_window_configuration(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, top
-        type(handle_type), allocatable :: ws(:)
-        type(window_configuration_type) :: config
+        type(handle_type), allocatable :: leaf_windows(:)
+        type(window_configuration_type) :: configuration
 
         call enter_frame("abcdef", h)
         call execute_keys("C-x 2")
-        ws = leaves()
-        top = ws(1)
-        call goto_char(3_int64)
-        call current_window_configuration(config)
+        leaf_windows = leaves()
+        top = leaf_windows(1)
+        call goto_character(3_int64)
+        call current_window_configuration(configuration)
         call execute_keys("C-x 1 C-x b o t h e r - t e s t RET")
         call check(error, size(leaves()) == 1 .and. buffers(current)%name == "other-test", "changed")
         if (allocated(error)) return
-        call set_window_configuration(config)
-        call destroy_window_configuration(config)
-        ws = leaves()
-        call check(error, size(ws) == 2, "two windows again")
-        if (.not. allocated(error)) call check(error, is_window_live(ws(2)) .and. same_window(ws(1), top) .and. &
+        call set_window_configuration(configuration)
+        call destroy_window_configuration(configuration)
+        leaf_windows = leaves()
+        call check(error, size(leaf_windows) == 2, "two windows again")
+        if (.not. allocated(error)) call check(error, is_window_live(leaf_windows(2)) .and. same_window(leaf_windows(1), &
+                                                                                                        top) .and. &
                                                same_window(selected_frame%selected_window, top), "two windows again")
         if (allocated(error)) return
-        call check(error, buffers(current)%name == "split-test" .and. windows(ws(2)%index)%buffer%index == h%index .and. &
-                   windows(ws(1)%index)%total_lines == 12 .and. windows(ws(2)%index)%total_lines == 11, &
+        call check(error, buffers(current)%name == "split-test" .and. windows(leaf_windows(2)%index)%buffer%index == h%index .and. &
+                   windows(leaf_windows(1)%index)%total_lines == 12 .and. windows(leaf_windows(2)%index)%total_lines == 11, &
                    buffers(current)%name)
         if (allocated(error)) return
         ! Point in the current buffer is not restored.
@@ -786,11 +789,11 @@ contains
     end subroutine test_window_configuration
 
     !> fit-window-to-buffer: as tall as the buffer's lines and the mode
-    !> line, at least `window_min_height'.
+    !> line, at least `window_minimum_height'.
     subroutine test_fit_window(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
         character(len=:), allocatable :: text
         character(len=7) :: one
         integer :: k
@@ -804,16 +807,16 @@ contains
 
         call enter_frame(text//"end", h)
         call execute_keys("C-x 2")
-        ws = leaves()
-        call fit_window_to_buffer(ws(2))
-        ws = leaves()
+        leaf_windows = leaves()
+        call fit_window_to_buffer(leaf_windows(2))
+        leaf_windows = leaves()
         ! Seven lines and the mode line.
-        call check(error, windows(ws(2)%index)%total_lines == 8 .and. windows(ws(1)%index)%total_lines == 15, &
+        call check(error, windows(leaf_windows(2)%index)%total_lines == 8 .and. windows(leaf_windows(1)%index)%total_lines == 15, &
                    "fitted")
         if (allocated(error)) return
-        call fit_window_to_buffer(ws(2), 5)
-        ws = leaves()
-        call check(error, windows(ws(2)%index)%total_lines == 5, "max height")
+        call fit_window_to_buffer(leaf_windows(2), 5)
+        leaf_windows = leaves()
+        call check(error, windows(leaf_windows(2)%index)%total_lines == 5, "max height")
         call leave_frame()
     end subroutine test_fit_window
 
@@ -838,58 +841,59 @@ contains
     subroutine test_window_accessors(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, root, top, mini
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
         type(status_type) :: st
 
         call enter_frame("abc", h)
         call execute_keys("C-x 2 C-x 3")
-        ws = leaves()
+        leaf_windows = leaves()
         root = frame_root_window(status=st)
         top = window_top_child(root, st)
-        call check(error, same_window(window_parent(ws(1), st), top) .and. &
-                   same_window(window_left_child(top, st), ws(1)) .and. is_null(window_left_child(root, st)) .and. &
+        call check(error, same_window(window_parent(leaf_windows(1), st), top) .and. &
+                   same_window(window_left_child(top, st), leaf_windows(1)) .and. is_null(window_left_child(root, st)) .and. &
                    is_null(window_top_child(top, st)), "children")
         if (allocated(error)) return
-        call check(error, same_window(window_next_sibling(ws(1), st), ws(2)) .and. &
-                   same_window(window_prev_sibling(ws(2), st), ws(1)) .and. &
-                   same_window(window_next_sibling(top, st), ws(3)) .and. is_null(window_parent(root, st)), &
+        call check(error, same_window(window_next_sibling(leaf_windows(1), st), leaf_windows(2)) .and. &
+                   same_window(window_previous_sibling(leaf_windows(2), st), leaf_windows(1)) .and. &
+                   same_window(window_next_sibling(top, st), leaf_windows(3)) .and. is_null(window_parent(root, st)), &
                    "siblings")
         if (allocated(error)) return
-        call check(error, same_window(window_buffer(ws(1), st), h) .and. is_null(window_buffer(root, st)) .and. &
-                   same_window(window_buffer(status=st), h) .and. is_window(root) .and. is_window(ws(3)), "buffers")
+        call check(error, same_window(window_buffer(leaf_windows(1), st), h) .and. is_null(window_buffer(root, st)) .and. &
+                   same_window(window_buffer(status=st), h) .and. is_window(root) .and. is_window(leaf_windows(3)), "buffers")
         if (allocated(error)) return
-        call check(error, window_total_height(ws(1), st) == 12 .and. window_total_width(ws(1), st) == 40 .and. &
-                   window_body_height(ws(1), st) == 11 .and. window_body_width(ws(1), st) == 39 .and. &
-                   window_body_width(ws(2), st) == 40 .and. window_left_column(ws(2), st) == 40 .and. &
-                   window_top_line(ws(3), st) == 12 .and. window_total_width(top, st) == 80 .and. &
-                   window_mode_line_height(ws(3), st) == 1 .and. window_header_line_height(ws(3), st) == 0 .and. &
-                   window_tab_line_height(ws(3), st) == 0 .and. window_hscroll(ws(3), st) == 0, "sizes")
+        call check(error, window_total_height(leaf_windows(1), st) == 12 .and. window_total_width(leaf_windows(1), st) == 40 .and. &
+                   window_body_height(leaf_windows(1), st) == 11 .and. window_body_width(leaf_windows(1), st) == 39 .and. &
+                   window_body_width(leaf_windows(2), st) == 40 .and. window_left_column(leaf_windows(2), st) == 40 .and. &
+                   window_top_line(leaf_windows(3), st) == 12 .and. window_total_width(top, st) == 80 .and. &
+                   window_mode_line_height(leaf_windows(3), st) == 1 .and. window_header_line_height(leaf_windows(3), &
+                                                                                                     st) == 0 .and. &
+                   window_tab_line_height(leaf_windows(3), st) == 0 .and. window_hscroll(leaf_windows(3), st) == 0, "sizes")
         if (allocated(error)) return
         mini = minibuffer_window()
-        call check(error, is_window_minibuffer(mini, st) .and. .not. is_window_minibuffer(ws(1), st) .and. &
+        call check(error, is_window_minibuffer(mini, st) .and. .not. is_window_minibuffer(leaf_windows(1), st) .and. &
                    window_mode_line_height(mini, st) == 0 .and. &
                    is_null(minibuffer_selected_window()) .and. &
-                   same_window(frame_selected_window(status=st), ws(1)), "minibuffer window")
+                   same_window(frame_selected_window(status=st), leaf_windows(1)), "minibuffer window")
         if (allocated(error)) return
         ! A window that is not live.
         call check(error, window_body_height(top, st) == 0 .and. .not. st%ok(), "is_window_live error")
         if (allocated(error)) return
-        call set_window_dedication(ws(2), DEDICATED_STRONG, st)
-        call check(error, window_dedication(ws(2), st) == DEDICATED_STRONG .and. &
-                   window_dedication(ws(1), st) == DEDICATED_NONE, "dedicated")
+        call set_window_dedication(leaf_windows(2), DEDICATED_STRONG, st)
+        call check(error, window_dedication(leaf_windows(2), st) == DEDICATED_STRONG .and. &
+                   window_dedication(leaf_windows(1), st) == DEDICATED_NONE, "dedicated")
         if (allocated(error)) return
         ! window-bump-use-time: the selected window was selected last.
-        call select_window(ws(1), st)
-        call check(error, window_bump_use_time(ws(3), st) == window_use_time(ws(1), st) - 1 .and. &
-                   window_bump_use_time(ws(1), st) == -1, "bump use time")
+        call select_window(leaf_windows(1), st)
+        call check(error, window_bump_use_time(leaf_windows(3), st) == window_use_time(leaf_windows(1), st) - 1 .and. &
+                   window_bump_use_time(leaf_windows(1), st) == -1, "bump use time")
         if (allocated(error)) return
         ! A deleted window is still a window, with no buffer.
         call execute_keys("C-x o C-x o C-x 0")
-        call check(error, is_window(ws(3)) .and. .not. is_window_live(ws(3)) .and. &
-                   is_null(window_buffer(ws(3), st)) .and. st%ok(), "deleted window")
+        call check(error, is_window(leaf_windows(3)) .and. .not. is_window_live(leaf_windows(3)) .and. &
+                   is_null(window_buffer(leaf_windows(3), st)) .and. st%ok(), "deleted window")
         if (allocated(error)) return
-        call check(error, is_null(window_parent(ws(3), st)) .and. .not. st%ok(), "is_window_valid error")
-        call set_window_dedication(ws(2), DEDICATED_NONE, st)
+        call check(error, is_null(window_parent(leaf_windows(3), st)) .and. .not. st%ok(), "is_window_valid error")
+        call set_window_dedication(leaf_windows(2), DEDICATED_NONE, st)
         call leave_frame()
     end subroutine test_window_accessors
 
@@ -898,38 +902,38 @@ contains
     subroutine test_next_window(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, mini
-        type(handle_type), allocatable :: ws(:), list(:)
+        type(handle_type), allocatable :: leaf_windows(:), list(:)
         type(status_type) :: st
 
         call enter_frame("abc", h)
         call execute_keys("C-x 2 C-x 3")
-        ws = leaves()
+        leaf_windows = leaves()
         mini = minibuffer_window()
-        call check(error, same_window(next_window(ws(3), status=st), ws(1)) .and. &
-                   same_window(next_window(ws(3), MINIBUF_YES, st), mini) .and. &
-                   same_window(next_window(mini, MINIBUF_YES, st), ws(1)) .and. &
-                   same_window(next_window(status=st), ws(2)), "next-window")
+        call check(error, same_window(next_window(leaf_windows(3), status=st), leaf_windows(1)) .and. &
+                   same_window(next_window(leaf_windows(3), MINIBUF_YES, st), mini) .and. &
+                   same_window(next_window(mini, MINIBUF_YES, st), leaf_windows(1)) .and. &
+                   same_window(next_window(status=st), leaf_windows(2)), "next-window")
         if (allocated(error)) return
-        call check(error, same_window(previous_window(ws(1), status=st), ws(3)) .and. &
-                   same_window(previous_window(ws(1), MINIBUF_YES, st), mini) .and. &
-                   same_window(previous_window(ws(3), MINIBUF_NO, st), ws(2)), "previous-window")
+        call check(error, same_window(previous_window(leaf_windows(1), status=st), leaf_windows(3)) .and. &
+                   same_window(previous_window(leaf_windows(1), MINIBUF_YES, st), mini) .and. &
+                   same_window(previous_window(leaf_windows(3), MINIBUF_NO, st), leaf_windows(2)), "previous-window")
         if (allocated(error)) return
         list = window_list(status=st)
         call check(error, size(list) == 3, "window-list")
         if (allocated(error)) return
-        call check(error, same_window(list(1), ws(1)) .and. same_window(list(3), ws(3)), "window-list order")
+        call check(error, same_window(list(1), leaf_windows(1)) .and. same_window(list(3), leaf_windows(3)), "window-list order")
         if (allocated(error)) return
-        list = window_list_1(ws(2), MINIBUF_YES, st)
+        list = window_list_1(leaf_windows(2), MINIBUF_YES, st)
         call check(error, size(list) == 4, "window-list-1")
         if (allocated(error)) return
-        call check(error, same_window(list(1), ws(2)) .and. same_window(list(3), mini) .and. &
-                   same_window(list(4), ws(1)), "window-list-1 rotated")
+        call check(error, same_window(list(1), leaf_windows(2)) .and. same_window(list(3), mini) .and. &
+                   same_window(list(4), leaf_windows(1)), "window-list-1 rotated")
         if (allocated(error)) return
         ! From the inactive minibuffer window, which is not listed.
         list = window_list(window=mini, status=st)
         call check(error, size(list) == 3, "window-list from the minibuffer window")
         if (allocated(error)) return
-        call check(error, same_window(list(1), ws(1)), "window-list from the minibuffer window: order")
+        call check(error, same_window(list(1), leaf_windows(1)), "window-list from the minibuffer window: order")
         call leave_frame()
     end subroutine test_next_window
 
@@ -937,21 +941,21 @@ contains
     subroutine test_coordinates_in_window(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
         type(status_type) :: st
         integer :: x, y
 
         call enter_frame("abc", h)
         call execute_keys("C-x 2 C-x 3")
-        ws = leaves()
-        call check(error, window_part_at(38, 0, ws(1), x, y, st) == ON_TEXT .and. x == 38 .and. y == 0, &
+        leaf_windows = leaves()
+        call check(error, window_part_at(38, 0, leaf_windows(1), x, y, st) == ON_TEXT .and. x == 38 .and. y == 0, &
                    "text")
         if (allocated(error)) return
-        call check(error, window_part_at(39, 0, ws(1), x, y, st) == ON_VERTICAL_BORDER .and. &
-                   window_part_at(39, 11, ws(1), x, y, st) == ON_MODE_LINE .and. &
-                   window_part_at(40, 0, ws(1), x, y, st) == ON_NOTHING, "border, mode line, outside")
+        call check(error, window_part_at(39, 0, leaf_windows(1), x, y, st) == ON_VERTICAL_BORDER .and. &
+                   window_part_at(39, 11, leaf_windows(1), x, y, st) == ON_MODE_LINE .and. &
+                   window_part_at(40, 0, leaf_windows(1), x, y, st) == ON_NOTHING, "border, mode line, outside")
         if (allocated(error)) return
-        call check(error, window_part_at(45, 3, ws(2), x, y, st) == ON_TEXT .and. x == 5 .and. y == 3, &
+        call check(error, window_part_at(45, 3, leaf_windows(2), x, y, st) == ON_TEXT .and. x == 5 .and. y == 3, &
                    "relative to the window")
         if (allocated(error)) return
 
@@ -959,11 +963,12 @@ contains
         associate (m => windows(selected_frame%minibuffer_window%index))
             m%top_line = 23
             m%total_lines = 1
-            m%left_col = 0
-            m%total_cols = 80
+            m%left_column = 0
+            m%total_columns = 80
         end associate
 
-        call check(error, same_window(window_at(45, 3), ws(2)) .and. same_window(window_at(0, 12), ws(3)) .and. &
+        call check(error, same_window(window_at(45, 3), leaf_windows(2)) .and. same_window(window_at(0, 12), &
+                                                                                           leaf_windows(3)) .and. &
                    same_window(window_at(0, 23), minibuffer_window()) .and. is_null(window_at(0, 24)) .and. &
                    is_null(window_at(-1, 0)), "window-at")
         call leave_frame()
@@ -979,33 +984,33 @@ contains
         call enter(h)
         call check(error, window_end(selected_frame%selected_window, st, update=.true.) == line(11), "from the start")
         if (allocated(error)) return
-        call check(error, is_pos_visible_in_window(line(11) - 1, selected_frame%selected_window) .and. &
-                   .not. is_pos_visible_in_window(line(11), selected_frame%selected_window), "visible")
+        call check(error, is_position_visible_in_window(line(11) - 1, selected_frame%selected_window) .and. &
+                   .not. is_position_visible_in_window(line(11), selected_frame%selected_window), "visible")
         if (allocated(error)) return
         ! The text ends in the window: its end.
-        call set_window_start(win(), line(25), st)
+        call set_window_start(window(), line(25), st)
         call check(error, window_end(selected_frame%selected_window, st, update=.true.) == line(31), "to the end")
         if (allocated(error)) return
-        call check(error, is_pos_visible_in_window(line(31), selected_frame%selected_window) .and. &
-                   is_pos_visible_in_window(line(30) + 3, selected_frame%selected_window), "the end visible")
+        call check(error, is_position_visible_in_window(line(31), selected_frame%selected_window) .and. &
+                   is_position_visible_in_window(line(30) + 3, selected_frame%selected_window), "the end visible")
         if (allocated(error)) return
         ! Without UPDATE: where the last redisplay ended, counted from the
         ! end of the text.
-        windows(selected_frame%selected_window%index)%window_end_pos = 7
+        windows(selected_frame%selected_window%index)%window_end_position = 7
         call check(error, window_end(selected_frame%selected_window, st) == line(30), "recorded")
         call leave(h)
     end subroutine test_window_end
 
     !> A function of `window_scroll_functions'.
-    subroutine record_scroll(window, pos, status)
+    subroutine record_scroll(window, position, status)
         type(handle_type), intent(in) :: window
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
 
         status = status_type()
         scroll_calls = scroll_calls + 1
         scroll_window = window
-        scroll_start = pos
+        scroll_start = position
     end subroutine record_scroll
 
     !> set_window_buffer and split_window run `window_scroll_functions'
@@ -1018,10 +1023,10 @@ contains
         call enter(h)
         call window_scroll_functions%append(record_scroll)
         scroll_calls = 0
-        call set_window_start(win(), line(3), st)
+        call set_window_start(window(), line(3), st)
         call set_window_buffer(selected_frame%selected_window, h, st)
         call check(error, scroll_calls == 1 .and. same_window(scroll_window, selected_frame%selected_window) .and. &
-                   scroll_start == window_start(win()), "set_window_buffer")
+                   scroll_start == window_start(window()), "set_window_buffer")
         if (allocated(error)) return
         scroll_calls = 0
         call split_window(selected_frame%selected_window, 0, .false., .false., new, st)

@@ -27,11 +27,11 @@ module pcvs_utilities_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: is_bol, delete_region, point
+    use editing_functions_mod, only: is_beginning_of_line, delete_region, point
     use indent_mod, only: current_column
     use display_engine_mod, only: tab_width
-    use frame_mod, only: frame_selected_window_ref
-    use window_mod, only: window_type, window_text_cols
+    use frame_mod, only: frame_selected_window_reference
+    use window_mod, only: window_type, window_text_columns
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -57,8 +57,8 @@ contains
             length = max(length, nchars(strings(k)%text))
         end do
 
-        w => frame_selected_window_ref()
-        wwidth = window_text_cols(w) - 1
+        w => frame_selected_window_reference()
+        wwidth = window_text_columns(w) - 1
         ! At least 2 columns; at least 2 spaces between columns.
         ! Don't allocate more columns than we can fill.
         ! Windows can't show less than 3 lines anyway.
@@ -69,7 +69,7 @@ contains
 
         ! The insertion should be "sensible" no matter what choices were made.
         do k = 1, size(strings)
-            if (.not. is_bol()) then
+            if (.not. is_beginning_of_line()) then
                 call insert(" "//achar(9), status)
                 if (.not. status%ok()) return
 

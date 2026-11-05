@@ -50,13 +50,14 @@
 !> (characters_mod).
 module category_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current
-    use character_mod, only: MAX_CHAR
-    use character_table_mod, only: make_char_table, copy_char_table, is_char_table, char_table_subtype, &
-                                   char_table_extra_slot, set_char_table_extra_slot, char_table_ref, char_table_ref_and_range, &
-                                   char_table_set_range, set_char_table_range, NO_VALUE
+    use character_mod, only: MAXIMUM_CHARACTER
+    use character_table_mod, only: make_character_table, copy_character_table, is_character_table, character_table_subtype, &
+                                   character_table_extra_slot, set_character_table_extra_slot, character_table_reference, &
+                                   character_table_reference_and_range, character_table_set_range, set_character_table_range, &
+                                   NO_VALUE
     use characters_mod, only: characters_categories
     use string_type_mod, only: string_type
     implicit none(type, external)
@@ -64,8 +65,8 @@ module category_mod
 
     public :: category_set_type, make_category_set, define_category, category_docstring, get_unused_category, &
               is_category_table, category_table, standard_category_table, copy_category_table, make_category_table, &
-              set_category_table, char_category_set, category_set_mnemonics, modify_category_entry, &
-              char_has_category, category_member
+              set_category_table, character_category_set, category_set_mnemonics, modify_category_entry, &
+              character_has_category, category_member
 
     !> A category set: `member(c)' is true when category `c' (32 to 126)
     !> is in the set.  Port of category.h's category sets (bool-vectors
@@ -87,7 +88,7 @@ module category_mod
     integer :: ninfos = 0
 
     !> The standard category table (category.h Vstandard_category_table);
-    !> null until `init_category_once' runs.
+    !> null until `initialize_category_once' runs.
     type(handle_type) :: standard
 
 contains
@@ -113,14 +114,14 @@ contains
         category_member = category_set%member(iachar(category))
     end function category_member
 
-    !> Make CATEGORY_SET include (if VAL) or exclude (if not VAL)
+    !> Make CATEGORY_SET include (if VALUE) or exclude (if not VALUE)
     !> CATEGORY.  Port of category.c:set_category_set.
-    pure subroutine set_category_set(category_set, category, val)
+    pure subroutine set_category_set(category_set, category, value)
         type(category_set_type), intent(inout) :: category_set
         character, intent(in) :: category
-        logical, intent(in) :: val
+        logical, intent(in) :: value
 
-        category_set%member(iachar(category)) = val
+        category_set%member(iachar(category)) = value
     end subroutine set_category_set
 
     !> Return a newly created category-set which contains CATEGORIES.
@@ -128,26 +129,26 @@ contains
     !> The value is a category set which has `member' true at the indices
     !> corresponding to those categories.  Port of
     !> category.c:Fmake_category_set.
-    subroutine make_category_set(categories, val, status)
+    subroutine make_category_set(categories, value, status)
         character(len=*), intent(in) :: categories
-        type(category_set_type), intent(out) :: val
+        type(category_set_type), intent(out) :: value
         type(status_type), intent(out) :: status
         integer :: k
 
         status = status_type()
 
         if (any([(iachar(categories(k:k)) > 127, k=1, len(categories))])) then
-            call set_error(status, FM_GENERIC_ERROR, "Multibyte string in `make_category_set'")
+            call set_error(status, GENERIC_ERROR_CODE, "Multibyte string in `make_category_set'")
             return
         end if
 
         do k = len(categories), 1, -1
             if (.not. is_category(categories(k:k))) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected category character(len=1)")
                 return
             end if
 
-            call set_category_set(val, categories(k:k), .true.)
+            call set_category_set(value, categories(k:k), .true.)
         end do
     end subroutine make_category_set
 
@@ -172,14 +173,14 @@ contains
     ! Category tables
     ! ------------------------------------------------------------------
 
-    !> Return true if ARG is a category table.  Port of
+    !> Return true if ARGUMENT is a category table.  Port of
     !> category.c:Fcategory_table_p.
-    logical function is_category_table(arg)
-        type(handle_type), intent(in) :: arg
+    logical function is_category_table(argument)
+        type(handle_type), intent(in) :: argument
         type(status_type) :: status
 
         is_category_table = .false.
-        if (is_char_table(arg)) is_category_table = char_table_subtype(arg, status) == "category_table"
+        if (is_character_table(argument)) is_category_table = character_table_subtype(argument, status) == "category_table"
     end function is_category_table
 
     !> If TABLE is absent, give the current category table.  If TABLE is
@@ -201,14 +202,14 @@ contains
             h = table
 
             if (.not. is_category_table(h)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category table type(char_table_type)")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected category table type(character_table_type)")
                 return
             end if
         else
             h = category_table()
         end if
 
-        info = int(char_table_extra_slot(h, 0, st))
+        info = int(character_table_extra_slot(h, 0, st))
     end subroutine check_category_table
 
     !> Return the current category table.
@@ -228,7 +229,7 @@ contains
     recursive function standard_category_table() result(h)
         type(handle_type) :: h
 
-        if (.not. is_category_table(standard)) call init_category_once()
+        if (.not. is_category_table(standard)) call initialize_category_once()
         h = standard
     end function standard_category_table
 
@@ -253,16 +254,16 @@ contains
 
     !> A new char-table for a category table, with a new info in its extra
     !> slot 0 and the empty set as its default value.  Not a port (the
-    !> part of Fmake_category_table and init_category_once they share).
-    subroutine make_category_char_table(h)
+    !> part of Fmake_category_table and initialize_category_once they share).
+    subroutine make_category_character_table(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call make_char_table(h, "category_table", st)
+        call make_character_table(h, "category_table", st)
         ! Set a category set which contains nothing to the default.
-        call set_char_table_range(h, 1_int64, st)
-        call set_char_table_extra_slot(h, 0, int(make_info(), int64), st)
-    end subroutine make_category_char_table
+        call set_character_table_range(h, 1_int64, st)
+        call set_character_table_extra_slot(h, 0, int(make_info(), int64), st)
+    end subroutine make_category_character_table
 
     !> Construct a new and empty category table and return it.  Port of
     !> category.c:Fmake_category_table.
@@ -270,8 +271,8 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call make_category_char_table(h)
-        call set_char_table_range(h, 1_int64, st, 0, MAX_CHAR)
+        call make_category_character_table(h)
+        call set_character_table_range(h, 1_int64, st, 0, MAXIMUM_CHARACTER)
     end function make_category_table
 
     !> Construct a new category table and return it.
@@ -294,13 +295,13 @@ contains
             if (.not. status%ok()) return
         else
             h = standard_category_table()
-            info = int(char_table_extra_slot(h, 0, st))
+            info = int(character_table_extra_slot(h, 0, st))
         end if
 
-        call copy_char_table(h, copy, st)
+        call copy_character_table(h, copy, st)
         n = make_info()
         infos(n) = infos(info)
-        call set_char_table_extra_slot(copy, 0, int(n, int64), st)
+        call set_character_table_extra_slot(copy, 0, int(n, int64), st)
     end subroutine copy_category_table
 
     !> Specify TABLE as the category table for the current buffer.
@@ -360,7 +361,7 @@ contains
         integer :: info
 
         if (.not. is_category(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected category character(len=1)")
             return
         end if
 
@@ -368,7 +369,7 @@ contains
         if (.not. status%ok()) return
 
         if (allocated(infos(info)%docstrings(iachar(category))%text)) then
-            call set_error(status, FM_GENERIC_ERROR, "Category `"//category//"' is already defined")
+            call set_error(status, GENERIC_ERROR_CODE, "Category `"//category//"' is already defined")
             return
         end if
 
@@ -392,7 +393,7 @@ contains
         if (present(defined)) defined = .false.
 
         if (.not. is_category(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected category character(len=1)")
             return
         end if
 
@@ -435,14 +436,14 @@ contains
         type(category_set_type) :: category_set
         integer(int64) :: n
 
-        n = char_table_ref(h, c)
+        n = character_table_reference(h, c)
         if (n >= 1 .and. n <= infos(info)%nsets) category_set = infos(info)%sets(n)
     end function table_category_set
 
     !> Return the category set of CHAR.  Port of
     !> category.c:Fchar_category_set and category.c:char_category_set
     !> (category.h CATEGORY_SET).
-    recursive function char_category_set(ch) result(category_set)
+    recursive function character_category_set(ch) result(category_set)
         integer, intent(in) :: ch
         type(category_set_type) :: category_set
         type(handle_type) :: h
@@ -451,18 +452,18 @@ contains
 
         call check_category_table(h, info, st)
         category_set = table_category_set(h, info, ch)
-    end function char_category_set
+    end function character_category_set
 
     !> Return true if category set of CH contains CATEGORY.  Port of
     !> category.h:CHAR_HAS_CATEGORY.
-    recursive logical function char_has_category(ch, category)
+    recursive logical function character_has_category(ch, category)
         integer, intent(in) :: ch
         character, intent(in) :: category
         type(category_set_type) :: category_set
 
-        category_set = char_category_set(ch)
-        char_has_category = category_member(category, category_set)
-    end function char_has_category
+        category_set = character_category_set(ch)
+        character_has_category = category_member(category, category_set)
+    end function character_has_category
 
     !> Modify the category set of CHARACTER by adding CATEGORY to it.
     !> The category is changed only for table TABLE, which defaults to
@@ -490,13 +491,13 @@ contains
         last = from
         if (present(to)) last = to
 
-        if (start < 0 .or. start > MAX_CHAR .or. last < 0 .or. last > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+        if (start < 0 .or. start > MAXIMUM_CHARACTER .or. last < 0 .or. last > MAXIMUM_CHARACTER) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
         if (.not. is_category(category)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected category character(len=1)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected category character(len=1)")
             return
         end if
 
@@ -504,7 +505,7 @@ contains
         if (.not. status%ok()) return
 
         if (.not. allocated(infos(info)%docstrings(iachar(category))%text)) then
-            call set_error(status, FM_GENERIC_ERROR, "Undefined category: "//category)
+            call set_error(status, GENERIC_ERROR_CODE, "Undefined category: "//category)
             return
         end if
 
@@ -514,14 +515,14 @@ contains
         do while (start <= last)
             f = start
             t = last
-            n = int(char_table_ref_and_range(h, start, f, t))
+            n = int(character_table_reference_and_range(h, start, f, t))
             category_set = category_set_type()
             if (n >= 1 .and. n <= infos(info)%nsets) category_set = infos(info)%sets(n)
 
             if (category_member(category, category_set) .neqv. set_value) then
                 call set_category_set(category_set, category, set_value)
                 n = hash_get_category_set(info, category_set)
-                call char_table_set_range(h, start, t, int(n, int64), st)
+                call character_table_set_range(h, start, t, int(n, int64), st)
             end if
 
             start = t + 1
@@ -531,10 +532,10 @@ contains
     !> Make the standard category table: a category set which contains
     !> nothing as its default, then characters.el's categories.  Port of
     !> category.c:init_category_once, with the entries of characters_mod.
-    recursive subroutine init_category_once()
-        call make_category_char_table(standard)
+    recursive subroutine initialize_category_once()
+        call make_category_character_table(standard)
         call characters_categories(characters_define, characters_entry)
-    end subroutine init_category_once
+    end subroutine initialize_category_once
 
     !> characters_categories's definitions, in the standard table.
     !> Not a port.

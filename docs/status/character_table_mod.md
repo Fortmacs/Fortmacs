@@ -6,30 +6,30 @@
 
 ## Ported
 
-char-tables as registry objects with integer values (`NO_VALUE` for nil) and handles for parents and table-valued extra slots: the four-level trie with its sub char-tables in a pool (`make_sub_char_table`, `copy_sub_char_table`, released to a free list instead of GC),
+char-tables as registry objects with integer values (`NO_VALUE` for nil) and handles for parents and table-valued extra slots: the four-level trie with its sub char-tables in a pool (`make_sub_character_table`, `copy_sub_char_table`, released to a free list instead of GC),
 `make-char-table` (extra slots from the purpose: case_table 3, category_table 2, or given),
 `char-table-subtype`,
 `char-table-parent`,
-`set-char-table-parent` (`set_char_table_parent`, loops refused),
+`set-char-table-parent` (`set_character_table_parent`, loops refused),
 `char-table-extra-slot`,
 `set-char-table-extra-slot`,
 `char-table-range`,
 `set-char-table-range` (t, nil, a character or a range),
-`optimize-char-table` (`optimize_sub_char_table`; values compare by ==),
-`map-char-table` (`map_char_table`, `map_sub_char_table`, runs of equal values with the parents consulted),
-`char_table_ref`,
-`sub_char_table_ref`,
-`char_table_ref_and_range`,
-`sub_char_table_ref_and_range`,
-`char_table_ref_simple`,
-`char_table_set`,
-`sub_char_table_set`,
-`char_table_set_range`,
-`sub_char_table_set_range`,
+`optimize-char-table` (`optimize_sub_character_table`; values compare by ==),
+`map-char-table` (`map_character_table`, `map_sub_character_table`, runs of equal values with the parents consulted),
+`character_table_reference`,
+`sub_character_table_reference`,
+`character_table_reference_and_range`,
+`sub_character_table_reference_and_range`,
+`character_table_reference_simple`,
+`character_table_set`,
+`sub_character_table_set`,
+`character_table_set_range`,
+`sub_character_table_set_range`,
 `char_table_ascii`,
-`set_char_table_ascii`,
-`copy_char_table`,
-`CHECK_CHAR_TABLE`
+`set_character_table_ascii`,
+`copy_character_table`,
+`CHECK_CHARACTER_TABLE`
 
 ## Deferred
 

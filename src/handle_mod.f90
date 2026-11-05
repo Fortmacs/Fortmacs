@@ -36,7 +36,7 @@
 !>     call table%release(h, status)     ! h and all its copies become stale
 module handle_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_INVALID_HANDLE
+    use error_mod, only: status_type, set_error, INVALID_HANDLE_CODE
     implicit none(type, external)
     private
 
@@ -152,7 +152,7 @@ contains
         i = 0
 
         if (.not. self%is_live(h)) then
-            call set_error(status, FM_INVALID_HANDLE)
+            call set_error(status, INVALID_HANDLE_CODE)
             return
         end if
 

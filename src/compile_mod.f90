@@ -31,8 +31,8 @@
 !> line shows ":run" and "[Compiling] ", and the counts of errors,
 !> warnings and informational messages found so far.
 !>
-!> The output is parsed with the rules of `compilation_error_regexp_names'
-!> (all of `compilation_error_regexps' but `omake'), following
+!> The output is parsed with the rules of `compilation_error_regular_expression_names'
+!> (all of `compilation_error_regular_expressions' but `omake'), following
 !> the "Entering directory" messages of `compilation_directory_matcher';
 !> each message gets a `compilation_message' text property and faces.
 !> `next_error' (M-g n, C-x `) and `compile_goto_error' (RET) visit the
@@ -50,27 +50,27 @@
 !> Not ported yet (Deferred): `compilation_auto_jump_to_first_error' and
 !> the `first-error' value of `compilation_scroll_output' beyond scrolling
 !> (need timers), highlighting the locus (`next_error_highlight',
-!> `compilation_highlight_regexp': need overlays), the overlay arrow and
+!> `compilation_highlight_regular_expression': need overlays), the overlay arrow and
 !> margins (`compilation_context' COMPILATION_CONTEXT_NO_SCROLL, the
 !> fringe), the `keymap'
 !> text property (`compilation_button_map'), the mouse, menus and tool
 !> bar, `compilation_goto_in_progress_buffer'; a global
-!> `compilation_error_regexp_names' with rule specifications rather than
-!> names (add the rule to `compilation_error_regexps'; a mode's
+!> `compilation_error_regular_expression_names' with rule specifications rather than
+!> names (add the rule to `compilation_error_regular_expressions'; a mode's
 !> own value is rules), FILE given as (FILE FORMAT...), HIGHLIGHT faces
 !> given as text properties other than `face' and `display',
 !> `compilation_parse_errors_filename_function',
 !> `comint_file_name_prefix' (remote files), `compilation_search_path'
 !> and `compilation_search_extra_path' (only the directory of the message
 !> and, with `compilation_search_all_directories', the directories
-!> entered before it are searched), `compilation_fake_loc',
+!> entered before it are searched), `compilation_fake_location',
 !> `compilation_debug'; the text properties (no `face', no `compilation_message', ...)
 !> of the font-lock keywords of the "Compilation finished" and
 !> "Compilation exited" lines, and removing the font-lock keywords when
 !> the minor modes are turned off (`font_lock_remove_keywords'); visiting
 !> a directory message with `compile_goto_error' (`dired_other_window');
 !> `selective_display' in `compilation_beginning_of_line';
-!> `compilation_max_output_line_length' (long lines are not abbreviated:
+!> `compilation_maximum_output_line_length' (long lines are not abbreviated:
 !> needs buttons and display properties), `compilation_hidden_output',
 !> `compilation_window_height', `compilation_page_delimiter'
 !> (`page_delimiter' is not buffer-local), `compilation_environment',
@@ -90,7 +90,7 @@ module compile_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: PREFIX_NONE, PREFIX_RAW
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING
     use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
@@ -99,19 +99,19 @@ module compile_mod
                           buffer_list, erase_buffer, restore_buffer_modified
     use marker_mod, only: copy_marker_at, destroy_marker, marker_position, set_marker, marker_buffer, make_marker
     use insert_delete_mod, only: insert, before_change_functions
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, widen, narrow_to_region, &
-                                     line_beginning_position, line_end_position, is_eob, is_bob, is_bol, buffer_size, &
-                                     buffer_substring, point_marker
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, widen, narrow_to_region, &
+                                     line_beginning_position, line_end_position, is_end_of_buffer, is_beginning_of_buffer, &
+                                     is_beginning_of_line, buffer_size, buffer_substring, point_marker
     use text_properties_mod, only: put_text_property, get_text_property, add_text_properties, &
                                    remove_list_of_text_properties, next_single_property_change, &
                                    previous_single_property_change, text_property_not_all
     use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
     use indent_mod, only: move_to_column, current_column
-    use syntax_mod, only: skip_chars_forward
-    use search_mod, only: string_match, re_search_forward, match_end, match_data, set_match_data, replace_match, &
+    use syntax_mod, only: skip_characters_forward
+    use search_mod, only: string_match, regular_expression_search_forward, match_end, match_data, set_match_data, replace_match, &
                           case_fold_search, SEARCH_NOERROR
     use basic_subprograms_mod, only: match_string, silent_modifications_type, silent_modifications_begin, silent_modifications_end
-    use environment_mod, only: substitute_env_vars, getenv
+    use environment_mod, only: substitute_environment_variables, getenv
     use file_input_output_mod, only: expand_file_name, file_name_as_directory, is_file_name_absolute, is_file_directory, &
                                      file_exists, is_file_accessible_directory, file_name_directory, file_name_nondirectory
     use files_mod, only: abbreviate_file_name, save_some_buffers, find_file_noselect, file_truename
@@ -119,7 +119,7 @@ module compile_mod
     use utility_functions_mod, only: read_yes_or_no
     use hooks_mod, only: hook_type, change_major_mode_hook
     use keyboard_mod, only: sit_for
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use display_engine_mod, only: message, mode_line_part_type, set_mode_line_process, append_mode_line_modes_entry, tab_width
     use window_mod, only: windows, display_buffer, set_window_start, set_window_point, pop_to_buffer, switch_to_buffer, &
                           get_buffer_window, select_window, display_action_parameters_type, pop_up_windows
@@ -129,15 +129,15 @@ module compile_mod
     use derived_mod, only: major_mode_type
     use simple_mod, only: special_mode_map, read_shell_command, shell_command_switch, next_error_last_buffer, &
                           set_next_error_function, next_error_find_buffer, next_error_internal, next_error, push_mark
-    use execute_process_mod, only: shell_file_name, init_callproc
+    use execute_process_mod, only: shell_file_name, initialize_callproc
     use process_mod, only: make_process, get_buffer_process, process_status, &
                            process_query_on_exit_flag, interrupt_process, delete_process, process_buffer, &
                            process_exit_status, set_process_buffer, set_process_query_on_exit_flag, process_mark, &
-                           process_send_eof, num_processors
+                           process_send_eof, number_processors
     use time_functions_mod, only: current_time_string
     use version_mod, only: upstream_version
     use command_interpreter_mod, only: comint_carriage_motion, comint_inhibit_carriage_motion, comint_mode, comint_exec
-    use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR
+    use faces_mod, only: named_face_type, display_when, face_attributes, FACE_CLASS_COLOR
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_append_text_property, font_lock_add_keywords, font_lock_flush
@@ -146,7 +146,7 @@ module compile_mod
     private
 
     public :: compile, recompile, compilation_start, compilation_mode, stop_compilation, compilation_filter, &
-              compilation_sentinel, compilation_handle_exit, comint_carriage_motion, init_compile, cd
+              compilation_sentinel, compilation_handle_exit, comint_carriage_motion, initialize_compile, cd
     public :: compilation_parse_errors, compilation_ensure_parse, compilation_next_error, compilation_previous_error, &
               compilation_next_file, compilation_previous_file, compilation_display_error, compile_goto_error, &
               compilation_next_error_function, compilation_find_buffer, compilation_forget_errors, &
@@ -200,11 +200,11 @@ module compile_mod
 
         !> `compilation_exit_message_procedure': the message MESSAGE and
         !> the mode line string CODE for a compilation that ended with
-        !> PROCESS_STATUS ("exit" or "signal") and EXIT_STATUS, MSG being
+        !> PROCESS_STATUS ("exit" or "signal") and EXIT_STATUS, MESSAGE being
         !> the default message.  Not a port.
-        subroutine compilation_exit_message_procedure(process_status, exit_status, msg, message, code)
+        subroutine compilation_exit_message_procedure(process_status, exit_status, message_text, message, code)
             implicit none(type, external)
-            character(len=*), intent(in) :: process_status, msg
+            character(len=*), intent(in) :: process_status, message_text
             integer, intent(in) :: exit_status
             character(len=:), allocatable, intent(out) :: message, code
         end subroutine compilation_exit_message_procedure
@@ -234,15 +234,15 @@ module compile_mod
     end type compilation_highlight_type
 
     !> A rule for matching messages: an element of
-    !> `compilation_error_regexps' (see
-    !> `compilation_error_regexp_names').  Subexpression numbers are 0 for
+    !> `compilation_error_regular_expressions' (see
+    !> `compilation_error_regular_expression_names').  Subexpression numbers are 0 for
     !> none; WARNING and INFO, if either is not 0, make the type
     !> depend on which of them matched, otherwise TYPE
     !> is the type (2 error, 1 warning, 0 info).
     type, public :: compilation_rule_type
-        !> The rule's name (`compilation_error_regexp_names' refers to it).
+        !> The rule's name (`compilation_error_regular_expression_names' refers to it).
         character(len=:), allocatable :: name
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer :: file = 0
         procedure(compilation_file_procedure), pointer, nopass :: file_function => null()
         integer :: line = 0, end_line = 0, column = 0, end_column = 0
@@ -256,26 +256,26 @@ module compile_mod
         type(compilation_highlight_type), allocatable :: highlights(:)
     end type compilation_rule_type
 
-    !> The value of `compilation_directory_matcher': REGEXP (unallocated
-    !> for none) and the subexpressions DIR(i), with LEAVE(i) (0 for none).
+    !> The value of `compilation_directory_matcher': REGULAR_EXPRESSION (unallocated
+    !> for none) and the subexpressions DIRECTORY(i), with LEAVE(i) (0 for none).
     type, public :: compilation_directory_matcher_type
-        character(len=:), allocatable :: regexp
-        integer, allocatable :: dir(:), leave(:)
+        character(len=:), allocatable :: regular_expression
+        integer, allocatable :: directory(:), leave(:)
     end type compilation_directory_matcher_type
 
-    !> An element of `compilation_transform_file_matches': REGEXP and
+    !> An element of `compilation_transform_file_matches': REGULAR_EXPRESSION and
     !> REPLACEMENT (unallocated for none).
     type, public :: compilation_transform_type
-        character(len=:), allocatable :: regexp, replacement
+        character(len=:), allocatable :: regular_expression, replacement
     end type compilation_transform_type
 
     !> What `compilation_message_info' tells about a message: its RULE
     !> (unallocated for an anonymous rule), TYPE, and the location (FILE,
-    !> DIRECTORY, LINE, COLUMN; HAS_LOC false for none) and end location.
+    !> DIRECTORY, LINE, COLUMN; HAS_LOCATION false for none) and end location.
     type, public :: compilation_message_info_type
         character(len=:), allocatable :: rule
         integer :: type = 2
-        logical :: has_loc = .false.
+        logical :: has_location = .false.
         character(len=:), allocatable :: file, directory
         logical :: has_line = .false., has_column = .false.
         integer(int64) :: line = 0, column = 0
@@ -385,10 +385,10 @@ module compile_mod
     !> buffer has a value of its own, the directory it was started in).
     type(string_setting_type), public :: compilation_directory = string_setting_type(name="compilation_directory")
 
-    !> Table of values for `compilation_error_regexp_names'.  Port of
+    !> Table of values for `compilation_error_regular_expression_names'.  Port of
     !> compile.el compilation-error-regexp-alist-alist (the rules are named
     !> with underscores for hyphens: `gcc_include', `edg_1').
-    type(compilation_rule_type), allocatable, public :: compilation_error_regexps(:)
+    type(compilation_rule_type), allocatable, public :: compilation_error_regular_expressions(:)
 
     !> Table that specifies how to match errors in compiler output.
     !> On GNU and Unix, any string is a valid filename, so these
@@ -396,10 +396,10 @@ module compile_mod
     !> normal cases.  A shorter list will be lighter on resource usage.
     !>
     !> Each element is the name of a rule of
-    !> `compilation_error_regexps'.
+    !> `compilation_error_regular_expressions'.
     !>
-    !> A rule has the form (REGEXP FILE [LINE COLUMN TYPE HYPERLINK
-    !> HIGHLIGHT...]).  If REGEXP matches, the FILE'th subexpression
+    !> A rule has the form (REGULAR_EXPRESSION FILE [LINE COLUMN TYPE HYPERLINK
+    !> HIGHLIGHT...]).  If REGULAR_EXPRESSION matches, the FILE'th subexpression
     !> gives the file name, and the LINE'th subexpression gives the line
     !> number.  The COLUMN'th subexpression gives the column number on
     !> that line.
@@ -411,15 +411,15 @@ module compile_mod
     !> beginning of line's indentation.
     !>
     !> FILE can also be a function that returns FILENAME or
-    !> RELATIVE-FILENAME and DIRNAME.
+    !> RELATIVE-FILENAME and DIRECTORY_NAME.
     !>
     !> LINE can also be given with END-LINE, meaning a range of lines.
     !> COLUMN can also be given with END-COLUMN, meaning a range of columns
     !> starting on LINE and ending on END-LINE, if that matched.
     !>
-    !> LINE, END-LINE, COL, and END-COL can also be functions of no
+    !> LINE, END-LINE, COLUMN, and END-COL can also be functions of no
     !> argument that return the corresponding line or column number.  They
-    !> can assume REGEXP has just been matched, and should correspondingly
+    !> can assume REGULAR_EXPRESSION has just been matched, and should correspondingly
     !> preserve this match data.
     !>
     !> TYPE is 2 for a real error or 1 for warning or 0 for info.
@@ -432,7 +432,7 @@ module compile_mod
     !>
     !> What matched the HYPERLINK'th subexpression has `mouse_face' and
     !> `compilation_message_face' applied.  If this is 0, the text
-    !> matched by the whole REGEXP becomes the hyperlink.
+    !> matched by the whole REGULAR_EXPRESSION becomes the hyperlink.
     !>
     !> Additional HIGHLIGHTs take the shape (SUBMATCH FACE), where
     !> SUBMATCH is the number of a submatch and FACE is a face name, or a
@@ -443,14 +443,14 @@ module compile_mod
     !> is then consulted.  It allows further transformations of the
     !> matched file names, and ignoring false positives.  Port of
     !> compile.el compilation-error-regexp-alist.
-    character(len=64), allocatable, public :: compilation_error_regexp_names(:)
+    character(len=64), allocatable, public :: compilation_error_regular_expression_names(:)
 
     !> If true, use case-insensitive matching of compilation errors.
     !> If false, matching is case-sensitive.
     !>
     !> Compilation errors are given by the regexps in
-    !> `compilation_error_regexp_names' and
-    !> `compilation_error_regexps'.
+    !> `compilation_error_regular_expression_names' and
+    !> `compilation_error_regular_expressions'.
     !>
     !> This variable should only be set for backward compatibility as a
     !> temporary measure.  The proper solution is to use a regexp that
@@ -461,9 +461,9 @@ module compile_mod
 
     !> A value for tracking when directories are entered or left.
     !> If its regexp is unallocated, do not track directories, e.g. if all
-    !> file names are absolute.  The REGEXP matches these messages.  It can
+    !> file names are absolute.  The REGULAR_EXPRESSION matches these messages.  It can
     !> match any number of variants, e.g. different languages.  The values
-    !> DIR and LEAVE say: if the DIR'th subexpression matches, that is a
+    !> DIRECTORY and LEAVE say: if the DIRECTORY'th subexpression matches, that is a
     !> directory name.  If LEAVE is 0 or the corresponding LEAVE'th
     !> subexpression doesn't match, this message is about going into
     !> another directory.  If it does match anything, this message is
@@ -646,30 +646,30 @@ module compile_mod
     ! compilation-error); see `error_stem'.
     character(len=*), parameter :: COMPILATION_ERROR_STEM = "error"
 
-    ! A location (compile.el's LOC): COLUMN and LINE of FILE (a file
+    ! A location (compile.el's LOCATION): COLUMN and LINE of FILE (a file
     ! structure), the MARKER pointing there once it is known, and whether
     ! it was VISITED.  FILLED is false while only the column is known (the
     ! loc just made by compilation-assq).
-    type :: loc_type
-        logical :: has_col = .false.
-        integer(int64) :: col = 0
+    type :: location_type
+        logical :: has_column = .false.
+        integer(int64) :: column = 0
         logical :: filled = .false.
         logical :: has_line = .false.
         integer(int64) :: line = 0
         integer :: file = 0
         type(handle_type) :: marker
         logical :: visited = .false.
-    end type loc_type
+    end type location_type
 
-    ! The locations of a line of a file structure (LINE LOC...), the locs
+    ! The locations of a line of a file structure (LINE LOCATION...), the locs
     ! ordered by column, none first and then decreasing.
     type :: line_node_type
         logical :: has_line = .false.
         integer(int64) :: line = 0
-        integer, allocatable :: locs(:)
+        integer, allocatable :: locations(:)
     end type line_node_type
 
-    ! A file structure ((FILENAME DIRECTORY) FORMATS (LINE LOC...) ...),
+    ! A file structure ((FILENAME DIRECTORY) FORMATS (LINE LOCATION...) ...),
     ! the lines ordered by number, none first and then decreasing.
     type :: file_struct_type
         character(len=:), allocatable :: filename, directory
@@ -683,23 +683,23 @@ module compile_mod
         integer :: file = 0
     end type file_key_type
 
-    ! A message (compilation--message): LOC, TYPE, END_LOC (0 for none)
+    ! A message (compilation--message): LOCATION, TYPE, END_LOCATION (0 for none)
     ! and RULE (unallocated for none).  `compilation_message' text
     ! properties hold its index.
     type :: message_type
-        integer :: loc = 0
+        integer :: location = 0
         integer :: type = 2
-        integer :: end_loc = 0
+        integer :: end_location = 0
         character(len=:), allocatable :: rule
     end type message_type
 
     ! An element of the stack of directories a `compilation_directory'
-    ! text property holds: DIR (unallocated for nil) and the rest of the
+    ! text property holds: DIRECTORY (unallocated for nil) and the rest of the
     ! stack, PARENT (0 for the empty stack).
-    type :: dir_node_type
-        character(len=:), allocatable :: dir
+    type :: directory_node_type
+        character(len=:), allocatable :: directory
         integer :: parent = 0
-    end type dir_node_type
+    end type directory_node_type
 
     ! What a compilation buffer keeps (its buffer-local variables): forgotten
     ! when its local variables are killed.
@@ -727,27 +727,27 @@ module compile_mod
         ! compilation-current-error: a marker, a position, or none.
         type(handle_type) :: current_error_marker
         logical :: has_current_error = .false.
-        integer(int64) :: current_error_pos = 0
+        integer(int64) :: current_error_position = 0
         ! compilation-messages-start: a marker, a position, or none.
         type(handle_type) :: messages_start_marker
         logical :: has_messages_start = .false.
-        integer(int64) :: messages_start_pos = 0
+        integer(int64) :: messages_start_position = 0
         ! compilation-auto-jump-to-next.
         logical :: auto_jump_to_next = .false.
         ! The messages, locations, file structures, the keys of
         ! compilation-locs and the directory stacks.
         type(message_type), allocatable :: messages(:)
         integer :: nmessages = 0
-        type(loc_type), allocatable :: locs(:)
+        type(location_type), allocatable :: locations(:)
         integer :: nlocs = 0
         type(file_struct_type), allocatable :: files(:)
         integer :: nfiles = 0
         type(file_key_type), allocatable :: keys(:)
         integer :: nkeys = 0
-        type(dir_node_type), allocatable :: dirs(:)
+        type(directory_node_type), allocatable :: directories(:)
         integer :: ndirs = 0
         ! The stack '(nil).
-        integer :: nil_dir = 0
+        integer :: false_directory = 0
         ! The MODE of compilation-arguments (null for compilation_mode).
         type(major_mode_type), pointer :: mode => null()
         ! What a mode made by define-compilation-mode set buffer-locally:
@@ -775,15 +775,15 @@ module compile_mod
 
     ! A rule spec read during a match: what compilation-error-properties
     ! computes.
-    type :: error_spec_type
+    type :: error_specification_type
         character(len=:), allocatable :: filename, directory
-        logical :: has_line = .false., has_end_line = .false., has_col = .false., has_end_col = .false.
-        integer(int64) :: line = 0, end_line = 0, col = 0, end_col = 0
+        logical :: has_line = .false., has_end_line = .false., has_column = .false., has_end_column = .false.
+        integer(int64) :: line = 0, end_line = 0, column = 0, end_column = 0
         integer :: type = 2
         character(len=:), allocatable :: rule
-    end type error_spec_type
+    end type error_specification_type
 
-    character(len=*), parameter :: NL = achar(10), TB = achar(9), CR = achar(13)
+    character(len=*), parameter :: NEWLINE = achar(10), TB = achar(9), CR = achar(13)
 
 contains
 
@@ -791,15 +791,15 @@ contains
     ! The rules
     ! ------------------------------------------------------------------
 
-    !> Add a rule NAME to `compilation_error_regexps'.  Not a port.
-    subroutine append_rule(name, regexp, file, line, end_line, column, end_column, type, warning, info, hyperlink)
-        character(len=*), intent(in) :: name, regexp
+    !> Add a rule NAME to `compilation_error_regular_expressions'.  Not a port.
+    subroutine append_rule(name, regular_expression, file, line, end_line, column, end_column, type, warning, info, hyperlink)
+        character(len=*), intent(in) :: name, regular_expression
         integer, intent(in), optional :: file, line, end_line, column, end_column, type, warning, info, hyperlink
         type(compilation_rule_type) :: rule
 
-        if (.not. allocated(compilation_error_regexps)) allocate (compilation_error_regexps(0))
+        if (.not. allocated(compilation_error_regular_expressions)) allocate (compilation_error_regular_expressions(0))
         rule%name = name
-        rule%regexp = regexp
+        rule%regular_expression = regular_expression
         if (present(file)) rule%file = file
         if (present(line)) rule%line = line
         if (present(end_line)) rule%end_line = end_line
@@ -810,7 +810,7 @@ contains
         if (present(info)) rule%info = info
         if (present(hyperlink)) rule%hyperlink = hyperlink
         allocate (rule%highlights(0))
-        compilation_error_regexps = [compilation_error_regexps, rule]
+        compilation_error_regular_expressions = [compilation_error_regular_expressions, rule]
     end subroutine append_rule
 
     !> Add a HIGHLIGHT to RULE: SUBMATCH in FACE (a name) or the face
@@ -831,170 +831,174 @@ contains
 
     !> The last rule added.  Not a port.
     integer function last_rule()
-        last_rule = size(compilation_error_regexps)
+        last_rule = size(compilation_error_regular_expressions)
     end function last_rule
 
-    !> Set `compilation_error_regexps' to the built-in rules, in
+    !> Set `compilation_error_regular_expressions' to the built-in rules, in
     !> the default matching order.  Port of the value of compile.el
     !> compilation-error-regexp-alist-alist (the `rx' forms written as
     !> regexps).
-    subroutine init_compilation_error_regexps()
-        if (allocated(compilation_error_regexps)) deallocate (compilation_error_regexps)
+    subroutine initialize_compilation_error_regular_expressions()
+        if (allocated(compilation_error_regular_expressions)) deallocate (compilation_error_regular_expressions)
         call append_rule("absoft", "^\(?:[Ee]rror on \|[Ww]arning on\( \)\)?[Ll]ine["//TB//" ]+\([0-9]+\)["//TB// &
-                         " ]+of["//TB//' ]+"?\([a-zA-Z]?:?[^":'//NL//']+\)"?:', 3, 2, warning=1)
-        call append_rule("ada", "\(warning: .*\)? at \([^ "//NL//"]+\):\([0-9]+\)$", 2, 3, warning=1)
-        call append_rule("aix", " in line \([0-9]+\) of file \([^ "//NL//"]+[^. "//NL//"]\)\.? ", 2, 1)
-        call append_rule("ant", "^[ "//TB//"]*\(?:\[[^] "//NL//"]+\][ "//TB//"]*\)\{1,2\}\(\(?:[A-Za-z]:\)?[^: "//NL// &
+                         " ]+of["//TB//' ]+"?\([a-zA-Z]?:?[^":'//NEWLINE//']+\)"?:', 3, 2, warning=1)
+        call append_rule("ada", "\(warning: .*\)? at \([^ "//NEWLINE//"]+\):\([0-9]+\)$", 2, 3, warning=1)
+        call append_rule("aix", " in line \([0-9]+\) of file \([^ "//NEWLINE//"]+[^. "//NEWLINE//"]\)\.? ", 2, 1)
+        call append_rule("ant", "^[ "//TB//"]*\(?:\[[^] "//NEWLINE//"]+\][ "//TB//"]*\)\{1,2\}\(\(?:[A-Za-z]:\)?[^: "//NEWLINE// &
                          "]+\):\([0-9]+\):\(?:\([0-9]+\):\([0-9]+\):\([0-9]+\):\)?\( warning\)?", 1, 2, 4, 3, 5, warning=6)
-        call append_rule("bash", "^\([^: "//NL//TB//"]+\): line \([0-9]+\):", 1, 2)
-        call append_rule("borland", "^\(?:Error\|Warnin\(g\)\) \(?:[FEW][0-9]+ \)?\([a-zA-Z]?:?[^:( "//TB//NL// &
-                         "]+\) \([0-9]+\)\(?:[) "//TB//"]\|:[^0-9"//NL//"]\)", 2, 3, warning=1)
-        call append_rule("python_tracebacks_and_caml", "^[ "//TB//']*File \("?\)\([^," '//NL//TB// &
+        call append_rule("bash", "^\([^: "//NEWLINE//TB//"]+\): line \([0-9]+\):", 1, 2)
+        call append_rule("borland", "^\(?:Error\|Warnin\(g\)\) \(?:[FEW][0-9]+ \)?\([a-zA-Z]?:?[^:( "//TB//NEWLINE// &
+                         "]+\) \([0-9]+\)\(?:[) "//TB//"]\|:[^0-9"//NEWLINE//"]\)", 2, 3, warning=1)
+        call append_rule("python_tracebacks_and_caml", "^[ "//TB//']*File \("?\)\([^," '//NEWLINE//TB// &
                          "<>]+\)\1, lines? \([0-9]+\)-?\([0-9]+\)?\(?:$\|,\(?: characters? \([0-9]+\)-?\([0-9]+\)?:\)?\([ " &
-                         //NL//"]Warning\(?: [0-9]+\)?:\)?\)", 2, 3, 4, 5, 6, warning=7)
+                         //NEWLINE//"]Warning\(?: [0-9]+\)?:\)?\)", 2, 3, 4, 5, 6, warning=7)
         call append_rule("cmake", "^CMake \(?:Error\|\(Warning\)\) at \(.*\):\([1-9][0-9]*\) ([^)]+):$", 2, 3, warning=1)
         call append_rule("cmake_info", "^  \(?: \*\)?\(.*\):\([1-9][0-9]*\) ([^)]+)$", 1, 2, type=0)
-        call append_rule("comma", '^"\([^," '//NL//TB//']+\)", line \([0-9]+\)\(?:[(. pos]+\([0-9]+\))?\)?[:.,; (-]\( ' &
+        call append_rule("comma", '^"\([^," '//NEWLINE//TB//']+\)", line \([0-9]+\)\(?:[(. pos]+\([0-9]+\))?\)?[:.,; (-]\( ' &
                          //"warning:\|[-0-9 ]*(W)\)?", 1, 2, column=3, warning=4)
-        call append_rule("msft", "^ *\([0-9]+>\)?\(\(?:[a-zA-Z]:\)?[^ :("//TB//NL//"][^:("//TB//NL// &
+        call append_rule("msft", "^ *\([0-9]+>\)?\(\(?:[a-zA-Z]:\)?[^ :("//TB//NEWLINE//"][^:("//TB//NEWLINE// &
                          "]*\)(\([0-9]+\)\(?:,\([0-9]+\)\)?) ?: \(?:see declaration\|\(?:warnin\(g\)\|[a-z ]+\) C[0-9]+:\)", &
                          2, 3, column=4, warning=5)
-        call append_rule("edg_1", "^\([^ "//NL//"]+\)(\([0-9]+\)): \(?:error\|warnin\(g\)\|remar\(k\)\)", 1, 2, &
+        call append_rule("edg_1", "^\([^ "//NEWLINE//"]+\)(\([0-9]+\)): \(?:error\|warnin\(g\)\|remar\(k\)\)", 1, 2, &
                          warning=3, info=4)
-        call append_rule("edg_2", 'at line \([0-9]+\) of "\([^ '//NL//']+\)"$', 2, 1, type=0)
-        call append_rule("epc", "^Error [0-9]+ at (\([0-9]+\):\([^)"//NL//"]+\))", 2, 1)
-        call append_rule("ftnchek", "\(^Warning .*\)? line[ "//NL//"]\([0-9]+\)[ "//NL//"]\(?:col \([0-9]+\)[ "//NL// &
-                         "]\)?file \([^ :;"//NL//"]+\)", 4, 2, column=3, warning=1)
-        call append_rule("gradle_kotlin", "^\(?:\(w\)\|\([iv]\)\|e\): file://\(\(?:[A-Za-z]:\)?[^"//NL// &
+        call append_rule("edg_2", 'at line \([0-9]+\) of "\([^ '//NEWLINE//']+\)"$', 2, 1, type=0)
+        call append_rule("epc", "^Error [0-9]+ at (\([0-9]+\):\([^)"//NEWLINE//"]+\))", 2, 1)
+        call append_rule("ftnchek", &
+                         "\(^Warning .*\)? line[ "//NEWLINE//"]\([0-9]+\)[ "//NEWLINE//"]\(?:col \([0-9]+\)[ "//NEWLINE// &
+                         "]\)?file \([^ :;"//NEWLINE//"]+\)", 4, 2, column=3, warning=1)
+        call append_rule("gradle_kotlin", "^\(?:\(w\)\|\([iv]\)\|e\): file://\(\(?:[A-Za-z]:\)?[^"//NEWLINE// &
                          ":]+\):\([[:digit:]]+\):\([[:digit:]]+\) ", 3, 4, column=5, warning=1, info=2)
-        call append_rule("gradle_kotlin_legacy", "^\(?:\(w\)\|\([iv]\)\|e\): \(\(?:[A-Za-z]:\)?[^"//NL// &
+        call append_rule("gradle_kotlin_legacy", "^\(?:\(w\)\|\([iv]\)\|e\): \(\(?:[A-Za-z]:\)?[^"//NEWLINE// &
                          ":]+\): (\([[:digit:]]+\), \([[:digit:]]+\)): ", 3, 4, column=5, warning=1, info=2)
-        call append_rule("gradle_android", "^ *ERROR:\(?1:[^:"//NL//"]+\):\(?2:[[:digit:]]+\): ", 1, 2)
+        call append_rule("gradle_android", "^ *ERROR:\(?1:[^:"//NEWLINE//"]+\):\(?2:[[:digit:]]+\): ", 1, 2)
         call append_rule("iar", '^"\(.*\)",\([0-9]+\)\s-+\(?:Error\|Warnin\(g\)\)\[[0-9]+\]:', 1, 2, warning=3)
-        call append_rule("ibm", "^\([^( "//NL//TB//"]+\)(\([0-9]+\):\([0-9]+\)) : \(?:warnin\(g\)\|informationa\(l\)\)?", &
+        call append_rule("ibm", "^\([^( "//NEWLINE//TB//"]+\)(\([0-9]+\):\([0-9]+\)) : \(?:warnin\(g\)\|informationa\(l\)\)?", &
                          1, 2, column=3, warning=4, info=5)
         call append_rule("irix", "^[-[:alnum:]_/ ]+: \(?:\(?:[sS]evere\|[eE]rror\|[wW]arnin\(g\)\|[iI]nf\(o\)\)[0-9 ]*: " &
-                         //'\)?\([^," '//NL//TB//"]+\)\(?:, line\|:\) \([0-9]+\):", 3, 4, warning=1, info=2)
-        call append_rule("java", "^\(?:[ "//TB//"]+at \|==[0-9]+== +\(?:at\|b\(y\)\)\).+(\([^()"//NL// &
+                         //'\)?\([^," '//NEWLINE//TB//"]+\)\(?:, line\|:\) \([0-9]+\):", 3, 4, warning=1, info=2)
+        call append_rule("java", "^\(?:[ "//TB//"]+at \|==[0-9]+== +\(?:at\|b\(y\)\)\).+(\([^()"//NEWLINE// &
                          "]+\):\([0-9]+\))$", 2, 3, warning=1)
-        call append_rule("javac", "^\(\(?:[A-Za-z]:\)?[^"//NL//":]+\):\([0-9]+\): \(warning: \)?.*"//NL//".*"//NL// &
+        call append_rule("javac", "^\(\(?:[A-Za-z]:\)?[^"//NEWLINE//":]+\):\([0-9]+\): \(warning: \)?.*"//NEWLINE//".*"//NEWLINE// &
                          " *\^$", 1, 2, warning=3)
-        compilation_error_regexps(last_rule())%column_function => current_column_function
+        compilation_error_regular_expressions(last_rule())%column_function => current_column_function
         call append_rule("jikes_file", '^\(?:Found\|Issued\) .* compiling "\(.+\)":$', 1, type=0)
-        call append_rule("maven", "^\(?:\[\(?:ERROR\|\(?1:WARNING\)\|\(?2:INFO\)\)] \)?\(?3:[^"//NL//" []\(?:[^"//NL// &
-                         " :]\| [^"//NL//"/-]\|:[^"//NL//" []\)*\):\[\(?4:[[:digit:]]+\),\(?5:[[:digit:]]+\)] ", 3, 4, &
+        call append_rule("maven", "^\(?:\[\(?:ERROR\|\(?1:WARNING\)\|\(?2:INFO\)\)] \)?\(?3:[^"//NEWLINE//" []\(?:[^"//NEWLINE// &
+                         " :]\| [^"//NEWLINE//"/-]\|:[^"//NEWLINE//" []\)*\):\[\(?4:[[:digit:]]+\),\(?5:[[:digit:]]+\)] ", 3, 4, &
                          column=5, warning=1, info=2)
-        call append_rule("jikes_line", "^ *\([0-9]+\)\.[ "//TB//"]+.*"//NL//" +\(<-*>"//NL// &
+        call append_rule("jikes_line", "^ *\([0-9]+\)\.[ "//TB//"]+.*"//NEWLINE//" +\(<-*>"//NEWLINE// &
                          "\*\*\* \(?:Error\|Warnin\(g\)\)\)", 0, 1, type=2, hyperlink=0)
-        call append_highlight(compilation_error_regexps(last_rule()), 2, face_function=face_of_type_3)
-        call append_rule("clang_include", "^In file included from \([^"//NL//":]+\):\([0-9]+\):$", 1, 2, type=0)
-        call append_rule("gcc_include", "^\(?:In file included \|                 \|"//TB//"\)from \([0-9]*[^0-9"//NL// &
-                         "]\(?:[^"//NL//" :]\| [^-/"//NL//"]\|:[^ "//NL//"]\)*?\):\([0-9]+\)\(?::\([0-9]+\)\)?\(?:\([:,]\|$\)\)?", &
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 2, face_function=face_of_type_3)
+        call append_rule("clang_include", "^In file included from \([^"//NEWLINE//":]+\):\([0-9]+\):$", 1, 2, type=0)
+        call append_rule("gcc_include", "^\(?:In file included \|                 \|"//TB//"\)from \([0-9]*[^0-9"//NEWLINE// &
+                         "]\(?:[^"//NEWLINE//" :]\| [^-/"//NEWLINE//"]\|:[^ "//NEWLINE &
+                         //"]\)*?\):\([0-9]+\)\(?::\([0-9]+\)\)?\(?:\([:,]\|$\)\)?", &
                          1, 2, column=3, info=4)
         call append_rule("ruby_Test::Unit", "^    [[ ]?\([^ (].*\):\([1-9][0-9]*\)\(\]\)?:in ", 1, 2)
         call append_rule("rust_panic", "^\(?:    \)?thread '.+' \(?:([[:digit:]]+) \)?\(?1:panicked\) at \(?2:.+\):" &
                          //"\(?3:[[:digit:]]+\):\(?4:[[:digit:]]+\):$", 2, 3, column=4)
-        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=error_face_value)
-        call append_rule("rust", "^\(?:\(?1:error\)\|\(?2:warning\)\|\(?3:note\)\)\(?:\[[0-9A-Z]+]\)?:.*"//NL// &
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 1, face_function=error_face_value)
+        call append_rule("rust", "^\(?:\(?1:error\)\|\(?2:warning\)\|\(?3:note\)\)\(?:\[[0-9A-Z]+]\)?:.*"//NEWLINE// &
                          " +--> \(?4:.+\):\(?5:[0-9]+\):\(?6:[0-9]+\)", 4, 5, column=6, warning=2, info=3)
-        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=error_face_value)
-        call append_highlight(compilation_error_regexps(last_rule()), 2, face_function=warning_face_value)
-        call append_highlight(compilation_error_regexps(last_rule()), 3, face_function=info_face_value)
-        call append_rule("lua", "^[^"//TB//NL//"]+?: \([^"//TB//NL//"]+?\):\([0-9]+\): .+"//NL//"stack traceback:"//NL//TB, &
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 1, face_function=error_face_value)
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 2, face_function=warning_face_value)
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 3, face_function=info_face_value)
+        call append_rule("lua", &
+                   "^[^"//TB//NEWLINE//"]+?: \([^"//TB//NEWLINE//"]+?\):\([0-9]+\): .+"//NEWLINE//"stack traceback:"//NEWLINE//TB, &
                          1, 2, type=2, hyperlink=1)
-        call append_rule("lua_stack", "^"//TB//"\(?:\[C]:\|\([^"//TB//NL//"]+?\):\(?:\([0-9]+\):\)?\) in ", 1, 2, type=0, &
+        call append_rule("lua_stack", "^"//TB//"\(?:\[C]:\|\([^"//TB//NEWLINE//"]+?\):\(?:\([0-9]+\):\)?\) in ", 1, 2, type=0, &
                          hyperlink=1)
         call append_rule("gmake", ": \*\*\* \[\(\(.+?\):\([0-9]+\): .+\)\]", 2, 3, type=0, hyperlink=1)
-        call append_rule("gnu", "^\(?:[[:alpha:]][.[:alnum:]-]+: ?\| +|?\)?\(?1:\(?:[^0-9"//NL//TB//" ]\|[0-9]+[^0-9"// &
-                         NL//"]\)\(?:[^"//NL//" :]\| [^/"//NL//"-]\|:[^ "//NL//"]\)*?\): ?\(?2:[0-9]+\)\(?:-\(?4:[0-9]+\)" &
+        call append_rule("gnu", "^\(?:[[:alpha:]][.[:alnum:]-]+: ?\| +|?\)?\(?1:\(?:[^0-9"//NEWLINE//TB//" ]\|[0-9]+[^0-9"// &
+                         NEWLINE//"]\)\(?:[^"//NEWLINE//" :]\| [^/"//NEWLINE//"-]\|:[^ "//NEWLINE &
+                         //"]\)*?\): ?\(?2:[0-9]+\)\(?:-\(?4:[0-9]+\)" &
                          //"\(?:\.\(?5:[0-9]+\)\)?\|[.:]\(?3:[0-9]+\)\(?:-\(?:\(?4:[0-9]+\)\.\)?\(?5:[0-9]+\)\)?\)?:\(?: *" &
                          //"\(?6:FutureWarning\|RuntimeWarning\|Warning\|warning\|W:\)\| *\(?7:Informational\|" &
                          //"informational\|Information\|information\|Info\|info\|I:\|instantiated from\|required from\|" &
-                         //"Note\|note\|\[ skipping .+ ]\)\| *\(?:Error\|error\)\|[0-9]?\(?:[^0-9"//NL//"]\|$\)\|" &
+                         //"Note\|note\|\[ skipping .+ ]\)\| *\(?:Error\|error\)\|[0-9]?\(?:[^0-9"//NEWLINE//"]\|$\)\|" &
                          //"[0-9][0-9][0-9]\)", 1, 2, 4, 3, 5, warning=6, info=7)
         call append_rule("cucumber", "\(?:^\(?:cucumber\(?: -p [^[:space:]]+\)?\|     \)\|#\) \([^(].*\):" &
                          //"\([1-9][0-9]*\)", 1, 2)
-        call append_rule("lcc", "^\(?:E\|\(W\)\), \([^("//NL//"]+\)(\([0-9]+\),["//TB//" ]*\([0-9]+\)", 2, 3, column=4, &
+        call append_rule("lcc", "^\(?:E\|\(W\)\), \([^("//NEWLINE//"]+\)(\([0-9]+\),["//TB//" ]*\([0-9]+\)", 2, 3, column=4, &
                          warning=1)
         call append_rule("makepp", "^makepp\(?:\(?:: warning\(:\).*?\|\(: Scanning\|: [LR]e?l?oading makefile\|: " &
                          //"Imported\|log:.*?\) \|: .*?\)`\(\(\S +?\)\(?::\([0-9]+\)\)?\)['(]\)", 4, 5, warning=1, &
                          info=2, hyperlink=3)
-        call append_highlight(compilation_error_regexps(last_rule()), 0, face_function=makepp_highlight)
-        call append_rule("mips_1", " (\([0-9]+\)) in \([^ "//NL//"]+\)", 2, 1)
-        call append_rule("mips_2", " in \([^()"//NL//" ]+\)(\([0-9]+\))$", 1, 2)
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 0, face_function=makepp_highlight)
+        call append_rule("mips_1", " (\([0-9]+\)) in \([^ "//NEWLINE//"]+\)", 2, 1)
+        call append_rule("mips_2", " in \([^()"//NEWLINE//" ]+\)(\([0-9]+\))$", 1, 2)
         call append_rule("omake", "^\*\*\* omake: file \(.*\) changed", 1)
-        call append_highlight(compilation_error_regexps(last_rule()), 0, face_function=omake_highlight)
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 0, face_function=omake_highlight)
         call append_rule("oracle", "^\(?:Semantic error\|Error\|PCC-[0-9]+:\).* line \([0-9]+\)\(?:\(?:,\| at\)? column " &
                          //"\([0-9]+\)\)?\(?:,\| in\| of\)? file \(.*?\):?$", 3, 1, column=2)
-        call append_rule("perl", " at \([^ "//NL//"]+\) line \([0-9]+\)\(?:[,.]\|$\| during global destruction\.$\)", 1, 2)
+        call append_rule("perl", " at \([^ "//NEWLINE//"]+\) line \([0-9]+\)\(?:[,.]\|$\| during global destruction\.$\)", 1, 2)
         call append_rule("php", "\(?:Parse\|Fatal\) error: \(.*\) in \(.*\) on line \([0-9]+\)", 2, 3)
-        call append_rule("rxp", "^\(?:Error\|Warnin\(g\)\):.*"//NL//".* line \([0-9]+\) char \([0-9]+\) of " &
+        call append_rule("rxp", "^\(?:Error\|Warnin\(g\)\):.*"//NEWLINE//".* line \([0-9]+\) char \([0-9]+\) of " &
                          //"file://\(.+\)", 4, 2, column=3, warning=1)
         call append_rule("shellcheck", "^In \(.+\) line \([0-9]+\):", 1, 2)
         call append_rule("sparc_pascal_file", "^\w\w\w \w\w\w +[0-3]?[0-9] +[0-2][0-9]:[0-5][0-9]:[0-5][0-9] " &
                          //"[12][09][0-9][0-9] +\(.*\):$", 1, type=0)
         call append_rule("sparc_pascal_line", "^\(\(?:E\|\(w\)\) +[0-9]+\) line \([0-9]+\) -  ", 0, 3, warning=2)
-        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=face_of_type_2)
-        call append_rule("sparc_pascal_example", "^ +\([0-9]+\) +.*"//NL//"\(\(?:e\|\(w\)\) [0-9]+\)-+", 0, 1, warning=3)
-        call append_highlight(compilation_error_regexps(last_rule()), 2, face_function=face_of_type_3)
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 1, face_function=face_of_type_2)
+        call append_rule("sparc_pascal_example", "^ +\([0-9]+\) +.*"//NEWLINE//"\(\(?:e\|\(w\)\) [0-9]+\)-+", 0, 1, warning=3)
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 2, face_function=face_of_type_3)
         call append_rule("sun", ": \(?:ERROR\|WARNIN\(G\)\|REMAR\(K\)\) \(?:[[:alnum:] ]+, \)?File = \(.+\), Line = " &
                          //"\([0-9]+\)\(?:, Column = \([0-9]+\)\)?", 3, 4, column=5, warning=1, info=2)
-        call append_rule("sun_ada", "^\([^, "//NL//TB//"]+\), line \([0-9]+\), char \([0-9]+\)[:., (-]", 1, 2, column=3)
-        call append_rule("watcom", "^[ "//TB//"]*\(\(?:[a-zA-Z]:\)?[^ :("//TB//NL//"][^:("//TB//NL// &
+        call append_rule("sun_ada", "^\([^, "//NEWLINE//TB//"]+\), line \([0-9]+\), char \([0-9]+\)[:., (-]", 1, 2, column=3)
+        call append_rule("watcom", "^[ "//TB//"]*\(\(?:[a-zA-Z]:\)?[^ :("//TB//NEWLINE//"][^:("//TB//NEWLINE// &
                          "]*\)(\([0-9]+\)): ?\(?:\(Error! E[0-9]+\)\|\(Warning! W[0-9]+\)\):", 1, 2, warning=4)
-        call append_rule("4bsd", "\(?:^\|::  \|\S ( \)\(/[^ "//NL//TB//"()]+\)(\([0-9]+\))\(?:: \(warning:\)?\|$\| ),\)", &
+        call append_rule("4bsd", "\(?:^\|::  \|\S ( \)\(/[^ "//NEWLINE//TB//"()]+\)(\([0-9]+\))\(?:: \(warning:\)?\|$\| ),\)", &
                          1, 2, warning=3)
         call append_rule("gcov_file", "^ *-: *\(0\):Source:\(.+\)$", 2, 1, type=0)
         call append_rule("gcov_header", "^ *-: *\(0\):\(?:Object\|Graph\|Data\|Runs\|Programs\):.+$", 0, 1, type=0)
         call append_rule("gcov_nomark", "^ *-: *\([1-9]\|[0-9]\{2,\}\):.*$", 0, 1, type=0)
-        call append_highlight(compilation_error_regexps(last_rule()), 0, face="default")
-        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=line_face_value)
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 0, face="default")
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 1, face_function=line_face_value)
         call append_rule("gcov_called_line", "^ *\([0-9]+\): *\([0-9]+\):.*$", 0, 2, type=0)
-        call append_highlight(compilation_error_regexps(last_rule()), 0, face="default")
-        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=info_face_value)
-        call append_highlight(compilation_error_regexps(last_rule()), 2, face_function=line_face_value)
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 0, face="default")
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 1, face_function=info_face_value)
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 2, face_function=line_face_value)
         call append_rule("gcov_never_called", "^ *\(#####\): *\([0-9]+\):.*$", 0, 2, type=2)
-        call append_highlight(compilation_error_regexps(last_rule()), 0, face="default")
-        call append_highlight(compilation_error_regexps(last_rule()), 1, face_function=error_face_value)
-        call append_highlight(compilation_error_regexps(last_rule()), 2, face_function=line_face_value)
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 0, face="default")
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 1, face_function=error_face_value)
+        call append_highlight(compilation_error_regular_expressions(last_rule()), 2, face_function=line_face_value)
         call append_rule("perl__Pod::Checker", "^\*\*\* \(?:ERROR\|\(WARNING\)\).* \(?:at\|on\) line \([0-9]+\) " &
-                         //"\(?:.* \)?in file \([^ "//TB//NL//"]+\)", 3, 2, warning=1)
-        call append_rule("perl__Test", "^# Failed test [0-9]+ in \([^ "//TB//CR//NL//"]+\) at line \([0-9]+\)", 1, 2)
-        call append_rule("perl__Test2", "^\(.*NOK.*\)?# Test [0-9]+ got:.* (\([^ "//TB//CR//NL// &
+                         //"\(?:.* \)?in file \([^ "//TB//NEWLINE//"]+\)", 3, 2, warning=1)
+        call append_rule("perl__Test", "^# Failed test [0-9]+ in \([^ "//TB//CR//NEWLINE//"]+\) at line \([0-9]+\)", 1, 2)
+        call append_rule("perl__Test2", "^\(.*NOK.*\)?# Test [0-9]+ got:.* (\([^ "//TB//CR//NEWLINE// &
                          "]+\) at line \([0-9]+\)\( fail #[0-9]+\)?)", 2, 3)
-        call append_rule("perl__Test::Harness", "^.*NOK.* \([^ "//TB//CR//NL//"]+\) at line \([0-9]+\)", 1, 2)
-        call append_rule("weblint", "^\([^ "//TB//CR//NL//"(]+\) (\([0-9]+\):\([0-9]+\)) ", 1, 2, column=3)
-        call append_rule("guile_file", "^In \(.+\..+\):"//NL, 1, type=0)
+        call append_rule("perl__Test::Harness", "^.*NOK.* \([^ "//TB//CR//NEWLINE//"]+\) at line \([0-9]+\)", 1, 2)
+        call append_rule("weblint", "^\([^ "//TB//CR//NEWLINE//"(]+\) (\([0-9]+\):\([0-9]+\)) ", 1, 2, column=3)
+        call append_rule("guile_file", "^In \(.+\..+\):"//NEWLINE, 1, type=0)
         call append_rule("guile_line", "^ *\([0-9]+\): *\([0-9]+\)", 0, 1, column=2)
-        call append_rule("typescript_tsc_plain", "^\([^ "//TB//NL//"()][^"//NL//"()]*\)(\([0-9]+\),\([0-9]+\)): error " &
+        call append_rule("typescript_tsc_plain", "^\([^ "//TB//NEWLINE//"()][^"//NEWLINE//"()]*\)(\([0-9]+\),\([0-9]+\)): error " &
                          //"[0-9A-Z]+: ", 1, 2, column=3, type=2)
-        call append_rule("typescript_tsc_pretty", "^\([^ "//TB//NL//"()][^"//NL//"()]*\):\([0-9]+\):\([0-9]+\) - error " &
+        call append_rule("typescript_tsc_pretty", "^\([^ "//TB//NEWLINE//"()][^"//NEWLINE//"()]*\):\([0-9]+\):\([0-9]+\) - error " &
                          //"[0-9A-Z]+: ", 1, 2, column=3, type=2)
-    end subroutine init_compilation_error_regexps
+    end subroutine initialize_compilation_error_regular_expressions
 
-    !> The default `compilation_error_regexp_names': every rule but
+    !> The default `compilation_error_regular_expression_names': every rule but
     !> `omake' (its mere presence triggers special processing and modifies
     !> the regexps of other rules, see `compilation_parse_errors').
     !> Not a port.
-    subroutine init_compilation_error_regexp_names()
+    subroutine initialize_compilation_error_regular_expression_names()
         integer :: k, n
 
         n = 0
 
-        do k = 1, size(compilation_error_regexps)
-            if (compilation_error_regexps(k)%name /= "omake") n = n + 1
+        do k = 1, size(compilation_error_regular_expressions)
+            if (compilation_error_regular_expressions(k)%name /= "omake") n = n + 1
         end do
 
-        if (allocated(compilation_error_regexp_names)) deallocate (compilation_error_regexp_names)
-        allocate (compilation_error_regexp_names(n))
+        if (allocated(compilation_error_regular_expression_names)) deallocate (compilation_error_regular_expression_names)
+        allocate (compilation_error_regular_expression_names(n))
         n = 0
 
-        do k = 1, size(compilation_error_regexps)
-            if (compilation_error_regexps(k)%name == "omake") cycle
+        do k = 1, size(compilation_error_regular_expressions)
+            if (compilation_error_regular_expressions(k)%name == "omake") cycle
             n = n + 1
-            compilation_error_regexp_names(n) = compilation_error_regexps(k)%name
+            compilation_error_regular_expression_names(n) = compilation_error_regular_expressions(k)%name
         end do
-    end subroutine init_compilation_error_regexp_names
+    end subroutine initialize_compilation_error_regular_expression_names
 
     !> The column of point (the javac rule's COLUMN: #'current-column).
     !> Not a port.
@@ -1072,7 +1076,7 @@ contains
         integer(int64) :: from
 
         saved = match_data()
-        rules(1)%regexp = "`\(\(\S +?\)\(?::\([0-9]+\)\)?\)['(]"
+        rules(1)%regular_expression = "`\(\(\S +?\)\(?::\([0-9]+\)\)?\)['(]"
         rules(1)%file = 2
         rules(1)%line = 3
 
@@ -1158,7 +1162,8 @@ contains
         integer :: i
 
         do i = 1, compilation_buffers(k)%nlocs
-            if (compilation_buffers(k)%locs(i)%marker%index /= 0) call destroy_marker(compilation_buffers(k)%locs(i)%marker, st)
+            if (compilation_buffers(k)%locations(i)%marker%index /= 0) call destroy_marker(compilation_buffers(k)%locations( &
+                                                                                           i)%marker, st)
         end do
 
         if (compilation_buffers(k)%parsed%index /= 0) call destroy_marker(compilation_buffers(k)%parsed, st)
@@ -1186,7 +1191,7 @@ contains
     !> Give the current buffer its own values of the compilation variables,
     !> as the body of a mode made by define-compilation-mode does with
     !> `set_local' (after `compilation_mode' has run as its parent):
-    !> `compilation_error_regexp_names' as the rules ERROR_REGEXPS,
+    !> `compilation_error_regular_expression_names' as the rules ERROR_REGULAR_EXPRESSIONS,
     !> `compilation_directory_matcher', `compilation_transform_file_matches',
     !> `compilation_error' (the word for a message, "error" by default),
     !> `compilation_mode_font_lock_keywords' (MODE_FONT_LOCK_KEYWORDS: what
@@ -1196,10 +1201,10 @@ contains
     !> (`compilation_error_face', `compilation_scroll_output',
     !> `compilation_first_column' and so on) take `set_local' directly.
     !> Cf. compile.el:define-compilation-mode.  Not a port.
-    subroutine compilation_set_mode_locals(error_regexps, directory_matcher, transform_file_match_table, &
+    subroutine compilation_set_mode_locals(error_regular_expressions, directory_matcher, transform_file_match_table, &
                                            error, mode_font_lock_keywords, mode_line_errors, process_setup_function, &
                                            exit_message_function)
-        type(compilation_rule_type), intent(in), optional :: error_regexps(:)
+        type(compilation_rule_type), intent(in), optional :: error_regular_expressions(:)
         type(compilation_directory_matcher_type), intent(in), optional :: directory_matcher
         type(compilation_transform_type), intent(in), optional :: transform_file_match_table(:)
         character(len=*), intent(in), optional :: error
@@ -1212,12 +1217,12 @@ contains
 
         call make_current_entry(k)
 
-        if (present(error_regexps)) then
+        if (present(error_regular_expressions)) then
             compilation_buffers(k)%has_rules = .true.
-            allocate (compilation_buffers(k)%rules(size(error_regexps)))
+            allocate (compilation_buffers(k)%rules(size(error_regular_expressions)))
 
-            do i = 1, size(error_regexps)
-                compilation_buffers(k)%rules(i) = error_regexps(i)
+            do i = 1, size(error_regular_expressions)
+                compilation_buffers(k)%rules(i) = error_regular_expressions(i)
             end do
         end if
 
@@ -1338,8 +1343,8 @@ contains
     ! ------------------------------------------------------------------
 
     !> A new message in entry K.  Not a port.
-    integer function make_message(k, loc, type, end_loc, rule) result(id)
-        integer, intent(in) :: k, loc, type, end_loc
+    integer function make_message(k, location, type, end_location, rule) result(id)
+        integer, intent(in) :: k, location, type, end_location
         character(len=*), intent(in), optional :: rule
         type(message_type), allocatable :: grown(:)
         integer :: i, n
@@ -1351,9 +1356,9 @@ contains
             allocate (grown(2*n))
 
             do i = 1, n
-                grown(i)%loc = compilation_buffers(k)%messages(i)%loc
+                grown(i)%location = compilation_buffers(k)%messages(i)%location
                 grown(i)%type = compilation_buffers(k)%messages(i)%type
-                grown(i)%end_loc = compilation_buffers(k)%messages(i)%end_loc
+                grown(i)%end_location = compilation_buffers(k)%messages(i)%end_location
 
                 if (allocated(compilation_buffers(k)%messages(i)%rule)) then
                     call move_alloc(compilation_buffers(k)%messages(i)%rule, grown(i)%rule)
@@ -1365,126 +1370,127 @@ contains
 
         id = n + 1
         compilation_buffers(k)%nmessages = id
-        compilation_buffers(k)%messages(id)%loc = loc
+        compilation_buffers(k)%messages(id)%location = location
         compilation_buffers(k)%messages(id)%type = type
-        compilation_buffers(k)%messages(id)%end_loc = end_loc
+        compilation_buffers(k)%messages(id)%end_location = end_location
         if (allocated(compilation_buffers(k)%messages(id)%rule)) deallocate (compilation_buffers(k)%messages(id)%rule)
         if (present(rule)) compilation_buffers(k)%messages(id)%rule = rule
     end function make_message
 
-    !> A new location of column COL (none unless HAS_COL) in entry K.
+    !> A new location of column COLUMN (none unless HAS_COLUMN) in entry K.
     !> Not a port.
-    integer function make_loc(k, has_col, col) result(id)
+    integer function make_location(k, has_column, column) result(id)
         integer, intent(in) :: k
-        logical, intent(in) :: has_col
-        integer(int64), intent(in) :: col
-        type(loc_type), allocatable :: grown(:)
+        logical, intent(in) :: has_column
+        integer(int64), intent(in) :: column
+        type(location_type), allocatable :: grown(:)
         integer :: n
 
-        if (.not. allocated(compilation_buffers(k)%locs)) allocate (compilation_buffers(k)%locs(16))
+        if (.not. allocated(compilation_buffers(k)%locations)) allocate (compilation_buffers(k)%locations(16))
         n = compilation_buffers(k)%nlocs
 
-        if (n == size(compilation_buffers(k)%locs)) then
+        if (n == size(compilation_buffers(k)%locations)) then
             allocate (grown(2*n))
-            grown(1:n) = compilation_buffers(k)%locs(1:n)
-            call move_alloc(grown, compilation_buffers(k)%locs)
+            grown(1:n) = compilation_buffers(k)%locations(1:n)
+            call move_alloc(grown, compilation_buffers(k)%locations)
         end if
 
         id = n + 1
         compilation_buffers(k)%nlocs = id
-        compilation_buffers(k)%locs(id) = loc_type()
-        compilation_buffers(k)%locs(id)%has_col = has_col
-        compilation_buffers(k)%locs(id)%col = col
-    end function make_loc
+        compilation_buffers(k)%locations(id) = location_type()
+        compilation_buffers(k)%locations(id)%has_column = has_column
+        compilation_buffers(k)%locations(id)%column = column
+    end function make_location
 
-    !> A new directory stack node in entry K: DIR (if present) on PARENT.
+    !> A new directory stack node in entry K: DIRECTORY (if present) on PARENT.
     !> Not a port.
-    integer function make_dir(k, parent, dir) result(id)
+    integer function create_directory(k, parent, directory) result(id)
         integer, intent(in) :: k, parent
-        character(len=*), intent(in), optional :: dir
-        type(dir_node_type), allocatable :: grown(:)
+        character(len=*), intent(in), optional :: directory
+        type(directory_node_type), allocatable :: grown(:)
         integer :: i, n
 
-        if (.not. allocated(compilation_buffers(k)%dirs)) allocate (compilation_buffers(k)%dirs(16))
+        if (.not. allocated(compilation_buffers(k)%directories)) allocate (compilation_buffers(k)%directories(16))
         n = compilation_buffers(k)%ndirs
 
-        if (n == size(compilation_buffers(k)%dirs)) then
+        if (n == size(compilation_buffers(k)%directories)) then
             allocate (grown(2*n))
 
             do i = 1, n
-                grown(i)%parent = compilation_buffers(k)%dirs(i)%parent
+                grown(i)%parent = compilation_buffers(k)%directories(i)%parent
 
-                if (allocated(compilation_buffers(k)%dirs(i)%dir)) then
-                    call move_alloc(compilation_buffers(k)%dirs(i)%dir, grown(i)%dir)
+                if (allocated(compilation_buffers(k)%directories(i)%directory)) then
+                    call move_alloc(compilation_buffers(k)%directories(i)%directory, grown(i)%directory)
                 end if
             end do
 
-            call move_alloc(grown, compilation_buffers(k)%dirs)
+            call move_alloc(grown, compilation_buffers(k)%directories)
         end if
 
         id = n + 1
         compilation_buffers(k)%ndirs = id
-        compilation_buffers(k)%dirs(id)%parent = parent
-        if (allocated(compilation_buffers(k)%dirs(id)%dir)) deallocate (compilation_buffers(k)%dirs(id)%dir)
-        if (present(dir)) compilation_buffers(k)%dirs(id)%dir = dir
-    end function make_dir
+        compilation_buffers(k)%directories(id)%parent = parent
+        if (allocated(compilation_buffers(k)%directories(id)%directory)) deallocate (compilation_buffers(k)%directories( &
+                                                                                     id)%directory)
+        if (present(directory)) compilation_buffers(k)%directories(id)%directory = directory
+    end function create_directory
 
-    !> The message whose index the `compilation_message' property at POS
+    !> The message whose index the `compilation_message' property at POSITION
     !> holds (0 for none).  Not a port.
-    integer function message_at(pos) result(id)
-        integer(int64), intent(in) :: pos
+    integer function message_at(position) result(id)
+        integer(int64), intent(in) :: position
 
-        id = property_id_at(pos, "compilation_message")
+        id = property_id_at(position, "compilation_message")
 
         if (id /= 0) then
             if (id > compilation_buffers(entry_of(current_buffer()))%nmessages) id = 0
         end if
     end function message_at
 
-    !> The directory stack the `compilation_directory' property at POS
+    !> The directory stack the `compilation_directory' property at POSITION
     !> holds (0 for none).  Not a port.
-    integer function dir_at(pos) result(id)
-        integer(int64), intent(in) :: pos
+    integer function directory_at(position) result(id)
+        integer(int64), intent(in) :: position
 
-        id = property_id_at(pos, "compilation_directory")
+        id = property_id_at(position, "compilation_directory")
 
         if (id /= 0) then
             if (id > compilation_buffers(entry_of(current_buffer()))%ndirs) id = 0
         end if
-    end function dir_at
+    end function directory_at
 
-    !> The index the property PROP at POS holds, 0 for none (or when the
+    !> The index the property PROPERTY at POSITION holds, 0 for none (or when the
     !> current buffer has no entry).  Not a port.
-    integer function property_id_at(pos, prop) result(id)
-        integer(int64), intent(in) :: pos
-        character(len=*), intent(in) :: prop
+    integer function property_id_at(position, property) result(id)
+        integer(int64), intent(in) :: position
+        character(len=*), intent(in) :: property
         type(value_type) :: v
         type(status_type) :: st
 
         id = 0
         if (entry_of(current_buffer()) == 0) return
-        if (pos < 1) return
-        call get_text_property(pos, value_type(name=prop), v, st)
+        if (position < 1) return
+        call get_text_property(position, value_type(name=property), v, st)
         if (.not. st%ok()) return
         if (vtag(v) /= V_INTEGER) return
         if (xfixnum(v) < 1 .or. xfixnum(v) > huge(0)) return
         id = int(xfixnum(v))
     end function property_id_at
 
-    !> The directory stack in effect at POS: the `compilation_directory'
+    !> The directory stack in effect at POSITION: the `compilation_directory'
     !> property at the previous change of it (0 for none).  Port of
     !> compile.el:compilation--previous-directory (without its cache).
-    integer function directory_before(pos) result(id)
-        integer(int64), intent(in) :: pos
-        integer(int64) :: prev
+    integer function directory_before(position) result(id)
+        integer(int64), intent(in) :: position
+        integer(int64) :: previous
         logical :: found
         type(status_type) :: st
 
         id = 0
-        call previous_single_property_change(pos, value_type(name="compilation_directory"), prev, found, st)
+        call previous_single_property_change(position, value_type(name="compilation_directory"), previous, found, st)
         if (.not. found) return
-        id = dir_at(prev - 1)
-        if (id == 0) id = dir_at(prev)
+        id = directory_at(previous - 1)
+        if (id == 0) id = directory_at(previous)
     end function directory_before
 
     !> Retrieve FILE's file-structure or create a new one.  FILE is
@@ -1495,20 +1501,20 @@ contains
         integer, intent(in) :: k
         character(len=*), intent(in) :: filename
         character(len=*), intent(in), optional :: directory
-        character(len=:), allocatable :: name, spec
+        character(len=:), allocatable :: name, specification
         type(status_type) :: st
-        logical :: has_spec
+        logical :: has_specification
 
         fs = find_key(k, filename, directory)
         if (fs /= 0) return
         ! File was not previously encountered, at least not in the form
         ! passed.  Let's normalize it and look again.
         name = filename
-        has_spec = present(directory)
+        has_specification = present(directory)
 
-        if (has_spec) then
-            call file_truename(directory, spec, st)
-            if (.not. st%ok()) spec = directory
+        if (has_specification) then
+            call file_truename(directory, specification, st)
+            if (.not. st%ok()) specification = directory
         end if
 
         ! Some compilers produce bogus file names like "./bar//foo.c" for
@@ -1518,17 +1524,17 @@ contains
         name = command_line_normalize_file_name(name)
 
         ! Retrieve or create file-structure for normalized name.
-        if (has_spec) then
-            fs = find_key(k, name, spec)
+        if (has_specification) then
+            fs = find_key(k, name, specification)
         else
             fs = find_key(k, name)
         end if
 
         if (fs == 0) then
-            fs = make_file(k, name, has_spec, spec)
+            fs = make_file(k, name, has_specification, specification)
 
-            if (has_spec) then
-                call append_key(k, name, fs, spec)
+            if (has_specification) then
+                call append_key(k, name, fs, specification)
             else
                 call append_key(k, name, fs)
             end if
@@ -1617,10 +1623,10 @@ contains
     end subroutine append_key
 
     ! Not a port.
-    integer function make_file(k, filename, has_dir, directory) result(fs)
+    integer function make_file(k, filename, has_directory, directory) result(fs)
         integer, intent(in) :: k
         character(len=*), intent(in) :: filename
-        logical, intent(in) :: has_dir
+        logical, intent(in) :: has_directory
         character(len=:), allocatable, intent(in) :: directory
         type(file_struct_type), allocatable :: grown(:)
         integer :: i, n
@@ -1648,7 +1654,7 @@ contains
         compilation_buffers(k)%nfiles = fs
         compilation_buffers(k)%files(fs)%filename = filename
         if (allocated(compilation_buffers(k)%files(fs)%directory)) deallocate (compilation_buffers(k)%files(fs)%directory)
-        if (has_dir) compilation_buffers(k)%files(fs)%directory = directory
+        if (has_directory) compilation_buffers(k)%files(fs)%directory = directory
         if (allocated(compilation_buffers(k)%files(fs)%lines)) deallocate (compilation_buffers(k)%files(fs)%lines)
         allocate (compilation_buffers(k)%files(fs)%lines(0))
     end function make_file
@@ -1732,7 +1738,7 @@ contains
 
         grown(node)%has_line = has_line
         grown(node)%line = line
-        allocate (grown(node)%locs(0))
+        allocate (grown(node)%locations(0))
 
         do i = node, n
             call move_line_node(compilation_buffers(k)%files(fs)%lines(i), grown(i + 1))
@@ -1748,48 +1754,48 @@ contains
 
         to%has_line = from%has_line
         to%line = from%line
-        call move_alloc(from%locs, to%locs)
+        call move_alloc(from%locations, to%locations)
     end subroutine move_line_node
 
-    !> Find or make, in its place, the loc LOC of column COL (none unless
-    !> HAS_COL) in line node NODE of file structure FS of entry K:
+    !> Find or make, in its place, the loc LOCATION of column COLUMN (none unless
+    !> HAS_COLUMN) in line node NODE of file structure FS of entry K:
     !> compilation-assq on a line.
     !> Port of compile.el:compilation-assq, in part.
-    subroutine make_column_loc(k, fs, node, has_col, col, loc)
+    subroutine make_column_location(k, fs, node, has_column, column, location)
         integer, intent(in) :: k, fs, node
-        logical, intent(in) :: has_col
-        integer(int64), intent(in) :: col
-        integer, intent(out) :: loc
-        integer, allocatable :: locs(:)
+        logical, intent(in) :: has_column
+        integer(int64), intent(in) :: column
+        integer, intent(out) :: location
+        integer, allocatable :: locations(:)
         integer :: n, j, id
 
-        locs = compilation_buffers(k)%files(fs)%lines(node)%locs
-        n = size(locs)
+        locations = compilation_buffers(k)%files(fs)%lines(node)%locations
+        n = size(locations)
         j = 1
 
-        if (.not. has_col) then
+        if (.not. has_column) then
             if (n > 0) then
-                if (.not. compilation_buffers(k)%locs(locs(1))%has_col) then
-                    loc = locs(1)
+                if (.not. compilation_buffers(k)%locations(locations(1))%has_column) then
+                    location = locations(1)
                     return
                 end if
             end if
         else
             do while (j <= n)
-                id = locs(j)
+                id = locations(j)
 
-                if (.not. compilation_buffers(k)%locs(id)%has_col) then
+                if (.not. compilation_buffers(k)%locations(id)%has_column) then
                     j = j + 1
                     cycle
                 end if
 
-                if (col < compilation_buffers(k)%locs(id)%col) then
+                if (column < compilation_buffers(k)%locations(id)%column) then
                     j = j + 1
                     cycle
                 end if
 
-                if (compilation_buffers(k)%locs(id)%col == col) then
-                    loc = id
+                if (compilation_buffers(k)%locations(id)%column == column) then
+                    location = id
                     return
                 end if
 
@@ -1797,9 +1803,9 @@ contains
             end do
         end if
 
-        loc = make_loc(k, has_col, col)
-        compilation_buffers(k)%files(fs)%lines(node)%locs = [locs(1:j - 1), loc, locs(j:n)]
-    end subroutine make_column_loc
+        location = make_location(k, has_column, column)
+        compilation_buffers(k)%files(fs)%lines(node)%locations = [locations(1:j - 1), location, locations(j:n)]
+    end subroutine make_column_location
 
     !> Collapse multiple slashes to one, to handle non-Emacs file names.
     !> Port of startup.el:command-line-normalize-file-name.
@@ -1907,21 +1913,21 @@ contains
 
     !> Match position of subexpression G in the match data MD (0 when it
     !> didn't match): its beginning, or its end if END.  Not a port.
-    integer(int64) function md_pos(md, g, end) result(pos)
+    integer(int64) function md_position(md, g, end) result(position)
         integer(int64), intent(in) :: md(:)
         integer, intent(in) :: g
         logical, intent(in) :: end
 
-        pos = 0
+        position = 0
         if (g < 0) return
         if (2*g + 2 > size(md)) return
 
         if (end) then
-            pos = md(2*g + 2)
+            position = md(2*g + 2)
         else
-            pos = md(2*g + 1)
+            position = md(2*g + 1)
         end if
-    end function md_pos
+    end function md_position
 
     !> The text of subexpression G of the match data MD.  Not a port.
     function md_string(md, g) result(s)
@@ -1930,23 +1936,23 @@ contains
         character(len=:), allocatable :: s
         type(status_type) :: st
 
-        call buffer_substring(md_pos(md, g, .false.), md_pos(md, g, .true.), s, st)
+        call buffer_substring(md_position(md, g, .false.), md_position(md, g, .true.), s, st)
         if (.not. st%ok()) s = ""
     end function md_string
 
-    !> Put PROP VAL on the text of subexpression MATCHNUM, if it matched.
+    !> Put PROPERTY VALUE on the text of subexpression MATCHNUM, if it matched.
     !> Port of compile.el:compilation--put-prop.
-    subroutine compilation_put_prop(md, matchnum, prop, val)
+    subroutine compilation_put_property(md, matchnum, property, value)
         integer(int64), intent(in) :: md(:)
         integer, intent(in) :: matchnum
-        character(len=*), intent(in) :: prop, val
+        character(len=*), intent(in) :: property, value
         type(status_type) :: st
 
         if (matchnum == 0) return
-        if (md_pos(md, matchnum, .false.) == 0) return
-        call put_text_property(md_pos(md, matchnum, .false.), md_pos(md, matchnum, .true.), value_type(name=prop), &
-                               value_type(name=val), st)
-    end subroutine compilation_put_prop
+        if (md_position(md, matchnum, .false.) == 0) return
+        call put_text_property(md_position(md, matchnum, .false.), md_position(md, matchnum, .true.), value_type(name=property), &
+                               value_type(name=value), st)
+    end subroutine compilation_put_property
 
     !> Like `beginning_of_line'.  Port of
     !> compile.el:compilation-beginning-of-line (`selective_display' is
@@ -1957,16 +1963,16 @@ contains
         call beginning_of_line(n)
     end subroutine compilation_beginning_of_line
 
-    !> Go to column COL on the current line.
+    !> Go to column COLUMN on the current line.
     !> If SCREEN is true, columns are screen columns, otherwise, they are
     !> just char-counts.  FIRST is the first column's number.  Port of
     !> compile.el:compilation-move-to-column.
-    subroutine compilation_move_to_column(col_in, screen, first)
-        integer(int64), intent(in) :: col_in, first
+    subroutine compilation_move_to_column(column_in, screen, first)
+        integer(int64), intent(in) :: column_in, first
         logical, intent(in) :: screen
-        integer(int64) :: col, reached, saved
+        integer(int64) :: column, reached, saved
 
-        col = col_in - first
+        column = column_in - first
 
         if (screen) then
             ! Presumably, the compilation tool doesn't know about our
@@ -1974,27 +1980,27 @@ contains
             ! TABs.
             saved = tab_width%value
             tab_width%value = 8
-            call move_to_column(max(col, 0_int64), reached)
+            call move_to_column(max(column, 0_int64), reached)
             tab_width%value = saved
         else
-            call goto_char(min(line_beginning_position() + col, line_end_position()))
+            call goto_character(min(line_beginning_position() + column, line_end_position()))
         end if
     end subroutine compilation_move_to_column
 
-    !> Move forward ARG lines and position at first nonblank character.
+    !> Move forward ARGUMENT lines and position at first nonblank character.
     !> Port of simple.el:forward-to-indentation.
-    subroutine forward_to_indentation(arg)
-        integer(int64), intent(in) :: arg
+    subroutine forward_to_indentation(argument)
+        integer(int64), intent(in) :: argument
         integer(int64) :: moved
         type(status_type) :: st
 
-        moved = forward_line(arg)
-        moved = skip_chars_forward(" "//TB, st)
+        moved = forward_line(argument)
+        moved = skip_characters_forward(" "//TB, st)
     end subroutine forward_to_indentation
 
     !> Parse errors between START and END.
     !> The errors recognized are the ones specified in RULES (anonymous
-    !> rules) which default to `compilation_error_regexp_names' if RULES
+    !> rules) which default to `compilation_error_regular_expression_names' if RULES
     !> is absent.  Port of compile.el:compilation-parse-errors.
     recursive subroutine compilation_parse_errors(start, end, status, rules)
         integer(int64), intent(in) :: start, end
@@ -2021,11 +2027,11 @@ contains
             n = size(compilation_buffers(k)%rules)
         else
             n = 0
-            if (allocated(compilation_error_regexp_names)) n = size(compilation_error_regexp_names)
+            if (allocated(compilation_error_regular_expression_names)) n = size(compilation_error_regular_expression_names)
         end if
 
-        if (k == 0 .and. allocated(compilation_error_regexp_names)) then
-            omake_included = any(compilation_error_regexp_names == "omake")
+        if (k == 0 .and. allocated(compilation_error_regular_expression_names)) then
+            omake_included = any(compilation_error_regular_expression_names == "omake")
         end if
 
         do r = 1, n
@@ -2036,9 +2042,9 @@ contains
                 rule = compilation_buffers(k)%rules(r)
                 if (allocated(rule%name)) deallocate (rule%name)
             else
-                j = rule_index(trim(compilation_error_regexp_names(r)))
+                j = rule_index(trim(compilation_error_regular_expression_names(r)))
                 if (j == 0) cycle
-                rule = compilation_error_regexps(j)
+                rule = compilation_error_regular_expressions(j)
             end if
 
             call parse_rule(rule, start, end, omake_included, status)
@@ -2048,15 +2054,15 @@ contains
         case_fold_search = saved_fold
     end subroutine compilation_parse_errors
 
-    !> The index of the rule NAME in `compilation_error_regexps'
+    !> The index of the rule NAME in `compilation_error_regular_expressions'
     !> (0 for none).  Not a port.
     integer function rule_index(name) result(j)
         character(len=*), intent(in) :: name
 
-        if (allocated(compilation_error_regexps)) then
-            do j = 1, size(compilation_error_regexps)
-                if (allocated(compilation_error_regexps(j)%name)) then
-                    if (same_string(compilation_error_regexps(j)%name, name)) return
+        if (allocated(compilation_error_regular_expressions)) then
+            do j = 1, size(compilation_error_regular_expressions)
+                if (allocated(compilation_error_regular_expressions(j)%name)) then
+                    if (same_string(compilation_error_regular_expressions(j)%name, name)) return
                 end if
             end do
         end if
@@ -2072,37 +2078,37 @@ contains
         integer(int64), intent(in) :: start, end
         logical, intent(in) :: omake_included
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: pat, face, help
+        character(len=:), allocatable :: pattern, face, help
         integer(int64), allocatable :: md(:)
         integer(int64) :: found, b, e
         type(status_type) :: st
-        type(value_type) :: props
-        logical :: has_props, changed, file_given
-        integer :: msg, this_type, h, mn
+        type(value_type) :: properties
+        logical :: has_properties, changed, file_given
+        integer :: message, this_type, h, mn
 
         status = status_type()
-        if (.not. allocated(rule%regexp)) return
-        pat = rule%regexp
+        if (.not. allocated(rule%regular_expression)) return
+        pattern = rule%regular_expression
 
         ! omake reports some error indented, so skip the indentation.
-        if (omake_included .and. len(pat) > 0) then
-            if (string_match("\`\([^^]\|\^\( \*\|\[\)\)", pat, st) == 0) then
-                pat = "^\(?:      \)?"//pat(2:)
+        if (omake_included .and. len(pattern) > 0) then
+            if (string_match("\`\([^^]\|\^\( \*\|\[\)\)", pattern, st) == 0) then
+                pattern = "^\(?:      \)?"//pattern(2:)
             end if
         end if
 
         file_given = rule%file /= 0 .or. associated(rule%file_function)
-        call goto_char(start)
+        call goto_character(start)
 
         do
-            call re_search_forward(pat, found, status, bound=end, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(pattern, found, status, bound=end, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) return
             if (found == 0) exit
             md = match_data()
-            call compilation_error_properties(rule, md, has_props, msg, help, status)
+            call compilation_error_properties(rule, md, has_properties, message, help, status)
             if (.not. status%ok()) return
             call set_match_data(md)
-            if (.not. has_props) cycle
+            if (.not. has_properties) cycle
 
             if (file_given) then
                 if (rule%warning /= 0 .or. rule%info /= 0) then
@@ -2112,19 +2118,19 @@ contains
                 end if
 
                 call compilation_note_type(this_type)
-                call compilation_put_prop(md, rule%file, "font_lock_face", type_face(this_type))
+                call compilation_put_property(md, rule%file, "font_lock_face", type_face(this_type))
             end if
 
-            call compilation_put_prop(md, rule%line, "font_lock_face", setting_string(compilation_line_face))
-            call compilation_put_prop(md, rule%end_line, "font_lock_face", setting_string(compilation_line_face))
-            call compilation_put_prop(md, rule%column, "font_lock_face", setting_string(compilation_column_face))
-            call compilation_put_prop(md, rule%end_column, "font_lock_face", setting_string(compilation_column_face))
+            call compilation_put_property(md, rule%line, "font_lock_face", setting_string(compilation_line_face))
+            call compilation_put_property(md, rule%end_line, "font_lock_face", setting_string(compilation_line_face))
+            call compilation_put_property(md, rule%column, "font_lock_face", setting_string(compilation_column_face))
+            call compilation_put_property(md, rule%end_column, "font_lock_face", setting_string(compilation_column_face))
 
             ! Obey HIGHLIGHT.
             if (allocated(rule%highlights)) then
                 do h = 1, size(rule%highlights)
                     mn = rule%highlights(h)%submatch
-                    if (md_pos(md, mn, .false.) == 0) cycle
+                    if (md_position(md, mn, .false.) == 0) cycle
                     if (allocated(face)) deallocate (face)
 
                     if (associated(rule%highlights(h)%face_function)) then
@@ -2139,33 +2145,36 @@ contains
                         if (.not. allocated(face)) face = ""
 
                         if (len(face) == 0) then
-                            call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), &
+                            call put_text_property(md_position(md, mn, .false.), md_position(md, mn, .true.), &
                                                    value_type(name="font_lock_face"), value_type(), st)
                         else
-                            call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), &
+                            call put_text_property(md_position(md, mn, .false.), md_position(md, mn, .true.), &
                                                    value_type(name="font_lock_face"), value_type(name=face), st)
                         end if
 
-                        call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), value_type(name="display"), &
+                        call put_text_property(md_position(md, mn, .false.), md_position(md, mn, .true.), &
+                                               value_type(name="display"), &
                                                value_type(text=rule%highlights(h)%display), st)
                         cycle
                     end if
 
                     if (.not. allocated(face)) cycle
                     if (len(face) == 0) cycle
-                    call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), value_type(name="font_lock_face"), &
+                    call put_text_property(md_position(md, mn, .false.), md_position(md, mn, .true.), &
+                                           value_type(name="font_lock_face"), &
                                            value_type(name=face), st)
                 end do
             end if
 
             mn = rule%hyperlink
-            b = md_pos(md, mn, .false.)
-            e = md_pos(md, mn, .true.)
+            b = md_position(md, mn, .false.)
+            e = md_position(md, mn, .true.)
             if (b == 0) cycle
-            props = list(value_type(name="compilation_message"), value_type(int(msg, int64)), value_type(name="help_echo"), &
-                         value_type(text=help), &
-                         value_type(name="mouse_face"), value_type(name="highlight"))
-            call add_text_properties(b, e, props, changed, st)
+            properties = list(value_type(name="compilation_message"), value_type(int(message, int64)), &
+                              value_type(name="help_echo"), &
+                              value_type(text=help), &
+                              value_type(name="mouse_face"), value_type(name="highlight"))
+            call add_text_properties(b, e, properties, changed, st)
             call font_lock_append_text_property(b, e, value_type(name="font_lock_face"), &
                                                 value_type(name=setting_string(compilation_message_face)), st)
         end do
@@ -2244,69 +2253,70 @@ contains
 
     !> The central driver, called when parsing to gather all information
     !> needed to later jump to corresponding source code: the message of
-    !> the match of RULE (whose match data is MD) in MSG and the help echo
-    !> HELP, HAS_PROPS false for none.  Port of
+    !> the match of RULE (whose match data is MD) in MESSAGE and the help echo
+    !> HELP, HAS_PROPERTIES false for none.  Port of
     !> compile.el:compilation-error-properties
     !> (`compilation_auto_jump_to_first_error' is Deferred).
-    recursive subroutine compilation_error_properties(rule, md, has_props, msg, help, status)
+    recursive subroutine compilation_error_properties(rule, md, has_properties, message, help, status)
         type(compilation_rule_type), intent(in) :: rule
         integer(int64), intent(in) :: md(:)
-        logical, intent(out) :: has_props
-        integer, intent(out) :: msg
+        logical, intent(out) :: has_properties
+        integer, intent(out) :: message
         character(len=:), allocatable, intent(out) :: help
         type(status_type), intent(out) :: status
-        type(error_spec_type) :: spec
+        type(error_specification_type) :: specification
         character(len=:), allocatable :: filename, directory, file_name, replaced
         integer(int64), allocatable :: saved(:)
-        integer(int64) :: pos, ec
+        integer(int64) :: position, ec
         type(status_type) :: st
         type(compilation_transform_type), allocatable :: transforms(:)
-        logical :: found, has_file, has_dir, has_ec
-        integer :: k, d, prev, loc, fs, j
+        logical :: found, has_file, has_directory, has_ec
+        integer :: k, d, previous, location, fs, j
 
         status = status_type()
-        has_props = .false.
-        msg = 0
-        call text_property_not_all(md_pos(md, 0, .false.), point(), value_type(name="compilation_message"), value_type(), pos, &
+        has_properties = .false.
+        message = 0
+        call text_property_not_all(md_position(md, 0, .false.), point(), value_type(name="compilation_message"), value_type(), &
+                                   position, &
                                    found, st)
         if (found) return
         call make_current_entry(k)
         has_file = .false.
-        has_dir = .false.
+        has_directory = .false.
 
         if (associated(rule%file_function)) then
             call rule%file_function(filename, directory, has_file)
-            has_dir = allocated(directory)
-            if (.not. has_file) has_dir = .false.
+            has_directory = allocated(directory)
+            if (.not. has_file) has_directory = .false.
         else if (rule%file /= 0) then
-            if (md_pos(md, rule%file, .false.) /= 0) then
+            if (md_position(md, rule%file, .false.) /= 0) then
                 filename = md_string(md, rule%file)
                 has_file = .true.
 
                 if (.not. is_file_name_absolute(filename)) then
-                    d = directory_before(md_pos(md, 0, .false.))
+                    d = directory_before(md_position(md, 0, .false.))
 
                     if (d /= 0) then
-                        if (allocated(compilation_buffers(k)%dirs(d)%dir)) then
-                            directory = compilation_buffers(k)%dirs(d)%dir
-                            has_dir = .true.
+                        if (allocated(compilation_buffers(k)%directories(d)%directory)) then
+                            directory = compilation_buffers(k)%directories(d)%directory
+                            has_directory = .true.
                         end if
                     end if
                 end if
             end if
         else
             ! This message didn't mention one, get it from previous.
-            call previous_single_property_change(point(), value_type(name="compilation_message"), pos, found, st)
+            call previous_single_property_change(point(), value_type(name="compilation_message"), position, found, st)
 
             if (found) then
-                prev = message_at(pos - 1)
-                if (prev == 0) prev = message_at(pos)
+                previous = message_at(position - 1)
+                if (previous == 0) previous = message_at(position)
 
-                if (prev /= 0) then
-                    loc = compilation_buffers(k)%messages(prev)%loc
+                if (previous /= 0) then
+                    location = compilation_buffers(k)%messages(previous)%location
 
-                    if (loc /= 0) then
-                        fs = compilation_buffers(k)%locs(loc)%file
+                    if (location /= 0) then
+                        fs = compilation_buffers(k)%locations(location)%file
 
                         if (fs /= 0) then
                             filename = compilation_buffers(k)%files(fs)%filename
@@ -2314,7 +2324,7 @@ contains
 
                             if (allocated(compilation_buffers(k)%files(fs)%directory)) then
                                 directory = compilation_buffers(k)%files(fs)%directory
-                                has_dir = .true.
+                                has_directory = .true.
                             end if
                         end if
                     end if
@@ -2329,24 +2339,24 @@ contains
 
         ! All of these fields are optional, get them only if we have an
         ! index, and it matched some part of the message.
-        call get_number(rule%line_function, rule%line, spec%has_line, spec%line)
-        call get_number(rule%end_line_function, rule%end_line, spec%has_end_line, spec%end_line)
-        call get_number(rule%column_function, rule%column, spec%has_col, spec%col)
+        call get_number(rule%line_function, rule%line, specification%has_line, specification%line)
+        call get_number(rule%end_line_function, rule%end_line, specification%has_end_line, specification%end_line)
+        call get_number(rule%column_function, rule%column, specification%has_column, specification%column)
         call get_number(rule%end_column_function, rule%end_column, has_ec, ec)
 
         if (has_ec) then
             ! Add one to get an exclusive upper bound.
-            spec%end_col = ec + 1
-            spec%has_end_col = .true.
-        else if (spec%has_end_line) then
-            spec%end_col = -1
-            spec%has_end_col = .true.
+            specification%end_column = ec + 1
+            specification%has_end_column = .true.
+        else if (specification%has_end_line) then
+            specification%end_column = -1
+            specification%has_end_column = .true.
         end if
 
         if (rule%warning /= 0 .or. rule%info /= 0) then
-            spec%type = compilation_type(rule%warning, rule%info)
+            specification%type = compilation_type(rule%warning, rule%info)
         else
-            spec%type = rule%type
+            specification%type = rule%type
         end if
 
         ! Remove matches like /bin/sh and do other file name transforms.
@@ -2355,21 +2365,21 @@ contains
         if (has_file .and. size(transforms) > 0) then
             saved = match_data()
 
-            if (has_dir) then
+            if (has_directory) then
                 call expand_file_name(filename, file_name, st, directory)
             else
                 file_name = filename
             end if
 
             do j = 1, size(transforms)
-                if (.not. allocated(transforms(j)%regexp)) cycle
-                if (string_match(transforms(j)%regexp, file_name, st) == 0) cycle
+                if (.not. allocated(transforms(j)%regular_expression)) cycle
+                if (string_match(transforms(j)%regular_expression, file_name, st) == 0) cycle
 
                 if (allocated(transforms(j)%replacement)) then
                     call replace_match(transforms(j)%replacement, st, &
                                        fixedcase=.false., literal=.false., string=file_name, result=replaced)
                     filename = replaced
-                    has_dir = .false.
+                    has_directory = .false.
                 else
                     has_file = .false.
                 end if
@@ -2383,11 +2393,11 @@ contains
         ! If we ignored all the files with errors on this line, then return
         ! nothing.
         if (.not. has_file) return
-        spec%filename = filename
-        if (has_dir) spec%directory = directory
-        if (allocated(rule%name)) spec%rule = rule%name
-        call compilation_internal_error_properties(spec, msg, help, status)
-        has_props = status%ok()
+        specification%filename = filename
+        if (has_directory) specification%directory = directory
+        if (allocated(rule%name)) specification%rule = rule%name
+        call compilation_internal_error_properties(specification, message, help, status)
+        has_properties = status%ok()
 
     contains
 
@@ -2403,7 +2413,7 @@ contains
             if (associated(fn)) then
                 call fn(value, has)
             else if (group /= 0) then
-                if (md_pos(md, group, .false.) /= 0) then
+                if (md_position(md, group, .false.) /= 0) then
                     call string_to_number(md_string(md, group), value)
                     has = .true.
                 end if
@@ -2412,29 +2422,29 @@ contains
     end subroutine compilation_error_properties
 
     !> Get the meta-info that will be added as text-properties: the message
-    !> MSG and the help echo HELP for the location SPEC.  Port of
+    !> MESSAGE and the help echo HELP for the location SPECIFICATION.  Port of
     !> compile.el:compilation-internal-error-properties.
-    recursive subroutine compilation_internal_error_properties(spec_in, msg, help, status)
-        type(error_spec_type), intent(in) :: spec_in
-        integer, intent(out) :: msg
+    recursive subroutine compilation_internal_error_properties(specification_in, message, help, status)
+        type(error_specification_type), intent(in) :: specification_in
+        integer, intent(out) :: message
         character(len=:), allocatable, intent(out) :: help
         type(status_type), intent(out) :: status
-        type(error_spec_type) :: spec
+        type(error_specification_type) :: specification
         type(handle_type) :: marker, end_marker, mbuf, comp, new_marker
         type(status_type) :: st
-        integer(int64) :: pos, mline, first, opoint, begv, zv, target
+        integer(int64) :: position, mline, first, original_point, beginning_of_accessible_portion, end_of_accessible_portion, target
         logical :: screen, valid
-        integer :: k, fs, marker_node, x, n, loc, end_loc, node, enode
+        integer :: k, fs, marker_node, x, n, location, end_location, node, enode
 
         status = status_type()
-        spec = spec_in
+        specification = specification_in
         comp = current_buffer()
         call make_current_entry(k)
 
-        if (allocated(spec%directory)) then
-            fs = compilation_get_file_structure(k, spec%filename, spec%directory)
+        if (allocated(specification%directory)) then
+            fs = compilation_get_file_structure(k, specification%filename, specification%directory)
         else
-            fs = compilation_get_file_structure(k, spec%filename)
+            fs = compilation_get_file_structure(k, specification%filename)
         end if
 
         ! Get first already existing marker (if any has one, all have one).
@@ -2445,8 +2455,8 @@ contains
         if (n > 0) then
             marker_node = 1
 
-            if (size(compilation_buffers(k)%files(fs)%lines(1)%locs) > 0) then
-                marker = compilation_buffers(k)%locs(compilation_buffers(k)%files(fs)%lines(1)%locs(1))%marker
+            if (size(compilation_buffers(k)%files(fs)%lines(1)%locations) > 0) then
+                marker = compilation_buffers(k)%locations(compilation_buffers(k)%files(fs)%lines(1)%locations(1))%marker
             end if
         end if
 
@@ -2462,15 +2472,15 @@ contains
 
         if (valid) then
             ! Normalize no linenumber to line 1.
-            if (.not. spec%has_line) then
-                spec%line = 1
-                spec%has_line = .true.
+            if (.not. specification%has_line) then
+                specification%line = 1
+                specification%has_line = .true.
             end if
 
             ! Find nearest loc, at least one exists.
             do x = 2, n
                 associate (xl => compilation_buffers(k)%files(fs)%lines(x)%line)
-                    if (xl > spec%line) then
+                    if (xl > specification%line) then
                         marker_node = x
                     else
                         mline = 1
@@ -2479,13 +2489,13 @@ contains
                             mline = compilation_buffers(k)%files(fs)%lines(marker_node)%line
                         end if
 
-                        if (mline - spec%line > spec%line - xl) marker_node = x
+                        if (mline - specification%line > specification%line - xl) marker_node = x
                         exit
                     end if
                 end associate
             end do
 
-            marker = compilation_buffers(k)%locs(compilation_buffers(k)%files(fs)%lines(marker_node)%locs(1))%marker
+            marker = compilation_buffers(k)%locations(compilation_buffers(k)%files(fs)%lines(marker_node)%locations(1))%marker
             mline = 1
 
             if (compilation_buffers(k)%files(fs)%lines(marker_node)%has_line) then
@@ -2500,73 +2510,75 @@ contains
             ! buffer if its major mode set it buffer-locally.
             if (compilation_error_screen_columns%local_p()) screen = compilation_error_screen_columns%value
             if (compilation_first_column%local_p()) first = compilation_first_column%value
-            opoint = point()
-            begv = point_min()
-            zv = point_max()
+            original_point = point()
+            beginning_of_accessible_portion = point_minimum()
+            end_of_accessible_portion = point_maximum()
             call widen()
-            call marker_position(marker, pos, st)
-            call goto_char(pos)
+            call marker_position(marker, position, st)
+            call goto_character(position)
 
             ! Set end-marker if appropriate and go to line.
-            if (.not. (spec%has_end_col .or. spec%has_end_line)) then
-                call compilation_beginning_of_line(spec%line - mline + 1)
+            if (.not. (specification%has_end_column .or. specification%has_end_line)) then
+                call compilation_beginning_of_line(specification%line - mline + 1)
             else
-                target = spec%line
-                if (spec%has_end_line) target = spec%end_line
+                target = specification%line
+                if (specification%has_end_line) target = specification%end_line
                 call compilation_beginning_of_line(target - mline + 1)
 
-                if (.not. spec%has_end_col) then
+                if (.not. specification%has_end_column) then
                     call end_of_line()
-                else if (spec%end_col < 0) then
+                else if (specification%end_column < 0) then
                     call end_of_line()
                 else
-                    call compilation_move_to_column(spec%end_col, screen, first)
+                    call compilation_move_to_column(specification%end_column, screen, first)
                 end if
 
                 call point_marker(end_marker)
-                if (spec%has_end_line) call compilation_beginning_of_line(spec%line - spec%end_line + 1)
+                if (specification%has_end_line) call compilation_beginning_of_line(specification%line - specification%end_line + 1)
             end if
 
-            if (spec%has_col) then
-                call compilation_move_to_column(spec%col, screen, first)
+            if (specification%has_column) then
+                call compilation_move_to_column(specification%column, screen, first)
             else
                 call forward_to_indentation(0_int64)
             end if
 
             call point_marker(new_marker)
-            call narrow_to_region(begv, zv, st)
-            call goto_char(opoint)
+            call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
+            call goto_character(original_point)
             call set_buffer(comp, st)
             k = entry_of(comp)
         end if
 
         marker = new_marker
-        call make_line_node(k, fs, spec%has_line, spec%line, node)
-        end_loc = 0
+        call make_line_node(k, fs, specification%has_line, specification%line, node)
+        end_location = 0
 
-        if (spec%has_end_line) then
-            call make_line_node(k, fs, .true., spec%end_line, enode)
-            call make_column_loc(k, fs, enode, spec%has_end_col, spec%end_col, end_loc)
-            call make_line_node(k, fs, spec%has_line, spec%line, node)
-        else if (spec%has_end_col) then
-            call make_column_loc(k, fs, node, .true., spec%end_col, end_loc)
+        if (specification%has_end_line) then
+            call make_line_node(k, fs, .true., specification%end_line, enode)
+            call make_column_location(k, fs, enode, specification%has_end_column, specification%end_column, end_location)
+            call make_line_node(k, fs, specification%has_line, specification%line, node)
+        else if (specification%has_end_column) then
+            call make_column_location(k, fs, node, .true., specification%end_column, end_location)
         end if
 
-        call make_column_loc(k, fs, node, spec%has_col, spec%col, loc)
+        call make_column_location(k, fs, node, specification%has_column, specification%column, location)
 
         ! If they are new, make the loc(s) reference the file they point
         ! to.
-        if (.not. compilation_buffers(k)%locs(loc)%filled) then
-            call fill_loc(compilation_buffers(k)%locs(loc), spec%has_line, spec%line, fs, marker)
+        if (.not. compilation_buffers(k)%locations(location)%filled) then
+            call fill_location(compilation_buffers(k)%locations(location), specification%has_line, specification%line, fs, marker)
             marker = null_handle()
         end if
 
-        if (end_loc /= 0) then
-            if (.not. compilation_buffers(k)%locs(end_loc)%filled) then
-                if (spec%has_end_line) then
-                    call fill_loc(compilation_buffers(k)%locs(end_loc), .true., spec%end_line, fs, end_marker)
+        if (end_location /= 0) then
+            if (.not. compilation_buffers(k)%locations(end_location)%filled) then
+                if (specification%has_end_line) then
+                    call fill_location(compilation_buffers(k)%locations(end_location), .true., specification%end_line, fs, &
+                                       end_marker)
                 else
-                    call fill_loc(compilation_buffers(k)%locs(end_loc), spec%has_line, spec%line, fs, end_marker)
+                    call fill_location(compilation_buffers(k)%locations(end_location), specification%has_line, specification%line, &
+                                       fs, end_marker)
                 end if
 
                 end_marker = null_handle()
@@ -2577,15 +2589,15 @@ contains
         if (marker%index /= 0) call destroy_marker(marker, st)
         if (end_marker%index /= 0) call destroy_marker(end_marker, st)
 
-        if (allocated(spec%rule)) then
-            msg = make_message(k, loc, spec%type, end_loc, spec%rule)
+        if (allocated(specification%rule)) then
+            message = make_message(k, location, specification%type, end_location, specification%rule)
         else
-            msg = make_message(k, loc, spec%type, end_loc)
+            message = make_message(k, location, specification%type, end_location)
         end if
 
-        if (spec%has_col) then
+        if (specification%has_column) then
             help = "mouse-2: visit this file, line and column"
-        else if (spec%has_line) then
+        else if (specification%has_line) then
             help = "mouse-2: visit this file and line"
         else
             help = "mouse-2: visit this file"
@@ -2593,19 +2605,19 @@ contains
     end subroutine compilation_internal_error_properties
 
     ! Not a port.
-    subroutine fill_loc(loc, has_line, line, fs, marker)
-        type(loc_type), intent(inout) :: loc
+    subroutine fill_location(location, has_line, line, fs, marker)
+        type(location_type), intent(inout) :: location
         logical, intent(in) :: has_line
         integer(int64), intent(in) :: line
         integer, intent(in) :: fs
         type(handle_type), intent(in) :: marker
 
-        loc%filled = .true.
-        loc%has_line = has_line
-        loc%line = line
-        loc%file = fs
-        loc%marker = marker
-    end subroutine fill_loc
+        location%filled = .true.
+        location%has_line = has_line
+        location%line = line
+        location%file = fs
+        location%marker = marker
+    end subroutine fill_location
 
     !> Remove the properties parsing put between START and END.  Port of
     !> compile.el:compilation--remove-properties.
@@ -2615,22 +2627,22 @@ contains
         type(status_type) :: st
         integer(int64) :: start, end, next
         logical :: found, changed
-        type(value_type) :: v, props
+        type(value_type) :: v, properties
 
-        start = point_min()
+        start = point_minimum()
         if (present(start_in)) start = start_in
-        end = point_max()
+        end = point_maximum()
         if (present(end_in)) end = end_in
         call silent_modifications_begin(silent)
-        props = list(value_type(name="compilation_debug"), value_type(name="compilation_directory"), &
-                     value_type(name="compilation_message"), &
-                     value_type(name="font_lock_face"), value_type(name="help_echo"), value_type(name="mouse_face"))
+        properties = list(value_type(name="compilation_debug"), value_type(name="compilation_directory"), &
+                          value_type(name="compilation_message"), &
+                          value_type(name="font_lock_face"), value_type(name="help_echo"), value_type(name="mouse_face"))
 
         do
             call next_single_property_change(start, value_type(name="compilation_message"), next, found, st, end)
             if (.not. found) next = end
             call get_text_property(start, value_type(name="compilation_message"), v, st)
-            if (st%ok() .and. allocated(v%a)) call remove_list_of_text_properties(start, next, props, changed, st)
+            if (st%ok() .and. allocated(v%a)) call remove_list_of_text_properties(start, next, properties, changed, st)
             if (next >= end) exit
             start = next
         end do
@@ -2657,7 +2669,7 @@ contains
         type(handle_type) :: process
         character(len=:), allocatable :: state
         type(status_type) :: st
-        type(value_type) :: props, more
+        type(value_type) :: properties, more
         type(compilation_directory_matcher_type) :: dm
         logical :: changed
         integer :: i, k
@@ -2671,9 +2683,9 @@ contains
         end if
 
         end = end_in
-        call goto_char(end)
+        call goto_character(end)
 
-        if (.not. is_bol()) then
+        if (.not. is_beginning_of_line()) then
             ! We generally don't like to parse partial lines.
             process = get_buffer_process(current_buffer())
 
@@ -2684,30 +2696,30 @@ contains
         end if
 
         call compilation_remove_properties(start, end)
-        call goto_char(start)
+        call goto_character(start)
 
-        if (allocated(dm%regexp)) then
+        if (allocated(dm%regular_expression)) then
             do
-                call re_search_forward(dm%regexp, found, status, bound=end, &
-                                       noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(dm%regular_expression, found, status, bound=end, &
+                                                       noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) return
                 if (found == 0) exit
                 md = match_data()
-                if (.not. allocated(dm%dir)) cycle
+                if (.not. allocated(dm%directory)) cycle
 
-                do i = 1, size(dm%dir)
-                    if (md_pos(md, dm%dir(i), .false.) == 0) then
-                        call set_error(status, FM_GENERIC_ERROR, &
+                do i = 1, size(dm%directory)
+                    if (md_position(md, dm%directory(i), .false.) == 0) then
+                        call set_error(status, GENERIC_ERROR_CODE, &
                                        "Wrong type argument: expected integer or type(marker_type), got .false.")
                         return
                     end if
 
-                    call compilation_directory_properties(md, dm%dir(i), &
-                                                          dm%leave(i), props, more)
-                    call add_text_properties(md_pos(md, dm%dir(i), .false.), &
-                                             md_pos(md, dm%dir(i), .true.), props, changed, st)
-                    call add_text_properties(md_pos(md, dm%dir(i), .false.), &
-                                             md_pos(md, dm%dir(i), .true.), more, changed, st)
+                    call compilation_directory_properties(md, dm%directory(i), &
+                                                          dm%leave(i), properties, more)
+                    call add_text_properties(md_position(md, dm%directory(i), .false.), &
+                                             md_position(md, dm%directory(i), .true.), properties, changed, st)
+                    call add_text_properties(md_position(md, dm%directory(i), .false.), &
+                                             md_position(md, dm%directory(i), .true.), more, changed, st)
                 end do
             end do
         end if
@@ -2720,43 +2732,43 @@ contains
     !> stack of nested enter-messages.  Relative filenames on the following
     !> lines are relative to the top of the stack.  Port of
     !> compile.el:compilation-directory-properties.
-    subroutine compilation_directory_properties(md, index, leave, props, more)
+    subroutine compilation_directory_properties(md, index, leave, properties, more)
         integer(int64), intent(in) :: md(:)
         integer, intent(in) :: index, leave
-        type(value_type), intent(out) :: props, more
-        integer :: k, dir, value, msg
+        type(value_type), intent(out) :: properties, more
+        integer :: k, directory, value, message
         logical :: leaving
         character(len=:), allocatable :: face
 
         call make_current_entry(k)
         leaving = .false.
-        if (leave /= 0) leaving = md_pos(md, leave, .true.) /= 0
+        if (leave /= 0) leaving = md_position(md, leave, .true.) /= 0
         ! Find previous stack, and push onto it, or if `leave' pop it.
-        dir = directory_before(md_pos(md, 0, .false.))
+        directory = directory_before(md_position(md, 0, .false.))
 
         if (leaving) then
             face = setting_string(compilation_leave_directory_face)
             value = 0
-            if (dir /= 0) value = compilation_buffers(k)%dirs(dir)%parent
+            if (directory /= 0) value = compilation_buffers(k)%directories(directory)%parent
 
             if (value == 0) then
                 ! '(nil): nil only isn't a property change.
-                if (compilation_buffers(k)%nil_dir == 0) compilation_buffers(k)%nil_dir = make_dir(k, 0)
-                value = compilation_buffers(k)%nil_dir
+                if (compilation_buffers(k)%false_directory == 0) compilation_buffers(k)%false_directory = create_directory(k, 0)
+                value = compilation_buffers(k)%false_directory
             end if
         else
             face = setting_string(compilation_enter_directory_face)
-            value = make_dir(k, dir, md_string(md, index))
+            value = create_directory(k, directory, md_string(md, index))
         end if
 
         ! Place a `compilation_message' everywhere we change
         ! text-properties so compilation--remove-properties can know what
         ! to remove.
-        msg = make_message(k, 0, 0, 0)
-        props = list(value_type(name="font_lock_face"), value_type(name=face), value_type(name="compilation_directory"), &
-                     value_type(int(value, int64)), &
-                     value_type(name="compilation_message"), value_type(int(msg, int64)), value_type(name="mouse_face"), &
-                     value_type(name="highlight"))
+        message = make_message(k, 0, 0, 0)
+        properties = list(value_type(name="font_lock_face"), value_type(name=face), value_type(name="compilation_directory"), &
+                          value_type(int(value, int64)), &
+                          value_type(name="compilation_message"), value_type(int(message, int64)), value_type(name="mouse_face"), &
+                          value_type(name="highlight"))
         more = list(value_type(name="help_echo"), value_type(text="mouse-2: visit destination directory"))
     end subroutine compilation_directory_properties
 
@@ -2767,12 +2779,12 @@ contains
         type(silent_modifications_type) :: silent
         type(status_type) :: st
         type(value_type) :: v
-        integer(int64) :: opoint, limit, parsed, start, moved
+        integer(int64) :: original_point, limit, parsed, start, moved
         integer :: k
 
         call make_current_entry(k)
-        opoint = point()
-        call goto_char(limit_in)
+        original_point = point()
+        call goto_character(limit_in)
         limit = line_beginning_position(2_int64)
 
         if (compilation_buffers(k)%parsed%index == 0) then
@@ -2786,13 +2798,13 @@ contains
         call marker_position(compilation_buffers(k)%parsed, parsed, st)
 
         if (parsed < limit) then
-            start = max(parsed, point_min())
+            start = max(parsed, point_minimum())
             call set_marker(compilation_buffers(k)%parsed, limit, st)
-            call goto_char(start)
+            call goto_character(start)
             ! Not line-beginning-position: ignore (comint) fields.
             moved = forward_line(0_int64)
 
-            do while (.not. is_bob())
+            do while (.not. is_beginning_of_buffer())
                 call get_text_property(point() - 1, value_type(name="compilation_multiline"), v, st)
                 if (.not. allocated(v%a)) exit
                 moved = forward_line(-1_int64)
@@ -2804,39 +2816,39 @@ contains
             call silent_modifications_end(silent)
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine compilation_ensure_parse
 
     !> Where (text-property-search-forward 'compilation-annotation) from
     !> the start of the buffer leaves point: the end of the first region
     !> with a `compilation_annotation' property, or point-min.  Not a port.
-    integer(int64) function annotation_end() result(pos)
+    integer(int64) function annotation_end() result(position)
         type(value_type) :: v
         type(status_type) :: st
         integer(int64) :: next
         logical :: found
 
-        pos = point_min()
-        if (pos >= point_max()) return
+        position = point_minimum()
+        if (position >= point_maximum()) return
 
         do
-            call get_text_property(pos, value_type(name="compilation_annotation"), v, st)
+            call get_text_property(position, value_type(name="compilation_annotation"), v, st)
 
             if (allocated(v%a)) then
-                call next_single_property_change(pos, value_type(name="compilation_annotation"), next, found, st)
-                if (.not. found) next = point_max()
-                pos = next
+                call next_single_property_change(position, value_type(name="compilation_annotation"), next, found, st)
+                if (.not. found) next = point_maximum()
+                position = next
                 return
             end if
 
-            call next_single_property_change(pos, value_type(name="compilation_annotation"), next, found, st)
+            call next_single_property_change(position, value_type(name="compilation_annotation"), next, found, st)
 
             if (.not. found) then
-                pos = point_min()
+                position = point_minimum()
                 return
             end if
 
-            pos = next
+            position = next
         end do
     end function annotation_end
 
@@ -2877,7 +2889,7 @@ contains
     subroutine compilation_forget_errors()
         type(handle_type) :: process
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: k
 
         call make_current_entry(k)
@@ -2894,9 +2906,9 @@ contains
         process = get_buffer_process(current_buffer())
 
         if (process%index /= 0) then
-            call marker_position(process_mark(process), pos, st)
+            call marker_position(process_mark(process), position, st)
         else
-            pos = point_max()
+            position = point_maximum()
         end if
 
         if (compilation_buffers(k)%messages_start_marker%index /= 0) then
@@ -2907,39 +2919,39 @@ contains
         compilation_buffers(k)%has_messages_start = .true.
 
         ! In the future, ignore the text already present in the buffer.
-        if (pos > point_min()) then
-            call copy_marker_at(pos - 1, compilation_buffers(k)%messages_start_marker, .false., st)
+        if (position > point_minimum()) then
+            call copy_marker_at(position - 1, compilation_buffers(k)%messages_start_marker, .false., st)
         else
-            compilation_buffers(k)%messages_start_pos = pos
+            compilation_buffers(k)%messages_start_position = position
         end if
 
         compilation_buffers(k)%auto_jump_to_next = compilation_scroll_output%choice == COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
     end subroutine compilation_forget_errors
 
-    !> What the `compilation_message' property at POS of the current
+    !> What the `compilation_message' property at POSITION of the current
     !> buffer says (FOUND false for none).  Not a port.
-    subroutine compilation_message_info(pos, info, found)
-        integer(int64), intent(in) :: pos
+    subroutine compilation_message_info(position, info, found)
+        integer(int64), intent(in) :: position
         type(compilation_message_info_type), intent(out) :: info
         logical, intent(out) :: found
-        integer :: k, msg, loc, fs
+        integer :: k, message, location, fs
 
         found = .false.
-        msg = message_at(pos)
-        if (msg == 0) return
+        message = message_at(position)
+        if (message == 0) return
         found = .true.
         k = entry_of(current_buffer())
-        info%type = compilation_buffers(k)%messages(msg)%type
-        if (allocated(compilation_buffers(k)%messages(msg)%rule)) info%rule = compilation_buffers(k)%messages(msg)%rule
-        loc = compilation_buffers(k)%messages(msg)%loc
+        info%type = compilation_buffers(k)%messages(message)%type
+        if (allocated(compilation_buffers(k)%messages(message)%rule)) info%rule = compilation_buffers(k)%messages(message)%rule
+        location = compilation_buffers(k)%messages(message)%location
 
-        if (loc /= 0) then
-            info%has_loc = .true.
-            info%has_line = compilation_buffers(k)%locs(loc)%has_line
-            info%line = compilation_buffers(k)%locs(loc)%line
-            info%has_column = compilation_buffers(k)%locs(loc)%has_col
-            info%column = compilation_buffers(k)%locs(loc)%col
-            fs = compilation_buffers(k)%locs(loc)%file
+        if (location /= 0) then
+            info%has_location = .true.
+            info%has_line = compilation_buffers(k)%locations(location)%has_line
+            info%line = compilation_buffers(k)%locations(location)%line
+            info%has_column = compilation_buffers(k)%locations(location)%has_column
+            info%column = compilation_buffers(k)%locations(location)%column
+            fs = compilation_buffers(k)%locations(location)%file
 
             if (fs /= 0) then
                 info%file = compilation_buffers(k)%files(fs)%filename
@@ -2950,14 +2962,14 @@ contains
             end if
         end if
 
-        loc = compilation_buffers(k)%messages(msg)%end_loc
+        location = compilation_buffers(k)%messages(message)%end_location
 
-        if (loc /= 0) then
+        if (location /= 0) then
             info%has_end = .true.
-            info%has_end_line = compilation_buffers(k)%locs(loc)%has_line
-            info%end_line = compilation_buffers(k)%locs(loc)%line
-            info%has_end_column = compilation_buffers(k)%locs(loc)%has_col
-            info%end_column = compilation_buffers(k)%locs(loc)%col
+            info%has_end_line = compilation_buffers(k)%locations(location)%has_line
+            info%end_line = compilation_buffers(k)%locations(location)%line
+            info%has_end_column = compilation_buffers(k)%locations(location)%has_column
+            info%end_column = compilation_buffers(k)%locations(location)%column
         end if
     end subroutine compilation_message_info
 
@@ -2967,13 +2979,13 @@ contains
 
     !> Like next_single_property_change, but parse the text first.  Port of
     !> compile.el:compilation-next-single-property-change.
-    recursive subroutine compilation_next_single_property_change(position_in, prop, res, found, limit)
+    recursive subroutine compilation_next_single_property_change(position_in, property, res, found, limit)
         integer(int64), intent(in) :: position_in
-        character(len=*), intent(in) :: prop
+        character(len=*), intent(in) :: property
         integer(int64), intent(out) :: res
         logical, intent(out) :: found
         integer(int64), intent(in), optional :: limit
-        integer(int64) :: position, parsed, lim
+        integer(int64) :: position, parsed, limit_position
         type(status_type) :: st
         integer :: k
         logical :: again
@@ -2984,20 +2996,20 @@ contains
             call make_current_entry(k)
             parsed = -1
             if (compilation_buffers(k)%parsed%index /= 0) call marker_position(compilation_buffers(k)%parsed, parsed, st)
-            lim = point_max()
-            if (present(limit)) lim = limit
-            parsed = max(parsed, lim)
+            limit_position = point_maximum()
+            if (present(limit)) limit_position = limit
+            parsed = max(parsed, limit_position)
             call compilation_ensure_parse(parsed)
 
             if (present(limit)) then
-                call next_single_property_change(position, value_type(name=prop), res, found, st, limit)
+                call next_single_property_change(position, value_type(name=property), res, found, st, limit)
             else
-                call next_single_property_change(position, value_type(name=prop), res, found, st)
+                call next_single_property_change(position, value_type(name=property), res, found, st)
             end if
 
             again = .not. found
             if (found .and. present(limit)) again = res == limit
-            if (.not. (again .and. position < lim)) exit
+            if (.not. (again .and. position < limit_position)) exit
             position = parsed
         end do
     end subroutine compilation_next_single_property_change
@@ -3008,146 +3020,147 @@ contains
     !> the corresponding source code.  Prefix arg N says how many error
     !> messages to move forwards (or backwards, if negative).  Where the
     !> current error ends and the next one begins is determined by the
-    !> rules from `compilation_error_regexp_names' that matched the
+    !> rules from `compilation_error_regular_expression_names' that matched the
     !> compilation messages; this function moves point to where the
     !> `compilation_message' text property changes its value.  In general,
     !> all the messages that have the same line and column numbers are
     !> considered parts of a single compilation message.
     !>
     !> Optional arg DIFFERENT_FILE, if true, means find next error for a
-    !> file that is different from the current one.  Optional arg PT, if
+    !> file that is different from the current one.  Optional arg POINT, if
     !> present, specifies the value of point to start looking for the next
-    !> message.  In interactive invocations, DIFFERENT_FILE and PT are
+    !> message.  In interactive invocations, DIFFERENT_FILE and POINT are
     !> always absent.  Port of compile.el:compilation-next-error.
-    recursive subroutine compilation_next_error(n, status, different_file, pt)
+    recursive subroutine compilation_next_error(n, status, different_file, point)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: different_file
-        integer(int64), intent(in), optional :: pt
-        integer :: msg
+        integer(int64), intent(in), optional :: point
+        integer :: message
 
-        call next_error_1(n, status, msg, different_file, pt)
+        call next_error_1(n, status, message, different_file, point)
     end subroutine compilation_next_error
 
-    !> compilation-next-error, giving the message MSG found.
+    !> compilation-next-error, giving the message MESSAGE found.
     !> Port of compile.el:compilation-next-error.
-    recursive subroutine next_error_1(n_in, status, msg, different_file, pt_in)
+    recursive subroutine next_error_1(n_in, status, message, different_file, point_in)
         integer(int64), intent(in) :: n_in
         type(status_type), intent(out) :: status
-        integer, intent(out) :: msg
+        integer, intent(out) :: message
         logical, intent(in), optional :: different_file
-        integer(int64), intent(in), optional :: pt_in
-        integer(int64) :: pt, n, opt, limit, res
+        integer(int64), intent(in), optional :: point_in
+        integer(int64) :: point_value, n, option, limit, res
         type(status_type) :: st
         logical :: different, found, forward
-        integer :: loc, last, k
+        integer :: location, last, k
 
         status = status_type()
-        msg = 0
+        message = 0
         different = .false.
         if (present(different_file)) different = different_file
 
         if (.not. is_compilation_buffer(current_buffer())) then
-            call set_error(status, FM_GENERIC_ERROR, "Not in a compilation buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "Not in a compilation buffer")
             return
         end if
 
-        pt = point()
-        if (present(pt_in)) pt = pt_in
+        point_value = point()
+        if (present(point_in)) point_value = point_in
         n = n_in
-        call compilation_ensure_parse(pt)
+        call compilation_ensure_parse(point_value)
         k = entry_of(current_buffer())
-        msg = message_at(pt)
-        loc = 0
-        if (msg /= 0) loc = compilation_buffers(k)%messages(msg)%loc
+        message = message_at(point_value)
+        location = 0
+        if (message /= 0) location = compilation_buffers(k)%messages(message)%location
         last = 0
 
         if (n == 0) then
             ! Find message near here.
-            if (msg == 0) then
-                msg = message_at(max(pt - 1, point_min()))
+            if (message == 0) then
+                message = message_at(max(point_value - 1, point_minimum()))
 
-                if (msg == 0) then
-                    call previous_single_property_change(pt, value_type(name="compilation_message"), res, found, st, &
+                if (message == 0) then
+                    call previous_single_property_change(point_value, value_type(name="compilation_message"), res, found, st, &
                                                          line_beginning_position())
-                    pt = res
-                    msg = message_at(max(pt - 1, point_min()))
+                    point_value = res
+                    message = message_at(max(point_value - 1, point_minimum()))
 
-                    if (msg == 0) then
-                        call compilation_next_single_property_change(pt, "compilation_message", res, found, &
+                    if (message == 0) then
+                        call compilation_next_single_property_change(point_value, "compilation_message", res, found, &
                                                                      line_end_position())
-                        pt = res
-                        msg = message_at(pt)
-                        if (msg == 0) pt = point()
+                        point_value = res
+                        message = message_at(point_value)
+                        if (message == 0) point_value = point()
                     end if
                 end if
             end if
         else
-            if (loc /= 0) last = compilation_buffers(k)%locs(loc)%file
+            if (location /= 0) last = compilation_buffers(k)%locations(location)%file
             forward = n >= 0
 
             if (forward) then
-                limit = point_max()
+                limit = point_maximum()
             else
                 ! Don't move "back" to message at or before point.  Pass an
                 ! explicit (point-min) to make sure pt has a value.
-                call previous_single_property_change(pt, value_type(name="compilation_message"), res, found, st, point_min())
-                pt = res
-                limit = point_min()
+                call previous_single_property_change(point_value, value_type(name="compilation_message"), res, found, st, &
+                                                     point_minimum())
+                point_value = res
+                limit = point_minimum()
             end if
 
             ! compilation-loop.
             do while ((forward .and. n > 0) .or. (.not. forward .and. n < 0))
-                opt = pt
-                call property_change(pt, res, found)
+                option = point_value
+                call property_change(point_value, res, found)
 
                 if (found) then
-                    pt = res
+                    point_value = res
                 else
                     ! Handle the case where the first error message is at
                     ! the start of the buffer, and n < 0.
-                    if (message_at(limit) == message_at(opt)) then
+                    if (message_at(limit) == message_at(option)) then
                         call loop_error()
                         return
                     end if
 
-                    pt = limit
+                    point_value = limit
                 end if
 
                 ! prop 'compilation-message usually has 2 changes, on and
                 ! off, so re-search if off.
-                msg = message_at(pt)
+                message = message_at(point_value)
 
-                if (msg == 0) then
-                    call property_change(pt, res, found, limit)
+                if (message == 0) then
+                    call property_change(point_value, res, found, limit)
 
                     if (found) then
-                        pt = res
-                        msg = message_at(pt)
+                        point_value = res
+                        message = message_at(point_value)
                     end if
 
-                    if (msg == 0) then
+                    if (message == 0) then
                         call loop_error()
                         return
                     end if
                 end if
 
                 k = entry_of(current_buffer())
-                if (compilation_buffers(k)%messages(msg)%type < compilation_skip_threshold%value) cycle
+                if (compilation_buffers(k)%messages(message)%type < compilation_skip_threshold%value) cycle
 
                 if (different) then
-                    if (loc_file(k, msg) == last) cycle
-                    last = loc_file(k, msg)
+                    if (location_file(k, message) == last) cycle
+                    last = location_file(k, message)
                 end if
 
                 if (compilation_skip_visited%value) then
-                    if (compilation_buffers(k)%messages(msg)%loc /= 0) then
-                        if (compilation_buffers(k)%locs(compilation_buffers(k)%messages(msg)%loc)%visited) cycle
+                    if (compilation_buffers(k)%messages(message)%location /= 0) then
+                        if (compilation_buffers(k)%locations(compilation_buffers(k)%messages(message)%location)%visited) cycle
                     end if
                 end if
 
                 if (compilation_skip_to_next_location%value) then
-                    if (compilation_buffers(k)%messages(msg)%loc == loc) cycle
+                    if (compilation_buffers(k)%messages(message)%location == location) cycle
                 end if
 
                 ! Count this message only if none of the above are true.
@@ -3159,22 +3172,22 @@ contains
             end do
         end if
 
-        call goto_char(pt)
-        if (msg == 0) call set_error(status, FM_USER_ERROR, "No "//error_stem()//" here")
+        call goto_character(point_value)
+        if (message == 0) call set_error(status, USER_ERROR_CODE, "No "//error_stem()//" here")
 
     contains
 
-        subroutine property_change(from, res, found, lim)
+        subroutine property_change(from, res, found, limit_position)
             integer(int64), intent(in) :: from
             integer(int64), intent(out) :: res
             logical, intent(out) :: found
-            integer(int64), intent(in), optional :: lim
+            integer(int64), intent(in), optional :: limit_position
             type(status_type) :: st
 
             if (forward) then
-                call compilation_next_single_property_change(from, "compilation_message", res, found, lim)
-            else if (present(lim)) then
-                call previous_single_property_change(from, value_type(name="compilation_message"), res, found, st, lim)
+                call compilation_next_single_property_change(from, "compilation_message", res, found, limit_position)
+            else if (present(limit_position)) then
+                call previous_single_property_change(from, value_type(name="compilation_message"), res, found, st, limit_position)
             else
                 call previous_single_property_change(from, value_type(name="compilation_message"), res, found, st)
             end if
@@ -3187,36 +3200,36 @@ contains
 
             if (forward) then
                 if (process%index /= 0) then
-                    call set_error(status, FM_USER_ERROR, "No more "//error_stem()//"s yet")
+                    call set_error(status, USER_ERROR_CODE, "No more "//error_stem()//"s yet")
                 else
-                    call set_error(status, FM_USER_ERROR, "Past last "//error_stem())
+                    call set_error(status, USER_ERROR_CODE, "Past last "//error_stem())
                 end if
             else
-                call set_error(status, FM_USER_ERROR, "Moved back before first "//error_stem())
+                call set_error(status, USER_ERROR_CODE, "Moved back before first "//error_stem())
             end if
         end subroutine loop_error
     end subroutine next_error_1
 
-    !> The file structure of the location of message MSG of entry K (0
+    !> The file structure of the location of message MESSAGE of entry K (0
     !> for none).  Not a port.
-    integer function loc_file(k, msg) result(fs)
-        integer, intent(in) :: k, msg
+    integer function location_file(k, message) result(fs)
+        integer, intent(in) :: k, message
 
         fs = 0
 
-        if (compilation_buffers(k)%messages(msg)%loc /= 0) then
-            fs = compilation_buffers(k)%locs(compilation_buffers(k)%messages(msg)%loc)%file
+        if (compilation_buffers(k)%messages(message)%location /= 0) then
+            fs = compilation_buffers(k)%locations(compilation_buffers(k)%messages(message)%location)%file
         end if
-    end function loc_file
+    end function location_file
 
     !> The command: move by the prefix argument.
     !>
     !> Move point to the next error in the compilation buffer.
-    recursive subroutine cmd_compilation_next_error(status)
+    recursive subroutine execute_compilation_next_error(status)
         type(status_type), intent(out) :: status
 
-        call compilation_next_error(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_compilation_next_error
+        call compilation_next_error(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_compilation_next_error
 
     !> Move point to the previous error in the compilation buffer.
     !> Prefix arg N says how many error messages to move backwards (or
@@ -3233,11 +3246,11 @@ contains
     !> The command: move back by the prefix argument.
     !>
     !> Move point to the previous error in the compilation buffer.
-    recursive subroutine cmd_compilation_previous_error(status)
+    recursive subroutine execute_compilation_previous_error(status)
         type(status_type), intent(out) :: status
 
-        call compilation_previous_error(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_compilation_previous_error
+        call compilation_previous_error(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_compilation_previous_error
 
     !> Move point to the next error for a different file than the current
     !> one.  Prefix arg N says how many files to move forwards (or
@@ -3253,11 +3266,11 @@ contains
     !>
     !> Move point to the next error for a different file than the current
     !> one.
-    recursive subroutine cmd_compilation_next_file(status)
+    recursive subroutine execute_compilation_next_file(status)
         type(status_type), intent(out) :: status
 
-        call compilation_next_file(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_compilation_next_file
+        call compilation_next_file(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_compilation_next_file
 
     !> Move point to the previous error for a different file than the
     !> current one.  Prefix arg N says how many files to move backwards (or
@@ -3273,11 +3286,11 @@ contains
     !>
     !> Move point to the previous error for a different file than the
     !> current one.
-    recursive subroutine cmd_compilation_previous_file(status)
+    recursive subroutine execute_compilation_previous_file(status)
         type(status_type), intent(out) :: status
 
-        call compilation_previous_file(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_compilation_previous_file
+        call compilation_previous_file(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_compilation_previous_file
 
     !> Display the source for current error in another window.  Port of
     !> compile.el:compilation-display-error.
@@ -3286,17 +3299,17 @@ contains
         type(handle_type) :: selected
         type(status_type) :: st
 
-        call set_current_error_pos(point())
+        call set_current_error_position(point())
         ! (next-error-no-select 0)
         selected = selected_frame%selected_window
         call next_error(status, 0_int64)
         call select_window(selected, st, norecord=.true.)
     end subroutine compilation_display_error
 
-    !> Make compilation-current-error the position POS of the current
+    !> Make compilation-current-error the position POSITION of the current
     !> buffer.  Not a port.
-    subroutine set_current_error_pos(pos)
-        integer(int64), intent(in) :: pos
+    subroutine set_current_error_position(position)
+        integer(int64), intent(in) :: position
         type(status_type) :: st
         integer :: k
 
@@ -3308,8 +3321,8 @@ contains
 
         compilation_buffers(k)%current_error_marker = null_handle()
         compilation_buffers(k)%has_current_error = .true.
-        compilation_buffers(k)%current_error_pos = pos
-    end subroutine set_current_error_pos
+        compilation_buffers(k)%current_error_position = position
+    end subroutine set_current_error_position
 
     !> Switch the `compilation_skip_threshold' level.  Port of
     !> compile.el:compilation-set-skip-threshold.
@@ -3334,20 +3347,20 @@ contains
     !> modulo 3.
     !>
     !> Switch the `compilation_skip_threshold' level.
-    subroutine cmd_compilation_set_skip_threshold(status)
+    subroutine execute_compilation_set_skip_threshold(status)
         type(status_type), intent(out) :: status
         integer(int64) :: level
 
         status = status_type()
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
-            level = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
+            level = prefix_numeric_value(current_prefix_argument)
         else
             level = compilation_skip_threshold%value + 1
         end if
 
         call compilation_set_skip_threshold(int(modulo(level, 3_int64)))
-    end subroutine cmd_compilation_set_skip_threshold
+    end subroutine execute_compilation_set_skip_threshold
 
     !> Visit the source for the error message at point.
     !> Use this command in a compilation log buffer.  Port of
@@ -3359,28 +3372,28 @@ contains
         status = status_type()
 
         if (.not. is_compilation_buffer(current_buffer())) then
-            call set_error(status, FM_GENERIC_ERROR, "Not in a compilation buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "Not in a compilation buffer")
             return
         end if
 
         call compilation_ensure_parse(point())
 
-        if (dir_at(point()) /= 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Visiting directories is not supported yet")
+        if (directory_at(point()) /= 0) then
+            call set_error(status, GENERIC_ERROR_CODE, "Visiting directories is not supported yet")
             return
         end if
 
-        call set_current_error_pos(point())
+        call set_current_error_position(point())
         call next_error_internal(status)
     end subroutine compile_goto_error
 
-    !> Update markers in LOC, and set MARKER to location pointed by LOC.
+    !> Update markers in LOCATION, and set MARKER to location pointed by LOCATION.
     !> SCREEN_COLUMNS and FIRST_COLUMN are the value of
     !> `compilation_error_screen_columns' and `compilation_first_column' to
     !> use if they are not set buffer-locally in the target buffer.  Port of
     !> compile.el:compilation--update-markers.
-    recursive subroutine compilation_update_markers(loc, marker, screen_columns, first_column, status)
-        integer, intent(in) :: loc
+    recursive subroutine compilation_update_markers(location, marker, screen_columns, first_column, status)
+        integer, intent(in) :: location
         type(handle_type), intent(in) :: marker
         logical, intent(in) :: screen_columns
         integer(int64), intent(in) :: first_column
@@ -3389,12 +3402,12 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: filename, directory
         logical :: screen
-        integer(int64) :: first, last, opoint, begv, zv, moved
+        integer(int64) :: first, last, original_point, beginning_of_accessible_portion, end_of_accessible_portion, moved
         integer :: k, fs, node, i, id
 
         comp = current_buffer()
         k = entry_of(comp)
-        fs = compilation_buffers(k)%locs(loc)%file
+        fs = compilation_buffers(k)%locations(location)%file
         filename = compilation_buffers(k)%files(fs)%filename
 
         if (allocated(compilation_buffers(k)%files(fs)%directory)) then
@@ -3415,11 +3428,11 @@ contains
         if (compilation_error_screen_columns%local_p()) screen = compilation_error_screen_columns%value
         if (compilation_first_column%local_p()) first = compilation_first_column%value
         last = 1
-        opoint = point()
-        begv = point_min()
-        zv = point_max()
+        original_point = point()
+        beginning_of_accessible_portion = point_minimum()
+        end_of_accessible_portion = point_maximum()
         call widen()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         ! Treat file's found lines in forward order, 1 by 1.
         do node = size(compilation_buffers(k)%files(fs)%lines), 1, -1
@@ -3432,55 +3445,55 @@ contains
 
                 ! Treat line's found columns and store/update a marker for
                 ! each.
-                do i = 1, size(line%locs)
-                    id = line%locs(i)
+                do i = 1, size(line%locations)
+                    id = line%locations(i)
 
-                    if (compilation_buffers(k)%locs(id)%has_col) then
-                        if (compilation_buffers(k)%locs(id)%col == -1) then
+                    if (compilation_buffers(k)%locations(id)%has_column) then
+                        if (compilation_buffers(k)%locations(id)%column == -1) then
                             ! Special case for range end.
                             call end_of_line()
                         else
-                            call compilation_move_to_column(compilation_buffers(k)%locs(id)%col, screen, first)
+                            call compilation_move_to_column(compilation_buffers(k)%locations(id)%column, screen, first)
                         end if
                     else
                         call beginning_of_line()
-                        moved = skip_chars_forward(" "//TB, st)
+                        moved = skip_characters_forward(" "//TB, st)
                     end if
 
-                    if (compilation_buffers(k)%locs(id)%marker%index /= 0) then
-                        call set_marker(compilation_buffers(k)%locs(id)%marker, point(), st)
+                    if (compilation_buffers(k)%locations(id)%marker%index /= 0) then
+                        call set_marker(compilation_buffers(k)%locations(id)%marker, point(), st)
 
                         if (.not. st%ok()) then
                             call point_marker(m)
-                            compilation_buffers(k)%locs(id)%marker = m
+                            compilation_buffers(k)%locations(id)%marker = m
                         end if
                     else
                         call point_marker(m)
-                        compilation_buffers(k)%locs(id)%marker = m
+                        compilation_buffers(k)%locations(id)%marker = m
                     end if
                 end do
             end associate
         end do
 
-        call narrow_to_region(begv, zv, st)
-        call goto_char(opoint)
+        call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
+        call goto_character(original_point)
         call set_buffer(comp, st)
     end subroutine compilation_update_markers
 
-    !> The BUFFER and POSITION of the location of the message at POS of
+    !> The BUFFER and POSITION of the location of the message at POSITION of
     !> the current compilation buffer (FOUND false for none), its markers
     !> updated (the file visited) if they are not set yet; what
     !> grep-edit--prepare-buffer computes with compilation--update-markers.
     !> Not a port.
-    recursive subroutine compilation_message_location(pos, buffer, position, found, status)
-        integer(int64), intent(in) :: pos
+    recursive subroutine compilation_message_location(position_value, buffer, position, found, status)
+        integer(int64), intent(in) :: position_value
         type(handle_type), intent(out) :: buffer
         integer(int64), intent(out) :: position
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         type(handle_type) :: dummy
         type(status_type) :: st
-        integer :: k, msg, loc
+        integer :: k, message, location
 
         status = status_type()
         found = .false.
@@ -3488,28 +3501,28 @@ contains
         buffer = null_handle()
         k = entry_of(current_buffer())
         if (k == 0) return
-        msg = message_at(pos)
-        if (msg == 0) return
-        loc = compilation_buffers(k)%messages(msg)%loc
-        if (loc == 0) return
+        message = message_at(position_value)
+        if (message == 0) return
+        location = compilation_buffers(k)%messages(message)%location
+        if (location == 0) return
 
         ! Update the markers if necessary.
-        if (compilation_buffers(k)%locs(loc)%marker%index /= 0) then
-            call marker_buffer(compilation_buffers(k)%locs(loc)%marker, buffer, st)
+        if (compilation_buffers(k)%locations(location)%marker%index /= 0) then
+            call marker_buffer(compilation_buffers(k)%locations(location)%marker, buffer, st)
         end if
 
-        if (compilation_buffers(k)%locs(loc)%marker%index == 0 .or. .not. is_buffer_live(buffer)) then
+        if (compilation_buffers(k)%locations(location)%marker%index == 0 .or. .not. is_buffer_live(buffer)) then
             call make_marker(dummy)
-            call compilation_update_markers(loc, dummy, compilation_error_screen_columns%value, &
+            call compilation_update_markers(location, dummy, compilation_error_screen_columns%value, &
                                             compilation_first_column%value, status)
             call destroy_marker(dummy, st)
             if (.not. status%ok()) return
             k = entry_of(current_buffer())
         end if
 
-        if (compilation_buffers(k)%locs(loc)%marker%index == 0) return
-        call marker_buffer(compilation_buffers(k)%locs(loc)%marker, buffer, st)
-        call marker_position(compilation_buffers(k)%locs(loc)%marker, position, st)
+        if (compilation_buffers(k)%locations(location)%marker%index == 0) return
+        call marker_buffer(compilation_buffers(k)%locations(location)%marker, buffer, st)
+        call marker_position(compilation_buffers(k)%locations(location)%marker, position, st)
         found = st%ok() .and. is_buffer_live(buffer)
     end subroutine compilation_message_location
 
@@ -3521,11 +3534,11 @@ contains
         integer(int64), intent(in) :: n
         logical, intent(in) :: reset
         type(status_type), intent(out) :: status
-        type(handle_type) :: marker, comp, loc_marker, end_marker, mbuf
+        type(handle_type) :: marker, comp, location_marker, end_marker, mbuf
         type(status_type) :: st
         logical :: screen, valid
-        integer(int64) :: first, pt
-        integer :: k, msg, loc, end_loc
+        integer(int64) :: first, point
+        integer :: k, message, location, end_location
 
         comp = current_buffer()
         call make_current_entry(k)
@@ -3544,28 +3557,28 @@ contains
 
         if (compilation_buffers(k)%has_current_error) then
             if (compilation_buffers(k)%current_error_marker%index /= 0) then
-                call marker_position(compilation_buffers(k)%current_error_marker, pt, st)
+                call marker_position(compilation_buffers(k)%current_error_marker, point, st)
             else
-                pt = compilation_buffers(k)%current_error_pos
+                point = compilation_buffers(k)%current_error_position
             end if
         else if (compilation_buffers(k)%has_messages_start) then
             if (compilation_buffers(k)%messages_start_marker%index /= 0) then
-                call marker_position(compilation_buffers(k)%messages_start_marker, pt, st)
+                call marker_position(compilation_buffers(k)%messages_start_marker, point, st)
             else
-                pt = compilation_buffers(k)%messages_start_pos
+                point = compilation_buffers(k)%messages_start_position
             end if
         else
-            pt = point_min()
+            point = point_minimum()
         end if
 
-        call next_error_1(n, status, msg, pt_in=pt)
+        call next_error_1(n, status, message, point_in=point)
         if (.not. status%ok()) return
         k = entry_of(comp)
-        loc = compilation_buffers(k)%messages(msg)%loc
-        end_loc = compilation_buffers(k)%messages(msg)%end_loc
+        location = compilation_buffers(k)%messages(message)%location
+        end_location = compilation_buffers(k)%messages(message)%end_location
 
-        if (loc == 0) then
-            call set_error(status, FM_USER_ERROR, "No next error")
+        if (location == 0) then
+            call set_error(status, USER_ERROR_CODE, "No next error")
             return
         end if
 
@@ -3583,13 +3596,13 @@ contains
         ! So, recalculate all markers for that file.
         valid = .false.
 
-        if (compilation_buffers(k)%locs(loc)%marker%index /= 0) then
-            call marker_buffer(compilation_buffers(k)%locs(loc)%marker, mbuf, st)
+        if (compilation_buffers(k)%locations(location)%marker%index /= 0) then
+            call marker_buffer(compilation_buffers(k)%locations(location)%marker, mbuf, st)
             valid = st%ok() .and. mbuf%index /= 0
         end if
 
         if (.not. valid) then
-            call compilation_update_markers(loc, marker, screen, first, status)
+            call compilation_update_markers(location, marker, screen, first, status)
 
             if (.not. status%ok()) then
                 call destroy_marker(marker, st)
@@ -3598,25 +3611,25 @@ contains
         end if
 
         k = entry_of(comp)
-        loc_marker = compilation_buffers(k)%locs(loc)%marker
+        location_marker = compilation_buffers(k)%locations(location)%marker
         end_marker = null_handle()
-        if (end_loc /= 0) end_marker = compilation_buffers(k)%locs(end_loc)%marker
-        call compilation_goto_locus(marker, loc_marker, end_marker, status)
+        if (end_location /= 0) end_marker = compilation_buffers(k)%locations(end_location)%marker
+        call compilation_goto_locus(marker, location_marker, end_marker, status)
         call destroy_marker(marker, st)
         if (.not. status%ok()) return
         k = entry_of(comp)
-        if (k /= 0) compilation_buffers(k)%locs(loc)%visited = .true.
+        if (k /= 0) compilation_buffers(k)%locations(location)%visited = .true.
     end subroutine compilation_next_error_function
 
     !> The command: visit the error the prefix argument says.
     !>
     !> Advance to the next error message and visit the file where the
     !> error was.
-    recursive subroutine cmd_compilation_next_error_function(status)
+    recursive subroutine execute_compilation_next_error_function(status)
         type(status_type), intent(out) :: status
 
-        call compilation_next_error_function(prefix_numeric_value(current_prefix_arg), .false., status)
-    end subroutine cmd_compilation_next_error_function
+        call compilation_next_error_function(prefix_numeric_value(current_prefix_argument), .false., status)
+    end subroutine execute_compilation_next_error_function
 
     !> Maybe align the compilation output window W with marker MK near
     !> top.  Port of compile.el:compilation-set-window (the terminal has no
@@ -3624,65 +3637,65 @@ contains
     subroutine compilation_set_window(w, mk)
         type(handle_type), intent(in) :: w, mk
         type(status_type) :: st
-        integer(int64) :: pos, opoint, moved
+        integer(int64) :: position, original_point, moved
 
-        call marker_position(mk, pos, st)
-        opoint = point()
+        call marker_position(mk, position, st)
+        original_point = point()
 
         if (compilation_context%lines >= 0) then
-            call goto_char(pos)
+            call goto_character(position)
             call compilation_beginning_of_line(1 - compilation_context%lines)
             call set_window_start(windows(w%index), point(), st)
-            call goto_char(opoint)
+            call goto_character(original_point)
         else if (compilation_context%choice == COMPILATION_CONTEXT_TOP) then
             ! There is no left fringe.
-            call goto_char(pos)
+            call goto_character(position)
             moved = forward_line(0_int64)
             call set_window_start(windows(w%index), line_beginning_position(), st)
-            call goto_char(opoint)
+            call goto_character(original_point)
         end if
 
-        call set_window_point(windows(w%index), pos, st)
+        call set_window_point(windows(w%index), position, st)
     end subroutine compilation_set_window
 
-    !> Jump to an error corresponding to MSG at MK.
+    !> Jump to an error corresponding to MESSAGE at MK.
     !> All arguments are markers.  If END_MK is not the null handle, mark
     !> is set there.  Port of compile.el:compilation-goto-locus
     !> (highlighting the locus is Deferred).
-    recursive subroutine compilation_goto_locus(msg, mk, end_mk, status)
-        type(handle_type), intent(in) :: msg, mk, end_mk
-        type(handle_type) :: msg_buffer, mk_buffer, pre_existing, w, selected
+    recursive subroutine compilation_goto_locus(message, mk, end_mk, status)
+        type(handle_type), intent(in) :: message, mk, end_mk
+        type(handle_type) :: message_buffer, mk_buffer, pre_existing, w, selected
         type(display_action_parameters_type) :: table
         type(status_type) :: st
         type(status_type), intent(out) :: status
         logical :: from_compilation_buffer, saved_pop_up
-        integer(int64) :: pos
+        integer(int64) :: position
 
         status = status_type()
-        call marker_buffer(msg, msg_buffer, st)
+        call marker_buffer(message, message_buffer, st)
         call marker_buffer(mk, mk_buffer, st)
 
         if (mk_buffer%index == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Marker does not point anywhere")
+            call set_error(status, GENERIC_ERROR_CODE, "Marker does not point anywhere")
             return
         end if
 
         ! Show compilation buffer in other window, scrolled to this error.
         selected = selected_frame%selected_window
-        from_compilation_buffer = same(windows(selected%index)%buffer, msg_buffer)
+        from_compilation_buffer = same(windows(selected%index)%buffer, message_buffer)
         ! Use an existing window if it is in a visible frame.
-        pre_existing = get_buffer_window(msg_buffer)
+        pre_existing = get_buffer_window(message_buffer)
 
         if (from_compilation_buffer .and. pre_existing%index /= 0) then
             w = pre_existing
         else
-            call display_buffer(msg_buffer, w, st)
+            call display_buffer(message_buffer, w, st)
         end if
 
-        call set_buffer(msg_buffer, st)
-        call marker_position(msg, pos, st)
-        call goto_char(pos)
-        if (w%index /= 0) call compilation_set_window(w, msg)
+        call set_buffer(message_buffer, st)
+        call marker_position(message, position, st)
+        call goto_character(position)
+        if (w%index /= 0) call compilation_set_window(w, message)
 
         if (from_compilation_buffer .or. same(w, selected)) then
             ! If the compilation buffer window is selected, keep the
@@ -3699,18 +3712,18 @@ contains
 
         if (.not. status%ok()) return
         call set_buffer(mk_buffer, st)
-        call marker_position(mk, pos, st)
+        call marker_position(mk, position, st)
         ! If narrowing gets in the way of going to the right place, widen.
-        call goto_char(pos)
+        call goto_character(position)
 
-        if (point() /= pos) then
+        if (point() /= position) then
             call widen()
-            call goto_char(pos)
+            call goto_character(position)
         end if
 
         if (end_mk%index /= 0) then
-            call marker_position(end_mk, pos, st)
-            if (st%ok()) call push_mark(pos, nomsg=.true.)
+            call marker_position(end_mk, position, st)
+            if (st%ok()) call push_mark(position, nomsg=.true.)
         else
             if (buffers(current)%mark_active) buffers(current)%mark_active = .false.
         end if
@@ -3735,17 +3748,17 @@ contains
     !> directory searched.  Port of compile.el:compilation-find-file-1
     !> (`compilation_search_path' is Deferred: only its default, the
     !> directory, is searched).
-    recursive subroutine compilation_find_file_1(marker, filename_in, buffer, spec_dir, status, directory)
+    recursive subroutine compilation_find_file_1(marker, filename_in, buffer, specification_directory, status, directory)
         type(handle_type), intent(in) :: marker
         character(len=*), intent(in) :: filename_in
         type(handle_type), intent(out) :: buffer
-        character(len=:), allocatable, intent(out) :: spec_dir
+        character(len=:), allocatable, intent(out) :: specification_directory
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: directory
         character(len=:), allocatable :: filename, name, absolute, thisdir
         type(handle_type) :: mbuf, old
         type(status_type) :: st
-        integer(int64) :: pos, opoint
+        integer(int64) :: position, original_point
         integer :: d, k
         logical :: found
 
@@ -3753,18 +3766,18 @@ contains
         buffer = null_handle()
 
         if (present(directory)) then
-            call expand_file_name(directory, spec_dir, st, default_dir())
+            call expand_file_name(directory, specification_directory, st, default_directory())
         else
-            spec_dir = default_dir()
+            specification_directory = default_directory()
         end if
 
         filename = filename_in
-        thisdir = spec_dir
+        thisdir = specification_directory
 
         if (is_file_name_absolute(filename)) then
             ! The file name is absolute.  Use its explicit directory as the
             ! first in the search path, and strip it from FILENAME.
-            call expand_file_name(filename, absolute, st, default_dir())
+            call expand_file_name(filename, absolute, st, default_directory())
             filename = abbreviate_file_name(absolute)
             thisdir = file_name_directory(filename)
             filename = file_name_nondirectory(filename)
@@ -3776,7 +3789,7 @@ contains
             end if
 
             ! Then the nil of compilation-search-path.
-            thisdir = spec_dir
+            thisdir = specification_directory
         end if
 
         name = compilation_expand_fn(thisdir, filename)
@@ -3794,20 +3807,20 @@ contains
         old = current_buffer()
         call set_buffer(mbuf, st)
         k = entry_of(mbuf)
-        opoint = point()
-        call marker_position(marker, pos, st)
-        call goto_char(pos)
-        call previous_single_property_change(point(), value_type(name="compilation_directory"), pos, found, st)
-        if (found) call goto_char(pos)
-        d = dir_at(point() - 1)
-        if (d == 0) d = dir_at(point())
-        call goto_char(opoint)
+        original_point = point()
+        call marker_position(marker, position, st)
+        call goto_character(position)
+        call previous_single_property_change(point(), value_type(name="compilation_directory"), position, found, st)
+        if (found) call goto_character(position)
+        d = directory_at(point() - 1)
+        if (d == 0) d = directory_at(point())
+        call goto_character(original_point)
         ! (cdr dirs): the directories before the innermost.
-        if (d /= 0) d = compilation_buffers(k)%dirs(d)%parent
+        if (d /= 0) d = compilation_buffers(k)%directories(d)%parent
 
         do while (d /= 0)
-            if (allocated(compilation_buffers(k)%dirs(d)%dir)) then
-                thisdir = compilation_buffers(k)%dirs(d)%dir
+            if (allocated(compilation_buffers(k)%directories(d)%directory)) then
+                thisdir = compilation_buffers(k)%directories(d)%directory
                 name = compilation_expand_fn(thisdir, filename)
 
                 if (file_exists(name)) then
@@ -3818,20 +3831,20 @@ contains
             end if
 
             k = entry_of(mbuf)
-            d = compilation_buffers(k)%dirs(d)%parent
+            d = compilation_buffers(k)%directories(d)%parent
         end do
 
         call set_buffer(old, st)
     end subroutine compilation_find_file_1
 
     !> The current buffer's default directory.  Not a port.
-    function default_dir() result(dir)
-        character(len=:), allocatable :: dir
+    function default_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = ""
+        directory = ""
         if (current == 0) return
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
-    end function default_dir
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
+    end function default_directory
 
     !> Find a buffer for file FILENAME.
     !> If FILENAME is not found at all, ask the user where to find it.
@@ -3849,20 +3862,20 @@ contains
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: directory
-        character(len=:), allocatable :: spec_dir, name, origname
+        character(len=:), allocatable :: specification_directory, name, origname
         type(handle_type) :: mbuf, w, old
         type(status_type) :: st
-        integer(int64) :: pos, opoint
+        integer(int64) :: position, original_point
         logical :: saved_pop_up
 
-        call compilation_find_file_1(marker, filename, buffer, spec_dir, status, directory)
+        call compilation_find_file_1(marker, filename, buffer, specification_directory, status, directory)
         if (.not. status%ok()) return
 
         do while (buffer%index == 0)
             ! The file doesn't exist.  Ask the user where to find it.
             call marker_buffer(marker, mbuf, st)
             old = current_buffer()
-            opoint = point()
+            original_point = point()
 
             if (mbuf%index /= 0) then
                 saved_pop_up = pop_up_windows
@@ -3870,15 +3883,15 @@ contains
                 call display_buffer(mbuf, w, st)
                 pop_up_windows = saved_pop_up
                 call set_buffer(mbuf, st)
-                call marker_position(marker, pos, st)
-                call goto_char(pos)
+                call marker_position(marker, position, st)
+                call goto_character(position)
                 if (w%index /= 0) call compilation_set_window(w, marker)
                 call set_buffer(old, st)
-                call goto_char(opoint)
+                call goto_character(original_point)
             end if
 
             call read_file_name("Find this "//error_stem()//" in (default "//filename//"): ", name, status, &
-                                dir=spec_dir, default_filename=filename, mustmatch=1)
+                                directory=specification_directory, default_filename=filename, mustmatch=1)
             if (.not. status%ok()) return
             origname = name
 
@@ -3920,7 +3933,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. associated(major_modes%compilation_mode%execute)) call init_compile()
+        if (.not. associated(major_modes%compilation_mode%execute)) call initialize_compile()
         ! kill-all-local-variables, use-local-map, major-mode, mode-name.
         call major_modes%compilation_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -4003,26 +4016,26 @@ contains
         ! configure output lines.  (compilation-face '(4 . 3)) on 2: the
         ! error face, unless 3 (info) or 4 (warning), which are all of 2,
         ! matched.
-        keywords(2)%regexp = "^[Cc]hecking \(?:[Ff]or \|[Ii]f \|[Ww]hether \(?:to \)?\)?\(.+\)\.\.\. *" &
-                             //"\(?:(cached) *\)?\(\(yes\(?: .+\)?\)\|no\|\(.*\)\)$"
+        keywords(2)%regular_expression = "^[Cc]hecking \(?:[Ff]or \|[Ii]f \|[Ww]hether \(?:to \)?\)?\(.+\)\.\.\. *" &
+                                         //"\(?:(cached) *\)?\(\(yes\(?: .+\)?\)\|no\|\(.*\)\)$"
         allocate (keywords(2)%highlights(4))
         call set_highlight(keywords(2)%highlights(1), 1, "font_lock_variable_name_face")
         call set_highlight(keywords(2)%highlights(2), 2, setting_string(compilation_error_face))
         call set_highlight(keywords(2)%highlights(3), 3, setting_string(compilation_info_face), .true.)
         call set_highlight(keywords(2)%highlights(4), 4, setting_string(compilation_warning_face), .true.)
         ! Command output lines.  Recognize `make[n]:' lines too.
-        keywords(3)%regexp = "^\([[:alnum:]_/.+-]+\)\(\[\([0-9]+\)\]\)?["//TB//" ]*:"
+        keywords(3)%regular_expression = "^\([[:alnum:]_/.+-]+\)\(\[\([0-9]+\)\]\)?["//TB//" ]*:"
         allocate (keywords(3)%highlights(2))
         call set_highlight(keywords(3)%highlights(1), 1, "font_lock_function_name_face")
         call set_highlight(keywords(3)%highlights(2), 3, setting_string(compilation_line_face), laxmatch=.true.)
-        keywords(4)%regexp = " --?o\(?:utfile\|utput\)?[= ]\(\S +\)"
+        keywords(4)%regular_expression = " --?o\(?:utfile\|utput\)?[= ]\(\S +\)"
         allocate (keywords(4)%highlights(1))
         call set_highlight(keywords(4)%highlights(1), 1, "font_lock_keyword_face")
-        keywords(5)%regexp = "^Compilation \(finished\).*"
+        keywords(5)%regular_expression = "^Compilation \(finished\).*"
         allocate (keywords(5)%highlights(1))
         call set_highlight(keywords(5)%highlights(1), 1, setting_string(compilation_info_face))
-        keywords(6)%regexp = "^Compilation \(exited abnormally\|interrupt\|killed\|terminated\|" &
-                             //"segmentation fault\)\(?:.*with code \([0-9]+\)\)?.*"
+        keywords(6)%regular_expression = "^Compilation \(exited abnormally\|interrupt\|killed\|terminated\|" &
+                                         //"segmentation fault\)\(?:.*with code \([0-9]+\)\)?.*"
         allocate (keywords(6)%highlights(2))
         call set_highlight(keywords(6)%highlights(1), 1, setting_string(compilation_error_face))
         call set_highlight(keywords(6)%highlights(2), 2, setting_string(compilation_error_face), laxmatch=.true.)
@@ -4097,7 +4110,7 @@ contains
         character(len=16) :: n
         integer :: p
 
-        p = num_processors()
+        p = number_processors()
         write (n, "(i0)") (2*p + 2)/3
         command = "make -k -j"//trim(n)//" "
     end function default_compile_command
@@ -4105,7 +4118,7 @@ contains
     !> Read the compilation command, COMMAND as initial input.  Port of
     !> compile.el:compilation-read-command.
     subroutine compilation_read_command_from_user(command, result, status)
-        use value_mod, only: xstring, list_elt, value_type
+        use value_mod, only: xstring, list_element, value_type
         character(len=*), intent(in) :: command
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
@@ -4114,7 +4127,7 @@ contains
 
         same_first = .false.
         call symbol_value(value_type(name="compile_history"), history, status)
-        if (status%ok()) first = list_elt(history, 1_int64)
+        if (status%ok()) first = list_element(history, 1_int64)
 
         if (status%ok()) then
             if (vtag(first) == V_STRING) same_first = xstring(first) == command .and. len(xstring(first)) == len(command)
@@ -4156,7 +4169,7 @@ contains
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: comint
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
         if (command /= compile_command_value() .or. len(command) /= len(compile_command_value())) then
             compile_command = command
@@ -4164,10 +4177,10 @@ contains
 
         call save_some_buffers(.not. compilation_ask_about_save%value, .false., status)
         if (.not. status%ok()) return
-        dir = ""
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        directory = ""
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
         ! setq-default: the value of buffers without their own.
-        compilation_directory = dir
+        compilation_directory = directory
         call compilation_start(command, status, comint)
     end subroutine compile
 
@@ -4186,20 +4199,20 @@ contains
     !>
     !> Compile the program including the current buffer.  Default: run
     !> `make'.
-    recursive subroutine cmd_compile(status)
+    recursive subroutine execute_compile(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: command, initial_input
 
         command = compile_command_value()
 
-        if (compilation_read_command%value .or. current_prefix_arg%kind /= PREFIX_NONE) then
+        if (compilation_read_command%value .or. current_prefix_argument%kind /= PREFIX_NONE) then
             initial_input = command
             call compilation_read_command_from_user(initial_input, command, status)
             if (.not. status%ok()) return
         end if
 
-        call compile(command, status, current_prefix_arg%kind == PREFIX_RAW)
-    end subroutine cmd_compile
+        call compile(command, status, current_prefix_argument%kind == PREFIX_RAW)
+    end subroutine execute_compile
 
     !> Re-compile the program including the current buffer.
     !> If this is run in a Compilation mode buffer, reuse the arguments from
@@ -4209,8 +4222,8 @@ contains
     recursive subroutine recompile(status, edit_command)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: edit_command
-        character(len=:), allocatable :: command, saved_dir, dir, saved_command
-        logical :: edit, had_dir, comint
+        character(len=:), allocatable :: command, saved_directory, directory, saved_command
+        logical :: edit, had_directory, comint
         type(handle_type) :: old
         type(major_mode_type), pointer :: mode
         integer :: k
@@ -4221,10 +4234,10 @@ contains
         if (.not. status%ok()) return
         old = current_buffer()
         ! (let ((default-directory (or compilation-directory default-directory)))
-        had_dir = allocated(buffers(current)%directory)
-        if (had_dir) saved_dir = buffers(current)%directory
-        dir = compilation_directory_value()
-        if (len(dir) > 0) buffers(current)%directory = dir
+        had_directory = allocated(buffers(current)%directory)
+        if (had_directory) saved_directory = buffers(current)%directory
+        directory = compilation_directory_value()
+        if (len(directory) > 0) buffers(current)%directory = directory
         command = compile_command_value()
         k = entry_of(current_buffer())
 
@@ -4241,7 +4254,7 @@ contains
             end if
 
             if (.not. status%ok()) then
-                call restore_dir()
+                call restore_directory()
                 return
             end if
 
@@ -4267,51 +4280,51 @@ contains
             call compilation_start(command, status, comint)
         end if
 
-        call restore_dir()
+        call restore_directory()
 
     contains
 
-        subroutine restore_dir()
+        subroutine restore_directory()
             type(status_type) :: st
 
             ! Restore the saved value in the buffer that was current.
             if (.not. is_buffer_live(old)) return
             call set_buffer(old, st)
 
-            if (had_dir) then
-                buffers(current)%directory = saved_dir
+            if (had_directory) then
+                buffers(current)%directory = saved_directory
             else if (allocated(buffers(current)%directory)) then
                 deallocate (buffers(current)%directory)
             end if
-        end subroutine restore_dir
+        end subroutine restore_directory
     end subroutine recompile
 
     !> The current buffer's `compilation_directory' ("" for none).  Not a port.
-    function compilation_directory_value() result(dir)
-        character(len=:), allocatable :: dir
+    function compilation_directory_value() result(directory)
+        character(len=:), allocatable :: directory
         integer :: k
 
-        dir = ""
+        directory = ""
         k = entry_of(current_buffer())
 
         if (k /= 0) then
             if (allocated(compilation_buffers(k)%directory)) then
-                dir = compilation_buffers(k)%directory
+                directory = compilation_buffers(k)%directory
                 return
             end if
         end if
 
-        if (allocated(compilation_directory%value)) dir = compilation_directory%value
+        if (allocated(compilation_directory%value)) directory = compilation_directory%value
     end function compilation_directory_value
 
     !> The command: recompile, editing the command with a prefix argument.
     !>
     !> Re-compile the program including the current buffer.
-    recursive subroutine cmd_recompile(status)
+    recursive subroutine execute_recompile(status)
         type(status_type), intent(out) :: status
 
-        call recompile(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_recompile
+        call recompile(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_recompile
 
     !> Insert TEXT at point, adding the `compilation_annotation' text
     !> property.  This property is used to distinguish output of the
@@ -4368,9 +4381,9 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: comint
         type(major_mode_type), intent(in), target, optional :: mode
-        character(len=:), allocatable :: thisdir, cd_dir, origdir, name_of_mode
+        character(len=:), allocatable :: thisdir, cd_directory, origdir, name_of_mode
         type(handle_type) :: outbuf, comp_process, outwin, old, process
-        type(string_type), allocatable :: args(:), switches(:), env(:)
+        type(string_type), allocatable :: arguments(:), switches(:), environment_variables(:)
         type(value_type) :: inhibit
         type(status_type) :: st
         logical :: answer, scroll, use_comint
@@ -4422,7 +4435,7 @@ contains
                     call delete_process(comp_process, st)
                 end if
             else
-                call set_error(status, FM_GENERIC_ERROR, format_message("Cannot have two processes in `")// &
+                call set_error(status, GENERIC_ERROR_CODE, format_message("Cannot have two processes in `")// &
                                buffers(current)%name//format_message("' at once"))
                 call set_buffer(old, st)
                 return
@@ -4438,8 +4451,8 @@ contains
         ! Then evaluate a cd command if any, but don't perform it yet, else
         ! start-command would do it again through the shell: (cd "..") AND
         ! sh -c "cd ..; make"
-        call command_cd_directory(command, thisdir, cd_dir)
-        call cd(cd_dir, status)
+        call command_cd_directory(command, thisdir, cd_directory)
+        call cd(cd_directory, status)
 
         if (.not. status%ok()) then
             call set(value_type(name="inhibit_read_only"), inhibit, st)
@@ -4480,11 +4493,11 @@ contains
             ! buffer.
             call compilation_insert_annotation("-*- mode: "//name_of_mode//"; default-directory: "// &
                                                readable_text(value_type(text=abbreviate_file_name(origdir)))// &
-                                               " -*-"//NL)
+                                               " -*-"//NEWLINE)
         end if
 
-        call compilation_insert_annotation(buffers(current)%mode_name//" started at "//current_time_19()//NL//NL// &
-                                           command//NL)
+        call compilation_insert_annotation(buffers(current)%mode_name//" started at "//current_time_19()//NEWLINE//NEWLINE// &
+                                           command//NEWLINE)
         call make_current_entry(k)
         call system_clock(compilation_buffers(k)%start_count)
         call set(value_type(name="inhibit_read_only"), inhibit, st)
@@ -4500,29 +4513,29 @@ contains
         compilation_buffers(k)%comint = use_comint
         compilation_buffers(k)%mode => null()
         if (present(mode) .and. .not. use_comint) compilation_buffers(k)%mode => mode
-        if (outwin%index /= 0 .and. .not. scroll) call set_window_start(windows(outwin%index), point_min(), st)
+        if (outwin%index /= 0 .and. .not. scroll) call set_window_start(windows(outwin%index), point_minimum(), st)
 
         ! Position point as the user will see it.
         if (scroll) then
-            desired = point_max()
+            desired = point_maximum()
         else
-            desired = point_min()
+            desired = point_minimum()
         end if
 
-        call goto_char(desired)
+        call goto_character(desired)
 
         if (outwin%index /= 0 .and. .not. same(outwin, selected_frame%selected_window)) then
             call set_window_point(windows(outwin%index), desired, st)
         end if
 
         ! Some external programs (like "git grep") use a pager; defeat that.
-        call append_string(env, "INSIDE_EMACS="//upstream_version//",compile", "PAGER=")
+        call append_string(environment_variables, "INSIDE_EMACS="//upstream_version//",compile", "PAGER=")
         ! The setup function is called before compilation-set-window-height
         ! so it can set the compilation-window-height buffer locally.
         call make_current_entry(k)
 
         if (associated(compilation_buffers(k)%process_setup)) then
-            call compilation_buffers(k)%process_setup(env, status)
+            call compilation_buffers(k)%process_setup(environment_variables, status)
 
             if (.not. status%ok()) then
                 call set_buffer(old, st)
@@ -4531,17 +4544,17 @@ contains
         end if
 
         ! Start the compilation.
-        if (.not. allocated(shell_file_name%value)) call init_callproc()
+        if (.not. allocated(shell_file_name%value)) call initialize_callproc()
 
         if (use_comint) then
             call append_string(switches, shell_command_switch%value, command)
             call comint_exec(outbuf, downcase_name(buffers(current)%mode_name), shell_file_name%value, switches, status, &
-                             environment=env)
+                             environment=environment_variables)
             if (status%ok()) process = get_buffer_process(outbuf)
         else
-            call append_string(args, shell_file_name%value, shell_command_switch%value, command)
-            call make_process(downcase_name(buffers(current)%mode_name), args, process, status, buffer=outbuf, &
-                              environment=env)
+            call append_string(arguments, shell_file_name%value, shell_command_switch%value, command)
+            call make_process(downcase_name(buffers(current)%mode_name), arguments, process, status, buffer=outbuf, &
+                              environment=environment_variables)
         end if
 
         if (.not. status%ok()) then
@@ -4558,12 +4571,12 @@ contains
         call set_process_sentinel_and_filter(process,.not. use_comint)
         ! Use (point-max) here so that output comes in after the initial
         ! text, regardless of where the user sees point.
-        call set_marker(process_mark(process), point_max(), st, outbuf)
+        call set_marker(process_mark(process), point_maximum(), st, outbuf)
         if (compilation_disable_input%value) call process_send_eof(st, process)
         call prepend_in_progress(process)
         ! Now finally cd to where the shell started make/grep/...
         buffers(current)%directory = origdir
-        if (scroll) call goto_char(point_max())
+        if (scroll) call goto_character(point_maximum())
         ! Make it so the next C-x ` will use this buffer.
         next_error_last_buffer = outbuf
         call set_buffer(old, st)
@@ -4668,59 +4681,59 @@ contains
         if (k /= 0) call update_mode_line_process(k)
     end subroutine compilation_update_mode_line
 
-    !> The directory a leading "cd DIR;" of COMMAND changes to (DEFAULT if
+    !> The directory a leading "cd DIRECTORY;" of COMMAND changes to (DEFAULT if
     !> there is none): the cond of compile.el:compilation-start.  Not a port.
-    subroutine command_cd_directory(command, default, dir)
+    subroutine command_cd_directory(command, default, directory)
         character(len=*), intent(in) :: command, default
-        character(len=:), allocatable, intent(out) :: dir
-        character(len=:), allocatable :: arg, out
+        character(len=:), allocatable, intent(out) :: directory
+        character(len=:), allocatable :: argument, out
         type(status_type) :: st
         logical :: matched
         integer :: k
         integer(int64) :: index
 
-        index = string_match("\`\s *cd\(?:\s +\(\S +?\|'[^']*'\|""\(?:[^""`$\\]\|\\.\)*""\)\)?\s *[;&"//NL// &
+        index = string_match("\`\s *cd\(?:\s +\(\S +?\|'[^']*'\|""\(?:[^""`$\\]\|\\.\)*""\)\)?\s *[;&"//NEWLINE// &
                              "]", command, st)
 
         if (index == 0) then
-            dir = default
+            directory = default
             return
         end if
 
-        arg = match_string(1, command, matched)
+        argument = match_string(1, command, matched)
 
         if (.not. matched) then
-            dir = "~"
-        else if (arg(1:1) == "'") then
-            dir = arg(2:len(arg) - 1)
-        else if (arg(1:1) == """") then
+            directory = "~"
+        else if (argument(1:1) == "'") then
+            directory = argument(2:len(argument) - 1)
+        else if (argument(1:1) == """") then
             ! (replace-regexp-in-string "\\\\\\(.\\)" "\\1" ...)
             out = ""
             k = 2
 
-            do while (k <= len(arg) - 1)
-                if (arg(k:k) == "\" .and. k < len(arg) - 1) then
+            do while (k <= len(argument) - 1)
+                if (argument(k:k) == "\" .and. k < len(argument) - 1) then
                     k = k + 1
                 end if
 
-                out = out//arg(k:k)
+                out = out//argument(k:k)
                 k = k + 1
             end do
 
-            dir = out
+            directory = out
         else
             ! Globbing (file-expand-wildcards) is Deferred.
-            dir = substitute_env_vars(arg, .false.)
+            directory = substitute_environment_variables(argument, .false.)
         end if
     end subroutine command_cd_directory
 
-    !> Make DIR become the current buffer's default directory.
+    !> Make DIRECTORY become the current buffer's default directory.
     !> If your environment includes a `CDPATH' variable, try each one of
     !> that list of directories (separated by occurrences of
     !> `path_separator') when resolving a relative directory name.  Port of
     !> files.el:cd and cd-absolute.
-    subroutine cd(dir, status)
-        character(len=*), intent(in) :: dir
+    subroutine cd(directory, status)
+        character(len=*), intent(in) :: directory
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: cdpath, entry, candidate, absolute, base, cdir
         logical :: found
@@ -4729,8 +4742,8 @@ contains
         base = ""
         if (allocated(buffers(current)%directory)) base = buffers(current)%directory
 
-        if (is_file_name_absolute(dir)) then
-            call expand_file_name(dir, absolute, status, base)
+        if (is_file_name_absolute(directory)) then
+            call expand_file_name(directory, absolute, status, base)
             if (.not. status%ok()) return
         else
             ! cd-path: CDPATH's directories, or "./".
@@ -4752,7 +4765,7 @@ contains
                 if (len(entry) == 0) entry = "./"
                 call expand_file_name(entry, cdir, status, base)
                 if (.not. status%ok()) cdir = base
-                call expand_file_name(dir, candidate, status, file_name_as_directory(cdir))
+                call expand_file_name(directory, candidate, status, file_name_as_directory(cdir))
 
                 if (status%ok()) then
                     if (is_file_directory(candidate)) then
@@ -4765,7 +4778,7 @@ contains
             end do
 
             if (len(absolute) == 0) then
-                call set_error(status, FM_GENERIC_ERROR, "No such directory found via CDPATH environment variable")
+                call set_error(status, GENERIC_ERROR_CODE, "No such directory found via CDPATH environment variable")
                 return
             end if
         end if
@@ -4775,16 +4788,16 @@ contains
 
         if (.not. is_file_directory(absolute)) then
             if (file_exists(absolute)) then
-                call set_error(status, FM_GENERIC_ERROR, absolute//" is not a directory")
+                call set_error(status, GENERIC_ERROR_CODE, absolute//" is not a directory")
             else
-                call set_error(status, FM_GENERIC_ERROR, absolute//": no such directory")
+                call set_error(status, GENERIC_ERROR_CODE, absolute//": no such directory")
             end if
 
             return
         end if
 
         if (.not. is_file_accessible_directory(absolute)) then
-            call set_error(status, FM_GENERIC_ERROR, "Cannot cd to "//absolute//":  Permission denied")
+            call set_error(status, GENERIC_ERROR_CODE, "Cannot cd to "//absolute//":  Permission denied")
             return
         end if
 
@@ -4799,16 +4812,16 @@ contains
     !> Just inserts the text, handles carriage motion (see
     !> `comint_inhibit_carriage_motion') and runs
     !> `compilation_filter_hook'.  Port of compile.el:compilation-filter
-    !> (`compilation_max_output_line_length' and
+    !> (`compilation_maximum_output_line_length' and
     !> `compilation_hidden_output' are Deferred).
     recursive subroutine compilation_filter(process, string, status)
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
-        type(handle_type) :: buffer, pos, min, max, mark
+        type(handle_type) :: buffer, position, min, max, mark
         type(value_type) :: inhibit
         type(status_type) :: st
-        integer(int64) :: p, min_pos, max_pos
+        integer(int64) :: p, minimum_position, maximum_position
 
         status = status_type()
         buffer = process_buffer(process)
@@ -4818,15 +4831,15 @@ contains
         call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         ! `save-excursion' doesn't use the right insertion-type for us.
-        call copy_marker_at(point(), pos, .true., st)
-        call copy_marker_at(point_min(), min, .false., st)
+        call copy_marker_at(point(), position, .true., st)
+        call copy_marker_at(point_minimum(), min, .false., st)
         ! If we are inserting at the end of the accessible part of the
         ! buffer, keep the inserted text visible.
-        call copy_marker_at(point_max(), max, .true., st)
+        call copy_marker_at(point_maximum(), max, .true., st)
         mark = process_mark(process)
         call marker_position(mark, compilation_filter_start, st)
         call widen()
-        call goto_char(compilation_filter_start)
+        call goto_character(compilation_filter_start)
         call insert(string, status)
 
         if (status%ok()) then
@@ -4841,12 +4854,12 @@ contains
             call compilation_filter_hook%execute(status)
         end if
 
-        call marker_position(pos, p, st)
-        call goto_char(p)
-        call marker_position(min, min_pos, st)
-        call marker_position(max, max_pos, st)
-        call narrow_to_region(min_pos, max_pos, st)
-        call destroy_marker(pos, st)
+        call marker_position(position, p, st)
+        call goto_character(p)
+        call marker_position(min, minimum_position, st)
+        call marker_position(max, maximum_position, st)
+        call narrow_to_region(minimum_position, maximum_position, st)
+        call destroy_marker(position, st)
         call destroy_marker(min, st)
         call destroy_marker(max, st)
         call set(value_type(name="inhibit_read_only"), inhibit, st)
@@ -4854,9 +4867,9 @@ contains
 
     !> Sentinel for compilation buffers.  Port of
     !> compile.el:compilation-sentinel.
-    recursive subroutine compilation_sentinel(process, msg, status)
+    recursive subroutine compilation_sentinel(process, message, status)
         type(handle_type), intent(in) :: process
-        character(len=*), intent(in) :: msg
+        character(len=*), intent(in) :: message
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, old
         type(status_type) :: st
@@ -4876,7 +4889,7 @@ contains
             call set_buffer(buffer, st)
             ! Write something in the compilation buffer and hack its mode
             ! line.
-            call compilation_handle_exit(state, process_exit_status(process), msg)
+            call compilation_handle_exit(state, process_exit_status(process), message)
             if (is_buffer_live(old)) call set_buffer(old, st)
         end if
 
@@ -4891,14 +4904,14 @@ contains
         call delete_process(process, st)
     end subroutine compilation_sentinel
 
-    !> Write MSG in the current buffer and hack its `mode_line_process'.
+    !> Write MESSAGE in the current buffer and hack its `mode_line_process'.
     !> Port of compile.el:compilation-handle-exit.
-    subroutine compilation_handle_exit(process_status_name, exit_status, msg)
-        character(len=*), intent(in) :: process_status_name, msg
+    subroutine compilation_handle_exit(process_status_name, exit_status, message_text)
+        character(len=*), intent(in) :: process_status_name, message_text
         integer, intent(in) :: exit_status
         type(value_type) :: inhibit
         type(status_type) :: st
-        integer(int64) :: omax, opoint, now, rate
+        integer(int64) :: omax, original_point, now, rate
         integer :: k
         real :: elapsed
         character(len=32) :: duration
@@ -4909,26 +4922,26 @@ contains
 
         if (k /= 0) then
             if (associated(compilation_buffers(k)%exit_message)) then
-                call compilation_buffers(k)%exit_message(process_status_name, exit_status, msg, text, code)
+                call compilation_buffers(k)%exit_message(process_status_name, exit_status, message_text, text, code)
             else
-                text = msg
+                text = message_text
                 write (code_text, "(i0)") exit_status
                 code = trim(code_text)
             end if
         else
-            text = msg
+            text = message_text
             write (code_text, "(i0)") exit_status
             code = trim(code_text)
         end if
 
         call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
-        omax = point_max()
-        opoint = point()
+        omax = point_maximum()
+        original_point = point()
         ! Record where we put the message, so we can ignore it later on.
-        call goto_char(omax)
-        call compilation_insert_annotation(NL//buffers(current)%mode_name//" "//text)
-        if (is_bol() .and. point() > point_min()) call goto_char(point() - 1)
+        call goto_character(omax)
+        call compilation_insert_annotation(NEWLINE//buffers(current)%mode_name//" "//text)
+        if (is_beginning_of_line() .and. point() > point_minimum()) call goto_character(point() - 1)
         k = entry_of(current_buffer())
         call system_clock(now, rate)
         elapsed = 0
@@ -4944,13 +4957,13 @@ contains
 
         if (duration(1:1) == ".") duration = "0"//duration(1:len(duration) - 1)
         call compilation_insert_annotation(" at "//current_time_19()//", duration "//trim(duration))
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         ! Prevent that message from being recognized as a compilation error.
         call put_text_property(omax, point(), value_type(name="compilation_handle_exit"), value_type(.true.), st)
         line = text
 
         if (len(line) > 0) then
-            if (line(len(line):len(line)) == NL) line = line(1:len(line) - 1)
+            if (line(len(line):len(line)) == NEWLINE) line = line(1:len(line) - 1)
         end if
 
         k = entry_of(current_buffer())
@@ -4969,7 +4982,7 @@ contains
         end if
 
         call message(buffers(current)%mode_name//" "//line)
-        if (opoint < omax) call goto_char(opoint)
+        if (original_point < omax) call goto_character(original_point)
         call set(value_type(name="inhibit_read_only"), inhibit, st)
     end subroutine compilation_handle_exit
 
@@ -4989,7 +5002,7 @@ contains
         else
             old = current_buffer()
             call set_buffer(buffer, st)
-            call set_error(status, FM_GENERIC_ERROR, "The "//downcase_name(buffers(current)%mode_name)// &
+            call set_error(status, GENERIC_ERROR_CODE, "The "//downcase_name(buffers(current)%mode_name)// &
                            " process is not running")
             call set_buffer(old, st)
         end if
@@ -5006,39 +5019,40 @@ contains
 
         f => compilation_error
         call f%define("compilation_error", "Face used to highlight compiler errors.")
-        call f%spec_entry(display_when(), face_attrs(inherit="error"))
+        call f%specification_entry(display_when(), face_attributes(inherit="error"))
         f => compilation_warning
         call f%define("compilation_warning", "Face used to highlight compiler warnings.")
-        call f%spec_entry(display_when(), face_attrs(inherit="warning"))
+        call f%specification_entry(display_when(), face_attributes(inherit="warning"))
         f => compilation_info
         call f%define("compilation_info", "Face used to highlight compiler information.")
-        call f%spec_entry(display_when(), face_attrs(inherit="success"))
+        call f%specification_entry(display_when(), face_attributes(inherit="success"))
         f => compilation_mode_line_fail
         call f%define("compilation_mode_line_fail", "Face for Compilation mode's ""error"" mode line indicator.")
-        call f%spec_entry(display_when(is_default=.true.), face_attrs(inherit="compilation_error"))
-        call f%spec_entry(display_when(classes=[C], min_colors=16), face_attrs(foreground="Red1", weight="bold"))
-        call f%spec_entry(display_when(classes=[C], min_colors=8), face_attrs(foreground="red"))
-        call f%spec_entry(display_when(), face_attrs(inverse_video=.true., weight="bold"))
+        call f%specification_entry(display_when(is_default=.true.), face_attributes(inherit="compilation_error"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=16), face_attributes(foreground="Red1", weight="bold"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=8), face_attributes(foreground="red"))
+        call f%specification_entry(display_when(), face_attributes(inverse_video=.true., weight="bold"))
         f => compilation_mode_line_run
         call f%define("compilation_mode_line_run", "Face for Compilation mode's ""running"" mode line indicator.")
-        call f%spec_entry(display_when(), face_attrs(inherit="compilation_warning"))
+        call f%specification_entry(display_when(), face_attributes(inherit="compilation_warning"))
         f => compilation_mode_line_exit
         call f%define("compilation_mode_line_exit", "Face for Compilation mode's ""exit"" mode line indicator.")
-        call f%spec_entry(display_when(is_default=.true.), face_attrs(inherit="compilation_info"))
-        call f%spec_entry(display_when(classes=[C], min_colors=16), face_attrs(foreground="ForestGreen", weight="bold"))
-        call f%spec_entry(display_when(classes=[C]), face_attrs(foreground="green", weight="bold"))
-        call f%spec_entry(display_when(), face_attrs(weight="bold"))
+        call f%specification_entry(display_when(is_default=.true.), face_attributes(inherit="compilation_info"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=16), face_attributes(foreground="ForestGreen", &
+                                                                                                 weight="bold"))
+        call f%specification_entry(display_when(classes=[C]), face_attributes(foreground="green", weight="bold"))
+        call f%specification_entry(display_when(), face_attributes(weight="bold"))
         f => compilation_line_number
         call f%define("compilation_line_number", "Face for displaying line numbers in compiler messages.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_keyword_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_keyword_face"))
         f => compilation_column_number
         call f%define("compilation_column_number", "Face for displaying column numbers in compiler messages.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_doc_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_doc_face"))
     end subroutine define_faces
 
     !> Define Compilation mode and the minor modes, and register the
     !> commands.  Not a port.
-    subroutine init_compile()
+    subroutine initialize_compile()
         type(status_type) :: st
 
         call define_faces()
@@ -5086,17 +5100,17 @@ contains
         call keymap_set(compilation_shell_minor_mode_map, "M-{", "compilation_previous_file", st)
         call keymap_set(compilation_shell_minor_mode_map, "M-}", "compilation_next_file", st)
         commands%compilation_mode%execute => compilation_mode
-        commands%compile%execute => cmd_compile
-        commands%recompile%execute => cmd_recompile
+        commands%compile%execute => execute_compile
+        commands%recompile%execute => execute_recompile
         commands%stop_compilation%execute => stop_compilation
         commands%compile_goto_error%execute => compile_goto_error
-        commands%compilation_next_error%execute => cmd_compilation_next_error
-        commands%compilation_previous_error%execute => cmd_compilation_previous_error
-        commands%compilation_next_file%execute => cmd_compilation_next_file
-        commands%compilation_previous_file%execute => cmd_compilation_previous_file
+        commands%compilation_next_error%execute => execute_compilation_next_error
+        commands%compilation_previous_error%execute => execute_compilation_previous_error
+        commands%compilation_next_file%execute => execute_compilation_next_file
+        commands%compilation_previous_file%execute => execute_compilation_previous_file
         commands%compilation_display_error%execute => compilation_display_error
-        commands%compilation_set_skip_threshold%execute => cmd_compilation_set_skip_threshold
-        commands%compilation_next_error_function%execute => cmd_compilation_next_error_function
+        commands%compilation_set_skip_threshold%execute => execute_compilation_set_skip_threshold
+        commands%compilation_next_error_function%execute => execute_compilation_next_error_function
         commands%compilation_minor_mode%execute => compilation_minor_mode
         commands%compilation_shell_minor_mode%execute => compilation_shell_minor_mode
         call append_locals_clearer(clear_compilation_locals)
@@ -5104,18 +5118,21 @@ contains
         call forward_setting(compilation_error_screen_columns)
         call forward_setting(compilation_first_column)
         if (.not. allocated(compile_command%value)) compile_command = default_compile_command()
-        if (.not. allocated(compilation_error_regexps)) call init_compilation_error_regexps()
-        if (.not. allocated(compilation_error_regexp_names)) call init_compilation_error_regexp_names()
+        if (.not. allocated(compilation_error_regular_expressions)) call initialize_compilation_error_regular_expressions()
 
-        if (.not. allocated(compilation_directory_matcher%regexp)) then
-            compilation_directory_matcher%regexp = "\(?:Entering\|Leavin\(g\)\) directory [`']\(.+\)'$"
-            compilation_directory_matcher%dir = [2]
+        if (.not. allocated(compilation_error_regular_expression_names)) then
+            call initialize_compilation_error_regular_expression_names()
+        end if
+
+        if (.not. allocated(compilation_directory_matcher%regular_expression)) then
+            compilation_directory_matcher%regular_expression = "\(?:Entering\|Leavin\(g\)\) directory [`']\(.+\)'$"
+            compilation_directory_matcher%directory = [2]
             compilation_directory_matcher%leave = [1]
         end if
 
         if (.not. allocated(compilation_transform_file_matches)) then
             allocate (compilation_transform_file_matches(1))
-            compilation_transform_file_matches(1)%regexp = "/bin/[a-z]*sh\'"
+            compilation_transform_file_matches(1)%regular_expression = "/bin/[a-z]*sh\'"
         end if
 
         if (.not. allocated(compilation_message_face%value)) compilation_message_face = "underline"
@@ -5132,7 +5149,7 @@ contains
         if (.not. allocated(compilation_leave_directory_face%value)) then
             compilation_leave_directory_face = "font_lock_builtin_face"
         end if
-    end subroutine init_compile
+    end subroutine initialize_compile
 
     !> Forget the lines of `compilation_context', as any assignment to it
     !> does.  Not a port.

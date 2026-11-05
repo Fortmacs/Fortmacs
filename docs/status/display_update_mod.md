@@ -15,7 +15,7 @@ frame matrices (`adjust_frame_glyphs`, clear current/desired),
 `tty_set_cursor`,
 `update_frame` (terminal path; a window-system frame is flushed),
 `ding`;
-term.c `calculate_ins_del_char_costs`;
+term.c `calculate_ins_delete_character_costs`;
 the window-system path: `adjust_frame_glyphs` without frame matrices,
 `redraw_frame` through clear_frame,
 `update_window_line` (update_text_area for a row drawn whole);

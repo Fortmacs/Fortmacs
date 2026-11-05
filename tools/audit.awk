@@ -46,8 +46,9 @@
 #           ones contained in procedures) says "Port of ..." or "Not a
 #           port" in the comment above it; for a separate module
 #           procedure that is the comment of its interface.  Commands'
-#           `cmd_' procedures, which only read a command's arguments,
-#           are exempt, and so are the FILE:PROCEDURE lines of the
+#           `execute_' procedures (the targets of the file's
+#           `commands%NAME%execute =>'), which only read a command's
+#           arguments, are exempt, and so are the FILE:PROCEDURE lines of the
 #           baseline file (which may only shrink).
 
 function finding(line, rule, msg) {
@@ -99,7 +100,18 @@ END {
     exit nfindings > 0
 }
 
-function check_file(    base) {
+function check_file(    base, i, l) {
+    # The commands' procedures of the file: the targets of
+    # `commands%NAME%execute => execute_X'.
+    for (l in cmdproc) delete cmdproc[l]
+    for (i = 1; i <= nlines; i++) {
+        l = tolower(lines[i])
+        if (match(l, /%execute[ \t]*=>[ \t]*execute_[a-z0-9_]+/)) {
+            l = substr(l, RSTART, RLENGTH)
+            sub(/.*=>[ \t]*/, "", l)
+            cmdproc[l] = 1
+        }
+    }
     base = file
     sub(/.*\//, "", base)
     name = base
@@ -467,7 +479,7 @@ function separate_module_procedure(s,    p) {
 }
 
 function port_needed(k, nm,    key) {
-    if (nm ~ /^cmd_/) return
+    if (tolower(nm) in cmdproc) return
     if (sdoc[k] ~ /Port of[ \t\n]|Not a port/) return
     key = file ":" nm
     if (key in allowed) {

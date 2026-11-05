@@ -20,8 +20,8 @@ src/utility_functions_mod.f90:plist_member:lisp-helper
 src/utility_functions_mod.f90:plist_put:lisp-helper
 src/utility_functions_mod.f90:put:lisp-helper
 src/intervals_mod.f90:plist_member:lisp-helper
-src/value_mod.f90:SYM_NIL:constant
-src/value_mod.f90:SYM_T:constant
+src/value_mod.f90:SYMBOL_FALSE:constant
+src/value_mod.f90:SYMBOL_T:constant
 src/value_mod.f90:cons:lisp-helper
 src/value_mod.f90:xfixnum:lisp-helper
 src/value_mod.f90:xhandle:lisp-helper
@@ -29,13 +29,13 @@ src/value_mod.f90:xstring:lisp-helper
 src/value_mod.f90:xsymbol:lisp-helper
 src/names_mod.f90:intern:lisp-helper
 src/names_mod.f90:intern_soft:lisp-helper
-src/basic_subprograms_mod.f90:defvar_nil:lisp-helper
+src/basic_subprograms_mod.f90:defvar_false:lisp-helper
 src/text_properties_mod.f90:memq_p:predicate
 src/display_engine_mod.f90:put:lisp-helper
 test/test_tabulated_list_mod.f90:sort_car:wrapper
 # A run of text properties (a noun, not the verb): kept.
 src/text_properties_mod.f90:run_position:verb
-src/text_properties_mod.f90:run_prop:verb
+src/text_properties_mod.f90:run_property:verb
 # The Unicode bidi class ON (Other Neutral), not a switch: kept.
 src/bidirectional_mod.f90:NEUTRAL_ON:constant
 # yes-no (R6-38, 2026-11-04): the _YES and _NO constants still in the code:
@@ -57,8 +57,8 @@ src/ibuffer_mod.f90:IBUFFER_SHRINK_YES:yes-no
 src/incremental_search_mod.f90:ADJUSTED_NO:yes-no
 src/incremental_search_mod.f90:CASE_FOLD_NO:yes-no
 src/incremental_search_mod.f90:CASE_FOLD_YES:yes-no
-src/keyboard_mod.f90:DEFINING_KBD_MACRO_NO:yes-no
-src/keyboard_mod.f90:DEFINING_KBD_MACRO_YES:yes-no
+src/keyboard_mod.f90:DEFINING_KEYBOARD_MACRO_NO:yes-no
+src/keyboard_mod.f90:DEFINING_KEYBOARD_MACRO_YES:yes-no
 src/keyboard_macros_mod.f90:KMACRO_REPEAT_NO:yes-no
 src/keyboard_macros_mod.f90:KMACRO_REPEAT_YES:yes-no
 src/minibuffer_mod.f90:REQUIRE_MATCH_NO:yes-no
@@ -69,8 +69,8 @@ src/send_mail_mod.f90:MAIL_NOERASE_YES:yes-no
 src/sgml_mode_mod.f90:SGML_END_TAG_NO:yes-no
 src/simple_minded_indentation_engine_mod.f90:SMIE_RULE_YES:yes-no
 src/syntax_mod.f90:COMMENTSTOP_NO:yes-no
-src/time_functions_mod.f90:DECODED_TIME_DST_NO:yes-no
-src/time_functions_mod.f90:DECODED_TIME_DST_YES:yes-no
+src/time_functions_mod.f90:DECODED_TIME_DAYLIGHT_SAVING_TIME_NO:yes-no
+src/time_functions_mod.f90:DECODED_TIME_DAYLIGHT_SAVING_TIME_YES:yes-no
 src/version_control_dispatcher_mod.f90:VC_NOQUERY_NO:yes-no
 src/version_control_dispatcher_mod.f90:VC_NOQUERY_YES:yes-no
 src/window_display_mod.f90:DELETABLE_NO:yes-no

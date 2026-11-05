@@ -34,7 +34,7 @@
 module multilingual_environment_utilities_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use value_mod, only: value_type, make_list
-    use character_mod, only: string_char_and_length
+    use character_mod, only: string_character_and_length
     use display_engine_mod, only: glyph_columns
     use text_properties_mod, only: propertize, propertized_concat
     implicit none(type, external)
@@ -83,7 +83,7 @@ contains
         i = 1
 
         do while (i <= len(string, kind=int64))
-            call string_char_and_length(string, i, c, clen)
+            call string_character_and_length(string, i, c, clen)
             n = n + 1
             widths(n) = glyph_columns(c, 0)
             starts(n) = i
@@ -209,10 +209,10 @@ contains
     !> starting column (default: zero); that means to return the characters
     !> occupying columns START_COLUMN ... END_COLUMN of STRING.  Both
     !> END_COLUMN and START_COLUMN are specified in terms of character
-    !> display width in the current buffer; see `char_width'.
+    !> display width in the current buffer; see `character_width'.
     !>
     !> Since character composition on display can produce glyphs whose
-    !> width is smaller than the sum of `char_width' values of the composed
+    !> width is smaller than the sum of `character_width' values of the composed
     !> characters, this function can produce inaccurate results when used
     !> in such cases.
     !>
@@ -245,7 +245,7 @@ contains
         integer :: from_idx, index
         logical :: done
 
-        call truncate_parts(string, end_column, opt_int(start_column), opt_string(padding), &
+        call truncate_parts(string, end_column, option_integer(start_column), option_string(padding), &
                             ellipsis_of(ellipsis, default_ellipsis), head, from_idx, index, tail, ell, done, result)
 
         if (done) then
@@ -270,13 +270,13 @@ contains
         logical, intent(in), optional :: default_ellipsis
         type(value_type) :: v
         character(len=:), allocatable :: head, tail, ell, result
-        type(value_type) :: props(2), rest
+        type(value_type) :: properties(2), rest
         integer :: from_idx, index, n
         logical :: done
         integer, allocatable :: widths(:)
         integer(int64), allocatable :: starts(:)
 
-        call truncate_parts(string, end_column, opt_int(start_column), opt_string(padding), &
+        call truncate_parts(string, end_column, option_integer(start_column), option_string(padding), &
                             ellipsis_of(ellipsis, default_ellipsis), head, from_idx, index, tail, ell, done, result)
 
         if (done) then
@@ -285,9 +285,9 @@ contains
             ! Use text properties for the ellipsis.
             call decode(string, widths, starts)
             n = size(widths)
-            props(1) = value_type(name="display")
-            props(2) = value_type(text=ell)
-            rest = propertize(value_type(text=chars(string, index, n)), make_list(props))
+            properties(1) = value_type(name="display")
+            properties(2) = value_type(text=ell)
+            rest = propertize(value_type(text=chars(string, index, n)), make_list(properties))
             v = propertized_concat(value_type(text=head//chars(string, from_idx, index)), rest)
         else
             v = value_type(text=head//chars(string, from_idx, index)//tail//ell)
@@ -295,21 +295,21 @@ contains
     end function truncate_string_to_width_propertized
 
     ! Not a port.
-    integer function opt_int(x)
+    integer function option_integer(x)
         integer, intent(in), optional :: x
 
-        opt_int = 0
-        if (present(x)) opt_int = x
-    end function opt_int
+        option_integer = 0
+        if (present(x)) option_integer = x
+    end function option_integer
 
     ! Not a port.
-    function opt_string(x) result(s)
+    function option_string(x) result(s)
         character(len=*), intent(in), optional :: x
         character(len=:), allocatable :: s
 
         s = ""
         if (present(x)) s = x
-    end function opt_string
+    end function option_string
 
     ! Not a port.
     function ellipsis_of(ellipsis, default_ellipsis) result(s)

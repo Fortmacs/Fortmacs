@@ -38,10 +38,10 @@
 !> obsolete `savehist_trim_history'.
 module save_history_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, format_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, list_elements, vtag, xstring, xfixnum, xsymbol, symbols, V_NULL, &
-                         V_INTEGER, V_STRING, V_ARRAY, V_NAME, SYM_T
+                         V_INTEGER, V_STRING, V_ARRAY, V_NAME, SYMBOL_T
     use names_mod, only: intern_soft
     use data_mod, only: set, symbol_value, boundp
     use utility_functions_mod, only: value_equal
@@ -53,7 +53,7 @@ module save_history_mod
     use buffer_mod, only: get_or_make_buffer, generate_new_buffer_name, set_buffer, close_buffer, current_buffer
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string
-    use file_input_output_mod, only: file_exists, file_attributes, file_stat_type, set_file_modes, write_region, &
+    use file_input_output_mod, only: file_exists, file_attributes, file_status_type, set_file_modes, write_region, &
                                      insert_file_contents, file_name_directory, expand_file_name
     use files_mod, only: create_directory
     use configuration_mod, only: state_directory
@@ -67,7 +67,7 @@ module save_history_mod
     private
 
     public :: savehist_mode, savehist_save, savehist_autosave, savehist_install, savehist_uninstall, &
-              savehist_minibuffer_hook, savehist_printable, init_savehist
+              savehist_minibuffer_hook, savehist_printable, initialize_savehist
 
     !> If true, save all recorded minibuffer histories.
     !> If you want to save only specific histories, use `savehist_save_hook'
@@ -76,23 +76,23 @@ module save_history_mod
     logical, public :: savehist_save_minibuffer_history = .true.
 
     !> An element of `savehist_additional_variables': the variable NAME,
-    !> and MAX_SIZE, the most elements of a list value to save (negative
-    !> for no limit; upstream's (VAR . MAX-SIZE)).
+    !> and MAXIMUM_SIZE, the most elements of a list value to save (negative
+    !> for no limit; upstream's (VARIABLE . MAX-SIZE)).
     type, public :: savehist_variable_type
         character(len=64) :: name = ""
-        integer :: max_size = -1
+        integer :: maximum_size = -1
     end type savehist_variable_type
 
     !> List of additional variables to save.
     !> Each element is a variable that will be persisted across Fortmacs
     !> sessions that use Savehist.
     !>
-    !> An element names the variable, and may give a MAX_SIZE, which means
-    !> to truncate the variable's value to at most MAX_SIZE elements (if
+    !> An element names the variable, and may give a MAXIMUM_SIZE, which means
+    !> to truncate the variable's value to at most MAXIMUM_SIZE elements (if
     !> the value is a list) before saving the value:
     !>
     !>     savehist_additional_variables = [savehist_variable_type(name="search_ring"), &
-    !>                                      savehist_variable_type(name="clipboard_history", max_size=20)]
+    !>                                      savehist_variable_type(name="clipboard_history", maximum_size=20)]
     !>
     !> The contents of variables should be printable.  You don't need to
     !> add minibuffer history variables to this list, all minibuffer
@@ -166,10 +166,10 @@ module save_history_mod
     !> doesn't exist has the modtime t (EXISTS false).
     type :: modtime_type
         logical :: known = .false., exists = .false.
-        integer(int64) :: sec = 0
+        integer(int64) :: second = 0
         integer(int32) :: nsec = 0
     end type modtime_type
-    type(modtime_type) :: savehist_file_sync_modtime
+    type(modtime_type) :: savehist_file_synchronize_modtime
 
     !> The text last written (savehist.el compares its md5,
     !> savehist-last-checksum); unallocated for none.
@@ -254,7 +254,7 @@ contains
     !> savehist.el:savehist--file-modtime.
     function savehist_file_modtime() result(m)
         type(modtime_type) :: m
-        type(file_stat_type) :: st
+        type(file_status_type) :: st
         logical :: found
 
         m%known = .true.
@@ -262,7 +262,7 @@ contains
         m%exists = found
 
         if (found) then
-            m%sec = st%mtime_sec
+            m%second = st%mtime_second
             m%nsec = st%mtime_nsec
         end if
     end function savehist_file_modtime
@@ -271,7 +271,7 @@ contains
     logical function same_modtime(a, b)
         type(modtime_type), intent(in) :: a, b
 
-        same_modtime = (a%known .eqv. b%known) .and. (a%exists .eqv. b%exists) .and. a%sec == b%sec .and. &
+        same_modtime = (a%known .eqv. b%known) .and. (a%exists .eqv. b%exists) .and. a%second == b%second .and. &
                        a%nsec == b%nsec
     end function same_modtime
 
@@ -290,7 +290,7 @@ contains
 
         status = status_type()
         if (.not. file_exists(savehist_file)) return
-        if (savehist_loaded .and. same_modtime(savehist_file_sync_modtime, savehist_file_modtime())) return
+        if (savehist_loaded .and. same_modtime(savehist_file_synchronize_modtime, savehist_file_modtime())) return
         ! The history variables we know about, with their values.
         n = 0
         if (allocated(savehist_minibuffer_history_variables)) n = size(savehist_minibuffer_history_variables)
@@ -315,7 +315,7 @@ contains
         end if
 
         if (interactively) call message("Loading "//savehist_file//" (source)...done")
-        savehist_file_sync_modtime = savehist_file_modtime()
+        savehist_file_synchronize_modtime = savehist_file_modtime()
         savehist_loaded = .true.
 
         ! In case we're loading the file late, there was info in the
@@ -359,7 +359,7 @@ contains
     recursive subroutine set_saved(item, status)
         type(namelist_item_type), intent(in) :: item
         type(status_type), intent(out) :: status
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
         status = status_type()
@@ -382,13 +382,13 @@ contains
         end if
 
         if (item%subscripted) then
-            allocate (elems(size(item%values)))
+            allocate (elements(size(item%values)))
 
             do k = 1, size(item%values)
-                elems(k) = saved_value(item%values(k))
+                elements(k) = saved_value(item%values(k))
             end do
 
-            call set(value_type(name=item%name), make_list(elems), status)
+            call set(value_type(name=item%name), make_list(elements), status)
         else if (size(item%values) > 0) then
             call set(value_type(name=item%name), saved_value(item%values(1)), status)
         end if
@@ -527,10 +527,10 @@ contains
         type(namelist_group_type) :: group
         type(namelist_item_type) :: item
         type(value_type) :: value
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         type(handle_type) :: old, h
         type(status_type) :: st
-        character(len=:), allocatable :: text, wrote, dir, name
+        character(len=:), allocatable :: text, wrote, directory, name
         logical :: auto, bound, ok
         integer :: k, j, n, m
 
@@ -543,7 +543,7 @@ contains
         n = 0
         if (allocated(savehist_additional_variables)) n = size(savehist_additional_variables)
 
-        if (n == 0 .and. .not. same_modtime(savehist_file_sync_modtime, savehist_file_modtime())) then
+        if (n == 0 .and. .not. same_modtime(savehist_file_synchronize_modtime, savehist_file_modtime())) then
             ! The file has been changed since last time we saw it.
             ! Probably some other Fortmacs session.  Load the corresponding
             ! info so we don't end up throwing it away by blindly
@@ -585,10 +585,10 @@ contains
                 ! Print elements of VALUE one by one, carefully: those
                 ! that can't be written are left out.
                 item = namelist_item_type(name=name)
-                call list_elements(value, elems)
+                call list_elements(value, elements)
 
-                do j = 1, size(elems)
-                    call append_value(item, elems(j), ok)
+                do j = 1, size(elements)
+                    call append_value(item, elements(j), ok)
                 end do
 
                 if (.not. allocated(item%values)) cycle
@@ -599,22 +599,22 @@ contains
 
         ! Save the additional variables.
         do k = 1, n
-            associate (var => savehist_additional_variables(k))
-                if (has_name(var%name, savehist_minibuffer_history_variables)) cycle
-                call boundp(value_type(name=trim(var%name)), bound, st)
+            associate (variable => savehist_additional_variables(k))
+                if (has_name(variable%name, savehist_minibuffer_history_variables)) cycle
+                call boundp(value_type(name=trim(variable%name)), bound, st)
                 if (.not. bound) cycle
-                call symbol_value(value_type(name=trim(var%name)), value, st)
+                call symbol_value(value_type(name=trim(variable%name)), value, st)
                 if (.not. savehist_printable(value)) cycle
-                item = namelist_item_type(name=trim(var%name))
+                item = namelist_item_type(name=trim(variable%name))
 
                 if (vtag(value) == V_ARRAY) then
                     ! When we have a max-size, chop off the last elements.
-                    call list_elements(value, elems)
-                    m = size(elems)
-                    if (var%max_size >= 0) m = min(m, var%max_size)
+                    call list_elements(value, elements)
+                    m = size(elements)
+                    if (variable%maximum_size >= 0) m = min(m, variable%maximum_size)
 
                     do j = 1, m
-                        call append_value(item, elems(j), ok)
+                        call append_value(item, elements(j), ok)
                     end do
 
                     if (m == 0) then
@@ -640,8 +640,8 @@ contains
         end if
 
         ! Ensure that the directory exists before saving.
-        dir = file_name_directory(savehist_file)
-        if (.not. file_exists(dir)) call create_directory(dir, st, parents=.true.)
+        directory = file_name_directory(savehist_file)
+        if (.not. file_exists(directory)) call create_directory(directory, st, parents=.true.)
         old = current_buffer()
         call get_or_make_buffer(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
@@ -664,7 +664,7 @@ contains
         end if
 
         if (savehist_file_modes >= 0) call set_file_modes(savehist_file, int(savehist_file_modes, int32), st)
-        savehist_file_sync_modtime = savehist_file_modtime()
+        savehist_file_synchronize_modtime = savehist_file_modtime()
         savehist_last_text = text
 
     contains
@@ -695,7 +695,7 @@ contains
         case (V_NULL)
             call item%append_logical(.false.)
         case (V_NAME)
-            ok = xsymbol(v) == SYM_T
+            ok = xsymbol(v) == SYMBOL_T
             if (ok) call item%append_logical(.true.)
         case default
             ok = .false.
@@ -724,22 +724,22 @@ contains
     !> savehist.el:savehist-printable.
     logical function savehist_printable(value) result(printable)
         type(value_type), intent(in) :: value
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         type(namelist_item_type) :: scratch
         integer :: k
 
         select case (vtag(value))
         case (V_ARRAY)
             printable = .true.
-            call list_elements(value, elems)
+            call list_elements(value, elements)
 
-            do k = 1, size(elems)
-                if (vtag(elems(k)) == V_ARRAY) then
+            do k = 1, size(elements)
+                if (vtag(elements(k)) == V_ARRAY) then
                     printable = .false.
                     return
                 end if
 
-                call append_value(scratch, elems(k), printable)
+                call append_value(scratch, elements(k), printable)
                 if (.not. printable) return
             end do
         case default
@@ -771,15 +771,15 @@ contains
         call savehist_minibuffer_hook()
     end subroutine savehist_minibuffer_hook_adapter
 
-    recursive subroutine cmd_savehist_save(status)
+    recursive subroutine execute_savehist_save(status)
         type(status_type), intent(out) :: status
 
         call savehist_save(status, interactive=.true.)
-    end subroutine cmd_savehist_save
+    end subroutine execute_savehist_save
 
     !> Define Savehist mode and its command, and the file's default name.
     !> Not a port.
-    subroutine init_savehist()
+    subroutine initialize_savehist()
         if (.not. allocated(savehist_file)) savehist_file = state_directory()//"history"
         if (.not. allocated(savehist_coding_system)) savehist_coding_system = "utf-8-emacs-unix"
         if (.not. allocated(savehist_additional_variables)) allocate (savehist_additional_variables(0))
@@ -788,6 +788,6 @@ contains
         call minor_modes%savehist_mode%define("savehist_mode", global=.true., hook=savehist_mode_hook, &
                                               body=savehist_mode_body)
         commands%savehist_mode%execute => savehist_mode
-        commands%savehist_save%execute => cmd_savehist_save
-    end subroutine init_savehist
+        commands%savehist_save%execute => execute_savehist_save
+    end subroutine initialize_savehist
 end module save_history_mod

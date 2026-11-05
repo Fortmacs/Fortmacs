@@ -20,11 +20,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The minibuffer readers of subr.el (`read_number', `read_y_or_n',
-!> `read_char_from_minibuffer', `read_char_choice'): a
+!> `read_character_from_minibuffer', `read_character_choice'): a
 !> submodule because minibuffer_reading_mod uses basic_subprograms_mod.
 submodule(basic_subprograms_mod) basic_subprograms_read_mod
     use commands_mod, only: commands
-    use character_mod, only: string_char_and_length
+    use character_mod, only: string_character_and_length
     use, intrinsic :: iso_fortran_env, only: int32
     use minibuffer_reading_mod, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, is_minibuffer
     use minibuffer_mod, only: delete_minibuffer_contents, exit_minibuffer, minibuffer_message
@@ -32,36 +32,36 @@ submodule(basic_subprograms_mod) basic_subprograms_read_mod
                             recursive_edit, top_level, lossage_size
     use keymap_mod, only: set_keymap_parent, define_key_range, destroy_keymap
     use data_mod, only: value_eq
-    use character_mod, only: MAX_CHAR
+    use character_mod, only: MAXIMUM_CHARACTER
     use value_mod, only: value_type, vtag, V_INTEGER
     use insert_delete_mod, only: insert
     use display_update_mod, only: ding
     use window_mod, only: recenter, scroll_up_command, scroll_down_command, window_configuration_type, &
                           current_window_configuration, set_window_configuration, destroy_window_configuration
-    use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
+    use character_mod, only: character_string, MAXIMUM_MULTIBYTE_LENGTH
     use keyboard_mod, only: last_command_event, last_command, undefined_function
     use keymap_mod, only: single_key_description
     use buffer_mod, only: get_buffer, is_buffer_live, close_buffer
-    use help_mod, only: with_output_to_temp_buffer, substitute_command_keys
-    use read_multiple_choice_mod, only: read_char_choice_use_read_key
-    use error_mod, only: format_message, FM_GENERIC_ERROR
+    use help_mod, only: with_output_to_temporary_buffer, substitute_command_keys
+    use read_multiple_choice_mod, only: read_character_choice_use_read_key
+    use error_mod, only: format_message, GENERIC_ERROR_CODE
     use string_type_mod, only: string_type
     implicit none(type, external)
 
-    !> y-or-n-p-map, made by `init_read_y_or_n_map'.
+    !> y-or-n-p-map, made by `initialize_read_y_or_n_map'.
     type(handle_type) :: read_y_or_n_map
 
     !> read-char-from-minibuffer-map, made by
-    !> `init_read_char_from_minibuffer_map'.
-    type(handle_type) :: read_char_from_minibuffer_map
+    !> `initialize_read_character_from_minibuffer_map'.
+    type(handle_type) :: read_character_from_minibuffer_map
 
-    !> The `help_procedure' of the `read_char_from_minibuffer' in progress
+    !> The `help_procedure' of the `read_character_from_minibuffer' in progress
     !> (unallocated for none).
     character(len=:), allocatable :: rcfm_help_procedure
 
-    !> The character that shows the help form: `help_char''s standard value,
+    !> The character that shows the help form: `help_character''s standard value,
     !> C-h (the variable itself is not ported).
-    integer, parameter :: HELP_CHAR = 8
+    integer, parameter :: HELP_CHARACTER = 8
 
 contains
 
@@ -70,15 +70,15 @@ contains
     character(len=20) :: digits
     type(string_type), allocatable :: defs(:)
     integer :: k, ndefs
-    logical :: have, first_nil
+    logical :: have, first_false
 
     status = status_type()
-    first_nil = .false.
-    if (present(no_default)) first_nil = no_default
+    first_false = .false.
+    if (present(no_default)) first_false = no_default
     n = 0
     full = prompt
     histvar = "read_number_history"
-    if (present(hist)) histvar = hist
+    if (present(history)) histvar = history
     ndefs = 0
 
     if (present(defaults)) then
@@ -99,7 +99,7 @@ contains
         defs(k)%text = trim(digits)
     end do
 
-    if (ndefs > 0 .and. .not. first_nil) then
+    if (ndefs > 0 .and. .not. first_false) then
         def1 = defs(1)%text
         ! (string-match "\\(\\):[ \t]*\\'" prompt): before the last colon
         ! followed only by whitespace, else in place of the trailing
@@ -122,7 +122,7 @@ contains
         if (.not. status%ok()) return
 
         if (len(string) == 0) then
-            have = ndefs > 0 .and. .not. first_nil
+            have = ndefs > 0 .and. .not. first_false
 
             if (have) then
                 if (present(defaults)) then
@@ -203,7 +203,7 @@ contains
                 case ("d")
                     c = 127
                 case default
-                    call string_char_and_length(string, int(i + 2, int64), c, clen)
+                    call string_character_and_length(string, int(i + 2, int64), c, clen)
                     j = i + 2 + clen
 
                     if (string(i + 2:i + 2) == "C" .or. string(i + 2:i + 2) == "M" .or. string(i + 2:i + 2) == "S" .or. &
@@ -220,7 +220,7 @@ contains
 
                 call finish(i + 3, int(c, int64))
             else
-                call string_char_and_length(string, int(i + 1, int64), c, clen)
+                call string_character_and_length(string, int(i + 1, int64), c, clen)
                 call finish(i + 1 + clen, int(c, int64))
             end if
 
@@ -377,22 +377,22 @@ contains
             case (ANSWER_SKIP, ANSWER_ACT)
                 again = .false.
             case (ANSWER_RECENTER)
-                call recenter(prefix_arg_type(), .false., st)
+                call recenter(prefix_argument_type(), .false., st)
             case (ANSWER_SCROLL_UP)
-                call scroll_up_command(prefix_arg_type(), st)
+                call scroll_up_command(prefix_argument_type(), st)
             case (ANSWER_SCROLL_DOWN)
-                call scroll_down_command(prefix_arg_type(), st)
+                call scroll_down_command(prefix_argument_type(), st)
             case (ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN)
                 ! scroll-other-window and scroll-other-window-down are not
                 ! ported (Deferred).
                 continue
             case (ANSWER_EXIT_PREFIX, ANSWER_QUIT)
-                call set_error(status, FM_QUIT)
+                call set_error(status, QUIT_CODE)
                 return
             case default
                 if (vtag(key) == V_INTEGER) then
                     if (xfixnum(key) == 27) then
-                        call set_error(status, FM_QUIT)
+                        call set_error(status, QUIT_CODE)
                         return
                     end if
                 end if
@@ -405,7 +405,7 @@ contains
 
         answer = def == ANSWER_ACT
     else
-        call init_read_y_or_n_map()
+        call initialize_read_y_or_n_map()
         saved_enable = enable_recursive_minibuffers
         enable_recursive_minibuffers = .true.
         ! Protect this-command, and preserve the actual command that
@@ -442,7 +442,7 @@ contains
     !> `self_insert_command' run `read_y_or_n_insert_other'.  Port of
     !> subr.el y-or-n-p-map (minibuffer-scroll-other-window and
     !> minibuffer-scroll-other-window-down are not ported: Deferred).
-    subroutine init_read_y_or_n_map()
+    subroutine initialize_read_y_or_n_map()
         type(value_type) :: key1(1)
         type(value_type), allocatable :: seq(:)
         type(value_type) :: b
@@ -451,14 +451,14 @@ contains
         integer(int64) :: c
 
         if (is_keymap_live(read_y_or_n_map)) return
-        call init_query_replace_map()
+        call initialize_query_replace_map()
         call make_sparse_keymap(read_y_or_n_map)
         call set_keymap_parent(read_y_or_n_map, minibuffer_local_map, st)
 
         do k = 1, size(QRM_KEYS)
             call key_parse(trim(QRM_KEYS(k)), seq, st)
             if (.not. st%ok()) cycle
-            call lookup_key(make_keymap_ref(minibuffer_local_map), seq, b, st)
+            call lookup_key(make_keymap_reference(minibuffer_local_map), seq, b, st)
             if (allocated(b%a)) cycle
             call define_key(read_y_or_n_map, seq, value_type(name=remapped(trim(QRM_ANSWERS(k)))), st)
         end do
@@ -466,12 +466,12 @@ contains
         ! [remap self-insert-command]
         do c = 0, 127
             key1(1) = value_type(c)
-            call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
+            call lookup_key(make_keymap_reference(minibuffer_local_map), key1, b, st)
 
             if (.not. allocated(b%a)) then
-                call lookup_key(make_keymap_ref(query_replace_map), key1, b, st)
+                call lookup_key(make_keymap_reference(query_replace_map), key1, b, st)
                 if (allocated(b%a)) cycle
-                call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+                call lookup_key(make_keymap_reference(current_global_map()), key1, b, st)
             end if
 
             if (value_eq(b, value_type(name="self_insert_command"))) then
@@ -480,38 +480,39 @@ contains
         end do
 
         key1(1) = value_type(128_int64)
-        call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+        call lookup_key(make_keymap_reference(current_global_map()), key1, b, st)
 
         if (value_eq(b, value_type(name="self_insert_command"))) then
-            call define_key_range(read_y_or_n_map, 128_int64, int(MAX_CHAR, int64), value_type(name="read_y_or_n_insert_other"), st)
+            call define_key_range(read_y_or_n_map, 128_int64, int(MAXIMUM_CHARACTER, int64), &
+                                  value_type(name="read_y_or_n_insert_other"), st)
         end if
 
     contains
 
-        function remapped(answer) result(cmd)
+        function remapped(answer) result(command)
             character(len=*), intent(in) :: answer
-            character(len=:), allocatable :: cmd
+            character(len=:), allocatable :: command
 
             select case (answer)
             case ("act", "act_and_show", "act_and_exit", "automatic")
-                cmd = "read_y_or_n_insert_y"
+                command = "read_y_or_n_insert_y"
             case ("skip")
-                cmd = "read_y_or_n_insert_n"
+                command = "read_y_or_n_insert_n"
             case ("backup", "undo", "undo_all", "edit", "edit_replacement", "delete_and_edit", "exit")
-                cmd = "read_y_or_n_insert_other"
+                command = "read_y_or_n_insert_other"
             case ("recenter")
-                cmd = "minibuffer_recenter_top_bottom"
+                command = "minibuffer_recenter_top_bottom"
             case ("scroll_up")
-                cmd = "minibuffer_scroll_up_command"
+                command = "minibuffer_scroll_up_command"
             case ("scroll_down")
-                cmd = "minibuffer_scroll_down_command"
+                command = "minibuffer_scroll_down_command"
             case ("exit_prefix", "quit")
-                cmd = "abort_recursive_edit"
+                command = "abort_recursive_edit"
             case default
-                cmd = answer
+                command = answer
             end select
         end function remapped
-    end subroutine init_read_y_or_n_map
+    end subroutine initialize_read_y_or_n_map
 
     !> Insert the answer "y" and exit the minibuffer of `read_y_or_n'.
     !> Discard all previous input before inserting and exiting the minibuffer.
@@ -573,45 +574,45 @@ contains
 
     !> Abort the command that requested this recursive edit or minibuffer input.
     !> Port of keyboard.c:abort-recursive-edit.
-    subroutine cmd_abort_recursive_edit(status)
+    subroutine execute_abort_recursive_edit(status)
         type(status_type), intent(out) :: status
 
         call abort_recursive_edit(status)
-    end subroutine cmd_abort_recursive_edit
+    end subroutine execute_abort_recursive_edit
 
     !> Exit from the innermost recursive edit or minibuffer.
     !> Port of keyboard.c:Fexit_recursive_edit.
-    subroutine cmd_exit_recursive_edit(status)
+    subroutine execute_exit_recursive_edit(status)
         type(status_type), intent(out) :: status
 
         call exit_recursive_edit(status)
-    end subroutine cmd_exit_recursive_edit
+    end subroutine execute_exit_recursive_edit
 
     !> Invoke the editor command loop recursively.
     !> To get out of the recursive edit, a command can return to `exit' with a status --
     !> for instance \[exit_recursive_edit] or \[abort_recursive_edit].
     !> Port of keyboard.c:Frecursive_edit.
-    recursive subroutine cmd_recursive_edit(status)
+    recursive subroutine execute_recursive_edit(status)
         type(status_type), intent(out) :: status
 
         call recursive_edit(status)
-    end subroutine cmd_recursive_edit
+    end subroutine execute_recursive_edit
 
     !> Exit all recursive editing levels.
     !> This also exits all active minibuffers.  Port of keyboard.c:Ftop_level.
-    subroutine cmd_top_level(status)
+    subroutine execute_top_level(status)
         type(status_type), intent(out) :: status
 
         call top_level(status)
-    end subroutine cmd_top_level
+    end subroutine execute_top_level
 
     !> Return or set the maximum number of keystrokes to save.
-    !> If called with a prefix ARG, set the limit to ARG and return it.
+    !> If called with a prefix ARGUMENT, set the limit to ARGUMENT and return it.
     !> Otherwise, return the current limit.
     !>
     !> The saved keystrokes are shown by `view_lossage'.  Port of
     !> keyboard.c:Flossage_size (how the command reads its argument).
-    recursive subroutine cmd_lossage_size(status)
+    recursive subroutine execute_lossage_size(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
         integer :: size_now
@@ -619,9 +620,9 @@ contains
         call read_number("Set maximum keystrokes to: ", n, status, default=int(lossage_size(), int64))
         if (.not. status%ok()) return
         size_now = lossage_size(int(n), status)
-    end subroutine cmd_lossage_size
+    end subroutine execute_lossage_size
 
-    module procedure init_subr
+    module procedure initialize_subr
     type(status_type) :: st
 
     commands%undefined%execute => undefined
@@ -630,35 +631,35 @@ contains
     commands%read_y_or_n_insert_y%execute => read_y_or_n_insert_y
     commands%read_y_or_n_insert_n%execute => read_y_or_n_insert_n
     commands%read_y_or_n_insert_other%execute => read_y_or_n_insert_other
-    commands%abort_recursive_edit%execute => cmd_abort_recursive_edit
-    commands%exit_recursive_edit%execute => cmd_exit_recursive_edit
-    commands%recursive_edit%execute => cmd_recursive_edit
-    commands%top_level%execute => cmd_top_level
-    commands%lossage_size%execute => cmd_lossage_size
+    commands%abort_recursive_edit%execute => execute_abort_recursive_edit
+    commands%exit_recursive_edit%execute => execute_exit_recursive_edit
+    commands%recursive_edit%execute => execute_recursive_edit
+    commands%top_level%execute => execute_top_level
+    commands%lossage_size%execute => execute_lossage_size
     ! The map is made again on first use (its parent and the global map
     ! may have been rebuilt).
     if (is_keymap_live(read_y_or_n_map)) call destroy_keymap(read_y_or_n_map, st)
-    commands%read_char_from_minibuffer_insert_char%execute => read_char_from_minibuffer_insert_char
-    commands%read_char_from_minibuffer_insert_other%execute => read_char_from_minibuffer_insert_other
+    commands%read_character_from_minibuffer_insert_character%execute => read_character_from_minibuffer_insert_character
+    commands%read_character_from_minibuffer_insert_other%execute => read_character_from_minibuffer_insert_other
     commands%help_procedure_show%execute => help_procedure_show
-    if (is_keymap_live(read_char_from_minibuffer_map)) call destroy_keymap(read_char_from_minibuffer_map, st)
-    end procedure init_subr
+    if (is_keymap_live(read_character_from_minibuffer_map)) call destroy_keymap(read_character_from_minibuffer_map, st)
+    end procedure initialize_subr
 
-    !> Make `read_char_from_minibuffer_map': minibuffer-local-map's keys,
+    !> Make `read_character_from_minibuffer_map': minibuffer-local-map's keys,
     !> with the minibuffer's own recentering and scrolling commands, and
     !> RET rejected.  Port of subr.el read-char-from-minibuffer-map
     !> (minibuffer-scroll-other-window and -down are not ported).
-    subroutine init_read_char_from_minibuffer_map()
+    subroutine initialize_read_character_from_minibuffer_map()
         type(status_type) :: st
 
-        if (is_keymap_live(read_char_from_minibuffer_map)) return
-        call make_sparse_keymap(read_char_from_minibuffer_map)
-        call set_keymap_parent(read_char_from_minibuffer_map, minibuffer_local_map, st)
-        call define_remap(read_char_from_minibuffer_map, "exit_minibuffer", "read_char_from_minibuffer_insert_other")
-        call define_remap(read_char_from_minibuffer_map, "recenter_top_bottom", "minibuffer_recenter_top_bottom")
-        call define_remap(read_char_from_minibuffer_map, "scroll_up_command", "minibuffer_scroll_up_command")
-        call define_remap(read_char_from_minibuffer_map, "scroll_down_command", "minibuffer_scroll_down_command")
-    end subroutine init_read_char_from_minibuffer_map
+        if (is_keymap_live(read_character_from_minibuffer_map)) return
+        call make_sparse_keymap(read_character_from_minibuffer_map)
+        call set_keymap_parent(read_character_from_minibuffer_map, minibuffer_local_map, st)
+        call define_remap(read_character_from_minibuffer_map, "exit_minibuffer", "read_character_from_minibuffer_insert_other")
+        call define_remap(read_character_from_minibuffer_map, "recenter_top_bottom", "minibuffer_recenter_top_bottom")
+        call define_remap(read_character_from_minibuffer_map, "scroll_up_command", "minibuffer_scroll_up_command")
+        call define_remap(read_character_from_minibuffer_map, "scroll_down_command", "minibuffer_scroll_down_command")
+    end subroutine initialize_read_character_from_minibuffer_map
 
     !> (define-key MAP [remap FROM] TO).  Not a port.
     subroutine define_remap(map, from, to)
@@ -672,43 +673,43 @@ contains
         call define_key(map, events, value_type(name=to), st)
     end subroutine define_remap
 
-    module procedure read_char_from_minibuffer
+    module procedure read_character_from_minibuffer
     type(handle_type) :: map
     type(value_type) :: key1(1)
     type(command_type), pointer :: saved_this
     type(status_type) :: st
     character(len=:), allocatable :: result, saved_help
-    character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+    character(len=MAXIMUM_MULTIBYTE_LENGTH) :: buffer
     integer(int32) :: ch, clen, nbytes
     integer :: k
     logical :: had_help
 
     c = 13
-    call init_read_char_from_minibuffer_map()
+    call initialize_read_character_from_minibuffer_map()
     had_help = allocated(rcfm_help_procedure)
     if (had_help) saved_help = rcfm_help_procedure
     if (present(help_procedure)) rcfm_help_procedure = help_procedure
 
     if (present(chars)) then
         call make_sparse_keymap(map)
-        call set_keymap_parent(map, read_char_from_minibuffer_map, st)
+        call set_keymap_parent(map, read_character_from_minibuffer_map, st)
 
         ! If we have a `help_procedure' here, then the `C-h' (i.e.,
-        ! `help_char') character should output that instead of being a
+        ! `help_character') character should output that instead of being a
         ! command char.
         if (present(help_procedure)) then
-            key1(1) = value_type(int(HELP_CHAR, int64))
+            key1(1) = value_type(int(HELP_CHARACTER, int64))
             call define_key(map, key1, value_type(name="help_procedure_show"), st)
         end if
 
         do k = 1, size(chars)
             key1(1) = value_type(int(chars(k), int64))
-            call define_key(map, key1, value_type(name="read_char_from_minibuffer_insert_char"), st)
+            call define_key(map, key1, value_type(name="read_character_from_minibuffer_insert_character"), st)
         end do
 
-        call define_remap(map, "self_insert_command", "read_char_from_minibuffer_insert_other")
+        call define_remap(map, "self_insert_command", "read_character_from_minibuffer_insert_other")
     else
-        map = read_char_from_minibuffer_map
+        map = read_character_from_minibuffer_map
     end if
 
     ! Protect this-command when called from pre-command-hook (bug#45029)
@@ -733,7 +734,7 @@ contains
 
     if (len(result) > 0) then
         ! We have a string (with one character), so return the first one.
-        call string_char_and_length(result, 1_int64, ch, clen)
+        call string_character_and_length(result, 1_int64, ch, clen)
         c = ch
     else
         ! The default value is RET.  (Pushing "\r" on HISTORY is not
@@ -742,16 +743,16 @@ contains
     end if
 
     ! Display the question with the answer.
-    call char_string(int(c, int32), buffer, nbytes, st)
+    call character_string(int(c, int32), buffer, nbytes, st)
     call message(prompt//buffer(1:nbytes))
-    end procedure read_char_from_minibuffer
+    end procedure read_character_from_minibuffer
 
     !> Insert the character you type into the minibuffer and exit minibuffer.
     !> Discard all previous input before inserting and exiting the minibuffer.
     !> Port of subr.el:read-char-from-minibuffer-insert-char.
-    subroutine read_char_from_minibuffer_insert_char(status)
+    subroutine read_character_from_minibuffer_insert_character(status)
         type(status_type), intent(out) :: status
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: buffer
         type(status_type) :: st
         integer(int32) :: nbytes
 
@@ -761,13 +762,13 @@ contains
         if (.not. status%ok()) return
 
         if (vtag(last_command_event) == V_INTEGER) then
-            call char_string(int(xfixnum(last_command_event), int32), buffer, nbytes, st)
+            call character_string(int(xfixnum(last_command_event), int32), buffer, nbytes, st)
             if (st%ok()) call insert(buffer(1:nbytes), status)
             if (.not. status%ok()) return
         end if
 
         call exit_minibuffer(status)
-    end subroutine read_char_from_minibuffer_insert_char
+    end subroutine read_character_from_minibuffer_insert_character
 
     !> Reject a disallowed character typed into the minibuffer.
     !> This command is intended to be bound to keys that users are not
@@ -775,7 +776,7 @@ contains
     !> such key, this command discard all minibuffer input and displays
     !> an error message.  Port of
     !> subr.el:read-char-from-minibuffer-insert-other.
-    subroutine read_char_from_minibuffer_insert_other(status)
+    subroutine read_character_from_minibuffer_insert_other(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
@@ -786,7 +787,7 @@ contains
         call discard_input()
         call minibuffer_message("Wrong answer")
         call sit_for(2000)
-    end subroutine read_char_from_minibuffer_insert_other
+    end subroutine read_character_from_minibuffer_insert_other
 
     !> Display the output of a `help_procedure' (the text bound by the
     !> caller).  Port of help.el:help-form-show.
@@ -795,25 +796,25 @@ contains
 
         status = status_type()
         if (.not. allocated(rcfm_help_procedure)) return
-        call with_output_to_temp_buffer(" *Char Help*", rcfm_help_procedure, status)
+        call with_output_to_temporary_buffer(" *Char Help*", rcfm_help_procedure, status)
     end subroutine help_procedure_show
 
-    module procedure read_char_choice
+    module procedure read_character_choice
     type(command_type), pointer :: saved_last
 
-    if (.not. read_char_choice_use_read_key) then
+    if (.not. read_character_choice_use_read_key) then
         ! We are about to enter recursive-edit, which sets
         ! `last_command'.  If the callers of this function have some
         ! logic based on `last_command''s value (example: `cut_region'),
         ! that could interfere with their logic.  So we save, set and restore
         ! `last_command' here to prevent that.
         saved_last => last_command
-        call read_char_from_minibuffer(prompt, c, status, chars=chars, help_procedure=help_procedure)
+        call read_character_from_minibuffer(prompt, c, status, chars=chars, help_procedure=help_procedure)
         last_command => saved_last
     else
-        call read_char_choice_with_read_key(prompt, chars, c, status, inhibit_keyboard_quit, help_procedure)
+        call read_character_choice_with_read_key(prompt, chars, c, status, inhibit_keyboard_quit, help_procedure)
     end if
-    end procedure read_char_choice
+    end procedure read_character_choice
 
     !> Read and return one of the characters in CHARS, prompting with PROMPT.
     !> CHARS should be a list of single characters.
@@ -822,25 +823,25 @@ contains
     !> If optional argument INHIBIT_KEYBOARD_QUIT is true, ignore
     !> `keyboard_quit' events while waiting for valid input.
     !>
-    !> If HELP_PROCEDURE is present, then pressing `help_char' displays it.
+    !> If HELP_PROCEDURE is present, then pressing `help_character' displays it.
     !> Port of subr.el:read-char-choice-with-read-key (the prompt is not
     !> given the `minibuffer_prompt' face; C-g is read as a character, not
     !> as a quit).
-    recursive subroutine read_char_choice_with_read_key(prompt, chars, c, status, inhibit_keyboard_quit, help_procedure)
+    recursive subroutine read_character_choice_with_read_key(prompt, chars, c, status, inhibit_keyboard_quit, help_procedure)
         character(len=*), intent(in) :: prompt
         integer, intent(in) :: chars(:)
         integer, intent(out) :: c
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: inhibit_keyboard_quit
         character(len=*), intent(in), optional :: help_procedure
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(value_type) :: key
         type(handle_type) :: helpbuf
         character(len=:), allocatable :: please
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: buffer
         type(status_type) :: st
         integer(int32) :: nbytes
-        logical :: done, show_help, esc_flag, inhibit, saved_cursor
+        logical :: done, show_help, escape_flag, inhibit, saved_cursor
         integer :: k
 
         status = status_type()
@@ -849,17 +850,17 @@ contains
         if (present(inhibit_keyboard_quit)) inhibit = inhibit_keyboard_quit
 
         if (size(chars) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("Called `read_char_choice' without valid char choices"))
+            call set_error(status, GENERIC_ERROR_CODE, format_message("Called `read_character_choice' without valid char choices"))
             return
         end if
 
         done = .false.
         show_help = .false.
-        esc_flag = .false.
+        escape_flag = .false.
         saved_cursor = cursor_in_echo_area
         cursor_in_echo_area = .true.
         ! in case we call help-form-show
-        call current_window_configuration(config)
+        call current_window_configuration(configuration)
 
         do while (.not. done)
             call read_key(prompt, key, status)
@@ -875,19 +876,19 @@ contains
 
             ! If caller has set help-form, that's enough.
             ! They don't explicitly have to add help-char to chars.
-            if (present(help_procedure) .and. c == HELP_CHAR) then
+            if (present(help_procedure) .and. c == HELP_CHARACTER) then
                 show_help = .true.
-                call with_output_to_temp_buffer(" *Char Help*", help_procedure, st)
+                call with_output_to_temporary_buffer(" *Char Help*", help_procedure, st)
                 cycle
             end if
 
             if (any(chars == c)) then
                 done = .true.
             else if (.not. inhibit) then
-                if (.not. esc_flag .and. c == 27) then
-                    esc_flag = .true.
+                if (.not. escape_flag .and. c == 27) then
+                    escape_flag = .true.
                 else if (c == 7 .or. c == 27) then
-                    call set_error(status, FM_QUIT)
+                    call set_error(status, QUIT_CODE)
                     exit
                 end if
             else
@@ -904,13 +905,13 @@ contains
             end if
         end do
 
-        call set_window_configuration(config)
-        call destroy_window_configuration(config)
+        call set_window_configuration(configuration)
+        call destroy_window_configuration(configuration)
         cursor_in_echo_area = saved_cursor
         if (.not. status%ok()) return
         ! Display the question with the answer.  But without
         ! cursor-in-echo-area.
-        call char_string(int(c, int32), buffer, nbytes, st)
+        call character_string(int(c, int32), buffer, nbytes, st)
         call message(prompt//buffer(1:nbytes))
-    end subroutine read_char_choice_with_read_key
+    end subroutine read_character_choice_with_read_key
 end submodule basic_subprograms_read_mod

@@ -26,9 +26,9 @@
 !> b and c, nested comments, two-character delimiters (syntax flags 1, 2,
 !> 3 and 4), generic comment and string fences, `comment_end_can_be_escaped'
 !> and `parse_expression_ignore_comments'.  The start of a subprogram that
-!> back_comment falls back on comes from `syntax_ppss' while
-!> `comment_use_syntax_ppss' is true (as by default), else from an open
-!> paren in column 0 (`open_paren_in_column_0_is_subprogram_start').
+!> back_comment falls back on comes from `syntax_parser_state' while
+!> `comment_use_syntax_parser_state' is true (as by default), else from an open
+!> paren in column 0 (`open_parenthesis_in_column_0_is_subprogram_start').
 !>
 !> Upstream's gotos become a loop over labeled steps in
 !> scan_expressions_forward and exits of named loops elsewhere.  A parse state is
@@ -38,9 +38,9 @@
 !> Deferred: `syntax_table' text properties (UPDATE_SYNTAX_TABLE is a
 !> no-op), `forward_comment_function', quitting (rarely_quit), the
 !> redisplay ticks of scan_expressions_forward, unibyte buffers' raw bytes
-!> (FETCH_CHAR_AS_MULTIBYTE).
+!> (FETCH_CHARACTER_AS_MULTIBYTE).
 submodule(syntax_mod) syntax_scan_mod
-    use buffer_mod, only: temp_set_point_both
+    use buffer_mod, only: temporary_set_point_both
     use editing_functions_mod, only: validate_region
     use search_mod, only: scan_newline
     use print_mod, only: fortran_string
@@ -74,17 +74,18 @@ submodule(syntax_mod) syntax_scan_mod
         !> Syntax of previous position scanned, when that position
         !> (potentially) holds the first char of a 2-char construct, i.e.
         !> comment delimiter or Sescape, etc.  SMAX otherwise.
-        integer :: prev_syntax = SMAX
+        integer :: previous_syntax = SMAX
     end type lisp_parse_state_type
 
-    !> A cache for finding the start of a subprogram: find_start_pos is the
+    !> A cache for finding the start of a subprogram: find_start_position is the
     !> place for which the subprogram start was found, find_start_value the
     !> subprogram start position found for it (find_start_value_byte its byte
     !> position), in the buffer in slot find_start_buffer (with serial
-    !> find_start_serial) when BEGV was find_start_begv and MODIFF
+    !> find_start_serial) when BEGINNING_OF_ACCESSIBLE_PORTION was find_start_beginning_of_accessible_portion and MODIFF
     !> find_start_modiff.
-    integer(int64) :: find_start_pos = 0, find_start_value = 0, find_start_value_byte = 0
-    integer(int64) :: find_start_buffer = 0, find_start_serial = -1, find_start_begv = 0, find_start_modiff = 0
+    integer(int64) :: find_start_position = 0, find_start_value = 0, find_start_value_byte = 0
+    integer(int64) :: find_start_buffer = 0, find_start_serial = -1, find_start_beginning_of_accessible_portion = 0, &
+                      find_start_modiff = 0
 
     !> The labeled steps of scan_expressions_forward.
     integer, parameter :: L_LOOP = 1, L_STARTQUOTED = 2, L_SYMSTARTED = 3, L_ATCOMMENT = 4, &
@@ -114,26 +115,26 @@ contains
         syntax_of = iand(syntax_with_flags(c), 255)
     end function syntax_of
 
-    !> The syntax of character C at position POS with its flags:
-    !> SYNTAX_WITH_FLAGS after UPDATE_SYNTAX_TABLE (POS).
+    !> The syntax of character C at position POSITION with its flags:
+    !> SYNTAX_WITH_FLAGS after UPDATE_SYNTAX_TABLE (POSITION).
     !> Port of syntax.h:syntax_property_with_flags.
-    recursive integer function swf_at(c, pos)
+    recursive integer function swf_at(c, position)
         integer, intent(in) :: c
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(syntax_descriptor_type) :: d
 
-        d = syntax_entry_at(c, pos)
+        d = syntax_entry_at(c, position)
         swf_at = d%code
     end function swf_at
 
-    !> The syntax class of character C at position POS: SYNTAX after
-    !> UPDATE_SYNTAX_TABLE (POS).  Port of syntax.h:syntax_property.
-    recursive integer function syn_at(c, pos)
+    !> The syntax class of character C at position POSITION: SYNTAX after
+    !> UPDATE_SYNTAX_TABLE (POSITION).  Port of syntax.h:syntax_property.
+    recursive integer function syntax_at(c, position)
         integer, intent(in) :: c
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
 
-        syn_at = iand(swf_at(c, pos), 255)
-    end function syn_at
+        syntax_at = iand(swf_at(c, position), 255)
+    end function syntax_at
 
     ! Port of syntax.c:SYNTAX_FLAGS_COMSTARTEND_FIRST.
     logical function comstartend_first(flags)
@@ -160,15 +161,15 @@ contains
     end function comment_style
 
     !> Return syntax code of character C if C is an ASCII character or if
-    !> MULTIBYTE_SYMBOL_P is false.  Otherwise, return Ssymbol.  POS is the
+    !> MULTIBYTE_SYMBOL_P is false.  Otherwise, return Ssymbol.  POSITION is the
     !> position of C.  Port of syntax.c:syntax_multibyte.
-    recursive integer function syntax_multibyte(c, multibyte_symbol_p, pos)
+    recursive integer function syntax_multibyte(c, multibyte_symbol_p, position)
         integer, intent(in) :: c
         logical, intent(in) :: multibyte_symbol_p
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
 
         if (c < 128 .or. .not. multibyte_symbol_p) then
-            syntax_multibyte = syn_at(c, pos)
+            syntax_multibyte = syntax_at(c, position)
         else
             syntax_multibyte = SSYMBOL
         end if
@@ -178,74 +179,74 @@ contains
     ! Positions
     ! ------------------------------------------------------------------
 
-    !> The character at byte position POS_BYTE.  FETCH_CHAR_AS_MULTIBYTE.
+    !> The character at byte position POSITION_BYTE.  FETCH_CHARACTER_AS_MULTIBYTE.
     !> Port of buffer.h:FETCH_CHAR_AS_MULTIBYTE.
-    integer function fetch(pos_byte)
-        integer(int64), intent(in) :: pos_byte
+    integer function fetch(position_byte)
+        integer(int64), intent(in) :: position_byte
 
-        fetch = int(buf_fetch_char(buffers(current), pos_byte))
+        fetch = int(buf_fetch_char(buffers(current), position_byte))
     end function fetch
 
     !> INC_BOTH.  Port of buffer.h:inc_both.
-    subroutine inc_both(pos, pos_byte)
-        integer(int64), intent(inout) :: pos, pos_byte
+    subroutine inc_both(position, position_byte)
+        integer(int64), intent(inout) :: position, position_byte
 
         if (buffers(current)%multibyte) then
-            pos_byte = pos_byte + buf_next_char_len(buffers(current), pos_byte)
+            position_byte = position_byte + buf_next_char_len(buffers(current), position_byte)
         else
-            pos_byte = pos_byte + 1
+            position_byte = position_byte + 1
         end if
 
-        pos = pos + 1
+        position = position + 1
     end subroutine inc_both
 
     !> DEC_BOTH.  Port of buffer.h:dec_both.
-    subroutine dec_both(pos, pos_byte)
-        integer(int64), intent(inout) :: pos, pos_byte
+    subroutine dec_both(position, position_byte)
+        integer(int64), intent(inout) :: position, position_byte
 
-        pos_byte = dec_bytepos(pos_byte)
-        pos = pos - 1
+        position_byte = dec_byte_position(position_byte)
+        position = position - 1
     end subroutine dec_both
 
-    !> Return the bytepos one character before BYTEPOS.  We assume that
-    !> BYTEPOS is not at the start of the buffer.  Port of
+    !> Return the bytepos one character before BYTE_POSITION.  We assume that
+    !> BYTE_POSITION is not at the start of the buffer.  Port of
     !> syntax.c:dec_bytepos.
-    recursive integer(int64) function dec_bytepos(bytepos)
-        integer(int64), intent(in) :: bytepos
+    recursive integer(int64) function dec_byte_position(byte_position)
+        integer(int64), intent(in) :: byte_position
 
         if (buffers(current)%multibyte) then
-            dec_bytepos = bytepos - buf_prev_char_len(buffers(current), bytepos)
+            dec_byte_position = byte_position - buf_prev_char_len(buffers(current), byte_position)
         else
-            dec_bytepos = bytepos - 1
+            dec_byte_position = byte_position - 1
         end if
-    end function dec_bytepos
+    end function dec_byte_position
 
-    !> Return true if the character at CHARPOS is quoted.  Port of
+    !> Return true if the character at CHARACTER_POSITION is quoted.  Port of
     !> syntax.c:char_quoted (here because gfortran drops syntax_mod's
     !> private copy from what the submodule can link to).
-    recursive logical function char_quoted_at(charpos_in)
-        integer(int64), intent(in) :: charpos_in
-        integer(int64) :: charpos, bytepos
+    recursive logical function character_quoted_at(character_position_in)
+        integer(int64), intent(in) :: character_position_in
+        integer(int64) :: character_position, byte_position
         integer :: code
 
-        charpos = charpos_in
-        bytepos = char_to_byte(charpos)
-        char_quoted_at = .false.
+        character_position = character_position_in
+        byte_position = character_to_byte(character_position)
+        character_quoted_at = .false.
 
-        do while (charpos > buffers(current)%begv)
-            call dec_both(charpos, bytepos)
-            code = syn_at(fetch(bytepos), charpos)
+        do while (character_position > buffers(current)%beginning_of_accessible_portion)
+            call dec_both(character_position, byte_position)
+            code = syntax_at(fetch(byte_position), character_position)
             if (code /= SCHARQUOTE .and. code /= SESCAPE) exit
-            char_quoted_at = .not. char_quoted_at
+            character_quoted_at = .not. character_quoted_at
         end do
-    end function char_quoted_at
+    end function character_quoted_at
 
-    !> SET_PT_BOTH.  Port of buffer.h:SET_PT_BOTH.
-    subroutine set_pt_both(pos, pos_byte)
-        integer(int64), intent(in) :: pos, pos_byte
+    !> SET_POINT_BOTH.  Port of buffer.h:SET_PT_BOTH.
+    subroutine set_point_both(position, position_byte)
+        integer(int64), intent(in) :: position, position_byte
 
-        call temp_set_point_both(buffers(current), pos, pos_byte)
-    end subroutine set_pt_both
+        call temporary_set_point_both(buffers(current), position, position_byte)
+    end subroutine set_point_both
 
     !> Signal `scan_error' with MESSAGE and the positions A and B.
     !> Not a port.
@@ -257,91 +258,94 @@ contains
 
         write (sa, "(i0)") a
         write (sb, "(i0)") b
-        call set_error(status, FM_SCAN_ERROR, fortran_string(message)//", "//trim(sa)//", "//trim(sb))
+        call set_error(status, SCAN_ERROR_CODE, fortran_string(message)//", "//trim(sa)//", "//trim(sb))
     end subroutine scan_error
 
     ! ------------------------------------------------------------------
     ! The start of a subprogram
     ! ------------------------------------------------------------------
 
-    !> Return a defun-start position before POS and not too far before.
-    !> It should be the last one before POS, or nearly the last.
+    !> Return a defun-start position before POSITION and not too far before.
+    !> It should be the last one before POSITION, or nearly the last.
     !>
-    !> When open_paren_in_column_0_is_subprogram_start is false, only the
+    !> When open_parenthesis_in_column_0_is_subprogram_start is false, only the
     !> beginning of the buffer is treated as a defun-start.
     !>
     !> We record the information about where the scan started and what its
     !> result was, so that another call in the same area can return the
     !> same value very quickly.  Port of syntax.c:find_defun_start.
-    recursive integer(int64) function find_subprogram_start(pos, pos_byte) result(start)
-        integer(int64), intent(in) :: pos, pos_byte
-        type(parse_state_type) :: ppss
-        integer(int64) :: opoint, opoint_byte, pt, pt_byte
+    recursive integer(int64) function find_subprogram_start(position, position_byte) result(start)
+        integer(int64), intent(in) :: position, position_byte
+        type(parse_state_type) :: parser_state
+        integer(int64) :: original_point, original_point_byte, point, point_byte
         integer :: c
 
         associate (b => buffers(current))
-            opoint = b%pt
-            opoint_byte = b%pt_byte
+            original_point = b%point
+            original_point_byte = b%point_byte
 
             ! Use previous finding, if it's valid and applies to this
             ! inquiry.
             if (find_start_buffer == current .and. find_start_serial == b%serial) then
-                ! Reuse the defun-start even if POS is a little farther on.
-                ! POS might be in the next subprogram, but that's ok.  Our value
+                ! Reuse the defun-start even if POSITION is a little farther on.
+                ! POSITION might be in the next subprogram, but that's ok.  Our value
                 ! may not be the best possible, but will still be usable.
-                if (pos <= find_start_pos + 1000 .and. pos >= find_start_value .and. &
-                    b%begv == find_start_begv .and. b%text%modiff == find_start_modiff) then
+                if (position <= find_start_position + 1000 .and. position >= find_start_value .and. &
+                    b%beginning_of_accessible_portion == find_start_beginning_of_accessible_portion .and. b%text%modiff &
+                    == find_start_modiff) then
                     start = find_start_value
                     return
                 end if
             end if
 
-            if (comment_use_syntax_ppss) then
-                call syntax_ppss(ppss, pos)
-                call temp_set_point_both(b, opoint, opoint_byte)
+            if (comment_use_syntax_parser_state) then
+                call syntax_parser_state(parser_state, position)
+                call temporary_set_point_both(b, original_point, original_point_byte)
 
-                if (ppss%comstr_start /= 0) then
-                    find_start_value = ppss%comstr_start
-                    find_start_value_byte = char_to_byte(find_start_value)
+                if (parser_state%comstr_start /= 0) then
+                    find_start_value = parser_state%comstr_start
+                    find_start_value_byte = character_to_byte(find_start_value)
                 else
-                    find_start_value = pos
-                    find_start_value_byte = pos_byte
+                    find_start_value = position
+                    find_start_value_byte = position_byte
                 end if
-            else if (.not. open_paren_in_column_0_is_subprogram_start) then
-                find_start_value = b%begv
-                find_start_value_byte = b%begv_byte
+            else if (.not. open_parenthesis_in_column_0_is_subprogram_start) then
+                find_start_value = b%beginning_of_accessible_portion
+                find_start_value_byte = b%beginning_of_accessible_portion_byte
             else
                 ! Back up to start of line.
-                call scan_newline(pos, pos_byte, b%begv, b%begv_byte, -1_int64)
+                call scan_newline(position, position_byte, b%beginning_of_accessible_portion, &
+                                  b%beginning_of_accessible_portion_byte, -1_int64)
 
-                do while (b%pt > b%begv)
+                do while (b%point > b%beginning_of_accessible_portion)
                     ! Open-paren at start of line means we may have found
                     ! our defun-start.
-                    c = fetch(b%pt_byte)
+                    c = fetch(b%point_byte)
 
                     if (syntax_of(c) == SOPEN) then
                         ! We accept only those `^\s(' which are good in
                         ! global _and_ text-property syntax-tables.
-                        if (syn_at(c, b%pt) == SOPEN) exit
+                        if (syntax_at(c, b%point) == SOPEN) exit
                     end if
 
                     ! Move to beginning of previous line.
-                    pt = b%pt
-                    pt_byte = b%pt_byte
-                    call scan_newline(pt, pt_byte, b%begv, b%begv_byte, -2_int64)
+                    point = b%point
+                    point_byte = b%point_byte
+                    call scan_newline(point, point_byte, b%beginning_of_accessible_portion, &
+                                      b%beginning_of_accessible_portion_byte, -2_int64)
                 end do
 
                 ! Record what we found, for the next try.
-                find_start_value = b%pt
-                find_start_value_byte = b%pt_byte
-                call temp_set_point_both(b, opoint, opoint_byte)
+                find_start_value = b%point
+                find_start_value_byte = b%point_byte
+                call temporary_set_point_both(b, original_point, original_point_byte)
             end if
 
             find_start_buffer = current
             find_start_serial = b%serial
             find_start_modiff = b%text%modiff
-            find_start_begv = b%begv
-            find_start_pos = pos
+            find_start_beginning_of_accessible_portion = b%beginning_of_accessible_portion
+            find_start_position = position
         end associate
 
         start = find_start_value
@@ -351,18 +355,18 @@ contains
     ! Comments
     ! ------------------------------------------------------------------
 
-    !> Return the SYNTAX_COMEND_FIRST of the character before POS,
-    !> POS_BYTE.  Port of syntax.c:prev_char_comend_first (with
+    !> Return the SYNTAX_COMEND_FIRST of the character before POSITION,
+    !> POSITION_BYTE.  Port of syntax.c:prev_char_comend_first (with
     !> syntax.c:SYNTAX_COMEND_FIRST at that position).
-    recursive logical function prev_char_comend_first(pos_in, pos_byte_in)
-        integer(int64), intent(in) :: pos_in, pos_byte_in
-        integer(int64) :: pos, pos_byte
+    recursive logical function previous_character_comend_first(position_in, position_byte_in)
+        integer(int64), intent(in) :: position_in, position_byte_in
+        integer(int64) :: position, position_byte
 
-        pos = pos_in
-        pos_byte = pos_byte_in
-        call dec_both(pos, pos_byte)
-        prev_char_comend_first = btest(swf_at(fetch(pos_byte), pos), SYNTAX_FLAG_COMEND_FIRST)
-    end function prev_char_comend_first
+        position = position_in
+        position_byte = position_byte_in
+        call dec_both(position, position_byte)
+        previous_character_comend_first = btest(swf_at(fetch(position_byte), position), SYNTAX_FLAG_COMEND_FIRST)
+    end function previous_character_comend_first
 
     !> Check whether charpos FROM is at the end of a comment.  FROM_BYTE
     !> is the bytepos corresponding to FROM.  Do not move back before STOP.
@@ -370,19 +374,20 @@ contains
     !> Return true if we find a comment ending at FROM/FROM_BYTE.
     !>
     !> If successful, store the charpos of the comment's beginning into
-    !> CHARPOS, and the bytepos into BYTEPOS.  Port of
+    !> CHARACTER_POSITION, and the bytepos into BYTE_POSITION.  Port of
     !> syntax.c:back_comment.
-    recursive logical function back_comment(from_in, from_byte_in, stop, comnested, comstyle, charpos, bytepos) result(found)
+    recursive logical function back_comment(from_in, from_byte_in, stop, comnested, comstyle, character_position, &
+                                            byte_position) result(found)
         integer(int64), intent(in) :: from_in, from_byte_in, stop
         logical, intent(in) :: comnested
         integer, intent(in) :: comstyle
-        integer(int64), intent(out) :: charpos, bytepos
+        integer(int64), intent(out) :: character_position, byte_position
         integer, parameter :: ENDED = 0, LOSSAGE = 1, DONE = 2
         type(lisp_parse_state_type) :: state
-        integer(int64) :: from, from_byte, comment_end, comment_end_byte, comstart_pos, comstart_byte, &
-                          subprogram_start, subprogram_start_byte, nesting, next, next_byte, temp_byte
-        integer :: string_style, code, c, syntax, prev_syntax, next_syntax, outcome
-        logical :: string_lossage, comment_lossage, com2start, com2end, comstart, lose, adjusted, at_bol
+        integer(int64) :: from, from_byte, comment_end, comment_end_byte, comstart_position, comstart_byte, &
+                          subprogram_start, subprogram_start_byte, nesting, next, next_byte, temporary_byte
+        integer :: string_style, code, c, syntax, previous_syntax, next_syntax, outcome
+        logical :: string_lossage, comment_lossage, com2start, com2end, comstart, lose, adjusted, at_beginning_of_line
 
         ! Look back, counting the parity of string-quotes, and recording
         ! the comment-starters seen.  When we reach a safe place, assume
@@ -402,7 +407,7 @@ contains
         comment_lossage = .false.
         comment_end = from
         comment_end_byte = from_byte
-        comstart_pos = 0
+        comstart_position = 0
         comstart_byte = 0
         ! Place where the containing subprogram starts, or 0 if we didn't come
         ! across it yet.
@@ -418,15 +423,16 @@ contains
         scan: do while (from /= stop)
             ! Move back and examine a character.
             call dec_both(from, from_byte)
-            prev_syntax = syntax
+            previous_syntax = syntax
             c = fetch(from_byte)
             syntax = swf_at(c, from)
             code = iand(syntax, 255)
             ! Check for 2-char comment markers.
-            com2start = btest(syntax, SYNTAX_FLAG_COMSTART_FIRST) .and. btest(prev_syntax, SYNTAX_FLAG_COMSTART_SECOND) .and. &
-                        comstyle == comment_style(prev_syntax, syntax) .and. &
-                   ((btest(prev_syntax, SYNTAX_FLAG_COMMENT_NESTED) .or. btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)) .eqv. comnested)
-            com2end = btest(syntax, SYNTAX_FLAG_COMEND_FIRST) .and. btest(prev_syntax, SYNTAX_FLAG_COMEND_SECOND)
+            com2start = btest(syntax, SYNTAX_FLAG_COMSTART_FIRST) .and. btest(previous_syntax, SYNTAX_FLAG_COMSTART_SECOND) .and. &
+                        comstyle == comment_style(previous_syntax, syntax) .and. &
+                        ((btest(previous_syntax, SYNTAX_FLAG_COMMENT_NESTED) .or. btest(syntax, &
+                                                                                       SYNTAX_FLAG_COMMENT_NESTED)) .eqv. comnested)
+            com2end = btest(syntax, SYNTAX_FLAG_COMEND_FIRST) .and. btest(previous_syntax, SYNTAX_FLAG_COMEND_SECOND)
             comstart = com2start .or. code == SCOMMENT
 
             ! If a 2-char comment sequence partly overlaps with another, we
@@ -441,7 +447,7 @@ contains
 
                 if (.not. lose) then
                     lose = (com2end .or. comnested) .and. btest(syntax, SYNTAX_FLAG_COMSTART_SECOND) .and. &
-                           comstyle == comment_style(syntax, prev_syntax) .and. btest(next_syntax, SYNTAX_FLAG_COMSTART_FIRST)
+                           comstyle == comment_style(syntax, previous_syntax) .and. btest(next_syntax, SYNTAX_FLAG_COMSTART_FIRST)
                 end if
 
                 if (lose) then
@@ -454,7 +460,7 @@ contains
             ! ender as well (see snmp-mode).  The first time we see one, we
             ! need to consider it as a comment starter, and the subsequent
             ! times as a comment ender.
-            if (com2start .and. comstart_pos == 0) com2end = .false.
+            if (com2start .and. comstart_position == 0) com2end = .false.
 
             ! Turn a 2-char comment sequences into the appropriate syntax.
             if (com2end) then
@@ -469,7 +475,7 @@ contains
             ! Ignore escaped characters, except comment-enders which cannot
             ! be escaped.
             if (comment_end_can_be_escaped%value .or. code /= SENDCOMMENT) then
-                if (char_quoted_at(from)) cycle scan
+                if (character_quoted_at(from)) cycle scan
             end if
 
             select case (code)
@@ -500,7 +506,7 @@ contains
 
                 if (.not. comnested) then
                     ! Record best comment-starter so far.
-                    comstart_pos = from
+                    comstart_position = from
                     comstart_byte = from_byte
                 else
                     nesting = nesting - 1
@@ -514,7 +520,7 @@ contains
                 end if
             case (SENDCOMMENT)
                 if (comment_style(syntax, 0) == comstyle .and. &
-                    (((com2end .and. btest(prev_syntax, SYNTAX_FLAG_COMMENT_NESTED)) &
+                    (((com2end .and. btest(previous_syntax, SYNTAX_FLAG_COMMENT_NESTED)) &
                       .or. btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)) .eqv. comnested)) then
                     ! This is the same style of comment ender as ours.
                     if (comnested) then
@@ -524,7 +530,7 @@ contains
                         ! match this comment-ender rather than ours.
                         from = stop
                     end if
-                else if (comstart_pos /= 0 .or. c /= 10) then
+                else if (comstart_position /= 0 .or. c /= 10) then
                     ! We're mixing comment styles here, so we'd better be
                     ! careful.  The failure should only happen in the rare
                     ! cases such as { (* } *)
@@ -532,15 +538,15 @@ contains
                 end if
             case (SOPEN)
                 ! Assume a defun-start point is outside of strings.
-                if (open_paren_in_column_0_is_subprogram_start .and. .not. comment_use_syntax_ppss) then
-                    at_bol = from == stop
+                if (open_parenthesis_in_column_0_is_subprogram_start .and. .not. comment_use_syntax_parser_state) then
+                    at_beginning_of_line = from == stop
 
-                    if (.not. at_bol) then
-                        temp_byte = dec_bytepos(from_byte)
-                        at_bol = fetch(temp_byte) == 10
+                    if (.not. at_beginning_of_line) then
+                        temporary_byte = dec_byte_position(from_byte)
+                        at_beginning_of_line = fetch(temporary_byte) == 10
                     end if
 
-                    if (at_bol) then
+                    if (at_beginning_of_line) then
                         subprogram_start = from
                         subprogram_start_byte = from_byte
                         from = stop
@@ -553,12 +559,12 @@ contains
 
         select case (outcome)
         case (ENDED)
-            if (comstart_pos == 0) then
+            if (comstart_position == 0) then
                 from = comment_end
                 from_byte = comment_end_byte
             else
                 ! We've found the beginning of the non-nested comment.
-                from = comstart_pos
+                from = comstart_position
                 from_byte = comstart_byte
             end if
         case (LOSSAGE)
@@ -572,7 +578,7 @@ contains
             if (subprogram_start == 0) then
                 subprogram_start = find_subprogram_start(comment_end, comment_end_byte)
                 subprogram_start_byte = find_start_value_byte
-                adjusted = subprogram_start > buffers(current)%begv
+                adjusted = subprogram_start > buffers(current)%beginning_of_accessible_portion
             end if
 
             do
@@ -590,7 +596,7 @@ contains
                         find_start_value = state%thislevelstart
                     end if
 
-                    find_start_value_byte = char_to_byte(find_start_value)
+                    find_start_value_byte = character_to_byte(find_start_value)
                 end if
 
                 if (state%incomment == merge(1_int64, -1_int64, comnested) .and. state%comstyle == comstyle) then
@@ -603,20 +609,20 @@ contains
                         ! ours is nested, so we need to try again from within
                         ! the surrounding comment.  Example: { a (* " *)
                         subprogram_start = state%comstr_start + 2
-                        subprogram_start_byte = char_to_byte(subprogram_start)
+                        subprogram_start_byte = character_to_byte(subprogram_start)
                     end if
                 end if
 
                 if (subprogram_start >= comment_end) exit
             end do
 
-            from_byte = char_to_byte(from)
+            from_byte = character_to_byte(from)
         case default
             continue
         end select
 
-        charpos = from
-        bytepos = from_byte
+        character_position = from
+        byte_position = from_byte
         found = from /= comment_end
     end function back_comment
 
@@ -626,13 +632,13 @@ contains
     !>
     !> NESTING should be positive to indicate the nesting at the beginning
     !> for nested comments and should be zero or negative else.  ST_COMMENT_STYLE
-    !> cannot be nested.  PREV_SYNTAX is the SYNTAX_WITH_FLAGS of the
+    !> cannot be nested.  PREVIOUS_SYNTAX is the SYNTAX_WITH_FLAGS of the
     !> previous character (or 0).
     !>
     !> If successful, return true and store the charpos of the comment's
-    !> end into CHARPOS and the corresponding bytepos into BYTEPOS.  Else,
-    !> return false and store the charpos STOP into CHARPOS, the
-    !> corresponding bytepos into BYTEPOS and the current nesting (as
+    !> end into CHARACTER_POSITION and the corresponding bytepos into BYTE_POSITION.  Else,
+    !> return false and store the charpos STOP into CHARACTER_POSITION, the
+    !> corresponding bytepos into BYTE_POSITION and the current nesting (as
     !> defined for state%incomment) in INCOMMENT.  Should the last
     !> character scanned in an incomplete comment be a possible first
     !> character of a two character construct, we store its
@@ -641,14 +647,15 @@ contains
     !>
     !> The comment end is the last character of the comment rather than
     !> the character just after the comment.  Port of syntax.c:forw_comment.
-    recursive logical function forw_comment(from_in, from_byte_in, stop, nesting_in, style, prev_syntax_in, charpos, &
-                                            bytepos, incomment, last_syntax) result(found)
+    recursive logical function forw_comment(from_in, from_byte_in, stop, nesting_in, style, previous_syntax_in, &
+                                            character_position, &
+                                            byte_position, incomment, last_syntax) result(found)
         integer(int64), intent(in) :: from_in, from_byte_in, stop, nesting_in
-        integer, intent(in) :: style, prev_syntax_in
-        integer(int64), intent(out) :: charpos, bytepos, incomment
+        integer, intent(in) :: style, previous_syntax_in
+        integer(int64), intent(out) :: character_position, byte_position, incomment
         integer, intent(out) :: last_syntax
         integer(int64) :: from, from_byte, nesting
-        integer :: c, code, syntax, other_syntax, prev_syntax
+        integer :: c, code, syntax, other_syntax, previous_syntax
         logical :: in_middle, hit
 
         from = from_in
@@ -658,8 +665,8 @@ contains
         if (nesting <= 0) nesting = -1
         ! Enter the loop in the middle so that we find a 2-char comment
         ! ender if we start in the middle of it.
-        syntax = prev_syntax_in
-        prev_syntax = 0
+        syntax = previous_syntax_in
+        previous_syntax = 0
         code = iand(syntax, 255)
         in_middle = syntax /= 0 .and. from < stop
 
@@ -667,8 +674,8 @@ contains
             if (.not. in_middle) then
                 if (from == stop) then
                     incomment = nesting
-                    charpos = from
-                    bytepos = from_byte
+                    character_position = from
+                    byte_position = from_byte
                     last_syntax = SMAX
 
                     if (code == SESCAPE .or. code == SCHARQUOTE .or. btest(syntax, SYNTAX_FLAG_COMEND_FIRST)) then
@@ -682,7 +689,7 @@ contains
                 end if
 
                 c = fetch(from_byte)
-                prev_syntax = syntax
+                previous_syntax = syntax
                 syntax = swf_at(c, from)
                 code = iand(syntax, 255)
 
@@ -700,7 +707,7 @@ contains
                         end if
 
                         if (hit .and. comment_end_can_be_escaped%value) then
-                            hit = iand(prev_syntax, 255) /= SESCAPE .and. iand(prev_syntax, 255) /= SCHARQUOTE
+                            hit = iand(previous_syntax, 255) /= SESCAPE .and. iand(previous_syntax, 255) /= SCHARQUOTE
                         end if
 
                         ! We have encountered a comment end of the same style
@@ -725,7 +732,7 @@ contains
                     ! Failure.
                     if (from == stop) cycle
                     c = fetch(from_byte)
-                    prev_syntax = syntax
+                    previous_syntax = syntax
                     syntax = SMAX
                     code = syntax
                 end if
@@ -777,15 +784,15 @@ contains
             end if
         end do
 
-        charpos = from
-        bytepos = from_byte
+        character_position = from
+        byte_position = from_byte
         ! Any syntactic power the last byte had is used up.
         last_syntax = SMAX
         found = .true.
     end function forw_comment
 
     module procedure forward_comment
-    integer(int64) :: from, from_byte, stop, count1, out_charpos, out_bytepos, dummy, ini, ini_byte, c_pos
+    integer(int64) :: from, from_byte, stop, count1, out_character_position, out_byte_position, dummy, ini, ini_byte, c_position
     integer :: c, c1, code, comstyle, syntax, other_syntax, dummy2
     logical :: comnested, comstart_first_p, quoted, fence_found, leave
 
@@ -793,19 +800,19 @@ contains
 
     associate (b => buffers(current))
         if (count1 > 0) then
-            stop = b%zv
+            stop = b%end_of_accessible_portion
         else
-            stop = b%begv
+            stop = b%beginning_of_accessible_portion
         end if
 
-        from = b%pt
-        from_byte = b%pt_byte
+        from = b%point
+        from_byte = b%point_byte
     end associate
 
     do while (count1 > 0)
         do
             if (from == stop) then
-                call set_pt_both(from, from_byte)
+                call set_point_both(from, from_byte)
                 found = .false.
                 return
             end if
@@ -844,19 +851,19 @@ contains
             comstyle = ST_COMMENT_STYLE
         else if (code /= SCOMMENT) then
             call dec_both(from, from_byte)
-            call set_pt_both(from, from_byte)
+            call set_point_both(from, from_byte)
             found = .false.
             return
         end if
 
         ! We're at the start of a comment.
         found = forw_comment(from, from_byte, stop, merge(1_int64, 0_int64, comnested), comstyle, 0, &
-                             out_charpos, out_bytepos, dummy, dummy2)
-        from = out_charpos
-        from_byte = out_bytepos
+                             out_character_position, out_byte_position, dummy, dummy2)
+        from = out_character_position
+        from_byte = out_byte_position
 
         if (.not. found) then
-            call set_pt_both(from, from_byte)
+            call set_point_both(from, from_byte)
             return
         end if
 
@@ -870,15 +877,16 @@ contains
 
         do
             if (from <= stop) then
-                call set_pt_both(buffers(current)%begv, buffers(current)%begv_byte)
+                call set_point_both(buffers(current)%beginning_of_accessible_portion, &
+                                    buffers(current)%beginning_of_accessible_portion_byte)
                 found = .false.
                 return
             end if
 
             call dec_both(from, from_byte)
-            quoted = char_quoted_at(from)
+            quoted = character_quoted_at(from)
             c = fetch(from_byte)
-            c_pos = from
+            c_position = from
             syntax = swf_at(c, from)
             code = iand(syntax, 255)
             comstyle = 0
@@ -886,8 +894,8 @@ contains
             if (code == SENDCOMMENT) comstyle = comment_style(syntax, 0)
 
             if (from > stop .and. btest(syntax, SYNTAX_FLAG_COMEND_SECOND)) then
-                if (prev_char_comend_first(from, from_byte)) then
-                    if (.not. char_quoted_at(from - 1)) then
+                if (previous_character_comend_first(from, from_byte)) then
+                    if (.not. character_quoted_at(from - 1)) then
                         ! We must record the comment style encountered so
                         ! that later, we can match only the proper comment
                         ! begin sequence of the same style.
@@ -912,8 +920,8 @@ contains
                         call dec_both(from, from_byte)
                         c = fetch(from_byte)
 
-                        if (syn_at(c, from) == SCOMMENT_FENCE) then
-                            if (.not. char_quoted_at(from)) then
+                        if (syntax_at(c, from) == SCOMMENT_FENCE) then
+                            if (.not. character_quoted_at(from)) then
                                 fence_found = .true.
                                 exit
                             end if
@@ -936,7 +944,7 @@ contains
                 found = .false.
 
                 if (.not. quoted .or. .not. comment_end_can_be_escaped%value) then
-                    found = back_comment(from, from_byte, stop, comnested, comstyle, out_charpos, out_bytepos)
+                    found = back_comment(from, from_byte, stop, comnested, comstyle, out_character_position, out_byte_position)
                 end if
 
                 if (.not. found) then
@@ -947,14 +955,14 @@ contains
                         ! Failure: we should go back to the end of this
                         ! not-quite-endcomment.
                         ! It was a two-char Sendcomment.
-                        if (syn_at(c, c_pos) /= code) call inc_both(from, from_byte)
+                        if (syntax_at(c, c_position) /= code) call inc_both(from, from_byte)
                         leave = .true.
                         exit
                     end if
                 else
                     ! We have skipped one comment.
-                    from = out_charpos
-                    from_byte = out_bytepos
+                    from = out_character_position
+                    from_byte = out_byte_position
                     exit
                 end if
             else if (code /= SWHITESPACE .or. quoted) then
@@ -965,7 +973,7 @@ contains
 
         if (leave) then
             call inc_both(from, from_byte)
-            call set_pt_both(from, from_byte)
+            call set_point_both(from, from_byte)
             found = .false.
             return
         end if
@@ -973,7 +981,7 @@ contains
         count1 = count1 + 1
     end do
 
-    call set_pt_both(from, from_byte)
+    call set_point_both(from, from_byte)
     found = .true.
     end procedure forward_comment
 
@@ -982,38 +990,39 @@ contains
     ! ------------------------------------------------------------------
 
     !> Port of syntax.c:scan_lists (0 for none).
-    recursive integer(int64) function scan_groups_1(from0, count_in, depth_in, expression_flag, status) result(pos)
+    recursive integer(int64) function scan_groups_1(from0, count_in, depth_in, expression_flag, status) result(position)
         integer(int64), intent(in) :: from0, count_in, depth_in
         logical, intent(in) :: expression_flag
         type(status_type), intent(out) :: status
         integer, parameter :: A_NONE = 0, A_WORD = 1, A_COMMENT = 2, A_OPEN = 3, A_CLOSE = 4, A_STRING = 5
-        integer(int64) :: stop, count, depth, min_depth, last_good, from, from_byte, temp_pos, out_charpos, &
-                          out_bytepos, dummy
+        integer(int64) :: stop, count, depth, minimum_depth, last_good, from, from_byte, temporary_position, &
+                          out_character_position, &
+                          out_byte_position, dummy
         integer :: c, c1, c2, stringterm, code, comstyle, syntax, other_syntax, action, c_code, dummy2
         logical :: quoted, mathexit, comnested, found, multibyte_symbol_p, comstart_first_p, prefix, done, hit
 
         status = status_type()
-        pos = 0
+        position = 0
         count = count_in
         depth = depth_in
 
         associate (b => buffers(current))
             if (count > 0) then
-                stop = b%zv
+                stop = b%end_of_accessible_portion
             else
-                stop = b%begv
+                stop = b%beginning_of_accessible_portion
             end if
 
-            from = max(b%begv, min(from0, b%zv))
+            from = max(b%beginning_of_accessible_portion, min(from0, b%end_of_accessible_portion))
         end associate
 
         mathexit = .false.
         ! Err out if depth gets less than this.
-        min_depth = depth
+        minimum_depth = depth
         last_good = from0
         multibyte_symbol_p = expression_flag .and. multibyte_syntax_as_identifier
-        if (depth > 0) min_depth = 0
-        from_byte = char_to_byte(from)
+        if (depth > 0) minimum_depth = 0
+        from_byte = character_to_byte(from)
 
         do while (count > 0)
             done = .false.
@@ -1026,7 +1035,7 @@ contains
                 comnested = btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)
                 comstyle = comment_style(syntax, 0)
                 prefix = btest(syntax, SYNTAX_FLAG_PREFIX)
-                if (depth == min_depth) last_good = from
+                if (depth == minimum_depth) last_good = from
                 call inc_both(from, from_byte)
 
                 if (from < stop .and. comstart_first_p) then
@@ -1121,9 +1130,9 @@ contains
                 case (A_COMMENT)
                     if (.not. parse_expression_ignore_comments%value) cycle forward
                     found = forw_comment(from, from_byte, stop, merge(1_int64, 0_int64, comnested), comstyle, 0, &
-                                         out_charpos, out_bytepos, dummy, dummy2)
-                    from = out_charpos
-                    from_byte = out_bytepos
+                                         out_character_position, out_byte_position, dummy, dummy2)
+                    from = out_character_position
+                    from_byte = out_byte_position
 
                     if (.not. found) then
                         if (depth == 0) then
@@ -1151,13 +1160,13 @@ contains
                         exit forward
                     end if
 
-                    if (depth < min_depth) then
+                    if (depth < minimum_depth) then
                         call scan_error(status, "Containing expression ends prematurely", last_good, from)
                         return
                     end if
                 case (A_STRING)
-                    temp_pos = dec_bytepos(from_byte)
-                    stringterm = fetch(temp_pos)
+                    temporary_position = dec_byte_position(from_byte)
+                    stringterm = fetch(temporary_position)
 
                     do
                         if (from >= stop) then
@@ -1209,13 +1218,13 @@ contains
                 c = fetch(from_byte)
                 syntax = swf_at(c, from)
                 code = syntax_multibyte(c, multibyte_symbol_p, from)
-                if (depth == min_depth) last_good = from
+                if (depth == minimum_depth) last_good = from
                 comstyle = 0
                 comnested = btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)
                 if (code == SENDCOMMENT) comstyle = comment_style(syntax, 0)
 
                 if (from > stop .and. btest(syntax, SYNTAX_FLAG_COMEND_SECOND)) then
-                    if (prev_char_comend_first(from, from_byte) .and. parse_expression_ignore_comments%value) then
+                    if (previous_character_comend_first(from, from_byte) .and. parse_expression_ignore_comments%value) then
                         ! We must record the comment style encountered so
                         ! that later, we can match only the proper comment
                         ! begin sequence of the same style.
@@ -1232,7 +1241,7 @@ contains
                 ! character.  Note that this cannot be true if we decremented
                 ! FROM in the if-statement above.
                 quoted = .false.
-                if (code /= SENDCOMMENT) quoted = char_quoted_at(from)
+                if (code /= SENDCOMMENT) quoted = character_quoted_at(from)
 
                 if (quoted) then
                     call dec_both(from, from_byte)
@@ -1248,18 +1257,18 @@ contains
                     ! This word counts as an expression; count object finished
                     ! after passing it.
                     do while (from > stop)
-                        temp_pos = dec_bytepos(from_byte)
-                        c1 = fetch(temp_pos)
+                        temporary_position = dec_byte_position(from_byte)
+                        c1 = fetch(temporary_position)
                         ! Don't allow comment-end to be quoted.
                         if (syntax_multibyte(c1, multibyte_symbol_p, from - 1) == SENDCOMMENT) exit
-                        quoted = char_quoted_at(from - 1)
+                        quoted = character_quoted_at(from - 1)
 
                         if (quoted) then
                             call dec_both(from, from_byte)
-                            temp_pos = dec_bytepos(temp_pos)
+                            temporary_position = dec_byte_position(temporary_position)
                         end if
 
-                        c1 = fetch(temp_pos)
+                        c1 = fetch(temporary_position)
 
                         if (.not. quoted) then
                             select case (syntax_multibyte(c1, multibyte_symbol_p, from - 1))
@@ -1281,11 +1290,11 @@ contains
                     if (code == SMATH) then
                         if (.not. expression_flag) cycle backward
 
-                        if (from > buffers(current)%begv) then
-                            temp_pos = dec_bytepos(from_byte)
+                        if (from > buffers(current)%beginning_of_accessible_portion) then
+                            temporary_position = dec_byte_position(from_byte)
 
                             if (from /= stop) then
-                                if (c == fetch(temp_pos)) call dec_both(from, from_byte)
+                                if (c == fetch(temporary_position)) call dec_both(from, from_byte)
                             end if
                         end if
 
@@ -1317,21 +1326,21 @@ contains
                             exit backward
                         end if
 
-                        if (depth < min_depth) then
+                        if (depth < minimum_depth) then
                             call scan_error(status, "Containing expression ends prematurely", last_good, from)
                             return
                         end if
                     end if
                 case (SENDCOMMENT)
                     if (.not. parse_expression_ignore_comments%value) cycle backward
-                    found = back_comment(from, from_byte, stop, comnested, comstyle, out_charpos, out_bytepos)
+                    found = back_comment(from, from_byte, stop, comnested, comstyle, out_character_position, out_byte_position)
 
                     ! If not found, it really wasn't a comment-end.  For
                     ! single-char Sendcomment, we can't do much about it
                     ! apart from skipping the char.
                     if (found) then
-                        from = out_charpos
-                        from_byte = out_bytepos
+                        from = out_character_position
+                        from_byte = out_byte_position
                     end if
                 case (SCOMMENT_FENCE, SSTRING_FENCE)
                     do
@@ -1342,7 +1351,7 @@ contains
 
                         call dec_both(from, from_byte)
 
-                        if (.not. char_quoted_at(from)) then
+                        if (.not. character_quoted_at(from)) then
                             c = fetch(from_byte)
                             if (syntax_multibyte(c, multibyte_symbol_p, from) == code) exit
                         end if
@@ -1363,7 +1372,7 @@ contains
 
                         call dec_both(from, from_byte)
 
-                        if (.not. char_quoted_at(from)) then
+                        if (.not. character_quoted_at(from)) then
                             c = fetch(from_byte)
                             if (c == stringterm .and. syntax_multibyte(c, multibyte_symbol_p, from) == SSTRING) exit
                         end if
@@ -1389,22 +1398,22 @@ contains
             count = count + 1
         end do
 
-        pos = from
+        position = from
 
     contains
 
         recursive subroutine lose()
-            pos = 0
+            position = 0
             call scan_error(status, "Unbalanced parentheses", last_good, from)
         end subroutine lose
     end function scan_groups_1
 
     module procedure scan_groups
-    pos = scan_groups_1(from, count, depth, .false., status)
+    position = scan_groups_1(from, count, depth, .false., status)
     end procedure scan_groups
 
     module procedure scan_expressions
-    pos = scan_groups_1(from, count, 0_int64, .true., status)
+    position = scan_groups_1(from, count, 0_int64, .true., status)
     end procedure scan_expressions
 
     ! ------------------------------------------------------------------
@@ -1412,30 +1421,30 @@ contains
     ! ------------------------------------------------------------------
 
     !> If the character at FROM_BYTE is the second part of a 2-character
-    !> comment opener based on PREV_FROM_SYNTAX, update STATE and return
+    !> comment opener based on PREVIOUS_FROM_SYNTAX, update STATE and return
     !> true.  Port of syntax.c:in_2char_comment_start.
-    recursive logical function in_2char_comment_start(state, prev_from_syntax, prev_from, from_byte)
+    recursive logical function in_2char_comment_start(state, previous_from_syntax, previous_from, from_byte)
         type(lisp_parse_state_type), intent(inout) :: state
-        integer, intent(in) :: prev_from_syntax
-        integer(int64), intent(in) :: prev_from, from_byte
+        integer, intent(in) :: previous_from_syntax
+        integer(int64), intent(in) :: previous_from, from_byte
         integer :: syntax
 
         in_2char_comment_start = .false.
-        if (.not. btest(prev_from_syntax, SYNTAX_FLAG_COMSTART_FIRST)) return
-        syntax = swf_at(fetch(from_byte), prev_from + 1)
+        if (.not. btest(previous_from_syntax, SYNTAX_FLAG_COMSTART_FIRST)) return
+        syntax = swf_at(fetch(from_byte), previous_from + 1)
         if (.not. btest(syntax, SYNTAX_FLAG_COMSTART_SECOND)) return
         ! Record the comment style we have entered so that only the
         ! comment-end sequence of the same style actually terminates the
         ! comment section.
-        state%comstyle = comment_style(syntax, prev_from_syntax)
+        state%comstyle = comment_style(syntax, previous_from_syntax)
 
-        if (btest(prev_from_syntax, SYNTAX_FLAG_COMMENT_NESTED) .or. btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)) then
+        if (btest(previous_from_syntax, SYNTAX_FLAG_COMMENT_NESTED) .or. btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)) then
             state%incomment = 1
         else
             state%incomment = -1
         end if
 
-        state%comstr_start = prev_from
+        state%comstr_start = previous_from
         in_2char_comment_start = .true.
     end function in_2char_comment_start
 
@@ -1452,10 +1461,11 @@ contains
         integer, intent(in) :: commentstop
         !> The levels: the start of the last expression seen at each (last) and
         !> of the one before (prev).
-        integer(int64) :: level_last(100), level_prev(100)
-        integer :: curlevel, code, prev_from_syntax, prev_prev_from_syntax, step, c, c_code, symchar, k, &
+        integer(int64) :: level_last(100), level_previous(100)
+        integer :: curlevel, code, previous_from_syntax, previous_previous_from_syntax, step, c, c_code, symchar, k, &
                    last_syntax
-        integer(int64) :: from, from_byte, depth, mindepth, prev_from, prev_from_byte, out_charpos, out_bytepos, &
+        integer(int64) :: from, from_byte, depth, mindepth, previous_from, previous_from_byte, out_character_position, &
+                          out_byte_position, &
                           incomment
         logical :: start_quoted, boundary_stop, nofence, found
 
@@ -1464,15 +1474,15 @@ contains
         boundary_stop = commentstop == -1
         nofence = .true.
         ! Keep one character before FROM.
-        prev_from = from
-        prev_from_byte = from_byte
-        if (from /= buffers(current)%begv) call dec_both(prev_from, prev_from_byte)
+        previous_from = from
+        previous_from_byte = from_byte
+        if (from /= buffers(current)%beginning_of_accessible_portion) call dec_both(previous_from, previous_from_byte)
         depth = state%depth
         start_quoted = state%quoted
-        prev_prev_from_syntax = SMAX
-        prev_from_syntax = state%prev_syntax
+        previous_previous_from_syntax = SMAX
+        previous_from_syntax = state%previous_syntax
         level_last = -1
-        level_prev = -1
+        level_previous = -1
         curlevel = 1
 
         ! >= second enclosing expressions.
@@ -1482,12 +1492,12 @@ contains
                 curlevel = curlevel + 1
                 ! error ("Nesting too deep for parser")
                 if (curlevel > 100) curlevel = 100
-                level_prev(curlevel) = -1
+                level_previous(curlevel) = -1
                 level_last(curlevel) = -1
             end do
         end if
 
-        level_prev(curlevel) = -1
+        level_previous(curlevel) = -1
         level_last(curlevel) = -1
         state%quoted = .false.
         mindepth = depth
@@ -1507,10 +1517,10 @@ contains
         else if (start_quoted) then
             step = L_STARTQUOTED
         else if (from < end) then
-            if (in_2char_comment_start(state, prev_from_syntax, prev_from, from_byte)) then
+            if (in_2char_comment_start(state, previous_from_syntax, previous_from, from_byte)) then
                 call inc_from()
                 ! The syntax has already been "used up".
-                prev_from_syntax = SMAX
+                previous_from_syntax = SMAX
                 step = L_ATCOMMENT
             end if
         end if
@@ -1526,17 +1536,17 @@ contains
                 call inc_from()
 
                 if (from < end) then
-                    if (in_2char_comment_start(state, prev_from_syntax, prev_from, from_byte)) then
+                    if (in_2char_comment_start(state, previous_from_syntax, previous_from, from_byte)) then
                         call inc_from()
                         ! The syntax has already been "used up".
-                        prev_from_syntax = SMAX
+                        previous_from_syntax = SMAX
                         step = L_ATCOMMENT
                         cycle
                     end if
                 end if
 
-                if (btest(prev_from_syntax, SYNTAX_FLAG_PREFIX)) cycle
-                code = iand(prev_from_syntax, 255)
+                if (btest(previous_from_syntax, SYNTAX_FLAG_PREFIX)) cycle
+                code = iand(previous_from_syntax, 255)
 
                 select case (code)
                 case (SESCAPE, SCHARQUOTE)
@@ -1544,14 +1554,14 @@ contains
                     if (stopbefore) then
                         step = L_STOP
                     else
-                        level_last(curlevel) = prev_from
+                        level_last(curlevel) = previous_from
                         step = L_STARTQUOTED
                     end if
                 case (SWORD, SSYMBOL)
                     if (stopbefore) then
                         step = L_STOP
                     else
-                        level_last(curlevel) = prev_from
+                        level_last(curlevel) = previous_from
                         step = L_SYMSTARTED
                     end if
                 case (SCOMMENT_FENCE)
@@ -1560,29 +1570,29 @@ contains
                     ! terminates the comment section.
                     state%comstyle = ST_COMMENT_STYLE
                     state%incomment = -1
-                    state%comstr_start = prev_from
+                    state%comstr_start = previous_from
                     step = L_ATCOMMENT
                 case (SCOMMENT)
-                    state%comstyle = comment_style(prev_from_syntax, 0)
+                    state%comstyle = comment_style(previous_from_syntax, 0)
 
-                    if (btest(prev_from_syntax, SYNTAX_FLAG_COMMENT_NESTED)) then
+                    if (btest(previous_from_syntax, SYNTAX_FLAG_COMMENT_NESTED)) then
                         state%incomment = 1
                     else
                         state%incomment = -1
                     end if
 
-                    state%comstr_start = prev_from
+                    state%comstr_start = previous_from
                     step = L_ATCOMMENT
                 case (SOPEN)
                     if (stopbefore) then
                         step = L_STOP
                     else
                         depth = depth + 1
-                        level_last(curlevel) = prev_from
+                        level_last(curlevel) = previous_from
                         curlevel = curlevel + 1
                         ! error ("Nesting too deep for parser")
                         if (curlevel > 100) curlevel = 100
-                        level_prev(curlevel) = -1
+                        level_previous(curlevel) = -1
                         level_last(curlevel) = -1
                         if (targetdepth == depth) step = L_DONE
                     end if
@@ -1590,7 +1600,7 @@ contains
                     depth = depth - 1
                     if (depth < mindepth) mindepth = depth
                     if (curlevel /= 1) curlevel = curlevel - 1
-                    level_prev(curlevel) = level_last(curlevel)
+                    level_previous(curlevel) = level_last(curlevel)
                     if (targetdepth == depth) step = L_DONE
                 case (SSTRING, SSTRING_FENCE)
                     state%comstr_start = from - 1
@@ -1598,10 +1608,10 @@ contains
                     if (stopbefore) then
                         step = L_STOP
                     else
-                        level_last(curlevel) = prev_from
+                        level_last(curlevel) = previous_from
 
                         if (code == SSTRING) then
-                            state%instring = fetch(prev_from_byte)
+                            state%instring = fetch(previous_from_byte)
                         else
                             state%instring = ST_STRING_STYLE
                         end if
@@ -1628,17 +1638,17 @@ contains
                 step = L_LOOP
 
                 do while (from < end)
-                    if (in_2char_comment_start(state, prev_from_syntax, prev_from, from_byte)) then
+                    if (in_2char_comment_start(state, previous_from_syntax, previous_from, from_byte)) then
                         call inc_from()
                         ! The syntax has already been "used up".
-                        prev_from_syntax = SMAX
+                        previous_from_syntax = SMAX
                         step = L_ATCOMMENT
                         exit
                     end if
 
                     symchar = fetch(from_byte)
 
-                    select case (syn_at(symchar, from))
+                    select case (syntax_at(symchar, from))
                     case (SCHARQUOTE, SESCAPE)
                         call inc_from()
 
@@ -1656,7 +1666,7 @@ contains
                 end do
 
                 ! symdone:
-                if (step == L_LOOP) level_prev(curlevel) = level_last(curlevel)
+                if (step == L_LOOP) level_previous(curlevel) = level_last(curlevel)
             case (L_ATCOMMENT)
                 if (commentstop /= 0 .or. boundary_stop) then
                     step = L_DONE
@@ -1664,24 +1674,25 @@ contains
                     step = L_STARTINCOMMENT
                 end if
             case (L_STARTINCOMMENT)
-                ! The (from == BEGV) test was to enter the loop in the middle
+                ! The (from == BEGINNING_OF_ACCESSIBLE_PORTION) test was to enter the loop in the middle
                 ! so that we find a 2-char comment ender even if we start in
                 ! the middle of it.  We don't want to do that if we're just
                 ! at the beginning of the comment (think of (*) ... (*)).
                 found = forw_comment(from, from_byte, end, state%incomment, state%comstyle, &
-                                     merge(0, prev_from_syntax, from == buffers(current)%begv), out_charpos, &
-                                     out_bytepos, incomment, last_syntax)
+                                     merge(0, previous_from_syntax, from == buffers(current)%beginning_of_accessible_portion), &
+                                     out_character_position, &
+                                     out_byte_position, incomment, last_syntax)
                 state%incomment = incomment
-                prev_from_syntax = last_syntax
-                from = out_charpos
-                from_byte = out_bytepos
+                previous_from_syntax = last_syntax
+                from = out_character_position
+                from_byte = out_byte_position
 
-                ! Beware!  prev_from and friends (except prev_from_syntax)
+                ! Beware!  previous_from and friends (except previous_from_syntax)
                 ! are invalid now.  Luckily, the `done' doesn't use them and
                 ! the INC_FROM sets them to a sane value without looking at
                 ! them.
                 if (.not. found) then
-                    if (iand(prev_from_syntax, 255) == SESCAPE .or. iand(prev_from_syntax, 255) == SCHARQUOTE) then
+                    if (iand(previous_from_syntax, 255) == SESCAPE .or. iand(previous_from_syntax, 255) == SCHARQUOTE) then
                         step = L_ENDQUOTED
                     else
                         step = L_DONE
@@ -1695,7 +1706,7 @@ contains
                 ! Reset the comment style.
                 state%comstyle = 0
                 ! For the comment closer.
-                prev_from_syntax = SMAX
+                previous_from_syntax = SMAX
 
                 if (boundary_stop) then
                     step = L_DONE
@@ -1723,7 +1734,7 @@ contains
                     end if
 
                     c = fetch(from_byte)
-                    c_code = syn_at(c, from)
+                    c_code = syntax_at(c, from)
                     ! Check C_CODE here so that if the char has a
                     ! syntax-table property which says it is NOT a string
                     ! character, it does not end the string.
@@ -1750,7 +1761,7 @@ contains
                 if (step == L_LOOP) then
                     ! string_end:
                     state%instring = -1
-                    level_prev(curlevel) = level_last(curlevel)
+                    level_previous(curlevel) = level_last(curlevel)
                     call inc_from()
                     if (boundary_stop) step = L_DONE
                 end if
@@ -1758,9 +1769,9 @@ contains
                 ! Here if stopping before start of expression.  We have just
                 ! fetched the char that starts it; but return the position
                 ! before it.
-                from = prev_from
-                from_byte = prev_from_byte
-                prev_from_syntax = prev_prev_from_syntax
+                from = previous_from
+                from_byte = previous_from_byte
+                previous_from_syntax = previous_previous_from_syntax
                 step = L_DONE
             case (L_ENDQUOTED)
                 state%quoted = .true.
@@ -1773,30 +1784,30 @@ contains
         ! done:
         state%depth = depth
         state%mindepth = mindepth
-        state%thislevelstart = level_prev(curlevel)
+        state%thislevelstart = level_previous(curlevel)
         state%prevlevelstart = -1
         if (curlevel > 1) state%prevlevelstart = level_last(curlevel - 1)
         state%location = from
         state%location_byte = from_byte
         state%levelstarts = level_last(1:curlevel - 1)
 
-        if (comstartend_first(prev_from_syntax) .or. state%quoted) then
-            state%prev_syntax = prev_from_syntax
+        if (comstartend_first(previous_from_syntax) .or. state%quoted) then
+            state%previous_syntax = previous_from_syntax
         else
-            state%prev_syntax = SMAX
+            state%previous_syntax = SMAX
         end if
 
     contains
 
         !> INC_FROM: use this instead of `from++'.
         recursive subroutine inc_from()
-            integer :: temp
+            integer :: temporary
 
-            prev_from = from
-            prev_from_byte = from_byte
-            temp = fetch(prev_from_byte)
-            prev_prev_from_syntax = prev_from_syntax
-            prev_from_syntax = swf_at(temp, prev_from)
+            previous_from = from
+            previous_from_byte = from_byte
+            temporary = fetch(previous_from_byte)
+            previous_previous_from_syntax = previous_from_syntax
+            previous_from_syntax = swf_at(temporary, previous_from)
             call inc_both(from, from_byte)
         end subroutine inc_from
     end subroutine scan_expressions_forward
@@ -1819,7 +1830,7 @@ contains
             state%comstyle = 0
             ! No comment/string seen.
             state%comstr_start = -1
-            state%prev_syntax = SMAX
+            state%previous_syntax = SMAX
             return
         end if
 
@@ -1828,7 +1839,7 @@ contains
         ! Check whether we are inside string_fence-style string.
         if (external%instring < 0) then
             state%instring = -1
-        else if (external%instring <= MAX_CHAR) then
+        else if (external%instring <= MAXIMUM_CHARACTER) then
             state%instring = external%instring
         else
             state%instring = ST_STRING_STYLE
@@ -1847,9 +1858,9 @@ contains
 
         state%comstr_start = -1
         if (external%comstr_start /= 0) state%comstr_start = external%comstr_start
-        if (allocated(external%open_parens)) state%levelstarts = external%open_parens
-        state%prev_syntax = SMAX
-        if (external%prev_syntax /= -1) state%prev_syntax = external%prev_syntax
+        if (allocated(external%open_parentheses)) state%levelstarts = external%open_parentheses
+        state%previous_syntax = SMAX
+        if (external%previous_syntax /= -1) state%previous_syntax = external%previous_syntax
     end subroutine internalize_parse_state
 
     module procedure parse_partial_expression
@@ -1863,10 +1874,10 @@ contains
     stop_at_comments = COMMENTSTOP_NO
     if (present(commentstop)) stop_at_comments = commentstop
     status = status_type()
-    allocate (state%open_parens(0))
+    allocate (state%open_parentheses(0))
 
     if (to < from) then
-        call set_error(status, FM_GENERIC_ERROR, "End position is smaller than start position")
+        call set_error(status, GENERIC_ERROR_CODE, "End position is smaller than start position")
         return
     end if
 
@@ -1877,12 +1888,12 @@ contains
     call internalize_parse_state(st, oldstate)
 
     if (present(stopbefore)) then
-        call scan_expressions_forward(st, f, char_to_byte(f), t, target, stopbefore, stop_at_comments)
+        call scan_expressions_forward(st, f, character_to_byte(f), t, target, stopbefore, stop_at_comments)
     else
-        call scan_expressions_forward(st, f, char_to_byte(f), t, target, .false., stop_at_comments)
+        call scan_expressions_forward(st, f, character_to_byte(f), t, target, .false., stop_at_comments)
     end if
 
-    call set_pt_both(st%location, st%location_byte)
+    call set_point_both(st%location, st%location_byte)
     state%depth = st%depth
     state%innermost_start = max(0_int64, st%prevlevelstart)
     state%last_expression_start = max(0_int64, st%thislevelstart)
@@ -1893,23 +1904,23 @@ contains
     state%comment_style = st%comstyle
     state%comstr_start = 0
     if (st%incomment /= 0 .or. st%instring >= 0) state%comstr_start = st%comstr_start
-    state%open_parens = st%levelstarts
-    state%prev_syntax = -1
-    if (st%prev_syntax /= SMAX) state%prev_syntax = st%prev_syntax
+    state%open_parentheses = st%levelstarts
+    state%previous_syntax = -1
+    if (st%previous_syntax /= SMAX) state%previous_syntax = st%previous_syntax
     end procedure parse_partial_expression
 
-    module procedure syntax_ppss
+    module procedure syntax_parser_state
     type(status_type) :: status
 
-    if (associated(syntax_ppss_function)) then
-        call syntax_ppss_function(state, pos)
+    if (associated(syntax_parser_state_function)) then
+        call syntax_parser_state_function(state, position)
         return
     end if
 
-    if (present(pos)) then
-        call parse_partial_expression(buffers(current)%begv, pos, state, status)
+    if (present(position)) then
+        call parse_partial_expression(buffers(current)%beginning_of_accessible_portion, position, state, status)
     else
-        call parse_partial_expression(buffers(current)%begv, buffers(current)%pt, state, status)
+        call parse_partial_expression(buffers(current)%beginning_of_accessible_portion, buffers(current)%point, state, status)
     end if
-    end procedure syntax_ppss
+    end procedure syntax_parser_state
 end submodule syntax_scan_mod

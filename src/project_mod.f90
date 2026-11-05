@@ -42,17 +42,18 @@
 module project_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_error, condition_matches, FM_USER_ERROR, FM_GENERIC_ERROR, &
-                         FM_PERMISSION_DENIED
+    use error_mod, only: status_type, set_error, format_error, condition_matches, USER_ERROR_CODE, GENERIC_ERROR_CODE, &
+                         PERMISSION_DENIED_CODE
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, make_list, make_keymap_ref, command_type, vtag, V_STRING
+    use value_mod, only: value_type, make_list, make_keymap_reference, command_type, vtag, V_STRING
     use data_mod, only: string_setting_type, forward_setting, history_setting_type, find_history
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, generate_new_buffer_name, &
                           close_buffer, is_buffer_live, get_buffer, buffer_list, buffer_serial_live
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string, buffer_substring_no_properties
     use utility_functions_mod, only: count_characters, read_yes_or_no, is_string_less
-    use search_mod, only: string_match, re_search_forward, SEARCH_NOERROR, match_beginning, match_end, regexp_quote
+    use search_mod, only: string_match, regular_expression_search_forward, SEARCH_NOERROR, match_beginning, match_end, &
+                          regular_expression_quote
     use basic_subprograms_mod, only: shell_quote_argument, match_string, bounds_of_identifier_at_point, version_type, version, &
                                      operator(<=)
     use string_type_mod, only: string_type, append_string
@@ -60,30 +61,30 @@ module project_mod
                                      file_name_nondirectory, is_file_directory, file_exists, is_file_name_absolute, &
                                      is_directory_name, insert_file_contents, write_region, is_file_regular
     use files_mod, only: abbreviate_file_name, file_relative_name, is_file_in_directory, is_file_equal, &
-                         wildcard_to_regexp, find_file, create_directory, locate_dominating_file, &
-                         locate_dominating_stop_dir_regexp, save_some_buffers
+                         wildcard_to_regular_expression, find_file, create_directory, locate_dominating_file, &
+                         locate_dominating_stop_directory_regular_expression, save_some_buffers
     use configuration_mod, only: state_directory
     use system_dependent_mod, only: fortmacs_directory_entries
     use keymap_mod, only: make_sparse_keymap, keymap_set, define_key, set_keymap_parent, lookup_key, &
                           key_description, current_global_map, where_is_internal, overriding_terminal_local_map
     use keyboard_mod, only: read_key_sequence
-    use execute_interactively_mod, only: execute_interactively, current_prefix_arg, prefix_numeric_value, command_of, PREFIX_NONE, &
-                                         PREFIX_NUMBER
+    use execute_interactively_mod, only: execute_interactively, current_prefix_argument, prefix_numeric_value, command_of, &
+                                         PREFIX_NONE, PREFIX_NUMBER
     use minibuffer_reading_tables_mod, only: completion_table_type, completion_list_table
     use minibuffer_reading_mod, only: try_completion, minibuffer_default, completion_ignore_case, &
                                       minibuffer_setup_function
     use minibuffer_mod, only: completing_read, read_directory_name, read_file_name, read_file_name_completion_ignore_case, &
                               REQUIRE_MATCH_YES, REQUIRE_MATCH_CONFIRM, read_buffer_completion_ignore_case
-    use replace_mod, only: format_prompt, read_regexp
+    use replace_mod, only: format_prompt, read_regular_expression
     use display_engine_mod, only: message
     use window_mod, only: switch_to_buffer, display_buffer, pop_to_buffer_same_window, other_buffer
     use derived_mod, only: provided_mode_derived_p
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, NAMELIST_STRING
-    use version_control_hooks_mod, only: vc_handled_backends, vc_directory_exclusions, vc_ignore_dir_regexp, &
+    use version_control_hooks_mod, only: vc_handled_backends, vc_directory_exclusions, vc_ignore_directory_regular_expression, &
                                          vc_backends, vc_backend_named
     use version_control_mod, only: vc_responsible_backend
     use version_control_git_mod, only: vc_git_command, vc_git_program_version, vc_git_root, vc_git_use_literal_pathspecs
-    use version_control_directory_mod, only: vc_dir
+    use version_control_directory_mod, only: vc_directory
     use directory_editor_mode_mod, only: dired
     use shell_mod, only: shell
     use command_interpreter_mod, only: comint_check_process
@@ -94,11 +95,11 @@ module project_mod
     implicit none(type, external)
     private
 
-    public :: init_project, get_current_project, find_project_in_directory, try_vc_project, &
+    public :: initialize_project, get_current_project, find_project_in_directory, try_vc_project, &
               combine_project_directories, subtract_project_directories, remember_project, forget_project, &
-              known_project_roots, read_project_dir, read_project_name, read_project, project_prefixed_buffer_name, &
+              known_project_roots, read_project_directory, read_project_name, read_project, project_prefixed_buffer_name, &
               find_file_in_project, find_file_in_project_root, find_project_file, find_project_or_external_file, &
-              find_project_dir, dired_in_project, vc_dir_in_project, shell_in_project, compile_in_project, &
+              find_project_directory, dired_in_project, vc_directory_in_project, shell_in_project, compile_in_project, &
               recompile_in_project, shell_command_in_project, async_shell_command_in_project, &
               execute_extended_command_in_project, execute_any_command_in_project, &
               execute_prefix_or_any_command_in_project, switch_to_project_buffer, display_project_buffer, &
@@ -106,10 +107,10 @@ module project_mod
               save_some_project_buffers, switch_project, remember_projects_under, forget_zombie_projects, &
               forget_projects_under, is_local_project, read_project_file_relative, read_project_file_absolute, &
               project_clear_cache, project_files_in_directory, project_vc_ignores_of, vc_git_project_list_files, &
-              is_project_buffer_matching, project_buffers_to_close, find_project_regexp, &
-              find_project_or_external_regexp, read_project_regexp
+              is_project_buffer_matching, project_buffers_to_close, find_project_regular_expression, &
+              find_project_or_external_regular_expression, read_project_regular_expression
     public :: project_and, project_or, project_not, project_major_mode, project_derived_mode, &
-              project_buffer_name_regexp, project_buffer_test
+              project_buffer_name_regular_expression, project_buffer_test
 
     !> A project: what the procedures of `project_find_functions' give.  A
     !> backend extends it and overrides `root' (required) and any of the
@@ -130,12 +131,12 @@ module project_mod
         !> A human-readable name for the project.  Nominally unique, but not
         !> enforced.
         procedure :: name => project_name
-        !> The glob patterns to ignore inside DIR.  Patterns can match both
+        !> The glob patterns to ignore inside DIRECTORY.  Patterns can match both
         !> regular files and directories.  To root an entry, start it with
-        !> "./".  To match directories only, end it with "/".  DIR must be
+        !> "./".  To match directories only, end it with "/".  DIRECTORY must be
         !> either the root or one of the external roots.
         procedure :: ignores => project_ignores
-        !> The files in the directories DIRS (absolute directories: some of
+        !> The files in the directories DIRECTORIES (absolute directories: some of
         !> the project roots or external roots or subdirectories of those;
         !> the root when absent).  The default uses `find_program', with the
         !> ignores of each directory.
@@ -156,30 +157,30 @@ module project_mod
         end function project_root_procedure
 
         !> A procedure of `project_find_functions': the project containing
-        !> DIR, or PROJECT unallocated when the procedure does not apply.
+        !> DIRECTORY, or PROJECT unallocated when the procedure does not apply.
         !> Not a port.
-        recursive subroutine project_find_procedure(dir, project, status)
+        recursive subroutine project_find_procedure(directory, project, status)
             import :: project_type, status_type
             implicit none(type, external)
-            character(len=*), intent(in) :: dir
+            character(len=*), intent(in) :: directory
             class(project_type), allocatable, intent(out) :: project
             type(status_type), intent(out) :: status
         end subroutine project_find_procedure
 
-        !> The test a prompter applies to a project root DIR: whether the
+        !> The test a prompter applies to a project root DIRECTORY: whether the
         !> user may select it.  Not a port.
-        logical function project_root_test_procedure(dir)
+        logical function project_root_test_procedure(directory)
             implicit none(type, external)
-            character(len=*), intent(in) :: dir
+            character(len=*), intent(in) :: directory
         end function project_root_test_procedure
 
-        !> `project_prompter': read a project root directory DIR, with
+        !> `project_prompter': read a project root directory DIRECTORY, with
         !> PROMPT, offering only the roots TEST accepts, and only known
         !> projects with REQUIRE_KNOWN.  Not a port.
-        recursive subroutine project_prompter_procedure(dir, status, prompt, test, require_known)
+        recursive subroutine project_prompter_procedure(directory, status, prompt, test, require_known)
             import :: status_type, project_root_test_procedure
             implicit none(type, external)
-            character(len=:), allocatable, intent(out) :: dir
+            character(len=:), allocatable, intent(out) :: directory
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: prompt
             procedure(project_root_test_procedure), optional :: test
@@ -244,7 +245,7 @@ module project_mod
     !> including all the files under the directory except for those that
     !> match entries in `vc_directory_exclusions' or
     !> `grep_find_ignored_files_variable'.  Port of project.el's (transient
-    !> . DIR) instance.
+    !> . DIRECTORY) instance.
     type, extends(project_type), public :: transient_project_type
         !> The root directory.
         character(len=:), allocatable :: directory
@@ -286,7 +287,7 @@ module project_mod
         procedure :: remove => project_find_hook_remove
         !> Remove all the procedures.
         procedure :: clear => project_find_hook_clear
-        !> Call the procedures with DIR until one gives a project
+        !> Call the procedures with DIRECTORY until one gives a project
         !> (run-hook-with-args-until-success).
         procedure :: execute => project_find_hook_execute
     end type project_find_hook_type
@@ -298,10 +299,10 @@ module project_mod
         character(len=16) :: marker = ""
     end type project_vc_backend_marker_type
 
-    !> An element of `project_list_exclude': a project root REGEXP (""
+    !> An element of `project_list_exclude': a project root REGULAR_EXPRESSION (""
     !> for none), or a TEST of the project.
     type, public :: project_list_exclude_type
-        character(len=256) :: regexp = ""
+        character(len=256) :: regular_expression = ""
         procedure(project_test_procedure), pointer, nopass :: test => null()
     end type project_list_exclude_type
 
@@ -319,7 +320,7 @@ module project_mod
         integer :: count = 0
     end type project_condition_node_type
 
-    !> A condition on a buffer, made with `project_buffer_name_regexp',
+    !> A condition on a buffer, made with `project_buffer_name_regular_expression',
     !> `project_buffer_test', `project_major_mode', `project_derived_mode',
     !> `project_not', `project_and' and `project_or': its nodes in prefix
     !> order (the tree flattened).
@@ -482,7 +483,7 @@ module project_mod
     !> If true, `list_files' is allowed to return relative file names.
     !> The file names should be relative to the project root.  And this
     !> can only happen when all returned files are in the same directory.
-    !> In other words, the DIRS argument of `list_files' has to be absent
+    !> In other words, the DIRECTORIES argument of `list_files' has to be absent
     !> or a list of only one element.  Port of project.el
     !> project-files-relative-names.
     logical, public :: project_files_relative_names = .false.
@@ -519,7 +520,7 @@ module project_mod
     !> This list is used by `close_project_buffers'.
     !> Each condition is either:
     !> - a regular expression, to match a buffer name
-    !>   (`project_buffer_name_regexp'),
+    !>   (`project_buffer_name_regular_expression'),
     !> - a logical function that takes a buffer as argument and returns
     !>   .true. if the buffer should be closed (`project_buffer_test'),
     !> - `project_major_mode': the buffer is closed if the buffer's major
@@ -567,8 +568,8 @@ module project_mod
     !> Keymap for project commands.  Port of project.el project-prefix-map.
     type(handle_type), public :: project_prefix_map
 
-    !> The history of `read_project_dir' (upstream's project--dir-history).
-    type(history_setting_type), target, public :: project_dir_history = history_setting_type(name="project_dir_history")
+    !> The history of `read_project_directory' (upstream's project--dir-history).
+    type(history_setting_type), target, public :: project_directory_history = history_setting_type(name="project_directory_history")
 
     !> The history of `read_project_name' (upstream's
     !> project--name-history).
@@ -591,7 +592,7 @@ module project_mod
     ! file property): whether a project was FOUND, the PROJECT, and the
     ! clock COUNT when it was cached.
     type :: vc_cache_entry_type
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         logical :: found = .false.
         type(vc_project_type) :: project
         integer(int64) :: count = 0
@@ -601,7 +602,7 @@ module project_mod
 
     ! The markers' regexps and the matches of the last directory looked
     ! at by `try_vc_search'.
-    type(string_type), allocatable :: marker_regexps(:)
+    type(string_type), allocatable :: marker_regular_expressions(:)
     type(string_type), allocatable :: last_matches(:)
     ! The status of the last expansion in `has_marker', checked by
     ! `try_vc_search' after the search.
@@ -623,10 +624,10 @@ module project_mod
     type(string_type), allocatable :: pending_defaults(:)
 
     ! The "Select a directory" choice of the prompters.
-    character(len=*), parameter :: DIR_CHOICE = "... (choose a dir)"
+    character(len=*), parameter :: DIRECTORY_CHOICE = "... (choose a dir)"
 
     interface
-        !> Find all matches for REGEXP in the current project's roots.
+        !> Find all matches for REGULAR_EXPRESSION in the current project's roots.
         !> With \[universal_argument] prefix, you can specify the directory
         !> to search in, and the file name pattern to search for.  The
         !> pattern may use abbreviations defined in `grep_files_aliases',
@@ -634,19 +635,19 @@ module project_mod
         !> triggers completion when entering a pattern, including it
         !> requires quoting, e.g. `\[quoted_insert]<space>'.  Port of
         !> project.el:project-find-regexp.
-        recursive module subroutine find_project_regexp(regexp, status)
+        recursive module subroutine find_project_regular_expression(regular_expression, status)
             implicit none(type, external)
-            character(len=*), intent(in) :: regexp
+            character(len=*), intent(in) :: regular_expression
             type(status_type), intent(out) :: status
-        end subroutine find_project_regexp
+        end subroutine find_project_regular_expression
 
-        !> Find all matches for REGEXP in the project roots or external
+        !> Find all matches for REGULAR_EXPRESSION in the project roots or external
         !> roots.  Port of project.el:project-or-external-find-regexp.
-        recursive module subroutine find_project_or_external_regexp(regexp, status)
+        recursive module subroutine find_project_or_external_regular_expression(regular_expression, status)
             implicit none(type, external)
-            character(len=*), intent(in) :: regexp
+            character(len=*), intent(in) :: regular_expression
             type(status_type), intent(out) :: status
-        end subroutine find_project_or_external_regexp
+        end subroutine find_project_or_external_regular_expression
     end interface
 
 contains
@@ -673,16 +674,16 @@ contains
     function string_list(list) result(v)
         type(string_type), intent(in) :: list(:)
         type(value_type) :: v
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
-        allocate (elems(size(list)))
+        allocate (elements(size(list)))
 
         do k = 1, size(list)
-            elems(k) = value_type(text=list(k)%text)
+            elements(k) = value_type(text=list(k)%text)
         end do
 
-        v = make_list(elems)
+        v = make_list(elements)
     end function string_list
 
     !> Whether LIST holds TEXT.  Not a port.
@@ -706,7 +707,7 @@ contains
         type(string_type), intent(inout) :: list(:)
         integer, allocatable :: order(:), scratch(:)
         type(string_type), allocatable :: sorted(:)
-        integer :: n, width, lo, mid, hi, i, j, k
+        integer :: n, width, lo, middle, hi, i, j, k
 
         n = size(list)
         if (n < 2) return
@@ -718,13 +719,13 @@ contains
             lo = 1
 
             do while (lo <= n)
-                mid = min(lo + width - 1, n)
+                middle = min(lo + width - 1, n)
                 hi = min(lo + 2*width - 1, n)
                 i = lo
-                j = mid + 1
+                j = middle + 1
                 k = lo
 
-                do while (i <= mid .and. j <= hi)
+                do while (i <= middle .and. j <= hi)
                     if (is_string_less(list(order(j))%text, list(order(i))%text)) then
                         scratch(k) = order(j)
                         j = j + 1
@@ -736,7 +737,7 @@ contains
                     k = k + 1
                 end do
 
-                do while (i <= mid)
+                do while (i <= middle)
                     scratch(k) = order(i)
                     i = i + 1
                     k = k + 1
@@ -776,20 +777,20 @@ contains
 
     !> The current buffer's `default_directory' ("./" for none).
     !> Not a port.
-    function default_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function default_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = "./"
+        directory = "./"
         if (current == 0) return
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
     end function default_directory
 
-    !> Make DIR the current buffer's `default_directory'.  Not a port.
-    subroutine set_default_directory(dir)
-        character(len=*), intent(in) :: dir
+    !> Make DIRECTORY the current buffer's `default_directory'.  Not a port.
+    subroutine set_default_directory(directory)
+        character(len=*), intent(in) :: directory
 
         if (current == 0) return
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
     end subroutine set_default_directory
 
     !> Whether STRING starts with PREFIX.  Not a port.
@@ -809,43 +810,43 @@ contains
     end function ends_with
 
     !> Make a fresh temporary buffer current, with the `default_directory'
-    !> DIR (with-temp-buffer); OLD is the buffer to go back to.  Not a port.
-    subroutine temp_begin(old, tmp, dir)
-        type(handle_type), intent(out) :: old, tmp
-        character(len=*), intent(in) :: dir
+    !> DIRECTORY (with-temp-buffer); OLD is the buffer to go back to.  Not a port.
+    subroutine temporary_begin(old, temporary, directory)
+        type(handle_type), intent(out) :: old, temporary
+        character(len=*), intent(in) :: directory
         type(status_type) :: st
 
         old = current_buffer()
-        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, st)
-        call set_buffer(tmp, st)
-        call set_default_directory(dir)
-    end subroutine temp_begin
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, st)
+        call set_buffer(temporary, st)
+        call set_default_directory(directory)
+    end subroutine temporary_begin
 
-    !> Close the temporary buffer TMP and make OLD current again.
+    !> Close the temporary buffer TEMPORARY and make OLD current again.
     !> Not a port.
-    subroutine temp_end(old, tmp)
-        type(handle_type), intent(in) :: old, tmp
+    subroutine temporary_end(old, temporary)
+        type(handle_type), intent(in) :: old, temporary
         type(status_type) :: st
 
-        call close_buffer(tmp, st)
+        call close_buffer(temporary, st)
         call set_buffer(old, st)
-    end subroutine temp_end
+    end subroutine temporary_end
 
     !> The text of FILE (FOUND false if it can't be read).  Not a port.
     subroutine file_text(file, text, found)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         integer(int64) :: inserted
 
         text = ""
-        call temp_begin(old, tmp, default_directory())
+        call temporary_begin(old, temporary, default_directory())
         call insert_file_contents(file, .false., inserted, st)
         found = st%ok()
         if (found) text = buffer_string()
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine file_text
 
     ! ------------------------------------------------------------------
@@ -900,9 +901,9 @@ contains
     end subroutine project_find_hook_clear
 
     ! Not a port.
-    recursive subroutine project_find_hook_execute(self, dir, project, status)
+    recursive subroutine project_find_hook_execute(self, directory, project, status)
         class(project_find_hook_type), intent(in) :: self
-        character(len=*), intent(in) :: dir
+        character(len=*), intent(in) :: directory
         class(project_type), allocatable, intent(out) :: project
         type(status_type), intent(out) :: status
         type(project_find_entry_type), allocatable :: entries(:)
@@ -914,7 +915,7 @@ contains
         entries = self%entries
 
         do k = 1, size(entries)
-            call entries(k)%fn(dir, project, status)
+            call entries(k)%fn(directory, project, status)
             if (.not. status%ok()) return
             if (allocated(project)) return
         end do
@@ -946,7 +947,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: maybe_prompt
         character(len=*), intent(in), optional :: prompt, directory
-        character(len=:), allocatable :: dir, override
+        character(len=:), allocatable :: directory_name, override
         logical :: prompting, saved_non_essential
 
         prompting = .false.
@@ -955,25 +956,25 @@ contains
         if (allocated(project_current_directory_override%value)) override = project_current_directory_override%value
 
         if (present(directory)) then
-            dir = directory
+            directory_name = directory
         else if (len(override) > 0) then
-            dir = override
+            directory_name = override
         else
-            dir = default_directory()
+            directory_name = default_directory()
         end if
 
         saved_non_essential = non_essential
         non_essential = .not. prompting
-        call find_project_in_directory(dir, project, status)
+        call find_project_in_directory(directory_name, project, status)
         non_essential = saved_non_essential
         if (.not. status%ok()) return
 
         if (.not. allocated(project) .and. len(override) == 0 .and. prompting) then
-            call execute_prompter(dir, status, prompt)
+            call execute_prompter(directory_name, status, prompt)
             if (.not. status%ok()) return
             saved_non_essential = non_essential
             non_essential = .false.
-            call find_project_in_directory(dir, project, status)
+            call find_project_in_directory(directory_name, project, status)
             non_essential = saved_non_essential
             if (.not. status%ok()) return
         end if
@@ -982,43 +983,43 @@ contains
             if (allocated(project)) then
                 call remember_project(project, status)
             else
-                call remove_from_project_list(abbreviate_file_name(dir), "Project `", "' not found; removed from list", &
+                call remove_from_project_list(abbreviate_file_name(directory_name), "Project `", "' not found; removed from list", &
                                               status)
-                allocate (project, source=transient_project_type(directory=dir))
+                allocate (project, source=transient_project_type(directory=directory_name))
             end if
         end if
     end subroutine get_current_project
 
-    !> Call `project_prompter' (`read_project_dir' when null) for DIR, with
+    !> Call `project_prompter' (`read_project_directory' when null) for DIRECTORY, with
     !> PROMPT if present.  Not a port.
-    recursive subroutine execute_prompter(dir, status, prompt, test, require_known)
-        character(len=:), allocatable, intent(out) :: dir
+    recursive subroutine execute_prompter(directory, status, prompt, test, require_known)
+        character(len=:), allocatable, intent(out) :: directory
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: prompt
         procedure(project_root_test_procedure), optional :: test
         logical, intent(in), optional :: require_known
 
         if (associated(project_prompter)) then
-            call project_prompter(dir, status, prompt, test, require_known)
+            call project_prompter(directory, status, prompt, test, require_known)
         else
-            call read_project_dir(dir, status, prompt, test, require_known)
+            call read_project_directory(directory, status, prompt, test, require_known)
         end if
     end subroutine execute_prompter
 
-    !> The project in DIR from `project_find_functions'; none when a
+    !> The project in DIRECTORY from `project_find_functions'; none when a
     !> `permission-denied' error condition occurs.  Port of
     !> project.el:project--find-in-directory.
-    recursive subroutine find_project_in_directory(dir, project, status)
-        character(len=*), intent(in) :: dir
+    recursive subroutine find_project_in_directory(directory, project, status)
+        character(len=*), intent(in) :: directory
         class(project_type), allocatable, intent(out) :: project
         type(status_type), intent(out) :: status
 
-        call project_find_functions%execute(dir, project, status)
+        call project_find_functions%execute(directory, project, status)
 
         ! Maybe we'd like to continue to the next backend instead?  Let's
         ! see if somebody ever ends up in that situation.
         if (.not. status%ok()) then
-            if (status%code == FM_PERMISSION_DENIED) then
+            if (status%code == PERMISSION_DENIED_CODE) then
                 status = status_type()
                 if (allocated(project)) deallocate (project)
             end if
@@ -1050,20 +1051,20 @@ contains
     end function project_name
 
     !> The directories of `vc_directory_exclusions' and the files of
-    !> `grep_find_ignored_files' for DIR.  Port of
+    !> `grep_find_ignored_files' for DIRECTORY.  Port of
     !> project.el:project-ignores.
-    function project_ignores(self, dir) result(ignores)
+    function project_ignores(self, directory) result(ignores)
         class(project_type), intent(in) :: self
-        character(len=*), intent(in) :: dir
+        character(len=*), intent(in) :: directory
         type(string_type), allocatable :: ignores(:)
 
-        call default_ignores(dir, ignores)
+        call default_ignores(directory, ignores)
     end function project_ignores
 
     !> The ignores of a project with no ignores of its own, as upstream
     !> gives them for no project.  Port of project.el:project-ignores.
-    subroutine default_ignores(dir, ignores)
-        character(len=*), intent(in) :: dir
+    subroutine default_ignores(directory, ignores)
+        character(len=*), intent(in) :: directory
         type(string_type), allocatable, intent(out) :: ignores(:)
         character(len=64), allocatable :: files(:)
         integer :: k
@@ -1076,48 +1077,48 @@ contains
             end do
         end if
 
-        files = grep_find_ignored_files(dir)
+        files = grep_find_ignored_files(directory)
 
         do k = 1, size(files)
             call append_string(ignores, trim(files(k)))
         end do
     end subroutine default_ignores
 
-    !> The files of PROJECT in the directories DIRS (its root when absent),
+    !> The files of PROJECT in the directories DIRECTORIES (its root when absent),
     !> listed by `find' with the ignores of each directory.  Port of
     !> project.el:project-files.
-    recursive subroutine project_list_files(self, files, status, dirs)
+    recursive subroutine project_list_files(self, files, status, directories)
         class(project_type), intent(in) :: self
         type(string_type), allocatable, intent(out) :: files(:)
         type(status_type), intent(out) :: status
-        type(string_type), intent(in), optional :: dirs(:)
+        type(string_type), intent(in), optional :: directories(:)
         type(string_type), allocatable :: roots(:), more(:), ignores(:)
         integer :: k
 
         allocate (files(0))
         status = status_type()
 
-        if (present(dirs)) then
-            roots = dirs
+        if (present(directories)) then
+            roots = directories
         else
             allocate (roots(1))
             roots(1)%text = self%root()
         end if
 
         do k = 1, size(roots)
-            call project_dir_ignores(self, roots(k)%text, ignores)
+            call project_directory_ignores(self, roots(k)%text, ignores)
             call project_files_in_directory(roots(k)%text, ignores, more, status)
             if (.not. status%ok()) return
             call append_strings(files, more)
         end do
     end subroutine project_list_files
 
-    !> The ignores of PROJECT that apply to DIR: the default ones outside
+    !> The ignores of PROJECT that apply to DIRECTORY: the default ones outside
     !> of the root, the project's own (unrooted ones only in a
     !> subdirectory).  Port of project.el:project--dir-ignores.
-    subroutine project_dir_ignores(project, dir, ignores)
+    subroutine project_directory_ignores(project, directory, ignores)
         class(project_type), intent(in) :: project
-        character(len=*), intent(in) :: dir
+        character(len=*), intent(in) :: directory
         type(string_type), allocatable, intent(out) :: ignores(:)
         type(string_type), allocatable :: all(:)
         character(len=:), allocatable :: root
@@ -1125,7 +1126,7 @@ contains
 
         root = project%root()
 
-        if (.not. is_file_in_directory(dir, root)) then
+        if (.not. is_file_in_directory(directory, root)) then
             ! The defaults.
             call default_ignores("", ignores)
             return
@@ -1133,30 +1134,30 @@ contains
 
         all = project%ignores(root)
 
-        if (is_file_equal(root, dir)) then
+        if (is_file_equal(root, directory)) then
             call move_alloc(all, ignores)
             return
         end if
 
         allocate (ignores(0))
 
-        ! FIXME: Update the "rooted" ignores to relate to DIR instead.
+        ! FIXME: Update the "rooted" ignores to relate to DIRECTORY instead.
         do k = 1, size(all)
             if (.not. starts_with(all(k)%text, "./")) call append_string(ignores, all(k)%text)
         end do
-    end subroutine project_dir_ignores
+    end subroutine project_directory_ignores
 
     !> The live buffers whose `default_directory' is under the root of
     !> PROJECT.  Port of project.el:project-buffers.
-    function project_buffers(self, status) result(bufs)
+    function project_buffers(self, status) result(buffer_handles)
         class(project_type), intent(in) :: self
         type(status_type), intent(out) :: status
-        type(handle_type), allocatable :: bufs(:)
+        type(handle_type), allocatable :: buffer_handles(:)
         type(handle_type), allocatable :: all(:)
         character(len=:), allocatable :: root, dd
         integer :: k
 
-        allocate (bufs(0))
+        allocate (buffer_handles(0))
         call expand_file_name(file_name_as_directory(self%root()), root, status)
         if (.not. status%ok()) return
         all = buffer_list()
@@ -1165,28 +1166,28 @@ contains
             if (.not. allocated(buffers(all(k)%index)%directory)) cycle
             call expand_file_name(buffers(all(k)%index)%directory, dd, status)
             if (.not. status%ok()) return
-            if (starts_with(dd, root)) bufs = [bufs, all(k)]
+            if (starts_with(dd, root)) buffer_handles = [buffer_handles, all(k)]
         end do
     end function project_buffers
 
-    !> The files under DIR (sorted, absolute unless
+    !> The files under DIRECTORY (sorted, absolute unless
     !> `project_files_relative_names'), except those IGNORES match, and
     !> only those matching the space-separated patterns FILE_PATTERNS when
     !> given; listed with `find_program'.  Port of
     !> project.el:project--files-in-directory.
-    recursive subroutine project_files_in_directory(dir, ignores, files, status, file_patterns)
-        character(len=*), intent(in) :: dir
+    recursive subroutine project_files_in_directory(directory_name, ignores, files, status, file_patterns)
+        character(len=*), intent(in) :: directory_name
         type(string_type), intent(in) :: ignores(:)
         type(string_type), allocatable, intent(out) :: files(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: file_patterns
         character(len=:), allocatable :: directory, localdir, command, names, text, program
         type(value_type) :: result
-        type(handle_type) :: old, tmp
-        integer :: code, k, pt, nul, perm, line_start
+        type(handle_type) :: old, temporary
+        integer :: code, k, point, nul, permission, line_start
 
         allocate (files(0))
-        directory = file_name_as_directory(dir)
+        directory = file_name_as_directory(directory_name)
         ! Make sure ~/ etc. in local directory name is expanded and not left
         ! for the shell command to interpret.
         call expand_file_name(directory, localdir, status)
@@ -1200,43 +1201,43 @@ contains
         program = "find"
         if (allocated(find_program)) program = find_program
         command = program//" -H . "//find_ignores_arguments(ignores, "./")//" -type f "//names//" -print0"
-        call temp_begin(old, tmp, directory)
+        call temporary_begin(old, temporary, directory)
         call execute_process_shell_command(command, result, status)
         text = buffer_string()
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
         if (.not. status%ok()) return
         code = exit_code(result)
 
         if (code /= 0) then
-            perm = index(text, "Permission denied"//achar(10))
+            permission = index(text, "Permission denied"//achar(10))
 
-            if (code /= 127 .and. perm > 0) then
+            if (code /= 127 .and. permission > 0) then
                 ! (As upstream: after the NUL before the line, or after
                 ! the first character when there is none.)
-                line_start = index(text(1:perm), achar(0), back=.true.) + 1
+                line_start = index(text(1:permission), achar(0), back=.true.) + 1
                 if (line_start == 1) line_start = 2
-                call set_error(status, FM_GENERIC_ERROR, "File listing failed: "//text(line_start:perm + 16))
+                call set_error(status, GENERIC_ERROR_CODE, "File listing failed: "//text(line_start:permission + 16))
             else
-                call set_error(status, FM_GENERIC_ERROR, "File listing failed: "//text)
+                call set_error(status, GENERIC_ERROR_CODE, "File listing failed: "//text)
             end if
 
             return
         end if
 
-        pt = 1
+        point = 1
 
         do
-            nul = index(text(pt:), achar(0))
+            nul = index(text(point:), achar(0))
             if (nul == 0) exit
-            nul = pt + nul - 1
+            nul = point + nul - 1
 
-            if (nul - 1 >= pt + 2) then
-                call append_string(files, text(pt + 2:nul - 1))
+            if (nul - 1 >= point + 2) then
+                call append_string(files, text(point + 2:nul - 1))
             else
                 call append_string(files, "")
             end if
 
-            pt = nul + 1
+            point = nul + 1
         end do
 
         call sort_strings(files)
@@ -1290,21 +1291,21 @@ contains
         if (vtag(result) == V_INTEGER) exit_code = int(xfixnum(result))
     end function exit_code
 
-    !> Convert IGNORES and DIR to a list of arguments for `find'.
-    !> IGNORES is a list of glob patterns.  DIR is an absolute directory,
+    !> Convert IGNORES and DIRECTORY to a list of arguments for `find'.
+    !> IGNORES is a list of glob patterns.  DIRECTORY is an absolute directory,
     !> used as the root of the ignore globs.  Port of
     !> xref.el:xref--find-ignores-arguments.
-    function find_ignores_arguments(ignores, dir) result(args)
+    function find_ignores_arguments(ignores, directory) result(arguments)
         type(string_type), intent(in) :: ignores(:)
-        character(len=*), intent(in) :: dir
-        character(len=:), allocatable :: args
+        character(len=*), intent(in) :: directory
+        character(len=:), allocatable :: arguments
         character(len=:), allocatable :: d, ignore
         integer :: k
 
-        args = ""
+        arguments = ""
         if (size(ignores) == 0) return
-        d = file_name_as_directory(dir)
-        args = shell_quote_argument("(")//" -path "
+        d = file_name_as_directory(directory)
+        arguments = shell_quote_argument("(")//" -path "
 
         do k = 1, size(ignores)
             ignore = ignores(k)%text
@@ -1316,11 +1317,11 @@ contains
                 ignore = "*/"//ignore
             end if
 
-            if (k > 1) args = args//" -o -path "
-            args = args//shell_quote_argument(ignore)
+            if (k > 1) arguments = arguments//" -o -path "
+            arguments = arguments//shell_quote_argument(ignore)
         end do
 
-        args = args//" "//shell_quote_argument(")")//" -prune -o "
+        arguments = arguments//" "//shell_quote_argument(")")//" -prune -o "
     end function find_ignores_arguments
 
     ! ------------------------------------------------------------------
@@ -1348,10 +1349,10 @@ contains
         allocate (vc_cache(0))
     end subroutine project_clear_cache
 
-    !> The index in `vc_cache' of DIR's entry if it is younger than
+    !> The index in `vc_cache' of DIRECTORY's entry if it is younger than
     !> TIMEOUT seconds (0 for none).  Port of project.el:project--get-cached.
-    integer function cached_index(dir, timeout) result(k)
-        character(len=*), intent(in) :: dir
+    integer function cached_index(directory, timeout) result(k)
+        character(len=*), intent(in) :: directory
         real, intent(in) :: timeout
         integer(int64) :: now, rate
         integer :: i
@@ -1360,7 +1361,7 @@ contains
         if (.not. allocated(vc_cache)) return
 
         do i = 1, size(vc_cache)
-            if (vc_cache(i)%dir == dir .and. len(vc_cache(i)%dir) == len(dir)) then
+            if (vc_cache(i)%directory == directory .and. len(vc_cache(i)%directory) == len(directory)) then
                 k = i
                 exit
             end if
@@ -1372,10 +1373,10 @@ contains
         if (real(now - vc_cache(k)%count, real64)/real(rate, real64) >= timeout) k = 0
     end function cached_index
 
-    !> Cache PROJECT (none unless FOUND) for DIR.  Port of
+    !> Cache PROJECT (none unless FOUND) for DIRECTORY.  Port of
     !> project.el:project--set-cached.
-    subroutine set_cached(dir, found, project)
-        character(len=*), intent(in) :: dir
+    subroutine set_cached(directory, found, project)
+        character(len=*), intent(in) :: directory
         logical, intent(in) :: found
         type(vc_project_type), intent(in) :: project
         type(vc_cache_entry_type) :: entry
@@ -1383,13 +1384,13 @@ contains
         integer :: i
 
         if (.not. allocated(vc_cache)) allocate (vc_cache(0))
-        entry%dir = dir
+        entry%directory = directory
         entry%found = found
         entry%project = project
         call system_clock(entry%count, rate)
 
         do i = 1, size(vc_cache)
-            if (vc_cache(i)%dir == dir .and. len(vc_cache(i)%dir) == len(dir)) then
+            if (vc_cache(i)%directory == directory .and. len(vc_cache(i)%directory) == len(directory)) then
                 vc_cache(i) = entry
                 return
             end if
@@ -1398,14 +1399,14 @@ contains
         vc_cache = [vc_cache, entry]
     end subroutine set_cached
 
-    !> The project of DIR from the VC-aware backend.
+    !> The project of DIRECTORY from the VC-aware backend.
     !>
     !> The value is cached, and depending on whether `get_current_project'
     !> prompts, the timeout is `project_vc_cache_timeout' or
     !> `project_vc_non_essential_cache_timeout'.  Port of
     !> project.el:project-try-vc.
-    recursive subroutine try_vc_project(dir, project, status)
-        character(len=*), intent(in) :: dir
+    recursive subroutine try_vc_project(directory, project, status)
+        character(len=*), intent(in) :: directory
         class(project_type), allocatable, intent(out) :: project
         type(status_type), intent(out) :: status
         type(vc_project_type) :: res
@@ -1416,20 +1417,20 @@ contains
         status = status_type()
         timeout = project_vc_cache_timeout
         if (non_essential) timeout = project_vc_non_essential_cache_timeout
-        k = cached_index(dir, timeout)
+        k = cached_index(directory, timeout)
 
         if (k /= 0) then
             if (vc_cache(k)%found) allocate (project, source=vc_cache(k)%project)
             return
         end if
 
-        call try_vc_search(dir, res, found, status)
+        call try_vc_search(directory, res, found, status)
         if (.not. status%ok()) return
-        call set_cached(dir, found, res)
+        call set_cached(directory, found, res)
         if (found) allocate (project, source=res)
     end subroutine try_vc_project
 
-    !> Whether directory D has a file matching one of `marker_regexps',
+    !> Whether directory D has a file matching one of `marker_regular_expressions',
     !> the matches kept in `last_matches'.  Not a port.
     logical function has_marker(d)
         character(len=*), intent(in) :: d
@@ -1447,8 +1448,8 @@ contains
         if (fortmacs_directory_entries(directory_file_name(expanded_d), names) /= 0) return
 
         do i = 1, size(names)
-            do j = 1, size(marker_regexps)
-                if (string_match(marker_regexps(j)%text, names(i)%text, st) > 0) then
+            do j = 1, size(marker_regular_expressions)
+                if (string_match(marker_regular_expressions(j)%text, names(i)%text, st) > 0) then
                     call append_string(last_matches, names(i)%text)
                     exit
                 end if
@@ -1458,19 +1459,19 @@ contains
         has_marker = size(last_matches) > 0
     end function has_marker
 
-    !> Search the VC-aware project of DIR: the nearest directory with a
+    !> Search the VC-aware project of DIRECTORY: the nearest directory with a
     !> marker of `project_vc_backend_markers' (for the backends of
     !> `vc_handled_backends') or `project_vc_extra_root_markers'; the root
     !> of the superproject of a Git submodule when
     !> `project_vc_merge_submodules'.  Port of
     !> project.el:project-try-vc--search.
-    recursive subroutine try_vc_search(dir, project, found, status, extra_markers)
-        character(len=*), intent(in) :: dir
+    recursive subroutine try_vc_search(directory, project, found, status, extra_markers)
+        character(len=*), intent(in) :: directory
         type(vc_project_type), intent(out) :: project
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: extra_markers
-        type(string_type), allocatable :: markers(:), saved_regexps(:), saved_matches(:)
+        type(string_type), allocatable :: markers(:), saved_regular_expressions(:), saved_matches(:)
         type(vc_project_type) :: parent
         character(len=:), allocatable :: root, backend, stop, up, marker
         logical :: has_root, parent_found, use_extra
@@ -1490,18 +1491,18 @@ contains
         use_extra = .true.
         if (present(extra_markers)) use_extra = extra_markers
         if (use_extra) call append_strings(markers, trimmed_strings(project_vc_extra_root_markers))
-        if (allocated(marker_regexps)) call move_alloc(marker_regexps, saved_regexps)
+        if (allocated(marker_regular_expressions)) call move_alloc(marker_regular_expressions, saved_regular_expressions)
         if (allocated(last_matches)) call move_alloc(last_matches, saved_matches)
-        allocate (marker_regexps(0))
+        allocate (marker_regular_expressions(0))
 
         do k = 1, size(markers)
-            call append_string(marker_regexps, wildcard_to_regexp(markers(k)%text))
+            call append_string(marker_regular_expressions, wildcard_to_regular_expression(markers(k)%text))
         end do
 
-        stop = locate_dominating_stop_dir_regexp
-        if (allocated(vc_ignore_dir_regexp)) stop = vc_ignore_dir_regexp
+        stop = locate_dominating_stop_directory_regular_expression
+        if (allocated(vc_ignore_directory_regular_expression)) stop = vc_ignore_directory_regular_expression
         marker_status = status_type()
-        call locate_dominating_file(dir, "", root, has_root, stop, has_marker)
+        call locate_dominating_file(directory, "", root, has_root, stop, has_marker)
         backend = ""
 
         if (has_root .and. allocated(vc_handled_backends)) then
@@ -1517,7 +1518,7 @@ contains
             end do
         end if
 
-        if (allocated(saved_regexps)) call move_alloc(saved_regexps, marker_regexps)
+        if (allocated(saved_regular_expressions)) call move_alloc(saved_regular_expressions, marker_regular_expressions)
         if (allocated(saved_matches)) call move_alloc(saved_matches, last_matches)
         status = marker_status
         if (.not. status%ok()) return
@@ -1616,37 +1617,37 @@ contains
         roots = subtract_project_directories(combined, root)
     end function vc_project_external_roots
 
-    !> The VC backend of DIR in PROJECT: the project's own under its root,
-    !> else the backend responsible for DIR ("" for none).  Port of
+    !> The VC backend of DIRECTORY in PROJECT: the project's own under its root,
+    !> else the backend responsible for DIRECTORY ("" for none).  Port of
     !> project.el:project-vc--backend.
-    function project_vc_backend(project, dir) result(backend)
+    function project_vc_backend(project, directory) result(backend)
         class(vc_project_type), intent(in) :: project
-        character(len=*), intent(in) :: dir
+        character(len=*), intent(in) :: directory
         character(len=:), allocatable :: backend
         type(status_type) :: st
         integer :: b
 
         backend = ""
 
-        if (is_file_in_directory(dir, project%root())) then
+        if (is_file_in_directory(directory, project%root())) then
             if (allocated(project%backend)) backend = project%backend
             return
         end if
 
         ! Don't presume other DIRs are under the same VCS as the project's
         ! root.
-        b = vc_responsible_backend(dir, st, no_error=.true.)
+        b = vc_responsible_backend(directory, st, no_error=.true.)
         if (st%ok() .and. b > 0) backend = vc_backends(b)%name
     end function project_vc_backend
 
-    !> The files of a VC-aware project in DIRS (its root when absent),
+    !> The files of a VC-aware project in DIRECTORIES (its root when absent),
     !> listed by the VC backend.  Port of project.el:project-files (the
     !> method for a VC-aware project).
-    recursive subroutine vc_project_list_files(self, files, status, dirs)
+    recursive subroutine vc_project_list_files(self, files, status, directories)
         class(vc_project_type), intent(in) :: self
         type(string_type), allocatable, intent(out) :: files(:)
         type(status_type), intent(out) :: status
-        type(string_type), intent(in), optional :: dirs(:)
+        type(string_type), intent(in), optional :: directories(:)
         type(string_type), allocatable :: roots(:), ignores(:), more(:), defaults(:)
         character(len=:), allocatable :: backend
         integer :: k
@@ -1654,8 +1655,8 @@ contains
         allocate (files(0))
         status = status_type()
 
-        if (present(dirs)) then
-            roots = dirs
+        if (present(directories)) then
+            roots = directories
         else
             allocate (roots(1))
             roots(1)%text = self%root()
@@ -1682,24 +1683,24 @@ contains
         end do
     end subroutine vc_project_list_files
 
-    !> The files of the Git repository at DIR, with `git ls-files', except
+    !> The files of the Git repository at DIRECTORY, with `git ls-files', except
     !> those EXTRA_IGNORES match (globs as in `project_ignores'): tracked
     !> and, with `project_vc_include_untracked', untracked files; the files
     !> of the submodules too with `project_vc_merge_submodules'.  Port of
     !> project.el:vc-git-project-list-files.
-    recursive subroutine vc_git_project_list_files(dir, extra_ignores, files, status)
-        character(len=*), intent(in) :: dir
+    recursive subroutine vc_git_project_list_files(directory_name, extra_ignores, files, status)
+        character(len=*), intent(in) :: directory_name
         type(string_type), intent(in) :: extra_ignores(:)
         type(string_type), allocatable, intent(out) :: files(:)
         type(status_type), intent(out) :: status
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(string_type) :: none(0)
         type(string_type), allocatable :: submodules(:), sub_files(:), kept(:)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         character(len=:), allocatable :: directory, text, i, module
         type(version_type) :: git_version
         logical :: dedup, saved_literal, new_enough, sparse
-        integer :: k, j, pt, nul
+        integer :: k, j, point, nul
 
         allocate (files(0))
         status = status_type()
@@ -1710,25 +1711,26 @@ contains
 
         if (size(extra_ignores) > 0 .and. .not. new_enough) then
             ! Need newer Git to use negative pathspec like we do.
-            call project_files_in_directory(dir, project_vc_ignores_of(dir, "Git", extra_ignores), files, status)
+            call project_files_in_directory(directory_name, project_vc_ignores_of(directory_name, "Git", extra_ignores), files, &
+                                            status)
             return
         end if
 
-        call expand_file_name(file_name_as_directory(dir), directory, status)
+        call expand_file_name(file_name_as_directory(directory_name), directory, status)
         if (.not. status%ok()) return
         dedup = version("2.31") <= git_version
         sparse = version("2.35") <= git_version
-        allocate (args(0))
-        call append_arg("ls-files")
-        call append_arg("-z")
-        call append_arg("-c")
-        call append_arg("--exclude-standard")
-        if (sparse) call append_arg("--sparse")
-        if (project_vc_include_untracked) call append_arg("-o")
-        if (dedup) call append_arg("--deduplicate")
+        allocate (arguments(0))
+        call append_argument("ls-files")
+        call append_argument("-z")
+        call append_argument("-c")
+        call append_argument("--exclude-standard")
+        if (sparse) call append_argument("--sparse")
+        if (project_vc_include_untracked) call append_argument("-o")
+        if (dedup) call append_argument("--deduplicate")
 
         if (size(extra_ignores) > 0) then
-            call append_arg("--")
+            call append_argument("--")
 
             do k = 1, size(extra_ignores)
                 i = extra_ignores(k)%text
@@ -1748,32 +1750,32 @@ contains
                     end if
                 end if
 
-                call append_arg(":(exclude,glob,top)"//i)
+                call append_argument(":(exclude,glob,top)"//i)
             end do
         end if
 
-        call temp_begin(old, tmp, directory)
+        call temporary_begin(old, temporary, directory)
         call git_submodules(submodules)
         saved_literal = vc_git_use_literal_pathspecs
         vc_git_use_literal_pathspecs = .false.
-        call vc_git_command(0, none, args, status, current=.true.)
+        call vc_git_command(0, none, arguments, status, current=.true.)
         vc_git_use_literal_pathspecs = saved_literal
         text = buffer_string()
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
         if (.not. status%ok()) return
-        pt = 1
+        point = 1
 
-        do while (pt <= len(text))
-            nul = index(text(pt:), achar(0))
+        do while (point <= len(text))
+            nul = index(text(point:), achar(0))
 
             if (nul == 0) then
                 nul = len(text) + 1
             else
-                nul = pt + nul - 1
+                nul = point + nul - 1
             end if
 
-            if (nul > pt) then
-                associate (file => text(pt:nul - 1))
+            if (nul > point) then
+                associate (file => text(point:nul - 1))
                     ! Directories occur for sparse directories only, when the
                     ! sparse index is enabled.
                     if (.not. has_string(submodules, file) .and. .not. is_directory_name(file)) then
@@ -1786,7 +1788,7 @@ contains
                 end associate
             end if
 
-            pt = nul + 1
+            point = nul + 1
         end do
 
         if (project_vc_merge_submodules) then
@@ -1823,13 +1825,13 @@ contains
 
     contains
 
-        subroutine append_arg(arg)
-            character(len=*), intent(in) :: arg
+        subroutine append_argument(argument)
+            character(len=*), intent(in) :: argument
             type(string_type) :: item
 
-            item%text = arg
-            args = [args, item]
-        end subroutine append_arg
+            item%text = argument
+            arguments = [arguments, item]
+        end subroutine append_argument
     end subroutine vc_git_project_list_files
 
     !> The paths of the submodules in the .gitmodules file of
@@ -1837,7 +1839,7 @@ contains
     subroutine git_submodules(paths)
         type(string_type), allocatable, intent(out) :: paths(:)
         character(len=:), allocatable :: text
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         integer(int64) :: found
         logical :: ok
@@ -1846,34 +1848,34 @@ contains
         ! 'git submodule foreach' is much slower.
         call file_text(".gitmodules", text, ok)
         if (.not. ok) return
-        call temp_begin(old, tmp, default_directory())
+        call temporary_begin(old, temporary, default_directory())
         call insert(text, st)
 
         do
-            call re_search_forward("^[ \t]*path *= *\(.+\)", found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("^[ \t]*path *= *\(.+\)", found, st, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found == 0) exit
             call append_string(paths, match_string(1))
         end do
 
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine git_submodules
 
-    !> The ignores of a VC-aware project in DIR.  Port of
+    !> The ignores of a VC-aware project in DIRECTORY.  Port of
     !> project.el:project-ignores (the method for a VC-aware project).
-    function vc_project_ignores(self, dir) result(ignores)
+    function vc_project_ignores(self, directory) result(ignores)
         class(vc_project_type), intent(in) :: self
-        character(len=*), intent(in) :: dir
+        character(len=*), intent(in) :: directory
         type(string_type), allocatable :: ignores(:)
 
-        ignores = project_vc_ignores_of(dir, project_vc_backend(self, dir), trimmed_strings(project_vc_ignores))
+        ignores = project_vc_ignores_of(directory, project_vc_backend(self, directory), trimmed_strings(project_vc_ignores))
     end function vc_project_ignores
 
-    !> The ignores of DIR under BACKEND: the patterns of the backend's
+    !> The ignores of DIRECTORY under BACKEND: the patterns of the backend's
     !> ignore file (made "rooted" where they contain a slash), then
     !> EXTRA_IGNORES, then the directories of `vc_directory_exclusions'.
     !> Port of project.el:project--vc-ignores.
-    function project_vc_ignores_of(dir, backend, extra_ignores) result(ignores)
-        character(len=*), intent(in) :: dir, backend
+    function project_vc_ignores_of(directory, backend, extra_ignores) result(ignores)
+        character(len=*), intent(in) :: directory, backend
         type(string_type), intent(in) :: extra_ignores(:)
         type(string_type), allocatable :: ignores(:)
         type(string_type), allocatable :: entries(:)
@@ -1884,7 +1886,7 @@ contains
         allocate (ignores(0))
 
         if (len(backend) > 0) then
-            call vc_ignore_completion_table(backend, dir, entries)
+            call vc_ignore_completion_table(backend, directory, entries)
 
             do k = 1, size(entries)
                 entry = entries(k)%text
@@ -1922,63 +1924,63 @@ contains
         end if
     end function project_vc_ignores_of
 
-    !> The patterns of the files BACKEND ignores in DIR: the lines of its
+    !> The patterns of the files BACKEND ignores in DIRECTORY: the lines of its
     !> ignore file, without comments and blank lines.  Port of
     !> vc.el:vc-default-ignore-completion-table, with vc.el:vc--read-lines.
-    subroutine vc_ignore_completion_table(backend, dir, entries)
-        character(len=*), intent(in) :: backend, dir
+    subroutine vc_ignore_completion_table(backend, directory, entries)
+        character(len=*), intent(in) :: backend, directory
         type(string_type), allocatable, intent(out) :: entries(:)
         character(len=:), allocatable :: file, text
         type(status_type) :: st
         logical :: found
-        integer :: b, pt, nl
+        integer :: b, point, newline
 
         allocate (entries(0))
         b = vc_backend_named(backend)
         if (b <= 0) return
         if (.not. associated(vc_backends(b)%find_ignore_file)) return
-        call vc_backends(b)%find_ignore_file(dir, file, found)
+        call vc_backends(b)%find_ignore_file(directory, file, found)
         if (.not. found) return
         if (.not. file_exists(file)) return
         call file_text(file, text, found)
         if (.not. found) return
-        pt = 1
+        point = 1
 
-        do while (pt <= len(text))
-            nl = index(text(pt:), achar(10))
+        do while (point <= len(text))
+            newline = index(text(point:), achar(10))
 
-            if (nl == 0) then
-                nl = len(text) + 1
+            if (newline == 0) then
+                newline = len(text) + 1
             else
-                nl = pt + nl - 1
+                newline = point + newline - 1
             end if
 
-            if (nl > pt) then
+            if (newline > point) then
                 ! Commented or empty lines.
-                if (string_match("\`\(?:#\|[ "//achar(9)//achar(13)//achar(10)//"]*\'\)", text(pt:nl - 1), st) == 0) then
-                    call append_string(entries, text(pt:nl - 1))
+                if (string_match("\`\(?:#\|[ "//achar(9)//achar(13)//achar(10)//"]*\'\)", text(point:newline - 1), st) == 0) then
+                    call append_string(entries, text(point:newline - 1))
                 end if
             end if
 
-            pt = nl + 1
+            point = newline + 1
         end do
     end subroutine vc_ignore_completion_table
 
     !> The live buffers under the root of a VC-aware project, except those
     !> of submodules when they are not merged.  Port of
     !> project.el:project-buffers (the method for a VC-aware project).
-    function vc_project_buffers(self, status) result(bufs)
+    function vc_project_buffers(self, status) result(buffer_handles)
         class(vc_project_type), intent(in) :: self
         type(status_type), intent(out) :: status
-        type(handle_type), allocatable :: bufs(:)
+        type(handle_type), allocatable :: buffer_handles(:)
         type(handle_type), allocatable :: all(:)
         type(string_type), allocatable :: modules(:), paths(:)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         character(len=:), allocatable :: root, dd, dd_expanded
         logical :: inside, root_is_submodule
         integer :: k, j
 
-        allocate (bufs(0))
+        allocate (buffer_handles(0))
         call expand_file_name(file_name_as_directory(self%root()), root, status)
         if (.not. status%ok()) return
         allocate (modules(0))
@@ -1988,9 +1990,9 @@ contains
             if (.not. status%ok()) return
 
             if (.not. root_is_submodule) then
-                call temp_begin(old, tmp, root)
+                call temporary_begin(old, temporary, root)
                 call git_submodules(paths)
-                call temp_end(old, tmp)
+                call temporary_end(old, temporary)
 
                 do k = 1, size(paths)
                     call append_string(modules, root//paths(k)%text//"/")
@@ -2013,7 +2015,7 @@ contains
                 if (starts_with(dd, modules(j)%text)) inside = .true.
             end do
 
-            if (.not. inside) bufs = [bufs, all(k)]
+            if (.not. inside) buffer_handles = [buffer_handles, all(k)]
         end do
     end function vc_project_buffers
 
@@ -2035,24 +2037,24 @@ contains
     end function vc_project_name
 
     !> A sorted and culled list of directory names: the directories of
-    !> DIRS, without non-existing directories and directories a parent
+    !> DIRECTORIES, without non-existing directories and directories a parent
     !> of whose is already in the list.  Port of
     !> project.el:project-combine-directories.
-    function combine_project_directories(dirs, status) result(combined)
-        type(string_type), intent(in) :: dirs(:)
+    function combine_project_directories(directories, status) result(combined)
+        type(string_type), intent(in) :: directories(:)
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: combined(:)
         type(string_type), allocatable :: sorted(:)
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         integer :: k
 
         allocate (combined(0))
-        allocate (sorted(size(dirs)))
+        allocate (sorted(size(directories)))
 
-        do k = 1, size(dirs)
-            call expand_file_name(dirs(k)%text, dir, status)
+        do k = 1, size(directories)
+            call expand_file_name(directories(k)%text, directory, status)
             if (.not. status%ok()) return
-            sorted(k)%text = file_name_as_directory(dir)
+            sorted(k)%text = file_name_as_directory(directory)
         end do
 
         call sort_strings(sorted)
@@ -2069,10 +2071,10 @@ contains
         combined = pack(combined, [(file_exists(combined(k)%text), k=1, size(combined))])
     end function combine_project_directories
 
-    !> The elements of FILES that are outside of DIRS (directory names).
+    !> The elements of FILES that are outside of DIRECTORIES (directory names).
     !> Port of project.el:project-subtract-directories.
-    function subtract_project_directories(files, dirs) result(outside)
-        type(string_type), intent(in) :: files(:), dirs(:)
+    function subtract_project_directories(files, directories) result(outside)
+        type(string_type), intent(in) :: files(:), directories(:)
         type(string_type), allocatable :: outside(:)
         logical :: inside
         integer :: k, j
@@ -2082,8 +2084,8 @@ contains
         do k = 1, size(files)
             inside = .false.
 
-            do j = 1, size(dirs)
-                if (is_file_in_directory(files(k)%text, dirs(j)%text)) inside = .true.
+            do j = 1, size(directories)
+                if (is_file_in_directory(files(k)%text, directories(j)%text)) inside = .true.
             end do
 
             if (.not. inside) call append_string(outside, files(k)%text)
@@ -2094,15 +2096,15 @@ contains
     ! Buffer conditions
     ! ------------------------------------------------------------------
 
-    !> A buffer condition: the buffer's name matches REGEXP.  Not a port.
-    function project_buffer_name_regexp(regexp) result(c)
-        character(len=*), intent(in) :: regexp
+    !> A buffer condition: the buffer's name matches REGULAR_EXPRESSION.  Not a port.
+    function project_buffer_name_regular_expression(regular_expression) result(c)
+        character(len=*), intent(in) :: regular_expression
         type(project_buffer_condition_type) :: c
 
         allocate (c%nodes(1))
         c%nodes(1)%kind = CONDITION_NAME
-        c%nodes(1)%text = regexp
-    end function project_buffer_name_regexp
+        c%nodes(1)%text = regular_expression
+    end function project_buffer_name_regular_expression
 
     !> A buffer condition: TEST gives .true. for the buffer.  Not a port.
     function project_buffer_test(test) result(c)
@@ -2367,9 +2369,9 @@ contains
         type(status_type), intent(out) :: status
         type(namelist_group_type) :: group
         type(namelist_item_type) :: item
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
-        character(len=:), allocatable :: text, dir, wrote, root
+        character(len=:), allocatable :: text, directory, wrote, root
         integer :: k
 
         if (associated(project_prune_zombie_projects%list_write)) then
@@ -2397,19 +2399,19 @@ contains
         call group%append(item)
         text = "! List of known projects, automatically generated by `project'."//achar(10)//achar(10)// &
                namelist_text(group)
-        call expand_file_name(project_list_file, dir, status)
+        call expand_file_name(project_list_file, directory, status)
         if (.not. status%ok()) return
-        dir = file_name_directory(dir)
+        directory = file_name_directory(directory)
 
-        if (.not. file_exists(dir)) then
-            call create_directory(dir, status, parents=.true.)
+        if (.not. file_exists(directory)) then
+            call create_directory(directory, status, parents=.true.)
             if (.not. status%ok()) return
         end if
 
-        call temp_begin(old, tmp, default_directory())
+        call temporary_begin(old, temporary, default_directory())
         call insert(text, st)
         call write_region(project_list_file, .false., status, message=wrote)
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine write_project_list
 
     !> Add project root ROOT to the front of the project list.
@@ -2418,41 +2420,41 @@ contains
     !> ROOT to the front of the project list if it's already present
     !> further down the project list.  Port of
     !> project.el:project--remember-dir.
-    recursive subroutine remember_dir(root, no_write, stable, status)
+    recursive subroutine remember_directory(root, no_write, stable, status)
         character(len=*), intent(in) :: root
         logical, intent(in) :: no_write, stable
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: kept(:)
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         logical :: present_already
         integer :: k
 
         status = status_type()
         call ensure_read_project_list()
-        dir = abbreviate_file_name(root)
+        directory = abbreviate_file_name(root)
 
         if (stable) then
-            present_already = has_string(project_list, dir)
+            present_already = has_string(project_list, directory)
         else
             present_already = .false.
 
             if (size(project_list) > 0) then
-                present_already = project_list(1)%text == dir .and. len(project_list(1)%text) == len(dir)
+                present_already = project_list(1)%text == directory .and. len(project_list(1)%text) == len(directory)
             end if
         end if
 
         if (present_already) return
         allocate (kept(0))
-        call append_string(kept, dir)
+        call append_string(kept, directory)
 
         do k = 1, size(project_list)
-            if (.not. stable .and. project_list(k)%text == dir .and. len(project_list(k)%text) == len(dir)) cycle
+            if (.not. stable .and. project_list(k)%text == directory .and. len(project_list(k)%text) == len(directory)) cycle
             call append_string(kept, project_list(k)%text)
         end do
 
         call move_alloc(kept, project_list)
         if (.not. no_write) call write_project_list(status)
-    end subroutine remember_dir
+    end subroutine remember_directory
 
     !> Add project PROJECT to the front of the project list.
     !> If project PROJECT satisfies `project_list_exclude', then nothing is
@@ -2485,8 +2487,8 @@ contains
             do k = 1, size(project_list_exclude)
                 if (associated(project_list_exclude(k)%test)) then
                     if (project_list_exclude(k)%test(project)) excluded = .true.
-                else if (len_trim(project_list_exclude(k)%regexp) > 0) then
-                    if (string_match(trim(project_list_exclude(k)%regexp), root, st) > 0) excluded = .true.
+                else if (len_trim(project_list_exclude(k)%regular_expression) > 0) then
+                    if (string_match(trim(project_list_exclude(k)%regular_expression), root, st) > 0) excluded = .true.
                 end if
             end do
         end if
@@ -2494,7 +2496,7 @@ contains
         if (excluded) then
             if (interact) call message("Current project is blacklisted!")
         else
-            call remember_dir(root, nw, sb, status)
+            call remember_directory(root, nw, sb, status)
             if (.not. status%ok()) return
             if (interact) call message("Current project remembered")
         end if
@@ -2502,14 +2504,14 @@ contains
 
     !> The command: `remember_project' of the current project.  Port of
     !> the command of project.el:project-remember-project.
-    recursive subroutine cmd_remember_project(status)
+    recursive subroutine execute_remember_project(status)
         type(status_type), intent(out) :: status
         class(project_type), allocatable :: pr
 
         call get_current_project(pr, status, maybe_prompt=.true.)
         if (.not. status%ok()) return
         call remember_project(pr, status, interactive=.true.)
-    end subroutine cmd_remember_project
+    end subroutine execute_remember_project
 
     !> Remove directory PROJECT_ROOT of a missing project from the project
     !> list.  If the directory was in the list before the removal, save the
@@ -2549,14 +2551,14 @@ contains
 
     !> The command: read a project and forget it.  Port of the command of
     !> project.el:project-forget-project.
-    recursive subroutine cmd_forget_project(status)
+    recursive subroutine execute_forget_project(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
-        call execute_prompter(dir, status)
+        call execute_prompter(directory, status)
         if (.not. status%ok()) return
-        call forget_project(dir, status)
-    end subroutine cmd_forget_project
+        call forget_project(directory, status)
+    end subroutine execute_forget_project
 
     !> The root directories of all known projects.  Port of
     !> project.el:project-known-project-roots.
@@ -2608,12 +2610,12 @@ contains
     end subroutine forget_zombie_projects
 
     ! The command.
-    recursive subroutine cmd_forget_zombie_projects(status)
+    recursive subroutine execute_forget_zombie_projects(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call forget_zombie_projects(interactive=.true.)
-    end subroutine cmd_forget_zombie_projects
+    end subroutine execute_forget_zombie_projects
 
     !> Default function used in `project_prune_zombie_projects'.
     !> Return .true. if PROJECT (a root) is not a remote project.  Port of
@@ -2625,18 +2627,18 @@ contains
         is_local_project = .true.
     end function is_local_project
 
-    !> Remember projects below a directory DIR.
+    !> Remember projects below a directory DIRECTORY.
     !> RECURSIVE, if .true. (interactively, the prefix argument) means
-    !> recurse into subdirectories of DIR to find more projects.
+    !> recurse into subdirectories of DIRECTORY to find more projects.
     !> Display a message at the end summarizing what was found.
     !> COUNT is the number of detected projects.  Port of
     !> project.el:project-remember-projects-under.
-    recursive subroutine remember_projects_under(dir, count, status, recursive)
-        character(len=*), intent(in) :: dir
+    recursive subroutine remember_projects_under(directory_name, count, status, recursive)
+        character(len=*), intent(in) :: directory_name
         integer, intent(out) :: count
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: recursive
-        type(string_type), allocatable :: dirs(:), known(:)
+        type(string_type), allocatable :: directories(:), known(:)
         class(project_type), allocatable :: pr
         character(len=:), allocatable :: root, directory
         logical :: recurse
@@ -2648,16 +2650,16 @@ contains
         call ensure_read_project_list()
         recurse = .false.
         if (present(recursive)) recurse = recursive
-        allocate (dirs(0))
-        call expand_file_name(dir, directory, status)
+        allocate (directories(0))
+        call expand_file_name(directory_name, directory, status)
         if (.not. status%ok()) return
-        call list_subdirectories(file_name_as_directory(directory), recurse, dirs)
+        call list_subdirectories(file_name_as_directory(directory), recurse, directories)
         known = project_list
         count = 0
 
-        do k = 1, size(dirs)
-            if (.not. is_file_directory(dirs(k)%text)) cycle
-            call find_project_in_directory(dirs(k)%text, pr, status)
+        do k = 1, size(directories)
+            if (.not. is_file_directory(directories(k)%text)) cycle
+            call find_project_in_directory(directories(k)%text, pr, status)
             if (.not. status%ok()) return
             if (.not. allocated(pr)) cycle
             root = pr%root()
@@ -2684,23 +2686,23 @@ contains
         end if
     end subroutine remember_projects_under
 
-    !> The files of directory DIR (absolute, without . and ..), and with
+    !> The files of directory DIRECTORY (absolute, without . and ..), and with
     !> RECURSE those of its subdirectories too (directory-files and
     !> directory-files-recursively with INCLUDE-DIRECTORIES).  Not a port.
-    recursive subroutine list_subdirectories(dir, recurse, files)
-        character(len=*), intent(in) :: dir
+    recursive subroutine list_subdirectories(directory, recurse, files)
+        character(len=*), intent(in) :: directory
         logical, intent(in) :: recurse
         type(string_type), allocatable, intent(inout) :: files(:)
         type(string_type), allocatable :: names(:)
         type(string_type), allocatable :: entries(:)
         integer :: k
 
-        if (fortmacs_directory_entries(directory_file_name(dir), names) /= 0) return
+        if (fortmacs_directory_entries(directory_file_name(directory), names) /= 0) return
         allocate (entries(0))
 
         do k = 1, size(names)
             if (names(k)%text == "." .or. names(k)%text == "..") cycle
-            call append_string(entries, dir//names(k)%text)
+            call append_string(entries, directory//names(k)%text)
         end do
 
         call sort_strings(entries)
@@ -2716,24 +2718,24 @@ contains
 
     !> The command: read a directory, with the prefix argument as RECURSIVE.
     !> Port of the command of project.el:project-remember-projects-under.
-    recursive subroutine cmd_remember_projects_under(status)
+    recursive subroutine execute_remember_projects_under(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         integer :: count
 
-        call read_directory_name("Directory: ", dir, status, mustmatch=REQUIRE_MATCH_YES)
+        call read_directory_name("Directory: ", directory, status, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
-        call remember_projects_under(dir, count, status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_remember_projects_under
+        call remember_projects_under(directory, count, status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_remember_projects_under
 
-    !> Forget all known projects below a directory DIR.
+    !> Forget all known projects below a directory DIRECTORY.
     !> RECURSIVE, if .true. (interactively, the prefix argument), means
-    !> recurse into subdirectories under DIR to remove those projects from
+    !> recurse into subdirectories under DIRECTORY to remove those projects from
     !> the index.  Display a message at the end summarizing what was
     !> forgotten.  COUNT is the number of forgotten projects.  Port of
     !> project.el:project-forget-projects-under.
-    recursive subroutine forget_projects_under(dir, count, status, recursive)
-        character(len=*), intent(in) :: dir
+    recursive subroutine forget_projects_under(directory, count, status, recursive)
+        character(len=*), intent(in) :: directory
         integer, intent(out) :: count
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: recursive
@@ -2751,9 +2753,9 @@ contains
 
         do k = 1, size(roots)
             if (recurse) then
-                forget = is_file_in_directory(roots(k)%text, dir)
+                forget = is_file_in_directory(roots(k)%text, directory)
             else
-                forget = is_file_equal(file_name_directory(roots(k)%text), dir)
+                forget = is_file_equal(file_name_directory(roots(k)%text), directory)
             end if
 
             if (forget) then
@@ -2780,15 +2782,15 @@ contains
 
     !> The command: read a directory, with the prefix argument as RECURSIVE.
     !> Port of the command of project.el:project-forget-projects-under.
-    recursive subroutine cmd_forget_projects_under(status)
+    recursive subroutine execute_forget_projects_under(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         integer :: count
 
-        call read_directory_name("Directory: ", dir, status, mustmatch=REQUIRE_MATCH_YES)
+        call read_directory_name("Directory: ", directory, status, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
-        call forget_projects_under(dir, count, status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_forget_projects_under
+        call forget_projects_under(directory, count, status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_forget_projects_under
 
     ! ------------------------------------------------------------------
     ! Prompting for a project
@@ -2802,8 +2804,8 @@ contains
     !> Unless REQUIRE_KNOWN is .true., it's also possible to enter an
     !> arbitrary directory not in the list of known projects.  Port of
     !> project.el:project-prompt-project-dir.
-    recursive subroutine read_project_dir(dir, status, prompt, test, require_known)
-        character(len=:), allocatable, intent(out) :: dir
+    recursive subroutine read_project_directory(directory, status, prompt, test, require_known)
+        character(len=:), allocatable, intent(out) :: directory
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: prompt
         procedure(project_root_test_procedure), optional :: test
@@ -2845,7 +2847,7 @@ contains
             call append_string(choices, project_list(k)%text)
         end do
 
-        if (.not. known_only) call append_string(choices, DIR_CHOICE)
+        if (.not. known_only) call append_string(choices, DIRECTORY_CHOICE)
 
         if (present(prompt)) then
             full_prompt = prompt//": "
@@ -2856,39 +2858,39 @@ contains
         end if
 
         ! project--dir-history is the known roots, and no input is added.
-        if (allocated(project_dir_history%items)) call move_alloc(project_dir_history%items, saved)
-        allocate (project_dir_history%items(size(project_list)))
+        if (allocated(project_directory_history%items)) call move_alloc(project_directory_history%items, saved)
+        allocate (project_directory_history%items(size(project_list)))
 
         do k = 1, size(project_list)
-            project_dir_history%items(k)%text = project_list(k)%text
+            project_directory_history%items(k)%text = project_list(k)%text
         end do
 
-        dir = ""
+        directory = ""
 
         ! If the user simply pressed RET (and CURRENT is none), do this
         ! again until they don't.
-        do while (len(dir) == 0)
+        do while (len(directory) == 0)
             if (len(current_root) > 0) then
                 call completing_read(full_prompt, completion_list_table(string_list(choices), category="project-file"), &
-                                     dir, status, require_match=REQUIRE_MATCH_YES, history="project_dir_history", &
+                                     directory, status, require_match=REQUIRE_MATCH_YES, history="project_directory_history", &
                                      default=current_root)
             else
                 call completing_read(full_prompt, completion_list_table(string_list(choices), category="project-file"), &
-                                     dir, status, require_match=REQUIRE_MATCH_YES, history="project_dir_history")
+                                     directory, status, require_match=REQUIRE_MATCH_YES, history="project_directory_history")
             end if
 
             if (.not. status%ok()) exit
         end do
 
-        if (allocated(project_dir_history%items)) deallocate (project_dir_history%items)
-        if (allocated(saved)) call move_alloc(saved, project_dir_history%items)
+        if (allocated(project_directory_history%items)) deallocate (project_directory_history%items)
+        if (allocated(saved)) call move_alloc(saved, project_directory_history%items)
         if (.not. status%ok()) return
 
-        if (dir == DIR_CHOICE) then
-            call read_directory_name("Select directory: ", dir, status, dir=default_directory(), &
+        if (directory == DIRECTORY_CHOICE) then
+            call read_directory_name("Select directory: ", directory, status, directory=default_directory(), &
                                      mustmatch=REQUIRE_MATCH_YES)
         end if
-    end subroutine read_project_dir
+    end subroutine read_project_directory
 
     !> Prompt the user for a project, by name, that is one of the known
     !> project roots.  The project is chosen among projects known from the
@@ -2898,8 +2900,8 @@ contains
     !> details.  Unless REQUIRE_KNOWN is .true., it's also possible to enter
     !> an arbitrary directory not in the list of known projects.  Port of
     !> project.el:project-prompt-project-name.
-    recursive subroutine read_project_name(dir, status, prompt, test, require_known)
-        character(len=:), allocatable, intent(out) :: dir
+    recursive subroutine read_project_name(directory, status, prompt, test, require_known)
+        character(len=:), allocatable, intent(out) :: directory
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: prompt
         procedure(project_root_test_procedure), optional :: test
@@ -2949,7 +2951,7 @@ contains
         known_only = .false.
         if (present(require_known)) known_only = require_known
         allocate (choices(0))
-        if (.not. known_only) call append_string(choices, DIR_CHOICE)
+        if (.not. known_only) call append_string(choices, DIRECTORY_CHOICE)
 
         do k = size(names), 1, -1
             call append_string(choices, names(k)%text)
@@ -2970,7 +2972,7 @@ contains
             project_name_history%items(k)%text = names(k)%text
         end do
 
-        dir = ""
+        directory = ""
         name = ""
 
         ! If the user simply pressed RET (and CURRENT is none), do this
@@ -2992,8 +2994,8 @@ contains
         if (allocated(saved)) call move_alloc(saved, project_name_history%items)
         if (.not. status%ok()) return
 
-        if (name == DIR_CHOICE) then
-            call read_directory_name("Select directory: ", dir, status, dir=default_directory(), &
+        if (name == DIRECTORY_CHOICE) then
+            call read_directory_name("Select directory: ", directory, status, directory=default_directory(), &
                                      mustmatch=REQUIRE_MATCH_YES)
             return
         end if
@@ -3005,7 +3007,7 @@ contains
             if (names(k)%text == name .and. len(names(k)%text) == len(name)) exit
         end do
 
-        if (k > 0) dir = name_roots(k)%text
+        if (k > 0) directory = name_roots(k)%text
     end subroutine read_project_name
 
     !> Read a project with completion from the known list.  Port of
@@ -3013,13 +3015,13 @@ contains
     recursive subroutine read_project(project, status)
         class(project_type), allocatable, intent(out) :: project
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory_name
 
         ! Will prompt again if the entered directory is not a project
         ! anymore.
-        call execute_prompter(dir, status)
+        call execute_prompter(directory_name, status)
         if (.not. status%ok()) return
-        call get_current_project(project, status, maybe_prompt=.true., directory=dir)
+        call get_current_project(project, status, maybe_prompt=.true., directory=directory_name)
     end subroutine read_project
 
     ! ------------------------------------------------------------------
@@ -3064,26 +3066,26 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: include_all
         class(project_type), allocatable :: pr
-        type(string_type), allocatable :: dirs(:), defaults(:)
+        type(string_type), allocatable :: directories(:), defaults(:)
         logical :: saved_relative
 
         call get_current_project(pr, status, maybe_prompt=.true.)
         if (.not. status%ok()) return
-        allocate (dirs(1))
-        dirs(1)%text = pr%root()
+        allocate (directories(1))
+        directories(1)%text = pr%root()
         call suggested_names(pr, defaults)
         saved_relative = project_files_relative_names
         project_files_relative_names = .true.
-        call find_file_in_project(defaults, dirs, pr, status, include_all)
+        call find_file_in_project(defaults, directories, pr, status, include_all)
         project_files_relative_names = saved_relative
     end subroutine find_project_file
 
     ! The command.
-    recursive subroutine cmd_find_project_file(status)
+    recursive subroutine execute_find_project_file(status)
         type(status_type), intent(out) :: status
 
-        call find_project_file(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_find_project_file
+        call find_project_file(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_find_project_file
 
     !> The file names suggested as "future history": the current buffer's
     !> file name (relative to PROJECT through `find_default_from').
@@ -3112,31 +3114,31 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: include_all
         class(project_type), allocatable :: pr
-        type(string_type), allocatable :: dirs(:), defaults(:), external(:)
+        type(string_type), allocatable :: directories(:), defaults(:), external(:)
 
         call get_current_project(pr, status, maybe_prompt=.true.)
         if (.not. status%ok()) return
-        allocate (dirs(0))
-        call append_string(dirs, pr%root())
+        allocate (directories(0))
+        call append_string(directories, pr%root())
         external = pr%external_roots(status)
         if (.not. status%ok()) return
-        call append_strings(dirs, external)
+        call append_strings(directories, external)
         call suggested_names(pr, defaults)
-        call find_file_in_project(defaults, dirs, pr, status, include_all)
+        call find_file_in_project(defaults, directories, pr, status, include_all)
     end subroutine find_project_or_external_file
 
     ! The command.
-    recursive subroutine cmd_find_project_or_external_file(status)
+    recursive subroutine execute_find_project_or_external_file(status)
         type(status_type), intent(out) :: status
 
-        call find_project_or_external_file(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_find_project_or_external_file
+        call find_project_or_external_file(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_find_project_or_external_file
 
     !> Read a regexp for the project search commands, with the identifier
-    !> at point (quoted) as the default and `grep_regexp_history' as the
+    !> at point (quoted) as the default and `grep_regular_expression_history' as the
     !> history.  Port of project.el:project--read-regexp.
-    recursive subroutine read_project_regexp(regexp, status)
-        character(len=:), allocatable, intent(out) :: regexp
+    recursive subroutine read_project_regular_expression(regular_expression, status)
+        character(len=:), allocatable, intent(out) :: regular_expression
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: defaults(:)
         character(len=:), allocatable :: identifier
@@ -3149,31 +3151,31 @@ contains
         if (found) then
             call buffer_substring_no_properties(beginning, end, identifier, status)
             if (.not. status%ok()) return
-            call append_string(defaults, regexp_quote(identifier))
+            call append_string(defaults, regular_expression_quote(identifier))
         end if
 
-        call read_regexp("Find regexp", regexp, status, defaults, "grep_regexp_history")
-    end subroutine read_project_regexp
+        call read_regular_expression("Find regexp", regular_expression, status, defaults, "grep_regular_expression_history")
+    end subroutine read_project_regular_expression
 
     ! The command.
-    recursive subroutine cmd_find_project_regexp(status)
+    recursive subroutine execute_find_project_regular_expression(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
 
-        call read_project_regexp(regexp, status)
+        call read_project_regular_expression(regular_expression, status)
         if (.not. status%ok()) return
-        call find_project_regexp(regexp, status)
-    end subroutine cmd_find_project_regexp
+        call find_project_regular_expression(regular_expression, status)
+    end subroutine execute_find_project_regular_expression
 
     ! The command.
-    recursive subroutine cmd_find_project_or_external_regexp(status)
+    recursive subroutine execute_find_project_or_external_regular_expression(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
 
-        call read_project_regexp(regexp, status)
+        call read_project_regular_expression(regular_expression, status)
         if (.not. status%ok()) return
-        call find_project_or_external_regexp(regexp, status)
-    end subroutine cmd_find_project_or_external_regexp
+        call find_project_or_external_regular_expression(regular_expression, status)
+    end subroutine execute_find_project_or_external_regular_expression
 
     !> Edit file FILENAME.
     !> Interactively, prompt for FILENAME, defaulting to the root directory
@@ -3186,78 +3188,78 @@ contains
     end subroutine find_file_in_project_root
 
     ! The command.
-    recursive subroutine cmd_find_file_in_project_root(status)
+    recursive subroutine execute_find_file_in_project_root(status)
         type(status_type), intent(out) :: status
         class(project_type), allocatable :: pr
         character(len=:), allocatable :: file
 
         call get_current_project(pr, status, maybe_prompt=.true.)
         if (.not. status%ok()) return
-        call read_file_name("Find file in root: ", file, status, dir=pr%root(), mustmatch=REQUIRE_MATCH_CONFIRM)
+        call read_file_name("Find file in root: ", file, status, directory=pr%root(), mustmatch=REQUIRE_MATCH_CONFIRM)
         if (.not. status%ok()) return
         call find_file_in_project_root(file, status)
-    end subroutine cmd_find_file_in_project_root
+    end subroutine execute_find_file_in_project_root
 
-    !> Complete a file name in DIRS in PROJECT and visit the result.
+    !> Complete a file name in DIRECTORIES in PROJECT and visit the result.
     !>
     !> SUGGESTED_FILENAME is a file name, or part of it, which is used as
     !> part of "future history".
     !>
     !> If INCLUDE_ALL is .true., or with prefix argument when called
-    !> interactively, include all files from DIRS, except for VCS
+    !> interactively, include all files from DIRECTORIES, except for VCS
     !> directories listed in `vc_directory_exclusions'.  Port of
     !> project.el:project-find-file-in.
-    recursive subroutine find_file_in_project(suggested_filename, dirs, project, status, include_all)
-        type(string_type), intent(in) :: suggested_filename(:), dirs(:)
+    recursive subroutine find_file_in_project(suggested_filename, directories, project, status, include_all)
+        type(string_type), intent(in) :: suggested_filename(:), directories(:)
         class(project_type), intent(in) :: project
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: include_all
-        type(string_type), allocatable :: vc_dirs_ignores(:), all_files(:), more(:)
-        character(len=:), allocatable :: file, saved_dir
+        type(string_type), allocatable :: vc_directories_ignores(:), all_files(:), more(:)
+        character(len=:), allocatable :: file, saved_directory
         logical :: all, saved_ignore_case
         integer :: k
 
         all = .false.
         if (present(include_all)) all = include_all
-        allocate (vc_dirs_ignores(0))
+        allocate (vc_directories_ignores(0))
 
         if (all .and. allocated(vc_directory_exclusions)) then
             do k = 1, size(vc_directory_exclusions)
-                call append_string(vc_dirs_ignores, trim(vc_directory_exclusions(k))//"/")
+                call append_string(vc_directories_ignores, trim(vc_directory_exclusions(k))//"/")
             end do
         end if
 
         if (all) then
             allocate (all_files(0))
 
-            do k = 1, size(dirs)
-                call project_files_in_directory(dirs(k)%text, vc_dirs_ignores, more, status)
+            do k = 1, size(directories)
+                call project_files_in_directory(directories(k)%text, vc_directories_ignores, more, status)
                 if (.not. status%ok()) return
                 call append_strings(all_files, more)
             end do
         else
-            call project%list_files(all_files, status, dirs)
+            call project%list_files(all_files, status, directories)
             if (.not. status%ok()) return
         end if
 
         saved_ignore_case = completion_ignore_case%value
         completion_ignore_case = read_file_name_completion_ignore_case
-        saved_dir = default_directory()
+        saved_directory = default_directory()
         call set_default_directory(file_name_as_directory(project%root()))
         call read_project_file_name(project, "Find file", all_files, file, status, "file_name_history", &
                                     suggested_filename)
-        call set_default_directory(saved_dir)
+        call set_default_directory(saved_directory)
         completion_ignore_case = saved_ignore_case
         if (.not. status%ok()) return
 
         if (len(file) == 0) then
-            call set_error(status, FM_USER_ERROR, "You didn't specify the file")
+            call set_error(status, USER_ERROR_CODE, "You didn't specify the file")
             return
         end if
 
-        call expand_file_name(file, saved_dir, status, file_name_as_directory(project%root()))
+        call expand_file_name(file, saved_directory, status, file_name_as_directory(project%root()))
         if (.not. status%ok()) return
-        call find_file(saved_dir, status)
+        call find_file(saved_directory, status)
     end subroutine find_file_in_project
 
     !> Call `project_read_file_name_function' with appropriate history.
@@ -3271,19 +3273,19 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in) :: history
         type(string_type), intent(in) :: mb_default(:)
-        type(history_setting_type), pointer :: hist
+        type(history_setting_type), pointer :: history_entries
         type(string_type), allocatable :: saved(:)
 
         file = ""
 
         if (size(all_files) == 0) then
-            call set_error(status, FM_USER_ERROR, "Empty file list")
+            call set_error(status, USER_ERROR_CODE, "Empty file list")
             return
         end if
 
         ! (let ((history-add-new-input nil)) ...): the history as it was.
-        hist => find_history(history, create=.true.)
-        if (allocated(hist%items)) saved = hist%items
+        history_entries => find_history(history, create=.true.)
+        if (allocated(history_entries%items)) saved = history_entries%items
 
         if (associated(project_read_file_name_function)) then
             call project_read_file_name_function(prompt, all_files, file, status, history, mb_default)
@@ -3291,10 +3293,10 @@ contains
             call read_project_file_relative(prompt, all_files, file, status, history, mb_default)
         end if
 
-        if (allocated(hist%items)) deallocate (hist%items)
-        if (allocated(saved)) call move_alloc(saved, hist%items)
+        if (allocated(history_entries%items)) deallocate (history_entries%items)
+        if (allocated(saved)) call move_alloc(saved, history_entries%items)
         if (.not. status%ok()) return
-        call hist%append(file)
+        call history_entries%append(file)
     end subroutine read_project_file_name
 
     !> Read a file name, prompting with PROMPT.
@@ -3436,11 +3438,11 @@ contains
         character(len=*), intent(in), optional :: history
         type(string_type), intent(in) :: mb_default(:)
         character(len=*), intent(in), optional :: common_parent_directory
-        type(history_setting_type), pointer :: hist
+        type(history_setting_type), pointer :: history_entries
         type(string_type), allocatable :: saved(:), kept(:)
         type(string_type) :: item
         type(string_type), allocatable :: defaults(:)
-        character(len=:), allocatable :: abs_cpd, s, histname
+        character(len=:), allocatable :: absolute_cpd, s, histname
         logical :: saved_non_essential
         integer :: k
 
@@ -3458,11 +3460,11 @@ contains
 
         histname = "minibuffer_history"
         if (present(history)) histname = history
-        hist => find_history(histname, create=.true.)
-        if (allocated(hist%items)) saved = hist%items
+        history_entries => find_history(histname, create=.true.)
+        if (allocated(history_entries%items)) saved = history_entries%items
 
         if (present(common_parent_directory)) then
-            call expand_file_name(common_parent_directory, abs_cpd, status)
+            call expand_file_name(common_parent_directory, absolute_cpd, status)
             if (.not. status%ok()) return
             allocate (kept(0))
 
@@ -3471,14 +3473,14 @@ contains
                     call expand_file_name(saved(k)%text, s, status)
                     if (.not. status%ok()) return
 
-                    if (starts_with(s, abs_cpd) .and. len(s) /= len(abs_cpd)) then
-                        item%text = s(len(abs_cpd) + 1:)
+                    if (starts_with(s, absolute_cpd) .and. len(s) /= len(absolute_cpd)) then
+                        item%text = s(len(absolute_cpd) + 1:)
                         kept = [kept, item]
                     end if
                 end do
             end if
 
-            call move_alloc(kept, hist%items)
+            call move_alloc(kept, history_entries%items)
         end if
 
         ! Avoid new remote connections.
@@ -3492,8 +3494,8 @@ contains
                              history=histname)
         minibuffer_setup_function => null()
         non_essential = saved_non_essential
-        if (allocated(hist%items)) deallocate (hist%items)
-        if (allocated(saved)) call move_alloc(saved, hist%items)
+        if (allocated(history_entries%items)) deallocate (history_entries%items)
+        if (allocated(saved)) call move_alloc(saved, history_entries%items)
     end subroutine completing_read_strict
 
     !> The minibuffer setup of `completing_read_strict': the defaults M-n
@@ -3507,11 +3509,11 @@ contains
     !> Start Dired in a directory inside the current project.
     !> The current buffer's `default_directory' is available as part of
     !> "future history".  Port of project.el:project-find-dir.
-    recursive subroutine find_project_dir(status)
+    recursive subroutine find_project_directory(status)
         type(status_type), intent(out) :: status
         class(project_type), allocatable :: project
-        type(string_type), allocatable :: all_files(:), all_dirs(:), defaults(:)
-        character(len=:), allocatable :: dir, saved_dir, d
+        type(string_type), allocatable :: all_files(:), all_directories(:), defaults(:)
+        character(len=:), allocatable :: directory, saved_directory, d
         logical :: saved_relative, saved_ignore_case
         integer :: k
 
@@ -3525,25 +3527,25 @@ contains
         saved_ignore_case = completion_ignore_case%value
         completion_ignore_case = read_file_name_completion_ignore_case
         ! FIXME: This misses directories without any files directly inside.
-        allocate (all_dirs(0))
-        call append_string(all_dirs, "./")
+        allocate (all_directories(0))
+        call append_string(all_directories, "./")
 
         do k = 1, size(all_files)
             d = file_name_directory(all_files(k)%text)
             ! Some completion UIs show duplicates.
-            if (len(d) > 0 .and. .not. has_string(all_dirs(2:), d)) call append_string(all_dirs, d)
+            if (len(d) > 0 .and. .not. has_string(all_directories(2:), d)) call append_string(all_directories, d)
         end do
 
-        saved_dir = default_directory()
+        saved_directory = default_directory()
         call set_default_directory(file_name_as_directory(project%root()))
         allocate (defaults(0))
         call append_string(defaults, find_default_from(default_directory(), project))
-        call read_project_file_name(project, "Dired", all_dirs, dir, status, "file_name_history", defaults)
-        call set_default_directory(saved_dir)
+        call read_project_file_name(project, "Dired", all_directories, directory, status, "file_name_history", defaults)
+        call set_default_directory(saved_directory)
         completion_ignore_case = saved_ignore_case
         if (.not. status%ok()) return
-        call dired(dir, status)
-    end subroutine find_project_dir
+        call dired(directory, status)
+    end subroutine find_project_directory
 
     ! ------------------------------------------------------------------
     ! Commands in the project root
@@ -3596,14 +3598,14 @@ contains
 
     !> Run VC-Dir in the current project's root.  Port of
     !> project.el:project-vc-dir.
-    recursive subroutine vc_dir_in_project(status)
+    recursive subroutine vc_directory_in_project(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: root
 
         call current_root(root, status)
         if (.not. status%ok()) return
-        call vc_dir(root, status)
-    end subroutine vc_dir_in_project
+        call vc_directory(root, status)
+    end subroutine vc_directory_in_project
 
     !> Start an inferior shell in the current project's root directory.
     !> If a buffer already exists for running a shell in the project's
@@ -3625,10 +3627,10 @@ contains
         call set_default_directory(root)
         base_name = project_prefixed_buffer_name("shell")
 
-        if (current_prefix_arg%kind == PREFIX_NUMBER) then
-            write (number, "(i0)") prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_argument%kind == PREFIX_NUMBER) then
+            write (number, "(i0)") prefix_numeric_value(current_prefix_argument)
             shell_buffer_name = base_name//"<"//trim(number)//">"
-        else if (current_prefix_arg%kind /= PREFIX_NONE) then
+        else if (current_prefix_argument%kind /= PREFIX_NONE) then
             shell_buffer_name = generate_new_buffer_name(base_name)
         else
             shell_buffer_name = base_name
@@ -3636,7 +3638,7 @@ contains
 
         shell_buffer = get_buffer(shell_buffer_name)
 
-        if (is_buffer_live(shell_buffer) .and. current_prefix_arg%kind == PREFIX_NONE) then
+        if (is_buffer_live(shell_buffer) .and. current_prefix_argument%kind == PREFIX_NONE) then
             if (comint_check_process(shell_buffer)) then
                 call pop_to_buffer_same_window(shell_buffer, status)
             else
@@ -3731,11 +3733,11 @@ contains
     end subroutine recompile_in_project
 
     ! The command.
-    recursive subroutine cmd_recompile_in_project(status)
+    recursive subroutine execute_recompile_in_project(status)
         type(status_type), intent(out) :: status
 
-        call recompile_in_project(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_recompile_in_project
+        call recompile_in_project(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_recompile_in_project
 
     ! ------------------------------------------------------------------
     ! Project buffers
@@ -3748,10 +3750,10 @@ contains
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
         class(project_type), allocatable :: pr
-        type(handle_type), allocatable :: bufs(:)
+        type(handle_type), allocatable :: buffer_handles(:)
         type(handle_type) :: other
         type(string_type), allocatable :: names(:)
-        character(len=:), allocatable :: other_name, result, saved_dir
+        character(len=:), allocatable :: other_name, result, saved_directory
         logical :: saved_ignore_case
         integer :: k
 
@@ -3759,17 +3761,17 @@ contains
         call get_current_project(pr, status, maybe_prompt=.true.)
         if (.not. status%ok()) return
         other = other_buffer(current_buffer())
-        bufs = pr%buffers(status)
+        buffer_handles = pr%buffers(status)
         if (.not. status%ok()) return
         allocate (names(0))
         other_name = ""
 
-        do k = 1, size(bufs)
-            if (is_project_buffer_matching(bufs(k), project_ignore_buffer_conditions)) cycle
-            call append_string(names, buffers(bufs(k)%index)%name)
+        do k = 1, size(buffer_handles)
+            if (is_project_buffer_matching(buffer_handles(k), project_ignore_buffer_conditions)) cycle
+            call append_string(names, buffers(buffer_handles(k)%index)%name)
 
-            if (bufs(k)%index == other%index .and. bufs(k)%generation == other%generation) then
-                other_name = buffers(bufs(k)%index)%name
+            if (buffer_handles(k)%index == other%index .and. buffer_handles(k)%generation == other%generation) then
+                other_name = buffers(buffer_handles(k)%index)%name
             end if
         end do
 
@@ -3797,10 +3799,10 @@ contains
         if (is_file_in_directory(default_directory(), pr%root())) then
             call get_or_make_buffer(result, buffer, status)
         else
-            saved_dir = default_directory()
+            saved_directory = default_directory()
             call set_default_directory(pr%root())
             call get_or_make_buffer(result, buffer, status)
-            call set_default_directory(saved_dir)
+            call set_default_directory(saved_directory)
             if (status%ok()) buffers(buffer%index)%directory = pr%root()
         end if
     end subroutine read_project_buffer
@@ -3818,14 +3820,14 @@ contains
     end subroutine switch_to_project_buffer
 
     ! The command.
-    recursive subroutine cmd_switch_to_project_buffer(status)
+    recursive subroutine execute_switch_to_project_buffer(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer
 
         call read_project_buffer(buffer, status)
         if (.not. status%ok()) return
         call switch_to_project_buffer(buffer, status)
-    end subroutine cmd_switch_to_project_buffer
+    end subroutine execute_switch_to_project_buffer
 
     !> Display BUFFER in some window, without selecting it.
     !> When called interactively, prompts for a buffer belonging to the
@@ -3845,32 +3847,32 @@ contains
     end subroutine display_project_buffer
 
     ! The command.
-    recursive subroutine cmd_display_project_buffer(status)
+    recursive subroutine execute_display_project_buffer(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer
 
         call read_project_buffer(buffer, status)
         if (.not. status%ok()) return
         call display_project_buffer(buffer, status)
-    end subroutine cmd_display_project_buffer
+    end subroutine execute_display_project_buffer
 
     !> Display a list of project buffers.
     !> The list is displayed in a buffer named "*Buffer List*".
     !>
     !> By default, all project buffers are listed except those whose names
     !> start with a space (which are for internal use).  With prefix
-    !> argument ARG, show only buffers that are visiting files.  Port of
+    !> argument ARGUMENT, show only buffers that are visiting files.  Port of
     !> project.el:project-list-buffers.
-    recursive subroutine list_project_buffers(status, arg)
+    recursive subroutine list_project_buffers(status, argument)
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: arg
+        logical, intent(in), optional :: argument
         class(project_type), allocatable :: pr
         logical :: files_only
 
         call get_current_project(pr, status, maybe_prompt=.true.)
         if (.not. status%ok()) return
         files_only = .false.
-        if (present(arg)) files_only = arg
+        if (present(argument)) files_only = argument
 
         if (associated(project_buffers_viewer)) then
             call project_buffers_viewer(pr, files_only, status)
@@ -3880,11 +3882,11 @@ contains
     end subroutine list_project_buffers
 
     ! The command.
-    recursive subroutine cmd_list_project_buffers(status)
+    recursive subroutine execute_list_project_buffers(status)
         type(status_type), intent(out) :: status
 
-        call list_project_buffers(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_list_project_buffers
+        call list_project_buffers(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_list_project_buffers
 
     !> List buffers for PROJECT in Buffer-menu mode.
     !> If FILES_ONLY is .true., only show the file-visiting buffers.
@@ -3920,14 +3922,14 @@ contains
     !> the buffers of its project but the menu itself.  Port of
     !> project.el:project-list-buffers-buffer-menu (its buffer-list
     !> function; the menu filters the internal and non-file buffers).
-    subroutine menu_project_buffers(bufs, status)
-        type(handle_type), allocatable, intent(out) :: bufs(:)
+    subroutine menu_project_buffers(buffer_handles, status)
+        type(handle_type), allocatable, intent(out) :: buffer_handles(:)
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: all(:)
         integer :: k, m
 
         status = status_type()
-        allocate (bufs(0))
+        allocate (buffer_handles(0))
         if (.not. allocated(buffer_menu_projects)) return
         m = findloc(buffer_menu_projects%serial, buffers(current)%serial, dim=1)
         if (m == 0) return
@@ -3935,26 +3937,26 @@ contains
         if (.not. status%ok()) return
 
         do k = 1, size(all)
-            if (all(k)%index /= current) bufs = [bufs, all(k)]
+            if (all(k)%index /= current) buffer_handles = [buffer_handles, all(k)]
         end do
     end subroutine menu_project_buffers
 
     !> The buffers of project PR to close: those matching
     !> `project_close_buffer_conditions'.  Port of
     !> project.el:project--buffers-to-kill.
-    function project_buffers_to_close(pr, status) result(bufs)
+    function project_buffers_to_close(pr, status) result(buffers)
         class(project_type), intent(in) :: pr
         type(status_type), intent(out) :: status
-        type(handle_type), allocatable :: bufs(:)
+        type(handle_type), allocatable :: buffers(:)
         type(handle_type), allocatable :: all(:)
         integer :: k
 
-        allocate (bufs(0))
+        allocate (buffers(0))
         all = pr%buffers(status)
         if (.not. status%ok()) return
 
         do k = 1, size(all)
-            if (is_project_buffer_matching(all(k), project_close_buffer_conditions)) bufs = [all(k), bufs]
+            if (is_project_buffer_matching(all(k), project_close_buffer_conditions)) buffers = [all(k), buffers]
         end do
     end function project_buffers_to_close
 
@@ -3974,7 +3976,7 @@ contains
         logical, intent(in), optional :: no_confirm
         class(project_type), intent(in), optional :: project
         class(project_type), allocatable :: pr
-        type(handle_type), allocatable :: bufs(:)
+        type(handle_type), allocatable :: buffers(:)
         logical :: confirmed, quiet
         integer :: k
         character(len=24) :: number
@@ -3986,42 +3988,42 @@ contains
             if (.not. status%ok()) return
         end if
 
-        bufs = project_buffers_to_close(pr, status)
+        buffers = project_buffers_to_close(pr, status)
         if (.not. status%ok()) return
         quiet = .false.
         if (present(no_confirm)) quiet = no_confirm
 
         if (quiet) then
             confirmed = .true.
-        else if (size(bufs) == 0) then
+        else if (size(buffers) == 0) then
             call message("No buffers to kill")
             return
         else
-            write (number, "(i0)") size(bufs)
+            write (number, "(i0)") size(buffers)
             call read_yes_or_no("Kill "//trim(number)//" buffers in "//pr%name()//"? ", confirmed, status)
             if (.not. status%ok()) return
         end if
 
         if (.not. confirmed) return
 
-        do k = 1, size(bufs)
-            if (is_buffer_live(bufs(k))) call close_buffer(bufs(k), status)
+        do k = 1, size(buffers)
+            if (is_buffer_live(buffers(k))) call close_buffer(buffers(k), status)
             if (.not. status%ok()) return
         end do
     end subroutine close_project_buffers
 
     ! The command.
-    recursive subroutine cmd_close_project_buffers(status)
+    recursive subroutine execute_close_project_buffers(status)
         type(status_type), intent(out) :: status
 
         call close_project_buffers(status)
-    end subroutine cmd_close_project_buffers
+    end subroutine execute_close_project_buffers
 
-    !> Like `save_some_buffers', but only for this project's buffers.  ARG
+    !> Like `save_some_buffers', but only for this project's buffers.  ARGUMENT
     !> as for `save_some_buffers'.  Port of
     !> project.el:project-save-some-buffers.
-    recursive subroutine save_some_project_buffers(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine save_some_project_buffers(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
         class(project_type), allocatable :: pr
         character(len=:), allocatable :: saved
@@ -4038,7 +4040,7 @@ contains
             save_root = default_directory()
         end if
 
-        call save_some_buffers(arg, .true., status, is_buffer_under_save_root)
+        call save_some_buffers(argument, .true., status, is_buffer_under_save_root)
 
         if (allocated(saved)) then
             save_root = saved
@@ -4048,11 +4050,11 @@ contains
     end subroutine save_some_project_buffers
 
     ! The command.
-    recursive subroutine cmd_save_some_project_buffers(status)
+    recursive subroutine execute_save_some_project_buffers(status)
         type(status_type), intent(out) :: status
 
-        call save_some_project_buffers(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_save_some_project_buffers
+        call save_some_project_buffers(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_save_some_project_buffers
 
     !> Whether the current buffer's `default_directory' is in the root
     !> `save_some_project_buffers' saves.  Port of
@@ -4087,7 +4089,7 @@ contains
         type(value_type) :: binding
         type(handle_type) :: saved_map
         type(command_type), pointer :: command
-        character(len=:), allocatable :: root, before, after, saved_dir, saved_override
+        character(len=:), allocatable :: root, before, after, saved_directory, saved_override
         logical :: eof, had_override
 
         call get_current_project(pr, status, maybe_prompt=.true.)
@@ -4118,19 +4120,19 @@ contains
                 call project_current_directory_override%clear()
             end if
         else
-            saved_dir = default_directory()
+            saved_directory = default_directory()
             call set_default_directory(root)
             call execute_interactively(command, status)
-            call restore_directory(saved_dir)
+            call restore_directory(saved_directory)
         end if
     end subroutine execute_any_command_in_project
 
     ! The command.
-    recursive subroutine cmd_execute_any_command_in_project(status)
+    recursive subroutine execute_execute_any_command_in_project(status)
         type(status_type), intent(out) :: status
 
         call execute_any_command_in_project(status)
-    end subroutine cmd_execute_any_command_in_project
+    end subroutine execute_execute_any_command_in_project
 
     !> Run the next command in the current project.
     !> Works like `execute_any_command_in_project', but also mixes in the
@@ -4219,12 +4221,12 @@ contains
         s = key_description(events)
     end function key_sequence_description
 
-    !> Read the command to run in project DIR from the dispatch menu.
+    !> Read the command to run in project DIRECTORY from the dispatch menu.
     !> Port of project.el:project--switch-project-command.
-    recursive subroutine switch_project_command(command, status, dir)
+    recursive subroutine switch_project_command(command, status, directory)
         type(command_type), pointer, intent(out) :: command
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: dir
+        character(len=*), intent(in), optional :: directory
         type(handle_type) :: commands_map, saved_map
         type(value_type), allocatable :: choice(:)
         type(value_type) :: binding, found, global
@@ -4238,7 +4240,7 @@ contains
         call set_keymap_parent(commands_map, project_prefix_map, status)
 
         if (.not. status%ok()) then
-            call destroy_temp_map(commands_map)
+            call destroy_temporary_map(commands_map)
             return
         end if
 
@@ -4250,7 +4252,7 @@ contains
                                 status)
 
                 if (.not. status%ok()) then
-                    call destroy_temp_map(commands_map)
+                    call destroy_temporary_map(commands_map)
                     return
                 end if
             end do
@@ -4267,8 +4269,8 @@ contains
 
             if (have_choice) prompt = prompt//" Unrecognized input: "//key_description(choice)
 
-            if (present(dir)) then
-                head = "Command in `"//dir//"': "
+            if (present(directory)) then
+                head = "Command in `"//directory//"': "
             else
                 head = "Command: "
             end if
@@ -4280,7 +4282,7 @@ contains
             if (.not. status%ok()) exit
             if (eof) exit
             have_choice = .true.
-            call lookup_key(make_keymap_ref(commands_map), choice, found, status)
+            call lookup_key(make_keymap_reference(commands_map), choice, found, status)
             if (.not. status%ok()) exit
             command => command_of(found)
 
@@ -4296,7 +4298,7 @@ contains
                 if (.not. listed) command => null()
             end if
 
-            call lookup_key(make_keymap_ref(current_global_map()), choice, global, status)
+            call lookup_key(make_keymap_reference(current_global_map()), choice, global, status)
             if (.not. status%ok()) exit
             global_command => command_of(global)
 
@@ -4310,40 +4312,40 @@ contains
         end do
 
         call message("")
-        call destroy_temp_map(commands_map)
+        call destroy_temporary_map(commands_map)
     end subroutine switch_project_command
 
     !> Destroy the temporary keymap MAP.  Not a port.
-    subroutine destroy_temp_map(map)
+    subroutine destroy_temporary_map(map)
         use keymap_mod, only: destroy_keymap
         type(handle_type), intent(inout) :: map
         type(status_type) :: st
 
         call destroy_keymap(map, st)
-    end subroutine destroy_temp_map
+    end subroutine destroy_temporary_map
 
     !> "Switch" to another project by running a command.
     !> The available commands are presented as a dispatch menu made from
     !> `project_switch_commands'.
     !>
     !> When called in a program, it will use the project corresponding to
-    !> directory DIR.  Port of project.el:project-switch-project.
-    recursive subroutine switch_project(dir, status)
-        character(len=*), intent(in) :: dir
+    !> directory DIRECTORY.  Port of project.el:project-switch-project.
+    recursive subroutine switch_project(directory_name, status)
+        character(len=*), intent(in) :: directory_name
         type(status_type), intent(out) :: status
         class(project_type), allocatable :: pr
         type(command_type), pointer :: command
         type(handle_type) :: buffer
 
-        call get_current_project(pr, status, maybe_prompt=.true., directory=dir)
+        call get_current_project(pr, status, maybe_prompt=.true., directory=directory_name)
         if (.not. status%ok()) return
         call remember_project(pr, status)
         if (.not. status%ok()) return
-        call switch_project_command(command, status, dir)
+        call switch_project_command(command, status, directory_name)
         if (.not. status%ok()) return
         if (.not. associated(command)) return
         buffer = current_buffer()
-        call project_current_directory_override%set_local(dir)
+        call project_current_directory_override%set_local(directory_name)
         call execute_interactively(command, status)
         if (is_buffer_live(buffer)) call set_buffer_keeping(buffer)
 
@@ -4363,29 +4365,29 @@ contains
     end subroutine switch_project
 
     ! The command.
-    recursive subroutine cmd_switch_project(status)
+    recursive subroutine execute_switch_project(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
-        call execute_prompter(dir, status)
+        call execute_prompter(directory, status)
         if (.not. status%ok()) return
-        call switch_project(dir, status)
-    end subroutine cmd_switch_project
+        call switch_project(directory, status)
+    end subroutine execute_switch_project
 
     ! ------------------------------------------------------------------
     ! Setup
     ! ------------------------------------------------------------------
 
     !> Set up projects: the defaults of the settings, the commands and
-    !> `project_prefix_map' on C-x p in CTL_X_MAP.  Not a port.
-    subroutine init_project(ctl_x_map)
+    !> `project_prefix_map' on C-x p in CONTROL_X_MAP.  Not a port.
+    subroutine initialize_project(control_x_map)
         use value_mod, only: value_type
-        type(handle_type), intent(in) :: ctl_x_map
+        type(handle_type), intent(in) :: control_x_map
         type(value_type) :: key(1)
         type(status_type) :: st
 
         if (.not. allocated(project_find_functions%entries)) call project_find_functions%append(try_vc_project)
-        if (.not. associated(project_prompter)) project_prompter => read_project_dir
+        if (.not. associated(project_prompter)) project_prompter => read_project_directory
         if (.not. associated(project_read_file_name_function)) project_read_file_name_function => read_project_file_relative
         if (.not. associated(project_buffers_viewer)) project_buffers_viewer => list_project_buffers_in_buffer_menu
         if (.not. allocated(project_vc_ignores)) allocate (character(len=0) :: project_vc_ignores(0))
@@ -4413,7 +4415,7 @@ contains
             call project_close_buffer_conditions%append(project_buffer_test(is_file_buffer))
             ! Most of temp and logging buffers (aside from hidden ones):
             call project_close_buffer_conditions%append(project_and(project_major_mode("fundamental_mode"), &
-                                                                    project_buffer_name_regexp("\`[^ ]")))
+                                                                    project_buffer_name_regular_expression("\`[^ ]")))
             ! non-text buffer such as xref, occur, vc, log, ...
             call project_close_buffer_conditions%append(project_and(project_derived_mode("special_mode"), &
                                                                     project_not(project_major_mode("help_mode")), &
@@ -4432,56 +4434,56 @@ contains
             allocate (project_switch_commands(4))
             project_switch_commands(1)%command => commands%find_project_file
             project_switch_commands(1)%label = "Find file"
-            project_switch_commands(2)%command => commands%find_project_dir
+            project_switch_commands(2)%command => commands%find_project_directory
             project_switch_commands(2)%label = "Find directory"
-            project_switch_commands(3)%command => commands%vc_dir_in_project
+            project_switch_commands(3)%command => commands%vc_directory_in_project
             project_switch_commands(3)%label = "VC-Dir"
             project_switch_commands(4)%command => commands%execute_any_command_in_project
             project_switch_commands(4)%label = "Other"
         end if
 
         call forward_setting(project_current_directory_override)
-        call forward_setting(project_dir_history)
+        call forward_setting(project_directory_history)
         call forward_setting(project_name_history)
         if (.not. allocated(vc_cache)) allocate (vc_cache(0))
-        commands%find_project_file%execute => cmd_find_project_file
-        commands%find_project_or_external_file%execute => cmd_find_project_or_external_file
-        commands%find_project_regexp%execute => cmd_find_project_regexp
-        commands%find_project_or_external_regexp%execute => cmd_find_project_or_external_regexp
-        commands%find_file_in_project_root%execute => cmd_find_file_in_project_root
-        commands%find_project_dir%execute => find_project_dir
+        commands%find_project_file%execute => execute_find_project_file
+        commands%find_project_or_external_file%execute => execute_find_project_or_external_file
+        commands%find_project_regular_expression%execute => execute_find_project_regular_expression
+        commands%find_project_or_external_regular_expression%execute => execute_find_project_or_external_regular_expression
+        commands%find_file_in_project_root%execute => execute_find_file_in_project_root
+        commands%find_project_directory%execute => find_project_directory
         commands%dired_in_project%execute => dired_in_project
-        commands%vc_dir_in_project%execute => vc_dir_in_project
+        commands%vc_directory_in_project%execute => vc_directory_in_project
         commands%shell_in_project%execute => shell_in_project
         commands%async_shell_command_in_project%execute => async_shell_command_in_project
         commands%shell_command_in_project%execute => shell_command_in_project
         commands%compile_in_project%execute => compile_in_project
-        commands%recompile_in_project%execute => cmd_recompile_in_project
-        commands%switch_to_project_buffer%execute => cmd_switch_to_project_buffer
-        commands%display_project_buffer%execute => cmd_display_project_buffer
-        commands%list_project_buffers%execute => cmd_list_project_buffers
-        commands%close_project_buffers%execute => cmd_close_project_buffers
-        commands%save_some_project_buffers%execute => cmd_save_some_project_buffers
-        commands%remember_project%execute => cmd_remember_project
-        commands%forget_project%execute => cmd_forget_project
+        commands%recompile_in_project%execute => execute_recompile_in_project
+        commands%switch_to_project_buffer%execute => execute_switch_to_project_buffer
+        commands%display_project_buffer%execute => execute_display_project_buffer
+        commands%list_project_buffers%execute => execute_list_project_buffers
+        commands%close_project_buffers%execute => execute_close_project_buffers
+        commands%save_some_project_buffers%execute => execute_save_some_project_buffers
+        commands%remember_project%execute => execute_remember_project
+        commands%forget_project%execute => execute_forget_project
         commands%execute_extended_command_in_project%execute => execute_extended_command_in_project
-        commands%execute_any_command_in_project%execute => cmd_execute_any_command_in_project
+        commands%execute_any_command_in_project%execute => execute_execute_any_command_in_project
         commands%execute_prefix_or_any_command_in_project%execute => execute_prefix_or_any_command_in_project
-        commands%remember_projects_under%execute => cmd_remember_projects_under
-        commands%forget_zombie_projects%execute => cmd_forget_zombie_projects
-        commands%forget_projects_under%execute => cmd_forget_projects_under
-        commands%switch_project%execute => cmd_switch_project
+        commands%remember_projects_under%execute => execute_remember_projects_under
+        commands%forget_zombie_projects%execute => execute_forget_zombie_projects
+        commands%forget_projects_under%execute => execute_forget_projects_under
+        commands%switch_project%execute => execute_switch_project
         ! The commands that take the project from
         ! `project_current_directory_override' (upstream's "project-"
         ! names and the `project-aware' property).
         commands%find_project_file%project_aware = .true.
         commands%find_project_or_external_file%project_aware = .true.
-        commands%find_project_regexp%project_aware = .true.
-        commands%find_project_or_external_regexp%project_aware = .true.
+        commands%find_project_regular_expression%project_aware = .true.
+        commands%find_project_or_external_regular_expression%project_aware = .true.
         commands%find_file_in_project_root%project_aware = .true.
-        commands%find_project_dir%project_aware = .true.
+        commands%find_project_directory%project_aware = .true.
         commands%dired_in_project%project_aware = .true.
-        commands%vc_dir_in_project%project_aware = .true.
+        commands%vc_directory_in_project%project_aware = .true.
         commands%shell_in_project%project_aware = .true.
         commands%async_shell_command_in_project%project_aware = .true.
         commands%shell_command_in_project%project_aware = .true.
@@ -4503,13 +4505,13 @@ contains
         call keymap_set(project_prefix_map, "&", "async_shell_command_in_project", st)
         call keymap_set(project_prefix_map, "f", "find_project_file", st)
         call keymap_set(project_prefix_map, "F", "find_project_or_external_file", st)
-        call keymap_set(project_prefix_map, "g", "find_project_regexp", st)
-        call keymap_set(project_prefix_map, "G", "find_project_or_external_regexp", st)
+        call keymap_set(project_prefix_map, "g", "find_project_regular_expression", st)
+        call keymap_set(project_prefix_map, "G", "find_project_or_external_regular_expression", st)
         call keymap_set(project_prefix_map, "b", "switch_to_project_buffer", st)
         call keymap_set(project_prefix_map, "s", "shell_in_project", st)
-        call keymap_set(project_prefix_map, "d", "find_project_dir", st)
+        call keymap_set(project_prefix_map, "d", "find_project_directory", st)
         call keymap_set(project_prefix_map, "D", "dired_in_project", st)
-        call keymap_set(project_prefix_map, "v", "vc_dir_in_project", st)
+        call keymap_set(project_prefix_map, "v", "vc_directory_in_project", st)
         call keymap_set(project_prefix_map, "c", "compile_in_project", st)
         call keymap_set(project_prefix_map, "k", "close_project_buffers", st)
         call keymap_set(project_prefix_map, "p", "switch_project", st)
@@ -4518,6 +4520,6 @@ contains
         call keymap_set(project_prefix_map, "C-b", "list_project_buffers", st)
         call keymap_set(project_prefix_map, "C-x s", "save_some_project_buffers", st)
         key(1) = value_type(int(iachar("p"), int64))
-        call define_key(ctl_x_map, key, make_keymap_ref(project_prefix_map), st)
-    end subroutine init_project
+        call define_key(control_x_map, key, make_keymap_reference(project_prefix_map), st)
+    end subroutine initialize_project
 end module project_mod

@@ -38,29 +38,29 @@ module minibuffer_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use execute_interactively_mod, only: command_type
     use commands_mod, only: commands
-    use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: format_message, status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current, get_buffer, get_or_make_buffer, set_buffer, current_buffer, erase_buffer, &
                           set_buffer_read_only, buffer_list, bury_buffer_internal, deactivate_mark_variable
-    use insert_delete_mod, only: del_range, insert
+    use insert_delete_mod, only: delete_range, insert
     use keymap_mod, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, is_keymap_live, &
                           destroy_keymap
-    use value_mod, only: value_type, list, list_elements, list_length, list_elt, xfixnum, xstring, make_list, vtag, &
+    use value_mod, only: value_type, list, list_elements, list_length, list_element, xfixnum, xstring, make_list, vtag, &
                          V_NULL, V_INTEGER, V_NAME, V_STRING
     use data_mod, only: value_eq, symbol_value, set
-    use character_mod, only: string_char_and_length
-    use editing_functions_mod, only: point, point_max, goto_char, buffer_substring
-    use faces_mod, only: named_face_type, face_attrs, display_when
+    use character_mod, only: string_character_and_length
+    use editing_functions_mod, only: point, point_maximum, goto_character, buffer_substring
+    use faces_mod, only: named_face_type, face_attributes, display_when
     use text_properties_mod, only: add_face_text_property
-    use frame_mod, only: selected_frame, frame_selected_window_ref
+    use frame_mod, only: selected_frame, frame_selected_window_reference
     use window_mod, only: window_type, windows, set_window_start, is_window_live, same_window, get_buffer_window, &
-                          temp_buffer_window_show, fit_window_to_buffer, display_action_parameters_type, delete_window, &
-                          switch_to_prev_buffer, scroll_window, is_pos_visible_in_window, minibuffer_scroll_window, &
+                          temporary_buffer_window_show, fit_window_to_buffer, display_action_parameters_type, delete_window, &
+                          switch_to_previous_buffer, scroll_window, is_position_visible_in_window, minibuffer_scroll_window, &
                           display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, BK_BURY, &
                           DISPLAY_ACTION_MAYBE_SAME_WINDOW, DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM, &
                           recenter_top_bottom, scroll_up_command, &
                           scroll_down_command, set_window_buffer
-    use execute_interactively_mod, only: current_prefix_arg
+    use execute_interactively_mod, only: current_prefix_argument
     use display_engine_mod, only: message
     use display_update_mod, only: ding
     use utility_functions_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring, is_string_less, read_yes_or_no
@@ -80,9 +80,10 @@ module minibuffer_mod
                                      file_name_nondirectory, file_exists, file_name_as_directory, is_file_directory
     use basic_subprograms_mod, only: add_to_history, history_delete_duplicates
     use files_mod, only: abbreviate_file_name
-    use minibuffer_reading_tables_mod, only: capf_data_type, COMPLETION_EXACT, COMPLETION_FINISHED, COMPLETION_UNKNOWN, &
-                                             completion_exit_function_procedure, TABLE_QUOTING
-    use hooks_mod, only: capf_hook_type, capf_procedure, capf_entry_type
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type, COMPLETION_EXACT, COMPLETION_FINISHED, &
+                                             COMPLETION_UNKNOWN, completion_exit_function_procedure, TABLE_QUOTING
+    use hooks_mod, only: completion_at_point_function_hook_type, completion_at_point_function_procedure, &
+                         completion_at_point_function_entry_type
     use marker_mod, only: copy_marker_at, copy_marker, destroy_marker, marker_buffer, marker_position
     use keymap_mod, only: push_minor_mode_overriding_map, remove_minor_mode_overriding_map
     use keyboard_mod, only: post_command_hook, has_unread_command_events, this_command_keys
@@ -94,7 +95,7 @@ module minibuffer_mod
     implicit none(type, external)
     private
 
-    public :: exit_minibuffer, delete_minibuffer_contents, read_file_name, init_minibuffer, read_buffer, &
+    public :: exit_minibuffer, delete_minibuffer_contents, read_file_name, initialize_minibuffer, read_buffer, &
               read_directory_name, completion_file_name_table
     public :: completion_insert_strings
     public :: completion_in_region, completion_in_region_default, completion_at_point, completion_help_at_point, &
@@ -169,7 +170,7 @@ module minibuffer_mod
 
     !> Maximum height for *Completions* buffer window (0 for no maximum).
     !> Port of minibuffer.el completions-max-height.
-    integer, public :: completions_max_height = 0
+    integer, public :: completions_maximum_height = 0
 
     !> True means when reading a filename start with default dir in minibuffer.
     !>
@@ -192,7 +193,7 @@ module minibuffer_mod
 
     !> What `read_file_name_setup' sets up: the minibuffer's directory and
     !> the initial input (none unless `rfn_has_insdef').
-    character(len=:), allocatable :: rfn_dir, rfn_insdef
+    character(len=:), allocatable :: rfn_directory, rfn_insdef
     logical :: rfn_has_insdef = .false.
 
     !> True means completion ignores case when reading a buffer name.
@@ -307,10 +308,10 @@ module minibuffer_mod
     !> Special hook to find the completion table for the entity at point.
     !> Each function on this hook is called in turn and should return
     !> either nothing, meaning it is not applicable at point, or the
-    !> completion data (START END COLLECTION . PROPS), where:
+    !> completion data (START END COLLECTION . PROPERTIES), where:
     !>  START and END delimit the entity to complete and should include point,
     !>  COLLECTION is the completion table to use to complete the entity, and
-    !>  PROPS holds attributes for additional information.
+    !>  PROPERTIES holds attributes for additional information.
     !> Currently supported properties are:
     !>  `test'        a test that completion candidates need to satisfy.
     !>  `exclusive'        false means that if the completion table fails to
@@ -327,8 +328,8 @@ module minibuffer_mod
     !> completion-at-point-functions (its default,
     !> tags-completion-at-point-function, is deferred with etags; it finds
     !> nothing without a tags table).
-    type(capf_hook_type), target, public :: completion_at_point_functions = &
-                                            capf_hook_type(name="completion_at_point_functions")
+    type(completion_at_point_function_hook_type), target, public :: completion_at_point_functions = &
+                                                        completion_at_point_function_hook_type(name="completion_at_point_functions")
 
     !> Function to perform the job of `completion_in_region'.
     !> The function is called with 4 arguments: START END COLLECTION
@@ -377,11 +378,12 @@ module minibuffer_mod
     type(completion_table_type) :: cir_table
     procedure(completion_test_procedure), pointer :: cir_test => null()
 
-    !> The closure of completion-at-point's test `capf_same_field':
+    !> The closure of completion-at-point's test `completion_at_point_function_same_field':
     !> the hook function and the start marker, while completing; and the
     !> copy kept while `completion_in_region_mode' is on.
-    procedure(capf_procedure), pointer :: capf_field_fun => null(), cir_mode_capf_fun => null()
-    type(handle_type) :: capf_field_start, cir_mode_capf_start
+    procedure(completion_at_point_function_procedure), pointer :: completion_at_point_function_field_function => null(), &
+        cir_mode_completion_at_point_function_function => null()
+    type(handle_type) :: completion_at_point_function_field_start, cir_mode_completion_at_point_function_start
 
     !> Keymap activated during `completion_in_region'.  Port of
     !> minibuffer.el completion-in-region-mode-map (RET, M-<up>, M-<down>
@@ -443,12 +445,12 @@ contains
 
         if (is_minibuffer()) then
             if (.not. is_minibuffer_innermost_command_loop()) then
-                call set_error(status, FM_GENERIC_ERROR, "Not in most nested command loop")
+                call set_error(status, GENERIC_ERROR_CODE, "Not in most nested command loop")
                 return
             end if
 
             if (.not. is_innermost_minibuffer()) then
-                call set_error(status, FM_GENERIC_ERROR, "Not in most nested minibuffer")
+                call set_error(status, GENERIC_ERROR_CODE, "Not in most nested minibuffer")
                 return
             end if
         end if
@@ -465,22 +467,22 @@ contains
     subroutine delete_minibuffer_contents(status)
         type(status_type), intent(out) :: status
 
-        call del_range(minibuffer_prompt_end(), buffers(current)%zv, status)
+        call delete_range(minibuffer_prompt_end(), buffers(current)%end_of_accessible_portion, status)
     end subroutine delete_minibuffer_contents
 
-    !> Read a file name, prompting with PROMPT and completing in directory DIR.
+    !> Read a file name, prompting with PROMPT and completing in directory DIRECTORY.
     !> Return the file name as a string.
     !> The return value is not expanded---you must call `expand_file_name'
     !> yourself.
     !>
-    !> DIR is the directory to use for completing relative file names.
+    !> DIRECTORY is the directory to use for completing relative file names.
     !> It should be an absolute directory name, or absent (which means the
     !> current buffer's value of `default_directory').
     !>
     !> DEFAULT_FILENAME specifies the default file name to return if the
     !> user exits the minibuffer with the same non-empty string inserted
     !> by this function.  If DEFAULT_FILENAME is absent, then if INITIAL_INPUT
-    !> is present, the default is DIR combined with INITIAL_INPUT; otherwise, if
+    !> is present, the default is DIRECTORY combined with INITIAL_INPUT; otherwise, if
     !> the current buffer is visiting a file, that file serves as the
     !> default; otherwise, the default is simply the string inserted into
     !> the minibuffer.
@@ -516,23 +518,23 @@ contains
     !> minibuffer.el:read-file-name-default (function MUSTMATCH, list DEFAULT_FILENAME, file dialogs,
     !> minibuffer-default-add-function, minibuffer-local-filename-syntax or
     !> file-name-quote for names containing "/~": Deferred).
-    recursive subroutine read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial_input, test)
+    recursive subroutine read_file_name(prompt, result, status, directory, default_filename, mustmatch, initial_input, test)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: dir, default_filename, initial_input
+        character(len=*), intent(in), optional :: directory, default_filename, initial_input
         integer, intent(in), optional :: mustmatch
         !> Restricts the completions to the file names it accepts.
         procedure(completion_test_procedure), optional :: test
-        character(len=:), allocatable :: d, default, insdef, val, val1, expanded
+        character(len=:), allocatable :: d, default, insdef, value, val1, expanded
         type(value_type) :: history
-        type(value_type), allocatable :: elems(:), kept(:)
+        type(value_type), allocatable :: elements(:), kept(:)
         type(status_type) :: st
         logical :: has_default, has_insdef, saved_completing, used_default, replace_in_history, add_history
         integer :: match, k, n
 
-        if (present(dir)) then
-            d = dir
+        if (present(directory)) then
+            d = directory
         else if (allocated(buffers(current)%directory)) then
             d = buffers(current)%directory
         else
@@ -540,9 +542,9 @@ contains
         end if
 
         if (.not. is_file_name_absolute(d)) then
-            call expand_file_name(d, val, status)
+            call expand_file_name(d, value, status)
             if (.not. status%ok()) return
-            d = val
+            d = value
         end if
 
         has_default = .true.
@@ -581,10 +583,10 @@ contains
         has_insdef = insert_default_directory .or. present(initial_input)
         match = REQUIRE_MATCH_NO
         if (present(mustmatch)) match = mustmatch
-        ! The minibuffer's default-directory: DIR as a directory name.
+        ! The minibuffer's default-directory: DIRECTORY as a directory name.
         call expand_file_name(d, expanded, status)
         if (.not. status%ok()) return
-        rfn_dir = file_name_as_directory(expanded)
+        rfn_directory = file_name_as_directory(expanded)
         rfn_insdef = insdef
         rfn_has_insdef = has_insdef
         minibuffer_setup_function => read_file_name_setup
@@ -592,19 +594,19 @@ contains
         minibuffer_completing_file_name = .true.
 
         if (has_insdef .and. has_default) then
-            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), val, status, &
+            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), value, status, &
                                  test=test, require_match=match, initial_input=insdef, history="file_name_history", &
                                  default=default, used_default=used_default)
         else if (has_insdef) then
-            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), val, status, &
+            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), value, status, &
                                  test=test, require_match=match, initial_input=insdef, history="file_name_history", &
                                  used_default=used_default)
         else if (has_default) then
-            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), val, status, &
+            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), value, status, &
                                  test=test, require_match=match, history="file_name_history", default=default, &
                                  used_default=used_default)
         else
-            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), val, status, &
+            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), value, status, &
                                  test=test, require_match=match, history="file_name_history", used_default=used_default)
         end if
 
@@ -625,35 +627,35 @@ contains
             ! In this case, completing-read has not added an element to
             ! the history.  Maybe we should.
             if (.not. replace_in_history) add_history = .true.
-            val = ""
+            value = ""
         end if
 
         if (has_default .and. has_insdef) then
-            if (val == insdef .and. len(val) == len(insdef)) val = default
+            if (value == insdef .and. len(value) == len(insdef)) value = default
         end if
 
-        val = substitute_in_file_name(val)
+        value = substitute_in_file_name(value)
 
         if (replace_in_history) then
             ! Replace what completing_read added to the history with what
             ! we will actually return.  As an exception, if that's the
             ! same as the second item in file-name-history, it's really a
             ! repeat (Bug#4657).
-            val1 = minibuffer_maybe_quote_filename(val)
+            val1 = minibuffer_maybe_quote_filename(value)
             call symbol_value(value_type(name="file_name_history"), history, st)
 
             if (st%ok()) then
-                call list_elements(history, elems)
+                call list_elements(history, elements)
 
-                if (size(elems) > 0) then
-                    allocate (kept(size(elems)))
-                    kept(1) = elems(1)
+                if (size(elements) > 0) then
+                    allocate (kept(size(elements)))
+                    kept(1) = elements(1)
                     n = 1
 
-                    do k = 2, size(elems)
-                        if (history_delete_duplicates .and. string_equal(elems(k), val1)) cycle
+                    do k = 2, size(elements)
+                        if (history_delete_duplicates .and. string_equal(elements(k), val1)) cycle
                         n = n + 1
-                        kept(n) = elems(k)
+                        kept(n) = elements(k)
                     end do
 
                     if (n >= 2) then
@@ -670,10 +672,10 @@ contains
                 end if
             end if
         else if (add_history) then
-            call add_to_history("file_name_history", minibuffer_maybe_quote_filename(val))
+            call add_to_history("file_name_history", minibuffer_maybe_quote_filename(value))
         end if
 
-        result = val
+        result = value
 
     contains
 
@@ -687,37 +689,37 @@ contains
     end subroutine read_file_name
 
     !> Read directory name, prompting with PROMPT and completing in
-    !> directory DIR.  Value is not expanded---you must call
+    !> directory DIRECTORY.  Value is not expanded---you must call
     !> `expand_file_name' yourself.
-    !> Default name to DEFAULT_DIRNAME if user exits with the same
+    !> Default name to DEFAULT_DIRECTORY_NAME if user exits with the same
     !> non-empty string that was inserted by this function.
-    !> (If DEFAULT_DIRNAME is absent, DIR or INITIAL_INPUT is used.)
+    !> (If DEFAULT_DIRECTORY_NAME is absent, DIRECTORY or INITIAL_INPUT is used.)
     !> If the user exits with an empty minibuffer, this function returns
     !> an empty string.  (This can happen only if the user erased the
     !> pre-inserted contents or if `insert_default_directory' is false.)
     !> Fourth arg MUSTMATCH is as for `read_file_name'.
     !> Fifth arg INITIAL_INPUT specifies text to start with.
-    !> DIR should be an absolute directory name.  It defaults to the value
+    !> DIRECTORY should be an absolute directory name.  It defaults to the value
     !> of `default_directory'.  Port of files.el:read-directory-name (here
     !> because files_mod comes before minibuffer_mod).
-    recursive subroutine read_directory_name(prompt, result, status, dir, default_dirname, mustmatch, initial_input)
+    recursive subroutine read_directory_name(prompt, result, status, directory, default_directory_name, mustmatch, initial_input)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: dir, default_dirname, initial_input
+        character(len=*), intent(in), optional :: directory, default_directory_name, initial_input
         integer, intent(in), optional :: mustmatch
         character(len=:), allocatable :: d, default
 
-        if (present(dir)) then
-            d = dir
+        if (present(directory)) then
+            d = directory
         else if (allocated(buffers(current)%directory)) then
             d = buffers(current)%directory
         else
             d = "~/"
         end if
 
-        if (present(default_dirname)) then
-            default = default_dirname
+        if (present(default_directory_name)) then
+            default = default_directory_name
         else if (present(initial_input)) then
             call expand_file_name(initial_input, default, status, d)
             if (.not. status%ok()) return
@@ -729,11 +731,11 @@ contains
     end subroutine read_directory_name
 
     !> file-directory-p as a completion test.  Not a port.
-    logical function directory_test(elt)
-        type(value_type), intent(in) :: elt
+    logical function directory_test(element)
+        type(value_type), intent(in) :: element
 
         directory_test = .false.
-        if (vtag(elt) == V_STRING) directory_test = is_file_directory(xstring(elt))
+        if (vtag(element) == V_STRING) directory_test = is_file_directory(xstring(element))
     end function directory_test
 
     !> The minibuffer-with-setup-hook function of `read_file_name': the
@@ -745,7 +747,7 @@ contains
         type(string_type), allocatable :: rest(:)
         integer :: k
 
-        buffers(current)%directory = rfn_dir
+        buffers(current)%directory = rfn_directory
 
         ! When the first default in `minibuffer-default' duplicates
         ! initial input `insdef', reset `minibuffer-default' to nil.
@@ -799,88 +801,88 @@ contains
 
     !> Terminate this minibuffer argument.
     !> Port of minibuffer.el:exit-minibuffer.
-    subroutine cmd_exit_minibuffer(status)
+    subroutine execute_exit_minibuffer(status)
         type(status_type), intent(out) :: status
 
         call exit_minibuffer(status)
-    end subroutine cmd_exit_minibuffer
+    end subroutine execute_exit_minibuffer
 
     !> Abort the current minibuffer.
     !> If we are not currently in the innermost minibuffer, prompt the user to
     !> confirm the aborting of the current minibuffer and all contained ones.
     !> Port of minibuf.c:abort-minibuffers.
-    subroutine cmd_abort_minibuffers(status)
+    subroutine execute_abort_minibuffers(status)
         type(status_type), intent(out) :: status
 
         call abort_minibuffers(status, read_yes_or_no)
-    end subroutine cmd_abort_minibuffers
+    end subroutine execute_abort_minibuffers
 
     !> Transient minor mode used during `completion_in_region'.  Port of
     !> minibuffer.el:completion-in-region-mode.
-    subroutine cmd_completion_in_region_mode(status)
+    subroutine execute_completion_in_region_mode(status)
         type(status_type), intent(out) :: status
 
         call minor_modes%completion_in_region_mode%command(status)
-    end subroutine cmd_completion_in_region_mode
+    end subroutine execute_completion_in_region_mode
 
-    subroutine cmd_minibuffer_complete(status)
+    subroutine execute_minibuffer_complete(status)
         type(status_type), intent(out) :: status
 
         call minibuffer_complete(status)
-    end subroutine cmd_minibuffer_complete
+    end subroutine execute_minibuffer_complete
 
-    subroutine cmd_minibuffer_complete_word(status)
+    subroutine execute_minibuffer_complete_word(status)
         type(status_type), intent(out) :: status
 
         call minibuffer_complete_word(status)
-    end subroutine cmd_minibuffer_complete_word
+    end subroutine execute_minibuffer_complete_word
 
-    subroutine cmd_minibuffer_completion_help(status)
+    subroutine execute_minibuffer_completion_help(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call minibuffer_completion_help()
-    end subroutine cmd_minibuffer_completion_help
+    end subroutine execute_minibuffer_completion_help
 
-    subroutine cmd_minibuffer_complete_and_exit(status)
+    subroutine execute_minibuffer_complete_and_exit(status)
         type(status_type), intent(out) :: status
 
         call minibuffer_complete_and_exit(status)
-    end subroutine cmd_minibuffer_complete_and_exit
+    end subroutine execute_minibuffer_complete_and_exit
 
     !> Call `exit_minibuffer' (there is no selected completion to insert
     !> first yet).  Port of minibuffer.el:minibuffer-completion-exit.
-    subroutine cmd_minibuffer_completion_exit(status)
+    subroutine execute_minibuffer_completion_exit(status)
         type(status_type), intent(out) :: status
 
         call exit_minibuffer(status)
-    end subroutine cmd_minibuffer_completion_exit
+    end subroutine execute_minibuffer_completion_exit
 
     !> Run `recenter_top_bottom' from the minibuffer in its original window.
     !> Port of minibuffer.el:minibuffer-recenter-top-bottom.
-    subroutine cmd_minibuffer_recenter_top_bottom(status)
+    subroutine execute_minibuffer_recenter_top_bottom(status)
         type(status_type), intent(out) :: status
 
         call with_minibuffer_selected_window(1, status)
-    end subroutine cmd_minibuffer_recenter_top_bottom
+    end subroutine execute_minibuffer_recenter_top_bottom
 
     !> Run `scroll_up_command' from the minibuffer in its original window.
     !> Port of minibuffer.el:minibuffer-scroll-up-command (no shift
     !> selection).
-    subroutine cmd_minibuffer_scroll_up_command(status)
+    subroutine execute_minibuffer_scroll_up_command(status)
         type(status_type), intent(out) :: status
 
         call with_minibuffer_selected_window(2, status)
-    end subroutine cmd_minibuffer_scroll_up_command
+    end subroutine execute_minibuffer_scroll_up_command
 
     !> Run `scroll_down_command' from the minibuffer in its original window.
     !> Port of minibuffer.el:minibuffer-scroll-down-command (no shift
     !> selection).
-    subroutine cmd_minibuffer_scroll_down_command(status)
+    subroutine execute_minibuffer_scroll_down_command(status)
         type(status_type), intent(out) :: status
 
         call with_minibuffer_selected_window(3, status)
-    end subroutine cmd_minibuffer_scroll_down_command
+    end subroutine execute_minibuffer_scroll_down_command
 
     !> Run command `which' (1 recenter-top-bottom, 2 scroll-up-command,
     !> 3 scroll-down-command) with the prefix argument in the window that
@@ -899,16 +901,16 @@ contains
         mini = current_buffer()
         saved = selected_frame%minibuffer_selected
         selected_frame%minibuffer_selected = .false.
-        sw => frame_selected_window_ref()
+        sw => frame_selected_window_reference()
         call set_buffer(sw%buffer, st)
 
         select case (which)
         case (1)
-            call recenter_top_bottom(current_prefix_arg, status)
+            call recenter_top_bottom(current_prefix_argument, status)
         case (2)
-            call scroll_up_command(current_prefix_arg, status)
+            call scroll_up_command(current_prefix_argument, status)
         case default
-            call scroll_down_command(current_prefix_arg, status)
+            call scroll_down_command(current_prefix_argument, status)
         end select
 
         selected_frame%minibuffer_selected = saved
@@ -917,29 +919,29 @@ contains
 
     !> Register the commands, minibuffer.el's minibuffer-local-map keys, and
     !> the completion keymaps.  Not a port.
-    subroutine init_minibuffer()
+    subroutine initialize_minibuffer()
         type(status_type) :: status
         type(named_face_type), pointer :: f
 
-        commands%exit_minibuffer%execute => cmd_exit_minibuffer
-        commands%abort_minibuffers%execute => cmd_abort_minibuffers
-        commands%minibuffer_complete%execute => cmd_minibuffer_complete
-        commands%minibuffer_complete_word%execute => cmd_minibuffer_complete_word
-        commands%minibuffer_completion_help%execute => cmd_minibuffer_completion_help
-        commands%minibuffer_complete_and_exit%execute => cmd_minibuffer_complete_and_exit
-        commands%minibuffer_completion_exit%execute => cmd_minibuffer_completion_exit
-        commands%minibuffer_recenter_top_bottom%execute => cmd_minibuffer_recenter_top_bottom
-        commands%minibuffer_scroll_up_command%execute => cmd_minibuffer_scroll_up_command
-        commands%minibuffer_scroll_down_command%execute => cmd_minibuffer_scroll_down_command
+        commands%exit_minibuffer%execute => execute_exit_minibuffer
+        commands%abort_minibuffers%execute => execute_abort_minibuffers
+        commands%minibuffer_complete%execute => execute_minibuffer_complete
+        commands%minibuffer_complete_word%execute => execute_minibuffer_complete_word
+        commands%minibuffer_completion_help%execute => execute_minibuffer_completion_help
+        commands%minibuffer_complete_and_exit%execute => execute_minibuffer_complete_and_exit
+        commands%minibuffer_completion_exit%execute => execute_minibuffer_completion_exit
+        commands%minibuffer_recenter_top_bottom%execute => execute_minibuffer_recenter_top_bottom
+        commands%minibuffer_scroll_up_command%execute => execute_minibuffer_scroll_up_command
+        commands%minibuffer_scroll_down_command%execute => execute_minibuffer_scroll_down_command
         call completion_settings_defaults()
         f => completions_annotations
         call f%define("completions_annotations", "Face to use for annotations in the *Completions* buffer."//achar(10)// &
                       "This face is only used if the strings used for completions"//achar(10)// &
                       "doesn't already specify a face.")
-        call f%spec_entry(display_when(), face_attrs(inherits=[character(len=12) :: "italic", "shadow"]))
+        call f%specification_entry(display_when(), face_attributes(inherits=[character(len=12) :: "italic", "shadow"]))
         commands%completion_at_point%execute => completion_at_point
         commands%completion_help_at_point%execute => completion_help_at_point
-        commands%completion_in_region_mode%execute => cmd_completion_in_region_mode
+        commands%completion_in_region_mode%execute => execute_completion_in_region_mode
         call minor_modes%completion_in_region_mode%define("completion_in_region_mode", global=.true., &
                                                           body=completion_in_region_mode_body)
         if (is_keymap_live(completion_in_region_mode_map)) call destroy_keymap(completion_in_region_mode_map, status)
@@ -976,10 +978,10 @@ contains
         ! each: an explicit nil hides the parent's binding.
         call make_sparse_keymap(minibuffer_local_filename_completion_map)
         call set_keymap_parent(minibuffer_local_filename_completion_map, minibuffer_local_completion_map, status)
-        call bind_nil(minibuffer_local_filename_completion_map, "SPC")
+        call bind_false(minibuffer_local_filename_completion_map, "SPC")
         call make_sparse_keymap(minibuffer_local_filename_must_match_map)
         call set_keymap_parent(minibuffer_local_filename_must_match_map, minibuffer_local_must_match_map, status)
-        call bind_nil(minibuffer_local_filename_must_match_map, "SPC")
+        call bind_false(minibuffer_local_filename_must_match_map, "SPC")
 
     contains
 
@@ -993,7 +995,7 @@ contains
             if (st%ok()) call define_key(map, seq, value_type(name=command), st)
         end subroutine bind
 
-        subroutine bind_nil(map, keys)
+        subroutine bind_false(map, keys)
             type(handle_type), intent(in) :: map
             character(len=*), intent(in) :: keys
             type(value_type), allocatable :: seq(:)
@@ -1001,8 +1003,8 @@ contains
 
             call key_parse(keys, seq, st)
             if (st%ok()) call define_key(map, seq, value_type(), st)
-        end subroutine bind_nil
-    end subroutine init_minibuffer
+        end subroutine bind_false
+    end subroutine initialize_minibuffer
 
     ! ------------------------------------------------------------------
     ! Completion styles
@@ -1040,8 +1042,8 @@ contains
         end if
 
         if (.not. status%ok() .or. list_length(boundaries) /= 2) return
-        if (vtag(list_elt(boundaries, 1_int64)) == V_INTEGER) bstart = xfixnum(list_elt(boundaries, 1_int64))
-        if (vtag(list_elt(boundaries, 2_int64)) == V_INTEGER) bend = xfixnum(list_elt(boundaries, 2_int64))
+        if (vtag(list_element(boundaries, 1_int64)) == V_INTEGER) bstart = xfixnum(list_element(boundaries, 1_int64))
+        if (vtag(list_element(boundaries, 2_int64)) == V_INTEGER) bend = xfixnum(list_element(boundaries, 2_int64))
     end subroutine completion_boundaries
 
     ! The minibuffer's table and test (a null test pointer is
@@ -1126,16 +1128,16 @@ contains
     !> seconds, or until the next input event arrives, whichever comes first.
     !> It encloses MESSAGE in [...] if it is not yet enclosed.
     !> The intent is to show the message without hiding what the user typed.
-    !> Port of minibuffer.el:minibuffer-message (no ARGS, text properties
+    !> Port of minibuffer.el:minibuffer-message (no ARGUMENTS, text properties
     !> or `minibuffer_message' property; the overlay is
     !> minibuffer_message_text).
-    subroutine minibuffer_message(msg)
-        character(len=*), intent(in) :: msg
+    subroutine minibuffer_message(message_text)
+        character(len=*), intent(in) :: message_text
         integer :: k
         type(status_type) :: st
 
         if (.not. is_minibuffer()) then
-            call message(msg)
+            call message(message_text)
             return
         end if
 
@@ -1143,11 +1145,13 @@ contains
         ! thing.
         call delete_message_overlay()
         call message("")
-        minibuffer_message_text = " ["//msg//"]"
-        k = verify(msg, " ")
+        minibuffer_message_text = " ["//message_text//"]"
+        k = verify(message_text, " ")
 
-        if (k > 0 .and. len(msg) >= 2) then
-            if (msg(k:k) == "[" .and. msg(len(msg):) == "]" .and. len(msg) - k >= 2) minibuffer_message_text = msg
+        if (k > 0 .and. len(message_text) >= 2) then
+            if (message_text(k:k) == "[" .and. message_text(len(message_text):) == "]" .and. len(message_text) - k >= 2) then
+                minibuffer_message_text = message_text
+            end if
         end if
 
         last_minibuffer_message = minibuffer_message_text
@@ -1171,31 +1175,31 @@ contains
     end subroutine delete_message_overlay_timer
 
     !> Port of minibuffer.el:completion--message.
-    subroutine completion_message(msg)
-        character(len=*), intent(in) :: msg
+    subroutine completion_message(message)
+        character(len=*), intent(in) :: message
 
-        if (completion_show_inline_help) call minibuffer_message(msg)
+        if (completion_show_inline_help) call minibuffer_message(message)
     end subroutine completion_message
 
     !> Run the `:exit_function' of `completion_extra_properties' on STRING
     !> with FINISHED (UNKNOWN finds out whether STRING is a finished
     !> completion), and show MESSAGE unless that function showed one.
     !> Port of minibuffer.el:completion--done.
-    recursive subroutine completion_done(string, finished, msg)
+    recursive subroutine completion_done(string, finished, message)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
-        character(len=*), intent(in), optional :: msg
-        character(len=:), allocatable :: pre_msg, post_msg
+        character(len=*), intent(in), optional :: message
+        character(len=:), allocatable :: pre_message, post_message
         type(value_type) :: tried
         type(status_type) :: st
         integer :: how
         logical :: show
 
         how = finished
-        pre_msg = ""
+        pre_message = ""
 
         if (associated(completion_exit_function)) then
-            if (allocated(last_message)) pre_msg = last_message
+            if (allocated(last_message)) pre_message = last_message
 
             if (how == COMPLETION_UNKNOWN) then
                 if (associated(minibuffer_completion_test_function)) then
@@ -1214,17 +1218,17 @@ contains
             call completion_exit_function(string, how)
         end if
 
-        if (.not. present(msg)) return
+        if (.not. present(message)) return
         ! Don't output any message if the exit-fun already did so.
         show = .true.
 
         if (associated(completion_exit_function)) then
-            post_msg = ""
-            if (allocated(last_message)) post_msg = last_message
-            show = pre_msg == post_msg .and. len(pre_msg) == len(post_msg)
+            post_message = ""
+            if (allocated(last_message)) post_message = last_message
+            show = pre_message == post_message .and. len(pre_message) == len(post_message)
         end if
 
-        if (show) call completion_message(msg)
+        if (show) call completion_message(message)
     end subroutine completion_done
 
     !> Replace the buffer text between BEGINNING and END with NEWTEXT.
@@ -1235,21 +1239,21 @@ contains
         character(len=*), intent(in) :: newtext
         type(status_type) :: status
 
-        call goto_char(beginning)
-        call del_range(beginning, end, status)
+        call goto_character(beginning)
+        call delete_range(beginning, end, status)
         call insert(newtext, status)
-        call goto_char(beginning + count_characters(newtext))
+        call goto_character(beginning + count_characters(newtext))
     end subroutine completion_replace
 
-    !> Return true if POS is in the current completion boundaries.
+    !> Return true if POSITION is in the current completion boundaries.
     !> Port of minibuffer.el:completion--in-boundaries-p.
-    logical function is_in_boundaries(string, suffix, pos)
+    logical function is_in_boundaries(string, suffix, position)
         character(len=*), intent(in) :: string, suffix
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         integer(int64) :: bstart, bend
 
         call mb_boundaries(string, suffix, bstart, bend)
-        is_in_boundaries = bstart >= pos .and. pos >= count_characters(string) + bend
+        is_in_boundaries = bstart >= position .and. position >= count_characters(string) + bend
     end function is_in_boundaries
 
     !> Do the completion and return a summary of what happened.
@@ -1278,16 +1282,16 @@ contains
         character(len=:), allocatable :: string
         type(try_result_type) :: comp
         type(status_type) :: status
-        integer(int64) :: pos, e, comp_pos
+        integer(int64) :: position, e, comp_position
         logical :: completed, unchanged, only_changed_boundaries, exact
 
         call buffer_substring(beginning, end, string, status)
-        pos = point() - beginning
+        position = point() - beginning
 
         if (word) then
-            call try_word_completion(string, pos, comp)
+            call try_word_completion(string, position, comp)
         else
-            call mb_try_completion(string, pos, comp)
+            call mb_try_completion(string, position, comp)
         end if
 
         select case (comp%kind)
@@ -1302,7 +1306,7 @@ contains
             bits = 0
         case (TRY_EXACT)
             call minibuffer_hide_completions()
-            call goto_char(end)
+            call goto_character(end)
 
             if (expect_exact) then
                 call completion_done(string, COMPLETION_FINISHED)
@@ -1317,20 +1321,20 @@ contains
             ! doesn't include simply changing the case of the entered
             ! string.  However, for appearance, the string is rewritten if
             ! the case changes.
-            comp_pos = comp%point
+            comp_position = comp%point
             completed = compare_strings(comp%string, string, .true.) /= COMPARE_EQUAL
             unchanged = comp%string == string .and. len(comp%string) == len(string)
             only_changed_boundaries = .false.
 
-            if (.not. completed .and. comp_pos /= pos) then
-                only_changed_boundaries = .not. is_in_boundaries(substring(string, 0_int64, pos), &
-                                                                 substring(string, pos), comp_pos)
+            if (.not. completed .and. comp_position /= position) then
+                only_changed_boundaries = .not. is_in_boundaries(substring(string, 0_int64, position), &
+                                                                 substring(string, position), comp_position)
             end if
 
             e = end
 
             if (unchanged) then
-                call goto_char(e)
+                call goto_character(e)
             else
                 ! Insert in minibuffer the chars we got.
                 call completion_replace(beginning, e, comp%string)
@@ -1338,7 +1342,7 @@ contains
             end if
 
             ! Move point to its completion-mandated destination.
-            call goto_char(point() + comp_pos - count_characters(comp%string))
+            call goto_character(point() + comp_position - count_characters(comp%string))
 
             if (.not. (unchanged .or. completed)) then
                 ! The case of the string changed, but that's all.  We're
@@ -1360,7 +1364,7 @@ contains
                 ! If completion did not put point at end of field, it's a
                 ! sign that completion is not finished.
                 if (exact) then
-                    if (comp_pos < count_characters(comp%string)) then
+                    if (comp_position < count_characters(comp%string)) then
                         call completion_done(comp%string, COMPLETION_EXACT)
                     else
                         call completion_done(comp%string, COMPLETION_UNKNOWN)
@@ -1398,12 +1402,12 @@ contains
     !> Whether `c' has word syntax (ASCII letters and digits, and non-ASCII
     !> characters: the standard syntax table's main word characters).
     !> Not a port.
-    elemental logical function is_word_char(c)
+    elemental logical function is_word_character(c)
         integer(int32), intent(in) :: c
 
-        is_word_char = (c >= iachar("a") .and. c <= iachar("z")) .or. (c >= iachar("A") .and. c <= iachar("Z")) &
-                       .or. (c >= iachar("0") .and. c <= iachar("9")) .or. c >= 128
-    end function is_word_char
+        is_word_character = (c >= iachar("a") .and. c <= iachar("z")) .or. (c >= iachar("A") .and. c <= iachar("Z")) &
+                            .or. (c >= iachar("0") .and. c <= iachar("9")) .or. c >= 128
+    end function is_word_character
 
     !> Port of minibuffer.el:completion--try-word-completion (the cut
     !> after the first word only when there is no text after point).
@@ -1468,9 +1472,9 @@ contains
         k = mb1
 
         do while (byte <= len(completion))
-            call string_char_and_length(completion, byte, c, clen)
+            call string_character_and_length(completion, byte, c, clen)
 
-            if (.not. is_word_char(c)) then
+            if (.not. is_word_character(c)) then
                 cutpos = k + 1
                 exit
             end if
@@ -1487,12 +1491,12 @@ contains
 
     !> Where completion starts in the minibuffer; an error in the prompt.
     !> Port of minibuffer.el:minibuffer--completion-prompt-end.
-    integer(int64) function completion_prompt_end(status) result(pos)
+    integer(int64) function completion_prompt_end(status) result(position)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        pos = minibuffer_prompt_end()
-        if (point() < pos) call set_error(status, FM_USER_ERROR, format_message("Can't complete in prompt"))
+        position = minibuffer_prompt_end()
+        if (point() < position) call set_error(status, USER_ERROR_CODE, format_message("Can't complete in prompt"))
     end function completion_prompt_end
 
     !> Complete the minibuffer contents as far as possible.
@@ -1511,9 +1515,9 @@ contains
         if (.not. status%ok()) return
 
         if (associated(minibuffer_completion_test_function)) then
-            res = completion_in_region(beginning, point_max(), minibuffer_completion_table, minibuffer_completion_test_function)
+            res = completion_in_region(beginning, point_maximum(), minibuffer_completion_table, minibuffer_completion_test_function)
         else
-            res = completion_in_region(beginning, point_max(), minibuffer_completion_table)
+            res = completion_in_region(beginning, point_maximum(), minibuffer_completion_table)
         end if
     end subroutine minibuffer_complete
 
@@ -1621,17 +1625,17 @@ contains
         type(handle_type), intent(in) :: window
         type(status_type) :: status
         type(handle_type) :: old
-        integer(int64) :: zv, begv
+        integer(int64) :: end_of_accessible_portion, beginning_of_accessible_portion
 
         old = current_buffer()
         call set_buffer(windows(window%index)%buffer, status)
         if (.not. status%ok()) return
-        zv = buffers(current)%zv
-        begv = buffers(current)%begv
+        end_of_accessible_portion = buffers(current)%end_of_accessible_portion
+        beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
         call set_buffer(old, status)
 
-        if (is_pos_visible_in_window(begv, window)) then
-            call set_window_point(windows(window%index), zv, status)
+        if (is_position_visible_in_window(beginning_of_accessible_portion, window)) then
+            call set_window_point(windows(window%index), end_of_accessible_portion, status)
         else
             call scroll_window(window, -1, status)
         end if
@@ -1674,9 +1678,9 @@ contains
 
                 if (point() >= start) then
                     saved = point()
-                    call goto_char(end)
+                    call goto_character(end)
                     end = line_end_position(1_int64)
-                    call goto_char(saved)
+                    call goto_character(saved)
 
                     if (point() <= end) then
                         if (associated(cir_mode_test)) stay = cir_mode_test()
@@ -1702,16 +1706,17 @@ contains
 
         if (.not. enable) then
             call destroy_cir_data()
-            call destroy_capf_field(cir_mode_capf_start)
-            cir_mode_capf_fun => null()
-            w => frame_selected_window_ref()
+            call destroy_completion_at_point_function_field(cir_mode_completion_at_point_function_start)
+            cir_mode_completion_at_point_function_function => null()
+            w => frame_selected_window_reference()
             if (buffers(w%buffer%index)%name /= "*Completions*") call minibuffer_hide_completions()
         else
             cir_mode_test => completion_in_region_mode_test_function
-            ! The closure of `capf_same_field'.
-            call destroy_capf_field(cir_mode_capf_start)
-            cir_mode_capf_fun => capf_field_fun
-            if (capf_field_start%index /= 0) call copy_marker(capf_field_start, cir_mode_capf_start, .false., status)
+            ! The closure of `completion_at_point_function_same_field'.
+            call destroy_completion_at_point_function_field(cir_mode_completion_at_point_function_start)
+            cir_mode_completion_at_point_function_function => completion_at_point_function_field_function
+            if (completion_at_point_function_field_start%index /= 0) call copy_marker(completion_at_point_function_field_start, &
+                                                                       cir_mode_completion_at_point_function_start, .false., status)
             status = status_type()
             call post_command_hook%prepend(completion_in_region_postch)
             call push_minor_mode_overriding_map("completion_in_region_mode", completion_in_region_mode_map)
@@ -1719,25 +1724,25 @@ contains
     end subroutine completion_in_region_mode_body
 
     ! Not a port.
-    subroutine destroy_capf_field(m)
+    subroutine destroy_completion_at_point_function_field(m)
         type(handle_type), intent(inout) :: m
         type(status_type) :: st
 
         if (m%index /= 0) call destroy_marker(m, st)
         m = null_handle()
-    end subroutine destroy_capf_field
+    end subroutine destroy_completion_at_point_function_field
 
     !> The completion data of the first function of
     !> `completion_at_point_functions' that applies at point (with a
     !> non-exclusive table, only if prefix completion of the text before
     !> point finds something).  Port of minibuffer.el:completion--capf-wrapper
     !> run through run-hook-wrapped.
-    recursive subroutine execute_capfs(data, fn, status, functions)
-        type(capf_data_type), intent(out) :: data
-        procedure(capf_procedure), pointer, intent(out) :: fn
+    recursive subroutine execute_completion_at_point_functions(data, fn, status, functions)
+        type(completion_at_point_function_data_type), intent(out) :: data
+        procedure(completion_at_point_function_procedure), pointer, intent(out) :: fn
         type(status_type), intent(out) :: status
-        type(capf_entry_type), intent(in), optional :: functions(:)
-        type(capf_entry_type), allocatable :: fns(:)
+        type(completion_at_point_function_entry_type), intent(in), optional :: functions(:)
+        type(completion_at_point_function_entry_type), allocatable :: function_names(:)
         type(value_type) :: v
         type(status_type) :: st
         character(len=:), allocatable :: text
@@ -1746,13 +1751,13 @@ contains
         fn => null()
 
         if (present(functions)) then
-            fns = functions
+            function_names = functions
         else
-            fns = completion_at_point_functions%functions()
+            function_names = completion_at_point_functions%functions()
         end if
 
-        do k = 1, size(fns)
-            call fns(k)%fn(data, status)
+        do k = 1, size(function_names)
+            call function_names(k)%fn(data, status)
             if (.not. status%ok()) return
             if (.not. data%found) cycle
 
@@ -1771,28 +1776,28 @@ contains
                 end if
             end if
 
-            fn => fns(k)%fn
+            fn => function_names(k)%fn
             return
         end do
 
-        data = capf_data_type()
-    end subroutine execute_capfs
+        data = completion_at_point_function_data_type()
+    end subroutine execute_completion_at_point_functions
 
     !> completion-at-point's completion-in-region-mode-predicate: we're
     !> still in the same completion field.
     !> Port of minibuffer.el:completion-at-point in part.
-    recursive logical function capf_same_field() result(same)
-        type(capf_data_type) :: data
+    recursive logical function completion_at_point_function_same_field() result(same)
+        type(completion_at_point_function_data_type) :: data
         type(status_type) :: st
         integer(int64) :: start
 
         same = .false.
-        if (.not. associated(cir_mode_capf_fun)) return
-        call cir_mode_capf_fun(data, st)
+        if (.not. associated(cir_mode_completion_at_point_function_function)) return
+        call cir_mode_completion_at_point_function_function(data, st)
         if (.not. st%ok() .or. .not. data%found) return
-        call marker_position(cir_mode_capf_start, start, st)
+        call marker_position(cir_mode_completion_at_point_function_start, start, st)
         same = data%start == start
-    end function capf_same_field
+    end function completion_at_point_function_same_field
 
     !> Perform completion on the text around point.
     !> The completion method is determined by
@@ -1812,16 +1817,16 @@ contains
     recursive subroutine execute_completion_at_point(res, status, functions)
         logical, intent(out) :: res
         type(status_type), intent(out) :: status
-        type(capf_entry_type), intent(in), optional :: functions(:)
-        type(capf_data_type) :: data
-        procedure(capf_procedure), pointer :: fn, saved_fun
+        type(completion_at_point_function_entry_type), intent(in), optional :: functions(:)
+        type(completion_at_point_function_data_type) :: data
+        procedure(completion_at_point_function_procedure), pointer :: fn, saved_function
         procedure(cir_test_procedure), pointer :: saved_test
         procedure(completion_exit_function_procedure), pointer :: saved_exit
         type(handle_type) :: saved_start
 
         status = status_type()
         res = .false.
-        call execute_capfs(data, fn, status, functions)
+        call execute_completion_at_point_functions(data, fn, status, functions)
         if (.not. status%ok()) return
         if (.not. data%found) return
 
@@ -1832,12 +1837,12 @@ contains
 
         saved_exit => completion_exit_function
         completion_exit_function => data%exit_function
-        saved_fun => capf_field_fun
-        saved_start = capf_field_start
+        saved_function => completion_at_point_function_field_function
+        saved_start = completion_at_point_function_field_start
         saved_test => completion_in_region_mode_test_function
-        capf_field_fun => fn
-        call copy_marker_at(data%start, capf_field_start, .false., status)
-        completion_in_region_mode_test_function => capf_same_field
+        completion_at_point_function_field_function => fn
+        call copy_marker_at(data%start, completion_at_point_function_field_start, .false., status)
+        completion_in_region_mode_test_function => completion_at_point_function_same_field
 
         if (associated(data%test)) then
             res = completion_in_region(data%start, data%end, data%table, data%test)
@@ -1845,9 +1850,9 @@ contains
             res = completion_in_region(data%start, data%end, data%table)
         end if
 
-        call destroy_capf_field(capf_field_start)
-        capf_field_fun => saved_fun
-        capf_field_start = saved_start
+        call destroy_completion_at_point_function_field(completion_at_point_function_field_start)
+        completion_at_point_function_field_function => saved_function
+        completion_at_point_function_field_start = saved_start
         completion_in_region_mode_test_function => saved_test
         completion_exit_function => saved_exit
         status = status_type()
@@ -1860,14 +1865,14 @@ contains
     !> deferred eager display, is left out).
     recursive subroutine completion_help_at_point(status)
         type(status_type), intent(out) :: status
-        type(capf_data_type) :: data
-        procedure(capf_procedure), pointer :: fn, saved_fun
+        type(completion_at_point_function_data_type) :: data
+        procedure(completion_at_point_function_procedure), pointer :: fn, saved_function
         procedure(cir_test_procedure), pointer :: saved_test
         type(completion_table_type) :: saved_table
         procedure(completion_test_procedure), pointer :: saved_mb_test
         type(handle_type) :: saved_start
 
-        call execute_capfs(data, fn, status)
+        call execute_completion_at_point_functions(data, fn, status)
         if (.not. status%ok()) return
 
         if (.not. data%found) then
@@ -1877,14 +1882,14 @@ contains
 
         saved_table = minibuffer_completion_table
         saved_mb_test => minibuffer_completion_test_function
-        saved_fun => capf_field_fun
-        saved_start = capf_field_start
+        saved_function => completion_at_point_function_field_function
+        saved_start = completion_at_point_function_field_start
         saved_test => completion_in_region_mode_test_function
         minibuffer_completion_table = data%table
         minibuffer_completion_test_function => data%test
-        capf_field_fun => fn
-        call copy_marker_at(data%start, capf_field_start, .false., status)
-        completion_in_region_mode_test_function => capf_same_field
+        completion_at_point_function_field_function => fn
+        call copy_marker_at(data%start, completion_at_point_function_field_start, .false., status)
+        completion_in_region_mode_test_function => completion_at_point_function_same_field
         call destroy_cir_data()
         call copy_marker_at(data%start, cir_start, .false., status)
         call copy_marker_at(data%end, cir_end, .true., status)
@@ -1893,9 +1898,9 @@ contains
         cir_data = .true.
         call minor_modes%completion_in_region_mode%enable(status)
         call minibuffer_completion_help(data%start, data%end)
-        call destroy_capf_field(capf_field_start)
-        capf_field_fun => saved_fun
-        capf_field_start = saved_start
+        call destroy_completion_at_point_function_field(completion_at_point_function_field_start)
+        completion_at_point_function_field_function => saved_function
+        completion_at_point_function_field_start = saved_start
         completion_in_region_mode_test_function => saved_test
         minibuffer_completion_table = saved_table
         minibuffer_completion_test_function => saved_mb_test
@@ -1914,7 +1919,7 @@ contains
 
         beginning = completion_prompt_end(status)
         if (.not. status%ok()) return
-        bits = completion_do_completion(beginning, point_max(), .true., .false.)
+        bits = completion_do_completion(beginning, point_maximum(), .true., .false.)
     end subroutine minibuffer_complete_word
 
     !> Exit if the minibuffer contains a valid completion.
@@ -1937,7 +1942,7 @@ contains
 
         beginning = completion_prompt_end(status)
         if (.not. status%ok()) return
-        call completion_complete_and_exit(beginning, point_max(), exit_minibuffer, status)
+        call completion_complete_and_exit(beginning, point_maximum(), exit_minibuffer, status)
     end subroutine minibuffer_complete_and_exit
 
     !> Exit from `require_match' minibuffer.
@@ -2014,13 +2019,13 @@ contains
         end select
     end subroutine completion_complete_and_exit
 
-    !> Whether `cmd' is in minibuffer-confirm-exit-commands.  Not a port.
-    logical function confirm_exit_command(cmd)
-        type(command_type), pointer, intent(in) :: cmd
+    !> Whether `command' is in minibuffer-confirm-exit-commands.  Not a port.
+    logical function confirm_exit_command(command)
+        type(command_type), pointer, intent(in) :: command
 
-        confirm_exit_command = associated(cmd, commands%completion_at_point) .or. &
-                               associated(cmd, commands%minibuffer_complete) .or. &
-                               associated(cmd, commands%minibuffer_complete_word)
+        confirm_exit_command = associated(command, commands%completion_at_point) .or. &
+                               associated(command, commands%minibuffer_complete) .or. &
+                               associated(command, commands%minibuffer_complete_word)
     end function confirm_exit_command
 
     ! ------------------------------------------------------------------
@@ -2045,18 +2050,18 @@ contains
         type(handle_type), intent(in) :: window
         type(status_type) :: status
         type(handle_type) :: old
-        integer(int64) :: zv, begv
+        integer(int64) :: end_of_accessible_portion, beginning_of_accessible_portion
 
         old = current_buffer()
         call set_buffer(windows(window%index)%buffer, status)
         if (.not. status%ok()) return
-        zv = buffers(current)%zv
-        begv = buffers(current)%begv
+        end_of_accessible_portion = buffers(current)%end_of_accessible_portion
+        beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
         call set_buffer(old, status)
 
-        if (is_pos_visible_in_window(zv, window)) then
+        if (is_position_visible_in_window(end_of_accessible_portion, window)) then
             ! If end is in view, scroll up to the end.
-            call set_window_start(windows(window%index), begv, status)
+            call set_window_start(windows(window%index), beginning_of_accessible_portion, status)
         else
             ! Else scroll down one screen.
             call scroll_window(window, 1, status)
@@ -2072,7 +2077,7 @@ contains
     recursive subroutine minibuffer_completion_help(start, end)
         integer(int64), intent(in), optional :: start, end
         type(value_type) :: completions
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         type(string_type), allocatable :: strings(:)
         type(string_type), allocatable :: annotations(:)
         type(handle_type) :: mini, buffer, window
@@ -2085,14 +2090,14 @@ contains
         call message("Making completion list...")
         s = minibuffer_prompt_end()
         if (present(start)) s = start
-        e = point_max()
+        e = point_maximum()
         if (present(end)) e = end
         call buffer_substring(s, e, string, status)
         call mb_all_completions(string, point() - s, completions, base_size)
         call message("")
-        call list_elements(completions, elts)
+        call list_elements(completions, elements)
 
-        if (size(elts) == 0) then
+        if (size(elements) == 0) then
             ! If there are no completions, or if the current input is
             ! already the sole completion, then hide (previous&stale)
             ! completions.
@@ -2106,18 +2111,18 @@ contains
             return
         end if
 
-        if (size(elts) == 1) then
-            if (xstring(elts(1)) == string .and. len(xstring(elts(1))) == len(string)) then
+        if (size(elements) == 1) then
+            if (xstring(elements(1)) == string .and. len(xstring(elements(1))) == len(string)) then
                 call minibuffer_hide_completions()
                 call completion_message("Sole completion")
                 return
             end if
         end if
 
-        allocate (strings(size(elts)))
+        allocate (strings(size(elements)))
 
-        do k = 1, size(elts)
-            strings(k)%text = xstring(elts(k))
+        do k = 1, size(elements)
+            strings(k)%text = xstring(elements(k))
         end do
 
         if (completion_flex_sorting) then
@@ -2161,11 +2166,11 @@ contains
         table%window_height%procedure => completions_fit_window_to_buffer
 
         if (selected_frame%minibuffer_selected) then
-            call temp_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_MAYBE_SAME_WINDOW, &
-                                                                  DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM], table)
+            call temporary_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_MAYBE_SAME_WINDOW, &
+                                                                      DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM], table)
         else
-            call temp_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_MAYBE_SAME_WINDOW, &
-                                                                  DISPLAY_ACTION_REUSE_WINDOW], table)
+            call temporary_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_MAYBE_SAME_WINDOW, &
+                                                                       DISPLAY_ACTION_REUSE_WINDOW], table)
         end if
 
         display_buffer_mark_dedicated = saved_mark
@@ -2173,12 +2178,12 @@ contains
 
     !> Resize *Completions* buffer window.  Port of
     !> minibuffer.el:completions--fit-window-to-buffer
-    !> (`temp_buffer_resize_mode' off).
+    !> (`temporary_buffer_resize_mode' off).
     subroutine completions_fit_window_to_buffer(window)
         type(handle_type), intent(in) :: window
 
-        if (completions_max_height > 0) then
-            call fit_window_to_buffer(window, completions_max_height)
+        if (completions_maximum_height > 0) then
+            call fit_window_to_buffer(window, completions_maximum_height)
         else
             call fit_window_to_buffer(window)
         end if
@@ -2187,20 +2192,20 @@ contains
     !> Sort `strings' as `is_string_less' does.  Not a port.
     subroutine sort_strings(strings)
         type(string_type), intent(inout) :: strings(:)
-        character(len=:), allocatable :: tmp
+        character(len=:), allocatable :: temporary
         integer :: i, j
 
         do i = 2, size(strings)
-            tmp = strings(i)%text
+            temporary = strings(i)%text
             j = i - 1
 
             do while (j >= 1)
-                if (.not. is_string_less(tmp, strings(j)%text)) exit
+                if (.not. is_string_less(temporary, strings(j)%text)) exit
                 strings(j + 1)%text = strings(j)%text
                 j = j - 1
             end do
 
-            strings(j + 1)%text = tmp
+            strings(j + 1)%text = temporary
         end do
     end subroutine sort_strings
 
@@ -2208,7 +2213,7 @@ contains
     !> keeping the order of equal costs).  Not a port.
     subroutine sort_by_flex_cost(strings)
         type(string_type), intent(inout) :: strings(:)
-        character(len=:), allocatable :: tmp
+        character(len=:), allocatable :: temporary
         integer, allocatable :: costs(:)
         integer :: i, j, c
 
@@ -2226,7 +2231,7 @@ contains
         end do
 
         do i = 2, size(strings)
-            tmp = strings(i)%text
+            temporary = strings(i)%text
             c = costs(i)
             j = i - 1
 
@@ -2237,7 +2242,7 @@ contains
                 j = j - 1
             end do
 
-            strings(j + 1)%text = tmp
+            strings(j + 1)%text = temporary
             costs(j + 1) = c
         end do
     end subroutine sort_by_flex_cost
@@ -2256,14 +2261,14 @@ contains
         integer(int64) :: wwidth
         type(window_type), pointer :: sw
 
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         ! completions-header-format
         write (count, "(i0)") size(strings)
         call insert(trim(count)//" possible completions:"//achar(10), status)
         if (size(strings) == 0) return
         wwidth = 79
-        sw => frame_selected_window_ref()
-        if (sw%total_cols > 0) wwidth = sw%total_cols - 1
+        sw => frame_selected_window_reference()
+        if (sw%total_columns > 0) wwidth = sw%total_columns - 1
         call insert_strings_horizontal(strings, wwidth, annotations)
     end subroutine display_completion_list
 
@@ -2288,7 +2293,7 @@ contains
 
         wwidth = 79
         window = get_buffer_window(current_buffer())
-        if (is_window_live(window)) wwidth = windows(window%index)%total_cols - 1
+        if (is_window_live(window)) wwidth = windows(window%index)%total_columns - 1
         call insert_strings_horizontal(boxes, wwidth)
     end subroutine completion_insert_strings
 
@@ -2389,7 +2394,7 @@ contains
 
         ! Switch to another buffer in window.
         windows(window%index)%dedicated = DEDICATED_NONE
-        b = switch_to_prev_buffer(window, BK_BURY, status)
+        b = switch_to_previous_buffer(window, BK_BURY, status)
     end subroutine minibuffer_hide_completions
 
     ! ------------------------------------------------------------------
@@ -2472,18 +2477,18 @@ contains
     function buffer_names() result(names)
         type(value_type) :: names
         type(handle_type), allocatable :: all(:)
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
         all = buffer_list()
-        allocate (elts(size(all)))
+        allocate (elements(size(all)))
 
         ! Most recently selected first.
         do k = 1, size(all)
-            elts(k) = value_type(text=buffers(all(size(all) + 1 - k)%index)%name)
+            elements(k) = value_type(text=buffers(all(size(all) + 1 - k)%index)%name)
         end do
 
-        names = make_list(elts)
+        names = make_list(elements)
     end function buffer_names
 
     !> Perform completion on buffer names.
@@ -2501,7 +2506,7 @@ contains
         procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
         type(completion_table_type) :: table
-        type(value_type), allocatable :: res(:), bufs(:)
+        type(value_type), allocatable :: res(:), buffers(:)
         integer :: k, n, total
 
         status = status_type()
@@ -2516,13 +2521,13 @@ contains
             if (len(string) > 0) return
             ! Strip out internal buffers.
             call list_elements(result, res)
-            allocate (bufs(size(res)))
+            allocate (buffers(size(res)))
             n = 0
 
             do k = 1, size(res)
                 if (internal_name(res(k))) cycle
                 n = n + 1
-                bufs(n) = res(k)
+                buffers(n) = res(k)
             end do
 
             if (n == 0) then
@@ -2532,7 +2537,7 @@ contains
                 return
             end if
 
-            result = make_list(bufs(1:n))
+            result = make_list(buffers(1:n))
         case (COMPLETE_TEST)
             if (is_exact_completion(string, table, test)) result = value_type(.true.)
         case default
@@ -2590,16 +2595,16 @@ contains
     !> internal-complete-buffer-except's test: the buffer is not
     !> `rbts_except' (and TEST2 accepts it).
     !> Port of minibuffer.el:internal-complete-buffer-except in part.
-    recursive logical function not_except(elt)
-        type(value_type), intent(in) :: elt
+    recursive logical function not_except(element)
+        type(value_type), intent(in) :: element
 
         not_except = .true.
 
-        if (vtag(elt) == V_STRING .and. allocated(rbts_except)) then
-            not_except = .not. (xstring(elt) == rbts_except .and. len(xstring(elt)) == len(rbts_except))
+        if (vtag(element) == V_STRING .and. allocated(rbts_except)) then
+            not_except = .not. (xstring(element) == rbts_except .and. len(xstring(element)) == len(rbts_except))
         end if
 
-        if (not_except .and. associated(rbts_test2)) not_except = rbts_test2(elt)
+        if (not_except .and. associated(rbts_test2)) not_except = rbts_test2(element)
     end function not_except
 
     !> Read a string in the minibuffer, with completion.
@@ -2722,11 +2727,11 @@ contains
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
-        character(len=:), allocatable :: name, specdir, realdir, saved_dir
+        character(len=:), allocatable :: name, specdir, realdir, saved_directory
         type(value_type), allocatable :: all(:), comp(:)
         type(status_type) :: st
         integer :: slash, k, n
-        logical :: had_dir
+        logical :: had_directory
 
         status = status_type()
         result = value_type()
@@ -2774,8 +2779,8 @@ contains
                     call list_elements(result, all)
                     allocate (comp(size(all)))
                     n = 0
-                    had_dir = allocated(buffers(current)%directory)
-                    if (had_dir) saved_dir = buffers(current)%directory
+                    had_directory = allocated(buffers(current)%directory)
+                    if (had_directory) saved_directory = buffers(current)%directory
                     call expand_file_name(realdir, buffers(current)%directory, st)
 
                     do k = 1, size(all)
@@ -2784,8 +2789,8 @@ contains
                         comp(n) = all(k)
                     end do
 
-                    if (had_dir) then
-                        buffers(current)%directory = saved_dir
+                    if (had_directory) then
+                        buffers(current)%directory = saved_directory
                     else
                         deallocate (buffers(current)%directory)
                     end if
@@ -2848,9 +2853,9 @@ contains
         call completion_file_name_table(sifned, COMPLETE_BOUNDARIES, bounds, st, test, suffix)
         ! Adjust SIFNED-START to be an offset in STRING instead of in
         ! SIFNED.
-        string_start = xfixnum(list_elt(bounds, 1_int64)) - count_characters(sifned) + count_characters(string)
+        string_start = xfixnum(list_element(bounds, 1_int64)) - count_characters(sifned) + count_characters(string)
         bend = -1
-        if (vtag(list_elt(bounds, 2_int64)) == V_INTEGER) bend = xfixnum(list_elt(bounds, 2_int64))
+        if (vtag(list_element(bounds, 2_int64)) == V_INTEGER) bend = xfixnum(list_element(bounds, 2_int64))
     end subroutine sifn_boundaries
 
     !> Internal subroutine for `read_file_name'.  Do not call this.
@@ -2867,10 +2872,10 @@ contains
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
-        character(len=:), allocatable :: sifned, orig_in_bounds, sifned_in_bounds, compl
-        type(value_type), allocatable :: elts(:)
+        character(len=:), allocatable :: sifned, original_in_bounds, sifned_in_bounds, compl
+        type(value_type), allocatable :: elements(:)
         type(value_type) :: bounds
-        integer(int64) :: orig_start, sifned_start, bend
+        integer(int64) :: original_start, sifned_start, bend
         logical :: only_need_double_dollars
         integer :: k
 
@@ -2879,15 +2884,15 @@ contains
 
         if (action == COMPLETE_BOUNDARIES) then
             if (present(suffix)) then
-                call sifn_boundaries(string, suffix, orig_start, bend, test)
+                call sifn_boundaries(string, suffix, original_start, bend, test)
             else
-                call sifn_boundaries(string, "", orig_start, bend, test)
+                call sifn_boundaries(string, "", original_start, bend, test)
             end if
 
             if (bend >= 0) then
-                result = list(value_type(orig_start), value_type(bend))
+                result = list(value_type(original_start), value_type(bend))
             else
-                result = list(value_type(orig_start), value_type())
+                result = list(value_type(original_start), value_type())
             end if
 
             return
@@ -2899,17 +2904,17 @@ contains
             sifned = sifn_regardless_of_system_users(string)
         end if
 
-        call sifn_boundaries(string, "", orig_start, bend, test)
+        call sifn_boundaries(string, "", original_start, bend, test)
         call completion_file_name_table(sifned, COMPLETE_BOUNDARIES, bounds, status, test, "")
-        sifned_start = xfixnum(list_elt(bounds, 1_int64))
-        orig_in_bounds = substring(string, orig_start)
+        sifned_start = xfixnum(list_element(bounds, 1_int64))
+        original_in_bounds = substring(string, original_start)
         sifned_in_bounds = substring(sifned, sifned_start)
-        ! If true, sifn only un-doubled $s in ORIG, so we can fix a
-        ! completion to match ORIG by just doubling $s again.  This
+        ! If true, sifn only un-doubled $s in ORIGINAL, so we can fix a
+        ! completion to match ORIGINAL by just doubling $s again.  This
         ! preserves more text from the completion, behaving better with
         ! `completion_ignore_case' .true..
-        only_need_double_dollars = orig_in_bounds == double_dollars(sifned_in_bounds) .and. &
-                                   len(orig_in_bounds) == len(double_dollars(sifned_in_bounds))
+        only_need_double_dollars = original_in_bounds == double_dollars(sifned_in_bounds) .and. &
+                                   len(original_in_bounds) == len(double_dollars(sifned_in_bounds))
         call completion_file_name_table(sifned, action, result, status, test)
 
         select case (action)
@@ -2917,29 +2922,30 @@ contains
             if (vtag(result) == V_STRING) then
                 if (only_need_double_dollars) then
                     ! Extract the newly added text, quote any dollar signs,
-                    ! and append it to ORIG.
-                    result = value_type(text=substring(string, 0_int64, orig_start)// &
+                    ! and append it to ORIGINAL.
+                    result = value_type(text=substring(string, 0_int64, original_start)// &
                                         double_dollars(substring(xstring(result), sifned_start)))
                 else
                     result = value_type(text=string//double_dollars(substring(xstring(result), count_characters(sifned))))
                 end if
             end if
         case (COMPLETE_ALL)
-            call list_elements(result, elts)
+            call list_elements(result, elements)
 
-            do k = 1, size(elts)
+            do k = 1, size(elements)
                 if (only_need_double_dollars) then
-                    elts(k) = value_type(text=double_dollars(xstring(elts(k))))
+                    elements(k) = value_type(text=double_dollars(xstring(elements(k))))
                 else
                     ! Extract the newly added text, quote any dollar signs,
-                    ! and append it to the part of ORIG inside the
+                    ! and append it to the part of ORIGINAL inside the
                     ! completion boundaries.
-                    compl = xstring(elts(k))
-                    elts(k) = value_type(text=orig_in_bounds//double_dollars(substring(compl, count_characters(sifned_in_bounds))))
+                    compl = xstring(elements(k))
+                    elements(k) = value_type(text=original_in_bounds//double_dollars(substring(compl, &
+                                                                                               count_characters(sifned_in_bounds))))
                 end if
             end do
 
-            result = make_list(elts)
+            result = make_list(elements)
         case default
             continue
         end select
@@ -3018,16 +3024,16 @@ contains
 
     ! The test of `completion_table_with_context': its TEST called
     ! with the prefix and the candidate.  Not a port.
-    logical function context_test_with_prefix(elt)
-        type(value_type), intent(in) :: elt
+    logical function context_test_with_prefix(element)
+        type(value_type), intent(in) :: element
 
         context_test_with_prefix = .true.
         if (.not. associated(context_test)) return
 
-        if (vtag(elt) == V_STRING) then
-            context_test_with_prefix = context_test(value_type(text=context_prefix//xstring(elt)))
+        if (vtag(element) == V_STRING) then
+            context_test_with_prefix = context_test(value_type(text=context_prefix//xstring(element)))
         else
-            context_test_with_prefix = context_test(elt)
+            context_test_with_prefix = context_test(element)
         end if
     end function context_test_with_prefix
 end module minibuffer_mod

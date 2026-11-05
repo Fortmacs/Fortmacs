@@ -16,7 +16,7 @@ name	ediff_set_merge_mode	set_ediff_merge_mode
 name	ediff_do_merge	do_ediff_merge
 name	ediff_merge_on_startup	merge_ediff_on_startup
 name	ediff_merge_region_is_non_clash	is_ediff_merge_region_non_clash
-name	ediff_merge_region_is_non_clash_to_skip	is_ediff_merge_region_non_clash_to_skip
+name	ediff_merge_region_is_non_clash_to_skip	check_region_skip
 name	ediff_merge_changed_from_default_p	is_ediff_merge_changed_from_default
 name	ediff_maybe_save_and_delete_merge	maybe_save_and_delete_ediff_merge
 name	ediff_write_merge_buffer_and_maybe_kill	write_ediff_merge_buffer_and_maybe_close
@@ -27,5 +27,5 @@ name	ediff_select_lowest_window	select_lowest_ediff_window
 name	ediff_compute_custom_diffs_maybe	compute_ediff_custom_diffs_maybe
 # The hook keeps its name (a hook, not the command quit_ediff).
 keep	ediff_quit_merge_hook
-# _p is is_* (CLAUDE.md, decided by rule).
-name	ediff_skip_merge_region_if_changed_from_default_p	is_ediff_skip_merge_region_if_changed_from_default
+# Both tests are one type-bound check of the Ediff session (panel 13).
+name	ediff_skip_merge_region_if_changed_from_default_p	check_region_skip

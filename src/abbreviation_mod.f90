@@ -30,10 +30,10 @@
 !>     abbrev_mode = .true.
 !>
 !> An abbrev table's properties are components (`parents', `case_fixed',
-!> `regexp', `enable_function'); upstream's name table of names with
+!> `regular_expression', `enable_function'); upstream's name table of names with
 !> attributes becomes an array of `abbrev_type' entries.  An abbrev
 !> as `expand_abbrev' and `last_abbrev' give it (upstream's abbrev
-!> symbol) is an `abbrev_ref_type': its table and name.
+!> symbol) is an `abbrev_reference_type': its table and name.
 !>
 !> Saving abbrevs is a setting-saving command: `write_abbrev_file'
 !> writes the abbrevs as `define' calls into the init file (Fortran
@@ -61,7 +61,7 @@
 !> `pre_abbrev_expand_hook'.)
 module abbreviation_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use data_mod, only: logical_setting_type, choice_setting_type
@@ -76,7 +76,7 @@ module abbreviation_mod
               expand_region_abbrevs, define_global_abbrev, define_mode_abbrev, abbrev_name, abbrev_expansion, &
               abbrev_insert, expand_abbrev, abbrev_default_expand, unexpand_abbrev, insert_abbrev_table_description, &
               abbrev_table_names, abbrev_possibly_save, local_abbrev_table, abbrev_table_set_local, &
-              edit_abbrevs_mode, is_abbrev_mode, abbrev_no_self_insert, init_abbrev
+              edit_abbrevs_mode, is_abbrev_mode, abbrev_no_self_insert, initialize_abbrev
 
     !> The values of `save_abbrevs': never save, ask or save
     !> without asking (`silently').
@@ -129,9 +129,9 @@ module abbreviation_mod
     end type abbrev_type
 
     !> A pointer to an abbrev table.
-    type, public :: abbrev_table_ref_type
+    type, public :: abbrev_table_reference_type
         type(abbrev_table_type), pointer :: p => null()
-    end type abbrev_table_ref_type
+    end type abbrev_table_reference_type
 
     !> An abbrev table.  Port of the abbrev tables of abbrev.el (an
     !> name table with the table's attributes on its name "").
@@ -144,14 +144,14 @@ module abbreviation_mod
         type(abbrev_type), allocatable :: abbrevs(:)
         integer :: n = 0
         !> `:parents': the tables from which this table inherits abbrevs.
-        type(abbrev_table_ref_type), allocatable :: parents(:)
+        type(abbrev_table_reference_type), allocatable :: parents(:)
         !> `:case_fixed': look abbreviations up without case folding, and
         !> do not capitalize or upcase the expansion.
         logical :: case_fixed = .false.
         !> `:regexp': how to extract the name of the abbrev before point
         !> (its submatch 1); unallocated to use `backward_word' and
         !> `forward_word', so that a name is one word.
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         !> `:enable_function': whether the table's abbrevs should be used
         !> for this call of `expand_abbrev'; null for always.
         procedure(abbrev_enable_procedure), pointer, nopass :: enable_function => null()
@@ -172,18 +172,18 @@ module abbreviation_mod
 
     !> An abbrev as expansion functions return it (upstream's abbrev
     !> symbol): its table and name.  No table is the null handle.
-    type, public :: abbrev_ref_type
+    type, public :: abbrev_reference_type
         type(abbrev_table_type), pointer :: table => null()
         character(len=:), allocatable :: name
-    end type abbrev_ref_type
+    end type abbrev_reference_type
 
     abstract interface
         !> The function `expand_abbrev' calls: ABBREV is the abbrev that
         !> was expanded, if expansion took place.  Not a port.
         recursive subroutine abbrev_expand_procedure(abbrev, status)
-            import :: abbrev_ref_type, status_type
+            import :: abbrev_reference_type, status_type
             implicit none(type, external)
-            type(abbrev_ref_type), intent(out) :: abbrev
+            type(abbrev_reference_type), intent(out) :: abbrev
             type(status_type), intent(out) :: status
         end subroutine abbrev_expand_procedure
     end interface
@@ -203,14 +203,14 @@ module abbreviation_mod
     !> Use the command `abbrev_mode' to change the value of this variable in
     !> the current buffer.  Customize this variable to true to enable Abbrev
     !> mode by default in all buffers.  Port of buffer.c abbrev-mode (the
-    !> state of the minor mode `abbrev_mode', which `init_abbrev'
+    !> state of the minor mode `abbrev_mode', which `initialize_abbrev'
     !> associates this with).
     type(logical_setting_type), pointer, public :: abbrev_mode => null()
 
     !> List of the tables whose values are abbrev tables.  Port of
     !> abbrev.el abbrev-table-name-list (pointers to the tables, which
     !> carry their names).
-    type(abbrev_table_ref_type), allocatable, public :: abbrev_tables(:)
+    type(abbrev_table_reference_type), allocatable, public :: abbrev_tables(:)
 
     !> The abbrev table whose abbrevs affect all buffers.
     !> Each buffer may also have a local abbrev table.
@@ -248,7 +248,7 @@ module abbreviation_mod
 
     !> The abbrev of the last abbrev expanded.  See `abbrev_name'.
     !> Port of abbrev.el last-abbrev.
-    type(abbrev_ref_type), public :: last_abbrev
+    type(abbrev_reference_type), public :: last_abbrev
 
     !> The exact text of the last abbrev that was expanded.
     !> It is unallocated if the abbrev has already been unexpanded.  Port of
@@ -326,9 +326,9 @@ module abbreviation_mod
         !>   abbreviations.
         !> - `case_fixed' true means that abbreviations are looked up without
         !>   case-folding, and the expansion is not capitalized/upcased.
-        !> - `regexp' is a regular expression that specifies how to extract the
+        !> - `regular_expression' is a regular expression that specifies how to extract the
         !>   name of the abbrev before point.  The submatch 1 is treated
-        !>   as the potential name of an abbrev.  If `regexp' is unallocated, the
+        !>   as the potential name of an abbrev.  If `regular_expression' is unallocated, the
         !>   default behavior uses `backward_word' and `forward_word' to extract
         !>   the name of the abbrev, which can therefore by default only be a
         !>   single word.
@@ -336,7 +336,7 @@ module abbreviation_mod
         !>   returns true if and only if the abbrevs in this table should be used
         !>   for this instance of `expand_abbrev'.
         !> Port of abbrev.el:define-abbrev-table (DEFINITIONS, DOCSTRING and
-        !> PROPS are the calls and assignments that follow).
+        !> PROPERTIES are the calls and assignments that follow).
         module subroutine abbrev_table_define_table(self, name)
             implicit none(type, external)
             class(abbrev_table_type), intent(inout), target :: self
@@ -462,10 +462,10 @@ module abbreviation_mod
         !> Define a mode-specific abbrev whose expansion is the last word before point.
         !> If there's an active region, use that as the expansion.
         !>
-        !> Prefix argument ARG says how many words before point to use for the expansion;
+        !> Prefix argument ARGUMENT says how many words before point to use for the expansion;
         !> zero means the entire region is the expansion.
         !>
-        !> A negative ARG means to undefine the specified abbrev.
+        !> A negative ARGUMENT means to undefine the specified abbrev.
         !>
         !> This command reads the abbreviation from the minibuffer.
         !>
@@ -475,19 +475,19 @@ module abbreviation_mod
         !>
         !> Don't use this function in a program; use `define_abbrev' instead.
         !> Port of abbrev.el:add-mode-abbrev.
-        recursive module subroutine add_mode_abbrev(arg, status)
+        recursive module subroutine add_mode_abbrev(argument, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine add_mode_abbrev
 
         !> Define a global (all modes) abbrev whose expansion is last word before point.
         !> If there's an active region, use that as the expansion.
         !>
-        !> Prefix argument ARG says how many words before point to use for the expansion;
+        !> Prefix argument ARGUMENT says how many words before point to use for the expansion;
         !> zero means the entire region is the expansion.
         !>
-        !> A negative ARG means to undefine the specified abbrev.
+        !> A negative ARGUMENT means to undefine the specified abbrev.
         !>
         !> This command reads the abbreviation from the minibuffer.
         !>
@@ -497,18 +497,18 @@ module abbreviation_mod
         !>
         !> Don't use this function in a program; use `define_abbrev' instead.
         !> Port of abbrev.el:add-global-abbrev.
-        recursive module subroutine add_global_abbrev(arg, status)
+        recursive module subroutine add_global_abbrev(argument, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine add_global_abbrev
 
-        !> Define abbrev in TABLE, whose expansion is ARG words before point.
+        !> Define abbrev in TABLE, whose expansion is ARGUMENT words before point.
         !> Read the abbreviation from the minibuffer, with prompt TYPE.
         !>
-        !> ARG of zero means the entire region is the expansion.
+        !> ARGUMENT of zero means the entire region is the expansion.
         !>
-        !> A negative ARG means to undefine the specified abbrev.
+        !> A negative ARGUMENT means to undefine the specified abbrev.
         !>
         !> TYPE is an arbitrary string used to prompt user for the kind of
         !> abbrev, such as "Global", "Mode".  (This has no influence on the
@@ -518,11 +518,11 @@ module abbreviation_mod
         !>
         !> Don't use this function in a program; use `define_abbrev' instead.
         !> Port of abbrev.el:add-abbrev.
-        recursive module subroutine add_abbrev(table, type, arg, status)
+        recursive module subroutine add_abbrev(table, type, argument, status)
             implicit none(type, external)
             type(abbrev_table_type), intent(inout), target :: table
             character(len=*), intent(in) :: type
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine add_abbrev
 
@@ -568,8 +568,8 @@ module abbreviation_mod
         !> the abbrev, and then expand the abbreviation in the current
         !> buffer.
         !>
-        !> ARG means use the ARG-th word before point as the abbreviation.
-        !> Negative ARG means use the ARG-th word after point.
+        !> ARGUMENT means use the ARG-th word before point as the abbreviation.
+        !> Negative ARGUMENT means use the ARG-th word after point.
         !>
         !> TYPE is an arbitrary string used to prompt user for the kind of
         !> abbrev, such as "Global", "Mode".  (This has no influence on the
@@ -577,11 +577,11 @@ module abbreviation_mod
         !>
         !> See also `add_abbrev', which performs the opposite task.  Port of
         !> abbrev.el:inverse-add-abbrev.
-        recursive module subroutine inverse_add_abbrev(table, type, arg, status)
+        recursive module subroutine inverse_add_abbrev(table, type, argument, status)
             implicit none(type, external)
             type(abbrev_table_type), intent(inout), target :: table
             character(len=*), intent(in) :: type
-            integer(int64), intent(in) :: arg
+            integer(int64), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine inverse_add_abbrev
 
@@ -595,12 +595,12 @@ module abbreviation_mod
         !> is subsequently expanded, this hyphen will be removed.
         !>
         !> If the prefix is itself an abbrev, this command expands it,
-        !> unless ARG is true.  Interactively, ARG is the prefix
+        !> unless ARGUMENT is true.  Interactively, ARGUMENT is the prefix
         !> argument.  Port of abbrev.el:abbrev-prefix-mark.
-        recursive module subroutine abbrev_prefix_mark(status, arg)
+        recursive module subroutine abbrev_prefix_mark(status, argument)
             implicit none(type, external)
             type(status_type), intent(out) :: status
-            logical, intent(in), optional :: arg
+            logical, intent(in), optional :: argument
         end subroutine abbrev_prefix_mark
 
         !> For each abbrev occurrence in the region, offer to expand it.
@@ -640,7 +640,7 @@ module abbreviation_mod
         module subroutine abbrev_name(abbrev, result, table)
             implicit none(type, external)
             character(len=*), intent(in) :: abbrev
-            type(abbrev_ref_type), intent(out) :: result
+            type(abbrev_reference_type), intent(out) :: result
             type(abbrev_table_type), intent(in), target, optional :: table
         end subroutine abbrev_name
 
@@ -666,8 +666,8 @@ module abbreviation_mod
         !> see `define_abbrev' for details.  Port of abbrev.el:abbrev-insert.
         recursive module subroutine abbrev_insert(abbrev, result, status, name, wordstart, wordend)
             implicit none(type, external)
-            type(abbrev_ref_type), intent(in) :: abbrev
-            type(abbrev_ref_type), intent(out) :: result
+            type(abbrev_reference_type), intent(in) :: abbrev
+            type(abbrev_reference_type), intent(out) :: result
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: name
             integer(int64), intent(in), optional :: wordstart, wordend
@@ -682,7 +682,7 @@ module abbreviation_mod
         recursive module subroutine expand_abbrev(status, expanded)
             implicit none(type, external)
             type(status_type), intent(out) :: status
-            type(abbrev_ref_type), intent(out), optional :: expanded
+            type(abbrev_reference_type), intent(out), optional :: expanded
         end subroutine expand_abbrev
 
         !> Default function to use for `abbrev_expand_function'.
@@ -691,7 +691,7 @@ module abbreviation_mod
         !> wrapper hook `abbrev_expand_functions').
         recursive module subroutine abbrev_default_expand(abbrev, status)
             implicit none(type, external)
-            type(abbrev_ref_type), intent(out) :: abbrev
+            type(abbrev_reference_type), intent(out) :: abbrev
             type(status_type), intent(out) :: status
         end subroutine abbrev_default_expand
 
@@ -735,9 +735,9 @@ module abbreviation_mod
         !> With QUERY, RESULT tells whether there are abbrevs to save; else
         !> RESULT true inhibits the message of `save_some_buffers'.  Port of
         !> abbrev.el:abbrev--possibly-save.
-        recursive module subroutine abbrev_possibly_save(query, arg, result, status)
+        recursive module subroutine abbrev_possibly_save(query, argument, result, status)
             implicit none(type, external)
-            logical, intent(in) :: query, arg
+            logical, intent(in) :: query, argument
             logical, intent(out) :: result
             type(status_type), intent(out) :: status
         end subroutine abbrev_possibly_save
@@ -769,7 +769,7 @@ module abbreviation_mod
         !> Not a port.
         module logical function abbrev_no_self_insert(abbrev)
             implicit none(type, external)
-            type(abbrev_ref_type), intent(in) :: abbrev
+            type(abbrev_reference_type), intent(in) :: abbrev
         end function abbrev_no_self_insert
 
         !> Whether Abbrev mode is on in the current buffer (BVAR
@@ -780,8 +780,8 @@ module abbreviation_mod
 
         !> Define Abbrev mode, Edit-Abbrevs mode and the tables, and
         !> register the commands.  Not a port.
-        module subroutine init_abbrev()
+        module subroutine initialize_abbrev()
             implicit none(type, external)
-        end subroutine init_abbrev
+        end subroutine initialize_abbrev
     end interface
 end module abbreviation_mod

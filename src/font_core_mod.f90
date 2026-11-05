@@ -55,13 +55,13 @@ module font_core_mod
     use modes_mod, only: minor_modes
     use commands_mod, only: commands
     use text_properties_mod, only: remove_list_of_text_properties
-    use editing_functions_mod, only: widen, narrow_to_region, point_min, point_max
+    use editing_functions_mod, only: widen, narrow_to_region, point_minimum, point_maximum
     use syntax_mod, only: parse_state_type
     implicit none(type, external)
     private
 
     public :: font_lock_keywords_function_procedure, font_lock_syntactic_face_procedure
-    public :: init_font_core, font_lock_mode, global_font_lock_mode, turn_on_font_lock, &
+    public :: initialize_font_core, font_lock_mode, global_font_lock_mode, turn_on_font_lock, &
               turn_on_font_lock_if_desired, font_lock_change_mode, font_lock_defontify, font_lock_default_function, &
               font_lock_keywords_level, font_lock_mode_enabled, font_lock_face_procedure, font_lock_matcher_procedure, &
               font_lock_form_procedure, font_lock_function_procedure, major_mode_of_current, font_lock_properties_procedure
@@ -114,8 +114,8 @@ module font_core_mod
             type(status_type), intent(out) :: status
         end subroutine font_lock_function_procedure
 
-        !> The text properties of a FACENAME of the form (face FACE PROP
-        !> VAL ...) that depend on the match: give the text from START to
+        !> The text properties of a FACENAME of the form (face FACE PROPERTY
+        !> VALUE ...) that depend on the match: give the text from START to
         !> END its properties (the match data is that of the match).
         !> Not a port.
         subroutine font_lock_properties_procedure(start, end, status)
@@ -133,8 +133,8 @@ module font_core_mod
     !> whether a SUBEXP that did not match is fine (LAXMATCH) rather than an
     !> error.
     !> The face may come with text properties to give the text as well
-    !> (a FACENAME of the form (face FACE PROP VAL ...)): the names in
-    !> `true_properties' are set to true, those in `nil_properties' to
+    !> (a FACENAME of the form (face FACE PROPERTY VALUE ...)): the names in
+    !> `true_properties' are set to true, those in `false_properties' to
     !> .false., `display' is the `display' property, and
     !> `properties_function' gives the ones that depend on the match.
     type, public :: font_lock_match_highlight_type
@@ -144,21 +144,21 @@ module font_core_mod
         integer :: override = FONT_LOCK_OVERRIDE_NONE
         logical :: laxmatch = .false.
         character(len=64), allocatable :: true_properties(:)
-        character(len=64), allocatable :: nil_properties(:)
+        character(len=64), allocatable :: false_properties(:)
         character(len=:), allocatable :: display
         procedure(font_lock_properties_procedure), pointer, nopass :: properties_function => null()
     end type font_lock_match_highlight_type
 
     !> A HIGHLIGHT of a keyword: a MATCH-HIGHLIGHT (`match'), or with
     !> `anchored' a MATCH-ANCHORED (ANCHORED-MATCHER PRE-MATCH-FORM
-    !> POST-MATCH-FORM SUBEXP-HIGHLIGHTERS...): a regexp (`regexp') or
+    !> POST-MATCH-FORM SUBEXP-HIGHLIGHTERS...): a regexp (`regular_expression') or
     !> function (`matcher') searched for after each match of the keyword's
     !> MATCHER, from there to the end of the line or to where
     !> `pre_match_form' says, each match highlighted as `highlights' say.
     type, public :: font_lock_highlight_type
         logical :: anchored = .false.
         type(font_lock_match_highlight_type) :: match
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         procedure(font_lock_matcher_procedure), pointer, nopass :: matcher => null()
         procedure(font_lock_form_procedure), pointer, nopass :: pre_match_form => null()
         procedure(font_lock_form_procedure), pointer, nopass :: post_match_form => null()
@@ -168,7 +168,7 @@ module font_core_mod
     !> One element of `font_lock_keywords': a MATCHER (a regexp, or a
     !> function) and the HIGHLIGHTs to apply to each match, in order.
     type, public :: font_lock_keyword_type
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         procedure(font_lock_matcher_procedure), pointer, nopass :: matcher => null()
         type(font_lock_highlight_type), allocatable :: highlights(:)
     end type font_lock_keyword_type
@@ -360,7 +360,7 @@ contains
 
     !> Define Font Lock mode and Global Font Lock mode (as loading
     !> font-core.el does).  Not a port.
-    subroutine init_font_core()
+    subroutine initialize_font_core()
         type(status_type) :: st
         logical :: bound
 
@@ -384,12 +384,12 @@ contains
         commands%font_lock_mode_set_explicitly%is_command = .false.
         if (.not. associated(font_lock_function)) font_lock_function => font_lock_default_function
         ! textprop.c's char-property-alias-alist (nil by default).
-        call boundp(value_type(name="char_property_aliases"), bound, st)
-        if (.not. bound) call set_default(value_type(name="char_property_aliases"), value_type(), st)
+        call boundp(value_type(name="character_property_aliases"), bound, st)
+        if (.not. bound) call set_default(value_type(name="character_property_aliases"), value_type(), st)
         call append_locals_clearer(clear_font_core_locals)
         ! (add-hook 'font-lock-mode-hook #'font-lock-mode-set-explicitly)
         call font_lock_mode_hook%prepend(font_lock_mode_set_explicitly)
-    end subroutine init_font_core
+    end subroutine initialize_font_core
 
     ! ------------------------------------------------------------------
     ! font-lock-defaults
@@ -635,7 +635,7 @@ contains
     !> font-core.el:font-lock-defontify.
     subroutine font_lock_defontify(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: begv, zv
+        integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion
         logical :: modp, changed
         type(value_type) :: inhibit
 
@@ -645,40 +645,41 @@ contains
         if (.not. status%ok()) return
         call symbol_value(value_type(name="inhibit_read_only"), inhibit, status)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), status)
-        begv = buffers(current)%begv
-        zv = buffers(current)%zv
+        beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+        end_of_accessible_portion = buffers(current)%end_of_accessible_portion
         call widen()
-        call remove_list_of_text_properties(point_min(), point_max(), list(value_type(name="font_lock_face")), changed, status)
-        call narrow_to_region(begv, zv, status)
+        call remove_list_of_text_properties(point_minimum(), point_maximum(), list(value_type(name="font_lock_face")), changed, &
+                                            status)
+        call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, status)
         call set(value_type(name="inhibit_read_only"), inhibit, status)
         call restore_buffer_modified(modp)
     end subroutine font_lock_defontify
 
     !> The default `font_lock_function': with MODE, make `font_lock_face'
-    !> an alias of the `face' property (in `char_property_aliases'),
+    !> an alias of the `face' property (in `character_property_aliases'),
     !> without, remove the alias; then, if the buffer is ready for
     !> fontification, turn the fontification itself on or off.  Port of
     !> font-core.el:font-lock-default-function.
     subroutine font_lock_default_function(mode, status)
         logical, intent(in) :: mode
         type(status_type), intent(out) :: status
-        type(value_type) :: table, elt, face, flf
-        type(value_type), allocatable :: elts(:), members(:), kept(:)
+        type(value_type) :: table, element, face, flf
+        type(value_type), allocatable :: elements(:), members(:), kept(:)
         integer :: k, j, n, found
         logical :: has
 
         status = status_type()
         face = value_type(name="face")
         flf = value_type(name="font_lock_face")
-        call symbol_value(value_type(name="char_property_aliases"), table, status)
+        call symbol_value(value_type(name="character_property_aliases"), table, status)
         status = status_type()
-        allocate (elts(0))
-        if (vtag(table) == V_ARRAY) call list_elements(table, elts)
+        allocate (elements(0))
+        if (vtag(table) == V_ARRAY) call list_elements(table, elements)
         found = 0
 
-        do k = 1, size(elts)
-            if (vtag(elts(k)) /= V_ARRAY) cycle
-            call list_elements(elts(k), members)
+        do k = 1, size(elements)
+            if (vtag(elements(k)) /= V_ARRAY) cycle
+            call list_elements(elements(k), members)
 
             if (value_eq(members(1), face)) then
                 found = k
@@ -689,7 +690,7 @@ contains
         if (mode) then
             ! Add `font_lock_face' as an alias for the `face' property.
             if (found > 0) then
-                call list_elements(elts(found), members)
+                call list_elements(elements(found), members)
                 has = .false.
 
                 do j = 2, size(members)
@@ -697,19 +698,19 @@ contains
                 end do
 
                 if (.not. has) then
-                    elt = append_symbol(members, value_type(name="font_lock_face"))
-                    elts(found) = elt
+                    element = append_symbol(members, value_type(name="font_lock_face"))
+                    elements(found) = element
                 end if
 
-                table = make_list(elts)
+                table = make_list(elements)
             else
-                elt = list(face, value_type(name="font_lock_face"))
-                elts = [elt, elts]
-                table = make_list(elts)
+                element = list(face, value_type(name="font_lock_face"))
+                elements = [element, elements]
+                table = make_list(elements)
             end if
         else if (found > 0) then
             ! Remove `font_lock_face' as an alias for the `face' property.
-            call list_elements(elts(found), members)
+            call list_elements(elements(found), members)
             allocate (kept(size(members)))
             n = 0
 
@@ -725,22 +726,22 @@ contains
             if (n <= 1) then
                 ! (The element goes.)
                 deallocate (kept)
-                allocate (kept(size(elts) - 1))
+                allocate (kept(size(elements) - 1))
 
-                do j = 1, size(elts)
-                    if (j < found) kept(j) = elts(j)
-                    if (j > found) kept(j - 1) = elts(j)
+                do j = 1, size(elements)
+                    if (j < found) kept(j) = elements(j)
+                    if (j > found) kept(j - 1) = elements(j)
                 end do
 
-                call move_alloc(kept, elts)
+                call move_alloc(kept, elements)
             else
-                elts(found) = make_list(kept(1:n))
+                elements(found) = make_list(kept(1:n))
             end if
 
-            table = make_list(elts)
+            table = make_list(elements)
         end if
 
-        call setq_local("char_property_aliases", table, status)
+        call setq_local("character_property_aliases", table, status)
         if (.not. status%ok()) return
 
         ! Only do hard work if the mode has specified stuff in
@@ -834,7 +835,7 @@ contains
     !> Specifically, Font Lock mode is enabled in all buffers where
     !> `turn_on_font_lock_if_desired' would do it.
     !>
-    !> With prefix ARG, enable Global Font Lock mode if ARG is positive;
+    !> With prefix ARGUMENT, enable Global Font Lock mode if ARGUMENT is positive;
     !> otherwise, disable it.
     !>
     !> See `font_lock_mode' for more information on Font Lock mode.

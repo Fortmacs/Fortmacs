@@ -39,32 +39,32 @@ contains
     module procedure apropos_command
     type(apropos_item_type), allocatable :: items(:)
     type(doc_entry_type) :: entry
-    character(len=:), allocatable :: name, msg
+    character(len=:), allocatable :: name, message_text
     type(status_type) :: st
     logical :: found, ok
     integer :: k, n
 
     status = status_type()
     call apropos_parse_pattern(pattern, words, .false.)
-    msg = return_message()
+    message_text = return_message()
     allocate (items(nsymbols))
     n = 0
 
     do k = 1, int(nsymbols)
         name = symbols(k)%name
-        if (string_match(apropos_regexp, name, st, inhibit_modify=.true.) == 0) cycle
+        if (string_match(apropos_regular_expression, name, st, inhibit_modify=.true.) == 0) cycle
 
         if (.not. st%ok()) then
             status = st
             return
         end if
 
-        select case (var_kind)
-        case (VAR_USER_OPTION)
+        select case (variable_kind)
+        case (VARIABLE_USER_OPTION)
             call variable_doc(name, entry, found)
             ok = found
             if (ok) ok = entry%user_option
-        case (VAR_ANY)
+        case (VARIABLE_ANY)
             ok = is_variable_known(name)
         case default
             if (do_all) then
@@ -80,7 +80,7 @@ contains
         items(n)%name = name
         items(n)%score = apropos_score_name(name, 3)
 
-        if (var_kind == VAR_NONE) then
+        if (variable_kind == VARIABLE_NONE) then
             if (is_function_known(name)) then
                 call function_doc(name, entry, found)
                 items(n)%fn_doc = "(not documented)"
@@ -98,7 +98,7 @@ contains
             if (found) then
                 if (len(entry%doc) > 0) then
                     items(n)%score = items(n)%score + apropos_score_doc(entry%doc)
-                    items(n)%var_doc = first_line(entry%doc)
+                    items(n)%variable_doc = first_line(entry%doc)
                 end if
             end if
         end if
@@ -106,7 +106,7 @@ contains
 
     call apropos_print(items(1:n), .true., "", .true., do_all, .false., status)
     if (.not. status%ok()) return
-    if (n > 0 .and. len(msg) > 0) call message(msg)
+    if (n > 0 .and. len(message_text) > 0) call message(message_text)
     end procedure apropos_command
 
     module procedure apropos_documentation
@@ -155,7 +155,7 @@ contains
         end if
 
         if (has_v) then
-            items(n)%var_doc = vdoc
+            items(n)%variable_doc = vdoc
             items(n)%score = items(n)%score + apropos_score_doc(vdoc)
         end if
     end do
@@ -172,7 +172,7 @@ contains
 
         hit = .false.
         if (len(doc) == 0) return
-        if (string_match(apropos_all_words_regexp, doc, st, inhibit_modify=.true.) == 0) return
+        if (string_match(apropos_all_words_regular_expression, doc, st, inhibit_modify=.true.) == 0) return
         if (.not. apropos_true_hit(doc, apropos_all_words)) return
         doc = substitute_command_keys(doc)
         hit = .true.
@@ -197,14 +197,14 @@ contains
     !> `apropos_command' shows it after listing: computed before *Apropos*
     !> is displayed.  Port of help.el:help-print-return-message with
     !> FUNCTION `identity' (`pop_up_windows' true; no frames).
-    function return_message() result(msg)
+    function return_message() result(message)
         use window_mod, only: pop_up_windows
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message
         type(handle_type), allocatable :: leaves(:)
         type(handle_type) :: buffer
         integer :: k
 
-        msg = ""
+        message = ""
         ! Not when the buffer is shown already.
         buffer = get_buffer("*Apropos*")
         call window_leaves(selected_frame%root_window, leaves)
@@ -216,15 +216,15 @@ contains
         end if
 
         if (size(leaves) > 1) then
-            msg = substitute_command_keys("Type \[display_buffer] RET to restore the other window.")
+            message = substitute_command_keys("Type \[display_buffer] RET to restore the other window.")
         else if (pop_up_windows) then
-            msg = substitute_command_keys("Type \[delete_other_windows] to remove help window.")
+            message = substitute_command_keys("Type \[delete_other_windows] to remove help window.")
         else
-            msg = substitute_command_keys("Type \[switch_to_buffer] RET to remove help window.")
+            message = substitute_command_keys("Type \[switch_to_buffer] RET to remove help window.")
         end if
 
-        msg = msg//"  "
-        if (.not. pop_up_windows) msg = msg//substitute_command_keys("\[scroll_other_window] to scroll the help.")
+        message = message//"  "
+        if (.not. pop_up_windows) message = message//substitute_command_keys("\[scroll_other_window] to scroll the help.")
 
     contains
 
@@ -340,7 +340,7 @@ contains
                 call print_doc(items(i)%fn_doc, label_type)
             end if
 
-            if (allocated(items(i)%var_doc)) then
+            if (allocated(items(i)%variable_doc)) then
                 call variable_doc(items(i)%name, entry, found)
                 label_type = "apropos_variable"
 
@@ -348,7 +348,7 @@ contains
                     if (entry%user_option) label_type = "apropos_user_option"
                 end if
 
-                call print_doc(items(i)%var_doc, label_type)
+                call print_doc(items(i)%variable_doc, label_type)
             end if
 
             ! Insert an excerpt of variable values.
@@ -361,7 +361,7 @@ contains
             end if
         end do
 
-        call with_output_to_temp_buffer("*Apropos*", text, status)
+        call with_output_to_temporary_buffer("*Apropos*", text, status)
         if (.not. status%ok()) return
         call mark_entries()
 
@@ -475,7 +475,7 @@ contains
     !> with an ellipsis.  Port of the truncate-string-to-width call in
     !> apropos.el:apropos-print.
     function truncated(value) result(s)
-        use window_mod, only: windows, window_text_cols
+        use window_mod, only: windows, window_text_columns
         use frame_mod, only: selected_window
         character(len=*), intent(in) :: value
         character(len=:), allocatable :: s
@@ -485,7 +485,7 @@ contains
 
         width = 60
         sw = selected_window()
-        if (sw%index > 0) width = window_text_cols(windows(sw%index)) - 20
+        if (sw%index > 0) width = window_text_columns(windows(sw%index)) - 20
         s = value
         if (nchars(value) <= width) return
         ! Characters up to width - 1, then the ellipsis.
@@ -513,17 +513,17 @@ contains
 
     !> The column at the end of `text' (characters since its last newline,
     !> tabs to multiples of 8).  Not a port.
-    integer function current_column(text) result(col)
+    integer function current_column(text) result(column)
         character(len=*), intent(in) :: text
         integer :: k
 
-        col = 0
+        column = 0
 
         do k = index(text, LF, back=.true.) + 1, len(text)
             if (text(k:k) == TAB) then
-                col = (col/8 + 1)*8
+                column = (column/8 + 1)*8
             else if (iand(ichar(text(k:k)), 192) /= 128) then
-                col = col + 1
+                column = column + 1
             end if
         end do
     end function current_column
@@ -533,19 +533,19 @@ contains
     function indent_to(from, column, minimum) result(s)
         integer, intent(in) :: from, column, minimum
         character(len=:), allocatable :: s
-        integer :: mincol, n, col
+        integer :: mincol, n, column_number
 
         mincol = max(column, from + minimum)
         s = ""
-        col = from
-        n = mincol/8 - col/8
+        column_number = from
+        n = mincol/8 - column_number/8
 
         if (n > 0) then
             s = repeat(TAB, n)
-            col = (mincol/8)*8
+            column_number = (mincol/8)*8
         end if
 
-        s = s//repeat(" ", mincol - col)
+        s = s//repeat(" ", mincol - column_number)
     end function indent_to
 
     !> LINE followed by DOC, the doc filled with a fill column of 70 and a
@@ -555,31 +555,31 @@ contains
         character(len=*), intent(in) :: line, doc
         integer, intent(in) :: ocol
         character(len=:), allocatable :: out
-        type(handle_type) :: old, temp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
 
         old = current_buffer()
-        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, st)
-        call set_buffer(temp, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, st)
+        call set_buffer(temporary, st)
         buffers(current)%undo_enabled = .false.
         call insert(line, st)
-        opoint = buffers(current)%pt
+        original_point = buffers(current)%point
         call insert(doc, st)
         call fill_column%set_local(70_int64)
         call fill_prefix%set_local(repeat(" ", ocol))
-        call fill_region(opoint, buffers(current)%pt, st, nosqueeze=.true.)
+        call fill_region(original_point, buffers(current)%point, st, nosqueeze=.true.)
         out = buffer_string()
         call set_buffer(old, st)
-        call close_buffer(temp, st)
+        call close_buffer(temporary, st)
     end function fill_doc
 
-    !> Return the next apropos label button after POS, or 0 if there's
+    !> Return the next apropos label button after POSITION, or 0 if there's
     !> none.  Will also return 0 if more than one `apropos_name' button
     !> is encountered before finding a label.  Port of
     !> apropos.el:apropos-next-label-button.
-    integer(int64) function apropos_next_label_button(pos) result(btn)
-        integer(int64), intent(in) :: pos
+    integer(int64) function apropos_next_label_button(position) result(btn)
+        integer(int64), intent(in) :: position
         character(len=:), allocatable :: type, name
         type(status_type) :: st
         integer(int64) :: p, nxt
@@ -587,8 +587,8 @@ contains
 
         btn = 0
         already_hit_symbol = .false.
-        p = pos
-        ! (next-button pos t): a button at POS counts.
+        p = position
+        ! (next-button pos t): a button at POSITION counts.
         call button_at(p, type, name)
 
         if (len(type) == 0) then
@@ -628,7 +628,7 @@ contains
     btn = apropos_next_label_button(line_beginning_position())
 
     if (btn == 0) then
-        call set_error(status, FM_GENERIC_ERROR, "There is nothing to follow here")
+        call set_error(status, GENERIC_ERROR_CODE, "There is nothing to follow here")
         return
     end if
 

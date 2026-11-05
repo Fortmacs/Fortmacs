@@ -30,7 +30,7 @@ decoding and encoding (UTF-8 with raw bytes and overlong/surrogate rejection, UT
 `detect-coding-string`/`-region`,
 `check-coding-systems-region`,
 find-coding-systems-region-internal,
-`is_char_encodable`,
+`is_character_encodable`,
 `find-operation-coding-system` (files),
 `coding-system-p`,
 `check-coding-system` (`coding-system-error`),
@@ -38,7 +38,7 @@ find-coding-systems-region-internal,
 `coding-system-base`,
 `coding-system-aliases`,
 `define-coding-system-alias`,
-`coding_inherit_eol_type`,
+`coding_inherit_end_of_line_type`,
 `raw_text_coding_system`;
 `coding-system-for-read`/`-write`,
 `last-coding-system-used`,
@@ -66,7 +66,7 @@ post-read/pre-write conversions,
 NOCOPY,
 the process and network tables and the table functions (xml, po, latexenc);
 coding systems whose charset map is Deferred are left out of `find_coding_systems_text` (select-safe-coding-system never offers them),
-and `is_char_encodable` reports them through its optional STATUS (terminal_output_mod shows such a glyph as unencodable)
+and `is_character_encodable` reports them through its optional STATUS (terminal_output_mod shows such a glyph as unencodable)
 
 ## Tests
 

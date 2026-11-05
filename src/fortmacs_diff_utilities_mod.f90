@@ -41,8 +41,8 @@ module fortmacs_diff_utilities_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_buffer, is_buffer_live, set_buffer, current_buffer
     use hooks_mod, only: hook_type
-    use execute_interactively_mod, only: prefix_arg_type
-    use editing_functions_mod, only: point_min, point_max
+    use execute_interactively_mod, only: prefix_argument_type
+    use editing_functions_mod, only: point_minimum, point_maximum
     use interval_tree_mod, only: make_overlay
     implicit none(type, external)
     private
@@ -154,22 +154,22 @@ module fortmacs_diff_utilities_mod
         end subroutine toggle_ediff_help
 
         !> Advance to the next difference.
-        !> With a prefix argument ARG, go forward that many differences.
+        !> With a prefix argument ARGUMENT, go forward that many differences.
         !> Port of ediff-util.el:ediff-next-difference (the skipping of
         !> regions waits for the regexp filters and fine differences).
-        recursive module subroutine next_ediff_difference(status, arg)
+        recursive module subroutine next_ediff_difference(status, argument)
             implicit none(type, external)
             type(status_type), intent(out) :: status
-            integer(int64), intent(in), optional :: arg
+            integer(int64), intent(in), optional :: argument
         end subroutine next_ediff_difference
 
         !> Go to the previous difference.
-        !> With a prefix argument ARG, go back that many differences.
+        !> With a prefix argument ARGUMENT, go back that many differences.
         !> Port of ediff-util.el:ediff-previous-difference.
-        recursive module subroutine previous_ediff_difference(status, arg)
+        recursive module subroutine previous_ediff_difference(status, argument)
             implicit none(type, external)
             type(status_type), intent(out) :: status
-            integer(int64), intent(in), optional :: arg
+            integer(int64), intent(in), optional :: argument
         end subroutine previous_ediff_difference
 
         !> Go to the difference specified as a prefix argument
@@ -187,42 +187,42 @@ module fortmacs_diff_utilities_mod
         !> invoked this command; BUFFER_TYPE is that buffer.  For instance,
         !> if the command was `ga' then the point value in buffer A is used.
         !>
-        !> With a prefix argument ARG, synchronize all files around the
+        !> With a prefix argument ARGUMENT, synchronize all files around the
         !> current point position in the specified buffer.  Port of
         !> ediff-util.el:ediff-jump-to-difference-at-point.
-        recursive module subroutine jump_to_ediff_difference_at_point(buffer_type, arg, status)
+        recursive module subroutine jump_to_ediff_difference_at_point(buffer_type, argument, status)
             implicit none(type, external)
             integer, intent(in) :: buffer_type
-            logical, intent(in) :: arg
+            logical, intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine jump_to_ediff_difference_at_point
 
-        !> The difference of session K closest to POS (point if absent) in
+        !> The difference of session K closest to POSITION (point if absent) in
         !> BUFFER_TYPE, as the user counts them (from 1).  WHICH_DIFF 1
-        !> finds the difference after POS, -1 the one before; 0 the nearest.
+        !> finds the difference after POSITION, -1 the one before; 0 the nearest.
         !> Port of ediff-util.el:ediff-diff-at-point (WHICH-DIFF `after',
         !> `before' or absent).
-        recursive module subroutine ediff_diff_at_point(k, buffer_type, diff_no, status, pos, which_diff)
+        recursive module subroutine ediff_diff_at_point(k, buffer_type, diff_no, status, position, which_diff)
             implicit none(type, external)
             integer, intent(in) :: k, buffer_type
             integer, intent(out) :: diff_no
             type(status_type), intent(out) :: status
-            integer(int64), intent(in), optional :: pos
+            integer(int64), intent(in), optional :: position
             integer, intent(in), optional :: which_diff
         end subroutine ediff_diff_at_point
 
         !> Copy buffer-X'th difference region to buffer Y (X,Y are A, B, or
         !> C).
-        !> With numerical prefix argument ARG, copy the difference specified
+        !> With numerical prefix argument ARGUMENT, copy the difference specified
         !> in the arg.  With prefix `\[universal_argument]', copy all
         !> differences.  Otherwise, copy the difference given by
         !> `ediff_current_difference'.  KEYS, a 2-character string such as
         !> "ab", determines the source and the target buffers (the command's
         !> keys when it is bound to `ab', `ba', `ac', ...).  Port of
         !> ediff-util.el:ediff-diff-to-diff.
-        recursive module subroutine copy_ediff_diff_to_diff(arg, keys, status)
+        recursive module subroutine copy_ediff_diff_to_diff(argument, keys, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             character(len=*), intent(in) :: keys
             type(status_type), intent(out) :: status
         end subroutine copy_ediff_diff_to_diff
@@ -239,13 +239,13 @@ module fortmacs_diff_utilities_mod
         end subroutine copy_ediff_diff
 
         !> Restore ARGth diff from `ediff_killed_diffs_alist'.
-        !> ARG is a prefix argument.  If ARG is absent, restore the
+        !> ARGUMENT is a prefix argument.  If ARGUMENT is absent, restore the
         !> current-difference.  KEY, a character, determines the target
         !> buffer (the last key of the command: `ra', `rb').  Port of
         !> ediff-util.el:ediff-restore-diff.
-        recursive module subroutine restore_ediff_diff(arg, key, status)
+        recursive module subroutine restore_ediff_diff(argument, key, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             character, intent(in) :: key
             type(status_type), intent(out) :: status
         end subroutine restore_ediff_diff
@@ -294,7 +294,7 @@ module fortmacs_diff_utilities_mod
         !> The position where difference N (the current one if absent) of
         !> session K begins in BUFFER_TYPE, or with AT_END ends.  An error
         !> condition occurs for an invalid N or a killed buffer.  Port of
-        !> ediff-util.el:ediff-get-diff-posn (AT_END for POS `end').
+        !> ediff-util.el:ediff-get-diff-posn (AT_END for POSITION `end').
         recursive module subroutine get_ediff_diff_position(k, buffer_type, at_end, position, status, n)
             implicit none(type, external)
             integer, intent(in) :: k, buffer_type
@@ -314,33 +314,33 @@ module fortmacs_diff_utilities_mod
             integer(int64), intent(in), optional :: start, end
         end subroutine get_ediff_region_contents
 
-        !> Read a file name with PROMPT (no trailing ": "), in DEFAULT_DIR
+        !> Read a file name with PROMPT (no trailing ": "), in DEFAULT_DIRECTORY
         !> (or that of DEFAULT_FILE, or `default_directory'), DEFAULT_FILE
         !> the default.  A directory read means DEFAULT_FILE in it; with
-        !> NO_DIRS a directory is a `user_error'.  Port of
-        !> ediff-util.el:ediff-read-file-name (`dired_dwim_target_defaults'
+        !> NO_DIRECTORIES a directory is a `user_error'.  Port of
+        !> ediff-util.el:ediff-read-file-name (`dired_do_what_i_mean_target_defaults'
         !> is deferred).
-        recursive module subroutine read_ediff_file_name(prompt, default_dir, default_file, result, status, no_dirs)
+        recursive module subroutine read_ediff_file_name(prompt, default_directory, default_file, result, status, no_directories)
             implicit none(type, external)
-            character(len=*), intent(in) :: prompt, default_dir, default_file
+            character(len=*), intent(in) :: prompt, default_directory, default_file
             character(len=:), allocatable, intent(out) :: result
             type(status_type), intent(out) :: status
-            logical, intent(in), optional :: no_dirs
+            logical, intent(in), optional :: no_directories
         end subroutine read_ediff_file_name
 
         !> Write the text of BUFFER to a new temporary file FILE whose name
         !> starts with PREFIX ("ediff" if absent), with mode
-        !> `ediff_temp_file_mode' and coding system
+        !> `ediff_temporary_file_mode' and coding system
         !> `ediff_coding_system_for_write'.  Port of
         !> ediff-util.el:ediff-make-temp-file (GIVEN-FILE, START and END are
         !> deferred with the jobs that use them).
-        recursive module subroutine create_ediff_temp_file(buffer, file, status, prefix)
+        recursive module subroutine create_ediff_temporary_file(buffer, file, status, prefix)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             character(len=:), allocatable, intent(out) :: file
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: prefix
-        end subroutine create_ediff_temp_file
+        end subroutine create_ediff_temporary_file
 
         !> Make sure the current buffer (for a file) has the same contents
         !> as the file on disk, offering to save a modified buffer or to
@@ -390,13 +390,13 @@ module fortmacs_diff_utilities_mod
         !> and `wd' saves the diff output; KEY is the last key of the
         !> command (a, b, c or d).
         !>
-        !> With prefix argument ARG, `wd' saves plain diff output.
+        !> With prefix argument ARGUMENT, `wd' saves plain diff output.
         !> Without an argument, it saves customized diff argument, if
         !> available (and plain output, if customized output was not
         !> generated).  Port of ediff-util.el:ediff-save-buffer.
-        recursive module subroutine save_ediff_buffer(arg, key, status)
+        recursive module subroutine save_ediff_buffer(argument, key, status)
             implicit none(type, external)
-            logical, intent(in) :: arg
+            logical, intent(in) :: argument
             character, intent(in) :: key
             type(status_type), intent(out) :: status
         end subroutine save_ediff_buffer
@@ -446,9 +446,9 @@ module fortmacs_diff_utilities_mod
         !> Register the commands of ediff-util.el, add `clean_up_ediff_mess'
         !> to `ediff_quit_hook' and `maybe_save_and_delete_ediff_merge' to
         !> `ediff_quit_merge_hook'.  Not a port.
-        module subroutine init_ediff_util()
+        module subroutine initialize_ediff_utility()
             implicit none(type, external)
-        end subroutine init_ediff_util
+        end subroutine initialize_ediff_utility
     end interface
 
     public :: set_up_ediff, set_up_ediff_control_buffer, ediff_mode, update_ediff_diffs, recenter_ediff, &
@@ -456,9 +456,10 @@ module fortmacs_diff_utilities_mod
               previous_ediff_difference, jump_to_ediff_difference, jump_to_ediff_difference_at_point, ediff_diff_at_point, &
               copy_ediff_diff_to_diff, copy_ediff_diff, restore_ediff_diff, quit_ediff, quit_ediff_session, &
               unselect_and_select_ediff_difference, get_ediff_diff_position, get_ediff_region_contents, &
-              read_ediff_file_name, create_ediff_temp_file, verify_ediff_file_buffer, ediff_other_buffer, &
+              read_ediff_file_name, create_ediff_temporary_file, verify_ediff_file_buffer, ediff_other_buffer, &
               toggle_ediff_show_ancestor, toggle_ediff_show_clashes_only, toggle_ediff_skip_changed_regions, &
-              save_ediff_buffer, maybe_save_and_delete_ediff_merge, maybe_save_and_delete_ediff_merge_session, init_ediff_util, &
+              save_ediff_buffer, maybe_save_and_delete_ediff_merge, maybe_save_and_delete_ediff_merge_session, &
+              initialize_ediff_utility, &
               compute_ediff_custom_diffs_maybe
 
 contains
@@ -509,8 +510,8 @@ contains
 
         if (present(whole)) then
             if (whole) then
-                b = point_min()
-                e = point_max()
+                b = point_minimum()
+                e = point_maximum()
             end if
         end if
 

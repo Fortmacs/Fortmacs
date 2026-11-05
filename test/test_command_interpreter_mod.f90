@@ -20,11 +20,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ports the four password-prompt tests of comint-tests.el; own tests of
-!> the rest.  The processes are `cat' and `sleep' over pipes; the waits
+!> the rest.  The processes are `category' and `sleep' over pipes; the waits
 !> are bounded by a wall-clock limit, not fixed delays.
 module test_command_interpreter_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use value_mod, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
@@ -32,18 +32,18 @@ module test_command_interpreter_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, set_buffer, close_buffer, is_buffer_live
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_max, goto_char, buffer_string
-    use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input
-    use execute_interactively_mod, only: prefix_arg
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: point, point_maximum, goto_character, buffer_string
+    use keyboard_mod, only: keyboard_store_bytes, command_loop, discard_input
+    use execute_interactively_mod, only: prefix_argument
+    use bindings_mod, only: initialize_bindings
     use process_mod, only: accept_process_output, get_buffer_process, process_status, delete_process, &
                            process_connection_type, process_shutdown
     use command_interpreter_mod, only: make_comint, comint_send_input, comint_arguments, comint_input_ring_item, &
-                                       comint_input_ring_length, comint_previous_input, comint_interrupt_subjob, comint_bol, &
-                                     comint_replace_by_expanded_history, comint_insert_previous_argument, comint_input_autoexpand, &
-                                       COMINT_INPUT_AUTOEXPAND_INPUT, comint_within_quotes, &
-                                       comint_password_prompt_regexp, comint_send_invisible, set_comint_password_function, &
-                                       comint_password_procedure
+                                       comint_input_ring_length, comint_previous_input, comint_interrupt_subjob, &
+                                       comint_beginning_of_line, comint_replace_by_expanded_history, &
+                                       comint_insert_previous_argument, comint_input_autoexpand, COMINT_INPUT_AUTOEXPAND_INPUT, &
+                                       comint_within_quotes, comint_password_prompt_regular_expression, comint_send_invisible, &
+                                       set_comint_password_function, comint_password_procedure
     use search_mod, only: string_match
     use string_type_mod, only: string_type
     implicit none(type, external)
@@ -66,10 +66,10 @@ contains
                     new_unittest("comint-interrupt-subjob", test_interrupt), &
                     new_unittest("comint-history-expansion", test_history_expansion), &
                     new_unittest("comint-within-quotes", test_within_quotes), &
-                    new_unittest("comint-test-password-regexp", test_password_regexp), &
+                    new_unittest("comint-test-password-regexp", test_password_regular_expression), &
                     new_unittest("comint-test-no-password-function", test_no_password_function), &
                     new_unittest("comint-test-password-function-with-value", test_password_function_with_value), &
-                    new_unittest("comint-test-password-function-with-nil", test_password_function_with_nil), &
+                    new_unittest("comint-test-password-function-with-nil", test_password_function_with_false), &
                     new_unittest("comint-quoting", test_quoting), &
                     new_unittest("comint-filename-completion", test_filename_completion), &
                     new_unittest("comint-complete-input-ring", test_complete_input_ring) &
@@ -128,7 +128,7 @@ contains
     subroutine test_arguments(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call check(error, comint_arguments("ls -l /tmp", 0, 0), "ls")
         if (.not. allocated(error)) call check(error, comint_arguments("ls -l /tmp", 1, 2), "-l /tmp")
         if (.not. allocated(error)) call check(error, comint_arguments("ls -l /tmp", -1, -1), "/tmp")
@@ -144,7 +144,7 @@ contains
         type(status_type) :: st
         logical :: saved
 
-        call init_bindings()
+        call initialize_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
         call make_comint("fm-cat", "cat", h, st)
@@ -156,7 +156,7 @@ contains
         call check(error, buffers(current)%name, "*fm-cat*")
         if (.not. allocated(error)) call check(error, buffers(current)%major_mode, "comint_mode")
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert("hello", st)
         call comint_send_input(st)
         call check(error, st%ok(), format_error(st))
@@ -182,7 +182,7 @@ contains
         logical :: saved
         integer(int64) :: input_start
 
-        call init_bindings()
+        call initialize_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
         call make_comint("fm-cat-2", "cat", h, st)
@@ -192,16 +192,16 @@ contains
         call set_buffer(h, st)
         call show_alone()
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        call kbd_store_bytes("one"//achar(13))
+        prefix_argument = prefix_argument_type()
+        call keyboard_store_bytes("one"//achar(13))
         call command_loop(st)
         call wait_for("one"//new_line("a")//"one"//new_line("a"))
         call check(error, buffer_string(), "one"//new_line("a")//"one"//new_line("a"))
         if (allocated(error)) return
-        input_start = point_max()
-        call goto_char(point_max())
+        input_start = point_maximum()
+        call goto_character(point_maximum())
         call insert("two", st)
-        call comint_bol(.false.)
+        call comint_beginning_of_line(.false.)
         call check(error, point(), input_start)
         call finish(h)
     end subroutine test_command_loop
@@ -214,7 +214,7 @@ contains
         type(string_type) :: switches(1)
         logical :: saved
 
-        call init_bindings()
+        call initialize_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
         switches(1)%text = "100"
@@ -245,7 +245,7 @@ contains
         logical :: saved, done
         integer(int64) :: pm
 
-        call init_bindings()
+        call initialize_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
         call make_comint("fm-cat-history", "cat", h, st)
@@ -254,12 +254,12 @@ contains
         if (allocated(error)) return
         call set_buffer(h, st)
         call show_alone()
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert("echo one two three", st)
         call comint_send_input(st)
         call wait_for("three"//new_line("a")//"echo one two three"//new_line("a"))
-        call goto_char(point_max())
-        pm = point_max()
+        call goto_character(point_maximum())
+        pm = point_maximum()
         call comint_input_autoexpand%set_local(.true.)
         ! !!:2 is the second argument of the previous input.
         call insert("!!:2", st)
@@ -328,7 +328,7 @@ contains
             character(len=:), allocatable :: text
             type(status_type) :: st2
 
-            call buffer_substring(from, point_max(), text, st2)
+            call buffer_substring(from, point_maximum(), text, st2)
         end function input_text
 
         ! Delete the text from PM to the end of the buffer.
@@ -337,8 +337,8 @@ contains
             integer(int64), intent(in) :: from
             type(status_type) :: st2
 
-            call delete_region(from, point_max(), st2)
-            call goto_char(point_max())
+            call delete_region(from, point_maximum(), st2)
+            call goto_character(point_maximum())
         end subroutine clear_input
     end subroutine test_history_expansion
 
@@ -358,10 +358,10 @@ contains
         call close_buffer(h, st)
     end subroutine test_within_quotes
 
-    !> Test `comint_password_prompt_regexp' against common password
+    !> Test `comint_password_prompt_regular_expression' against common password
     !> strings.  Port of comint-tests.el comint-test-password-regexp
     !> (with comint-testsuite-password-strings).
-    subroutine test_password_regexp(error)
+    subroutine test_password_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: strings(32) = [character(len=56) :: &
                                                       "foo@example.net's password: ", & ! ssh
@@ -402,14 +402,14 @@ contains
         type(status_type) :: st
         integer :: k
 
-        call init_bindings()
+        call initialize_bindings()
 
         do k = 1, size(strings)
-            call check(error, string_match(comint_password_prompt_regexp, strings(k) (1:lengths(k)), st) > 0, &
+            call check(error, string_match(comint_password_prompt_regular_expression, strings(k) (1:lengths(k)), st) > 0, &
                        "matches: "//strings(k) (1:lengths(k)))
             if (allocated(error)) return
         end do
-    end subroutine test_password_regexp
+    end subroutine test_password_regular_expression
 
     !> PASSWORD_FUNCTION can return nothing or a string: the password
     !> typed in the minibuffer (here "non-nil") or its value is sent.
@@ -422,7 +422,7 @@ contains
         type(status_type) :: st
         logical :: saved
 
-        call init_bindings()
+        call initialize_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
         call make_comint("test-comint-password", "cat", h, st)
@@ -467,11 +467,11 @@ contains
     !> Test that `comint_password_function' does not alter the normal
     !> password flow if it returns a nil value.  Port of comint-tests.el
     !> comint-test-password-function-with-nil.
-    subroutine test_password_function_with_nil(error)
+    subroutine test_password_function_with_false(error)
         type(error_type), allocatable, intent(out) :: error
 
         call test_password_function(error, ignore_password, "non-nil")
-    end subroutine test_password_function_with_nil
+    end subroutine test_password_function_with_false
 
     recursive subroutine magic_password(prompt, password, found)
         character(len=*), intent(in) :: prompt
@@ -492,24 +492,24 @@ contains
     end subroutine ignore_password
 
     !> A new Comint buffer NAME (no process), current, with
-    !> `comint_file_name_quote_chars' a space.
+    !> `comint_file_name_quote_characters' a space.
     subroutine completion_buffer(name, h)
         use buffer_mod, only: get_or_make_buffer
-        use command_interpreter_mod, only: comint_mode, comint_file_name_quote_chars
+        use command_interpreter_mod, only: comint_mode, comint_file_name_quote_characters
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call show_alone()
         call comint_mode(st)
-        call comint_file_name_quote_chars%set_local(" ")
+        call comint_file_name_quote_characters%set_local(" ")
     end subroutine completion_buffer
 
     !> Quoting and unquoting file names: `\' quotes the characters of
-    !> `comint_file_name_quote_chars', and environment variables are
+    !> `comint_file_name_quote_characters', and environment variables are
     !> substituted.
     subroutine test_quoting(error)
         use environment_mod, only: getenv
@@ -573,41 +573,41 @@ contains
     !> quoted, and a space follows a finished completion.
     subroutine test_filename_completion(error)
         use buffer_mod, only: get_or_make_buffer, erase_buffer
-        use file_input_output_mod, only: init_fileio, write_region, create_directory_internal, delete_file_internal, &
+        use file_input_output_mod, only: initialize_fileio, write_region, create_directory_internal, delete_file_internal, &
                                          delete_directory_internal
-        use files_mod, only: create_temp_file
+        use files_mod, only: create_temporary_file
         use minibuffer_mod, only: completion_at_point
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, tmp
+        type(handle_type) :: h, temporary
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
-        call init_fileio()
-        call create_temp_file("comint-complete", dir, st)
-        call delete_file_internal(dir, st)
-        call create_directory_internal(dir, st)
-        call get_or_make_buffer(" comint-complete-tmp", tmp, st)
-        call set_buffer(tmp, st)
-        call write_region(dir//"/alpha.txt", .false., st)
-        call write_region(dir//"/my file", .false., st)
-        call close_buffer(tmp, st)
+        call initialize_fileio()
+        call create_temporary_file("comint-complete", directory, st)
+        call delete_file_internal(directory, st)
+        call create_directory_internal(directory, st)
+        call get_or_make_buffer(" comint-complete-tmp", temporary, st)
+        call set_buffer(temporary, st)
+        call write_region(directory//"/alpha.txt", .false., st)
+        call write_region(directory//"/my file", .false., st)
+        call close_buffer(temporary, st)
         call completion_buffer("*comint-complete*", h)
-        call insert("cat "//dir//"/alp", st)
+        call insert("cat "//directory//"/alp", st)
         call completion_at_point(st)
         call check(error, st%ok(), format_error(st))
-        if (.not. allocated(error)) call check(error, buffer_string(), "cat "//dir//"/alpha.txt ")
+        if (.not. allocated(error)) call check(error, buffer_string(), "cat "//directory//"/alpha.txt ")
 
         if (.not. allocated(error)) then
             call erase_buffer(st)
-            call insert("cat "//dir//"/my", st)
+            call insert("cat "//directory//"/my", st)
             call completion_at_point(st)
-            call check(error, buffer_string(), "cat "//dir//"/my\ file ")
+            call check(error, buffer_string(), "cat "//directory//"/my\ file ")
         end if
 
         call close_buffer(h, st)
-        call delete_file_internal(dir//"/alpha.txt", st)
-        call delete_file_internal(dir//"/my file", st)
-        call delete_directory_internal(dir, st)
+        call delete_file_internal(directory//"/alpha.txt", st)
+        call delete_file_internal(directory//"/my file", st)
+        call delete_directory_internal(directory, st)
     end subroutine test_filename_completion
 
     !> C-x <up> completes the input on the input history.

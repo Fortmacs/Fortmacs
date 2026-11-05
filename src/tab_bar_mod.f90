@@ -31,18 +31,18 @@
 !> docs/status/tab_bar_mod.md.
 module tab_bar_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, make_list, command_type, vtag, xfixnum, V_INTEGER, make_keymap_ref
+    use value_mod, only: value_type, make_list, command_type, vtag, xfixnum, V_INTEGER, make_keymap_reference
     use data_mod, only: choice_setting_type
     use string_type_mod, only: string_type, append_string
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER, this_command
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER, this_command
     use keyboard_mod, only: last_command_event, pre_command_hook
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
     use hooks_mod, only: hook_type
-    use character_mod, only: CHAR_MODIFIER_MASK, string_char_and_length
-    use faces_mod, only: named_face_type, display_when, face_attrs, face_attributes_type, face_box, &
+    use character_mod, only: CHARACTER_MODIFIER_MASK, string_character_and_length
+    use faces_mod, only: named_face_type, display_when, face_attributes, face_attributes_type, face_box, &
                          FACE_BOX_RELEASED_BUTTON, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     use keymap_mod, only: make_sparse_keymap, is_keymap_live, destroy_keymap, keymap_set, set_repeat_map, key_parse, &
                           define_key, lookup_key, current_global_map, key_modifiers_type
@@ -50,7 +50,7 @@ module tab_bar_mod
                           frame_seen_buffers, &
                           frame_buried_buffers, exchange_frame_buffers
     use marker_mod, only: make_marker, set_marker, marker_position, marker_buffer
-    use editing_functions_mod, only: goto_char
+    use editing_functions_mod, only: goto_character
     use time_functions_mod, only: current_time, is_time_less
     use utility_functions_mod, only: count_characters
     use fill_mod, only: string_width
@@ -61,7 +61,7 @@ module tab_bar_mod
     use minibuffer_reading_tables_mod, only: completion_list_table
     use minibuffer_mod, only: completing_read, read_buffer, read_file_name, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
     use frame_mod, only: frame_type, selected_frame, tab_type, tab_window_configuration_type, frame_list, get_frame, &
-                         set_tab_bar_lines, delete_frame, default_frame, frame_cols, select_frame_begin, select_frame_end, &
+                         set_tab_bar_lines, delete_frame, default_frame, frame_columns, select_frame_begin, select_frame_end, &
                          is_frame_live, select_frame, ensure_frame_windows
     use window_mod, only: windows, window_leaves, window_point, get_mru_window, select_window, delete_other_windows, &
                           delete_window, split_window, switch_to_buffer, pop_to_buffer, window_display_buffer, &
@@ -69,12 +69,12 @@ module tab_bar_mod
                           destroy_window_configuration, copy_window_configuration, window_state_type, get_window_state, &
                           set_window_state, destroy_window_state, display_action_parameters_type, &
                           window_configuration_change_hook, close_tab_hook, ignore_window_parameters, &
-                          window_safe_min_width, same_handle, QR_TAB, WINDOW_SIDE_NONE
+                          window_safe_minimum_width, same_handle, QR_TAB, WINDOW_SIDE_NONE
     use display_engine_mod, only: message, tab_bar_run_type, get_tab_bar_items
     implicit none(type, external)
     private
 
-    public :: tab_bar_mode, tab_bar_history_mode, init_tab_bar
+    public :: tab_bar_mode, tab_bar_history_mode, initialize_tab_bar
     public :: select_tab, switch_to_next_tab, switch_to_previous_tab, switch_to_last_tab, switch_to_recent_tab, &
               switch_to_tab, move_tab_to, move_tab, move_tab_backward, make_tab_to, make_tab, duplicate_tab, close_tab, &
               close_tab_by_name, close_other_tabs, undo_close_tab, rename_tab, rename_tab_by_name, move_tab_to_group, &
@@ -337,7 +337,7 @@ module tab_bar_mod
     !> Effective when `tab_bar_tab_name_function' is customized
     !> to `get_tab_name_truncated'.  Port of tab-bar.el
     !> tab-bar-tab-name-truncated-max.
-    integer, public :: tab_bar_tab_name_truncated_max = 20
+    integer, public :: tab_bar_tab_name_truncated_maximum = 20
 
     !> An item of the tab bar (a menu item of tab-bar.el's
     !> tab-bar-make-keymap-1): its key (`sep-1', `current-tab', `tab-2',
@@ -553,11 +553,11 @@ module tab_bar_mod
     !> One character of a tab bar item's caption while its width is made
     !> (tab-bar.el's tab-bar-auto-width works on the characters and their
     !> text properties): its bytes, faces and `close-tab' property.
-    type :: caption_char_type
+    type :: caption_character_type
         character(len=:), allocatable :: text
         character(len=40) :: faces(3) = ""
         logical :: close_tab = .false.
-    end type caption_char_type
+    end type caption_character_type
 
 contains
 
@@ -824,7 +824,7 @@ contains
     end subroutine get_tab_name_all
 
     !> Generate tab name from the buffer of the selected window.
-    !> Truncate it to the length specified by `tab_bar_tab_name_truncated_max'.
+    !> Truncate it to the length specified by `tab_bar_tab_name_truncated_maximum'.
     !> Append an ellipsis (`truncate_string_ellipsis') in this case.
     !> Port of tab-bar.el:tab-bar-tab-name-truncated (with
     !> `tab-bar-tab-name-ellipsis' t).
@@ -834,10 +834,10 @@ contains
 
         call get_tab_name_current(tab_name)
 
-        if (count_characters(tab_name) < tab_bar_tab_name_truncated_max) then
+        if (count_characters(tab_name) < tab_bar_tab_name_truncated_maximum) then
             name = tab_name
         else
-            name = truncate_string_to_width(tab_name, tab_bar_tab_name_truncated_max, default_ellipsis=.true.)
+            name = truncate_string_to_width(tab_name, tab_bar_tab_name_truncated_maximum, default_ellipsis=.true.)
         end if
     end subroutine get_tab_name_truncated
 
@@ -976,7 +976,7 @@ contains
         type(tab_window_configuration_type), intent(in) :: from
         type(tab_window_configuration_type), intent(out) :: copy
         type(handle_type) :: b
-        integer(int64) :: pos
+        integer(int64) :: position
         type(status_type) :: status
 
         if (allocated(from%window_configuration%saved)) then
@@ -987,10 +987,10 @@ contains
         if (from%point%index == 0) return
         call marker_buffer(from%point, b, status)
         if (.not. status%ok() .or. .not. is_buffer_live(b)) return
-        call marker_position(from%point, pos, status)
+        call marker_position(from%point, position, status)
         if (.not. status%ok()) return
         call make_marker(copy%point)
-        call set_marker(copy%point, pos, status, b)
+        call set_marker(copy%point, position, status, b)
     end subroutine copy_tab_window_configuration
 
     !> Copies of the window configurations FROM, in COPIES.  Not a port.
@@ -1021,19 +1021,19 @@ contains
     end subroutine destroy_history
 
     !> The selected frame's window configuration and the point of its
-    !> selected window, in CONFIG.  Not a port.
-    subroutine current_tab_window_configuration(config)
-        type(tab_window_configuration_type), intent(out) :: config
+    !> selected window, in CONFIGURATION.  Not a port.
+    subroutine current_tab_window_configuration(configuration)
+        type(tab_window_configuration_type), intent(out) :: configuration
         type(handle_type) :: b
         integer(int64) :: bi
         type(status_type) :: status
 
-        call current_window_configuration(config%window_configuration)
+        call current_window_configuration(configuration%window_configuration)
         b = windows(selected_frame%selected_window%index)%buffer
         call resolve_buffer(b, bi, status)
         if (.not. status%ok()) return
-        call make_marker(config%point)
-        call set_marker(config%point, buffers(bi)%pt, status, b)
+        call make_marker(configuration%point)
+        call set_marker(configuration%point, buffers(bi)%point, status, b)
     end subroutine current_tab_window_configuration
 
     !> Make a new tab data structure that can be added to the selected
@@ -1270,7 +1270,7 @@ contains
         bound = .false.
         call key_parse(key, events, status)
         if (.not. status%ok()) return
-        call lookup_key(make_keymap_ref(current_global_map()), events, binding, status)
+        call lookup_key(make_keymap_reference(current_global_map()), events, binding, status)
         if (.not. status%ok()) return
         bound = allocated(binding%a)
     end function has_global_key_binding
@@ -1666,35 +1666,35 @@ contains
 
     !> The characters of a caption, with their faces and `close-tab'
     !> property.  Not a port.
-    subroutine caption_chars(runs, chars)
+    subroutine caption_characters(runs, chars)
         type(tab_bar_run_type), intent(in) :: runs(:)
-        type(caption_char_type), allocatable, intent(out) :: chars(:)
-        type(caption_char_type) :: c
-        integer(int64) :: pos
+        type(caption_character_type), allocatable, intent(out) :: chars(:)
+        type(caption_character_type) :: c
+        integer(int64) :: position
         integer(int32) :: ch, length
         integer :: k
 
         allocate (chars(0))
 
         do k = 1, size(runs)
-            pos = 1
+            position = 1
 
-            do while (pos <= len(runs(k)%text, kind=int64))
-                call string_char_and_length(runs(k)%text, pos, ch, length)
+            do while (position <= len(runs(k)%text, kind=int64))
+                call string_character_and_length(runs(k)%text, position, ch, length)
                 length = max(length, 1_int32)
-                c%text = runs(k)%text(pos:pos + length - 1)
+                c%text = runs(k)%text(position:position + length - 1)
                 c%faces = runs(k)%faces
                 c%close_tab = runs(k)%close_tab
                 chars = [chars, c]
-                pos = pos + length
+                position = position + length
             end do
         end do
-    end subroutine caption_chars
+    end subroutine caption_characters
 
     !> The runs of characters CHARS, those with the same faces and
     !> `close-tab' property joined.  Not a port.
-    subroutine chars_caption(chars, runs)
-        type(caption_char_type), intent(in) :: chars(:)
+    subroutine characters_caption(chars, runs)
+        type(caption_character_type), intent(in) :: chars(:)
         type(tab_bar_run_type), allocatable, intent(out) :: runs(:)
         type(tab_bar_run_type) :: run
         integer :: k, n
@@ -1716,12 +1716,12 @@ contains
             runs = [runs, run]
             n = n + 1
         end do
-    end subroutine chars_caption
+    end subroutine characters_caption
 
     !> The width in columns of the characters CHARS.  Not a port
     !> (string-pixel-width on a terminal).
-    integer function chars_width(chars) result(width)
-        type(caption_char_type), intent(in) :: chars(:)
+    integer function characters_width(chars) result(width)
+        type(caption_character_type), intent(in) :: chars(:)
         character(len=:), allocatable :: text
         integer :: k
 
@@ -1732,7 +1732,7 @@ contains
         end do
 
         width = int(string_width(text))
-    end function chars_width
+    end function characters_width
 
     !> Return tab-bar items with resized tab names: the names of the tabs
     !> and tab groups are padded with spaces or truncated (the last two
@@ -1743,9 +1743,9 @@ contains
     !> memoization is left out).
     subroutine auto_width_tab_bar_items(items)
         type(tab_bar_item_type), intent(inout) :: items(:)
-        type(caption_char_type), allocatable :: chars(:), longer(:)
-        type(caption_char_type) :: space
-        integer :: k, ntabs, width, prev_width, ins_pos, pos, j, n
+        type(caption_character_type), allocatable :: chars(:), longer(:)
+        type(caption_character_type) :: space
+        integer :: k, ntabs, width, previous_width, ins_position, position, j, n
         logical :: close_p
         character(len=:), allocatable :: non_tabs
 
@@ -1761,31 +1761,31 @@ contains
         end do
 
         if (ntabs == 0) return
-        width = (frame_cols(selected_frame) - int(string_width(non_tabs)))/ntabs
+        width = (frame_columns(selected_frame) - int(string_width(non_tabs)))/ntabs
         width = max(width, 2)
         width = min(width, 20)
 
         do k = 1, size(items)
             if (.not. is_auto_width_item(items(k))) cycle
-            call caption_chars(items(k)%runs, chars)
+            call caption_characters(items(k)%runs, chars)
             n = size(chars)
             if (n == 0) cycle
             close_p = chars(n)%close_tab
-            prev_width = chars_width(chars)
+            previous_width = characters_width(chars)
 
-            if (prev_width < width) then
+            if (previous_width < width) then
                 space%text = " "
                 space%faces = chars(1)%faces
                 space%close_tab = chars(1)%close_tab
-                ins_pos = n
-                if (close_p) ins_pos = n - int(count_characters(tab_bar_close_button))
+                ins_position = n
+                if (close_p) ins_position = n - int(count_characters(tab_bar_close_button))
 
                 do
-                    longer = [chars(1:ins_pos), space, chars(ins_pos + 1:)]
-                    if (chars_width(longer) >= width) exit
+                    longer = [chars(1:ins_position), space, chars(ins_position + 1:)]
+                    if (characters_width(longer) >= width) exit
                     call move_alloc(longer, chars)
                 end do
-            else if (prev_width > width) then
+            else if (previous_width > width) then
                 do
                     n = size(chars)
                     if (n < 2) exit
@@ -1796,19 +1796,19 @@ contains
                         chars = chars(1:n - 1)
                     end if
 
-                    if (chars_width(chars) <= width) exit
+                    if (characters_width(chars) <= width) exit
                 end do
 
                 n = size(chars)
-                pos = n
-                if (close_p) pos = n - 1
+                position = n
+                if (close_p) position = n - 1
 
-                do j = max(0, pos - 2) + 1, max(0, pos)
+                do j = max(0, position - 2) + 1, max(0, position)
                     chars(j)%faces = [character(len=40) :: "shadow", chars(j)%faces(1:2)]
                 end do
             end if
 
-            call chars_caption(chars, items(k)%runs)
+            call characters_caption(chars, items(k)%runs)
         end do
     end subroutine auto_width_tab_bar_items
 
@@ -1836,7 +1836,7 @@ contains
         type(handle_type), allocatable :: seen(:), buried(:)
         type(handle_type) :: b
         character(len=:), allocatable :: to_name
-        integer(int64) :: key, pos
+        integer(int64) :: key, position
         integer :: number, n, from_index, to_number, to_index
         logical :: minibuffer_was_active
 
@@ -1848,7 +1848,7 @@ contains
             number = 0
 
             if (vtag(last_command_event) == V_INTEGER) then
-                key = iand(xfixnum(last_command_event), not(int(CHAR_MODIFIER_MASK, int64)))
+                key = iand(xfixnum(last_command_event), not(int(CHARACTER_MODIFIER_MASK, int64)))
                 if (key >= iachar("1") .and. key <= iachar("9")) number = int(key) - iachar("0")
             end if
         end if
@@ -1882,8 +1882,8 @@ contains
                     call marker_buffer(wc%window_configuration%point, b, status)
 
                     if (status%ok() .and. is_buffer_live(b)) then
-                        call marker_position(wc%window_configuration%point, pos, status)
-                        if (status%ok()) call goto_char(pos)
+                        call marker_position(wc%window_configuration%point, position, status)
+                        if (status%ok()) call goto_character(position)
                     end if
 
                     status = status_type()
@@ -1946,60 +1946,60 @@ contains
     end subroutine restore_history
 
     !> Switch to ARGth next tab.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
     !> Port of tab-bar.el:tab-bar-switch-to-next-tab.
-    recursive subroutine switch_to_next_tab(status, arg)
+    recursive subroutine switch_to_next_tab(status, argument)
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: arg
+        integer, intent(in), optional :: argument
         integer :: count, from_index
 
         count = 1
-        if (present(arg)) count = arg
+        if (present(argument)) count = argument
         call update_tab_bar_tabs()
         from_index = max(current_tab_index(), 1) - 1
         call select_tab(status, modulo(from_index + count, tab_count()) + 1)
     end subroutine switch_to_next_tab
 
     !> Switch to ARGth previous tab.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
     !> Port of tab-bar.el:tab-bar-switch-to-prev-tab.
-    recursive subroutine switch_to_previous_tab(status, arg)
+    recursive subroutine switch_to_previous_tab(status, argument)
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: arg
+        integer, intent(in), optional :: argument
         integer :: count
 
         count = 1
-        if (present(arg)) count = arg
+        if (present(argument)) count = argument
         call switch_to_next_tab(status, -count)
     end subroutine switch_to_previous_tab
 
     !> Switch to the last tab or ARGth tab from the end of the tab bar.
-    !> Interactively, ARG is the prefix numeric argument; it defaults to 1,
+    !> Interactively, ARGUMENT is the prefix numeric argument; it defaults to 1,
     !> which means the last tab on the tab bar.  For example, `C-u 2
     !> <MODIFIER>-9' selects the tab before the last tab.  Port of
     !> tab-bar.el:tab-bar-switch-to-last-tab.
-    recursive subroutine switch_to_last_tab(status, arg)
+    recursive subroutine switch_to_last_tab(status, argument)
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: arg
+        integer, intent(in), optional :: argument
         integer :: count
 
         count = 1
-        if (present(arg)) count = arg
+        if (present(argument)) count = argument
         call update_tab_bar_tabs()
         call select_tab(status, tab_count() - (abs(count) - 1))
     end subroutine switch_to_last_tab
 
     !> Switch to ARGth most recently visited tab.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
     !> Port of tab-bar.el:tab-bar-switch-to-recent-tab.
-    recursive subroutine switch_to_recent_tab(status, arg)
+    recursive subroutine switch_to_recent_tab(status, argument)
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: arg
+        integer, intent(in), optional :: argument
         integer :: count, k
 
         status = status_type()
         count = 1
-        if (present(arg)) count = arg
+        if (present(argument)) count = argument
         call update_tab_bar_tabs()
         k = tab_index_recent(count)
 
@@ -2066,32 +2066,32 @@ contains
         call insert_tab(from_tab, to_index + 1)
     end subroutine move_tab_to
 
-    !> Move the current tab ARG positions to the right.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
-    !> If ARG is negative, move the current tab ARG positions to the left.
+    !> Move the current tab ARGUMENT positions to the right.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
+    !> If ARGUMENT is negative, move the current tab ARGUMENT positions to the left.
     !> Argument addressing is relative in contrast to `move_tab_to',
     !> where argument addressing is absolute.  Port of
     !> tab-bar.el:tab-bar-move-tab.
-    subroutine move_tab(arg, status)
-        integer, intent(in) :: arg
+    subroutine move_tab(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         integer :: from_index, to_index
 
         call update_tab_bar_tabs()
         from_index = max(current_tab_index(), 1) - 1
-        to_index = modulo(from_index + arg, tab_count())
+        to_index = modulo(from_index + argument, tab_count())
         call move_tab_to(to_index + 1, status, from_index + 1)
     end subroutine move_tab
 
-    !> Move the current tab ARG positions to the left.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
+    !> Move the current tab ARGUMENT positions to the left.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
     !> Like `move_tab', but moves in the opposite direction.  Port of
     !> tab-bar.el:tab-bar-move-tab-backward.
-    subroutine move_tab_backward(arg, status)
-        integer, intent(in) :: arg
+    subroutine move_tab_backward(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call move_tab(-arg, status)
+        call move_tab(-argument, status)
     end subroutine move_tab_backward
 
     ! ------------------------------------------------------------------
@@ -2154,7 +2154,7 @@ contains
                         ! Create a new window to get rid of old window
                         ! parameters (e.g. prev/next buffers) of old window.
                         window = selected_frame%selected_window
-                        call split_window(window, window_safe_min_width, .true., .true., new, status)
+                        call split_window(window, window_safe_minimum_width, .true., .true., new, status)
                         if (status%ok()) call delete_window(window, status)
                     end if
                 end if
@@ -2272,18 +2272,18 @@ contains
         end select
     end function new_tab_to_text
 
-    !> Create a new tab ARG positions to the right.
-    !> If a negative ARG, create a new tab ARG positions to the left.
-    !> If ARG is zero, create a new tab in place of the current tab.
-    !> If no ARG is specified, then add a new tab at the position
+    !> Create a new tab ARGUMENT positions to the right.
+    !> If a negative ARGUMENT, create a new tab ARGUMENT positions to the left.
+    !> If ARGUMENT is zero, create a new tab in place of the current tab.
+    !> If no ARGUMENT is specified, then add a new tab at the position
     !> specified by `tab_bar_new_tab_to'.
     !> Argument addressing is relative in contrast to `make_tab_to',
     !> where argument addressing is absolute.
     !> If FROM_NUMBER is a tab number, a new tab is created from that tab.
     !> Port of tab-bar.el:tab-bar-new-tab.
-    recursive subroutine make_tab(status, arg, from_number)
+    recursive subroutine make_tab(status, argument, from_number)
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: arg, from_number
+        integer, intent(in), optional :: argument, from_number
         logical :: saved
         integer :: from_index
 
@@ -2297,21 +2297,21 @@ contains
             if (.not. status%ok()) return
         end if
 
-        if (present(arg)) then
+        if (present(argument)) then
             call update_tab_bar_tabs()
             from_index = max(current_tab_index(), 1) - 1
-            call make_tab_to(status, from_index + arg + 1)
+            call make_tab_to(status, from_index + argument + 1)
         else
             call make_tab_to(status)
         end if
     end subroutine make_tab
 
-    !> Clone the current tab to ARG positions to the right.
-    !> ARG and FROM_NUMBER have the same meaning as in `make_tab'.
+    !> Clone the current tab to ARGUMENT positions to the right.
+    !> ARGUMENT and FROM_NUMBER have the same meaning as in `make_tab'.
     !> Port of tab-bar.el:tab-bar-duplicate-tab.
-    recursive subroutine duplicate_tab(status, arg, from_number)
+    recursive subroutine duplicate_tab(status, argument, from_number)
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: arg, from_number
+        integer, intent(in), optional :: argument, from_number
         type(tab_bar_new_tab_choice_choice_setting_type) :: saved_choice
         type(tab_bar_new_tab_group_choice_setting_type) :: saved_group
 
@@ -2319,7 +2319,7 @@ contains
         saved_group = tab_bar_new_tab_group
         tab_bar_new_tab_choice = TAB_BAR_NEW_TAB_CHOICE_CLONE
         tab_bar_new_tab_group = .true.
-        call make_tab(status, arg, from_number)
+        call make_tab(status, argument, from_number)
         tab_bar_new_tab_choice = saved_choice
         tab_bar_new_tab_group = saved_group
     end subroutine duplicate_tab
@@ -2409,7 +2409,7 @@ contains
             else if (tab_bar_close_last_tab_choice%choice == TAB_BAR_CLOSE_LAST_TAB_CHOICE_TAB_BAR_MODE_DISABLE) then
                 call minor_modes%tab_bar_mode%disable(status)
             else
-                call set_error(status, FM_USER_ERROR, "Attempt to delete the sole tab in a frame")
+                call set_error(status, USER_ERROR_CODE, "Attempt to delete the sole tab in a frame")
             end if
 
             return
@@ -2484,7 +2484,7 @@ contains
         k = tab_index_by_name(name)
 
         if (k == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong type argument: expected integer")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "Wrong type argument: expected integer")
             return
         end if
 
@@ -2686,7 +2686,7 @@ contains
         k = tab_index_by_name(tab_name)
 
         if (k == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong type argument: expected integer")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "Wrong type argument: expected integer")
             return
         end if
 
@@ -2704,7 +2704,7 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: tab_number
         character(len=:), allocatable :: group, other_group
-        integer :: tab_index, beginning, length, pos, k, n
+        integer :: tab_index, beginning, length, position, k, n
         logical :: has_length
 
         status = status_type()
@@ -2746,25 +2746,25 @@ contains
         end if
 
         ! The position to move to, from 1 (0 for none; -1 for the end).
-        pos = 0
+        position = 0
 
         if (beginning >= 0) then
             if (has_length .and. tab_index - 1 >= beginning .and. tab_index - 1 <= beginning + length) then
                 ! Don't move tab when it's already inside group bounds.
-                pos = 0
+                position = 0
             else if (has_length .and. tab_index - 1 > beginning + length) then
                 ! Move tab from the right to the group end.
-                pos = beginning + length + 1
+                position = beginning + length + 1
             else if (tab_index - 1 < beginning) then
                 ! Move tab from the left to the group beginning.
-                pos = beginning
+                position = beginning
             end if
         else
             ! Move tab with a new group to the end.
-            pos = -1
+            position = -1
         end if
 
-        if (pos /= 0) call move_tab_to(pos, status, tab_index)
+        if (position /= 0) call move_tab_to(position, status, tab_index)
     end subroutine move_tab_to_group
 
     !> Add the tab specified by its absolute position TAB_NUMBER to GROUP_NAME.
@@ -2898,7 +2898,7 @@ contains
         status = status_type()
 
         if (.not. file_exists(filename)) then
-            call set_error(status, FM_GENERIC_ERROR, filename//" does not exist")
+            call set_error(status, GENERIC_ERROR_CODE, filename//" does not exist")
             return
         end if
 
@@ -3045,18 +3045,18 @@ contains
         tab_bar_history_done_command => tab_bar_history_pre_command
     end subroutine tab_bar_history_change
 
-    !> Pop the first window configuration of HISTORY (in CONFIG; FOUND
+    !> Pop the first window configuration of HISTORY (in CONFIGURATION; FOUND
     !> false when HISTORY is empty).  Not a port.
-    subroutine pop_history(history, config, found)
+    subroutine pop_history(history, configuration, found)
         type(tab_window_configuration_type), allocatable, intent(inout) :: history(:)
-        type(tab_window_configuration_type), intent(out) :: config
+        type(tab_window_configuration_type), intent(out) :: configuration
         logical, intent(out) :: found
         type(tab_window_configuration_type), allocatable :: rest(:)
 
         found = .false.
         if (.not. allocated(history)) return
         if (size(history) == 0) return
-        config = history(1)
+        configuration = history(1)
         rest = history(2:)
         call move_alloc(rest, history)
         found = .true.
@@ -3077,41 +3077,41 @@ contains
         call move_alloc(grown, history)
     end subroutine push_history_old
 
-    !> Restore window configuration CONFIG (if it is one, else say TEXT)
+    !> Restore window configuration CONFIGURATION (if it is one, else say TEXT)
     !> after putting `tab_bar_history_old' first in OTHER.  Port of the body
     !> of tab-bar.el:tab-bar-history-back and tab-bar-history-forward.
-    subroutine restore_tab_history(config, found, other, text, status)
-        type(tab_window_configuration_type), intent(inout) :: config
+    subroutine restore_tab_history(configuration, found, other, text, status)
+        type(tab_window_configuration_type), intent(inout) :: configuration
         logical, intent(in) :: found
         type(tab_window_configuration_type), allocatable, intent(inout) :: other(:)
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
         type(handle_type) :: b
-        integer(int64) :: pos
+        integer(int64) :: position
 
         status = status_type()
 
-        if (.not. found .or. .not. allocated(config%window_configuration%saved)) then
-            if (found) call config%destroy()
+        if (.not. found .or. .not. allocated(configuration%window_configuration%saved)) then
+            if (found) call configuration%destroy()
             call message(text)
             return
         end if
 
         call push_history_old(other)
-        call set_window_configuration(config%window_configuration)
+        call set_window_configuration(configuration%window_configuration)
 
-        if (config%point%index /= 0) then
-            call marker_buffer(config%point, b, status)
+        if (configuration%point%index /= 0) then
+            call marker_buffer(configuration%point, b, status)
 
             if (status%ok() .and. is_buffer_live(b)) then
-                call marker_position(config%point, pos, status)
-                if (status%ok()) call goto_char(pos)
+                call marker_position(configuration%point, position, status)
+                if (status%ok()) call goto_character(position)
             end if
 
             status = status_type()
         end if
 
-        call config%destroy()
+        call configuration%destroy()
     end subroutine restore_tab_history
 
     !> Restore a previous window configuration used in the current tab.
@@ -3119,12 +3119,12 @@ contains
     !> Port of tab-bar.el:tab-bar-history-back.
     recursive subroutine go_back_in_tab_bar_history(status)
         type(status_type), intent(out) :: status
-        type(tab_window_configuration_type) :: config
+        type(tab_window_configuration_type) :: configuration
         logical :: found
 
         tab_bar_history_omit = .true.
-        call pop_history(selected_frame%tab_history_back, config, found)
-        call restore_tab_history(config, found, selected_frame%tab_history_forward, "No more tab back history", status)
+        call pop_history(selected_frame%tab_history_back, configuration, found)
+        call restore_tab_history(configuration, found, selected_frame%tab_history_forward, "No more tab back history", status)
     end subroutine go_back_in_tab_bar_history
 
     !> Cancel restoration of the previous window configuration.
@@ -3132,12 +3132,12 @@ contains
     !> Port of tab-bar.el:tab-bar-history-forward.
     recursive subroutine go_forward_in_tab_bar_history(status)
         type(status_type), intent(out) :: status
-        type(tab_window_configuration_type) :: config
+        type(tab_window_configuration_type) :: configuration
         logical :: found
 
         tab_bar_history_omit = .true.
-        call pop_history(selected_frame%tab_history_forward, config, found)
-        call restore_tab_history(config, found, selected_frame%tab_history_back, "No more tab forward history", status)
+        call pop_history(selected_frame%tab_history_forward, configuration, found)
+        call restore_tab_history(configuration, found, selected_frame%tab_history_back, "No more tab forward history", status)
     end subroutine go_forward_in_tab_bar_history
 
     ! ------------------------------------------------------------------
@@ -3147,7 +3147,7 @@ contains
     !> The prefix argument as a number when it is one (upstream's
     !> `integerp' of the raw prefix argument).  Not a port.
     logical function has_number_prefix()
-        has_number_prefix = current_prefix_arg%kind == PREFIX_NUMBER
+        has_number_prefix = current_prefix_argument%kind == PREFIX_NUMBER
     end function has_number_prefix
 
     !> The names of the selected frame's tabs (the most recently visited
@@ -3223,55 +3223,55 @@ contains
     !> <MODIFIER>-2' will select the 15th tab.  TAB_NUMBER counts from 1.
     !> Negative TAB_NUMBER counts tabs from the end of the tab bar.
     !> Port of tab-bar.el:tab-bar-select-tab (the command; tab-select).
-    recursive subroutine cmd_select_tab(status)
+    recursive subroutine execute_select_tab(status)
         type(status_type), intent(out) :: status
 
         if (has_number_prefix()) then
-            call select_tab(status, int(current_prefix_arg%value))
+            call select_tab(status, int(current_prefix_argument%value))
         else
             call select_tab(status)
         end if
-    end subroutine cmd_select_tab
+    end subroutine execute_select_tab
 
     !> Switch to ARGth next tab.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
     !> Port of tab-bar.el:tab-bar-switch-to-next-tab (the command; tab-next).
-    recursive subroutine cmd_switch_to_next_tab(status)
+    recursive subroutine execute_switch_to_next_tab(status)
         type(status_type), intent(out) :: status
 
-        call switch_to_next_tab(status, int(prefix_numeric_value(current_prefix_arg)))
-    end subroutine cmd_switch_to_next_tab
+        call switch_to_next_tab(status, int(prefix_numeric_value(current_prefix_argument)))
+    end subroutine execute_switch_to_next_tab
 
     !> Switch to ARGth previous tab.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
     !> Port of tab-bar.el:tab-bar-switch-to-prev-tab (the command;
     !> tab-previous).
-    recursive subroutine cmd_switch_to_previous_tab(status)
+    recursive subroutine execute_switch_to_previous_tab(status)
         type(status_type), intent(out) :: status
 
-        call switch_to_previous_tab(status, int(prefix_numeric_value(current_prefix_arg)))
-    end subroutine cmd_switch_to_previous_tab
+        call switch_to_previous_tab(status, int(prefix_numeric_value(current_prefix_argument)))
+    end subroutine execute_switch_to_previous_tab
 
     !> Switch to the last tab or ARGth tab from the end of the tab bar.
-    !> Interactively, ARG is the prefix numeric argument; it defaults to 1,
+    !> Interactively, ARGUMENT is the prefix numeric argument; it defaults to 1,
     !> which means the last tab on the tab bar.  For example, `C-u 2
     !> <MODIFIER>-9' selects the tab before the last tab.  Port of
     !> tab-bar.el:tab-bar-switch-to-last-tab (the command; tab-last).
-    recursive subroutine cmd_switch_to_last_tab(status)
+    recursive subroutine execute_switch_to_last_tab(status)
         type(status_type), intent(out) :: status
 
-        call switch_to_last_tab(status, int(prefix_numeric_value(current_prefix_arg)))
-    end subroutine cmd_switch_to_last_tab
+        call switch_to_last_tab(status, int(prefix_numeric_value(current_prefix_argument)))
+    end subroutine execute_switch_to_last_tab
 
     !> Switch to ARGth most recently visited tab.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
     !> Port of tab-bar.el:tab-bar-switch-to-recent-tab (the command;
     !> tab-recent).
-    recursive subroutine cmd_switch_to_recent_tab(status)
+    recursive subroutine execute_switch_to_recent_tab(status)
         type(status_type), intent(out) :: status
 
-        call switch_to_recent_tab(status, int(prefix_numeric_value(current_prefix_arg)))
-    end subroutine cmd_switch_to_recent_tab
+        call switch_to_recent_tab(status, int(prefix_numeric_value(current_prefix_argument)))
+    end subroutine execute_switch_to_recent_tab
 
     !> Switch to the tab by NAME.
     !> Default values are tab names sorted by recency, so you can use
@@ -3281,7 +3281,7 @@ contains
     !> When the tab with that NAME doesn't exist, create a new tab
     !> and rename it to NAME.  Port of tab-bar.el:tab-bar-switch-to-tab (the
     !> command; tab-switch).
-    recursive subroutine cmd_switch_to_tab(status)
+    recursive subroutine execute_switch_to_tab(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: names(:)
         type(string_type), allocatable :: defaults(:)
@@ -3302,7 +3302,7 @@ contains
         call completing_read(prompt, completion_list_table(make_list(names)), name, status, defaults=defaults)
         if (.not. status%ok()) return
         call switch_to_tab(name, status)
-    end subroutine cmd_switch_to_tab
+    end subroutine execute_switch_to_tab
 
     !> Move tab from FROM_NUMBER position to new position at TO_NUMBER.
     !> FROM_NUMBER defaults to the current tab number.
@@ -3311,37 +3311,37 @@ contains
     !> Argument addressing is absolute in contrast to `move_tab'
     !> where argument addressing is relative.  Port of
     !> tab-bar.el:tab-bar-move-tab-to (the command; tab-move-to).
-    subroutine cmd_move_tab_to(status)
+    subroutine execute_move_tab_to(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             call move_tab_to(1, status)
         else
-            call move_tab_to(int(prefix_numeric_value(current_prefix_arg)), status)
+            call move_tab_to(int(prefix_numeric_value(current_prefix_argument)), status)
         end if
-    end subroutine cmd_move_tab_to
+    end subroutine execute_move_tab_to
 
-    !> Move the current tab ARG positions to the right.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
-    !> If ARG is negative, move the current tab ARG positions to the left.
+    !> Move the current tab ARGUMENT positions to the right.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
+    !> If ARGUMENT is negative, move the current tab ARGUMENT positions to the left.
     !> Argument addressing is relative in contrast to `move_tab_to',
     !> where argument addressing is absolute.  Port of
     !> tab-bar.el:tab-bar-move-tab (the command; tab-move).
-    subroutine cmd_move_tab(status)
+    subroutine execute_move_tab(status)
         type(status_type), intent(out) :: status
 
-        call move_tab(int(prefix_numeric_value(current_prefix_arg)), status)
-    end subroutine cmd_move_tab
+        call move_tab(int(prefix_numeric_value(current_prefix_argument)), status)
+    end subroutine execute_move_tab
 
-    !> Move the current tab ARG positions to the left.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
+    !> Move the current tab ARGUMENT positions to the left.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
     !> Like `move_tab', but moves in the opposite direction.  Port of
     !> tab-bar.el:tab-bar-move-tab-backward (the command).
-    subroutine cmd_move_tab_backward(status)
+    subroutine execute_move_tab_backward(status)
         type(status_type), intent(out) :: status
 
-        call move_tab_backward(int(prefix_numeric_value(current_prefix_arg)), status)
-    end subroutine cmd_move_tab_backward
+        call move_tab_backward(int(prefix_numeric_value(current_prefix_argument)), status)
+    end subroutine execute_move_tab_backward
 
     !> Add a new tab at the absolute position TAB_NUMBER.
     !> TAB_NUMBER counts from 1.  If no TAB_NUMBER is specified, then add
@@ -3351,46 +3351,46 @@ contains
     !> Argument addressing is absolute in contrast to `make_tab',
     !> where argument addressing is relative.  Port of
     !> tab-bar.el:tab-bar-new-tab-to (the command; tab-new-to).
-    recursive subroutine cmd_make_tab_to(status)
+    recursive subroutine execute_make_tab_to(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             call make_tab_to(status)
         else
-            call make_tab_to(status, int(prefix_numeric_value(current_prefix_arg)))
+            call make_tab_to(status, int(prefix_numeric_value(current_prefix_argument)))
         end if
-    end subroutine cmd_make_tab_to
+    end subroutine execute_make_tab_to
 
-    !> Create a new tab ARG positions to the right.
-    !> If a negative ARG, create a new tab ARG positions to the left.
-    !> If ARG is zero, create a new tab in place of the current tab.
-    !> If no ARG is specified, then add a new tab at the position
+    !> Create a new tab ARGUMENT positions to the right.
+    !> If a negative ARGUMENT, create a new tab ARGUMENT positions to the left.
+    !> If ARGUMENT is zero, create a new tab in place of the current tab.
+    !> If no ARGUMENT is specified, then add a new tab at the position
     !> specified by `tab_bar_new_tab_to'.
     !> Argument addressing is relative in contrast to `make_tab_to',
     !> where argument addressing is absolute.  Port of
     !> tab-bar.el:tab-bar-new-tab (the command; tab-new).
-    recursive subroutine cmd_make_tab(status)
+    recursive subroutine execute_make_tab(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             call make_tab(status)
         else
-            call make_tab(status, int(prefix_numeric_value(current_prefix_arg)))
+            call make_tab(status, int(prefix_numeric_value(current_prefix_argument)))
         end if
-    end subroutine cmd_make_tab
+    end subroutine execute_make_tab
 
-    !> Clone the current tab to ARG positions to the right.
-    !> ARG has the same meaning as in `make_tab'.  Port of
+    !> Clone the current tab to ARGUMENT positions to the right.
+    !> ARGUMENT has the same meaning as in `make_tab'.  Port of
     !> tab-bar.el:tab-bar-duplicate-tab (the command; tab-duplicate).
-    recursive subroutine cmd_duplicate_tab(status)
+    recursive subroutine execute_duplicate_tab(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             call duplicate_tab(status)
         else
-            call duplicate_tab(status, int(prefix_numeric_value(current_prefix_arg)))
+            call duplicate_tab(status, int(prefix_numeric_value(current_prefix_argument)))
         end if
-    end subroutine cmd_duplicate_tab
+    end subroutine execute_duplicate_tab
 
     !> Close the tab specified by its absolute position TAB_NUMBER.
     !> If no TAB_NUMBER is specified, then close the current tab and switch
@@ -3401,44 +3401,44 @@ contains
     !> The base behavior for the last tab on a frame is determined by
     !> `tab_bar_close_last_tab_choice'.  Port of tab-bar.el:tab-bar-close-tab
     !> (the command; tab-close).
-    recursive subroutine cmd_close_tab(status)
+    recursive subroutine execute_close_tab(status)
         type(status_type), intent(out) :: status
 
         if (has_number_prefix()) then
-            call close_tab(status, int(current_prefix_arg%value))
+            call close_tab(status, int(current_prefix_argument%value))
         else
             call close_tab(status)
         end if
-    end subroutine cmd_close_tab
+    end subroutine execute_close_tab
 
     !> Close the tab given its NAME.
     !> Interactively, prompt for NAME.  Port of
     !> tab-bar.el:tab-bar-close-tab-by-name (the command).
-    recursive subroutine cmd_close_tab_by_name(status)
+    recursive subroutine execute_close_tab_by_name(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
         call completing_read("Close tab by name: ", completion_list_table(make_list(tab_names(.false.))), name, status)
         if (.not. status%ok()) return
         call close_tab_by_name(name, status)
-    end subroutine cmd_close_tab_by_name
+    end subroutine execute_close_tab_by_name
 
     !> Close all tabs on the selected frame, except the current tab.
     !> Port of tab-bar.el:tab-bar-close-other-tabs (the command;
     !> tab-close-other).
-    recursive subroutine cmd_close_other_tabs(status)
+    recursive subroutine execute_close_other_tabs(status)
         type(status_type), intent(out) :: status
 
         call close_other_tabs(status)
-    end subroutine cmd_close_other_tabs
+    end subroutine execute_close_other_tabs
 
     !> Restore the most recently closed tab.  Port of
     !> tab-bar.el:tab-bar-undo-close-tab (the command; tab-undo).
-    recursive subroutine cmd_undo_close_tab(status)
+    recursive subroutine execute_undo_close_tab(status)
         type(status_type), intent(out) :: status
 
         call undo_close_tab(status)
-    end subroutine cmd_undo_close_tab
+    end subroutine execute_undo_close_tab
 
     !> Give the tab specified by its absolute position TAB_NUMBER a new NAME.
     !> If no TAB_NUMBER is specified, then rename the current tab.
@@ -3449,32 +3449,32 @@ contains
     !> If NAME is the empty string, then use the automatic name
     !> function `tab_bar_tab_name_function'.  Port of
     !> tab-bar.el:tab-bar-rename-tab (the command; tab-rename).
-    recursive subroutine cmd_rename_tab(status)
+    recursive subroutine execute_rename_tab(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
         integer :: k
 
         call update_tab_bar_tabs()
         k = current_tab_index()
-        if (current_prefix_arg%kind /= PREFIX_NONE) k = int(prefix_numeric_value(current_prefix_arg))
+        if (current_prefix_argument%kind /= PREFIX_NONE) k = int(prefix_numeric_value(current_prefix_argument))
         k = max(1, min(k, tab_count()))
         call read_from_minibuffer("New name for tab (leave blank for automatic naming): ", name, status, &
                                   default=selected_frame%parameters%tabs(k)%name)
         if (.not. status%ok()) return
 
         if (has_number_prefix()) then
-            call rename_tab(name, status, int(current_prefix_arg%value))
+            call rename_tab(name, status, int(current_prefix_argument%value))
         else
             call rename_tab(name, status)
         end if
-    end subroutine cmd_rename_tab
+    end subroutine execute_rename_tab
 
     !> Rename the tab named TAB_NAME to NEW_NAME.
     !> Interactively, prompt for TAB_NAME and NEW_NAME.
     !> If NEW_NAME is the empty string, then use the automatic name
     !> function `tab_bar_tab_name_function'.  Port of
     !> tab-bar.el:tab-bar-rename-tab-by-name (the command).
-    recursive subroutine cmd_rename_tab_by_name(status)
+    recursive subroutine execute_rename_tab_by_name(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: tab_name, new_name
 
@@ -3485,15 +3485,15 @@ contains
                                   default=tab_name)
         if (.not. status%ok()) return
         call rename_tab_by_name(tab_name, new_name, status)
-    end subroutine cmd_rename_tab_by_name
+    end subroutine execute_rename_tab_by_name
 
     !> Relocate the current tab closer to its group.  Port of
     !> tab-bar.el:tab-bar-move-tab-to-group (the command).
-    recursive subroutine cmd_move_tab_to_group(status)
+    recursive subroutine execute_move_tab_to_group(status)
         type(status_type), intent(out) :: status
 
         call move_tab_to_group(status)
-    end subroutine cmd_move_tab_to_group
+    end subroutine execute_move_tab_to_group
 
     !> Add the tab specified by its absolute position TAB_NUMBER to GROUP_NAME.
     !> If no TAB_NUMBER is specified, then set the GROUP_NAME for the current tab.
@@ -3505,29 +3505,29 @@ contains
     !> `format_tab_bar_tabs' with `format_tab_bar_tabs_groups' in
     !> `tab_bar_format' to group tabs on the tab bar.  Port of
     !> tab-bar.el:tab-bar-change-tab-group (the command; tab-group).
-    recursive subroutine cmd_change_tab_group(status)
+    recursive subroutine execute_change_tab_group(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: group
         integer :: k
 
         call update_tab_bar_tabs()
         k = current_tab_index()
-        if (current_prefix_arg%kind /= PREFIX_NONE) k = int(prefix_numeric_value(current_prefix_arg))
+        if (current_prefix_argument%kind /= PREFIX_NONE) k = int(prefix_numeric_value(current_prefix_argument))
         call completing_read("Group name for tab (leave blank to remove group): ", &
                              completion_list_table(make_list(group_names(k))), group, status)
         if (.not. status%ok()) return
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
-            call change_tab_group(group, status, int(prefix_numeric_value(current_prefix_arg)))
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
+            call change_tab_group(group, status, int(prefix_numeric_value(current_prefix_argument)))
         else
             call change_tab_group(group, status)
         end if
-    end subroutine cmd_change_tab_group
+    end subroutine execute_change_tab_group
 
     !> Close all tabs that belong to GROUP_NAME on the selected frame.
     !> Interactively, prompt for GROUP_NAME.  Port of
     !> tab-bar.el:tab-bar-close-group-tabs (the command; tab-close-group).
-    recursive subroutine cmd_close_group_tabs(status)
+    recursive subroutine execute_close_group_tabs(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: group
 
@@ -3536,7 +3536,7 @@ contains
                              completion_list_table(make_list(group_names(current_tab_index()))), group, status)
         if (.not. status%ok()) return
         call close_group_tabs(group, status)
-    end subroutine cmd_close_group_tabs
+    end subroutine execute_close_group_tabs
 
     !> Switch to buffer BUFFER_OR_NAME in another tab.
     !> Like \[switch_to_buffer_other_frame] (which see), but creates a new tab.
@@ -3544,7 +3544,7 @@ contains
     !> tab-bar.el:switch-to-buffer-other-tab (the command, with
     !> window.el:read-buffer-to-switch and
     !> window.el:window-normalize-buffer-to-switch-to).
-    recursive subroutine cmd_switch_to_buffer_other_tab(status)
+    recursive subroutine execute_switch_to_buffer_other_tab(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
         type(handle_type) :: other, buffer
@@ -3565,24 +3565,24 @@ contains
         end if
 
         call switch_to_buffer_other_tab(buffer, status)
-    end subroutine cmd_switch_to_buffer_other_tab
+    end subroutine execute_switch_to_buffer_other_tab
 
     !> Edit file FILENAME, in another tab.
     !> Like \[find_file_other_frame] (which see), but creates a new tab.
     !> Interactively, prompt for FILENAME.  Port of
     !> tab-bar.el:find-file-other-tab (the command, with
     !> files.el:find-file-read-args).
-    recursive subroutine cmd_find_file_other_tab(status)
+    recursive subroutine execute_find_file_other_tab(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: filename, dir
+        character(len=:), allocatable :: filename, directory
 
-        dir = "~/"
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
-        call read_file_name("Find file in other tab: ", filename, status, default_filename=dir, &
+        directory = "~/"
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
+        call read_file_name("Find file in other tab: ", filename, status, default_filename=directory, &
                             mustmatch=REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION)
         if (.not. status%ok()) return
         call find_file_other_tab(filename, status)
-    end subroutine cmd_find_file_other_tab
+    end subroutine execute_find_file_other_tab
 
     !> Edit file FILENAME, in another tab, but don't allow changes.
     !> Like \[find_file_other_frame] (which see), but creates a new tab.
@@ -3591,17 +3591,17 @@ contains
     !> Interactively, prompt for FILENAME.  Port of
     !> tab-bar.el:find-file-read-only-other-tab (the command, with
     !> files.el:find-file-read-args).
-    recursive subroutine cmd_find_file_read_only_other_tab(status)
+    recursive subroutine execute_find_file_read_only_other_tab(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: filename, dir
+        character(len=:), allocatable :: filename, directory
 
-        dir = "~/"
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
-        call read_file_name("Find file read-only in other tab: ", filename, status, default_filename=dir, &
+        directory = "~/"
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
+        call read_file_name("Find file read-only in other tab: ", filename, status, default_filename=directory, &
                             mustmatch=REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION)
         if (.not. status%ok()) return
         call find_file_read_only_other_tab(filename, status)
-    end subroutine cmd_find_file_read_only_other_tab
+    end subroutine execute_find_file_read_only_other_tab
 
     !> Toggle tab bar of the selected frame.
     !> This is useful if you want to enable the tab bar individually
@@ -3609,56 +3609,56 @@ contains
     !> or if you want to disable the tab bar individually on each
     !> new frame when the global `tab_bar_mode' is enabled.  Port of
     !> tab-bar.el:toggle-frame-tab-bar (the command).
-    subroutine cmd_toggle_frame_tab_bar(status)
+    subroutine execute_toggle_frame_tab_bar(status)
         type(status_type), intent(out) :: status
 
         call toggle_frame_tab_bar(status)
-    end subroutine cmd_toggle_frame_tab_bar
+    end subroutine execute_toggle_frame_tab_bar
 
     !> Toggle tab bar on or off, based on the status of the current frame.
     !> Used in the Show/Hide menu, to have the toggle reflect the current frame.
     !> See `tab_bar_mode' for more information.  Port of
     !> tab-bar.el:toggle-tab-bar-mode-from-frame (the command).
-    recursive subroutine cmd_toggle_tab_bar_mode_from_frame(status)
+    recursive subroutine execute_toggle_tab_bar_mode_from_frame(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
             call minor_modes%tab_bar_mode%command(status)
         else if (selected_frame%tab_bar_lines > 0) then
             call minor_modes%tab_bar_mode%disable(status)
         else
             call minor_modes%tab_bar_mode%enable(status)
         end if
-    end subroutine cmd_toggle_tab_bar_mode_from_frame
+    end subroutine execute_toggle_tab_bar_mode_from_frame
 
     !> Move the selected window to a new tab.
     !> This command removes the selected window from the configuration stored
     !> on the current tab, and makes a new tab with that window in its
     !> configuration.  Port of tab-bar.el:tab-bar-move-window-to-tab (the
     !> command; tab-window-detach).
-    recursive subroutine cmd_move_window_to_tab(status)
+    recursive subroutine execute_move_window_to_tab(status)
         type(status_type), intent(out) :: status
 
         call move_window_to_tab(status)
-    end subroutine cmd_move_window_to_tab
+    end subroutine execute_move_window_to_tab
 
     !> Restore a previous window configuration used in the current tab.
     !> This navigates back in the history of window configurations.
     !> Port of tab-bar.el:tab-bar-history-back (the command).
-    recursive subroutine cmd_go_back_in_tab_bar_history(status)
+    recursive subroutine execute_go_back_in_tab_bar_history(status)
         type(status_type), intent(out) :: status
 
         call go_back_in_tab_bar_history(status)
-    end subroutine cmd_go_back_in_tab_bar_history
+    end subroutine execute_go_back_in_tab_bar_history
 
     !> Cancel restoration of the previous window configuration.
     !> This navigates forward in the history of window configurations.
     !> Port of tab-bar.el:tab-bar-history-forward (the command).
-    recursive subroutine cmd_go_forward_in_tab_bar_history(status)
+    recursive subroutine execute_go_forward_in_tab_bar_history(status)
         type(status_type), intent(out) :: status
 
         call go_forward_in_tab_bar_history(status)
-    end subroutine cmd_go_forward_in_tab_bar_history
+    end subroutine execute_go_forward_in_tab_bar_history
 
     ! ------------------------------------------------------------------
     ! Setup
@@ -3667,47 +3667,48 @@ contains
     !> Define the tab bar's faces, modes, commands and keymaps, and bind
     !> the tab commands in TAB_PREFIX_MAP (C-x t), as loading tab-bar.el
     !> does.  Not a port.
-    subroutine init_tab_bar(tab_prefix_map)
+    subroutine initialize_tab_bar(tab_prefix_map)
         type(handle_type), intent(in) :: tab_prefix_map
         integer, parameter :: C = FACE_CLASS_COLOR, LIGHT = FACE_BACKGROUND_LIGHT, DARK = FACE_BACKGROUND_DARK
-        type(face_attributes_type) :: attrs
+        type(face_attributes_type) :: attributes
         type(status_type) :: st
 
         call tab_bar_tab%define("tab_bar_tab", "Tab bar face for selected tab.")
-        call tab_bar_tab%spec_entry(display_when(is_default=.true.), face_attrs(inherit="tab_bar"))
-        attrs = face_attrs()
-        attrs%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
-        call tab_bar_tab%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), attrs)
-        attrs = face_attrs(background="grey40", foreground="white")
-        attrs%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
-        call tab_bar_tab%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), attrs)
-        call tab_bar_tab%spec_entry(display_when(), face_attrs(inverse_video=.false.))
+        call tab_bar_tab%specification_entry(display_when(is_default=.true.), face_attributes(inherit="tab_bar"))
+        attributes = face_attributes()
+        attributes%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
+        call tab_bar_tab%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), attributes)
+        attributes = face_attributes(background="grey40", foreground="white")
+        attributes%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
+        call tab_bar_tab%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), attributes)
+        call tab_bar_tab%specification_entry(display_when(), face_attributes(inverse_video=.false.))
         call tab_bar_tab_inactive%define("tab_bar_tab_inactive", "Tab bar face for non-selected tab.")
-        call tab_bar_tab_inactive%spec_entry(display_when(is_default=.true.), face_attrs(inherit="tab_bar_tab"))
-        call tab_bar_tab_inactive%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
-                                             face_attrs(background="grey75"))
-        call tab_bar_tab_inactive%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
-                                             face_attrs(background="grey20"))
-        call tab_bar_tab_inactive%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call tab_bar_tab_inactive%specification_entry(display_when(is_default=.true.), face_attributes(inherit="tab_bar_tab"))
+        call tab_bar_tab_inactive%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
+                                                      face_attributes(background="grey75"))
+        call tab_bar_tab_inactive%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
+                                                      face_attributes(background="grey20"))
+        call tab_bar_tab_inactive%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call tab_bar_tab_group_current%define("tab_bar_tab_group_current", "Tab bar face for current group tab.")
-        call tab_bar_tab_group_current%spec_entry(display_when(), face_attrs(inherit="tab_bar_tab", box=.false., &
-                                                                             weight="bold"))
+        call tab_bar_tab_group_current%specification_entry(display_when(), face_attributes(inherit="tab_bar_tab", box=.false., &
+                                                                                           weight="bold"))
         call tab_bar_tab_group_inactive%define("tab_bar_tab_group_inactive", "Tab bar face for inactive group tab.")
-        call tab_bar_tab_group_inactive%spec_entry(display_when(), &
-                                                   face_attrs(inherits=[character(len=20) :: "shadow", &
-                                                                        "tab_bar_tab_inactive"]))
+        call tab_bar_tab_group_inactive%specification_entry(display_when(), &
+                                                            face_attributes(inherits=[character(len=20) :: "shadow", &
+                                                                                      "tab_bar_tab_inactive"]))
         call tab_bar_tab_ungrouped%define("tab_bar_tab_ungrouped", &
                                           "Tab bar face for ungrouped tab when tab groups are used.")
-        call tab_bar_tab_ungrouped%spec_entry(display_when(), &
-                                              face_attrs(inherits=[character(len=20) :: "shadow", "tab_bar_tab_inactive"]))
+        call tab_bar_tab_ungrouped%specification_entry(display_when(), &
+                                                  face_attributes(inherits=[character(len=20) :: "shadow", "tab_bar_tab_inactive"]))
         call tab_bar_tab_highlight%define("tab_bar_tab_highlight", "Tab bar face for highlighting.")
-        attrs = face_attrs(background="grey85", foreground="black")
-        attrs%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
-        call tab_bar_tab_highlight%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), attrs)
-        attrs = face_attrs(background="grey40", foreground="white")
-        attrs%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
-        call tab_bar_tab_highlight%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), attrs)
-        call tab_bar_tab_highlight%spec_entry(display_when(), face_attrs(inverse_video=.false.))
+        attributes = face_attributes(background="grey85", foreground="black")
+        attributes%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
+        call tab_bar_tab_highlight%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
+                                                       attributes)
+        attributes = face_attributes(background="grey40", foreground="white")
+        attributes%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
+        call tab_bar_tab_highlight%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), attributes)
+        call tab_bar_tab_highlight%specification_entry(display_when(), face_attributes(inverse_video=.false.))
         if (.not. allocated(tab_bar_new_button)) tab_bar_new_button = " + "
         if (.not. allocated(tab_bar_close_button)) tab_bar_close_button = " x"
         if (.not. allocated(tab_bar_back_button)) tab_bar_back_button = " < "
@@ -3731,56 +3732,56 @@ contains
         call keymap_set(tab_bar_history_mode_map, "C-c <right>", "go_forward_in_tab_bar_history", st)
         commands%tab_bar_mode%execute => tab_bar_mode
         commands%tab_bar_history_mode%execute => tab_bar_history_mode
-        commands%select_tab_bar_tab%execute => cmd_select_tab
-        commands%switch_to_tab_bar_next_tab%execute => cmd_switch_to_next_tab
-        commands%switch_to_tab_bar_previous_tab%execute => cmd_switch_to_previous_tab
-        commands%switch_to_tab_bar_last_tab%execute => cmd_switch_to_last_tab
-        commands%switch_to_tab_bar_recent_tab%execute => cmd_switch_to_recent_tab
-        commands%switch_to_tab_bar_tab%execute => cmd_switch_to_tab
-        commands%move_tab_bar_tab_to%execute => cmd_move_tab_to
-        commands%move_tab_bar_tab%execute => cmd_move_tab
-        commands%move_tab_bar_tab_backward%execute => cmd_move_tab_backward
-        commands%make_tab_bar_tab_to%execute => cmd_make_tab_to
-        commands%make_tab_bar_tab%execute => cmd_make_tab
-        commands%duplicate_tab_bar_tab%execute => cmd_duplicate_tab
-        commands%close_tab_bar_tab%execute => cmd_close_tab
-        commands%close_tab_bar_tab_by_name%execute => cmd_close_tab_by_name
-        commands%close_tab_bar_other_tabs%execute => cmd_close_other_tabs
-        commands%undo_close_tab_bar_tab%execute => cmd_undo_close_tab
-        commands%rename_tab_bar_tab%execute => cmd_rename_tab
-        commands%rename_tab_bar_tab_by_name%execute => cmd_rename_tab_by_name
-        commands%move_tab_bar_tab_to_group%execute => cmd_move_tab_to_group
-        commands%change_tab_bar_tab_group%execute => cmd_change_tab_group
-        commands%close_tab_bar_group_tabs%execute => cmd_close_group_tabs
-        commands%switch_to_buffer_other_tab%execute => cmd_switch_to_buffer_other_tab
-        commands%find_file_other_tab%execute => cmd_find_file_other_tab
-        commands%find_file_read_only_other_tab%execute => cmd_find_file_read_only_other_tab
-        commands%toggle_frame_tab_bar%execute => cmd_toggle_frame_tab_bar
-        commands%toggle_tab_bar_mode_from_frame%execute => cmd_toggle_tab_bar_mode_from_frame
-        commands%move_tab_bar_window_to_tab%execute => cmd_move_window_to_tab
-        commands%go_back_in_tab_bar_history%execute => cmd_go_back_in_tab_bar_history
-        commands%go_forward_in_tab_bar_history%execute => cmd_go_forward_in_tab_bar_history
+        commands%select_tab_bar_tab%execute => execute_select_tab
+        commands%switch_to_tab_bar_next_tab%execute => execute_switch_to_next_tab
+        commands%switch_to_tab_bar_previous_tab%execute => execute_switch_to_previous_tab
+        commands%switch_to_tab_bar_last_tab%execute => execute_switch_to_last_tab
+        commands%switch_to_tab_bar_recent_tab%execute => execute_switch_to_recent_tab
+        commands%switch_to_tab_bar_tab%execute => execute_switch_to_tab
+        commands%move_tab_bar_tab_to%execute => execute_move_tab_to
+        commands%move_tab_bar_tab%execute => execute_move_tab
+        commands%move_tab_bar_tab_backward%execute => execute_move_tab_backward
+        commands%make_tab_bar_tab_to%execute => execute_make_tab_to
+        commands%make_tab_bar_tab%execute => execute_make_tab
+        commands%duplicate_tab_bar_tab%execute => execute_duplicate_tab
+        commands%close_tab_bar_tab%execute => execute_close_tab
+        commands%close_tab_bar_tab_by_name%execute => execute_close_tab_by_name
+        commands%close_tab_bar_other_tabs%execute => execute_close_other_tabs
+        commands%undo_tab_bar_close_tab%execute => execute_undo_close_tab
+        commands%rename_tab_bar_tab%execute => execute_rename_tab
+        commands%rename_tab_bar_tab_by_name%execute => execute_rename_tab_by_name
+        commands%move_tab_bar_tab_to_group%execute => execute_move_tab_to_group
+        commands%change_tab_bar_tab_group%execute => execute_change_tab_group
+        commands%close_tab_bar_group_tabs%execute => execute_close_group_tabs
+        commands%switch_to_buffer_other_tab%execute => execute_switch_to_buffer_other_tab
+        commands%find_file_other_tab%execute => execute_find_file_other_tab
+        commands%find_file_read_only_other_tab%execute => execute_find_file_read_only_other_tab
+        commands%toggle_frame_tab_bar%execute => execute_toggle_frame_tab_bar
+        commands%toggle_tab_bar_mode_from_frame%execute => execute_toggle_tab_bar_mode_from_frame
+        commands%move_tab_bar_window_to_tab%execute => execute_move_window_to_tab
+        commands%go_back_in_tab_bar_history%execute => execute_go_back_in_tab_bar_history
+        commands%go_forward_in_tab_bar_history%execute => execute_go_forward_in_tab_bar_history
         ! The aliases (tab-bar.el's defalias of tab-new and the others, and
         ! of tab-bar-select-tab-by-name).
-        commands%select_tab_bar_tab_by_name%execute => cmd_switch_to_tab
-        commands%make_tab%execute => cmd_make_tab
-        commands%make_tab_to%execute => cmd_make_tab_to
-        commands%duplicate_tab%execute => cmd_duplicate_tab
-        commands%detach_tab_window%execute => cmd_move_window_to_tab
-        commands%close_tab%execute => cmd_close_tab
-        commands%close_other_tabs%execute => cmd_close_other_tabs
-        commands%close_tab_group%execute => cmd_close_group_tabs
-        commands%undo_tab%execute => cmd_undo_close_tab
-        commands%select_tab%execute => cmd_select_tab
-        commands%switch_tab%execute => cmd_switch_to_tab
-        commands%next_tab%execute => cmd_switch_to_next_tab
-        commands%previous_tab%execute => cmd_switch_to_previous_tab
-        commands%last_tab%execute => cmd_switch_to_last_tab
-        commands%recent_tab%execute => cmd_switch_to_recent_tab
-        commands%move_tab%execute => cmd_move_tab
-        commands%move_tab_to%execute => cmd_move_tab_to
-        commands%rename_tab%execute => cmd_rename_tab
-        commands%change_tab_group%execute => cmd_change_tab_group
+        commands%select_tab_bar_tab_by_name%execute => execute_switch_to_tab
+        commands%make_tab%execute => execute_make_tab
+        commands%make_tab_to%execute => execute_make_tab_to
+        commands%duplicate_tab%execute => execute_duplicate_tab
+        commands%detach_tab_window%execute => execute_move_window_to_tab
+        commands%close_tab%execute => execute_close_tab
+        commands%close_other_tabs%execute => execute_close_other_tabs
+        commands%close_tab_group%execute => execute_close_group_tabs
+        commands%undo_tab%execute => execute_undo_close_tab
+        commands%select_tab%execute => execute_select_tab
+        commands%switch_tab%execute => execute_switch_to_tab
+        commands%next_tab%execute => execute_switch_to_next_tab
+        commands%previous_tab%execute => execute_switch_to_previous_tab
+        commands%last_tab%execute => execute_switch_to_last_tab
+        commands%recent_tab%execute => execute_switch_to_recent_tab
+        commands%move_tab%execute => execute_move_tab
+        commands%move_tab_to%execute => execute_move_tab_to
+        commands%rename_tab%execute => execute_rename_tab
+        commands%change_tab_group%execute => execute_change_tab_group
         ! The short aliases' keys (tab-bar.el's keymap-set of tab-prefix-map).
         call keymap_set(tab_prefix_map, "n", "duplicate_tab", st)
         call keymap_set(tab_prefix_map, "N", "make_tab_to", st)
@@ -3817,5 +3818,5 @@ contains
         call set_repeat_map(tab_bar_history_repeat_map)
         get_tab_bar_items => get_tab_bar_runs
         close_tab_hook => close_tab_after_last_window
-    end subroutine init_tab_bar
+    end subroutine initialize_tab_bar
 end module tab_bar_mod

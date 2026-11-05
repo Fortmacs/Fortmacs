@@ -38,19 +38,19 @@ submodule(coding_mod) japanese_mod
 contains
 
     !> Port of the `charset', `shift-jis' and `iso-2022' coding systems of japanese.el.
-    module subroutine init_japanese()
+    module subroutine initialize_japanese()
         call define_iso_2022_coding_system("iso-2022-jp", iachar("J"), &
                                            doc="ISO 2022 based 7bit encoding for Japanese (MIME:ISO-2022-JP)" &
                                            //".", &
-                                           initial=[character(len=CHARSET_NAME_LEN) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                                   "latin-jisx0201", "japanese-jisx0208", &
                                                                   "japanese-jisx0208-1978", "ascii"], &
                                            request_registers=[integer :: 0, 0, 0, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) :: &
                                                   "short", "ascii-at-eol", "ascii-at-cntl", "7-bit", "designation"], &
-                                           charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                           "ascii", "japanese-jisx0208", "japanese-jisx0208-1978", &
                                                           "latin-jisx0201"], &
                                            mime_charset="iso-2022-jp", suitable_for_keyboard=.true.)
@@ -58,8 +58,8 @@ contains
         call define_iso_2022_coding_system("iso-2022-jp-2", iachar("J"), &
                                            doc="ISO 2022 based 7bit encoding for CJK, Latin-1, Greek (MIME:I" &
                                            //"SO-2022-JP-2).", &
-                                           initial=[character(len=CHARSET_NAME_LEN) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                                   "greek-iso8859-7", "latin-iso8859-1", "korean-ksc5601", &
                                                                   "chinese-gb2312", "japanese-jisx0212", "latin-jisx0201", &
                                                                   "japanese-jisx0208", "japanese-jisx0208-1978", "ascii"], &
@@ -68,13 +68,13 @@ contains
                                            flags=[character(len=16) :: &
                                                   "short", "ascii-at-eol", "ascii-at-cntl", "7-bit", "designation", &
                                                   "single-shift", "init-at-bol"], &
-                                           charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                           "ascii", "japanese-jisx0208", "japanese-jisx0212", "latin-jisx0201", &
                                                           "japanese-jisx0208-1978", "chinese-gb2312", "korean-ksc5601", &
                                                           "latin-iso8859-1", "greek-iso8859-7"], &
                                            mime_charset="iso-2022-jp-2", suitable_for_keyboard=.true.)
         call define_charset_coding_system("japanese-shift-jis", iachar("S"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "katakana-jisx0201", &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "katakana-jisx0201", &
                                                          "japanese-jisx0208"], &
                                           mime_charset="shift_jis", &
                                           doc="Shift-JIS 8-bit encoding for Japanese (MIME:SHIFT_JIS)", &
@@ -82,14 +82,15 @@ contains
         call define_coding_system_alias("shift_jis", "japanese-shift-jis")
         call define_coding_system_alias("sjis", "japanese-shift-jis")
         call define_charset_coding_system("japanese-cp932", iachar("S"), &
-                                      charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "katakana-sjis", "cp932-2-byte"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "katakana-sjis", &
+                                                         "cp932-2-byte"], &
                                           doc="CP932 (Microsoft shift-jis)")
         call define_coding_system_alias("cp932", "japanese-cp932")
         call define_iso_2022_coding_system("japanese-iso-7bit-1978-irv", iachar("j"), &
                                            doc="ISO 2022 based 7-bit encoding for Japanese JISX0208-1978 and" &
                                            //" JISX0201-Roman.", &
-                                           initial=[character(len=CHARSET_NAME_LEN) :: "latin-jisx0201", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "latin-jisx0201", "", "", ""], &
+                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                                   "katakana-jisx0201", "japanese-jisx0212", "japanese-jisx0208", &
                                                                   "japanese-jisx0208-1978", "latin-jisx0201"], &
                                            request_registers=[integer :: 0, 0, 0, 0, 0], &
@@ -97,22 +98,22 @@ contains
                                            flags=[character(len=16) :: &
                                                   "short", "ascii-at-eol", "ascii-at-cntl", "7-bit", "designation", "use-roman", &
                                                   "use-oldjis"], &
-                                           charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                           "ascii", "latin-jisx0201", "japanese-jisx0208-1978", &
                                                           "japanese-jisx0208", "japanese-jisx0212"])
         call define_coding_system_alias("iso-2022-jp-1978-irv", "japanese-iso-7bit-1978-irv")
         call define_coding_system_alias("old-jis", "japanese-iso-7bit-1978-irv")
         call define_iso_2022_coding_system("japanese-iso-8bit", iachar("E"), &
                                            doc="ISO 2022 based EUC encoding for Japanese (MIME:EUC-JP).", &
-                                           initial=[character(len=CHARSET_NAME_LEN) :: &
+                                           initial=[character(len=CHARSET_NAME_LENGTH) :: &
                                                     "ascii", "japanese-jisx0208", "katakana-jisx0201", "japanese-jisx0212"], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                                   "japanese-jisx0212", "katakana-jisx0201", "japanese-jisx0208", &
                                                                   "ascii"], &
                                            request_registers=[integer :: 3, 2, 1, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) :: "short", "ascii-at-eol", "ascii-at-cntl", "single-shift"], &
-                                           charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                           "ascii", "latin-jisx0201", "japanese-jisx0208", "katakana-jisx0201", &
                                                           "japanese-jisx0212", "japanese-jisx0208-1978"], &
                                            mime_charset="euc-jp")
@@ -122,15 +123,15 @@ contains
         call define_iso_2022_coding_system("iso-2022-jp-2004", iachar("J"), &
                                            doc="ISO 2022 based 7bit encoding for JIS X 0213:2004 (MIME:ISO-2" &
                                            //"022-JP-2004).", &
-                                           initial=[character(len=CHARSET_NAME_LEN) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                                   "japanese-jisx0213-2", "japanese-jisx0213-1", &
                                                                   "japanese-jisx0213.2004-1", "japanese-jisx0208", "ascii"], &
                                            request_registers=[integer :: 0, 0, 0, 0, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) :: &
                                                   "short", "ascii-at-eol", "ascii-at-cntl", "7-bit", "designation"], &
-                                           charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                           "ascii", "japanese-jisx0208", "japanese-jisx0213.2004-1", &
                                                           "japanese-jisx0213-1", "japanese-jisx0213-2"], &
                                            mime_charset="iso-2022-jp-2004", suitable_for_keyboard=.true.)
@@ -138,37 +139,37 @@ contains
         call define_iso_2022_coding_system("euc-jis-2004", iachar("E"), &
                                            doc="ISO 2022 based EUC encoding for JIS X 0213 (MIME:EUC-JIS-200" &
                                            //"4).", &
-                                           initial=[character(len=CHARSET_NAME_LEN) :: &
+                                           initial=[character(len=CHARSET_NAME_LENGTH) :: &
                                                     "ascii", "japanese-jisx0213.2004-1", "katakana-jisx0201", &
                                                     "japanese-jisx0213-2"], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                                   "japanese-jisx0213-2", "katakana-jisx0201", &
                                                                   "japanese-jisx0213.2004-1", "ascii"], &
                                            request_registers=[integer :: 3, 2, 1, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) :: "short", "ascii-at-eol", "ascii-at-cntl", "single-shift"], &
-                                           charset_names=[character(len=CHARSET_NAME_LEN) :: &
+                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
                                                           "ascii", "latin-jisx0201", "japanese-jisx0213.2004-1", &
                                                           "japanese-jisx0213-1", "katakana-jisx0201", "japanese-jisx0213-2"], &
                                            mime_charset="euc-jis-2004")
         call define_coding_system_alias("euc-jisx0213", "euc-jis-2004")
         call define_charset_coding_system("japanese-shift-jis-2004", iachar("S"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "katakana-jisx0201", &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "katakana-jisx0201", &
                                                          "japanese-jisx0213.2004-1", "japanese-jisx0213-2"], &
                                           doc="Shift_JIS 8-bit encoding for Japanese (MIME:SHIFT_JIS-2004)", &
                                           ctype=CODING_SJIS)
         call define_coding_system_alias("shift_jis-2004", "japanese-shift-jis-2004")
         call define_charset_coding_system("ibm281", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm281"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ibm281"], &
                                           doc="Japanese-E version of EBCDIC")
         call define_coding_system_alias("ebcdic-jp-e", "ibm281")
         call define_coding_system_alias("cp281", "ibm281")
         call define_charset_coding_system("ibm290", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm290"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ibm290"], &
                                           doc="Japanese katakana version of EBCDIC")
         call define_coding_system_alias("ebcdic-jp-kana", "ibm290")
         call define_coding_system_alias("cp290", "ibm290")
-    end subroutine init_japanese
+    end subroutine initialize_japanese
 
     !> Port of the language environments of japanese.el.
     module subroutine define_japanese_language_environments()

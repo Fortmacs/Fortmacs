@@ -36,8 +36,8 @@ module glyph_matrices_mod
     !> dispextern.h: FACE_TTY_DEFAULT_COLOR and friends (unsigned -1, -2,
     !> -3 upstream).  Real colors are >= 0.
     integer(int64), parameter, public :: FACE_TTY_DEFAULT_COLOR = -1, &
-                                         FACE_TTY_DEFAULT_FG_COLOR = -2, &
-                                         FACE_TTY_DEFAULT_BG_COLOR = -3
+                                         FACE_TTY_DEFAULT_FOREGROUND_COLOR = -2, &
+                                         FACE_TTY_DEFAULT_BACKGROUND_COLOR = -3
 
     !> enum face_underline_type (the order of terminfo's Smulx).
     integer, parameter, public :: FACE_NO_UNDERLINE = 0, &
@@ -80,7 +80,7 @@ module glyph_matrices_mod
                                   TTY_CAP_UNDERLINE_STYLED = 128
 
     !> enum glyph_type: the kinds of glyphs in use.
-    integer, parameter, public :: CHAR_GLYPH = 0, STRETCH_GLYPH = 4
+    integer, parameter, public :: CHARACTER_GLYPH = 0, STRETCH_GLYPH = 4
 
     !> enum text_cursor_kinds.
     integer, parameter, public :: DEFAULT_CURSOR = -2, NO_CURSOR = -1, FILLED_BOX_CURSOR = 0, &
@@ -90,10 +90,10 @@ module glyph_matrices_mod
     type, public :: glyph_type
         integer(int32) :: ch = 32
         integer(int32) :: face_id = DEFAULT_FACE_ID
-        !> CHAR_GLYPH_PADDING_P: continuation cell of a wide character.
+        !> CHARACTER_GLYPH_PADDING_P: continuation cell of a wide character.
         logical :: padding = .false.
-        !> CHAR_GLYPH or STRETCH_GLYPH (struct glyph type).
-        integer :: type = CHAR_GLYPH
+        !> CHARACTER_GLYPH or STRETCH_GLYPH (struct glyph type).
+        integer :: type = CHARACTER_GLYPH
         !> Width in pixels (1 on a terminal), and the ascent and descent
         !> of the glyph above and below the baseline (0 on a terminal).
         integer :: pixel_width = 1, ascent = 0, descent = 0
@@ -130,8 +130,8 @@ module glyph_matrices_mod
         !> heights 1.
         integer :: x = 0, y = 0, pixel_width = 0, ascent = 0, height = 1, visible_height = 1
         !> The line continues on the next row (continued_p); the row ends
-        !> at the end of the accessible text (ends_at_zv_p).
-        logical :: continued_p = .false., ends_at_zv_p = .false.
+        !> at the end of the accessible text (ends_at_end_of_accessible_portion_p).
+        logical :: continued_p = .false., ends_at_end_of_accessible_portion_p = .false.
     end type glyph_row_type
 
     !> A grid of rows (struct glyph_matrix); rows are numbered from 0.
@@ -218,7 +218,7 @@ module glyph_matrices_mod
         end subroutine rif_flush_display_procedure
     end interface
 
-    public :: face_tty_specified_color, is_glyph_equal, is_char_glyph_space
+    public :: face_tty_specified_color, is_glyph_equal, is_character_glyph_space
 
 contains
 
@@ -241,9 +241,9 @@ contains
 
     !> A blank in the default face.  dispextern.h:CHAR_GLYPH_SPACE_P.
     !> Port of dispextern.h:CHAR_GLYPH_SPACE_P.
-    elemental logical function is_char_glyph_space(g)
+    elemental logical function is_character_glyph_space(g)
         type(glyph_type), intent(in) :: g
 
-        is_char_glyph_space = g%ch == 32 .and. g%face_id == DEFAULT_FACE_ID
-    end function is_char_glyph_space
+        is_character_glyph_space = g%ch == 32 .and. g%face_id == DEFAULT_FACE_ID
+    end function is_character_glyph_space
 end module glyph_matrices_mod

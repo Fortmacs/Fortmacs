@@ -42,15 +42,15 @@ module terminal_state_mod
         !> Cursor position; -1 in both means unknown (forces absolute motion).
         integer :: cm_cury = -1, cm_curx = -1
         character(len=:), allocatable :: cm_up, cm_down, cm_left, cm_right, &
-                                         cm_home, cm_cr, cm_ll, cm_tab, cm_backtab, cm_abs, cm_habs, &
+                                         cm_home, cm_cr, cm_ll, cm_tab, cm_backtab, cm_absolute, cm_habs, &
                                          cm_vabs, cm_multiup, cm_multidown, cm_multileft, &
                                          cm_multiright
-        integer :: cm_cols = 0, cm_rows = 0, cm_tabwidth = 0
+        integer :: cm_columns = 0, cm_rows = 0, cm_tabwidth = 0
         logical :: cm_autowrap = .false., cm_magicwrap = .false., &
                    cm_usetabs = .false., cm_losewrap = .false., cm_autolf = .false.
         integer :: cc_up = BIG, cc_down = BIG, cc_left = BIG, cc_right = BIG, &
                    cc_home = BIG, cc_cr = BIG, cc_ll = BIG, cc_tab = BIG, &
-                   cc_backtab = BIG, cc_abs = BIG, cc_habs = BIG, cc_vabs = BIG
+                   cc_backtab = BIG, cc_absolute = BIG, cc_habs = BIG, cc_vabs = BIG
     end type cm_type
 
     !> Port of termchar.h:struct tty_display_info_type (the parts in use).
@@ -59,11 +59,11 @@ module terminal_state_mod
         integer(int32) :: input = -1, output = -1
         character(len=:), allocatable :: name, type
         type(terminfo_type) :: ti
-        !> Terminal modes before init_sys_modes, restored by delete_tty.
+        !> Terminal modes before initialize_system_modes, restored by delete_tty.
         type(fortmacs_tty_type) :: old_tty
         logical :: modes_saved = .false.
         !> Pending output and its length.
-        character(len=:), allocatable :: obuf
+        character(len=:), allocatable :: output_buffer
         integer(int64) :: olen = 0
 
         type(cm_type) :: wcm
@@ -72,33 +72,33 @@ module terminal_state_mod
         logical :: costs_set = .false.
         logical :: insert_mode = .false., standout_mode = .false., &
                    cursor_hidden = .false.
-        logical :: scroll_region_ok = .false., line_ins_del_ok = .false., &
-                   char_ins_del_ok = .false., memory_below_frame = .false., &
+        logical :: scroll_region_ok = .false., line_ins_delete_ok = .false., &
+                   character_ins_delete_ok = .false., memory_below_frame = .false., &
                    must_write_spaces = .false., delete_in_insert_mode = .false.
 
         ! Capability strings (the TS_ fields).
         character(len=:), allocatable :: ts_ins_line, ts_ins_multi_lines, &
                                          ts_bell, ts_clr_to_bottom, ts_clr_line, ts_clr_frame, &
-                                         ts_set_scroll_region, ts_set_scroll_region_1, ts_del_char, &
-                                         ts_del_multi_chars, ts_del_line, ts_del_multi_lines, &
+                                         ts_set_scroll_region, ts_set_scroll_region_1, ts_delete_character, &
+                                         ts_delete_multi_characters, ts_delete_line, ts_delete_multi_lines, &
                                          ts_delete_mode, ts_end_delete_mode, ts_end_insert_mode, &
-                                         ts_ins_char, ts_ins_multi_chars, ts_insert_mode, &
-                                         ts_pad_inserted_char, ts_end_keypad_mode, ts_keypad_mode, &
-                                         ts_pad_char, ts_repeat, ts_end_standout_mode, ts_fwd_scroll, &
-                                         ts_standout_mode, ts_rev_scroll, ts_end_termcap_modes, &
+                                         ts_ins_character, ts_ins_multi_characters, ts_insert_mode, &
+                                         ts_pad_inserted_character, ts_end_keypad_mode, ts_keypad_mode, &
+                                         ts_pad_character, ts_repeat, ts_end_standout_mode, ts_fwd_scroll, &
+                                         ts_standout_mode, ts_revision_scroll, ts_end_termcap_modes, &
                                          ts_termcap_modes, ts_visible_bell, ts_cursor_normal, &
                                          ts_cursor_visible, ts_cursor_invisible, ts_set_window, &
                                          ts_enter_underline_mode, ts_exit_underline_mode, &
                                          ts_enter_bold_mode, ts_enter_italic_mode, ts_enter_dim_mode, &
                                          ts_enter_reverse_mode, ts_enter_alt_charset_mode, &
                                          ts_exit_alt_charset_mode, ts_exit_attribute_mode, &
-                                         ts_enter_strike_through_mode, ts_orig_pair, &
+                                         ts_enter_strike_through_mode, ts_original_pair, &
                                          ts_set_foreground, ts_set_background
         character(len=:), allocatable :: tf_set_underline_style, tf_set_underline_color
-        integer :: tn_max_colors = 0, tn_no_color_video = 0
+        integer :: tn_maximum_colors = 0, tn_no_color_video = 0
         !> term.c:char_ins_del_vector: the cost of inserting (k > 0) or
         !> deleting (k < 0) k characters, indexed -FrameCols..FrameCols.
-        integer, allocatable :: char_ins_del_cost(:)
+        integer, allocatable :: character_ins_delete_cost(:)
         logical :: tf_hazeltine = .false., tf_insmode_motion = .false., &
                    tf_standout_motion = .false., tf_underscore = .false., &
                    tf_teleray = .false., tf_rgb_separate = .false.
@@ -115,15 +115,15 @@ contains
 
         n = len(bytes, kind=int64)
         if (n == 0) return
-        if (.not. allocated(tty%obuf)) allocate (character(len=max(4096_int64, 2*n)) :: tty%obuf)
+        if (.not. allocated(tty%output_buffer)) allocate (character(len=max(4096_int64, 2*n)) :: tty%output_buffer)
 
-        if (tty%olen + n > len(tty%obuf, kind=int64)) then
-            allocate (character(len=max(2*len(tty%obuf, kind=int64), tty%olen + n)) :: grown)
-            grown(1:tty%olen) = tty%obuf(1:tty%olen)
-            call move_alloc(grown, tty%obuf)
+        if (tty%olen + n > len(tty%output_buffer, kind=int64)) then
+            allocate (character(len=max(2*len(tty%output_buffer, kind=int64), tty%olen + n)) :: grown)
+            grown(1:tty%olen) = tty%output_buffer(1:tty%olen)
+            call move_alloc(grown, tty%output_buffer)
         end if
 
-        tty%obuf(tty%olen + 1:tty%olen + n) = bytes
+        tty%output_buffer(tty%olen + 1:tty%olen + n) = bytes
         tty%olen = tty%olen + n
     end subroutine tty_put_bytes
 
@@ -144,7 +144,7 @@ contains
         character(len=:), allocatable :: s
 
         s = ""
-        if (tty%olen > 0) s = tty%obuf(1:tty%olen)
+        if (tty%olen > 0) s = tty%output_buffer(1:tty%olen)
         tty%olen = 0
     end function tty_take_output
 
@@ -156,7 +156,7 @@ contains
         integer(int64) :: written
 
         if (tty%output < 0 .or. tty%olen == 0) return
-        call fortmacs_full_write(tty%output, tty%obuf(1:tty%olen), written, status)
+        call fortmacs_full_write(tty%output, tty%output_buffer(1:tty%olen), written, status)
         tty%olen = 0
     end subroutine tty_flush
 end module terminal_state_mod

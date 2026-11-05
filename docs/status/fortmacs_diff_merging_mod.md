@@ -12,8 +12,8 @@
 `ediff-show-clashes-only`,
 `ediff-skip-merge-regions-that-differ-from-default`,
 `ediff-merge-region-is-non-clash`,
-`ediff-merge-region-is-non-clash-to-skip`,
-`ediff-skip-merge-region-if-changed-from-default-p` (`is_ediff_skip_merge_region_if_changed_from_default`),
+`ediff-merge-region-is-non-clash-to-skip` and
+`ediff-skip-merge-region-if-changed-from-default-p` (both in one type-bound check of the session, `call ediff_sessions(session_index)%check_region_skip(difference, skip, status)`, in fortmacs_diff_settings_skip_mod; panel 13),
 `ediff-get-combined-region`,
 `ediff-set-state-of-all-diffs-in-all-buffers`,
 `ediff-set-state-of-diff-in-all-buffers`,

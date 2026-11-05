@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ports test/lisp/textmodes/conf-mode-tests.el (all its tests), plus
-!> the guessing of `conf_mode' and auto-mode-alist entries.
+!> the guessing of `configuration_mode' and auto-mode-alist entries.
 module test_configuration_mode_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -29,17 +29,18 @@ module test_configuration_mode_mod
     use value_mod, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, goto_char, buffer_string
-    use editing_commands_mod, only: forward_line, forward_char, beginning_of_line
-    use search_mod, only: search_forward, re_search_forward, SEARCH_NOERROR
+    use editing_functions_mod, only: point, point_minimum, goto_character, buffer_string
+    use editing_commands_mod, only: forward_line, forward_character, beginning_of_line
+    use search_mod, only: search_forward, regular_expression_search_forward, SEARCH_NOERROR
     use text_properties_mod, only: get_text_property
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use modes_mod, only: minor_modes
     use font_lock_mod, only: font_lock_ensure
     use files_mod, only: set_auto_mode
-    use configuration_mode_mod, only: conf_mode, conf_unix_mode, conf_windows_mode, conf_javaprop_mode, conf_space_mode, &
-                                      conf_colon_mode, conf_ppd_mode, conf_xdefaults_mode, conf_toml_mode, conf_desktop_mode, &
-                                      conf_align_assignments
+    use configuration_mode_mod, only: configuration_mode, configuration_unix_mode, configuration_windows_mode, &
+                                      configuration_javaprop_mode, configuration_space_mode, configuration_colon_mode, &
+                                      configuration_ppd_mode, configuration_xdefaults_mode, configuration_toml_mode, &
+                                      configuration_desktop_mode, configuration_align_assignments
     implicit none(type, external)
     private
 
@@ -79,17 +80,17 @@ contains
     end subroutine collect_configuration_mode_mod
 
     !> A fresh buffer holding TEXT (with-temp-buffer, insert).
-    subroutine temp_buffer(text, h)
+    subroutine temporary_buffer(text, h)
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *conf-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> TEXT in a fresh buffer, point at its start, in MODE, fontified.
     subroutine fontified(text, mode, h)
@@ -98,8 +99,8 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call temp_buffer(text, h)
-        call goto_char(point_min())
+        call temporary_buffer(text, h)
+        call goto_character(point_minimum())
         call mode(st)
         call minor_modes%font_lock_mode%enable(st)
         call font_lock_ensure(st)
@@ -109,15 +110,15 @@ contains
     function face() result(name)
         character(len=:), allocatable :: name
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: st
 
         name = ""
         call get_text_property(point(), value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
-            call list_elements(v, elts)
-            v = elts(1)
+            call list_elements(v, elements)
+            v = elements(1)
         end if
 
         if (.not. allocated(v%a)) return
@@ -137,7 +138,7 @@ contains
         integer(int64), intent(in) :: n
         type(status_type) :: st
 
-        call forward_char(st, n)
+        call forward_character(st, n)
     end subroutine move
 
     subroutine leave(h)
@@ -152,9 +153,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer("foo: bar"//LF//"bar: baz", h)
-        call conf_colon_mode(st)
-        call conf_align_assignments(st)
+        call temporary_buffer("foo: bar"//LF//"bar: baz", h)
+        call configuration_colon_mode(st)
+        call configuration_align_assignments(st)
         call check(error, buffer_string(), "foo:"//TAB//TAB//TAB//"bar"//LF//"bar:"//TAB//TAB//TAB//"baz")
         call leave(h)
     end subroutine test_align
@@ -163,7 +164,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
-        call fontified("foo: bar"//LF//"bar: baz", conf_colon_mode, h)
+        call fontified("foo: bar"//LF//"bar: baz", configuration_colon_mode, h)
 
         checks: block
             call check(error, face(), "font_lock_variable_name_face")
@@ -181,9 +182,9 @@ contains
         integer(int64) :: shortage
         character(len=*), parameter :: G = "{5984FFE0-28D4-11CF-AE66-08002B2E1262}"
 
-        ! from `conf_windows_mode' docstring:
+        ! from `configuration_windows_mode' docstring:
         call fontified("[ExtShellFolderViews]"//LF//"Default="//G//LF//G//"="//G//LF//LF//"["//G//"]"//LF// &
-                       "PersistMoniker=file://Folder.htt", conf_windows_mode, h)
+                       "PersistMoniker=file://Folder.htt", configuration_windows_mode, h)
 
         checks: block
             call find("ExtShell")
@@ -212,9 +213,9 @@ contains
         integer(int64) :: found
         type(status_type) :: st
 
-        ! From `conf_javaprop_mode' docstring
+        ! From `configuration_javaprop_mode' docstring
         call fontified("# comment"//LF//LF//"name:value"//LF//"name=value"//LF//"name value"//LF//"x.1 ="//LF// &
-                       "x.2.y.1.z.1 ="//LF//"x.2.y.1.z.2.zz =", conf_javaprop_mode, h)
+                       "x.2.y.1.z.1 ="//LF//"x.2.y.1.z.2.zz =", configuration_javaprop_mode, h)
 
         checks: block
             call check(error, face(), "font_lock_comment_delimiter_face")
@@ -234,13 +235,13 @@ contains
             end do
 
             do
-                call re_search_forward("[xyz]", found, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("[xyz]", found, st, noerror=SEARCH_NOERROR)
                 if (found <= 0) exit
                 call move(-1_int64)
                 call check(error, face(), "font_lock_variable_name_face")
                 if (allocated(error)) exit checks
                 call move(1_int64)
-                call re_search_forward("[0-9]", found, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("[0-9]", found, st, noerror=SEARCH_NOERROR)
 
                 if (found > 0) then
                     call move(-1_int64)
@@ -257,9 +258,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
-        ! From `conf_space_mode' docstring.
+        ! From `configuration_space_mode' docstring.
         call fontified("image/jpeg"//TAB//TAB//TAB//"jpeg jpg jpe"//LF//"image/png"//TAB//TAB//TAB//"png"//LF// &
-                       "image/tiff"//TAB//TAB//TAB//"tiff tif"//LF, conf_space_mode, h)
+                       "image/tiff"//TAB//TAB//TAB//"tiff tif"//LF, configuration_space_mode, h)
 
         checks: block
             call check(error, face(), "font_lock_variable_name_face")
@@ -276,9 +277,9 @@ contains
         type(handle_type) :: h
         integer(int64) :: shortage
 
-        ! From `conf_colon_mode' docstring.
+        ! From `configuration_colon_mode' docstring.
         call fontified("<Multi_key> <exclam> <exclam>"//TAB//TAB//": ""\241"""//TAB//"exclamdown"//LF// &
-                       "<Multi_key> <c> <slash>"//TAB//TAB//TAB//": ""\242"""//TAB//"cent", conf_colon_mode, h)
+                       "<Multi_key> <c> <slash>"//TAB//TAB//TAB//": ""\242"""//TAB//"cent", configuration_colon_mode, h)
 
         checks: block
             call check(error, face(), "font_lock_variable_name_face")
@@ -297,8 +298,8 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
-        ! From `conf_ppd_mode' docstring.
-        call fontified("*DefaultTransfer: Null"//LF//"*Transfer Null.Inverse: ""{ 1 exch sub }""", conf_ppd_mode, h)
+        ! From `configuration_ppd_mode' docstring.
+        call fontified("*DefaultTransfer: Null"//LF//"*Transfer Null.Inverse: ""{ 1 exch sub }""", configuration_ppd_mode, h)
 
         checks: block
             call check(error, face(), "font_lock_variable_name_face")
@@ -314,9 +315,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
-        ! From `conf_xdefaults_mode' docstring.
+        ! From `configuration_xdefaults_mode' docstring.
         call fontified("*background:"//TAB//TAB//TAB//"gray99"//LF//"*foreground:"//TAB//TAB//TAB//"black", &
-                       conf_xdefaults_mode, h)
+                       configuration_xdefaults_mode, h)
 
         checks: block
             call check(error, face(), "font_lock_variable_name_face")
@@ -333,7 +334,7 @@ contains
         type(handle_type) :: h
         integer(int64) :: shortage
 
-        call fontified("[entry]"//LF//"value = ""some string""", conf_toml_mode, h)
+        call fontified("[entry]"//LF//"value = ""some string""", configuration_toml_mode, h)
 
         checks: block
             call check(error, face(), "")
@@ -356,7 +357,7 @@ contains
         type(handle_type) :: h
 
         ! https://toml.io/en/v1.0.0#boolean
-        call fontified("[entry]"//LF//"a = true"//LF//"b = True", conf_toml_mode, h)
+        call fontified("[entry]"//LF//"a = true"//LF//"b = True", configuration_toml_mode, h)
 
         checks: block
             call find("tru")
@@ -374,10 +375,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
-        ! From `conf_desktop_mode' docstring.
+        ! From `configuration_desktop_mode' docstring.
         call fontified(TAB//"[Desktop Entry]"//LF//TAB//"Name=GNU Image Manipulation Program"//LF//TAB// &
                        "Name[oc]=Editor d'imatge GIMP"//LF//TAB//"Exec=gimp-2.8 %U"//LF//TAB//"Terminal=false", &
-                       conf_desktop_mode, h)
+                       configuration_desktop_mode, h)
 
         checks: block
             call find("Desk")
@@ -396,15 +397,15 @@ contains
         call leave(h)
     end subroutine test_desktop
 
-    !> `conf_mode' called directly runs the sub-mode the contents suggest.
+    !> `configuration_mode' called directly runs the sub-mode the contents suggest.
     subroutine test_guess(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer("; comment"//LF//"a=b"//LF, h)
-        call conf_mode(st)
-        call check(error, buffers(current)%major_mode, "conf_windows_mode")
+        call temporary_buffer("; comment"//LF//"a=b"//LF, h)
+        call configuration_mode(st)
+        call check(error, buffers(current)%major_mode, "configuration_windows_mode")
 
         if (allocated(error)) then
             call leave(h)
@@ -413,8 +414,8 @@ contains
 
         call erase_buffer(st)
         call insert("a: b"//LF//"c: d"//LF, st)
-        call conf_mode(st)
-        call check(error, buffers(current)%major_mode, "conf_colon_mode")
+        call configuration_mode(st)
+        call check(error, buffers(current)%major_mode, "configuration_colon_mode")
 
         if (allocated(error)) then
             call leave(h)
@@ -422,8 +423,8 @@ contains
         end if
 
         call erase_buffer(st)
-        call conf_mode(st)
-        call check(error, buffers(current)%major_mode, "conf_unix_mode")
+        call configuration_mode(st)
+        call check(error, buffers(current)%major_mode, "configuration_unix_mode")
         call leave(h)
     end subroutine test_guess
 
@@ -433,20 +434,20 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer("", h)
+        call temporary_buffer("", h)
 
         checks: block
             buffers(current)%filename = "/tmp/x/Cargo.toml"
             call set_auto_mode(st)
-            call check(error, buffers(current)%major_mode, "conf_toml_mode")
+            call check(error, buffers(current)%major_mode, "configuration_toml_mode")
             if (allocated(error)) exit checks
             buffers(current)%filename = "/tmp/x/app.properties.orig"
             call set_auto_mode(st)
-            call check(error, buffers(current)%major_mode, "conf_javaprop_mode")
+            call check(error, buffers(current)%major_mode, "configuration_javaprop_mode")
             if (allocated(error)) exit checks
             buffers(current)%filename = "/tmp/x/sshd.conf"
             call set_auto_mode(st)
-            call check(error, buffers(current)%major_mode, "conf_unix_mode")
+            call check(error, buffers(current)%major_mode, "configuration_unix_mode")
         end block checks
 
         deallocate (buffers(current)%filename)

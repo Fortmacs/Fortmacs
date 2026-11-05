@@ -37,59 +37,59 @@ submodule(coding_mod) cyrillic_mod
 contains
 
     !> Port of the `charset' coding systems of cyrillic.el.
-    module subroutine init_cyrillic()
+    module subroutine initialize_cyrillic()
         call define_charset_coding_system("cyrillic-iso-8bit", iachar("5"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-5"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "iso-8859-5"], &
                                           mime_charset="iso-8859-5", &
                                           doc="ISO 2022 based 8-bit encoding for Cyrillic script (MIME:ISO-" &
                                           //"8859-5).")
         call define_coding_system_alias("iso-8859-5", "cyrillic-iso-8bit")
         call define_charset_coding_system("cyrillic-koi8", iachar("R"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "koi8"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "koi8"], &
                                           mime_charset="koi8-r", &
                                           doc="KOI8 8-bit encoding for Cyrillic (MIME: KOI8-R).")
         call define_coding_system_alias("koi8-r", "cyrillic-koi8")
         call define_coding_system_alias("koi8", "cyrillic-koi8")
         call define_coding_system_alias("cp878", "cyrillic-koi8")
         call define_charset_coding_system("koi8-u", 1059, &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "koi8-u"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "koi8-u"], &
                                           mime_charset="koi8-u", &
                                           doc="KOI8-U 8-bit encoding for Cyrillic (MIME: KOI8-U)")
         call define_charset_coding_system("cyrillic-alternativnyj", iachar("A"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "alternativnyj"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "alternativnyj"], &
                                           doc="ALTERNATIVNYJ 8-bit encoding for Cyrillic.")
         call define_coding_system_alias("alternativnyj", "cyrillic-alternativnyj")
         call define_charset_coding_system("cp866", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm866"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ibm866"], &
                                           mime_charset="cp866", &
                                           doc="CP866 encoding for Cyrillic.")
         call define_charset_coding_system("koi8-t", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "koi8-t"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "koi8-t"], &
                                           mime_charset="koi8-t", &
                                           doc="KOI8-T 8-bit encoding for Cyrillic")
         call define_charset_coding_system("windows-1251", iachar("b"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1251"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "windows-1251"], &
                                           mime_charset="windows-1251", &
                                           doc="windows-1251 8-bit encoding for Cyrillic (MIME: WINDOWS-1251" &
                                           //")")
         call define_coding_system_alias("cp1251", "windows-1251")
         call define_charset_coding_system("cp1125", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp1125"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "cp1125"], &
                                           doc="cp1125 8-bit encoding for Cyrillic")
         call define_coding_system_alias("ruscii", "cp1125")
         call define_coding_system_alias("cp866u", "cp1125")
         call define_charset_coding_system("cp855", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp855"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "cp855"], &
                                           mime_charset="cp855", &
                                           doc="DOS codepage 855 (Russian)")
         call define_coding_system_alias("ibm855", "cp855")
         call define_charset_coding_system("mik", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "mik"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "mik"], &
                                           doc="Bulgarian DOS codepage")
         call define_charset_coding_system("pt154", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "pt154"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "pt154"], &
                                           doc="ParaType Asian Cyrillic codepage")
-    end subroutine init_cyrillic
+    end subroutine initialize_cyrillic
 
     !> Port of the language environments of cyrillic.el.
     module subroutine define_cyrillic_language_environments()

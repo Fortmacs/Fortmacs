@@ -25,7 +25,7 @@
 !>
 !> Deferred: see docs/status/version_control_mod.md.
 submodule(version_control_mod) version_control_branches_mod
-    use execute_interactively_mod, only: current_prefix_arg, PREFIX_NONE
+    use execute_interactively_mod, only: current_prefix_argument, PREFIX_NONE
     use minibuffer_mod, only: read_directory_name, REQUIRE_MATCH_YES
     use files_mod, only: abbreviate_file_name
     use version_control_hooks_mod, only: VC_REVISION_GRANULARITY_REPOSITORY, vc_file_get_incoming_revision, &
@@ -35,12 +35,12 @@ submodule(version_control_mod) version_control_branches_mod
 contains
 
     !> The current buffer's `default_directory'.  Not a port.
-    function buffer_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function buffer_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = "./"
+        directory = "./"
         if (current == 0) return
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
     end function buffer_directory
 
     ! ------------------------------------------------------------------
@@ -61,15 +61,15 @@ contains
     end function is_repository_granular
 
     module procedure vc_create_tag
-    character(len=:), allocatable :: kind, directory
+    character(len=:), allocatable :: kind, tag_directory
     integer :: b
 
     kind = "tag"
     if (is_branch) kind = "branch"
     call message("Making "//kind//"... ")
-    directory = dir
-    if (is_file_directory(directory)) directory = file_name_as_directory(directory)
-    b = vc_responsible_backend(directory, status)
+    tag_directory = directory
+    if (is_file_directory(tag_directory)) tag_directory = file_name_as_directory(tag_directory)
+    b = vc_responsible_backend(tag_directory, status)
     if (.not. status%ok()) return
 
     if (.not. associated(vc_backends(b)%create_tag)) then
@@ -77,19 +77,19 @@ contains
         return
     end if
 
-    call vc_backends(b)%create_tag(directory, name, is_branch, status)
+    call vc_backends(b)%create_tag(tag_directory, name, is_branch, status)
     if (.not. status%ok()) return
-    call vc_resynch_buffer(directory, directory, status, .true., VC_NOQUERY_YES, .true.)
+    call vc_resynch_buffer(tag_directory, tag_directory, status, .true., VC_NOQUERY_YES, .true.)
     if (.not. status%ok()) return
     call message("Making "//kind//"... done")
     end procedure vc_create_tag
 
     module procedure vc_create_branch
-    call vc_create_tag(dir, name, .true., status)
+    call vc_create_tag(directory, name, .true., status)
     end procedure vc_create_branch
 
     module procedure vc_retrieve_tag
-    character(len=:), allocatable :: msg, kind
+    character(len=:), allocatable :: message_text, kind
     logical :: update, branching
     integer :: b
 
@@ -97,11 +97,11 @@ contains
     if (present(is_branch)) branching = is_branch
 
     if (branching .and. len(name) == 0) then
-        call set_error(status, FM_USER_ERROR, "Branch name required")
+        call set_error(status, USER_ERROR_CODE, "Branch name required")
         return
     end if
 
-    b = vc_responsible_backend(dir, status)
+    b = vc_responsible_backend(directory, status)
     if (.not. status%ok()) return
     update = .false.
 
@@ -114,29 +114,29 @@ contains
     if (branching) kind = "branch"
 
     if (len(name) == 0) then
-        msg = "Updating "//abbreviate_file_name(dir)//"... "
+        message_text = "Updating "//abbreviate_file_name(directory)//"... "
     else
-        msg = "Retrieving "//kind//" "//name//" into "//abbreviate_file_name(dir)//"... "
+        message_text = "Retrieving "//kind//" "//name//" into "//abbreviate_file_name(directory)//"... "
     end if
 
-    call message(msg)
+    call message(message_text)
 
     if (.not. associated(vc_backends(b)%retrieve_tag)) then
         call vc_not_supported(status, "retrieve-tag", b)
         return
     end if
 
-    call vc_backends(b)%retrieve_tag(dir, name, update, status)
+    call vc_backends(b)%retrieve_tag(directory, name, update, status)
     if (.not. status%ok()) return
-    call vc_resynch_buffer(dir, dir, status, .true., VC_NOQUERY_YES, .true.)
+    call vc_resynch_buffer(directory, directory, status, .true., VC_NOQUERY_YES, .true.)
     if (.not. status%ok()) return
     call vc_retrieve_tag_hook%execute(status)
     if (.not. status%ok()) return
-    call message(msg//"done")
+    call message(message_text//"done")
     end procedure vc_retrieve_tag
 
     module procedure vc_switch_branch
-    call vc_retrieve_tag(dir, name, status, .true.)
+    call vc_retrieve_tag(directory, name, status, .true.)
     end procedure vc_switch_branch
 
     !> The directory of the tag and branch commands: `default_directory'
@@ -144,44 +144,44 @@ contains
     !> (`default_directory' as the default when DEFAULT).  ROOT asks for the
     !> repository's root instead of `default_directory'.  Port of the
     !> argument reading of vc.el:vc-create-tag and vc.el:vc-retrieve-tag.
-    recursive subroutine read_tag_directory(dir, status, root, default)
-        character(len=:), allocatable, intent(out) :: dir
+    recursive subroutine read_tag_directory(directory, status, root, default)
+        character(len=:), allocatable, intent(out) :: directory
         type(status_type), intent(out) :: status
         logical, intent(in) :: root, default
         character(len=:), allocatable :: expanded
         logical :: found
 
-        dir = ""
+        directory = ""
 
         if (is_repository_granular(status)) then
             ! For VC's that do not work at file level, it's pointless
             ! to ask for a directory, branches are created at repository level.
             if (root) then
-                call vc_root_dir(dir, found, status)
+                call vc_root_directory(directory, found, status)
                 if (.not. status%ok()) return
-                call expand_file_name(dir, expanded, status)
+                call expand_file_name(directory, expanded, status)
                 if (.not. status%ok()) return
-                dir = expanded
+                directory = expanded
             else
-                dir = buffer_directory()
+                directory = buffer_directory()
             end if
         else if (status%ok()) then
             if (default) then
-                call read_directory_name("Directory: ", dir, status, buffer_directory(), buffer_directory(), &
+                call read_directory_name("Directory: ", directory, status, buffer_directory(), buffer_directory(), &
                                          REQUIRE_MATCH_YES)
             else
-                call read_directory_name("Directory: ", dir, status, buffer_directory(), mustmatch=REQUIRE_MATCH_YES)
+                call read_directory_name("Directory: ", directory, status, buffer_directory(), mustmatch=REQUIRE_MATCH_YES)
             end if
         end if
     end subroutine read_tag_directory
 
-    module procedure cmd_vc_create_tag
-    character(len=:), allocatable :: dir, name
+    module procedure execute_vc_create_tag
+    character(len=:), allocatable :: directory, name
     logical :: branching
 
-    call read_tag_directory(dir, status, .false., .true.)
+    call read_tag_directory(directory, status, .false., .true.)
     if (.not. status%ok()) return
-    branching = current_prefix_arg%kind /= PREFIX_NONE
+    branching = current_prefix_argument%kind /= PREFIX_NONE
 
     if (branching) then
         call read_string("New branch name: ", name, status, history="vc_revision_history")
@@ -190,32 +190,32 @@ contains
     end if
 
     if (.not. status%ok()) return
-    call vc_create_tag(dir, name, branching, status)
-    end procedure cmd_vc_create_tag
+    call vc_create_tag(directory, name, branching, status)
+    end procedure execute_vc_create_tag
 
-    module procedure cmd_vc_create_branch
-    character(len=:), allocatable :: dir, name
+    module procedure execute_vc_create_branch
+    character(len=:), allocatable :: directory, name
 
-    call read_tag_directory(dir, status, .false., .true.)
+    call read_tag_directory(directory, status, .false., .true.)
     if (.not. status%ok()) return
     call read_string("New branch name: ", name, status, history="vc_revision_history")
     if (.not. status%ok()) return
-    call vc_create_branch(dir, name, status)
-    end procedure cmd_vc_create_branch
+    call vc_create_branch(directory, name, status)
+    end procedure execute_vc_create_branch
 
-    module procedure cmd_vc_retrieve_tag
+    module procedure execute_vc_retrieve_tag
     type(string_type), allocatable :: files(:)
-    character(len=:), allocatable :: dir, name
+    character(len=:), allocatable :: directory, name
     logical :: branching
     integer :: b
 
     ! XXX: Either we call expand-file-name here, or use
     ! file-in-directory-p inside vc-resynch-buffers-in-directory.
-    call read_tag_directory(dir, status, .true., .false.)
+    call read_tag_directory(directory, status, .true., .false.)
     if (.not. status%ok()) return
-    branching = current_prefix_arg%kind /= PREFIX_NONE
-    call append_string(files, dir)
-    b = vc_responsible_backend(dir, status)
+    branching = current_prefix_argument%kind /= PREFIX_NONE
+    call append_string(files, directory)
+    b = vc_responsible_backend(directory, status)
     if (.not. status%ok()) return
 
     if (branching) then
@@ -225,23 +225,23 @@ contains
     end if
 
     if (.not. status%ok()) return
-    call vc_retrieve_tag(dir, name, status, branching)
-    end procedure cmd_vc_retrieve_tag
+    call vc_retrieve_tag(directory, name, status, branching)
+    end procedure execute_vc_retrieve_tag
 
-    module procedure cmd_vc_switch_branch
+    module procedure execute_vc_switch_branch
     type(string_type), allocatable :: files(:)
-    character(len=:), allocatable :: dir, name
+    character(len=:), allocatable :: directory, name
     integer :: b
 
-    call read_tag_directory(dir, status, .true., .false.)
+    call read_tag_directory(directory, status, .true., .false.)
     if (.not. status%ok()) return
-    call append_string(files, dir)
-    b = vc_responsible_backend(dir, status)
+    call append_string(files, directory)
+    b = vc_responsible_backend(directory, status)
     if (.not. status%ok()) return
     call vc_read_revision("Switch to branch: ", name, status, files, b)
     if (.not. status%ok()) return
-    call vc_switch_branch(dir, name, status)
-    end procedure cmd_vc_switch_branch
+    call vc_switch_branch(directory, name, status)
+    end procedure execute_vc_switch_branch
 
     ! ------------------------------------------------------------------
     ! Pulling and pushing
@@ -256,7 +256,7 @@ contains
         character(len=:), allocatable :: root
         logical :: found
 
-        call vc_root_dir(root, found, st, backend)
+        call vc_root_directory(root, found, st, backend)
         if (found) call vc_file_clear_incoming_revisions(root)
     end subroutine clear_incoming_revisions
 
@@ -298,7 +298,7 @@ contains
         ! REMOTE-LOCATION from which we are pulling.
         call clear_incoming_revisions(b)
     else
-        call set_error(status, FM_GENERIC_ERROR, "VC update is unsupported for `"//vc_backend_name(b)//"'")
+        call set_error(status, GENERIC_ERROR_CODE, "VC update is unsupported for `"//vc_backend_name(b)//"'")
     end if
     end procedure vc_pull
 
@@ -316,17 +316,17 @@ contains
         ! REMOTE-LOCATION to which we are pushing.
         call clear_incoming_revisions(fs%backend)
     else
-        call set_error(status, FM_USER_ERROR, "VC push is unsupported for `"//vc_backend_name(fs%backend)//"'")
+        call set_error(status, USER_ERROR_CODE, "VC push is unsupported for `"//vc_backend_name(fs%backend)//"'")
     end if
     end procedure vc_push
 
-    module procedure cmd_vc_pull
-    call vc_pull(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end procedure cmd_vc_pull
+    module procedure execute_vc_pull
+    call vc_pull(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end procedure execute_vc_pull
 
-    module procedure cmd_vc_push
-    call vc_push(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end procedure cmd_vc_push
+    module procedure execute_vc_push
+    call vc_push(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end procedure execute_vc_push
 
     ! ------------------------------------------------------------------
     ! The incoming revision
@@ -354,7 +354,7 @@ contains
     refreshing = .false.
     if (present(refresh)) refreshing = refresh
     revision = ""
-    call vc_root_dir(root, found, status, backend)
+    call vc_root_directory(root, found, status, backend)
     if (.not. status%ok()) return
     known = .false.
     found = .false.
@@ -376,6 +376,6 @@ contains
         end if
     end if
 
-    if (.not. found) call set_error(status, FM_USER_ERROR, "No incoming revision -- local-only branch?")
+    if (.not. found) call set_error(status, USER_ERROR_CODE, "No incoming revision -- local-only branch?")
     end procedure vc_incoming_revision
 end submodule version_control_branches_mod

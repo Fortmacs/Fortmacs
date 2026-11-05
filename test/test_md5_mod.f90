@@ -52,19 +52,19 @@ contains
     subroutine test_md5_known_answers(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, hex(compute_md5("")) == &
+        call check(error, hexadecimal(compute_md5("")) == &
                    "d41d8cd98f00b204e9800998ecf8427e", "empty")
         if (allocated(error)) return
-        call check(error, hex(compute_md5("abc")) == &
+        call check(error, hexadecimal(compute_md5("abc")) == &
                    "900150983cd24fb0d6963f7d28e17f72", "abc")
         if (allocated(error)) return
-        call check(error, hex(compute_md5(MESSAGE_448)) == &
+        call check(error, hexadecimal(compute_md5(MESSAGE_448)) == &
                    "8215ef0796a20bcaaae116d3876c664a", "the 448-bit message")
         if (allocated(error)) return
-        call check(error, hex(compute_md5(MESSAGE_896)) == &
+        call check(error, hexadecimal(compute_md5(MESSAGE_896)) == &
                    "03dd8807a93175fb062dfb55dc7d359c", "the 896-bit message")
         if (allocated(error)) return
-        call check(error, hex(compute_md5(repeat("a", 1000000))) == &
+        call check(error, hexadecimal(compute_md5(repeat("a", 1000000))) == &
                    "7707d6ae4e027c70eea2a935c2296f21", "a million a characters")
     end subroutine test_md5_known_answers
 
@@ -95,16 +95,16 @@ contains
     end subroutine test_md5_pieces
 
     !> The lowercase hexadecimal digits of the bytes of DIGEST.
-    pure function hex(digest) result(text)
+    pure function hexadecimal(digest) result(text)
         character(len=*), intent(in) :: digest
         character(len=2*len(digest)) :: text
-        character(len=16), parameter :: HEX_DIGITS = "0123456789abcdef"
+        character(len=16), parameter :: HEXADECIMAL_DIGITS = "0123456789abcdef"
         integer :: i, byte
 
         do i = 1, len(digest)
             byte = iachar(digest(i:i))
-            text(2*i - 1:2*i - 1) = HEX_DIGITS(byte/16 + 1:byte/16 + 1)
-            text(2*i:2*i) = HEX_DIGITS(mod(byte, 16) + 1:mod(byte, 16) + 1)
+            text(2*i - 1:2*i - 1) = HEXADECIMAL_DIGITS(byte/16 + 1:byte/16 + 1)
+            text(2*i:2*i) = HEXADECIMAL_DIGITS(mod(byte, 16) + 1:mod(byte, 16) + 1)
         end do
-    end function hex
+    end function hexadecimal
 end module test_md5_mod

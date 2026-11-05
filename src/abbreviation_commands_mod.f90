@@ -27,13 +27,15 @@ submodule(abbreviation_mod) abbreviation_commands_mod
     use utility_functions_mod, only: count_characters, is_string_less
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: set_error, format_message, FM_GENERIC_ERROR
+    use error_mod, only: set_error, format_message, GENERIC_ERROR_CODE
     use data_mod, only: append_locals_clearer, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, erase_buffer, close_buffer, &
                           restore_buffer_modified, generate_new_buffer_name
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use editing_functions_mod, only: interactive_region, point, point_min, point_max, goto_char, buffer_substring, delete_region, &
-                                     char_after, line_beginning_position, region_beginning, region_end, is_eob, point_marker
+    use editing_functions_mod, only: interactive_region, point, point_minimum, point_maximum, goto_character, buffer_substring, &
+                                     delete_region, &
+                                     character_after, line_beginning_position, region_beginning, region_end, is_end_of_buffer, &
+                                     point_marker
     use insert_delete_mod, only: insert, replace_range
     use syntax_mod, only: forward_word, skip_syntax_forward, skip_syntax_backward, syntax_table, set_syntax_table, &
                           standard_syntax_table
@@ -41,10 +43,10 @@ submodule(abbreviation_mod) abbreviation_commands_mod
                           SEARCH_NOERROR, SEARCH_MOVE
     use basic_subprograms_mod, only: looking_back, read_y_or_n
     use casefiddle_mod, only: downcase_string, upcase_region, upcase_initials_region
-    use editing_commands_mod, only: delete_char
+    use editing_commands_mod, only: delete_character
     use indent_mod, only: indent_to
     use print_mod, only: fortran_string
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use undo_mod, only: undo_boundary
     use frame_mod, only: selected_frame
     use minibuffer_reading_mod, only: read_string
@@ -54,8 +56,8 @@ submodule(abbreviation_mod) abbreviation_commands_mod
     use file_input_output_mod, only: file_exists, file_name_directory, expand_file_name, insert_file_contents, write_region, &
                                      is_file_directory
     use files_mod, only: create_directory, append_save_some_buffers_function
-    use configuration_mod, only: init_file_name
-    use names_mod, only: user_init_file
+    use configuration_mod, only: initialization_file_name
+    use names_mod, only: user_initialization_file
     use display_engine_mod, only: message
     use modes_mod, only: major_modes, minor_modes
     implicit none(type, external)
@@ -227,7 +229,7 @@ contains
         if (associated(abbrev_tables(k)%p, table)) return
     end do
 
-    abbrev_tables = [abbrev_table_ref_type(table), abbrev_tables]
+    abbrev_tables = [abbrev_table_reference_type(table), abbrev_tables]
     end procedure abbrev_table_define_table
 
     module procedure clear_abbrev_table
@@ -256,7 +258,7 @@ contains
 
     module procedure abbrev_table_append_parent
     if (.not. allocated(self%parents)) allocate (self%parents(0))
-    self%parents = [self%parents, abbrev_table_ref_type(parent)]
+    self%parents = [self%parents, abbrev_table_reference_type(parent)]
     end procedure abbrev_table_append_parent
 
     module procedure clear_all_abbrevs
@@ -305,11 +307,11 @@ contains
 
     module procedure abbrev_table_names
     integer :: k, m
-    logical :: sys
+    logical :: include_system
     integer :: width
 
-    sys = .false.
-    if (present(system)) sys = system
+    include_system = .false.
+    if (present(system)) include_system = system
     width = 1
     m = 0
 
@@ -334,7 +336,7 @@ contains
         integer, intent(in) :: i
 
         user_abbrev = allocated(table%abbrevs(i)%expansion)
-        if (user_abbrev .and. .not. sys) user_abbrev = .not. table%abbrevs(i)%system
+        if (user_abbrev .and. .not. include_system) user_abbrev = .not. table%abbrevs(i)%system
     end function user_abbrev
     end procedure abbrev_table_names
 
@@ -435,7 +437,7 @@ contains
     !> The list of abbrev tables that are currently active, or TABLE.
     !> Port of abbrev.el:abbrev--active-tables (no minor-mode tables).
     subroutine active_tables(tables, table)
-        type(abbrev_table_ref_type), allocatable, intent(out) :: tables(:)
+        type(abbrev_table_reference_type), allocatable, intent(out) :: tables(:)
         type(abbrev_table_type), intent(in), target, optional :: table
 
         if (present(table)) then
@@ -452,9 +454,9 @@ contains
     !> Take the first table off QUEUE into TABLE and put its parents in
     !> front of the rest.  Not a port.
     subroutine pop_table(queue, table)
-        type(abbrev_table_ref_type), allocatable, intent(inout) :: queue(:)
+        type(abbrev_table_reference_type), allocatable, intent(inout) :: queue(:)
         type(abbrev_table_type), pointer, intent(out) :: table
-        type(abbrev_table_ref_type), allocatable :: rest(:)
+        type(abbrev_table_reference_type), allocatable :: rest(:)
         integer :: np
 
         table => queue(1)%p
@@ -495,8 +497,8 @@ contains
     !> Port of abbrev.el:abbrev-symbol, in part.
     subroutine name_in(abbrev, tables, result)
         character(len=*), intent(in) :: abbrev
-        type(abbrev_table_ref_type), allocatable, intent(inout) :: tables(:)
-        type(abbrev_ref_type), intent(out) :: result
+        type(abbrev_table_reference_type), allocatable, intent(inout) :: tables(:)
+        type(abbrev_reference_type), intent(out) :: result
         type(abbrev_table_type), pointer :: table
         integer :: k
 
@@ -513,22 +515,22 @@ contains
     end subroutine name_in
 
     module procedure abbrev_name
-    type(abbrev_table_ref_type), allocatable :: tables(:)
+    type(abbrev_table_reference_type), allocatable :: tables(:)
 
     call active_tables(tables, table)
     call name_in(abbrev, tables, result)
     end procedure abbrev_name
 
     module procedure abbrev_expansion
-    type(abbrev_ref_type) :: sym
+    type(abbrev_reference_type) :: symbol
     integer :: k
 
-    call abbrev_name(abbrev, sym, table)
-    if (.not. associated(sym%table)) return
-    k = find_abbrev(sym%table, sym%name)
+    call abbrev_name(abbrev, symbol, table)
+    if (.not. associated(symbol%table)) return
+    k = find_abbrev(symbol%table, symbol%name)
 
     if (k > 0) then
-        if (allocated(sym%table%abbrevs(k)%expansion)) expansion = sym%table%abbrevs(k)%expansion
+        if (allocated(symbol%table%abbrevs(k)%expansion)) expansion = symbol%table%abbrevs(k)%expansion
     end if
     end procedure abbrev_expansion
 
@@ -544,18 +546,18 @@ contains
         abbrev_start_location = handle_type()
     end subroutine clear_start_location
 
-    !> Try and find an abbrev before point: SYM (no table if none), the
+    !> Try and find an abbrev before point: SYMBOL (no table if none), the
     !> NAME it was found by, and its WORDSTART and WORDEND.  Port of
     !> abbrev.el:abbrev--before-point.
-    recursive subroutine before_point(sym, name, wordstart, wordend, status)
-        type(abbrev_ref_type), intent(out) :: sym
+    recursive subroutine before_point(symbol, name, wordstart, wordend, status)
+        type(abbrev_reference_type), intent(out) :: symbol
         character(len=:), allocatable, intent(out) :: name
         integer(int64), intent(out) :: wordstart, wordend
         type(status_type), intent(out) :: status
-        type(abbrev_ref_type) :: found
-        type(abbrev_table_ref_type), allocatable :: tables(:)
+        type(abbrev_reference_type) :: found
+        type(abbrev_table_reference_type), allocatable :: tables(:)
         type(abbrev_table_type), pointer :: table
-        integer(int64) :: pos, start, end, lim, moved
+        integer(int64) :: position, start, end, limit_position, moved
         integer(int32) :: c
         logical :: have, enabled
         integer :: k
@@ -567,20 +569,20 @@ contains
         name = ""
         if (.not. same_handle(abbrev_start_location_buffer, current_buffer())) call clear_start_location()
         call active_tables(tables)
-        pos = point()
+        position = point()
 
         if (abbrev_start_location%index /= 0) then
             call marker_position(abbrev_start_location, start, st)
             call clear_start_location()
 
             ! Remove the hyphen inserted by `abbrev-prefix-mark'.
-            if (start < point_max()) then
-                call char_after(c, have, start)
+            if (start < point_maximum()) then
+                call character_after(c, have, start)
 
                 if (have .and. c == iachar("-")) then
                     call delete_region(start, start + 1, status)
                     if (.not. status%ok()) return
-                    pos = pos - 1
+                    position = position - 1
                 end if
             end if
 
@@ -591,8 +593,8 @@ contains
                 call buffer_substring(start, end, name, status)
                 if (.not. status%ok()) return
                 ! Restore point.
-                call goto_char(pos)
-                call name_in(name, tables, sym)
+                call goto_character(position)
+                call name_in(name, tables, symbol)
                 wordstart = start
                 wordend = end
             end if
@@ -608,17 +610,17 @@ contains
             have = .false.
 
             if (enabled) then
-                if (.not. allocated(table%regexp)) then
-                    ! We used to default `re' to "\\<\\(\\w+\\)\\W*"
+                if (.not. allocated(table%regular_expression)) then
+                    ! We used to default `regular_expression' to "\\<\\(\\w+\\)\\W*"
                     ! but when words-include-escapes is set, that
                     ! is not right and fixing it is boring.
-                    lim = point()
+                    limit_position = point()
                     call forward_word(-1_int64)
                     start = point()
                     call forward_word(1_int64)
-                    end = min(point(), lim)
+                    end = min(point(), limit_position)
                     have = .true.
-                else if (looking_back(table%regexp, status, limit=line_beginning_position())) then
+                else if (looking_back(table%regular_expression, status, limit=line_beginning_position())) then
                     start = match_beginning(1, st)
                     end = match_end(1, st)
                     have = .true.
@@ -648,10 +650,10 @@ contains
             end if
 
             ! Restore point.
-            call goto_char(pos)
+            call goto_character(position)
         end do
 
-        if (associated(found%table)) sym = found
+        if (associated(found%table)) symbol = found
     end subroutine before_point
 
     module procedure abbrev_insert
@@ -680,12 +682,12 @@ contains
     ! and insert the expansion.
     if (allocated(abbrev%table%abbrevs(k)%expansion)) then
         expansion = abbrev%table%abbrevs(k)%expansion
-        call goto_char(wstart)
+        call goto_character(wstart)
         ! Insert at beginning so that markers at the end (e.g. point)
         ! are preserved.
         call insert(expansion, status)
         if (.not. status%ok()) return
-        call delete_char(wend - wstart, status)
+        call delete_character(wend - wstart, status)
         if (.not. status%ok()) return
         saved_fold = case_fold_search%value
         case_fold_search = .false.
@@ -708,10 +710,10 @@ contains
                     p0 = point()
                     call forward_word(-1_int64)
                     a = point()
-                    call goto_char(wstart)
+                    call goto_character(wstart)
                     call forward_word(1_int64)
                     b = point()
-                    call goto_char(p0)
+                    call goto_character(p0)
                 end if
 
                 if (.not. abbrev_all_caps%value .and. a > b) then
@@ -723,11 +725,11 @@ contains
                 ! Abbrev included some caps.  Cap first initial of expansion.
                 end = point()
                 ! Find the initial.
-                call goto_char(wstart)
+                call goto_character(wstart)
                 moved = skip_syntax_forward("^w", end - 1)
                 ! Change just that.
                 call upcase_initials_region(point(), point() + 1, status)
-                call goto_char(end)
+                call goto_character(end)
             end if
         end if
 
@@ -759,27 +761,27 @@ contains
     end procedure abbrev_insert
 
     module procedure expand_abbrev
-    type(abbrev_ref_type) :: sym
+    type(abbrev_reference_type) :: symbol
 
     if (associated(abbrev_expand_function)) then
-        call abbrev_expand_function(sym, status)
+        call abbrev_expand_function(symbol, status)
     else
-        call abbrev_default_expand(sym, status)
+        call abbrev_default_expand(symbol, status)
     end if
 
-    if (present(expanded)) expanded = sym
+    if (present(expanded)) expanded = symbol
     end procedure expand_abbrev
 
     module procedure abbrev_default_expand
-    type(abbrev_ref_type) :: sym
+    type(abbrev_reference_type) :: symbol
     character(len=:), allocatable :: name
     integer(int64) :: wordstart, wordend, sp, ep
     type(handle_type) :: startpos, endmark
     type(status_type) :: st
 
-    call before_point(sym, name, wordstart, wordend, status)
+    call before_point(symbol, name, wordstart, wordend, status)
     if (.not. status%ok()) return
-    if (.not. associated(sym%table)) return
+    if (.not. associated(symbol%table)) return
     call copy_marker_at(point(), startpos, .true., st)
     call copy_marker_at(wordend, endmark, .true., st)
     ! Add an undo boundary, in case we are doing this for a
@@ -787,34 +789,34 @@ contains
     if (.not. selected_frame%minibuffer_selected) call undo_boundary()
     ! Now sym is the abbrev symbol.
     last_abbrev_text = name
-    last_abbrev = sym
+    last_abbrev = symbol
     last_abbrev_location = wordstart
     ! If this abbrev has an expansion, delete the abbrev
     ! and insert the expansion.
-    call abbrev_insert(sym, abbrev, status, name, wordstart, wordend)
+    call abbrev_insert(symbol, abbrev, status, name, wordstart, wordend)
     ! Yuck!!  If expand-abbrev is called with point slightly
     ! further than the end of the abbrev, move point back to
     ! where it started.
     call marker_position(startpos, sp, st)
     call marker_position(endmark, ep, st)
-    if (status%ok() .and. sp > ep .and. point() == ep) call goto_char(sp)
+    if (status%ok() .and. sp > ep .and. point() == ep) call goto_character(sp)
     call destroy_marker(startpos, st)
     call destroy_marker(endmark, st)
     end procedure abbrev_default_expand
 
     module procedure unexpand_abbrev
-    integer(int64) :: pos, vlen, tlen
+    integer(int64) :: position, vlen, tlen
     type(handle_type) :: saved
     type(status_type) :: st
     integer :: k
-    character(len=:), allocatable :: val
+    character(len=:), allocatable :: value
 
     status = status_type()
     ! (save-excursion ...)
     call point_marker(saved)
 
-    if (point_min() <= last_abbrev_location .and. last_abbrev_location <= point_max()) then
-        call goto_char(last_abbrev_location)
+    if (point_minimum() <= last_abbrev_location .and. last_abbrev_location <= point_maximum()) then
+        call goto_character(last_abbrev_location)
 
         if (allocated(last_abbrev_text)) then
             ! This isn't correct if last-abbrev's hook was used
@@ -823,25 +825,25 @@ contains
             if (associated(last_abbrev%table)) k = find_abbrev(last_abbrev%table, last_abbrev%name)
 
             if (k > 0) then
-                if (allocated(last_abbrev%table%abbrevs(k)%expansion)) val = last_abbrev%table%abbrevs(k)%expansion
+                if (allocated(last_abbrev%table%abbrevs(k)%expansion)) value = last_abbrev%table%abbrevs(k)%expansion
             end if
 
-            if (.not. allocated(val)) then
-                call set_error(status, FM_GENERIC_ERROR, "Value of abbrev_name must be a string")
+            if (.not. allocated(value)) then
+                call set_error(status, GENERIC_ERROR_CODE, "Value of abbrev_name must be a string")
             else
-                vlen = count_characters(val)
+                vlen = count_characters(value)
                 tlen = count_characters(last_abbrev_text)
 
-                if (point() + vlen > point_max()) then
+                if (point() + vlen > point_maximum()) then
                     ! replace-region-contents validates the region.
                     call delete_region(point(), point() + vlen, status)
                 else
                     ! Don't inherit properties here; just copy from old contents.
-                    pos = point()
-                    call replace_range(pos, pos + vlen, last_abbrev_text, .true., status)
+                    position = point()
+                    call replace_range(position, position + vlen, last_abbrev_text, .true., status)
 
                     if (status%ok()) then
-                        call goto_char(pos + tlen)
+                        call goto_character(position + tlen)
                         deallocate (last_abbrev_text)
                     end if
                 end if
@@ -849,8 +851,8 @@ contains
         end if
     end if
 
-    call marker_position(saved, pos, st)
-    call goto_char(pos)
+    call marker_position(saved, position, st)
+    call goto_character(position)
     call destroy_marker(saved, st)
     end procedure unexpand_abbrev
 
@@ -865,7 +867,7 @@ contains
         type(abbrev_table_type), intent(in) :: table
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
-        integer(int64) :: col
+        integer(int64) :: column
         character(len=24) :: buffer
 
         status = status_type()
@@ -876,16 +878,16 @@ contains
             if (.not. status%ok()) return
 
             if (.not. a%system) then
-                col = indent_to(15_int64, status, 1_int64)
+                column = indent_to(15_int64, status, 1_int64)
             else
                 call insert(" (sys)", status)
-                if (status%ok()) col = indent_to(20_int64, status, 1_int64)
+                if (status%ok()) column = indent_to(20_int64, status, 1_int64)
             end if
 
             if (.not. status%ok()) return
             write (buffer, "(i0)") a%count
             call insert(trim(buffer), status)
-            if (status%ok()) col = indent_to(20_int64, status, 1_int64)
+            if (status%ok()) column = indent_to(20_int64, status, 1_int64)
             if (status%ok()) call insert(fortran_string(a%expansion)//LF, status)
         end associate
     end subroutine describe_abbrev
@@ -993,26 +995,26 @@ contains
     end procedure insert_abbrev_table_description
 
     module procedure insert_abbrevs
-    integer(int64) :: opoint, pos
+    integer(int64) :: original_point, position
     integer :: k
     type(handle_type) :: saved
     type(status_type) :: st
 
     call ensure_tables()
     status = status_type()
-    opoint = point()
-    call copy_marker_at(opoint, saved, .false., st)
+    original_point = point()
+    call copy_marker_at(original_point, saved, .false., st)
 
     do k = 1, size(abbrev_tables)
         call insert_abbrev_table_description(abbrev_tables(k)%p, status, readable=.true.)
         if (.not. status%ok()) exit
     end do
 
-    pos = point()
-    call marker_position(saved, opoint, st)
+    position = point()
+    call marker_position(saved, original_point, st)
     call destroy_marker(saved, st)
-    call goto_char(opoint)
-    if (status%ok()) call push_mark(pos)
+    call goto_character(original_point)
+    if (status%ok()) call push_mark(position)
     end procedure insert_abbrevs
 
     module procedure prepare_abbrev_list_buffer
@@ -1062,7 +1064,7 @@ contains
         end if
     end if
 
-    call goto_char(point_min())
+    call goto_character(point_minimum())
     call restore_buffer_modified(.false.)
     call set_buffer(old, st)
     end procedure prepare_abbrev_list_buffer
@@ -1090,7 +1092,7 @@ contains
 
     if (len(local_name) > 0) then
         call search_forward("("//local_name//")"//LF//LF, found, st, noerror=SEARCH_NOERROR)
-        if (found > 0) call goto_char(match_end(0, st))
+        if (found > 0) call goto_character(match_end(0, st))
     end if
     end procedure edit_abbrevs
 
@@ -1104,20 +1106,20 @@ contains
 
         if (allocated(abbrev_file_name)) then
             file = abbrev_file_name
-        else if (allocated(user_init_file)) then
-            file = user_init_file
-            if (len(file) == 0) file = init_file_name()
+        else if (allocated(user_initialization_file)) then
+            file = user_initialization_file
+            if (len(file) == 0) file = initialization_file_name()
         else
-            file = init_file_name()
+            file = initialization_file_name()
         end if
     end function abbrev_file
 
     module procedure write_abbrev_file
-    character(len=:), allocatable :: target_file, block, msg, dir
-    type(abbrev_table_ref_type), allocatable :: sorted(:)
-    type(abbrev_table_ref_type) :: x
+    character(len=:), allocatable :: target_file, block, message_text, directory
+    type(abbrev_table_reference_type), allocatable :: sorted(:)
+    type(abbrev_table_reference_type) :: x
     character(len=:), allocatable :: names(:)
-    type(handle_type) :: old, temp
+    type(handle_type) :: old, temporary
     type(status_type) :: st
     integer(int64) :: inserted, found, beginning
     integer :: k, j, m
@@ -1150,9 +1152,9 @@ contains
     end do
 
     old = current_buffer()
-    call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, status, inhibit_buffer_hooks=.true.)
+    call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, status, inhibit_buffer_hooks=.true.)
     if (.not. status%ok()) return
-    call set_buffer(temp, status)
+    call set_buffer(temporary, status)
     if (.not. status%ok()) return
     ! The abbrevs, as `define' calls.
     call insert("        "//BLOCK_START//LF, status)
@@ -1164,13 +1166,13 @@ contains
     end do
 
     if (status%ok()) call insert("        "//BLOCK_END//LF, status)
-    if (status%ok()) call buffer_substring(point_min(), point_max(), block, status)
+    if (status%ok()) call buffer_substring(point_minimum(), point_maximum(), block, status)
     if (status%ok()) call erase_buffer(status)
     ! The init file, with the abbrevs replacing those written before at the
     ! end of `configure'.
     if (status%ok() .and. file_exists(target_file)) call insert_file_contents(target_file, .false., inserted, status)
 
-    if (status%ok() .and. point_max() == point_min()) then
+    if (status%ok() .and. point_maximum() == point_minimum()) then
         ! A new init file.
         call insert("module user_config"//LF//"    use fortmacs"//LF//"    implicit none(type, external)"//LF// &
                     "    private"//LF//LF//"    public :: configure"//LF//LF//"contains"//LF//LF// &
@@ -1182,7 +1184,7 @@ contains
     case_fold_search = .true.
 
     if (status%ok()) then
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward(BLOCK_START, found, st, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
@@ -1192,10 +1194,10 @@ contains
             if (found > 0) then
                 call search_forward(LF, found, st, noerror=SEARCH_MOVE)
                 call delete_region(beginning, point(), status)
-                call goto_char(beginning)
+                call goto_character(beginning)
             else
                 found = 0
-                call goto_char(point_min())
+                call goto_character(point_minimum())
             end if
         end if
 
@@ -1203,9 +1205,9 @@ contains
             call search_forward("end subroutine configure", found, st, noerror=SEARCH_NOERROR)
 
             if (found == 0) then
-                call set_error(status, FM_GENERIC_ERROR, format_message("No `end subroutine configure' in ")//target_file)
+                call set_error(status, GENERIC_ERROR_CODE, format_message("No `end subroutine configure' in ")//target_file)
             else
-                call goto_char(line_beginning_position())
+                call goto_character(line_beginning_position())
             end if
         end if
     end if
@@ -1214,20 +1216,20 @@ contains
     if (status%ok()) call insert(block, status)
 
     if (status%ok()) then
-        dir = file_name_directory(target_file)
+        directory = file_name_directory(target_file)
 
-        if (len(dir) > 0) then
-            if (.not. is_file_directory(dir)) call create_directory(dir, status, parents=.true.)
+        if (len(directory) > 0) then
+            if (.not. is_file_directory(directory)) call create_directory(directory, status, parents=.true.)
         end if
     end if
 
-    if (status%ok()) call write_region(target_file, .false., status, message=msg)
+    if (status%ok()) call write_region(target_file, .false., status, message=message_text)
     call set_buffer(old, st)
-    call close_buffer(temp, st)
+    call close_buffer(temporary, st)
     if (.not. status%ok()) return
 
     if (present(verbose)) then
-        if (verbose .and. allocated(msg)) call message(msg)
+        if (verbose .and. allocated(message_text)) call message(message_text)
     end if
     end procedure write_abbrev_file
 
@@ -1245,7 +1247,7 @@ contains
     result = .false.
     if (save_abbrevs%is_off() .or. .not. abbrevs_changed) return
 
-    if (arg .or. save_abbrevs%choice == SAVE_ABBREVS_SILENTLY) then
+    if (argument .or. save_abbrevs%choice == SAVE_ABBREVS_SILENTLY) then
         save = .true.
     else
         call read_y_or_n("Save abbrevs in "//abbrev_file()//"? ", save, status)
@@ -1286,34 +1288,34 @@ contains
     type(abbrev_table_type), pointer :: table
 
     table => mode_table()
-    call add_abbrev(table, "Mode", arg, status)
+    call add_abbrev(table, "Mode", argument, status)
     end procedure add_mode_abbrev
 
     module procedure add_global_abbrev
-    call add_abbrev(global_abbrev_table, "Global", arg, status)
+    call add_abbrev(global_abbrev_table, "Global", argument, status)
     end procedure add_global_abbrev
 
     module procedure add_abbrev
     character(len=:), allocatable :: exp, name, old
-    integer(int64) :: b, e, opoint, n
+    integer(int64) :: b, e, original_point, n
     logical :: has_exp, redefine
 
     status = status_type()
     has_exp = .false.
-    n = prefix_numeric_value(arg)
+    n = prefix_numeric_value(argument)
 
-    if ((arg%kind == PREFIX_NONE .and. is_use_region()) .or. n == 0) then
+    if ((argument%kind == PREFIX_NONE .and. is_use_region()) .or. n == 0) then
         call region_beginning(b, status)
         if (status%ok()) call region_end(e, status)
         if (status%ok()) call buffer_substring(b, e, exp, status)
         if (.not. status%ok()) return
         has_exp = .true.
     else if (n > 0) then
-        opoint = point()
+        original_point = point()
         call forward_word(-n)
         e = point()
-        call goto_char(opoint)
-        call buffer_substring(e, opoint, exp, status)
+        call goto_character(original_point)
+        call buffer_substring(e, original_point, exp, status)
         if (.not. status%ok()) return
         has_exp = .true.
     end if
@@ -1358,19 +1360,19 @@ contains
 
     module procedure inverse_add_abbrev
     character(len=:), allocatable :: name, exp, old
-    integer(int64) :: opoint, start, end, moved, pos
+    integer(int64) :: original_point, start, end, moved, position
     type(handle_type) :: saved
     type(status_type) :: st
     logical :: define
 
-    opoint = point()
-    call forward_word(1 - arg)
+    original_point = point()
+    call forward_word(1 - argument)
     moved = skip_syntax_backward("^w")
     end = point()
     call forward_word(-1_int64)
     start = point()
     call buffer_substring(start, end, name, status)
-    call goto_char(opoint)
+    call goto_character(original_point)
     if (.not. status%ok()) return
     call read_string("Expansion for "//type//" abbrev """//name//""": ", exp, status)
     if (.not. status%ok()) return
@@ -1386,10 +1388,10 @@ contains
     call table%define(downcase_string(name), exp)
     ! (save-excursion (goto-char end) (expand-abbrev))
     call point_marker(saved)
-    call goto_char(end)
+    call goto_character(end)
     call expand_abbrev(status)
-    call marker_position(saved, pos, st)
-    call goto_char(pos)
+    call marker_position(saved, position, st)
+    call goto_character(position)
     call destroy_marker(saved, st)
     end procedure inverse_add_abbrev
 
@@ -1397,7 +1399,7 @@ contains
     logical :: no_expand
 
     no_expand = .false.
-    if (present(arg)) no_expand = arg
+    if (present(argument)) no_expand = argument
     status = status_type()
     if (.not. no_expand) call expand_abbrev(status)
     if (.not. status%ok()) return
@@ -1408,7 +1410,7 @@ contains
     end procedure abbrev_prefix_mark
 
     module procedure expand_region_abbrevs
-    integer(int64) :: lim, pnt, opoint, pos, wbeg
+    integer(int64) :: limit, pnt, original_point, position, wbeg
     character(len=:), allocatable :: string, exp
     type(handle_type) :: saved
     type(status_type) :: st
@@ -1417,19 +1419,19 @@ contains
     query = .true.
     if (present(noquery)) query = .not. noquery
     status = status_type()
-    opoint = point()
-    call copy_marker_at(opoint, saved, .false., st)
-    call goto_char(start)
-    lim = point_max() - end
+    original_point = point()
+    call copy_marker_at(original_point, saved, .false., st)
+    call goto_character(start)
+    limit = point_maximum() - end
 
-    do while (.not. is_eob())
+    do while (.not. is_end_of_buffer())
         call forward_word(1_int64)
         pnt = point()
-        if (pnt > point_max() - lim) exit
-        pos = point()
+        if (pnt > point_maximum() - limit) exit
+        position = point()
         call forward_word(-1_int64)
         wbeg = point()
-        call goto_char(pos)
+        call goto_character(position)
         call buffer_substring(wbeg, pnt, string, status)
         if (.not. status%ok()) exit
         call abbrev_expansion(string, exp)
@@ -1444,21 +1446,21 @@ contains
         end if
     end do
 
-    call marker_position(saved, pos, st)
-    call goto_char(pos)
+    call marker_position(saved, position, st)
+    call goto_character(position)
     call destroy_marker(saved, st)
     end procedure expand_region_abbrevs
 
     !> Check if the characters in ABBREV have word syntax in either the
     !> current (if GLOBAL is false) or standard syntax table.  Port of
     !> abbrev.el:abbrev--check-chars.
-    subroutine check_chars(abbrev, global, status)
+    subroutine check_characters(abbrev, global, status)
         character(len=*), intent(in) :: abbrev
         logical, intent(in) :: global
         type(status_type), intent(out) :: status
         type(handle_type) :: saved_table
         character(len=:), allocatable :: badchars, c
-        integer(int64) :: pos, at
+        integer(int64) :: position, at
         type(status_type) :: st
 
         status = status_type()
@@ -1467,27 +1469,27 @@ contains
 
         if (string_match("\W", abbrev, st) > 0) then
             badchars = ""
-            pos = 1
+            position = 1
 
             do
-                at = string_match("\W", abbrev, st, start=pos)
+                at = string_match("\W", abbrev, st, start=position)
                 if (at == 0) exit
                 c = substring_at(abbrev, at)
                 if (index(badchars, c) == 0) badchars = badchars//c
-                pos = pos + 1
+                position = position + 1
             end do
 
             if (global) then
-                call set_error(status, FM_GENERIC_ERROR, "Some abbrev characters ("//badchars// &
+                call set_error(status, GENERIC_ERROR_CODE, "Some abbrev characters ("//badchars// &
                                ") are not word constituents in the standard syntax")
             else
-                call set_error(status, FM_GENERIC_ERROR, "Some abbrev characters ("//badchars// &
+                call set_error(status, GENERIC_ERROR_CODE, "Some abbrev characters ("//badchars// &
                                ") are not word constituents in this mode")
             end if
         end if
 
         call set_syntax_table(saved_table, st)
-    end subroutine check_chars
+    end subroutine check_characters
 
     !> The character of the UTF-8 string S at character index I (1-based,
     !> as string_match's positions).  Not a port.
@@ -1519,7 +1521,7 @@ contains
     end function substring_at
 
     module procedure define_global_abbrev
-    call check_chars(abbrev, .true., status)
+    call check_characters(abbrev, .true., status)
     if (.not. status%ok()) return
     call global_abbrev_table%define(downcase_string(abbrev), expansion)
     end procedure define_global_abbrev
@@ -1530,11 +1532,11 @@ contains
     table => local_abbrev_table()
 
     if (.not. associated(table)) then
-        call set_error(status, FM_GENERIC_ERROR, "Major mode has no abbrev table")
+        call set_error(status, GENERIC_ERROR_CODE, "Major mode has no abbrev table")
         return
     end if
 
-    call check_chars(abbrev, .false., status)
+    call check_characters(abbrev, .false., status)
     if (.not. status%ok()) return
     call table%define(downcase_string(abbrev), expansion)
     end procedure define_mode_abbrev
@@ -1555,142 +1557,142 @@ contains
     !>
     !> In Abbrev mode, inserting an abbreviation causes it to expand and
     !> be replaced by its expansion.  Port of abbrev.el:abbrev-mode.
-    recursive subroutine cmd_abbrev_mode(status)
+    recursive subroutine execute_abbrev_mode(status)
         type(status_type), intent(out) :: status
 
         call minor_modes%abbrev_mode%command(status)
-    end subroutine cmd_abbrev_mode
+    end subroutine execute_abbrev_mode
 
     ! The interactive side of the commands.
-    subroutine cmd_clear_all_abbrevs(status)
+    subroutine execute_clear_all_abbrevs(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call clear_all_abbrevs()
-    end subroutine cmd_clear_all_abbrevs
+    end subroutine execute_clear_all_abbrevs
 
-    recursive subroutine cmd_insert_abbrevs(status)
+    recursive subroutine execute_insert_abbrevs(status)
         type(status_type), intent(out) :: status
 
         call insert_abbrevs(status)
-    end subroutine cmd_insert_abbrevs
+    end subroutine execute_insert_abbrevs
 
-    recursive subroutine cmd_list_abbrevs(status)
+    recursive subroutine execute_list_abbrevs(status)
         type(status_type), intent(out) :: status
 
-        call list_abbrevs(status, local=current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_list_abbrevs
+        call list_abbrevs(status, local=current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_list_abbrevs
 
-    recursive subroutine cmd_edit_abbrevs(status)
+    recursive subroutine execute_edit_abbrevs(status)
         type(status_type), intent(out) :: status
 
         call edit_abbrevs(status)
-    end subroutine cmd_edit_abbrevs
+    end subroutine execute_edit_abbrevs
 
-    recursive subroutine cmd_write_abbrev_file(status)
+    recursive subroutine execute_write_abbrev_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file, expanded
 
         call expand_file_name(abbrev_file(), expanded, status)
         if (.not. status%ok()) return
-        call read_file_name("Write abbrev file: ", file, status, dir=file_name_directory(expanded), &
+        call read_file_name("Write abbrev file: ", file, status, directory=file_name_directory(expanded), &
                             default_filename=abbrev_file())
         if (status%ok()) call write_abbrev_file(status, file)
-    end subroutine cmd_write_abbrev_file
+    end subroutine execute_write_abbrev_file
 
-    recursive subroutine cmd_add_mode_abbrev(status)
+    recursive subroutine execute_add_mode_abbrev(status)
         type(status_type), intent(out) :: status
 
-        call add_mode_abbrev(current_prefix_arg, status)
-    end subroutine cmd_add_mode_abbrev
+        call add_mode_abbrev(current_prefix_argument, status)
+    end subroutine execute_add_mode_abbrev
 
-    recursive subroutine cmd_add_global_abbrev(status)
+    recursive subroutine execute_add_global_abbrev(status)
         type(status_type), intent(out) :: status
 
-        call add_global_abbrev(current_prefix_arg, status)
-    end subroutine cmd_add_global_abbrev
+        call add_global_abbrev(current_prefix_argument, status)
+    end subroutine execute_add_global_abbrev
 
-    recursive subroutine cmd_inverse_add_mode_abbrev(status)
+    recursive subroutine execute_inverse_add_mode_abbrev(status)
         type(status_type), intent(out) :: status
 
-        call inverse_add_mode_abbrev(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_inverse_add_mode_abbrev
+        call inverse_add_mode_abbrev(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_inverse_add_mode_abbrev
 
-    recursive subroutine cmd_inverse_add_global_abbrev(status)
+    recursive subroutine execute_inverse_add_global_abbrev(status)
         type(status_type), intent(out) :: status
 
-        call inverse_add_global_abbrev(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_inverse_add_global_abbrev
+        call inverse_add_global_abbrev(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_inverse_add_global_abbrev
 
-    recursive subroutine cmd_abbrev_prefix_mark(status)
+    recursive subroutine execute_abbrev_prefix_mark(status)
         type(status_type), intent(out) :: status
 
-        call abbrev_prefix_mark(status, arg=current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_abbrev_prefix_mark
+        call abbrev_prefix_mark(status, argument=current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_abbrev_prefix_mark
 
-    recursive subroutine cmd_expand_region_abbrevs(status)
+    recursive subroutine execute_expand_region_abbrevs(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
         call interactive_region(b, e, status)
-        if (status%ok()) call expand_region_abbrevs(b, e, status, noquery=current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_expand_region_abbrevs
+        if (status%ok()) call expand_region_abbrevs(b, e, status, noquery=current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_expand_region_abbrevs
 
-    recursive subroutine cmd_define_global_abbrev(status)
+    recursive subroutine execute_define_global_abbrev(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: abbrev, expansion
 
         call read_string("Define global abbrev: ", abbrev, status)
         if (status%ok()) call read_string("Expansion for "//abbrev//": ", expansion, status)
         if (status%ok()) call define_global_abbrev(abbrev, expansion, status)
-    end subroutine cmd_define_global_abbrev
+    end subroutine execute_define_global_abbrev
 
-    recursive subroutine cmd_define_mode_abbrev(status)
+    recursive subroutine execute_define_mode_abbrev(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: abbrev, expansion
 
         call read_string("Define mode abbrev: ", abbrev, status)
         if (status%ok()) call read_string("Expansion for "//abbrev//": ", expansion, status)
         if (status%ok()) call define_mode_abbrev(abbrev, expansion, status)
-    end subroutine cmd_define_mode_abbrev
+    end subroutine execute_define_mode_abbrev
 
-    recursive subroutine cmd_expand_abbrev(status)
+    recursive subroutine execute_expand_abbrev(status)
         type(status_type), intent(out) :: status
 
         call expand_abbrev(status)
-    end subroutine cmd_expand_abbrev
+    end subroutine execute_expand_abbrev
 
-    recursive subroutine cmd_unexpand_abbrev(status)
+    recursive subroutine execute_unexpand_abbrev(status)
         type(status_type), intent(out) :: status
 
         call unexpand_abbrev(status)
-    end subroutine cmd_unexpand_abbrev
+    end subroutine execute_unexpand_abbrev
 
-    module procedure init_abbrev
+    module procedure initialize_abbrev
     call ensure_tables()
     call forward_setting(abbrev_all_caps)
     call minor_modes%abbrev_mode%define("abbrev_mode", " Abbrev")
     abbrev_mode => minor_modes%abbrev_mode%state
-    commands%abbrev_mode%execute => cmd_abbrev_mode
+    commands%abbrev_mode%execute => execute_abbrev_mode
     call major_modes%edit_abbrevs_mode%define("edit_abbrevs_mode", "Edit-Abbrevs", edit_abbrevs_mode, &
                                               edit_abbrevs_mode_hook, abbrev_table=edit_abbrevs_mode_abbrev_table)
     edit_abbrevs_mode_map = major_modes%edit_abbrevs_mode%map
-    commands%clear_all_abbrevs%execute => cmd_clear_all_abbrevs
-    commands%insert_abbrevs%execute => cmd_insert_abbrevs
-    commands%list_abbrevs%execute => cmd_list_abbrevs
-    commands%edit_abbrevs%execute => cmd_edit_abbrevs
-    commands%write_abbrev_file%execute => cmd_write_abbrev_file
-    commands%add_mode_abbrev%execute => cmd_add_mode_abbrev
-    commands%add_global_abbrev%execute => cmd_add_global_abbrev
-    commands%inverse_add_mode_abbrev%execute => cmd_inverse_add_mode_abbrev
-    commands%inverse_add_global_abbrev%execute => cmd_inverse_add_global_abbrev
-    commands%abbrev_prefix_mark%execute => cmd_abbrev_prefix_mark
-    commands%expand_region_abbrevs%execute => cmd_expand_region_abbrevs
-    commands%define_global_abbrev%execute => cmd_define_global_abbrev
-    commands%define_mode_abbrev%execute => cmd_define_mode_abbrev
-    commands%expand_abbrev%execute => cmd_expand_abbrev
-    commands%unexpand_abbrev%execute => cmd_unexpand_abbrev
+    commands%clear_all_abbrevs%execute => execute_clear_all_abbrevs
+    commands%insert_abbrevs%execute => execute_insert_abbrevs
+    commands%list_abbrevs%execute => execute_list_abbrevs
+    commands%edit_abbrevs%execute => execute_edit_abbrevs
+    commands%write_abbrev_file%execute => execute_write_abbrev_file
+    commands%add_mode_abbrev%execute => execute_add_mode_abbrev
+    commands%add_global_abbrev%execute => execute_add_global_abbrev
+    commands%inverse_add_mode_abbrev%execute => execute_inverse_add_mode_abbrev
+    commands%inverse_add_global_abbrev%execute => execute_inverse_add_global_abbrev
+    commands%abbrev_prefix_mark%execute => execute_abbrev_prefix_mark
+    commands%expand_region_abbrevs%execute => execute_expand_region_abbrevs
+    commands%define_global_abbrev%execute => execute_define_global_abbrev
+    commands%define_mode_abbrev%execute => execute_define_mode_abbrev
+    commands%expand_abbrev%execute => execute_expand_abbrev
+    commands%unexpand_abbrev%execute => execute_unexpand_abbrev
     call append_locals_clearer(abbrev_table_clear_local)
     call append_save_some_buffers_function(abbrev_possibly_save)
-    end procedure init_abbrev
+    end procedure initialize_abbrev
 end submodule abbreviation_commands_mod

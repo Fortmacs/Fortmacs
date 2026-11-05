@@ -27,16 +27,16 @@ module test_shell_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, buffer_string
+    use editing_functions_mod, only: point, goto_character, buffer_string
     use minibuffer_mod, only: completion_at_point
     use environment_mod, only: getenv, setenv
-    use files_mod, only: create_temp_file
-    use file_input_output_mod, only: init_fileio, write_region, create_directory_internal, delete_file_internal, &
+    use files_mod, only: create_temporary_file
+    use file_input_output_mod, only: initialize_fileio, write_region, create_directory_internal, delete_file_internal, &
                                      delete_directory_internal, set_file_modes
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, generate_new_buffer_name
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use modes_mod, only: minor_modes
     use shell_mod, only: shell_mode, split_string_shell_command, shell_unquote_argument_internal, shell_cd, &
                          shell_parse_pcomplete_arguments, &
@@ -70,22 +70,22 @@ contains
                     ]
     end subroutine collect_shell_mod
 
-    !> A temporary buffer in DIR (with-temp-buffer).
-    subroutine temp_buffer(h, dir)
+    !> A temporary buffer in DIRECTORY (with-temp-buffer).
+    subroutine temporary_buffer(h, directory)
         type(handle_type), intent(out) :: h
-        character(len=*), intent(in) :: dir
+        character(len=*), intent(in) :: directory
         type(status_type) :: st
 
         call get_or_make_buffer(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
-        buffers(current)%directory = dir
-    end subroutine temp_buffer
+        buffers(current)%directory = directory
+    end subroutine temporary_buffer
 
     subroutine test_unquote_1(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: unquoted
 
-        call init_bindings()
+        call initialize_bindings()
         call shell_unquote_argument_internal("te'st", unquoted)
         call check(error, unquoted, "test")
     end subroutine test_unquote_1
@@ -94,16 +94,16 @@ contains
     subroutine split(error, string, expected)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: string, expected
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         character(len=:), allocatable :: got
         integer :: k
 
-        call split_string_shell_command(string, args)
+        call split_string_shell_command(string, arguments)
         got = ""
 
-        do k = 1, size(args)
+        do k = 1, size(arguments)
             if (k > 1) got = got//"|"
-            got = got//args(k)%text
+            got = got//arguments(k)%text
         end do
 
         call check(error, got, expected, string)
@@ -112,7 +112,7 @@ contains
     subroutine test_split_string(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call split(error, "ls /tmp", "ls|/tmp")
         if (.not. allocated(error)) call split(error, "ls '/tmp/foo bar'", "ls|/tmp/foo bar")
         if (.not. allocated(error)) call split(error, "ls ""/tmp/foo bar""", "ls|/tmp/foo bar")
@@ -128,8 +128,8 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
-        call temp_buffer(h, "/tmp/")
+        call initialize_bindings()
+        call temporary_buffer(h, "/tmp/")
         call shell_mode(st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, minor_modes%shell_dirtrack_mode%enabled(), "dirtrack")
@@ -144,8 +144,8 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
-        call temp_buffer(h, "/tmp/")
+        call initialize_bindings()
+        call temporary_buffer(h, "/tmp/")
         call shell_mode(st)
         call check(error, comint_input_autoexpand%choice == COMINT_INPUT_AUTOEXPAND_HISTORY, "history")
 
@@ -170,8 +170,8 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
-        call temp_buffer(h, "/tmp/")
+        call initialize_bindings()
+        call temporary_buffer(h, "/tmp/")
         call check(error,.not. minor_modes%shell_dirtrack_mode%enabled(), "dirtrack")
         call close_buffer(h, st)
     end subroutine test_dirtrack_unrelated
@@ -180,20 +180,20 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        character(len=*), parameter :: START_DIR = "/usr/bin/"
+        character(len=*), parameter :: START_DIRECTORY = "/usr/bin/"
 
-        call init_bindings()
-        call temp_buffer(h, START_DIR)
+        call initialize_bindings()
+        call temporary_buffer(h, START_DIRECTORY)
         call check(error,.not. allocated(list_buffers_directory%value), "should-not")
         if (allocated(error)) return
         call shell_mode(st)
         call shell_cd("..", st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, allocated(list_buffers_directory%value), "set")
-        if (.not. allocated(error)) call check(error, list_buffers_directory%value /= START_DIR, "changed")
+        if (.not. allocated(error)) call check(error, list_buffers_directory%value /= START_DIRECTORY, "changed")
 
         if (.not. allocated(error)) then
-            call check(error, index(START_DIR, list_buffers_directory%value) == 1, list_buffers_directory%value)
+            call check(error, index(START_DIRECTORY, list_buffers_directory%value) == 1, list_buffers_directory%value)
         end if
 
         call close_buffer(h, st)
@@ -203,28 +203,28 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        character(len=*), parameter :: START_DIR = "/usr/bin/"
+        character(len=*), parameter :: START_DIRECTORY = "/usr/bin/"
 
-        call init_bindings()
-        call temp_buffer(h, START_DIR)
+        call initialize_bindings()
+        call temporary_buffer(h, START_DIRECTORY)
         call check(error,.not. allocated(list_buffers_directory%value), "should-not")
         if (allocated(error)) return
         call shell_mode(st)
         call shell_directory_tracker("cd ..", st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, allocated(list_buffers_directory%value), "set")
-        if (.not. allocated(error)) call check(error, list_buffers_directory%value /= START_DIR, "changed")
+        if (.not. allocated(error)) call check(error, list_buffers_directory%value /= START_DIRECTORY, "changed")
 
         if (.not. allocated(error)) then
-            call check(error, index(START_DIR, list_buffers_directory%value) == 1, list_buffers_directory%value)
+            call check(error, index(START_DIRECTORY, list_buffers_directory%value) == 1, list_buffers_directory%value)
         end if
 
         call close_buffer(h, st)
     end subroutine test_tracker_cd
 
-    ! The arguments ARGS and BEGINS as "cd|ba 1 4".
-    function show_parse(args, begins) result(text)
-        type(string_type), intent(in) :: args(:)
+    ! The arguments ARGUMENTS and BEGINS as "cd|ba 1 4".
+    function show_parse(arguments, begins) result(text)
+        type(string_type), intent(in) :: arguments(:)
         integer(int64), intent(in) :: begins(:)
         character(len=:), allocatable :: text
         character(len=20) :: n
@@ -232,9 +232,9 @@ contains
 
         text = ""
 
-        do k = 1, size(args)
+        do k = 1, size(arguments)
             if (k > 1) text = text//"|"
-            text = text//args(k)%text
+            text = text//arguments(k)%text
         end do
 
         do k = 1, size(begins)
@@ -247,16 +247,16 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         integer(int64), allocatable :: begins(:)
 
-        call init_bindings()
-        call temp_buffer(h, "/tmp/")
+        call initialize_bindings()
+        call temporary_buffer(h, "/tmp/")
         call shell_mode(st)
         call insert("cd ba;", st)
-        call goto_char(point() - 1)
-        call shell_parse_pcomplete_arguments(args, begins)
-        call check(error, show_parse(args, begins), "cd|ba 1 4")
+        call goto_character(point() - 1)
+        call shell_parse_pcomplete_arguments(arguments, begins)
+        call check(error, show_parse(arguments, begins), "cd|ba 1 4")
         call close_buffer(h, st)
     end subroutine test_completion_before_semi
 
@@ -264,15 +264,15 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         integer(int64), allocatable :: begins(:)
 
-        call init_bindings()
-        call temp_buffer(h, "/tmp/")
+        call initialize_bindings()
+        call temporary_buffer(h, "/tmp/")
         call shell_mode(st)
         call insert("cd ba;", st)
-        call shell_parse_pcomplete_arguments(args, begins)
-        call check(error, show_parse(args, begins), "cd|ba| 1 4 7")
+        call shell_parse_pcomplete_arguments(arguments, begins)
+        call check(error, show_parse(arguments, begins), "cd|ba| 1 4 7")
         call close_buffer(h, st)
     end subroutine test_completion_after_semi
 
@@ -283,9 +283,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call setenv("FORTMACS_TEST_DIRECTORY", "/tmp")
-        call temp_buffer(h, "/tmp/")
+        call temporary_buffer(h, "/tmp/")
         call show_alone()
         call shell_mode(st)
         call insert("echo $FORTMACS_TEST_DIRECT", st)
@@ -300,24 +300,24 @@ contains
     !> after it.
     subroutine test_command_completion(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, tmp
+        type(handle_type) :: h, temporary
         type(status_type) :: st
-        character(len=:), allocatable :: dir, path
+        character(len=:), allocatable :: directory, path
         logical :: found
 
-        call init_bindings()
-        call init_fileio()
-        call create_temp_file("shell-command", dir, st)
-        call delete_file_internal(dir, st)
-        call create_directory_internal(dir, st)
-        call get_or_make_buffer(" shell-command-tmp", tmp, st)
-        call set_buffer(tmp, st)
-        call write_region(dir//"/fortmacs-test-command", .false., st)
-        call set_file_modes(dir//"/fortmacs-test-command", int(o"755", int32), st)
-        call close_buffer(tmp, st)
+        call initialize_bindings()
+        call initialize_fileio()
+        call create_temporary_file("shell-command", directory, st)
+        call delete_file_internal(directory, st)
+        call create_directory_internal(directory, st)
+        call get_or_make_buffer(" shell-command-tmp", temporary, st)
+        call set_buffer(temporary, st)
+        call write_region(directory//"/fortmacs-test-command", .false., st)
+        call set_file_modes(directory//"/fortmacs-test-command", int(o"755", int32), st)
+        call close_buffer(temporary, st)
         call getenv("PATH", path, found)
-        call setenv("PATH", dir)
-        call temp_buffer(h, "/tmp/")
+        call setenv("PATH", directory)
+        call temporary_buffer(h, "/tmp/")
         call show_alone()
         call shell_mode(st)
         call insert("fortmacs-test-co", st)
@@ -326,7 +326,7 @@ contains
         if (.not. allocated(error)) call check(error, buffer_string(), "fortmacs-test-command ")
         call close_buffer(h, st)
         call setenv("PATH", path)
-        call delete_file_internal(dir//"/fortmacs-test-command", st)
-        call delete_directory_internal(dir, st)
+        call delete_file_internal(directory//"/fortmacs-test-command", st)
+        call delete_directory_internal(directory, st)
     end subroutine test_command_completion
 end module test_shell_mod

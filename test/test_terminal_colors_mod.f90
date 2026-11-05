@@ -24,9 +24,9 @@
 module test_terminal_colors_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
-    use terminal_colors_mod, only: tty_register_colors, tty_color_translate, tty_color_desc, tty_color_by_index, &
+    use terminal_colors_mod, only: tty_register_colors, tty_color_translate, tty_color_description, tty_color_by_index, &
                                    tty_color_standard_values, tty_color_canonicalize, tty_color_define, tty_color_values, &
-                                   tty_color_gray_shades, tty_defined_color_count, color_values_from_color_spec, &
+                                   tty_color_gray_shades, tty_defined_color_count, color_values_from_color_specification, &
                                    tty_color_approximate, tty_color_clear, tty_color_assoc
     implicit none(type, external)
     private
@@ -41,7 +41,7 @@ contains
 
         testsuite = [ &
                     new_unittest("tty-colors-test-standard-colors", test_standard_colors), &
-                    new_unittest("color-values-from-color-spec", test_color_spec), &
+                    new_unittest("color-values-from-color-spec", test_color_specification), &
                     new_unittest("tty-color-canonicalize", test_canonicalize), &
                     new_unittest("default-8-colors", test_default_colors), &
                     new_unittest("xterm-8-colors", test_xterm_8), &
@@ -87,7 +87,7 @@ contains
     end subroutine test_standard_colors
 
     !> The numeric forms, and what is not one.
-    subroutine test_color_spec(error)
+    subroutine test_color_specification(error)
         type(error_type), allocatable, intent(out) :: error
         integer :: r, g, b
         logical :: found
@@ -104,22 +104,22 @@ contains
         if (allocated(error)) return
         call check_standard(error, "gray75", [49087, 49087, 49087])
         if (allocated(error)) return
-        call color_values_from_color_spec("#1234", found, r, g, b)
+        call color_values_from_color_specification("#1234", found, r, g, b)
         call check(error,.not. found, "#1234 has 4 digits")
         if (allocated(error)) return
-        call color_values_from_color_spec("#123451234512345", found, r, g, b)
+        call color_values_from_color_specification("#123451234512345", found, r, g, b)
         call check(error,.not. found, "more than 4 digits per component")
         if (allocated(error)) return
-        call color_values_from_color_spec("rgb:1/2", found, r, g, b)
+        call color_values_from_color_specification("rgb:1/2", found, r, g, b)
         call check(error,.not. found, "rgb: needs three components")
         if (allocated(error)) return
-        call color_values_from_color_spec("rgb:1//2", found, r, g, b)
+        call color_values_from_color_specification("rgb:1//2", found, r, g, b)
         call check(error,.not. found, "an empty hex component")
         if (allocated(error)) return
-        call color_values_from_color_spec("rgbi:1.5/0/0", found, r, g, b)
+        call color_values_from_color_specification("rgbi:1.5/0/0", found, r, g, b)
         call check(error,.not. found, "rgbi: above 1")
         if (allocated(error)) return
-        call color_values_from_color_spec("rgbi:1e/0/0", found, r, g, b)
+        call color_values_from_color_specification("rgbi:1e/0/0", found, r, g, b)
         call check(error,.not. found, "rgbi: exponent without digits")
         if (allocated(error)) return
         ! Names are not canonicalized here.
@@ -128,7 +128,7 @@ contains
         if (allocated(error)) return
         call tty_color_standard_values("gray75 ", found, r, g, b)
         call check(error,.not. found, "a trailing blank")
-    end subroutine test_color_spec
+    end subroutine test_color_specification
 
     subroutine test_canonicalize(error)
         type(error_type), allocatable, intent(out) :: error
@@ -170,7 +170,7 @@ contains
         if (allocated(error)) return
         call check(error, tty_color_translate("nosuchcolor"), -1)
         if (allocated(error)) return
-        call tty_color_desc("Dark Red", found, index, r, g, b, name)
+        call tty_color_description("Dark Red", found, index, r, g, b, name)
         call check(error, found .and. index == 1 .and. name == "red" .and. r == 65535 .and. g == 0 .and. b == 0, &
                    "desc of Dark Red")
         if (allocated(error)) return
@@ -199,7 +199,7 @@ contains
         call tty_register_colors(8, .true., status)
         call check(error, status%ok() .and. tty_defined_color_count == 8, "8 colors")
         if (allocated(error)) return
-        call tty_color_desc("red", found, index, r, g, b)
+        call tty_color_description("red", found, index, r, g, b)
         call check(error, found .and. index == 1 .and. r == 52685 .and. g == 0 .and. b == 0, "xterm's red3")
         if (allocated(error)) return
         call tty_color_assoc("brightred", found, index, r, g, b)
@@ -218,16 +218,16 @@ contains
         call tty_register_colors(88, .true., status)
         call check(error, status%ok() .and. tty_defined_color_count == 88, "88 colors")
         if (allocated(error)) return
-        call tty_color_desc("color-79", found, index, r, g, b)
+        call tty_color_description("color-79", found, index, r, g, b)
         call check(error, found .and. index == 79 .and. all([r, g, b] == 65535), "color-79")
         if (allocated(error)) return
-        call tty_color_desc("color-80", found, index, r, g, b)
+        call tty_color_description("color-80", found, index, r, g, b)
         call check(error, found .and. all([r, g, b] == 46*257), "color-80")
         if (allocated(error)) return
-        call tty_color_desc("color-87", found, index, r, g, b)
+        call tty_color_description("color-87", found, index, r, g, b)
         call check(error, found .and. all([r, g, b] == 231*257), "color-87")
         if (allocated(error)) return
-        call tty_color_desc("color-17", found, index, r, g, b)
+        call tty_color_description("color-17", found, index, r, g, b)
         call check(error, found .and. r == 0 .and. g == 0 .and. b == 139*257, "color-17")
         if (allocated(error)) return
         call tty_color_by_index(85, name, found)
@@ -262,16 +262,16 @@ contains
         if (allocated(error)) return
         call check(error, tty_color_translate("brown"), 124)
         if (allocated(error)) return
-        call tty_color_desc("color-16", found, index, r, g, b)
+        call tty_color_description("color-16", found, index, r, g, b)
         call check(error, found .and. all([r, g, b] == 0), "color-16")
         if (allocated(error)) return
-        call tty_color_desc("color-17", found, index, r, g, b)
+        call tty_color_description("color-17", found, index, r, g, b)
         call check(error, found .and. r == 0 .and. g == 0 .and. b == 95*257, "color-17")
         if (allocated(error)) return
-        call tty_color_desc("color-232", found, index, r, g, b)
+        call tty_color_description("color-232", found, index, r, g, b)
         call check(error, found .and. all([r, g, b] == 8*257), "color-232")
         if (allocated(error)) return
-        call tty_color_desc("color-255", found, index, r, g, b, name)
+        call tty_color_description("color-255", found, index, r, g, b, name)
         call check(error, found .and. all([r, g, b] == 238*257) .and. name == "color-255", "color-255")
         if (allocated(error)) return
         call tty_color_by_index(12, name, found)
@@ -295,7 +295,7 @@ contains
         if (allocated(error)) return
         call check(error, tty_color_translate("gray75"), 191*65536 + 191*256 + 191)
         if (allocated(error)) return
-        call tty_color_desc("#123456", found, index, r, g, b, name)
+        call tty_color_description("#123456", found, index, r, g, b, name)
         call check(error, found .and. index == 1193046 .and. name == "#123456" .and. r == 4626 .and. g == 13364 &
                    .and. b == 22102, "#123456 by pixel")
         if (allocated(error)) return
@@ -339,7 +339,7 @@ contains
         call tty_color_define("Foo Bar", 42, status)
         call check(error, status%ok(), "defined")
         if (allocated(error)) return
-        call tty_color_desc("foobar", found, index, r, g, b, has_rgb=has_rgb)
+        call tty_color_description("foobar", found, index, r, g, b, has_rgb=has_rgb)
         call check(error, found .and. index == 42 .and. .not. has_rgb .and. r == -1, "foobar")
         if (allocated(error)) return
         call tty_color_values("foobar", found, r, g, b)

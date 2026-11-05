@@ -70,7 +70,7 @@ the current project (project_mod, step 49b): `xref--project-root`,
 the default `xref-backend-references` searching the project root and external roots,
 `xref--analyze` relative to the project root,
 the project's ignores in `xref-references-in-directory-grep`;
-`init_xref` binds the keys in `esc_map` and `ctl_x_4_map`
+`initialize_xref` binds the keys in `escape_map` and `control_x_4_map`
 
 ## Deferred
 

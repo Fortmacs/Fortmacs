@@ -27,25 +27,25 @@ module test_make_mode_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, symbols, xsymbol, xstring, list_elements, list_length, list_elt, vtag, V_NULL, &
+    use value_mod, only: value_type, symbols, xsymbol, xstring, list_elements, list_length, list_element, vtag, V_NULL, &
                          V_NAME, V_ARRAY
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, buffer_string
     use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
-    use search_mod, only: search_forward, search_backward, re_search_backward
+    use search_mod, only: search_forward, search_backward, regular_expression_search_backward
     use text_properties_mod, only: get_text_property
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use modes_mod, only: minor_modes
     use font_lock_mod, only: font_lock_ensure
     use files_mod, only: set_auto_mode
     use fill_mod, only: fill_paragraph
-    use file_input_output_mod, only: make_temp_name
-    use minibuffer_reading_tables_mod, only: capf_data_type, COMPLETION_FINISHED
+    use file_input_output_mod, only: make_temporary_name
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type, COMPLETION_FINISHED
     use make_mode_mod, only: makefile_mode, makefile_gmake_mode, makefile_next_dependency, makefile_previous_dependency, &
                              makefile_pickup_targets, makefile_pickup_macros, makefile_target_table, makefile_macro_table, &
                              makefile_has_prereqs, makefile_insert_target, makefile_insert_macro, &
-                             makefile_format_macro_ref, makefile_do_macro_insertion, makefile_backslash_region, &
+                             makefile_format_macro_reference, makefile_do_macro_insertion, makefile_backslash_region, &
                              makefile_completions_at_point, makefile_cleanup_continuations_function, &
                              makefile_cleanup_continuations, makefile_add_log_target, makefile_use_curly_braces_for_macros, &
                              makefile_tab_after_target_colon
@@ -84,22 +84,22 @@ contains
                     new_unittest("make-mode-cleanup-continuations", test_cleanup), &
                     new_unittest("make-mode-add-log-defun", test_add_log), &
                     new_unittest("make-mode-auto-mode-alist", test_auto_mode), &
-                    new_unittest("make-temp-name", test_make_temp_name) &
+                    new_unittest("make-temp-name", test_make_temporary_name) &
                     ]
     end subroutine collect_make_mode_mod
 
     !> A fresh buffer holding TEXT (with-temp-buffer, insert).
-    subroutine temp_buffer(text, h)
+    subroutine temporary_buffer(text, h)
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *make-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> TEXT in a fresh buffer in MODE, fontified.
     subroutine fontified(text, mode, h)
@@ -108,26 +108,26 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call temp_buffer(text, h)
+        call temporary_buffer(text, h)
         call mode(st)
         call minor_modes%font_lock_mode%enable(st)
         call font_lock_ensure(st)
     end subroutine fontified
 
-    !> The face at POS (the first of a list), "" if none.
-    function face_at(pos) result(name)
-        integer(int64), intent(in) :: pos
+    !> The face at POSITION (the first of a list), "" if none.
+    function face_at(position) result(name)
+        integer(int64), intent(in) :: position
         character(len=:), allocatable :: name
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: st
 
         name = ""
-        call get_text_property(pos, value_type(name="face"), v, st)
+        call get_text_property(position, value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
-            call list_elements(v, elts)
-            v = elts(1)
+            call list_elements(v, elements)
+            v = elements(1)
         end if
 
         if (.not. allocated(v%a)) return
@@ -135,13 +135,13 @@ contains
     end function face_at
 
     !> Point after (search-forward S).
-    integer(int64) function after(s) result(pos)
+    integer(int64) function after(s) result(position)
         character(len=*), intent(in) :: s
         integer(int64) :: found
         type(status_type) :: st
 
         call search_forward(s, found, st)
-        pos = point()
+        position = point()
     end function after
 
     subroutine leave(h)
@@ -167,23 +167,23 @@ contains
     subroutine test_bug17400(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        integer(int64) :: found, bar_pos, foo_pos
+        integer(int64) :: found, bar_position, foo_position
         type(status_type) :: st
 
         call fontified(LF//"foo:"//LF//TAB//"bar; : baz"//LF, makefile_mode, h)
-        call re_search_backward("bar", found, st)
-        bar_pos = point()
-        call re_search_backward("foo", found, st)
-        foo_pos = point()
+        call regular_expression_search_backward("bar", found, st)
+        bar_position = point()
+        call regular_expression_search_backward("foo", found, st)
+        foo_position = point()
         ! Make sure we don't confuse "bar;:" for a target!
-        call check(error, face_at(bar_pos) /= face_at(foo_pos), "bar; has the face of a target")
+        call check(error, face_at(bar_position) /= face_at(foo_position), "bar; has the face of a target")
         call leave(h)
     end subroutine test_bug17400
 
     subroutine test_font_lock(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call fontified("CC = gcc"//LF//"all: main.o"//LF//TAB//"@$(CC) -o $@ main.o"//LF//"include foo.mk"//LF//" "//TAB// &
                        "x"//LF, makefile_mode, h)
@@ -191,27 +191,27 @@ contains
         checks: block
             call check(error, face_at(1_int64), "font_lock_variable_name_face")
             if (allocated(error)) exit checks
-            call goto_char(point_min())
-            pos = after("all")
-            call check(error, face_at(pos - 1), "makefile_targets")
+            call goto_character(point_minimum())
+            position = after("all")
+            call check(error, face_at(position - 1), "makefile_targets")
             if (allocated(error)) exit checks
-            pos = after("@")
-            call check(error, face_at(pos - 1), "font_lock_type_face")
+            position = after("@")
+            call check(error, face_at(position - 1), "font_lock_type_face")
             if (allocated(error)) exit checks
-            pos = after("$(C")
-            call check(error, face_at(pos), "font_lock_variable_name_face")
+            position = after("$(C")
+            call check(error, face_at(position), "font_lock_variable_name_face")
             if (allocated(error)) exit checks
-            pos = after("$@")
-            call check(error, face_at(pos - 1), "font_lock_constant_face")
+            position = after("$@")
+            call check(error, face_at(position - 1), "font_lock_constant_face")
             if (allocated(error)) exit checks
-            pos = after("include")
-            call check(error, face_at(pos - 1), "font_lock_keyword_face")
+            position = after("include")
+            call check(error, face_at(position - 1), "font_lock_keyword_face")
             if (allocated(error)) exit checks
-            call check(error, face_at(pos + 1), "font_lock_variable_name_face")
+            call check(error, face_at(position + 1), "font_lock_variable_name_face")
             if (allocated(error)) exit checks
             ! Spaces that precede a tab.
-            pos = after(LF//" ")
-            call check(error, face_at(pos - 1), "makefile_space")
+            position = after(LF//" ")
+            call check(error, face_at(position - 1), "makefile_space")
         end block checks
 
         call leave(h)
@@ -220,21 +220,21 @@ contains
     subroutine test_gmake_font_lock(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call fontified("ifneq ($(X),)"//LF//"Y := $(shell ls -l)"//LF//"endif"//LF, makefile_gmake_mode, h)
 
         checks: block
             call check(error, face_at(1_int64), "font_lock_keyword_face")
             if (allocated(error)) exit checks
-            call check(error, face_at(3_int64), "font_lock_negation_char_face")
+            call check(error, face_at(3_int64), "font_lock_negation_character_face")
             if (allocated(error)) exit checks
-            call goto_char(point_min())
-            pos = after("shell")
-            call check(error, face_at(pos - 1), "font_lock_function_name_face")
+            call goto_character(point_minimum())
+            position = after("shell")
+            call check(error, face_at(position - 1), "font_lock_function_name_face")
             if (allocated(error)) exit checks
-            pos = after("ls")
-            call check(error, face_at(pos - 1), "makefile_shell")
+            position = after("ls")
+            call check(error, face_at(position - 1), "makefile_shell")
         end block checks
 
         call leave(h)
@@ -246,9 +246,9 @@ contains
         logical :: found
         type(status_type) :: st
 
-        call temp_buffer("X = 1"//LF//"all: a b"//LF//TAB//"echo x: y"//LF//LF//"clean:"//LF//TAB//"rm -f a"//LF, h)
+        call temporary_buffer("X = 1"//LF//"all: a b"//LF//TAB//"echo x: y"//LF//LF//"clean:"//LF//TAB//"rm -f a"//LF, h)
         call makefile_mode(st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         checks: block
             call makefile_next_dependency(found)
@@ -276,7 +276,7 @@ contains
         type(string_type), allocatable :: names(:)
         type(status_type) :: st
 
-        call temp_buffer("CC = gcc"//LF//"export LDFLAGS := -s"//LF//"all: prog"//LF//"prog clean:"//LF, h)
+        call temporary_buffer("CC = gcc"//LF//"export LDFLAGS := -s"//LF//"all: prog"//LF//"prog clean:"//LF, h)
         call makefile_mode(st)
 
         checks: block
@@ -306,7 +306,7 @@ contains
         type(string_type), allocatable :: names(:)
         type(status_type) :: st
 
-        call temp_buffer("", h)
+        call temporary_buffer("", h)
         call makefile_mode(st)
 
         checks: block
@@ -320,12 +320,12 @@ contains
             call makefile_insert_macro("PREFIX", st)
             call check(error, buffer_string(), "install:"//TAB//LF//"PREFIX = ")
             if (allocated(error)) exit checks
-            call check(error, makefile_format_macro_ref("CC"), "$(CC)")
+            call check(error, makefile_format_macro_reference("CC"), "$(CC)")
             if (allocated(error)) exit checks
-            call check(error, makefile_format_macro_ref("(CC)"), "$(CC)")
+            call check(error, makefile_format_macro_reference("(CC)"), "$(CC)")
             if (allocated(error)) exit checks
             makefile_use_curly_braces_for_macros = .true.
-            call check(error, makefile_format_macro_ref("CC"), "${CC}")
+            call check(error, makefile_format_macro_reference("CC"), "${CC}")
             makefile_use_curly_braces_for_macros = .false.
             if (allocated(error)) exit checks
             call erase_buffer(st)
@@ -346,23 +346,23 @@ contains
     subroutine test_completion(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(capf_data_type) :: data
+        type(completion_at_point_function_data_type) :: data
         type(status_type) :: st
 
-        call temp_buffer("CC = gcc"//LF//"all: prog"//LF//"x: $(C", h)
+        call temporary_buffer("CC = gcc"//LF//"all: prog"//LF//"x: $(C", h)
         call makefile_mode(st)
         call makefile_pickup_macros(st)
         call makefile_pickup_targets(st)
 
         checks: block
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call makefile_completions_at_point(data, st)
-            call check(error, data%found .and. data%start == point_max() - 1 .and. data%end == point_max(), "bounds")
+            call check(error, data%found .and. data%start == point_maximum() - 1 .and. data%end == point_maximum(), "bounds")
             if (allocated(error)) exit checks
             ! Macros only after "$(".
             call check(error, list_length(data%table%list) == 1, "macros only")
             if (allocated(error)) exit checks
-            call check(error, xstring(list_elt(data%table%list, 1_int64)), "CC")
+            call check(error, xstring(list_element(data%table%list, 1_int64)), "CC")
             if (allocated(error)) exit checks
             ! The exit function closes the reference.
             call insert("C", st)
@@ -384,15 +384,15 @@ contains
         character(len=:), allocatable :: expected
         type(status_type) :: st
 
-        call temp_buffer("SRC = a.c"//LF//"  b.c"//LF//"  c.c"//LF, h)
+        call temporary_buffer("SRC = a.c"//LF//"  b.c"//LF//"  c.c"//LF, h)
         call makefile_mode(st)
 
         checks: block
-            call makefile_backslash_region(point_min(), point_max(), .false., st)
+            call makefile_backslash_region(point_minimum(), point_maximum(), .false., st)
             expected = "SRC = a.c"//repeat(TAB, 5)//"\"//LF//"  b.c"//repeat(TAB, 6)//"\"//LF//"  c.c"//LF
             call check(error, buffer_string(), expected)
             if (allocated(error)) exit checks
-            call makefile_backslash_region(point_min(), point_max(), .true., st)
+            call makefile_backslash_region(point_minimum(), point_maximum(), .true., st)
             call check(error, buffer_string(), "SRC = a.c"//LF//"  b.c"//LF//"  c.c"//LF)
         end block checks
 
@@ -412,16 +412,16 @@ contains
             text = text//" file"//achar(iachar("a") + k - 1)//".o"
         end do
 
-        call temp_buffer(text//LF, h)
+        call temporary_buffer(text//LF, h)
         call makefile_mode(st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call fill_paragraph(st)
 
         checks: block
             call check(error, st%ok(), "fill_paragraph failed")
             if (allocated(error)) exit checks
             ! The assignment is filled into backslashed lines.
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call end_of_line()
             call check(error, buffer_string() /= text//LF, "not filled")
             if (allocated(error)) exit checks
@@ -437,7 +437,7 @@ contains
         logical :: done
         type(status_type) :: st
 
-        call temp_buffer("A = x \  "//LF//"  y"//LF, h)
+        call temporary_buffer("A = x \  "//LF//"  y"//LF, h)
         call makefile_mode(st)
 
         checks: block
@@ -462,11 +462,11 @@ contains
         integer(int64) :: found
         type(status_type) :: st
 
-        call temp_buffer("CFLAGS = -O2 \"//LF//"  -g"//LF//LF//"all : prog"//LF//TAB//"cc -o prog"//LF//LF//"# x"//LF, h)
+        call temporary_buffer("CFLAGS = -O2 \"//LF//"  -g"//LF//LF//"all : prog"//LF//TAB//"cc -o prog"//LF//LF//"# x"//LF, h)
         call makefile_mode(st)
 
         checks: block
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call search_forward("-g", found, st)
             call makefile_add_log_target(name)
             call check(error, allocated(name), "variable not found")
@@ -479,7 +479,7 @@ contains
             if (allocated(error)) exit checks
             call check(error, name, "all")
             if (allocated(error)) exit checks
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call makefile_add_log_target(name)
             call check(error,.not. allocated(name), "found in a comment")
         end block checks
@@ -492,7 +492,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer("", h)
+        call temporary_buffer("", h)
 
         checks: block
             buffers(current)%filename = "/tmp/x/Makefile"
@@ -520,19 +520,19 @@ contains
         call leave(h)
     end subroutine test_auto_mode
 
-    subroutine test_make_temp_name(error)
+    subroutine test_make_temporary_name(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: name
         type(status_type) :: st
 
-        call make_temp_name("/tmp/mktmp.", name, st)
+        call make_temporary_name("/tmp/mktmp.", name, st)
 
         checks: block
-            call check(error, st%ok(), "make_temp_name failed")
+            call check(error, st%ok(), "make_temporary_name failed")
             if (allocated(error)) exit checks
             call check(error, len(name) == len("/tmp/mktmp.") + 6, "length")
             if (allocated(error)) exit checks
             call check(error, name(1:11), "/tmp/mktmp.")
         end block checks
-    end subroutine test_make_temp_name
+    end subroutine test_make_temporary_name
 end module test_make_mode_mod

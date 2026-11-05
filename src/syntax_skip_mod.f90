@@ -1,4 +1,4 @@
-! syntax_skip_mod.f90 -- skip_chars, a submodule of syntax_mod.
+! syntax_skip_mod.f90 -- skip_characters, a submodule of syntax_mod.
 ! Ported from GNU Emacs 31.1 src/syntax.c.
 !
 ! Copyright (C) 1985-2026 Free Software Foundation, Inc.
@@ -19,23 +19,23 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `skip_chars_forward' and `skip_chars_backward': a submodule because
+!> `skip_characters_forward' and `skip_characters_backward': a submodule because
 !> the character classes come from regular_expression_mod, which uses syntax_mod.
 !> The set is kept as character ranges and classes rather than
 !> upstream's fastmap of bytes and leading codes; the result is the same
 !> for multibyte buffers (unibyte buffers and raw bytes are not
 !> distinguished).
 submodule(syntax_mod) syntax_skip_mod
-    use regular_expression_mod, only: re_wctype_parse, re_iswctype
+    use regular_expression_mod, only: regular_expression_wctype_parse, regular_expression_iswctype
     implicit none(type, external)
 
 contains
 
-    module procedure skip_chars
+    module procedure skip_characters
     integer(int32), allocatable :: lows(:), highs(:)
     integer :: classes(32), nclasses, nranges, cc
     integer(int32) :: c, c2, clen
-    integer(int64) :: i, n, p, limit, start, pos, pos_byte
+    integer(int64) :: i, n, p, limit_position, start, position, position_byte
     logical :: negate
 
     status = status_type()
@@ -58,10 +58,10 @@ contains
     ! specially.
     do while (i <= n)
         p = i
-        cc = re_wctype_parse(string, p, n + 1)
+        cc = regular_expression_wctype_parse(string, p, n + 1)
 
         if (cc == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid ISO C character class")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid ISO C character class")
             return
         end if
 
@@ -80,7 +80,7 @@ contains
             i = i + 1
         end if
 
-        call string_char_and_length(string, i, c, clen)
+        call string_character_and_length(string, i, c, clen)
         i = i + clen
 
         ! Treat `-' as range character only if another character follows.
@@ -89,11 +89,11 @@ contains
                 ! Skip over the dash.
                 i = i + 1
                 ! Get the end of the range.
-                call string_char_and_length(string, i, c2, clen)
+                call string_character_and_length(string, i, c2, clen)
                 i = i + clen
 
                 if (c2 == iachar("\") .and. i <= n) then
-                    call string_char_and_length(string, i, c2, clen)
+                    call string_character_and_length(string, i, c2, clen)
                     i = i + clen
                 end if
 
@@ -112,37 +112,37 @@ contains
         highs(nranges) = c
     end do
 
-    limit = skip_limit(forwardp, lim)
+    limit_position = skip_limit(forwardp, limit)
     start = point()
-    pos = start
+    position = start
 
     associate (b => buffers(current))
         if (forwardp) then
-            do while (pos < limit)
-                pos_byte = char_to_byte(pos)
-                c = buf_fetch_char(b, pos_byte)
+            do while (position < limit_position)
+                position_byte = character_to_byte(position)
+                c = buf_fetch_char(b, position_byte)
                 if (in_set(c) .eqv. negate) exit
-                pos = pos + 1
+                position = position + 1
             end do
         else
-            do while (pos > limit)
-                pos_byte = char_to_byte(pos)
+            do while (position > limit_position)
+                position_byte = character_to_byte(position)
 
                 if (b%multibyte) then
-                    pos_byte = pos_byte - buf_prev_char_len(b, pos_byte)
+                    position_byte = position_byte - buf_prev_char_len(b, position_byte)
                 else
-                    pos_byte = pos_byte - 1
+                    position_byte = position_byte - 1
                 end if
 
-                c = buf_fetch_char(b, pos_byte)
+                c = buf_fetch_char(b, position_byte)
                 if (in_set(c) .eqv. negate) exit
-                pos = pos - 1
+                position = position - 1
             end do
         end if
     end associate
 
-    call goto_char(pos)
-    moved = pos - start
+    call goto_character(position)
+    moved = position - start
 
 contains
 
@@ -159,10 +159,10 @@ contains
         end do
 
         do k = 1, nclasses
-            if (re_iswctype(ch, classes(k))) return
+            if (regular_expression_iswctype(ch, classes(k))) return
         end do
 
         in_set = .false.
     end function in_set
-    end procedure skip_chars
+    end procedure skip_characters
 end submodule syntax_skip_mod

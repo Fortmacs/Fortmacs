@@ -20,12 +20,12 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> `vc_start_logentry', `vc_log_edit' and `vc_finish_logentry': a
-!> submodule because they use log_edit_mod and version_control_mod (`vc_root_dir'),
+!> submodule because they use log_edit_mod and version_control_mod (`vc_root_directory'),
 !> which use version_control_dispatcher_mod.
 submodule(version_control_dispatcher_mod) version_control_dispatcher_log_mod
     use log_edit_mod, only: log_edit, is_log_edit_empty_buffer, log_edit_diff_fileset, &
                             log_edit_hook
-    use version_control_mod, only: vc_root_dir
+    use version_control_mod, only: vc_root_directory
     use window_mod, only: quit_windows_on
     use buffer_mod, only: restore_buffer_modified
     use editing_functions_mod, only: buffer_string
@@ -33,7 +33,7 @@ submodule(version_control_dispatcher_mod) version_control_dispatcher_log_mod
     implicit none(type, external)
 
     ! The FILESET and BACKEND that `vc_log_edit' gives the Log Edit buffer
-    ! (by `set_params').
+    ! (by `set_parameters').
     type(string_type), allocatable :: pending_fileset(:)
 
 contains
@@ -94,20 +94,20 @@ contains
     if (immediate) then
         call vc_finish_logentry(status, cmt)
     else
-        call message(substitute_keys("%s  Type \<log_edit_mode_map>\[log_edit_done] when done", msg))
+        call message(substitute_keys("%s  Type \<log_edit_mode_map>\[log_edit_done] when done", log_message))
     end if
     end procedure vc_start_logentry
 
-    ! (substitute-command-keys FORMAT) with %s replaced by MSG.  Not a port.
-    function substitute_keys(format, msg) result(text)
+    ! (substitute-command-keys FORMAT) with %s replaced by MESSAGE.  Not a port.
+    function substitute_keys(format, message) result(text)
         use help_mod, only: substitute_command_keys
-        character(len=*), intent(in) :: format, msg
+        character(len=*), intent(in) :: format, message
         character(len=:), allocatable :: text
         integer :: i
 
         text = substitute_command_keys(format)
         i = index(text, "%s")
-        if (i > 0) text = text(1:i - 1)//msg//text(i + 2:)
+        if (i > 0) text = text(1:i - 1)//message//text(i + 2:)
     end function substitute_keys
 
     module procedure vc_log_edit
@@ -153,10 +153,10 @@ contains
 
         if (present(mode)) then
             call log_edit(vc_finish_logentry_command, status, setup=setup, listfun=log_listfun, &
-                          diff_function=diff, vc_backend=b, set_params=set_params, mode=mode)
+                          diff_function=diff, vc_backend=b, set_parameters=set_parameters, mode=mode)
         else
             call log_edit(vc_finish_logentry_command, status, setup=setup, listfun=log_listfun, &
-                          diff_function=diff, vc_backend=b, set_params=set_params)
+                          diff_function=diff, vc_backend=b, set_parameters=set_parameters)
         end if
     end subroutine execute_log_edit
     end procedure vc_log_edit
@@ -176,14 +176,14 @@ contains
         same_files = .true.
     end function same_files
 
-    ! The PARAMS of `vc_log_edit': vc-log-fileset (and vc-patch-string,
-    ! already set).  Port of the PARAMS of vc-dispatcher.el:vc-log-edit.
-    recursive subroutine set_params(status)
+    ! The PARAMETERS of `vc_log_edit': vc-log-fileset (and vc-patch-string,
+    ! already set).  Port of the PARAMETERS of vc-dispatcher.el:vc-log-edit.
+    recursive subroutine set_parameters(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call set_vc_log_fileset(pending_fileset)
-    end subroutine set_params
+    end subroutine set_parameters
 
     ! log-edit-listfun of `vc_log_edit': the files of `vc_log_fileset'
     ! relative to the root.  Port of the log-edit-listfun lambda of
@@ -204,7 +204,7 @@ contains
         ! walking down the file trees, or somehow pass
         ! `fileset-only-files' from `vc-next-action'
         ! through to this function.
-        call vc_root_dir(root, found, status)
+        call vc_root_directory(root, found, status)
         if (.not. status%ok()) return
         call vc_log_fileset(fileset, has)
         ! Returns paths relative to the root, so that
@@ -257,7 +257,7 @@ contains
     if (has) has = associated(log_locals(k)%operation%execute)
 
     if (.not. has) then
-        call set_error(status, FM_GENERIC_ERROR, "No log operation is pending")
+        call set_error(status, GENERIC_ERROR_CODE, "No log operation is pending")
         return
     end if
 

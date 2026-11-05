@@ -46,11 +46,11 @@ module frame_mod
     use glyph_matrices_mod, only: glyph_matrix_type, face_type, redisplay_interface_type
     use font_mod, only: font_driver_type
     use handle_mod, only: handle_type, slot_table_type, null_handle
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use hooks_mod, only: hook_type
     use, intrinsic :: iso_fortran_env, only: int64
-    use window_mod, only: window_type, window_ref, is_window_valid, make_window, windows, window_text_cols, &
-                          window_safe_min_height, window_safe_min_width, window_resize_root_window, &
+    use window_mod, only: window_type, window_reference, is_window_valid, make_window, windows, window_text_columns, &
+                          window_safe_minimum_height, window_safe_minimum_width, window_resize_root_window, &
                           window_resize_check, window_resize_apply, same_handle, &
                           window_configuration_type, destroy_window_configuration
     use marker_mod, only: destroy_marker
@@ -76,7 +76,7 @@ module frame_mod
     !> make it): its name, whether the user gave it, its group, when it
     !> was last current and, for a tab that is not current, the window
     !> configuration and buffer lists it restores when selected.  Free it
-    !> with its `destroy'.  Not a port (the window state `ws' is Deferred:
+    !> with its `destroy'.  Not a port (the window state `whitespace' is Deferred:
     !> docs/status/tab_bar_mod.md).
     type, public :: tab_type
         !> The frame's current tab (`current-tab'; else `tab').
@@ -103,7 +103,7 @@ module frame_mod
         procedure :: destroy => destroy_tab
     end type tab_type
 
-    !> The frame parameters ported (frame.h param_alist; frame.c's
+    !> The frame parameters ported (frame.h parameter_alist; frame.c's
     !> frame_parms), as typed components.
     type, public :: frame_parameters_type
         !> Width (in pixels) of the dividers on the right of windows
@@ -186,7 +186,7 @@ module frame_mod
         type(face_type), allocatable :: faces(:)
         !> Where to leave the cursor after an update (set by redisplay from
         !> the selected window's cursor), 0-based; -1 for none.
-        integer :: cursor_vpos = -1, cursor_hpos = -1
+        integer :: cursor_vertical_position = -1, cursor_horizontal_position = -1
         !> The minibuffer window is the selected window (while a minibuffer
         !> is active; `selected_window' is the window it was entered from).
         logical :: minibuffer_selected = .false.
@@ -203,12 +203,12 @@ module frame_mod
         !> character width and line height in pixels.
         integer :: column_width = 1, line_height = 1
         !> The narrowest glyph and the lowest font of the frame's display
-        !> (FRAME_SMALLEST_CHAR_WIDTH, FRAME_SMALLEST_FONT_HEIGHT), which
+        !> (FRAME_SMALLEST_CHARACTER_WIDTH, FRAME_SMALLEST_FONT_HEIGHT), which
         !> bound how many glyphs and rows a window can show.
-        integer :: smallest_char_width = 1, smallest_font_height = 1
+        integer :: smallest_character_width = 1, smallest_font_height = 1
         !> The size of a window-system frame in columns and lines
-        !> (text_cols, text_lines); a terminal frame has its terminal's.
-        integer :: text_cols = 0, text_lines = 0
+        !> (text_columns, text_lines); a terminal frame has its terminal's.
+        integer :: text_columns = 0, text_lines = 0
         !> A size change requested but not made yet (delayed by
         !> display_update_mod's `change_frame_size'): the new width and height in
         !> pixels, -1 for no change, and whether one is pending
@@ -272,14 +272,15 @@ module frame_mod
     !> frame, except while `select_frame_begin' has selected another one.
     type(handle_type) :: top_frame
 
-    public :: ensure_frame_windows, selected_window, selected_window_ref, frame_selected_window_ref, minibuffer_window_ref
-    public :: frame_lines, frame_cols, window_pixel_left, window_pixel_top, window_pixel_width, &
+    public :: ensure_frame_windows, selected_window, selected_window_reference, frame_selected_window_reference, &
+              minibuffer_window_reference
+    public :: frame_lines, frame_columns, window_pixel_left, window_pixel_top, window_pixel_width, &
               window_pixel_height, window_body_pixel_width
-    public :: frame_windows_min_size, resize_frame_windows, frame_top_margin, set_tab_bar_lines
+    public :: frame_windows_minimum_size, resize_frame_windows, frame_top_margin, set_tab_bar_lines
     public :: ensure_frames, is_frame_live, get_frame, frame_list, next_frame, previous_frame, find_frame, window_frame, &
               set_term_frame_name, get_next_frame_name, register_frame, unregister_frame
     public :: make_frame, select_frame, select_frame_begin, select_frame_end, delete_frame, delete_other_frames, &
-              other_frame, select_frame_by_name, set_frame_name, init_frame_commands
+              other_frame, select_frame_by_name, set_frame_name, initialize_frame_commands
     public :: frame_right_divider_width, frame_bottom_divider_width, window_right_divider_width, &
               window_bottom_divider_width, is_window_divider_width_valid, window_divider_mode, &
               window_divider_mode_apply
@@ -361,9 +362,9 @@ module frame_mod
 
         !> Select the ARGth frame from the selected one (frame_commands_mod).
         !> Port of frame.el:other-frame.
-        recursive module subroutine other_frame(arg, status)
+        recursive module subroutine other_frame(argument, status)
             implicit none(type, external)
-            integer(int64), intent(in) :: arg
+            integer(int64), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine other_frame
 
@@ -393,9 +394,9 @@ module frame_mod
         end subroutine set_tab_bar_lines
 
         !> Register the frame commands (frame_commands_mod).  Not a port.
-        module subroutine init_frame_commands()
+        module subroutine initialize_frame_commands()
             implicit none(type, external)
-        end subroutine init_frame_commands
+        end subroutine initialize_frame_commands
     end interface
 
 contains
@@ -474,7 +475,7 @@ contains
         if (.not. is_window_valid(selected_frame%root_window)) return
 
         associate (root => windows(selected_frame%root_window%index))
-            if (w%left_col + w%total_cols /= root%left_col + root%total_cols) then
+            if (w%left_column + w%total_columns /= root%left_column + root%total_columns) then
                 width = frame_right_divider_width(selected_frame)
             end if
         end associate
@@ -521,15 +522,15 @@ contains
     end function frame_lines
 
     !> The frame's width in columns.  Port of frame.h:FRAME_COLS.
-    integer function frame_cols(f)
+    integer function frame_columns(f)
         type(frame_type), intent(in) :: f
 
         if (associated(f%rif)) then
-            frame_cols = f%text_cols
+            frame_columns = f%text_columns
         else
-            frame_cols = f%tty%wcm%cm_cols
+            frame_columns = f%tty%wcm%cm_columns
         end if
-    end function frame_cols
+    end function frame_columns
 
     !> The left edge of window `w' on frame `f' in pixels.
     !> Port of window.h:WINDOW_LEFT_EDGE_X, in part.
@@ -537,7 +538,7 @@ contains
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
 
-        window_pixel_left = w%left_col*f%column_width
+        window_pixel_left = w%left_column*f%column_width
     end function window_pixel_left
 
     !> The top edge of window `w' in pixels.  Port of
@@ -555,7 +556,7 @@ contains
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
 
-        window_pixel_width = w%total_cols*f%column_width
+        window_pixel_width = w%total_columns*f%column_width
     end function window_pixel_width
 
     !> The height of window `w' in pixels, mode line included.
@@ -579,7 +580,7 @@ contains
         if (associated(f%rif)) then
             window_body_pixel_width = window_pixel_width(f, w)
         else
-            window_body_pixel_width = window_text_cols(w)
+            window_body_pixel_width = window_text_columns(w)
         end if
     end function window_body_pixel_width
 
@@ -591,18 +592,18 @@ contains
     !> frame size change comes from the terminal), with
     !> window.el:window-min-size, window.el:window--min-size-1 and
     !> window.el:window-safe-min-size (`window_size_fixed' is not ported).
-    integer function frame_windows_min_size(f, horizontal) result(n)
+    integer function frame_windows_minimum_size(f, horizontal) result(n)
         type(frame_type), intent(in) :: f
         logical, intent(in) :: horizontal
 
-        n = safe_min_size(f%root_window)
+        n = safe_minimum_size(f%root_window)
         ! The minibuffer window: one line (window.el:window-min-pixel-height).
-        if (.not. horizontal .and. is_window_valid(f%minibuffer_window)) n = n + max(1, window_safe_min_height)
+        if (.not. horizontal .and. is_window_valid(f%minibuffer_window)) n = n + max(1, window_safe_minimum_height)
 
     contains
 
         !> The safe minimum size of the tree under `h'.
-        recursive integer function safe_min_size(h) result(m)
+        recursive integer function safe_minimum_size(h) result(m)
             type(handle_type), intent(in) :: h
             type(handle_type) :: sub
 
@@ -611,31 +612,31 @@ contains
             sub = windows(h%index)%child
 
             if (.not. is_window_valid(sub)) then
-                m = window_safe_min_height
-                if (horizontal) m = window_safe_min_width
+                m = window_safe_minimum_height
+                if (horizontal) m = window_safe_minimum_width
             else if (windows(h%index)%horizontal .eqv. horizontal) then
                 ! An iso-combination: the sum of its children's sizes.
                 do while (is_window_valid(sub))
-                    m = m + safe_min_size(sub)
+                    m = m + safe_minimum_size(sub)
                     sub = windows(sub%index)%next
                 end do
             else
                 ! An ortho-combination: the largest of its children's sizes.
                 do while (is_window_valid(sub))
-                    m = max(m, safe_min_size(sub))
+                    m = max(m, safe_minimum_size(sub))
                     sub = windows(sub%index)%next
                 end do
             end if
-        end function safe_min_size
-    end function frame_windows_min_size
+        end function safe_minimum_size
+    end function frame_windows_minimum_size
 
     !> Resize frame F's windows when F's inner height (inner width if
     !> HORFLAG is true) has been set to SIZE pixels: the root window takes
     !> the frame's new size less the minibuffer window, which becomes one
     !> line high at the bottom.  A root window with children shares the
     !> change among them by their normal and minimum sizes
-    !> (`window_resize_root_window'), first respecting `window_min_height'
-    !> and `window_min_width', then ignoring them; when neither works the
+    !> (`window_resize_root_window'), first respecting `window_minimum_height'
+    !> and `window_minimum_width', then ignoring them; when neither works the
     !> windows keep their sizes.  Port of window.c:resize_frame_windows
     !> (the root window starts below the tab bar, FRAME_TOP_MARGIN; no menu
     !> bar on a terminal frame; window sizes are whole lines and columns, so window.el's
@@ -644,7 +645,7 @@ contains
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: size
         logical, intent(in) :: horflag
-        integer :: unit, old_size, old_pixel_size, new_units, new_pixel_size, mini_height, frame_cols
+        integer :: unit, old_size, old_pixel_size, new_units, new_pixel_size, mini_height, frame_columns
         type(handle_type) :: root, mini
 
         root = f%root_window
@@ -653,7 +654,7 @@ contains
 
         if (horflag) then
             unit = f%column_width
-            old_size = windows(root%index)%total_cols
+            old_size = windows(root%index)%total_columns
         else
             unit = f%line_height
             old_size = windows(root%index)%total_lines
@@ -672,15 +673,15 @@ contains
         end if
 
         new_units = new_pixel_size/unit
-        frame_cols = windows(root%index)%total_cols
-        if (horflag) frame_cols = new_units
+        frame_columns = windows(root%index)%total_columns
+        if (horflag) frame_columns = new_units
 
         if (new_pixel_size == old_pixel_size .and. (horflag .or. windows(root%index)%top_line == frame_top_margin(f))) then
             ! Nothing to do for the root window.
         else if (.not. is_window_valid(windows(root%index)%child)) then
             ! For a leaf root window just set the size.
             if (horflag) then
-                windows(root%index)%total_cols = new_units
+                windows(root%index)%total_columns = new_units
                 windows(root%index)%divider = .false.
             else
                 windows(root%index)%top_line = frame_top_margin(f)
@@ -692,13 +693,13 @@ contains
             call window_resize_root_window(root, new_units - old_size, horflag, .false.)
 
             if (window_resize_check(root, horflag) .and. new_units == windows(root%index)%new_total) then
-                call window_resize_apply(root, horflag, frame_cols)
+                call window_resize_apply(root, horflag, frame_columns)
             else
                 ! Try with "reasonable" minimum sizes next.
                 call window_resize_root_window(root, new_units - old_size, horflag, .true.)
 
                 if (window_resize_check(root, horflag) .and. new_units == windows(root%index)%new_total) then
-                    call window_resize_apply(root, horflag, frame_cols)
+                    call window_resize_apply(root, horflag, frame_columns)
                 end if
             end if
         end if
@@ -707,7 +708,7 @@ contains
 
         associate (m => windows(mini%index), r => windows(root%index))
             if (horflag) then
-                m%total_cols = new_units
+                m%total_columns = new_units
             else
                 m%total_lines = mini_height/unit
                 m%top_line = r%top_line + r%total_lines
@@ -943,7 +944,7 @@ contains
         ! Stop the user setting the name to F<num> if it is already in use.
         if (is_frame_name_fnn(name)) then
             if (is_frame_live(find_frame(name))) then
-                call set_error(status, FM_GENERIC_ERROR, "Frame of the form F<num> named `"//name//"' already exists")
+                call set_error(status, GENERIC_ERROR_CODE, "Frame of the form F<num> named `"//name//"' already exists")
                 return
             end if
         end if
@@ -953,7 +954,7 @@ contains
 
     !> Make `selected_frame''s windows if they don't exist yet: one window
     !> (the root, selected) and the minibuffer window, sized later by
-    !> display_engine_mod:init_frame_windows.  Port of window.c:init_window_once
+    !> display_engine_mod:initialize_frame_windows.  Port of window.c:init_window_once
     !> (the initial frame's windows).
     subroutine ensure_frame_windows()
         call ensure_frames()
@@ -991,31 +992,31 @@ contains
     !> The selected window of `selected_frame': the minibuffer window while
     !> it is selected, else `selected_window'.  window.c:selected_window.
     !> Not a port.
-    function selected_window_ref() result(w)
+    function selected_window_reference() result(w)
         type(window_type), pointer :: w
 
         if (selected_frame%minibuffer_selected) then
-            w => minibuffer_window_ref()
+            w => minibuffer_window_reference()
         else
-            w => frame_selected_window_ref()
+            w => frame_selected_window_reference()
         end if
-    end function selected_window_ref
+    end function selected_window_reference
 
     !> The frame's selected window (not the minibuffer window): the one
     !> showing the current buffer, or that the minibuffer was entered from.
     !> Valid until a window is made.  Not a port.
-    function frame_selected_window_ref() result(w)
+    function frame_selected_window_reference() result(w)
         type(window_type), pointer :: w
 
         call ensure_frame_windows()
-        w => window_ref(selected_frame%selected_window)
-    end function frame_selected_window_ref
+        w => window_reference(selected_frame%selected_window)
+    end function frame_selected_window_reference
 
     !> The minibuffer window.  Valid until a window is made.  Not a port.
-    function minibuffer_window_ref() result(w)
+    function minibuffer_window_reference() result(w)
         type(window_type), pointer :: w
 
         call ensure_frame_windows()
-        w => window_ref(selected_frame%minibuffer_window)
-    end function minibuffer_window_ref
+        w => window_reference(selected_frame%minibuffer_window)
+    end function minibuffer_window_reference
 end module frame_mod

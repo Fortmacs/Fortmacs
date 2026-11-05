@@ -23,7 +23,7 @@
 !> Syntax tables say what each character is to the editing commands: a
 !> word constituent, whitespace, punctuation, a parenthesis and so on.
 !> A table is a registry object referenced by handle; the standard one,
-!> made on first use, has init_syntax_once's ASCII entries, word syntax
+!> made on first use, has initialize_syntax_once's ASCII entries, word syntax
 !> for every other character, and characters.el's entries (characters_mod)
 !> on top.  A table made by `make_syntax_table' or `copy_syntax_table'
 !> inherits from a parent what it doesn't set.  Each buffer has a syntax
@@ -34,7 +34,7 @@
 !>
 !> Words: `scan_words' and `forward_word'.  Two word-constituent
 !> characters are in the same word unless they belong to different
-!> scripts (`char_script_table', character_script_mod), with the exceptions of
+!> scripts (`character_script_table', character_script_mod), with the exceptions of
 !> `word_combining_categories'; or, in the same script, the exceptions of
 !> `word_separating_categories' (category.c:word_boundary_p, with
 !> characters.el's values for those variables).
@@ -50,31 +50,31 @@
 module syntax_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE, &
-                         FM_SCAN_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, ARGUMENTS_OUT_OF_RANGE_CODE, &
+                         SCAN_ERROR_CODE
     use handle_mod, only: handle_type, slot_table_type, null_handle
-    use character_mod, only: MAX_CHAR, string_char_and_length, unibyte_to_char
+    use character_mod, only: MAXIMUM_CHARACTER, string_character_and_length, unibyte_to_character
     use error_mod, only: format_message
     use buffer_mod, only: buffers, current, buf_fetch_char, buf_next_char_len, buf_prev_char_len
-    use marker_mod, only: char_to_byte
-    use editing_functions_mod, only: point, goto_char, constrain_to_field, char_to_string
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use marker_mod, only: character_to_byte
+    use editing_functions_mod, only: point, goto_character, constrain_to_field, character_to_string
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use characters_mod, only: characters_syntax
-    use category_mod, only: char_has_category
-    use character_script_mod, only: char_script
+    use category_mod, only: character_has_category
+    use character_script_mod, only: character_script
     use data_mod, only: logical_setting_type, integer_setting_type, forward_setting
-    use value_mod, only: value_type, xfixnum, xhandle, list_elt, list, vtag, V_INTEGER, V_ARRAY, V_SYNTAX_TABLE
+    use value_mod, only: value_type, xfixnum, xhandle, list_element, list, vtag, V_INTEGER, V_ARRAY, V_SYNTAX_TABLE
     use text_properties_mod, only: get_text_property
     implicit none(type, external)
     private
 
     public :: syntax_descriptor_type, standard_syntax_table, make_syntax_table, copy_syntax_table, &
               destroy_syntax_table, is_syntax_table_live, syntax_table, set_syntax_table, string_to_syntax, &
-              modify_syntax_entry, syntax_entry, char_syntax_class, char_syntax, syntax_class_to_char, &
-              matching_paren, scan_words, forward_word, is_word_boundary, init_syntax, &
-              skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward, &
-              skip_limit, backward_prefix_chars
-    public :: parse_state_type, forward_comment, scan_groups, scan_expressions, parse_partial_expression, syntax_ppss, &
+              modify_syntax_entry, syntax_entry, character_syntax_class, character_syntax, syntax_class_to_character, &
+              matching_parenthesis, scan_words, forward_word, is_word_boundary, initialize_syntax, &
+              skip_characters_forward, skip_characters_backward, skip_syntax_forward, skip_syntax_backward, &
+              skip_limit, backward_prefix_characters
+    public :: parse_state_type, forward_comment, scan_groups, scan_expressions, parse_partial_expression, syntax_parser_state, &
               scan_error_data
     public :: syntax_entry_at, syntax_class_at, syntax_descriptor_value, descriptor_of_value, parse_expression_propertize
     public :: internal_describe_syntax_value
@@ -86,7 +86,7 @@ module syntax_mod
                                   SCOMMENT_FENCE = 14, SSTRING_FENCE = 15
 
     !> The descriptor character of each class (syntax.c:syntax_code_spec).
-    character(len=16), parameter :: syntax_code_spec = " .w_()'""$\/<>@!|"
+    character(len=16), parameter :: syntax_code_specification = " .w_()'""$\/<>@!|"
 
     !> True means `forward_word', etc., should treat escape chars part of words.
     !> Port of syntax.c words-include-escapes.
@@ -109,7 +109,7 @@ module syntax_mod
 
     !> True means an open paren in column 0 denotes the start of a subprogram.
     !> Port of syntax.c open-paren-in-column-0-is-defun-start.
-    logical, public :: open_paren_in_column_0_is_subprogram_start = .true.
+    logical, public :: open_parenthesis_in_column_0_is_subprogram_start = .true.
 
     !> True means `forward_expression', etc., obey `syntax_table' property.
     !> Ignoring the `syntax_table' property may result in faster syntax
@@ -125,20 +125,20 @@ module syntax_mod
 
     abstract interface
         !> syntax.el's internal--syntax-propertize, which syntax.c calls
-        !> to set `syntax_table' properties up to CHARPOS.  Not a port.
-        subroutine internal_syntax_propertize_procedure(charpos)
+        !> to set `syntax_table' properties up to CHARACTER_POSITION.  Not a port.
+        subroutine internal_syntax_propertize_procedure(character_position)
             import :: int64
             implicit none(type, external)
-            integer(int64), intent(in) :: charpos
+            integer(int64), intent(in) :: character_position
         end subroutine internal_syntax_propertize_procedure
     end interface
 
     !> internal--syntax-propertize (set by syntax_propertize_mod).
     procedure(internal_syntax_propertize_procedure), pointer, public :: internal_syntax_propertize => null()
 
-    !> True means `forward_comment' can use `syntax_ppss' internally.
+    !> True means `forward_comment' can use `syntax_parser_state' internally.
     !> Port of syntax.c comment-use-syntax-ppss.
-    logical, public :: comment_use_syntax_ppss = .true.
+    logical, public :: comment_use_syntax_parser_state = .true.
 
     !> Comment style and string terminator of a parse state in a comment or
     !> string delimited by a generic comment or string fence (syntax.c
@@ -179,9 +179,9 @@ module syntax_mod
     !>     comment fence).
     !>  8. `comstr_start': character address of start of comment or string;
     !>     0 if not in one.
-    !>  9. `open_parens': positions of currently open parens, outermost
+    !>  9. `open_parentheses': positions of currently open parens, outermost
     !>     first.
-    !> 10. `prev_syntax': when the last position scanned holds the first
+    !> 10. `previous_syntax': when the last position scanned holds the first
     !>     character of a (potential) two character construct, the syntax
     !>     of that position (class and flags), otherwise -1.  That
     !>     construct can be a two character comment delimiter or an
@@ -198,23 +198,23 @@ module syntax_mod
         integer(int64) :: mindepth = 0
         integer :: comment_style = 0
         integer(int64) :: comstr_start = 0
-        integer(int64), allocatable :: open_parens(:)
-        integer :: prev_syntax = -1
+        integer(int64), allocatable :: open_parentheses(:)
+        integer :: previous_syntax = -1
     end type parse_state_type
 
     abstract interface
-        !> syntax.el's `syntax_ppss', when it is defined.  Not a port.
-        subroutine syntax_ppss_procedure(state, pos)
+        !> syntax.el's `syntax_parser_state', when it is defined.  Not a port.
+        subroutine syntax_parser_state_procedure(state, position)
             import :: parse_state_type, int64
             implicit none(type, external)
             type(parse_state_type), intent(out) :: state
-            integer(int64), intent(in), optional :: pos
-        end subroutine syntax_ppss_procedure
+            integer(int64), intent(in), optional :: position
+        end subroutine syntax_parser_state_procedure
     end interface
 
     !> syntax.el's syntax-ppss with its cache (set by
     !> syntax_propertize_mod); null for the plain parse.
-    procedure(syntax_ppss_procedure), pointer, public :: syntax_ppss_function => null()
+    procedure(syntax_parser_state_procedure), pointer, public :: syntax_parser_state_function => null()
 
     !> Counts `modify_syntax_entry' calls, so compiled regexps that depend
     !> on syntax can tell they are stale (search.c:clear_regexp_cache).
@@ -247,14 +247,14 @@ module syntax_mod
     interface
         !> Port of syntax.c:skip_chars.  (In syntax_skip_mod, which can use
         !> regular_expression_mod for the character classes.)
-        module function skip_chars(forwardp, string, status, lim) result(moved)
+        module function skip_characters(forwardp, string, status, limit) result(moved)
             implicit none(type, external)
             logical, intent(in) :: forwardp
             character(len=*), intent(in) :: string
             type(status_type), intent(out) :: status
-            integer(int64), intent(in), optional :: lim
+            integer(int64), intent(in), optional :: limit
             integer(int64) :: moved
-        end function skip_chars
+        end function skip_characters
 
         !> Move forward across up to COUNT comments.  If COUNT is negative, move backward.
         !> Stop scanning if we find something other than a comment or whitespace.
@@ -286,7 +286,7 @@ module syntax_mod
         !> before we have scanned over COUNT groups, return 0 if the depth at
         !> that point is zero, and an error condition occurs if the depth is nonzero.
         !> Port of syntax.c:Fscan_lists (the error is `scan_error').
-        recursive module integer(int64) function scan_groups(from, count, depth, status) result(pos)
+        recursive module integer(int64) function scan_groups(from, count, depth, status) result(position)
             implicit none(type, external)
             integer(int64), intent(in) :: from, count, depth
             type(status_type), intent(out) :: status
@@ -303,7 +303,7 @@ module syntax_mod
         !> If the beginning or end is reached between groupings
         !> but before count is used up, 0 is returned.  Port of
         !> syntax.c:Fscan_sexps.
-        recursive module integer(int64) function scan_expressions(from, count, status) result(pos)
+        recursive module integer(int64) function scan_expressions(from, count, status) result(position)
             implicit none(type, external)
             integer(int64), intent(in) :: from, count
             type(status_type), intent(out) :: status
@@ -344,17 +344,17 @@ module syntax_mod
             integer, intent(in), optional :: commentstop
         end subroutine parse_partial_expression
 
-        !> Return the parse state of the parenthesis structure at POS
+        !> Return the parse state of the parenthesis structure at POSITION
         !> (default: point), as `parse_partial_expression' gives it parsing from
-        !> `point_min' to POS.  Point is at POS when this function returns.
+        !> `point_minimum' to POSITION.  Point is at POSITION when this function returns.
         !> Port of emacs-lisp/syntax.el:syntax-ppss: the cached parse of
-        !> syntax_propertize_mod (`syntax_ppss_function'), or a parse from
-        !> `point_min' before that is set up.
-        recursive module subroutine syntax_ppss(state, pos)
+        !> syntax_propertize_mod (`syntax_parser_state_function'), or a parse from
+        !> `point_minimum' before that is set up.
+        recursive module subroutine syntax_parser_state(state, position)
             implicit none(type, external)
             type(parse_state_type), intent(out) :: state
-            integer(int64), intent(in), optional :: pos
-        end subroutine syntax_ppss
+            integer(int64), intent(in), optional :: position
+        end subroutine syntax_parser_state
     end interface
 
 contains
@@ -392,7 +392,7 @@ contains
         type(status_type), intent(out) :: status
 
         call table%resolve(h, i, status)
-        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(syntax_table_type)")
+        if (.not. status%ok()) call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(syntax_table_type)")
     end subroutine resolve_table
 
     !> Return true if OBJECT is a syntax table.  Port of
@@ -415,7 +415,7 @@ contains
         if (.not. status%ok()) return
 
         if (h%index == standard%index .and. h%generation == standard%generation) then
-            call set_error(status, FM_GENERIC_ERROR, "Can't free the standard syntax table")
+            call set_error(status, GENERIC_ERROR_CODE, "Can't free the standard syntax table")
             return
         end if
 
@@ -426,17 +426,17 @@ contains
     !> Return the standard syntax table.
     !> This is the one used for new buffers.  Port of
     !> syntax.c:Fstandard_syntax_table (made on first use, by
-    !> init_syntax_once and characters.el).
+    !> initialize_syntax_once and characters.el).
     function standard_syntax_table() result(h)
         type(handle_type) :: h
 
-        if (.not. table%is_live(standard)) call init_syntax_once()
+        if (.not. table%is_live(standard)) call initialize_syntax_once()
         h = standard
     end function standard_syntax_table
 
     !> Make the standard syntax table.  Port of syntax.c:init_syntax_once,
     !> then the entries characters.el makes.
-    subroutine init_syntax_once()
+    subroutine initialize_syntax_once()
         integer :: i
 
         call make_table(standard, null_handle())
@@ -489,11 +489,11 @@ contains
         end associate
 
         ! All multibyte characters have syntax `word' by default.
-        call paint(standard%index, 128, MAX_CHAR, syntax_descriptor_type(SWORD, -1))
+        call paint(standard%index, 128, MAXIMUM_CHARACTER, syntax_descriptor_type(SWORD, -1))
         painting = standard%index
         call characters_syntax(characters_entry)
         painting = 0
-    end subroutine init_syntax_once
+    end subroutine initialize_syntax_once
 
     !> characters_syntax's callback: a modify-syntax-entry on the table
     !> being painted.  Not a port.
@@ -689,7 +689,7 @@ contains
         integer(int64), intent(in) :: t
         integer, intent(in) :: c
         type(syntax_descriptor_type) :: d
-        integer :: lo, hi, mid
+        integer :: lo, hi, middle
 
         if (c >= 0 .and. c < 128) then
             d = tables(t)%ascii(c)
@@ -700,14 +700,14 @@ contains
         hi = tables(t)%n
 
         do while (lo <= hi)
-            mid = (lo + hi)/2
+            middle = (lo + hi)/2
 
-            if (c < tables(t)%starts(mid)) then
-                hi = mid - 1
-            else if (c > tables(t)%ends(mid)) then
-                lo = mid + 1
+            if (c < tables(t)%starts(middle)) then
+                hi = middle - 1
+            else if (c > tables(t)%ends(middle)) then
+                lo = middle + 1
             else
-                d = tables(t)%entries(mid)
+                d = tables(t)%entries(middle)
                 return
             end if
         end do
@@ -757,10 +757,10 @@ contains
 
         found = .false.
         if (vtag(v) /= V_ARRAY) return
-        code = list_elt(v, 1_int64)
+        code = list_element(v, 1_int64)
         if (vtag(code) /= V_INTEGER) return
         d%code = int(xfixnum(code), int32)
-        match = list_elt(v, 2_int64)
+        match = list_element(v, 2_int64)
         if (vtag(match) == V_INTEGER) d%match = int(xfixnum(match), int32)
         found = .true.
     end subroutine descriptor_of_value
@@ -779,28 +779,29 @@ contains
         end if
     end function syntax_descriptor_value
 
-    !> Set `syntax_table' properties up to CHARPOS when they are not set
+    !> Set `syntax_table' properties up to CHARACTER_POSITION when they are not set
     !> that far yet.  Port of syntax.c:parse_sexp_propertize (its checks
     !> that internal--syntax-propertize neither modified the buffer nor
     !> failed to move `syntax_propertize_done' are deferred).
-    recursive subroutine parse_expression_propertize(charpos)
-        integer(int64), intent(in) :: charpos
-        integer(int64) :: zv
+    recursive subroutine parse_expression_propertize(character_position)
+        integer(int64), intent(in) :: character_position
+        integer(int64) :: end_of_accessible_portion
 
-        zv = buffers(current)%zv
+        end_of_accessible_portion = buffers(current)%end_of_accessible_portion
 
-        if (syntax_propertize_done%value <= charpos .and. syntax_propertize_done%value < zv) then
-            if (associated(internal_syntax_propertize)) call internal_syntax_propertize(min(zv, 1 + charpos))
+        if (syntax_propertize_done%value <= character_position .and. syntax_propertize_done%value < end_of_accessible_portion) then
+            if (associated(internal_syntax_propertize)) call internal_syntax_propertize(min(end_of_accessible_portion, &
+                                                                                            1 + character_position))
         end if
     end subroutine parse_expression_propertize
 
-    !> The syntax entry of character C at position POS of the current
+    !> The syntax entry of character C at position POSITION of the current
     !> buffer, as the syntax scanning functions see it: when
     !> `parse_expression_lookup_properties' is true, from the `syntax_table'
-    !> property at POS (a raw descriptor, or a syntax table to look C up
-    !> in), with syntax-propertize run first when POS is not propertized
+    !> property at POSITION (a raw descriptor, or a syntax table to look C up
+    !> in), with syntax-propertize run first when POSITION is not propertized
     !> yet; else (or without the property) from the buffer's syntax table.
-    !> What syntax.c's SYNTAX_ENTRY gives after UPDATE_SYNTAX_TABLE (POS)
+    !> What syntax.c's SYNTAX_ENTRY gives after UPDATE_SYNTAX_TABLE (POSITION)
     !> (gl_state's property intervals are looked up afresh).
     !> Port of syntax.h:SYNTAX_ENTRY and syntax.h:UPDATE_SYNTAX_TABLE in part,
     !> with what syntax.c:update_syntax_table,
@@ -808,11 +809,11 @@ contains
     !> syntax.c:RE_SETUP_SYNTAX_TABLE_FOR_OBJECT find in gl_state (in part:
     !> the property is looked up at each position, objects other than the
     !> current buffer have none).
-    recursive function syntax_entry_at(c, pos) result(d)
+    recursive function syntax_entry_at(c, position) result(d)
         integer, intent(in) :: c
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(syntax_descriptor_type) :: d
-        type(value_type) :: prop
+        type(value_type) :: property
         type(status_type) :: st
         logical :: found
 
@@ -821,22 +822,22 @@ contains
             return
         end if
 
-        call parse_expression_propertize(pos)
+        call parse_expression_propertize(position)
 
-        if (pos < 1 .or. pos >= buffers(current)%text%z) then
+        if (position < 1 .or. position >= buffers(current)%text%z) then
             d = syntax_entry(c)
             return
         end if
 
-        call get_text_property(pos, value_type(name="syntax_table"), prop, st)
+        call get_text_property(position, value_type(name="syntax_table"), property, st)
 
         if (st%ok()) then
-            if (vtag(prop) == V_ARRAY) then
-                call descriptor_of_value(prop, d, found)
+            if (vtag(property) == V_ARRAY) then
+                call descriptor_of_value(property, d, found)
                 if (found) return
-            else if (vtag(prop) == V_SYNTAX_TABLE) then
-                if (is_syntax_table_live(xhandle(prop))) then
-                    d = syntax_entry(c, xhandle(prop))
+            else if (vtag(property) == V_SYNTAX_TABLE) then
+                if (is_syntax_table_live(xhandle(property))) then
+                    d = syntax_entry(c, xhandle(property))
                     return
                 end if
             end if
@@ -845,28 +846,28 @@ contains
         d = syntax_entry(c)
     end function syntax_entry_at
 
-    !> The syntax class of character C at position POS (SYNTAX after
-    !> UPDATE_SYNTAX_TABLE (POS)).
+    !> The syntax class of character C at position POSITION (SYNTAX after
+    !> UPDATE_SYNTAX_TABLE (POSITION)).
     !> Port of syntax.h:SYNTAX and syntax.h:UPDATE_SYNTAX_TABLE in part.
-    recursive integer function syntax_class_at(c, pos)
+    recursive integer function syntax_class_at(c, position)
         integer, intent(in) :: c
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(syntax_descriptor_type) :: d
 
-        d = syntax_entry_at(c, pos)
+        d = syntax_entry_at(c, position)
         syntax_class_at = iand(d%code, 255)
         if (d%code < 0) syntax_class_at = SWHITESPACE
     end function syntax_class_at
 
     !> The syntax class of character `c' in the current buffer.
     !> Port of syntax.h:SYNTAX.
-    integer function char_syntax_class(c)
+    integer function character_syntax_class(c)
         integer, intent(in) :: c
         type(syntax_descriptor_type) :: d
 
         d = syntax_entry(c)
-        char_syntax_class = iand(d%code, 255)
-    end function char_syntax_class
+        character_syntax_class = iand(d%code, 255)
+    end function character_syntax_class
 
     !> Return the syntax code of CHARACTER, described by a character.
     !> For example, if CHARACTER is a word constituent, the
@@ -875,39 +876,39 @@ contains
     !> are listed in the documentation of `modify_syntax_entry'.
     !> Port of syntax.c:Fchar_syntax (in a unibyte buffer, 128 to 255 are
     !> raw bytes).
-    character function char_syntax(c)
+    character function character_syntax(c)
         integer, intent(in) :: c
-        integer :: char_int, class
+        integer :: character_integer, class
 
-        char_int = c
+        character_integer = c
 
         if (current /= 0 .and. c < 256) then
-            if (.not. buffers(current)%multibyte) char_int = unibyte_to_char(int(c, int32))
+            if (.not. buffers(current)%multibyte) character_integer = unibyte_to_character(int(c, int32))
         end if
 
-        class = char_syntax_class(char_int)
-        char_syntax = syntax_code_spec(class + 1:class + 1)
-    end function char_syntax
+        class = character_syntax_class(character_integer)
+        character_syntax = syntax_code_specification(class + 1:class + 1)
+    end function character_syntax
 
     !> Return the syntax char of CLASS, described by an integer.
     !> For example, if SYNTAX is word constituent (the integer 2), the
     !> character `w' (119) is returned.  Port of
     !> syntax.c:Fsyntax_class_to_char.
-    subroutine syntax_class_to_char(class, ch, status)
+    subroutine syntax_class_to_character(class, ch, status)
         integer, intent(in) :: class
         character, intent(out) :: ch
         type(status_type), intent(out) :: status
 
         ch = " "
 
-        if (class < 0 .or. class >= len(syntax_code_spec)) then
-            call set_error(status, FM_ARGS_OUT_OF_RANGE)
+        if (class < 0 .or. class >= len(syntax_code_specification)) then
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE)
             return
         end if
 
         status = status_type()
-        ch = syntax_code_spec(class + 1:class + 1)
-    end subroutine syntax_class_to_char
+        ch = syntax_code_specification(class + 1:class + 1)
+    end subroutine syntax_class_to_character
 
     !> Insert a description of the internal syntax description SYNTAX at point.
     !> Port of syntax.c:Finternal_describe_syntax_value, returning the
@@ -936,14 +937,14 @@ contains
         comstylec = btest(syntax_code, SYNTAX_FLAG_COMMENT_STYLEC)
         comnested = btest(syntax_code, 22)
 
-        if (SMAX <= code .or. syntax%match < -1 .or. syntax%match > MAX_CHAR) then
+        if (SMAX <= code .or. syntax%match < -1 .or. syntax%match > MAXIMUM_CHARACTER) then
             text = "invalid"
             return
         end if
 
-        text = syntax_code_spec(code + 1:code + 1)
+        text = syntax_code_specification(code + 1:code + 1)
         match = ""
-        if (syntax%match /= -1) call char_to_string(int(syntax%match, int32), match, st)
+        if (syntax%match /= -1) call character_to_string(int(syntax%match, int32), match, st)
 
         if (syntax%match == -1) then
             text = text//" "
@@ -971,7 +972,7 @@ contains
 
         if (prefix) then
             text = text//format_message(","//achar(10)//achar(9)// &
-                                        "  is a prefix character for `backward_prefix_chars'")
+                                        "  is a prefix character for `backward_prefix_characters'")
         end if
     end function internal_describe_syntax_value
 
@@ -1020,14 +1021,14 @@ contains
     !> Return the matching parenthesis of CHARACTER, or -1 if none.
     !> Port of syntax.c:Fmatching_paren (with
     !> syntax.c:SYNTAX_MATCH, the descriptor's `match').
-    integer function matching_paren(c)
+    integer function matching_parenthesis(c)
         integer, intent(in) :: c
         type(syntax_descriptor_type) :: d
 
         d = syntax_entry(c)
-        matching_paren = -1
-        if (iand(d%code, 255) == SOPEN .or. iand(d%code, 255) == SCLOSE) matching_paren = d%match
-    end function matching_paren
+        matching_parenthesis = -1
+        if (iand(d%code, 255) == SOPEN .or. iand(d%code, 255) == SCLOSE) matching_parenthesis = d%match
+    end function matching_parenthesis
 
     !> Convert a syntax descriptor STRING into a raw syntax descriptor.
     !> STRING should be a string of the form allowed as argument of
@@ -1038,28 +1039,28 @@ contains
         character(len=*), intent(in) :: string
         type(syntax_descriptor_type), intent(out) :: d
         type(status_type), intent(out) :: status
-        integer :: val, p
+        integer :: value, p
         integer(int32) :: ch, length
 
         status = status_type()
 
         if (len(string) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid syntax description letter: ")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid syntax description letter: ")
             return
         end if
 
-        val = syntax_spec_code(string(1:1))
+        value = syntax_specification_code(string(1:1))
 
-        if (val < 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid syntax description letter: "//string(1:1))
+        if (value < 0) then
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid syntax description letter: "//string(1:1))
             return
         end if
 
-        if (val == SINHERIT) return
+        if (value == SINHERIT) return
         p = 2
 
         if (p <= len(string)) then
-            call string_char_and_length(string, int(p, int64), ch, length)
+            call string_character_and_length(string, int(p, int64), ch, length)
             if (ch /= iachar(" ")) d%match = ch
             p = p + length
         end if
@@ -1067,28 +1068,28 @@ contains
         do while (p <= len(string))
             select case (string(p:p))
             case ("1")
-                val = ior(val, ishft(1, 16))
+                value = ior(value, ishft(1, 16))
             case ("2")
-                val = ior(val, ishft(1, 17))
+                value = ior(value, ishft(1, 17))
             case ("3")
-                val = ior(val, ishft(1, 18))
+                value = ior(value, ishft(1, 18))
             case ("4")
-                val = ior(val, ishft(1, 19))
+                value = ior(value, ishft(1, 19))
             case ("p")
-                val = ior(val, ishft(1, 20))
+                value = ior(value, ishft(1, 20))
             case ("b")
-                val = ior(val, ishft(1, 21))
+                value = ior(value, ishft(1, 21))
             case ("n")
-                val = ior(val, ishft(1, 22))
+                value = ior(value, ishft(1, 22))
             case ("c")
-                val = ior(val, ishft(1, 23))
+                value = ior(value, ishft(1, 23))
             case default
             end select
 
             p = p + 1
         end do
 
-        d%code = val
+        d%code = value
     end subroutine string_to_syntax
 
     !> Set syntax for character CHAR according to string NEWENTRY.
@@ -1120,8 +1121,8 @@ contains
 
         status = status_type()
 
-        if (from < 0 .or. from > MAX_CHAR .or. to < 0 .or. to > MAX_CHAR) then
-            call set_error(status, FM_ARGS_OUT_OF_RANGE)
+        if (from < 0 .or. from > MAXIMUM_CHARACTER .or. to < 0 .or. to > MAXIMUM_CHARACTER) then
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE)
             return
         end if
 
@@ -1135,16 +1136,16 @@ contains
         if (.not. status%ok()) return
         call string_to_syntax(newentry, d, status)
         if (.not. status%ok()) return
-        ! A reversed range sets nothing (char_table_set_range).
+        ! A reversed range sets nothing (character_table_set_range).
         if (from <= to) call set_range(i, from, to, d)
-        ! (clear_regexp_cache): compiled regexps that used syntax are stale.
+        ! (clear_regular_expression_cache): compiled regexps that used syntax are stale.
         syntax_modiff = syntax_modiff + 1
     end subroutine modify_syntax_entry
 
     !> The syntax class designated by C, or -1.  Port of
     !> syntax.c:syntax_spec_code (`-' and ` ' are whitespace, `W' and
     !> `w' are word).
-    integer function syntax_spec_code(c) result(class)
+    integer function syntax_specification_code(c) result(class)
         character, intent(in) :: c
 
         select case (c)
@@ -1153,9 +1154,9 @@ contains
         case ("W")
             class = SWORD
         case default
-            class = index(syntax_code_spec, c) - 1
+            class = index(syntax_code_specification, c) - 1
         end select
-    end function syntax_spec_code
+    end function syntax_specification_code
 
     ! ------------------------------------------------------------------
     ! Words
@@ -1168,7 +1169,7 @@ contains
     logical function is_word_boundary(c1, c2)
         integer, intent(in) :: c1, c2
 
-        if (char_script(c1) == char_script(c2)) then
+        if (character_script(c1) == character_script(c2)) then
             is_word_boundary = between(c1, c2, "H", "K")
         else
             is_word_boundary = .not. (between(c1, c2, " ", "^") .or. between(c1, c2, "^", " ") .or. &
@@ -1184,9 +1185,9 @@ contains
             character, intent(in) :: cat1, cat2
 
             between = .true.
-            if (cat1 /= " ") between = char_has_category(a, cat1) .and. .not. char_has_category(b, cat1)
+            if (cat1 /= " ") between = character_has_category(a, cat1) .and. .not. character_has_category(b, cat1)
             if (.not. between) return
-            if (cat2 /= " ") between = .not. char_has_category(a, cat2) .and. char_has_category(b, cat2)
+            if (cat2 /= " ") between = .not. character_has_category(a, cat2) .and. character_has_category(b, cat2)
         end function between
     end function is_word_boundary
 
@@ -1201,16 +1202,16 @@ contains
     !> If that many words cannot be found before the end of the buffer,
     !> return 0.  COUNT negative means scan backward and stop at word
     !> beginning.  Port of syntax.c:scan_words.
-    recursive integer(int64) function scan_words(from_pos, count_in) result(from)
-        integer(int64), intent(in) :: from_pos, count_in
+    recursive integer(int64) function scan_words(from_position, count_in) result(from)
+        integer(int64), intent(in) :: from_position, count_in
         integer(int64) :: count, from_byte, beginning, end
         integer :: ch0, ch1, code
 
-        from = from_pos
+        from = from_position
         count = count_in
-        beginning = buffers(current)%begv
-        end = buffers(current)%zv
-        from_byte = char_to_byte(from)
+        beginning = buffers(current)%beginning_of_accessible_portion
+        end = buffers(current)%end_of_accessible_portion
+        from_byte = character_to_byte(from)
 
         do while (count > 0)
             do
@@ -1278,66 +1279,66 @@ contains
         end do
     end function scan_words
 
-    !> Move point forward ARG words (backward if ARG is negative).
-    !> If ARG is omitted, move point forward one word.
+    !> Move point forward ARGUMENT words (backward if ARGUMENT is negative).
+    !> If ARGUMENT is omitted, move point forward one word.
     !> Normally returns true (in OK).
     !> If an edge of the buffer or a field boundary is reached, point is
     !> left there and the function returns false.  Field boundaries are not
     !> noticed if `inhibit_field_text_motion' is true.
     !>
     !> The word boundaries are normally determined by the buffer's syntax
-    !> table and character script (according to `char_script_table').
+    !> table and character script (according to `character_script_table').
     !> Port of syntax.c:Fforward_word (`ok' is the value; no
     !> `find_word_boundary_function_table').
-    recursive subroutine forward_word(arg, ok)
-        integer(int64), intent(in) :: arg
+    recursive subroutine forward_word(argument, ok)
+        integer(int64), intent(in) :: argument
         logical, intent(out), optional :: ok
-        integer(int64) :: orig_val, val
+        integer(int64) :: original_value, value
 
-        orig_val = scan_words(point(), arg)
-        val = orig_val
+        original_value = scan_words(point(), argument)
+        value = original_value
 
-        if (orig_val == 0) then
-            if (arg > 0) then
-                val = buffers(current)%zv
+        if (original_value == 0) then
+            if (argument > 0) then
+                value = buffers(current)%end_of_accessible_portion
             else
-                val = buffers(current)%begv
+                value = buffers(current)%beginning_of_accessible_portion
             end if
         end if
 
         ! Avoid jumping out of an input field.
-        val = constrain_to_field(val, point(), .false., .false.)
-        call goto_char(val)
-        if (present(ok)) ok = val == orig_val
+        value = constrain_to_field(value, point(), .false., .false.)
+        call goto_character(value)
+        if (present(ok)) ok = value == original_value
     end subroutine forward_word
 
-    !> Move point forward ARG words (backward if ARG is negative).
-    !> If ARG is omitted, move point forward one word.
+    !> Move point forward ARGUMENT words (backward if ARGUMENT is negative).
+    !> If ARGUMENT is omitted, move point forward one word.
     !> If an edge of the buffer or a field boundary is reached, point is
     !> left there.
     !>
     !> The word boundaries are normally determined by the buffer's syntax
-    !> table and character script (according to `char_script_table').
+    !> table and character script (according to `character_script_table').
     !> Port of syntax.c:Fforward_word (the command).
-    subroutine cmd_forward_word(status)
+    subroutine execute_forward_word(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call forward_word(prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_forward_word
+        call forward_word(prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_forward_word
 
     !> Register the commands.  Port of syntax.c:syms_of_syntax in part.
-    subroutine init_syntax()
+    subroutine initialize_syntax()
         call forward_setting(parse_expression_lookup_properties, local_if_set=.true.)
         call forward_setting(syntax_propertize_done, local_if_set=.true.)
-        commands%forward_word%execute => cmd_forward_word
-    end subroutine init_syntax
+        commands%forward_word%execute => execute_forward_word
+    end subroutine initialize_syntax
 
     ! ------------------------------------------------------------------
     ! Skipping characters and syntax classes
     ! ------------------------------------------------------------------
 
-    !> Move point forward, stopping before a char not in STRING, or at pos LIM.
+    !> Move point forward, stopping before a char not in STRING, or at pos LIMIT.
     !> STRING is like the inside of a `[...]' in a regular expression
     !> except that `]' is never special and `\' quotes `^', `-' or `\'
     !>  (but not at the end of a range; quoting is never needed there).
@@ -1347,75 +1348,75 @@ contains
     !>
     !> Returns the distance traveled, either zero or positive.  Port of
     !> syntax.c:Fskip_chars_forward.
-    integer(int64) function skip_chars_forward(string, status, lim) result(moved)
+    integer(int64) function skip_characters_forward(string, status, limit) result(moved)
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: lim
+        integer(int64), intent(in), optional :: limit
 
-        moved = skip_chars(.true., string, status, lim)
-    end function skip_chars_forward
+        moved = skip_characters(.true., string, status, limit)
+    end function skip_characters_forward
 
-    !> Move point backward, stopping after a char not in STRING, or at pos LIM.
-    !> See `skip_chars_forward' for details.
+    !> Move point backward, stopping after a char not in STRING, or at pos LIMIT.
+    !> See `skip_characters_forward' for details.
     !> Returns the distance traveled, either zero or negative.  Port of
     !> syntax.c:Fskip_chars_backward.
-    integer(int64) function skip_chars_backward(string, status, lim) result(moved)
+    integer(int64) function skip_characters_backward(string, status, limit) result(moved)
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: lim
+        integer(int64), intent(in), optional :: limit
 
-        moved = skip_chars(.false., string, status, lim)
-    end function skip_chars_backward
+        moved = skip_characters(.false., string, status, limit)
+    end function skip_characters_backward
 
     !> Move point forward across chars in specified syntax classes.
     !> SYNTAX is a string of syntax code characters.
-    !> Stop before a char whose syntax is not in SYNTAX, or at position LIM.
+    !> Stop before a char whose syntax is not in SYNTAX, or at position LIMIT.
     !> If SYNTAX starts with ^, skip characters whose syntax is NOT in SYNTAX.
     !> This function returns the distance traveled, either zero or positive.
     !> Port of syntax.c:Fskip_syntax_forward.
-    recursive integer(int64) function skip_syntax_forward(syntax, lim) result(moved)
+    recursive integer(int64) function skip_syntax_forward(syntax, limit) result(moved)
         character(len=*), intent(in) :: syntax
-        integer(int64), intent(in), optional :: lim
+        integer(int64), intent(in), optional :: limit
 
-        moved = skip_syntaxes(.true., syntax, lim)
+        moved = skip_syntaxes(.true., syntax, limit)
     end function skip_syntax_forward
 
     !> Move point backward across chars in specified syntax classes.
     !> SYNTAX is a string of syntax code characters.
-    !> Stop on reaching a char whose syntax is not in SYNTAX, or at position LIM.
+    !> Stop on reaching a char whose syntax is not in SYNTAX, or at position LIMIT.
     !> If SYNTAX starts with ^, skip characters whose syntax is NOT in SYNTAX.
     !> This function returns either zero or a negative number, and the absolute value
     !> of this is the distance traveled.  Port of
     !> syntax.c:Fskip_syntax_backward.
-    recursive integer(int64) function skip_syntax_backward(syntax, lim) result(moved)
+    recursive integer(int64) function skip_syntax_backward(syntax, limit) result(moved)
         character(len=*), intent(in) :: syntax
-        integer(int64), intent(in), optional :: lim
+        integer(int64), intent(in), optional :: limit
 
-        moved = skip_syntaxes(.false., syntax, lim)
+        moved = skip_syntaxes(.false., syntax, limit)
     end function skip_syntax_backward
 
-    !> The limit of a skip: LIM (default the end of the accessible region
+    !> The limit of a skip: LIMIT (default the end of the accessible region
     !> in the direction of motion), kept inside the accessible region.
     !> Not a port.
-    integer(int64) function skip_limit(forwardp, lim) result(limit)
+    integer(int64) function skip_limit(forwardp, limit_position) result(limit)
         logical, intent(in) :: forwardp
-        integer(int64), intent(in), optional :: lim
+        integer(int64), intent(in), optional :: limit_position
 
         associate (b => buffers(current))
-            limit = merge(b%zv, b%begv, forwardp)
-            if (present(lim)) limit = lim
-            limit = max(b%begv, min(b%zv, limit))
+            limit = merge(b%end_of_accessible_portion, b%beginning_of_accessible_portion, forwardp)
+            if (present(limit_position)) limit = limit_position
+            limit = max(b%beginning_of_accessible_portion, min(b%end_of_accessible_portion, limit))
         end associate
     end function skip_limit
 
     !> Port of syntax.c:skip_syntaxes.
-    recursive integer(int64) function skip_syntaxes(forwardp, syntax, lim) result(moved)
+    recursive integer(int64) function skip_syntaxes(forwardp, syntax, limit_position) result(moved)
         logical, intent(in) :: forwardp
         character(len=*), intent(in) :: syntax
-        integer(int64), intent(in), optional :: lim
+        integer(int64), intent(in), optional :: limit_position
         logical :: classes(0:15), negate
         integer :: i, at
-        integer(int64) :: limit, start, pos, pos_byte
+        integer(int64) :: limit, start, position, position_byte
         integer(int32) :: c
 
         classes = .false.
@@ -1430,66 +1431,66 @@ contains
         end if
 
         do while (i <= len(syntax))
-            at = syntax_spec_code(syntax(i:i))
+            at = syntax_specification_code(syntax(i:i))
             if (at >= 0) classes(at) = .true.
             i = i + 1
         end do
 
-        limit = skip_limit(forwardp, lim)
+        limit = skip_limit(forwardp, limit_position)
         start = point()
-        pos = start
+        position = start
 
         associate (b => buffers(current))
             if (forwardp) then
-                do while (pos < limit)
-                    pos_byte = char_to_byte(pos)
-                    c = buf_fetch_char(b, pos_byte)
-                    if (classes(syntax_class_at(int(c), pos)) .eqv. negate) exit
-                    pos = pos + 1
+                do while (position < limit)
+                    position_byte = character_to_byte(position)
+                    c = buf_fetch_char(b, position_byte)
+                    if (classes(syntax_class_at(int(c), position)) .eqv. negate) exit
+                    position = position + 1
                 end do
             else
-                do while (pos > limit)
-                    pos_byte = char_to_byte(pos)
+                do while (position > limit)
+                    position_byte = character_to_byte(position)
 
                     if (b%multibyte) then
-                        pos_byte = pos_byte - buf_prev_char_len(b, pos_byte)
+                        position_byte = position_byte - buf_prev_char_len(b, position_byte)
                     else
-                        pos_byte = pos_byte - 1
+                        position_byte = position_byte - 1
                     end if
 
-                    c = buf_fetch_char(b, pos_byte)
-                    if (classes(syntax_class_at(int(c), pos - 1)) .eqv. negate) exit
-                    pos = pos - 1
+                    c = buf_fetch_char(b, position_byte)
+                    if (classes(syntax_class_at(int(c), position - 1)) .eqv. negate) exit
+                    position = position - 1
                 end do
             end if
         end associate
 
-        call goto_char(pos)
-        moved = pos - start
+        call goto_character(position)
+        moved = position - start
     end function skip_syntaxes
 
     !> Move point backward over any number of chars with prefix syntax.
     !> This includes chars with expression prefix syntax class (') and those with
     !> the prefix syntax flag (p).  Port of syntax.c:Fbackward_prefix_chars.
-    recursive subroutine backward_prefix_chars()
-        integer(int64) :: pos, opoint
+    recursive subroutine backward_prefix_characters()
+        integer(int64) :: position, original_point
         integer :: c
         type(syntax_descriptor_type) :: d
 
-        opoint = point()
-        pos = opoint
+        original_point = point()
+        position = original_point
 
-        do while (pos > buffers(current)%begv)
-            c = get_char_before(pos)
-            if (char_quoted(pos - 1)) exit
-            d = syntax_entry_at(c, pos - 1)
+        do while (position > buffers(current)%beginning_of_accessible_portion)
+            c = get_character_before(position)
+            if (character_quoted(position - 1)) exit
+            d = syntax_entry_at(c, position - 1)
             if (iand(d%code, 255) /= SQUOTE .and. .not. btest(d%code, 20)) exit
-            pos = pos - 1
-            opoint = pos
+            position = position - 1
+            original_point = position
         end do
 
-        call goto_char(opoint)
-    end subroutine backward_prefix_chars
+        call goto_character(original_point)
+    end subroutine backward_prefix_characters
 
     !> The data of the `scan_error' in STATUS: its message and the start
     !> and end of the obstacle (an empty message and 0 when STATUS holds no
@@ -1503,7 +1504,7 @@ contains
         message = ""
         beginning = 0
         end = 0
-        if (status%code /= FM_SCAN_ERROR .or. .not. allocated(status%detail)) return
+        if (status%code /= SCAN_ERROR_CODE .or. .not. allocated(status%detail)) return
         ! "MESSAGE", BEGINNING, END
         if (index(status%detail, """") /= 1) return
         q = index(status%detail(2:), """") + 1
@@ -1519,40 +1520,40 @@ contains
         if (ios /= 0) end = 0
     end subroutine scan_error_data
 
-    ! The character before POS.  Not a port.
-    integer function get_char_before(pos) result(c)
-        integer(int64), intent(in) :: pos
-        integer(int64) :: pos_byte
+    ! The character before POSITION.  Not a port.
+    integer function get_character_before(position) result(c)
+        integer(int64), intent(in) :: position
+        integer(int64) :: position_byte
 
         associate (b => buffers(current))
-            pos_byte = char_to_byte(pos)
+            position_byte = character_to_byte(position)
 
             if (b%multibyte) then
-                pos_byte = pos_byte - buf_prev_char_len(b, pos_byte)
+                position_byte = position_byte - buf_prev_char_len(b, position_byte)
             else
-                pos_byte = pos_byte - 1
+                position_byte = position_byte - 1
             end if
 
-            c = int(buf_fetch_char(b, pos_byte))
+            c = int(buf_fetch_char(b, position_byte))
         end associate
-    end function get_char_before
+    end function get_character_before
 
-    !> Whether the character at POS is quoted by an odd number of escape
+    !> Whether the character at POSITION is quoted by an odd number of escape
     !> or character-quote characters before it.  Port of
     !> syntax.c:char_quoted.
-    recursive logical function char_quoted(pos)
-        integer(int64), intent(in) :: pos
+    recursive logical function character_quoted(position)
+        integer(int64), intent(in) :: position
         integer(int64) :: p
         integer :: k
 
-        char_quoted = .false.
-        p = pos
+        character_quoted = .false.
+        p = position
 
-        do while (p > buffers(current)%begv)
-            k = syntax_class_at(get_char_before(p), p - 1)
+        do while (p > buffers(current)%beginning_of_accessible_portion)
+            k = syntax_class_at(get_character_before(p), p - 1)
             if (k /= SESCAPE .and. k /= SCHARQUOTE) exit
-            char_quoted = .not. char_quoted
+            character_quoted = .not. character_quoted
             p = p - 1
         end do
-    end function char_quoted
+    end function character_quoted
 end module syntax_mod

@@ -17,7 +17,7 @@ callint execute_interactively
 callproc execute_process
 callproc_execute execute_process_execute
 casetab case_table
-cc_align c_mode_align
+cc_align cc_mode_align
 charscript character_script
 charset character_set
 charset_maps character_set_maps

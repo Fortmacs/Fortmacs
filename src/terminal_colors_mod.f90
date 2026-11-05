@@ -43,7 +43,7 @@
 module terminal_colors_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_rint, ieee_value, ieee_quiet_nan
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use casefiddle_mod, only: downcase_string
     use terminal_colors_rgb_mod, only: color_name_count, color_names, color_rgbs
     implicit none(type, external)
@@ -52,8 +52,8 @@ module terminal_colors_mod
     public :: tty_color_type, tty_colors, tty_modify_colors, tty_register_default_colors, &
               tty_color_canonicalize, tty_color_24bit, tty_color_define, tty_color_clear, &
               tty_color_off_gray_diag, tty_color_approximate, tty_color_standard_values, &
-              tty_color_translate, tty_color_by_index, tty_color_values, tty_color_desc, &
-              tty_color_gray_shades, color_values_from_color_spec, tty_color_assoc, tty_register_colors, &
+              tty_color_translate, tty_color_by_index, tty_color_values, tty_color_description, &
+              tty_color_gray_shades, color_values_from_color_specification, tty_color_assoc, tty_register_colors, &
               set_tty_display_color_cells
 
     !> A terminal color: its NAME, the INDEX sent to the terminal to
@@ -88,7 +88,7 @@ module terminal_colors_mod
     !> The number of colors in `tty_defined_colors'.
     integer, protected, public :: tty_defined_color_count = 0
     !> The number of colors the terminal supports, as `display-color-cells'
-    !> reports it (term.c TN_max_colors): 16777216 for a 24-bit terminal.
+    !> reports it (term.c TN_maximum_colors): 16777216 for a 24-bit terminal.
     !> Set by `tty_register_colors'.
     integer, protected, public :: tty_display_color_cells = 0
 
@@ -145,15 +145,15 @@ contains
 
     !> The position of `name' in `tty_defined_colors', 0 if absent
     !> (`assoc').  Not a port.
-    integer function table_position(name) result(pos)
+    integer function table_position(name) result(position)
         character(len=*), intent(in) :: name
         integer :: i
 
-        pos = 0
+        position = 0
 
         do i = 1, tty_defined_color_count
             if (same_string(tty_defined_colors(i)%name, name)) then
-                pos = i
+                position = i
                 return
             end if
         end do
@@ -192,11 +192,11 @@ contains
         integer, intent(in) :: index
         integer, intent(in), optional :: rgb(3)
         type(tty_color_type), allocatable :: grown(:)
-        integer :: pos, i
+        integer :: position, i
 
-        pos = table_position(name)
+        position = table_position(name)
 
-        if (pos == 0) then
+        if (position == 0) then
             ! Keep the colors in the order they are registered.
             if (.not. allocated(tty_defined_colors)) allocate (tty_defined_colors(16))
 
@@ -214,17 +214,17 @@ contains
             end if
 
             tty_defined_color_count = tty_defined_color_count + 1
-            pos = tty_defined_color_count
-            tty_defined_colors(pos)%name = name
+            position = tty_defined_color_count
+            tty_defined_colors(position)%name = name
         end if
 
-        tty_defined_colors(pos)%index = index
-        tty_defined_colors(pos)%has_rgb = present(rgb)
+        tty_defined_colors(position)%index = index
+        tty_defined_colors(position)%has_rgb = present(rgb)
 
         if (present(rgb)) then
-            tty_defined_colors(pos)%rgb = rgb
+            tty_defined_colors(position)%rgb = rgb
         else
-            tty_defined_colors(pos)%rgb = -1
+            tty_defined_colors(position)%rgb = -1
         end if
     end subroutine tty_modify_colors
 
@@ -314,7 +314,7 @@ contains
 
         if (present(rgb)) then
             if (size(rgb) /= 3) then
-                call set_error(status, FM_GENERIC_ERROR, 'Invalid specification for tty color "'//name//'"')
+                call set_error(status, GENERIC_ERROR_CODE, 'Invalid specification for tty color "'//name//'"')
                 return
             end if
 
@@ -398,20 +398,20 @@ contains
         end do
     end function approximate_position
 
-    !> Copy element `pos' of `tty_defined_colors' to the outputs.
+    !> Copy element `position' of `tty_defined_colors' to the outputs.
     !> Not a port.
-    subroutine describe(pos, index, r, g, b, name, has_rgb)
-        integer, intent(in) :: pos
+    subroutine describe(position, index, r, g, b, name, has_rgb)
+        integer, intent(in) :: position
         integer, intent(out) :: index, r, g, b
         character(len=:), allocatable, intent(out), optional :: name
         logical, intent(out), optional :: has_rgb
 
-        index = tty_defined_colors(pos)%index
-        r = tty_defined_colors(pos)%rgb(1)
-        g = tty_defined_colors(pos)%rgb(2)
-        b = tty_defined_colors(pos)%rgb(3)
-        if (present(name)) name = tty_defined_colors(pos)%name
-        if (present(has_rgb)) has_rgb = tty_defined_colors(pos)%has_rgb
+        index = tty_defined_colors(position)%index
+        r = tty_defined_colors(position)%rgb(1)
+        g = tty_defined_colors(position)%rgb(2)
+        b = tty_defined_colors(position)%rgb(3)
+        if (present(name)) name = tty_defined_colors(position)%name
+        if (present(has_rgb)) has_rgb = tty_defined_colors(position)%has_rgb
     end subroutine describe
 
     !> Find the color in `tty_colors' that best approximates RGB.
@@ -425,31 +425,31 @@ contains
         logical, intent(out) :: found
         character(len=:), allocatable, intent(out) :: name
         integer, intent(out) :: index, r, g, b
-        integer :: pos
+        integer :: position
 
-        pos = approximate_position(rgb)
-        found = pos > 0
+        position = approximate_position(rgb)
+        found = position > 0
         index = -1
         r = -1
         g = -1
         b = -1
-        if (found) call describe(pos, index, r, g, b, name)
+        if (found) call describe(position, index, r, g, b, name)
     end subroutine tty_color_approximate
 
-    !> Parse hex color component specification `s'.  Set `dst' to the
+    !> Parse hex color component specification `s'.  Set `destination' to the
     !> parsed value normalized so that the maximum value for the number of
     !> hex digits given becomes 65535, and return true on success, false
     !> otherwise.  Port of xfaces.c:parse_hex_color_comp.
-    logical function parse_hex_color_comp(s, dst) result(ok)
+    logical function parse_hexadecimal_color_comp(s, destination) result(ok)
         character(len=*), intent(in) :: s
-        integer, intent(inout) :: dst
-        integer(int64) :: val, maxval
+        integer, intent(inout) :: destination
+        integer(int64) :: value, maxval
         integer :: n, i, digit
 
         ok = .false.
         n = len(s)
         if (n <= 0 .or. n > 4) return
-        val = 0
+        value = 0
 
         do i = 1, n
             select case (s(i:i))
@@ -463,13 +463,13 @@ contains
                 return
             end select
 
-            val = ior(ishft(val, 4), int(digit, int64))
+            value = ior(ishft(value, 4), int(digit, int64))
         end do
 
         maxval = ishft(1_int64, n*4) - 1
-        dst = int(val*65535/maxval)
+        destination = int(value*65535/maxval)
         ok = .true.
-    end function parse_hex_color_comp
+    end function parse_hexadecimal_color_comp
 
     !> Whether `s' is a decimal floating-point number as C's strtod reads
     !> it entirely: an optional sign, digits with an optional point (at
@@ -532,13 +532,13 @@ contains
     end function is_strtod_decimal
 
     !> Parse floating-point color component specification `s'.  Put the
-    !> integer near-equivalent of that into `dst'.  Return true if
+    !> integer near-equivalent of that into `destination'.  Return true if
     !> successful, false otherwise.  An empty `s' reads as 0, as strtod
     !> converting nothing ends where the component ends.  Port of
     !> xfaces.c:parse_float_color_comp.
-    logical function parse_float_color_comp(s, dst) result(ok)
+    logical function parse_float_color_comp(s, destination) result(ok)
         character(len=*), intent(in) :: s
-        integer, intent(inout) :: dst
+        integer, intent(inout) :: destination
         real(real64) :: x
         integer :: i, ios
 
@@ -559,25 +559,25 @@ contains
         end if
 
         if (0 <= x .and. x <= 1) then
-            dst = nint(ieee_rint(x*65535))
+            destination = nint(ieee_rint(x*65535))
             ok = .true.
         end if
     end function parse_float_color_comp
 
-    !> Parse color SPEC as a numeric color and return RED, GREEN and BLUE.
-    !> This function recognizes the following formats for SPEC:
+    !> Parse color SPECIFICATION as a numeric color and return RED, GREEN and BLUE.
+    !> This function recognizes the following formats for SPECIFICATION:
     !>
     !>  #RGB, where R, G and B are hex numbers of equal length, 1-4 digits each.
     !>  rgb:R/G/B, where R, G, and B are hex numbers, 1-4 digits each.
     !>  rgbi:R/G/B, where R, G and B are floating-point numbers in [0,1].
     !>
-    !> If SPEC is not in one of the above forms, `found' is false.
+    !> If SPECIFICATION is not in one of the above forms, `found' is false.
     !>
     !> Each of the 3 integers of the result, RED, GREEN, and BLUE,
     !> is normalized to have its value in [0,65535].  Port of
-    !> xfaces.c:color-values-from-color-spec (parse_color_spec).
-    subroutine color_values_from_color_spec(spec, found, r, g, b)
-        character(len=*), intent(in) :: spec
+    !> xfaces.c:color-values-from-color-spec (parse_color_specification).
+    subroutine color_values_from_color_specification(specification, found, r, g, b)
+        character(len=*), intent(in) :: specification
         logical, intent(out) :: found
         integer, intent(out) :: r, g, b
         integer :: n, sep1, sep2, start
@@ -586,33 +586,33 @@ contains
         r = -1
         g = -1
         b = -1
-        if (len(spec) == 0) return
+        if (len(specification) == 0) return
 
-        if (spec(1:1) == "#") then
-            if (mod(len(spec) - 1, 3) == 0) then
-                n = (len(spec) - 1)/3
-                found = parse_hex_color_comp(spec(2:1 + n), r)
-                if (found) found = parse_hex_color_comp(spec(2 + n:1 + 2*n), g)
-                if (found) found = parse_hex_color_comp(spec(2 + 2*n:1 + 3*n), b)
+        if (specification(1:1) == "#") then
+            if (mod(len(specification) - 1, 3) == 0) then
+                n = (len(specification) - 1)/3
+                found = parse_hexadecimal_color_comp(specification(2:1 + n), r)
+                if (found) found = parse_hexadecimal_color_comp(specification(2 + n:1 + 2*n), g)
+                if (found) found = parse_hexadecimal_color_comp(specification(2 + 2*n:1 + 3*n), b)
             end if
-        else if (index(spec, "rgb:") == 1 .or. index(spec, "rgbi:") == 1) then
+        else if (index(specification, "rgb:") == 1 .or. index(specification, "rgbi:") == 1) then
             start = 5
-            if (spec(4:4) == "i") start = 6
-            sep1 = index(spec(start:), "/")
+            if (specification(4:4) == "i") start = 6
+            sep1 = index(specification(start:), "/")
             if (sep1 == 0) return
             sep1 = sep1 + start - 1
-            sep2 = index(spec(sep1 + 1:), "/")
+            sep2 = index(specification(sep1 + 1:), "/")
             if (sep2 == 0) return
             sep2 = sep2 + sep1
 
             if (start == 5) then
-                found = parse_hex_color_comp(spec(start:sep1 - 1), r)
-                if (found) found = parse_hex_color_comp(spec(sep1 + 1:sep2 - 1), g)
-                if (found) found = parse_hex_color_comp(spec(sep2 + 1:), b)
+                found = parse_hexadecimal_color_comp(specification(start:sep1 - 1), r)
+                if (found) found = parse_hexadecimal_color_comp(specification(sep1 + 1:sep2 - 1), g)
+                if (found) found = parse_hexadecimal_color_comp(specification(sep2 + 1:), b)
             else
-                found = parse_float_color_comp(spec(start:sep1 - 1), r)
-                if (found) found = parse_float_color_comp(spec(sep1 + 1:sep2 - 1), g)
-                if (found) found = parse_float_color_comp(spec(sep2 + 1:), b)
+                found = parse_float_color_comp(specification(start:sep1 - 1), r)
+                if (found) found = parse_float_color_comp(specification(sep1 + 1:sep2 - 1), g)
+                if (found) found = parse_float_color_comp(specification(sep2 + 1:), b)
             end if
         end if
 
@@ -621,7 +621,7 @@ contains
             g = -1
             b = -1
         end if
-    end subroutine color_values_from_color_spec
+    end subroutine color_values_from_color_specification
 
     !> Return standard RGB values of the color COLOR.
     !>
@@ -640,7 +640,7 @@ contains
         integer, intent(out) :: r, g, b
         integer :: i
 
-        call color_values_from_color_spec(color, found, r, g, b)
+        call color_values_from_color_specification(color, found, r, g, b)
         if (found) return
 
         do i = 1, color_name_count
@@ -662,15 +662,15 @@ contains
         character(len=*), intent(in) :: color
         logical, intent(out) :: found
         integer, intent(out) :: index, r, g, b
-        integer :: pos
+        integer :: position
 
-        pos = table_position(color)
-        found = pos > 0
+        position = table_position(color)
+        found = position > 0
         index = -1
         r = -1
         g = -1
         b = -1
-        if (found) call describe(pos, index, r, g, b)
+        if (found) call describe(position, index, r, g, b)
     end subroutine tty_color_assoc
 
     !> Given a color COLOR, return the index of the corresponding TTY color.
@@ -693,7 +693,7 @@ contains
         integer :: r, g, b
         logical :: found
 
-        call tty_color_desc(color, found, index, r, g, b)
+        call tty_color_description(color, found, index, r, g, b)
         if (.not. found) index = -1
     end function tty_color_translate
 
@@ -707,19 +707,19 @@ contains
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: found
         integer, intent(out), optional :: r, g, b
-        integer :: i, pos, color_index, rr, gg, bb
+        integer :: i, position, color_index, rr, gg, bb
 
-        pos = 0
+        position = 0
 
         do i = 1, tty_defined_color_count
-            if (tty_defined_colors(i)%index == index) pos = i
+            if (tty_defined_colors(i)%index == index) position = i
         end do
 
-        found = pos > 0
+        found = position > 0
         rr = -1
         gg = -1
         bb = -1
-        if (found) call describe(pos, color_index, rr, gg, bb, name)
+        if (found) call describe(position, color_index, rr, gg, bb, name)
         if (present(r)) r = rr
         if (present(g)) g = gg
         if (present(b)) b = bb
@@ -740,7 +740,7 @@ contains
         integer :: index
         logical :: has_rgb
 
-        call tty_color_desc(color, found, index, r, g, b, has_rgb=has_rgb)
+        call tty_color_description(color, found, index, r, g, b, has_rgb=has_rgb)
         found = found .and. has_rgb
     end subroutine tty_color_values
 
@@ -752,14 +752,14 @@ contains
     !> supported directly.  `found' is false when COLOR is neither defined,
     !> nor a color specification or known name that some defined color
     !> approximates.  Port of term/tty-colors.el:tty-color-desc.
-    subroutine tty_color_desc(color, found, index, r, g, b, name, has_rgb)
+    subroutine tty_color_description(color, found, index, r, g, b, name, has_rgb)
         character(len=*), intent(in) :: color
         logical, intent(out) :: found
         integer, intent(out) :: index, r, g, b
         character(len=:), allocatable, intent(out), optional :: name
         logical, intent(out), optional :: has_rgb
         character(len=:), allocatable :: canon
-        integer :: pos, pixel, rgb(3)
+        integer :: position, pixel, rgb(3)
 
         canon = tty_color_canonicalize(color)
         index = -1
@@ -767,9 +767,9 @@ contains
         g = -1
         b = -1
         if (present(has_rgb)) has_rgb = .false.
-        pos = table_position(canon)
+        position = table_position(canon)
 
-        if (pos == 0) then
+        if (position == 0) then
             call tty_color_standard_values(canon, found, rgb(1), rgb(2), rgb(3))
             if (.not. found) return
             pixel = tty_color_24bit(rgb)
@@ -784,12 +784,12 @@ contains
                 return
             end if
 
-            pos = approximate_position(rgb)
+            position = approximate_position(rgb)
         end if
 
-        found = pos > 0
-        if (found) call describe(pos, index, r, g, b, name, has_rgb)
-    end subroutine tty_color_desc
+        found = position > 0
+        if (found) call describe(position, index, r, g, b, name, has_rgb)
+    end subroutine tty_color_description
 
     !> Return the number of gray colors supported by the terminal.
     !> A color is considered gray if the 3 components of its RGB value are

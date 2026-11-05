@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The add-log-tests.el tests (`add_log_current_subprogram' in Shell-script
-!> mode), and our own: `add_change_log_entry' into the `*changes to DIR*'
+!> mode), and our own: `add_change_log_entry' into the `*changes to DIRECTORY*'
 !> buffer, `insert_change_log_entries', `search_change_log_file_name', and
 !> diff-mode.el's `diff_add_log_current_subprograms' and
 !> `diff_current_subprogram'.
@@ -33,13 +33,13 @@ module test_add_log_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, &
                           get_buffer, is_buffer_live
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point, point_min, buffer_string
+    use editing_functions_mod, only: goto_character, point, point_minimum, buffer_string
     use search_mod, only: search_forward, replace_match
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
                                      create_directory_internal, write_region
     use files_mod, only: delete_directory, abbreviate_file_name
     use keyboard_mod, only: discard_input
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use shell_script_mod, only: sh_mode
     use diff_mode_mod, only: diff_mode, diff_add_log_current_subprograms
     use log_edit_mod, only: log_edit, generate_log_edit_changelog_from_diff
@@ -54,7 +54,7 @@ module test_add_log_mod
     public :: collect_add_log_mod
 
     character(len=*), parameter :: LF = achar(10), TAB = achar(9)
-    character(len=*), parameter :: subdir = "build/test-add-log"
+    character(len=*), parameter :: subdirectory = "build/test-add-log"
     character(len=*), parameter :: HEADER = "2026-11-03  Jane Doe  <jane@example.com>"
     !> The diff of the Diff mode tests.
     character(len=*), parameter :: DIFF_TEXT = "--- a/a.sh"//LF//"+++ b/a.sh"//LF//"@@ -1,6 +1,7 @@"//LF//" #!/bin/sh"//LF// &
@@ -71,7 +71,7 @@ contains
                     new_unittest("add-log-current-defun-test-sh-func1", test_sh_func1), &
                     new_unittest("add-log-current-defun-test-sh-func2", test_sh_func2), &
                     new_unittest("add-log-current-defun-test-sh-func3", test_sh_func3), &
-                    new_unittest("add-log-current-defun-test-sh-var", test_sh_var), &
+                    new_unittest("add-log-current-defun-test-sh-var", test_sh_variable), &
                     new_unittest("add-change-log-entry", test_add_change_log_entry), &
                     new_unittest("change-log-insert-entries", test_insert_entries), &
                     new_unittest("change-log-search-file-name", test_search_file_name), &
@@ -85,10 +85,10 @@ contains
     ! ------------------------------------------------------------------
 
     !> The absolute name of the test directory, as a directory.
-    function tdir() result(dir)
-        character(len=:), allocatable :: dir
+    function tdir() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdirectory)
     end function tdir
 
     !> A fresh, empty test directory, where `find_change_log' stops (it
@@ -96,8 +96,8 @@ contains
     subroutine setup()
         type(status_type) :: st
 
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call discard_input()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call create_directory_internal(tdir(), st)
@@ -112,7 +112,7 @@ contains
     end subroutine teardown
 
     !> A buffer NAME holding TEXT in the test directory, current.
-    subroutine temp_buffer(name, text, h)
+    subroutine temporary_buffer(name, text, h)
         character(len=*), intent(in) :: name, text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
@@ -122,7 +122,7 @@ contains
         call erase_buffer(st)
         buffers(current)%directory = tdir()
         call insert(text, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> The date of the headers of the tests.
     subroutine fixed_date(s)
@@ -142,10 +142,10 @@ contains
         character(len=:), allocatable :: name
         integer(int64) :: found
 
-        call init_bindings()
-        call init_fileio()
-        call temp_buffer(" *add-log-test*", content, h)
-        call goto_char(point_min())
+        call initialize_bindings()
+        call initialize_fileio()
+        call temporary_buffer(" *add-log-test*", content, h)
+        call goto_character(point_minimum())
         call sh_mode(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -188,11 +188,11 @@ contains
     end subroutine test_sh_func3
 
     !> Test sh-current-defun-name can find variable definition.
-    subroutine test_sh_var(error)
+    subroutine test_sh_variable(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_current_subprogram(error, LF//"PATH=a:/ab:/usr/abc"//LF//"DIR=/pr><oc", "><", "DIR")
-    end subroutine test_sh_var
+    end subroutine test_sh_variable
 
     ! ------------------------------------------------------------------
     ! Our own
@@ -213,12 +213,12 @@ contains
         add_log_full_name = "Jane Doe"
         add_log_mailing_address = "jane@example.com"
         add_log_time_format => fixed_date
-        call temp_buffer("foo.sh", "#!/bin/sh"//LF//"foo()"//LF//"{"//LF//TAB//"echo foo"//LF//"}"//LF//LF// &
-                         "bar()"//LF//"{"//LF//TAB//"echo bar"//LF//"}"//LF, source)
+        call temporary_buffer("foo.sh", "#!/bin/sh"//LF//"foo()"//LF//"{"//LF//TAB//"echo foo"//LF//"}"//LF//LF// &
+                              "bar()"//LF//"{"//LF//TAB//"echo bar"//LF//"}"//LF, source)
         call sh_mode(st)
         buffers(current)%filename = tdir()//"foo.sh"
         call show_alone()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward("echo foo", found, st)
         call add_change_log_entry(st)
         call check(error, st%ok(), format_error(st))
@@ -254,7 +254,7 @@ contains
         if (allocated(error)) return
         call set_buffer(source, st)
         call show_alone()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward("echo foo", found, st)
         call add_change_log_entry(st, new_entry=.true.)
         call check(error, st%ok(), format_error(st))
@@ -278,7 +278,7 @@ contains
 
             call set_buffer(source, st)
             call show_alone()
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             if (len(text) > 0) call search_forward(text, found, st)
             call add_change_log_entry(st)
             call check(error, st%ok(), format_error(st))
@@ -293,9 +293,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
-        call init_fileio()
-        call temp_buffer(" *add-log-test*", "", h)
+        call initialize_bindings()
+        call initialize_fileio()
+        call temporary_buffer(" *add-log-test*", "", h)
         entries(1)%file = "a.sh"
         allocate (entries(1)%subprograms(2))
         entries(1)%subprograms(1)%text = "foo"
@@ -317,18 +317,18 @@ contains
         character(len=:), allocatable :: name
         integer(int64) :: found
 
-        call init_bindings()
-        call init_fileio()
-        call temp_buffer(" *add-log-test*", HEADER//LF//LF//TAB//"* src/a.f90 (foo): Fix."//LF//TAB//"(bar): Too."//LF//LF// &
-                         TAB//"* b.txt: New."//LF, h)
+        call initialize_bindings()
+        call initialize_fileio()
+        call temporary_buffer(" *add-log-test*", HEADER//LF//LF//TAB//"* src/a.f90 (foo): Fix."//LF//TAB//"(bar): Too."//LF//LF// &
+                              TAB//"* b.txt: New."//LF, h)
         call change_log_mode(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call search_change_log_file_name(point_min(), name)
+        call search_change_log_file_name(point_minimum(), name)
         call check(error, allocated(name), "date line")
         if (.not. allocated(error)) call check(error, name, "src/a.f90")
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward("(bar)", found, st)
         call search_change_log_file_name(point(), name)
         call check(error, allocated(name), "list line")
@@ -353,11 +353,11 @@ contains
         integer(int64) :: found
 
         call setup()
-        call temp_buffer(" *add-log-file*", "#!/bin/sh"//LF//"foo()"//LF//"{"//LF//TAB//"echo foo"//LF//TAB//"echo new"// &
-                         LF//"}"//LF//LF//"bar()"//LF//"{"//LF//TAB//"echo bar"//LF//"}"//LF, h)
+        call temporary_buffer(" *add-log-file*", "#!/bin/sh"//LF//"foo()"//LF//"{"//LF//TAB//"echo foo"//LF//TAB//"echo new"// &
+                              LF//"}"//LF//LF//"bar()"//LF//"{"//LF//TAB//"echo bar"//LF//"}"//LF, h)
         call write_region(tdir()//"a.sh", .false., st)
         call close_buffer(h, st)
-        call temp_buffer("*add-log-diff*", DIFF_TEXT, h)
+        call temporary_buffer("*add-log-diff*", DIFF_TEXT, h)
         call diff_mode(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -372,7 +372,7 @@ contains
         if (allocated(error)) return
         call check(error, entries(1)%subprograms(1)%text, "foo")
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward("+"//TAB//"echo new", found, st)
         call add_log_current_subprogram(name)
         call check(error, allocated(name), "no name in the Diff buffer")
@@ -391,12 +391,12 @@ contains
         type(handle_type) :: h, old
 
         old = current_buffer()
-        call temp_buffer(" *add-log-file*", "#!/bin/sh"//LF//"foo()"//LF//"{"//LF//TAB//"echo foo"//LF//TAB//"echo new"// &
-                         LF//"}"//LF//LF//"bar()"//LF//"{"//LF//TAB//"echo bar"//LF//"}"//LF, h)
+        call temporary_buffer(" *add-log-file*", "#!/bin/sh"//LF//"foo()"//LF//"{"//LF//TAB//"echo foo"//LF//TAB//"echo new"// &
+                              LF//"}"//LF//LF//"bar()"//LF//"{"//LF//TAB//"echo bar"//LF//"}"//LF, h)
         call write_region(tdir()//"a.sh", .false., status)
         call close_buffer(h, status)
         call set_buffer(old, status)
-        call temp_buffer("*add-log-diff*", DIFF_TEXT, h)
+        call temporary_buffer("*add-log-diff*", DIFF_TEXT, h)
         call diff_mode(status)
         if (status%ok()) call pop_to_buffer(h, status)
     end subroutine show_test_diff
@@ -417,7 +417,7 @@ contains
         type(status_type) :: st
 
         call setup()
-        call temp_buffer("*vc-log*", "", log)
+        call temporary_buffer("*vc-log*", "", log)
         call show_alone()
         call log_edit(ignore_commit, st, diff_function=show_test_diff)
         call check(error, st%ok(), format_error(st))
@@ -434,7 +434,7 @@ contains
         if (allocated(error)) return
         call erase_buffer(st)
         call insert("Summary: "//LF//LF, st)
-        call goto_char(10_int64)
+        call goto_character(10_int64)
         call generate_log_edit_changelog_from_diff(st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "Summary: * a.sh (foo): "//LF//LF)

@@ -28,11 +28,12 @@ module test_fortmacs_widget_for_object_collections_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, goto_char, point, point_min
+    use editing_functions_mod, only: buffer_string, goto_character, point, point_minimum
     use fortmacs_widget_for_object_collections_mod, only: ewoc_type, make_ewoc, destroy_ewoc, ewoc_enter_last, ewoc_enter_first, &
-                           ewoc_enter_after, ewoc_data, ewoc_set_data, ewoc_next, ewoc_prev, ewoc_nth, ewoc_locate, ewoc_location, &
-                                                ewoc_invalidate, ewoc_delete, ewoc_filter, ewoc_collect, ewoc_map, ewoc_goto_next, &
-                                                          ewoc_goto_prev, ewoc_set_hf, ewoc_get_hf, ewoc_refresh
+                                                          ewoc_enter_after, ewoc_data, ewoc_set_data, ewoc_next, ewoc_previous, &
+                                                          ewoc_nth, ewoc_locate, ewoc_location, ewoc_invalidate, ewoc_delete, &
+                                                          ewoc_filter, ewoc_collect, ewoc_map, ewoc_goto_next, ewoc_goto_previous, &
+                                                          ewoc_set_hf, ewoc_get_hf, ewoc_refresh
     implicit none(type, external)
     private
 
@@ -78,7 +79,7 @@ contains
         above_two = data > 2
     end function above_two
 
-    subroutine temp_buffer(h)
+    subroutine temporary_buffer(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
@@ -86,7 +87,7 @@ contains
         call set_buffer(h, st)
         call erase_buffer(st)
         doubled = 0
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     subroutine test_enter(error)
         type(error_type), allocatable, intent(out) :: error
@@ -95,7 +96,7 @@ contains
         type(status_type) :: st
         integer :: n1, n2, n3
 
-        call temp_buffer(h)
+        call temporary_buffer(h)
         call insert("before"//LF, st)
         e = make_ewoc(pp, "head", "foot")
         call check(error, buffer_string(), "before"//LF//"head"//LF//"foot"//LF)
@@ -107,7 +108,7 @@ contains
         if (allocated(error)) return
         call check(error, ewoc_nth(e, 0) == n1 .and. ewoc_nth(e, -1) == n3 .and. ewoc_nth(e, 3) == 0, "nth")
         if (allocated(error)) return
-        call check(error, ewoc_next(e, n1) == n2 .and. ewoc_next(e, n3) == 0 .and. ewoc_prev(e, n1) == 0, "next/prev")
+        call check(error, ewoc_next(e, n1) == n2 .and. ewoc_next(e, n3) == 0 .and. ewoc_previous(e, n1) == 0, "next/prev")
         if (allocated(error)) return
         call check(error, ewoc_data(e, n2) == 2 .and. ewoc_location(e, n2) == 20, "data and location")
         if (allocated(error)) return
@@ -125,7 +126,7 @@ contains
         type(status_type) :: st
         integer :: n1, n2, n3, node
 
-        call temp_buffer(h)
+        call temporary_buffer(h)
         e = make_ewoc(pp, "head", "foot")
         call check(error, ewoc_locate(e, 1_int64) == 0, "empty")
         if (allocated(error)) return
@@ -139,17 +140,17 @@ contains
         if (allocated(error)) return
         call check(error, ewoc_locate(e, 30_int64) == n3, "after the last")
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         node = ewoc_goto_next(e, 2, st)
         call check(error, st%ok() .and. node == n3 .and. point() == 20, "goto-next")
         if (allocated(error)) return
-        node = ewoc_goto_prev(e, 1)
+        node = ewoc_goto_previous(e, 1)
         call check(error, node == n2 .and. point() == 13, "goto-prev")
         if (allocated(error)) return
-        node = ewoc_goto_prev(e, 5)
+        node = ewoc_goto_previous(e, 5)
         call check(error, node == n1 .and. point() == 6, "never above the first")
         if (allocated(error)) return
-        call goto_char(20_int64)
+        call goto_character(20_int64)
         node = ewoc_goto_next(e, 2, st)
         call check(error,.not. st%ok(), "no next")
         call destroy_ewoc(e)
@@ -164,7 +165,7 @@ contains
         integer(int64), allocatable :: got(:)
         integer :: n1, n2, n3, n4
 
-        call temp_buffer(h)
+        call temporary_buffer(h)
         e = make_ewoc(pp)
         n1 = ewoc_enter_last(e, 1_int64)
         n2 = ewoc_enter_last(e, 2_int64)
@@ -209,7 +210,7 @@ contains
         character(len=:), allocatable :: header, footer
         integer :: n
 
-        call temp_buffer(h)
+        call temporary_buffer(h)
         e = make_ewoc(pp, "[", "]", nosep=.true.)
         n = ewoc_enter_last(e, 1_int64)
         n = ewoc_enter_last(e, 2_int64)

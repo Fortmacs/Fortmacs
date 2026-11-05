@@ -25,7 +25,7 @@
 !> one byte per element), so the compiler, the first-character analysis and
 !> the backtracking matcher follow regex-emacs.c closely.  Differences:
 !>
-!> - The text is a `re_subject_type': a string, or the accessible part of
+!> - The text is a `regular_expression_subject_type': a string, or the accessible part of
 !>   the current buffer read across the gap.  Offsets into it are 0-based
 !>   byte offsets, as upstream's offsets into the virtual concatenation of
 !>   STRING1 and STRING2.  Pointers into the pattern or the text become
@@ -36,32 +36,33 @@
 !> - Syntax comes from the current buffer's syntax table and, for \b, \<,
 !>   \>, \_<, \_> and \s, its `syntax_table' properties (as upstream);
 !>   categories come from characters_mod.
-!> - Errors are returned as a status of `invalid_regexp'; a matcher that
+!> - Errors are returned as a status of `invalid_regular_expression'; a matcher that
 !>   runs out of failure stack returns -2.
 module regular_expression_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_INVALID_REGEXP
+    use error_mod, only: status_type, set_error, FM_INVALID_REGULAR_EXPRESSION
     use print_mod, only: fortran_string
-    use character_mod, only: is_ascii_char, is_char_byte8, byte8_to_char, char_to_byte8, char_to_byte_safe, &
-                             is_char_byte8_head, char_leading_code, char_string, is_char_head, bytes_by_char_head, &
-                             string_char_and_length, MAX_MULTIBYTE_LENGTH, MIN_MULTIBYTE_LEADING_CODE, &
-                             MAX_MULTIBYTE_LEADING_CODE, is_alphabetic, is_alphanumeric, is_graphic, is_printable, is_blank, &
-                             char_hexdigit
+    use character_mod, only: is_ascii_character, is_character_byte8, byte8_to_character, character_to_byte8, &
+                             character_to_byte_safe, is_character_byte8_head, character_leading_code, character_string, &
+                             is_character_head, bytes_by_character_head, string_character_and_length, MAXIMUM_MULTIBYTE_LENGTH, &
+                             MINIMUM_MULTIBYTE_LEADING_CODE, MAXIMUM_MULTIBYTE_LEADING_CODE, is_alphabetic, is_alphanumeric, &
+                             is_graphic, is_printable, is_blank, character_hexdigit
     use case_table_mod, only: case_canon, is_uppercase, is_lowercase
-    use syntax_mod, only: char_syntax_class, syntax_class_at, is_word_boundary, SWHITESPACE, SPUNCT, SWORD, SSYMBOL, SOPEN, &
+    use syntax_mod, only: character_syntax_class, syntax_class_at, is_word_boundary, SWHITESPACE, SPUNCT, SWORD, SSYMBOL, SOPEN, &
                           SCLOSE, SQUOTE, SSTRING, SMATH, SESCAPE, SCHARQUOTE, SCOMMENT, SENDCOMMENT, SINHERIT, &
                           SCOMMENT_FENCE, SSTRING_FENCE
-    use category_mod, only: char_has_category
+    use category_mod, only: character_has_category
     use buffer_mod, only: buffers, current
-    use marker_mod, only: byte_to_char
+    use marker_mod, only: byte_to_character
     implicit none(type, external)
     private
 
-    public :: re_pattern_buffer_type, re_registers_type, re_subject_type
-    public :: re_compile_pattern, re_search, re_match, string_to_subject, buffer_to_subject
-    public :: re_wctype_parse, re_iswctype
+    public :: regular_expression_pattern_buffer_type, regular_expression_registers_type, regular_expression_subject_type
+    public :: regular_expression_compile_pattern, regular_expression_search, regular_expression_match, string_to_subject, &
+              buffer_to_subject
+    public :: regular_expression_wctype_parse, regular_expression_iswctype
 
-    !> The opcodes of compiled patterns (regex-emacs.c re_opcode_t).
+    !> The opcodes of compiled patterns (regex-emacs.c regular_expression_opcode_t).
     integer, parameter :: NO_OP = 0, SUCCEED = 1, EXACTN = 2, ANYCHAR = 3, CHARSET = 4, CHARSET_NOT = 5, &
                           START_MEMORY = 6, STOP_MEMORY = 7, DUPLICATE = 8, BEGLINE = 9, ENDLINE = 10, &
                           BEGBUF = 11, ENDBUF = 12, JUMP = 13, ON_FAILURE_JUMP = 14, &
@@ -77,7 +78,7 @@ module regular_expression_mod
                           REG_EBRACE = 9, REG_BADBR = 10, REG_ERANGE = 11, REG_ESPACE = 12, REG_BADRPT = 13, &
                           REG_EEND = 14, REG_ESIZE = 15, REG_ERPAREN = 16, REG_ERANGEX = 17, REG_ESIZEBR = 18
 
-    !> Character classes (regex-emacs.h re_wctype_t).
+    !> Character classes (regex-emacs.h regular_expression_wctype_t).
     integer, parameter, public :: RECC_ERROR = 0, RECC_ALNUM = 1, RECC_ALPHA = 2, RECC_WORD = 3, &
                                   RECC_GRAPH = 4, RECC_PRINT = 5, RECC_LOWER = 6, RECC_UPPER = 7, &
                                   RECC_PUNCT = 8, RECC_CNTRL = 9, RECC_DIGIT = 10, RECC_XDIGIT = 11, &
@@ -92,46 +93,46 @@ module regular_expression_mod
                           BIT_PRINT = int(z'200'), BIT_BLANK = int(z'400')
 
     !> Offsets in the pattern are two bytes long.
-    integer, parameter :: MAX_BUFFER_SIZE = 32768
-    integer, parameter :: INIT_BUFFER_SIZE = 32
-    integer, parameter :: MAX_REGNUM = 255
-    integer, parameter :: RE_DUP_MAX = int(z'ffff')
-    !> RE_DUP_MAX / 10 and RE_DUP_MAX % 10, for overflow checks.
-    integer, parameter :: RE_DUP_MAX_TENTH = 6553, RE_DUP_MAX_LAST_DIGIT = 5
+    integer, parameter :: MAXIMUM_BUFFER_SIZE = 32768
+    integer, parameter :: INITIALIZE_BUFFER_SIZE = 32
+    integer, parameter :: MAXIMUM_REGNUM = 255
+    integer, parameter :: REGULAR_EXPRESSION_DUP_MAXIMUM = int(z'ffff')
+    !> REGULAR_EXPRESSION_DUP_MAXIMUM / 10 and REGULAR_EXPRESSION_DUP_MAXIMUM % 10, for overflow checks.
+    integer, parameter :: REGULAR_EXPRESSION_DUP_MAXIMUM_TENTH = 6553, REGULAR_EXPRESSION_DUP_MAXIMUM_LAST_DIGIT = 5
     !> The largest explicit group number that can take one more digit.
     integer, parameter :: REGNUM_LIMIT = 214748363
 
     !> Roughly the maximum number of failure points on the stack.
-    integer(int64), parameter :: EMACS_RE_MAX_FAILURES = 40000
+    integer(int64), parameter :: EMACS_REGULAR_EXPRESSION_MAXIMUM_FAILURES = 40000
     integer(int64), parameter :: TYPICAL_FAILURE_SIZE = 20
-    integer(int64), parameter :: INIT_FAILURE_ALLOC = 20
+    integer(int64), parameter :: INITIALIZE_FAILURE_ALLOC = 20
 
     !> What forall_firstchar calls on each operation it reaches.
     integer, parameter :: VISIT_NULL = 1, VISIT_FASTMAP = 2, VISIT_MUTEX = 3
 
     !> The error messages, indexed by error code.
-    character(len=40), parameter :: re_error_msgid(0:18) = [character(len=40) :: &
-                                                            "Success", "No match", "Invalid regular expression", &
-                                                            "Invalid collation character", &
-                                                            "Invalid character class name", "Trailing backslash", &
-                                                            "Invalid back reference", "Unmatched [ or [^", &
-                                                            "Unmatched ( or \(", "Unmatched \{", &
-                                                            "Invalid content of \{\}", "Invalid range end", &
-                                                            "Memory exhausted", &
-                                                            "Invalid preceding regular expression", &
-                                                            "Premature end of regular expression", &
-                                                            "Regular expression too big", "Unmatched ) or \)", &
-                                                            "Range striding over charsets", &
-                                                            "Invalid content of \{\}"]
+    character(len=40), parameter :: regular_expression_error_msgid(0:18) = [character(len=40) :: &
+                                                                            "Success", "No match", "Invalid regular expression", &
+                                                                            "Invalid collation character", &
+                                                                            "Invalid character class name", "Trailing backslash", &
+                                                                            "Invalid back reference", "Unmatched [ or [^", &
+                                                                            "Unmatched ( or \(", "Unmatched \{", &
+                                                                            "Invalid content of \{\}", "Invalid range end", &
+                                                                            "Memory exhausted", &
+                                                                            "Invalid preceding regular expression", &
+                                                                            "Premature end of regular expression", &
+                                                                            "Regular expression too big", "Unmatched ) or \)", &
+                                                                            "Range striding over charsets", &
+                                                                            "Invalid content of \{\}"]
 
-    !> A compiled pattern (regex-emacs.h struct re_pattern_buffer).
-    type :: re_pattern_buffer_type
+    !> A compiled pattern (regex-emacs.h struct regular_expression_pattern_buffer).
+    type :: regular_expression_pattern_buffer_type
         !> The compiled pattern, `buffer(0:used-1)', one byte per element.
         !> The matcher changes it (loop counters and on_failure_jump_smart).
         integer, allocatable :: buffer(:)
         integer :: used = 0
         !> Number of subexpressions.
-        integer :: re_nsub = 0
+        integer :: regular_expression_nsub = 0
         !> Fold case through the case canon table.
         logical :: translate = .false.
         !> Which bytes can start a match, if `fastmap_accurate'.
@@ -141,23 +142,23 @@ module regular_expression_mod
         logical :: can_be_null = .false.
         !> The pattern depends on the syntax table.
         logical :: used_syntax = .false.
-    end type re_pattern_buffer_type
+    end type regular_expression_pattern_buffer_type
 
     !> Where each group matched, as offsets into the subject; -1 if it
-    !> didn't (regex-emacs.h struct re_registers).
-    type :: re_registers_type
+    !> didn't (regex-emacs.h struct regular_expression_registers).
+    type :: regular_expression_registers_type
         integer(int64), allocatable :: starts(:), ends(:)
-    end type re_registers_type
+    end type regular_expression_registers_type
 
     !> The text to match: a string, or the accessible part of the current
-    !> buffer (BEGV_BYTE to ZV_BYTE).  Offsets are 0-based.
-    type :: re_subject_type
+    !> buffer (BEGINNING_OF_ACCESSIBLE_PORTION_BYTE to END_OF_ACCESSIBLE_PORTION_BYTE).  Offsets are 0-based.
+    type :: regular_expression_subject_type
         logical :: is_buffer = .false.
         character(len=:), allocatable :: string
-        !> Buffer: BEGV_BYTE, the gap position and size.
+        !> Buffer: BEGINNING_OF_ACCESSIBLE_PORTION_BYTE, the gap position and size.
         integer(int64) :: base = 1, gpt_byte = 1, gap_size = 0
         integer(int64) :: size = 0
-    end type re_subject_type
+    end type regular_expression_subject_type
 
     !> State of forall_firstchar's visitors (anafirst_data, mutexcl_data).
     type :: visit_data_type
@@ -172,7 +173,7 @@ contains
     !> The string `string' as a subject.  Not a port.
     function string_to_subject(string) result(s)
         character(len=*), intent(in) :: string
-        type(re_subject_type) :: s
+        type(regular_expression_subject_type) :: s
 
         s%is_buffer = .false.
         s%string = string
@@ -181,21 +182,21 @@ contains
 
     !> The accessible part of the current buffer as a subject.  Not a port.
     function buffer_to_subject() result(s)
-        type(re_subject_type) :: s
+        type(regular_expression_subject_type) :: s
 
         s%is_buffer = .true.
 
         associate (b => buffers(current))
-            s%base = b%begv_byte
+            s%base = b%beginning_of_accessible_portion_byte
             s%gpt_byte = b%text%gpt_byte
             s%gap_size = b%text%gap_size
-            s%size = b%zv_byte - b%begv_byte
+            s%size = b%end_of_accessible_portion_byte - b%beginning_of_accessible_portion_byte
         end associate
     end function buffer_to_subject
 
     !> The byte at offset `d' of the subject.  Not a port.
     integer function sbyte(s, d)
-        type(re_subject_type), intent(in) :: s
+        type(regular_expression_subject_type), intent(in) :: s
         integer(int64), intent(in) :: d
         integer(int64) :: bp
 
@@ -209,32 +210,32 @@ contains
     end function sbyte
 
     !> The character at offset `d' of the subject and its length
-    !> (GET_CHAR_AFTER).  Port of regex-emacs.c:GET_CHAR_AFTER.
+    !> (GET_CHARACTER_AFTER).  Port of regex-emacs.c:GET_CHAR_AFTER.
     subroutine schar(s, d, c, length)
-        type(re_subject_type), intent(in) :: s
+        type(regular_expression_subject_type), intent(in) :: s
         integer(int64), intent(in) :: d
         integer(int32), intent(out) :: c, length
-        character(len=MAX_MULTIBYTE_LENGTH) :: tmp
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: temporary
         integer(int64) :: n, k
 
         if (.not. s%is_buffer) then
-            call string_char_and_length(s%string, d + 1, c, length)
+            call string_character_and_length(s%string, d + 1, c, length)
             return
         end if
 
-        n = min(int(bytes_by_char_head(int(sbyte(s, d), int32)), int64), s%size - d)
+        n = min(int(bytes_by_character_head(int(sbyte(s, d), int32)), int64), s%size - d)
 
         do k = 1, n
-            tmp(k:k) = achar(sbyte(s, d + k - 1))
+            temporary(k:k) = achar(sbyte(s, d + k - 1))
         end do
 
-        call string_char_and_length(tmp(1:n), 1_int64, c, length)
+        call string_character_and_length(temporary(1:n), 1_int64, c, length)
     end subroutine schar
 
-    !> The character before offset `d' (GET_CHAR_BEFORE_2).  Port of
+    !> The character before offset `d' (GET_CHARACTER_BEFORE_2).  Port of
     !> regex-emacs.c:GET_CHAR_BEFORE_2.
     integer(int32) function schar_before(s, d) result(c)
-        type(re_subject_type), intent(in) :: s
+        type(regular_expression_subject_type), intent(in) :: s
         integer(int64), intent(in) :: d
         integer(int64) :: dtemp
         integer(int32) :: length
@@ -242,7 +243,7 @@ contains
         dtemp = d - 1
 
         do while (dtemp > 0)
-            if (is_char_head(int(sbyte(s, dtemp), int32))) exit
+            if (is_character_head(int(sbyte(s, dtemp), int32))) exit
             dtemp = dtemp - 1
         end do
 
@@ -254,14 +255,14 @@ contains
     !> at its position, which consults `syntax_table' properties in a buffer
     !> (strings carry no text properties).  Not a port.
     recursive integer function subject_syntax(s, d, shift, c) result(code)
-        type(re_subject_type), intent(in) :: s
+        type(regular_expression_subject_type), intent(in) :: s
         integer(int64), intent(in) :: d, shift
         integer(int32), intent(in) :: c
 
         if (s%is_buffer) then
-            code = syntax_class_at(int(c), byte_to_char(s%base + d) + shift)
+            code = syntax_class_at(int(c), byte_to_character(s%base + d) + shift)
         else
-            code = char_syntax_class(int(c))
+            code = character_syntax_class(int(c))
         end if
     end function subject_syntax
 
@@ -271,16 +272,16 @@ contains
         integer, intent(in) :: buffer(0:)
         integer, intent(in) :: p
         integer(int32), intent(out) :: c, length
-        character(len=MAX_MULTIBYTE_LENGTH) :: tmp
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: temporary
         integer :: n, k
 
-        n = min(bytes_by_char_head(int(buffer(p), int32)), size(buffer) - p)
+        n = min(bytes_by_character_head(int(buffer(p), int32)), size(buffer) - p)
 
         do k = 1, n
-            tmp(k:k) = achar(buffer(p + k - 1))
+            temporary(k:k) = achar(buffer(p + k - 1))
         end do
 
-        call string_char_and_length(tmp(1:n), 1_int64, c, length)
+        call string_character_and_length(temporary(1:n), 1_int64, c, length)
     end subroutine pchar
 
     !> Store NUMBER in two contiguous bytes at `at' (STORE_NUMBER).  Port of
@@ -314,7 +315,7 @@ contains
         extract_address = at + 2 + extract_number(buffer, at)
     end function extract_address
 
-    !> Store a character in three bytes at `at' (STORE_CHARACTER_AND_INCR).
+    !> Store a character in three bytes at `at' (STORE_CHARACTER_AND_INCREMENT).
     !> Port of regex-emacs.c:STORE_CHARACTER_AND_INCR.
     pure subroutine store_character(buffer, at, c)
         integer, intent(inout) :: buffer(0:)
@@ -365,48 +366,48 @@ contains
     end function charset_range_table_bits
 
     !> Syntax code for the character after \s or \S, or 255 for none
-    !> (syntax.c syntax_spec_code).  Port of the syntax_spec_code table of
+    !> (syntax.c syntax_specification_code).  Port of the syntax_specification_code table of
     !> syntax.c.
-    pure integer function syntax_spec_code(c)
+    pure integer function syntax_specification_code(c)
         integer(int32), intent(in) :: c
 
         select case (c)
         case (iachar(" "), iachar("-"))
-            syntax_spec_code = SWHITESPACE
+            syntax_specification_code = SWHITESPACE
         case (iachar("!"))
-            syntax_spec_code = SCOMMENT_FENCE
+            syntax_specification_code = SCOMMENT_FENCE
         case (iachar('"'))
-            syntax_spec_code = SSTRING
+            syntax_specification_code = SSTRING
         case (iachar("$"))
-            syntax_spec_code = SMATH
+            syntax_specification_code = SMATH
         case (iachar("'"))
-            syntax_spec_code = SQUOTE
+            syntax_specification_code = SQUOTE
         case (iachar("("))
-            syntax_spec_code = SOPEN
+            syntax_specification_code = SOPEN
         case (iachar(")"))
-            syntax_spec_code = SCLOSE
+            syntax_specification_code = SCLOSE
         case (iachar("."))
-            syntax_spec_code = SPUNCT
+            syntax_specification_code = SPUNCT
         case (iachar("/"))
-            syntax_spec_code = SCHARQUOTE
+            syntax_specification_code = SCHARQUOTE
         case (iachar("<"))
-            syntax_spec_code = SCOMMENT
+            syntax_specification_code = SCOMMENT
         case (iachar(">"))
-            syntax_spec_code = SENDCOMMENT
+            syntax_specification_code = SENDCOMMENT
         case (iachar("@"))
-            syntax_spec_code = SINHERIT
+            syntax_specification_code = SINHERIT
         case (iachar("W"), iachar("w"))
-            syntax_spec_code = SWORD
+            syntax_specification_code = SWORD
         case (iachar("\"))
-            syntax_spec_code = SESCAPE
+            syntax_specification_code = SESCAPE
         case (iachar("_"))
-            syntax_spec_code = SSYMBOL
+            syntax_specification_code = SSYMBOL
         case (iachar("|"))
-            syntax_spec_code = SSTRING_FENCE
+            syntax_specification_code = SSTRING_FENCE
         case default
-            syntax_spec_code = 255
+            syntax_specification_code = 255
         end select
-    end function syntax_spec_code
+    end function syntax_specification_code
 
     !> Character class tests of regex-emacs.c, for any character.
     !> Port of regex-emacs.c:ISALNUM.
@@ -479,7 +480,7 @@ contains
             ! hazard-ok(short-circuit): isalnum() takes any character code.
             ispunct = c > 32 .and. c < 127 .and. .not. isalnum(c)
         else
-            ispunct = char_syntax_class(c) /= SWORD
+            ispunct = character_syntax_class(c) /= SWORD
         end if
     end function ispunct
 
@@ -487,21 +488,21 @@ contains
     logical function isspace(c)
         integer(int32), intent(in) :: c
 
-        isspace = char_syntax_class(c) == SWHITESPACE
+        isspace = character_syntax_class(c) == SWHITESPACE
     end function isspace
 
     ! Port of regex-emacs.c:ISWORD.
     logical function isword(c)
         integer(int32), intent(in) :: c
 
-        isword = char_syntax_class(c) == SWORD
+        isword = character_syntax_class(c) == SWORD
     end function isword
 
     !> Parse a character class "[:name:]" at `string(p:pend-1)'.  If it is
     !> one, advance `p' past it and return its RECC_ constant (RECC_ERROR
     !> for an unknown name); otherwise return -1.  Port of
     !> regex-emacs.c:re_wctype_parse.
-    integer function re_wctype_parse(string, p, pend) result(cc)
+    integer function regular_expression_wctype_parse(string, p, pend) result(cc)
         character(len=*), intent(in) :: string
         integer(int64), intent(inout) :: p
         integer(int64), intent(in) :: pend
@@ -566,137 +567,138 @@ contains
         case default
             cc = RECC_ERROR
         end select
-    end function re_wctype_parse
+    end function regular_expression_wctype_parse
 
     !> True if CH is in the char class CC.  Port of
     !> regex-emacs.c:re_iswctype.
-    logical function re_iswctype(ch, cc)
+    logical function regular_expression_iswctype(ch, cc)
         integer(int32), intent(in) :: ch
         integer, intent(in) :: cc
 
         select case (cc)
         case (RECC_ALNUM)
-            re_iswctype = isalnum(ch)
+            regular_expression_iswctype = isalnum(ch)
         case (RECC_ALPHA)
-            re_iswctype = isalpha(ch)
+            regular_expression_iswctype = isalpha(ch)
         case (RECC_BLANK)
-            re_iswctype = isblank(ch)
+            regular_expression_iswctype = isblank(ch)
         case (RECC_CNTRL)
-            re_iswctype = ch < 32
+            regular_expression_iswctype = ch < 32
         case (RECC_DIGIT)
-            re_iswctype = ch >= iachar("0") .and. ch <= iachar("9")
+            regular_expression_iswctype = ch >= iachar("0") .and. ch <= iachar("9")
         case (RECC_GRAPH)
-            re_iswctype = isgraph(ch)
+            regular_expression_iswctype = isgraph(ch)
         case (RECC_LOWER)
-            re_iswctype = is_lowercase(ch)
+            regular_expression_iswctype = is_lowercase(ch)
         case (RECC_PRINT)
-            re_iswctype = isprint(ch)
+            regular_expression_iswctype = isprint(ch)
         case (RECC_PUNCT)
-            re_iswctype = ispunct(ch)
+            regular_expression_iswctype = ispunct(ch)
         case (RECC_SPACE)
-            re_iswctype = isspace(ch)
+            regular_expression_iswctype = isspace(ch)
         case (RECC_UPPER)
-            re_iswctype = is_uppercase(ch)
+            regular_expression_iswctype = is_uppercase(ch)
         case (RECC_XDIGIT)
-            re_iswctype = char_hexdigit(ch) >= 0 .and. ch < 256
+            regular_expression_iswctype = character_hexdigit(ch) >= 0 .and. ch < 256
         case (RECC_ASCII)
-            re_iswctype = ch < 128
+            regular_expression_iswctype = ch < 128
         case (RECC_NONASCII)
-            re_iswctype = ch >= 128
+            regular_expression_iswctype = ch >= 128
         case (RECC_UNIBYTE)
-            re_iswctype = ch < 256
+            regular_expression_iswctype = ch < 256
         case (RECC_MULTIBYTE)
-            re_iswctype = ch >= 256
+            regular_expression_iswctype = ch >= 256
         case (RECC_WORD)
-            re_iswctype = isword(ch)
+            regular_expression_iswctype = isword(ch)
         case default
-            re_iswctype = .false.
+            regular_expression_iswctype = .false.
         end select
-    end function re_iswctype
+    end function regular_expression_iswctype
 
     !> The range-table bits for multibyte characters of class CC.  Port of
     !> regex-emacs.c:re_wctype_to_bit.
-    pure integer function re_wctype_to_bit(cc)
+    pure integer function regular_expression_wctype_to_bit(cc)
         integer, intent(in) :: cc
 
         select case (cc)
         case (RECC_NONASCII, RECC_MULTIBYTE)
-            re_wctype_to_bit = BIT_MULTIBYTE
+            regular_expression_wctype_to_bit = BIT_MULTIBYTE
         case (RECC_ALPHA)
-            re_wctype_to_bit = BIT_ALPHA
+            regular_expression_wctype_to_bit = BIT_ALPHA
         case (RECC_ALNUM)
-            re_wctype_to_bit = BIT_ALNUM
+            regular_expression_wctype_to_bit = BIT_ALNUM
         case (RECC_WORD)
-            re_wctype_to_bit = BIT_WORD
+            regular_expression_wctype_to_bit = BIT_WORD
         case (RECC_LOWER)
-            re_wctype_to_bit = BIT_LOWER
+            regular_expression_wctype_to_bit = BIT_LOWER
         case (RECC_UPPER)
-            re_wctype_to_bit = BIT_UPPER
+            regular_expression_wctype_to_bit = BIT_UPPER
         case (RECC_PUNCT)
-            re_wctype_to_bit = BIT_PUNCT
+            regular_expression_wctype_to_bit = BIT_PUNCT
         case (RECC_SPACE)
-            re_wctype_to_bit = BIT_SPACE
+            regular_expression_wctype_to_bit = BIT_SPACE
         case (RECC_GRAPH)
-            re_wctype_to_bit = BIT_GRAPH
+            regular_expression_wctype_to_bit = BIT_GRAPH
         case (RECC_PRINT)
-            re_wctype_to_bit = BIT_PRINT
+            regular_expression_wctype_to_bit = BIT_PRINT
         case (RECC_BLANK)
-            re_wctype_to_bit = BIT_BLANK
+            regular_expression_wctype_to_bit = BIT_BLANK
         case default
-            re_wctype_to_bit = 0
+            regular_expression_wctype_to_bit = 0
         end select
-    end function re_wctype_to_bit
+    end function regular_expression_wctype_to_bit
 
     !> Compile PATTERN into `bufp', with `translate' (case folding) as set
     !> in `bufp'.  Unless `posix', the match succeeds the first time the
     !> end of the pattern is reached (no backtracking for a longer match).
-    !> A nonempty `whitespace_regexp' replaces each run of spaces.  Port of
+    !> A nonempty `whitespace_regular_expression' replaces each run of spaces.  Port of
     !> regex-emacs.c:re_compile_pattern.
-    subroutine re_compile_pattern(pattern, bufp, status, posix, whitespace_regexp)
+    subroutine regular_expression_compile_pattern(pattern, bufp, status, posix, whitespace_regular_expression)
         character(len=*), intent(in) :: pattern
-        type(re_pattern_buffer_type), intent(inout) :: bufp
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: posix
-        character(len=*), intent(in), optional :: whitespace_regexp
+        character(len=*), intent(in), optional :: whitespace_regular_expression
         integer :: err
         logical :: posix_backtracking
 
         status = status_type()
         posix_backtracking = .false.
         if (present(posix)) posix_backtracking = posix
-        call regex_compile(pattern, posix_backtracking, whitespace_regexp, bufp, err)
-        ! compile_pattern_1 signals (invalid-regexp MSG): the data print
+        call regular_expression_compile(pattern, posix_backtracking, whitespace_regular_expression, bufp, err)
+        ! compile_pattern_1 signals (invalid-regexp MESSAGE): the data print
         ! as a quoted string.
-        if (err /= REG_NOERROR) call set_error(status, FM_INVALID_REGEXP, fortran_string(trim(re_error_msgid(err))))
-    end subroutine re_compile_pattern
+        if (err /= REG_NOERROR) call set_error(status, FM_INVALID_REGULAR_EXPRESSION, &
+                                               fortran_string(trim(regular_expression_error_msgid(err))))
+    end subroutine regular_expression_compile_pattern
 
-    !> Compile PATTERN into `bufp' (see re_compile_pattern); `err' is a
+    !> Compile PATTERN into `bufp' (see regular_expression_compile_pattern); `err' is a
     !> REG_ code.  Port of regex-emacs.c:regex_compile.
-    subroutine regex_compile(pattern, posix_backtracking, whitespace_regexp, bufp, err)
+    subroutine regular_expression_compile(pattern, posix_backtracking, whitespace_regular_expression, bufp, err)
         character(len=*), intent(in) :: pattern
         logical, intent(in) :: posix_backtracking
-        character(len=*), intent(in), optional :: whitespace_regexp
-        type(re_pattern_buffer_type), intent(inout) :: bufp
+        character(len=*), intent(in), optional :: whitespace_regular_expression
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
         integer, intent(out) :: err
-        character(len=:), allocatable :: src, main_src
+        character(len=:), allocatable :: source, main_source
         integer(int64) :: p, pend, main_p, main_pend, p1, p2, beginning_interval
         integer(int32) :: c, c1, ch, clen
         integer :: b, pending_exact, laststart, begalt, fixup_alt_jump, regnum, reg, k
         integer :: lower_bound, upper_bound, nbytes, startoffset, cc, ofj, used, i, kp
         logical :: in_subpattern, normal, shy, zero_times_ok, many_times_ok, greedy, simple, emptyp
-        logical :: has_ws
+        logical :: has_whitespace
         ! The compile stack (compile_stack_type).
         integer, allocatable :: cs_begalt(:), cs_fixup(:), cs_laststart(:), cs_regnum(:)
         integer :: cs_avail
         ! The range table work area (struct range_table_work_area).
         integer(int32), allocatable :: rt(:)
         integer :: rt_used, rt_bits
-        character(len=MAX_MULTIBYTE_LENGTH) :: cbuf
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: cbuf
         type(status_type) :: st
 
         err = REG_NOERROR
-        has_ws = .false.
-        if (present(whitespace_regexp)) has_ws = len(whitespace_regexp) > 0
+        has_whitespace = .false.
+        if (present(whitespace_regular_expression)) has_whitespace = len(whitespace_regular_expression) > 0
         allocate (cs_begalt(32), cs_fixup(32), cs_laststart(32), cs_regnum(32))
         cs_avail = 0
         allocate (rt(64))
@@ -705,12 +707,12 @@ contains
         bufp%fastmap_accurate = .false.
         bufp%used_syntax = .false.
         bufp%used = 0
-        bufp%re_nsub = 0
-        if (.not. allocated(bufp%buffer)) allocate (bufp%buffer(0:INIT_BUFFER_SIZE - 1))
+        bufp%regular_expression_nsub = 0
+        if (.not. allocated(bufp%buffer)) allocate (bufp%buffer(0:INITIALIZE_BUFFER_SIZE - 1))
         bufp%buffer = 0
-        src = pattern
+        source = pattern
         p = 1
-        pend = len(src, kind=int64) + 1
+        pend = len(source, kind=int64) + 1
         in_subpattern = .false.
         b = 0
         begalt = 0
@@ -729,7 +731,7 @@ contains
                 ! the main regexp and try again.
                 if (in_subpattern) then
                     in_subpattern = .false.
-                    src = main_src
+                    source = main_source
                     p = main_p
                     pend = main_pend
                     cycle
@@ -746,7 +748,7 @@ contains
             case (32)
                 ! If there's no special whitespace regexp, treat spaces
                 ! normally.  And don't try to do this recursively.
-                if (.not. has_ws .or. in_subpattern) then
+                if (.not. has_whitespace .or. in_subpattern) then
                     normal = .true.
                 else
                     ! Peek past following spaces.
@@ -775,15 +777,15 @@ contains
                         in_subpattern = .true.
                         main_p = p1
                         main_pend = pend
-                        main_src = src
-                        src = whitespace_regexp
+                        main_source = source
+                        source = whitespace_regular_expression
                         p = 1
-                        pend = len(src, kind=int64) + 1
+                        pend = len(source, kind=int64) + 1
                     end if
                 end if
             case (iachar("^"))
                 normal = p /= 2
-                if (normal) normal = .not. is_at_begline_loc(src, p)
+                if (normal) normal = .not. is_at_begline_location(source, p)
 
                 if (.not. normal) then
                     ! Special case for compatibility: postfix ops after ^
@@ -793,7 +795,7 @@ contains
                 end if
             case (iachar("$"))
                 normal = p /= pend
-                if (normal) normal = .not. is_at_endline_loc(src, p, pend)
+                if (normal) normal = .not. is_at_endline_location(source, p, pend)
 
                 if (.not. normal) then
                     laststart = b
@@ -827,7 +829,7 @@ contains
             end select
 
             if (err /= REG_NOERROR) return
-            if (normal) call normal_char()
+            if (normal) call normal_character()
         end do
 
         ! Through the pattern now.
@@ -850,8 +852,8 @@ contains
         integer function byte_of(i)
             integer(int64), intent(in) :: i
 
-            if (i >= 1 .and. i <= len(src, kind=int64)) then
-                byte_of = ichar(src(i:i))
+            if (i >= 1 .and. i <= len(source, kind=int64)) then
+                byte_of = ichar(source(i:i))
             else
                 byte_of = 0
             end if
@@ -867,7 +869,7 @@ contains
                 return
             end if
 
-            call string_char_and_length(src, p, cc_out, clen)
+            call string_character_and_length(source, p, cc_out, clen)
             p = p + clen
         end subroutine patfetch
 
@@ -879,7 +881,7 @@ contains
             integer :: new_size
 
             if (size(bufp%buffer) - b >= n) return
-            if (b + n > MAX_BUFFER_SIZE) err = REG_ESIZE
+            if (b + n > MAXIMUM_BUFFER_SIZE) err = REG_ESIZE
             new_size = max(2*size(bufp%buffer), b + n)
             allocate (grown(0:new_size - 1))
             grown = 0
@@ -906,65 +908,65 @@ contains
             b = b + 2
         end subroutine buf_push_2
 
-        !> Store OP at LOC followed by the two-byte ARG (store_op1).
-        subroutine store_op1(op, loc, arg)
-            integer, intent(in) :: op, loc, arg
+        !> Store OP at LOCATION followed by the two-byte ARGUMENT (store_op1).
+        subroutine store_op1(op, location, argument)
+            integer, intent(in) :: op, location, argument
 
-            bufp%buffer(loc) = op
-            call store_number(bufp%buffer, loc + 1, arg)
+            bufp%buffer(location) = op
+            call store_number(bufp%buffer, location + 1, argument)
         end subroutine store_op1
 
         !> Like store_op1, with two arguments (store_op2).
-        subroutine store_op2(op, loc, arg1, arg2)
-            integer, intent(in) :: op, loc, arg1, arg2
+        subroutine store_op2(op, location, arg1, arg2)
+            integer, intent(in) :: op, location, arg1, arg2
 
-            bufp%buffer(loc) = op
-            call store_number(bufp%buffer, loc + 1, arg1)
-            call store_number(bufp%buffer, loc + 3, arg2)
+            bufp%buffer(location) = op
+            call store_number(bufp%buffer, location + 1, arg1)
+            call store_number(bufp%buffer, location + 3, arg2)
         end subroutine store_op2
 
-        !> Open up three bytes at LOC for OP and ARG (insert_op1).
-        subroutine insert_op1(op, loc, arg)
-            integer, intent(in) :: op, loc, arg
+        !> Open up three bytes at LOCATION for OP and ARGUMENT (insert_op1).
+        subroutine insert_op1(op, location, argument)
+            integer, intent(in) :: op, location, argument
 
-            bufp%buffer(loc + 3:b + 2) = bufp%buffer(loc:b - 1)
-            call store_op1(op, loc, arg)
+            bufp%buffer(location + 3:b + 2) = bufp%buffer(location:b - 1)
+            call store_op1(op, location, argument)
         end subroutine insert_op1
 
-        !> Open up five bytes at LOC for OP, ARG1 and ARG2 (insert_op2).
-        subroutine insert_op2(op, loc, arg1, arg2)
-            integer, intent(in) :: op, loc, arg1, arg2
+        !> Open up five bytes at LOCATION for OP, ARG1 and ARG2 (insert_op2).
+        subroutine insert_op2(op, location, arg1, arg2)
+            integer, intent(in) :: op, location, arg1, arg2
 
-            bufp%buffer(loc + 5:b + 4) = bufp%buffer(loc:b - 1)
-            call store_op2(op, loc, arg1, arg2)
+            bufp%buffer(location + 5:b + 4) = bufp%buffer(location:b - 1)
+            call store_op2(op, location, arg1, arg2)
         end subroutine insert_op2
 
-        !> Store a jump with opcode OP at LOC to TO (STORE_JUMP).
-        subroutine store_jump(op, loc, to)
-            integer, intent(in) :: op, loc, to
+        !> Store a jump with opcode OP at LOCATION to TO (STORE_JUMP).
+        subroutine store_jump(op, location, to)
+            integer, intent(in) :: op, location, to
 
-            call store_op1(op, loc, to - loc - 3)
+            call store_op1(op, location, to - location - 3)
         end subroutine store_jump
 
         !> Store a two-argument jump (STORE_JUMP2).
-        subroutine store_jump2(op, loc, to, arg)
-            integer, intent(in) :: op, loc, to, arg
+        subroutine store_jump2(op, location, to, argument)
+            integer, intent(in) :: op, location, to, argument
 
-            call store_op2(op, loc, to - loc - 3, arg)
+            call store_op2(op, location, to - location - 3, argument)
         end subroutine store_jump2
 
-        !> Insert a jump at LOC to TO (INSERT_JUMP).
-        subroutine insert_jump(op, loc, to)
-            integer, intent(in) :: op, loc, to
+        !> Insert a jump at LOCATION to TO (INSERT_JUMP).
+        subroutine insert_jump(op, location, to)
+            integer, intent(in) :: op, location, to
 
-            call insert_op1(op, loc, to - loc - 3)
+            call insert_op1(op, location, to - location - 3)
         end subroutine insert_jump
 
-        !> Insert a two-argument jump at LOC to TO (INSERT_JUMP2).
-        subroutine insert_jump2(op, loc, to, arg)
-            integer, intent(in) :: op, loc, to, arg
+        !> Insert a two-argument jump at LOCATION to TO (INSERT_JUMP2).
+        subroutine insert_jump2(op, location, to, argument)
+            integer, intent(in) :: op, location, to, argument
 
-            call insert_op2(op, loc, to - loc - 3, arg)
+            call insert_op2(op, location, to - location - 3, argument)
         end subroutine insert_jump2
 
         !> Insert the jump from the end of the last alternative to here
@@ -1016,9 +1018,9 @@ contains
             do c0 = from, to
                 cc1 = tr(c0)
 
-                if (.not. is_ascii_char(cc1)) then
+                if (.not. is_ascii_character(cc1)) then
                     call set_range_table_work_area(cc1, cc1)
-                    cc1 = char_to_byte_safe(cc1)
+                    cc1 = character_to_byte_safe(cc1)
                     if (cc1 < 0) cc1 = c0
                 end if
 
@@ -1040,8 +1042,8 @@ contains
 
             do c0 = from, to
                 cc1 = tr(c0)
-                cc2 = char_to_byte_safe(cc1)
-                if (cc2 < 0 .and. cc1 /= c0) cc2 = char_to_byte_safe(c0)
+                cc2 = character_to_byte_safe(cc1)
+                if (cc2 < 0 .and. cc1 /= c0) cc2 = character_to_byte_safe(c0)
                 if (cc2 >= 0) call set_list_bit(cc2)
                 if (cc1 >= from .and. cc1 <= to) cycle
                 merged = .false.
@@ -1094,7 +1096,7 @@ contains
 
             if (greedy) then
                 if (many_times_ok) then
-                    simple = skip_one_char(bufp%buffer, laststart) == b
+                    simple = skip_one_character(bufp%buffer, laststart) == b
                     startoffset = 0
 
                     ! Check if the loop can match the empty string.
@@ -1219,7 +1221,7 @@ contains
 
                 ! See if we're at the beginning of a possible character
                 ! class.
-                cc = re_wctype_parse(src, p, pend)
+                cc = regular_expression_wctype_parse(source, p, pend)
 
                 if (cc /= -1) then
                     if (cc == RECC_ERROR) then
@@ -1233,21 +1235,21 @@ contains
                     end if
 
                     do cc0 = 0, 127
-                        if (re_iswctype(cc0, cc)) then
+                        if (regular_expression_iswctype(cc0, cc)) then
                             call set_list_bit(cc0)
                             c1 = tr(cc0)
                             if (c1 == cc0) cycle
 
-                            if (is_ascii_char(c1)) then
+                            if (is_ascii_character(c1)) then
                                 call set_list_bit(c1)
                             else
-                                c1 = char_to_byte_safe(c1)
+                                c1 = character_to_byte_safe(c1)
                                 if (c1 >= 0) call set_list_bit(c1)
                             end if
                         end if
                     end do
 
-                    rt_bits = ior(rt_bits, re_wctype_to_bit(cc))
+                    rt_bits = ior(rt_bits, regular_expression_wctype_to_bit(cc))
                     ! SPACE and WORD use the syntax table.
                     if (cc == RECC_SPACE .or. cc == RECC_WORD) bufp%used_syntax = .true.
                     cycle
@@ -1270,7 +1272,7 @@ contains
                     if (err /= REG_NOERROR) return
                     ! Treat the range from a multibyte character to
                     ! raw-byte character as empty.
-                    if (is_char_byte8(c1) .and. .not. is_ascii_char(c) .and. .not. is_char_byte8(c)) c = c1 + 1
+                    if (is_character_byte8(c1) .and. .not. is_ascii_character(c) .and. .not. is_character_byte8(c)) c = c1 + 1
                 else
                     ! Range from C to C.
                     c1 = c
@@ -1281,12 +1283,12 @@ contains
                         ch = min(127, c1)
                         call setup_ascii_range(c, ch)
                         c = ch + 1
-                        if (is_char_byte8(c1)) c = byte8_to_char(128)
+                        if (is_character_byte8(c1)) c = byte8_to_character(128)
                     end if
 
                     if (c <= c1) then
-                        if (is_char_byte8(c)) then
-                            do cc0 = char_to_byte8(c), char_to_byte8(c1)
+                        if (is_character_byte8(c)) then
+                            do cc0 = character_to_byte8(c), character_to_byte8(c1)
                                 call set_list_bit(cc0)
                             end do
                         else
@@ -1369,21 +1371,21 @@ contains
                 end if
 
                 if (.not. shy) then
-                    bufp%re_nsub = bufp%re_nsub + 1
-                    regnum = bufp%re_nsub
+                    bufp%regular_expression_nsub = bufp%regular_expression_nsub + 1
+                    regnum = bufp%regular_expression_nsub
                 else if (regnum /= 0) then
                     ! It's actually not shy, but explicitly numbered.
                     shy = .false.
 
-                    if (regnum > bufp%re_nsub) then
-                        bufp%re_nsub = regnum
+                    if (regnum > bufp%regular_expression_nsub) then
+                        bufp%regular_expression_nsub = regnum
                     else if (group_in_compile_stack(regnum)) then
                         err = REG_BADPAT
                         return
                     end if
                 else
                     ! It's really shy.
-                    regnum = -bufp%re_nsub
+                    regnum = -bufp%regular_expression_nsub
                 end if
 
                 if (cs_avail == size(cs_regnum)) call grow_compile_stack()
@@ -1396,7 +1398,7 @@ contains
                 cs_regnum(cs_avail) = regnum
                 ! Do not push a start_memory for groups beyond the last
                 ! one we can represent in the compiled pattern.
-                if (regnum <= MAX_REGNUM .and. regnum > 0) call buf_push_2(START_MEMORY, regnum)
+                if (regnum <= MAXIMUM_REGNUM .and. regnum > 0) call buf_push_2(START_MEMORY, regnum)
                 fixup_alt_jump = -1
                 laststart = -1
                 begalt = b
@@ -1416,7 +1418,7 @@ contains
                 pending_exact = -1
                 ! We're at the end of the group, so now we know how many
                 ! groups were inside this one.
-                if (reg <= MAX_REGNUM .and. reg > 0) call buf_push_2(STOP_MEMORY, reg)
+                if (reg <= MAXIMUM_REGNUM .and. reg > 0) call buf_push_2(STOP_MEMORY, reg)
             case (iachar("|"))
                 ! Insert before the previous alternative a jump which jumps
                 ! to this alternative if the former fails.
@@ -1443,12 +1445,12 @@ contains
                 laststart = b
                 call patfetch(c)
                 if (err /= REG_NOERROR) return
-                call buf_push_2(SYNTAXSPEC, syntax_spec_code(c))
+                call buf_push_2(SYNTAXSPEC, syntax_specification_code(c))
             case (iachar("S"))
                 laststart = b
                 call patfetch(c)
                 if (err /= REG_NOERROR) return
-                call buf_push_2(NOTSYNTAXSPEC, syntax_spec_code(c))
+                call buf_push_2(NOTSYNTAXSPEC, syntax_specification_code(c))
             case (iachar("c"))
                 laststart = b
                 call patfetch(c)
@@ -1502,7 +1504,7 @@ contains
 
                 ! Can't back reference to a subexp before its end.
                 ! hazard-ok(short-circuit): group_in_compile_stack() takes any number.
-                if (reg > bufp%re_nsub .or. reg < 1 .or. group_in_compile_stack(reg)) then
+                if (reg > bufp%regular_expression_nsub .or. reg < 1 .or. group_in_compile_stack(reg)) then
                     err = REG_ESUBREG
                     return
                 end if
@@ -1598,7 +1600,7 @@ contains
                     ! Initialize lower bound of the 'succeed_n', even
                     ! though it will be set during matching by its
                     ! attendant 'set_number_at' (inserted next), because
-                    ! 're_compile_fastmap' needs to know.  Jump to the
+                    ! 'regular_expression_compile_fastmap' needs to know.  Jump to the
                     ! 'jump_n' we might insert below.
                     call insert_jump2(SUCCEED_N, laststart, b + 5 + nbytes, lower_bound)
                     b = b + 5
@@ -1636,8 +1638,8 @@ contains
 
         !> Get the next unsigned number in the pattern
         !> (GET_INTERVAL_COUNT).
-        subroutine get_interval_count(num)
-            integer, intent(inout) :: num
+        subroutine get_interval_count(number)
+            integer, intent(inout) :: number
 
             if (p == pend) then
                 err = REG_EBRACE
@@ -1647,16 +1649,16 @@ contains
             call patfetch(c)
 
             do while (c >= iachar("0") .and. c <= iachar("9"))
-                if (num < 0) num = 0
+                if (number < 0) number = 0
                 kp = 0
-                if (RE_DUP_MAX_LAST_DIGIT < c - iachar("0")) kp = 1
+                if (REGULAR_EXPRESSION_DUP_MAXIMUM_LAST_DIGIT < c - iachar("0")) kp = 1
 
-                if (RE_DUP_MAX_TENTH - kp < num) then
+                if (REGULAR_EXPRESSION_DUP_MAXIMUM_TENTH - kp < number) then
                     err = REG_ESIZEBR
                     return
                 end if
 
-                num = num*10 + c - iachar("0")
+                number = number*10 + c - iachar("0")
 
                 if (p == pend) then
                     err = REG_EBRACE
@@ -1668,7 +1670,7 @@ contains
         end subroutine get_interval_count
 
         !> An ordinary character, in `c'.
-        subroutine normal_char()
+        subroutine normal_character()
             logical :: new_exactn
 
             ! If no exactn currently being built, or the last one is not
@@ -1678,7 +1680,7 @@ contains
 
             if (.not. new_exactn) then
                 new_exactn = pending_exact + bufp%buffer(pending_exact) + 1 /= b .or. &
-                             bufp%buffer(pending_exact) >= 256 - MAX_MULTIBYTE_LENGTH
+                             bufp%buffer(pending_exact) >= 256 - MAXIMUM_MULTIBYTE_LENGTH
             end if
 
             if (.not. new_exactn .and. p /= pend) then
@@ -1696,9 +1698,9 @@ contains
                 pending_exact = b - 1
             end if
 
-            call buffer_space(MAX_MULTIBYTE_LENGTH)
+            call buffer_space(MAXIMUM_MULTIBYTE_LENGTH)
             c = tr(c)
-            call char_string(c, cbuf, clen, st)
+            call character_string(c, cbuf, clen, st)
 
             do k = 1, clen
                 bufp%buffer(b) = ichar(cbuf(k:k))
@@ -1706,7 +1708,7 @@ contains
             end do
 
             bufp%buffer(pending_exact) = bufp%buffer(pending_exact) + clen
-        end subroutine normal_char
+        end subroutine normal_character
 
         !> Whether REGNUM is an open group (group_in_compile_stack).
         logical function group_in_compile_stack(regnum_in)
@@ -1728,62 +1730,62 @@ contains
             call move_alloc(t3, cs_laststart)
             call move_alloc(t4, cs_regnum)
         end subroutine grow_compile_stack
-    end subroutine regex_compile
+    end subroutine regular_expression_compile
 
     !> P points just after a ^ in PATTERN.  Return true if that ^ comes
     !> after an alternative or a begin-subexpression.  Port of
     !> regex-emacs.c:at_begline_loc_p.
-    logical function is_at_begline_loc(pattern, p)
+    logical function is_at_begline_location(pattern, p)
         character(len=*), intent(in) :: pattern
         integer(int64), intent(in) :: p
-        integer(int64) :: prev, q
+        integer(int64) :: previous, q
 
-        is_at_begline_loc = .false.
-        prev = p - 2
+        is_at_begline_location = .false.
+        previous = p - 2
 
-        select case (pattern(prev:prev))
+        select case (pattern(previous:previous))
         case ("(", "|")
             ! After a subexpression or an alternative.
             continue
         case (":")
             ! After a shy subexpression: skip over optional regnum.
-            do while (prev > 1)
-                if (pattern(prev - 1:prev - 1) < "0" .or. pattern(prev - 1:prev - 1) > "9") exit
-                prev = prev - 1
+            do while (previous > 1)
+                if (pattern(previous - 1:previous - 1) < "0" .or. pattern(previous - 1:previous - 1) > "9") exit
+                previous = previous - 1
             end do
 
-            if (.not. prev > 2) return
-            if (pattern(prev - 1:prev - 1) /= "?" .or. pattern(prev - 2:prev - 2) /= "(") return
-            prev = prev - 2
+            if (.not. previous > 2) return
+            if (pattern(previous - 1:previous - 1) /= "?" .or. pattern(previous - 2:previous - 2) /= "(") return
+            previous = previous - 2
         case default
             return
         end select
 
         ! Count the number of preceding backslashes.
-        q = prev
+        q = previous
 
-        do while (prev > 1)
-            if (pattern(prev - 1:prev - 1) /= "\") exit
-            prev = prev - 1
+        do while (previous > 1)
+            if (pattern(previous - 1:previous - 1) /= "\") exit
+            previous = previous - 1
         end do
 
-        is_at_begline_loc = mod(q - prev, 2_int64) == 1
-    end function is_at_begline_loc
+        is_at_begline_location = mod(q - previous, 2_int64) == 1
+    end function is_at_begline_location
 
-    !> The dual of is_at_begline_loc, for $.  Port of
+    !> The dual of is_at_begline_location, for $.  Port of
     !> regex-emacs.c:at_endline_loc_p.
-    logical function is_at_endline_loc(pattern, p, pend)
+    logical function is_at_endline_location(pattern, p, pend)
         character(len=*), intent(in) :: pattern
         integer(int64), intent(in) :: p, pend
 
-        is_at_endline_loc = .false.
+        is_at_endline_location = .false.
         if (pattern(p:p) /= "\" .or. p + 1 >= pend) return
-        is_at_endline_loc = pattern(p + 1:p + 1) == ")" .or. pattern(p + 1:p + 1) == "|"
-    end function is_at_endline_loc
+        is_at_endline_location = pattern(p + 1:p + 1) == ")" .or. pattern(p + 1:p + 1) == "|"
+    end function is_at_endline_location
 
     !> If the operation at P matches one or more characters, the next
     !> operation, else -1.  Port of regex-emacs.c:skip_one_char.
-    pure integer function skip_one_char(buffer, p) result(q)
+    pure integer function skip_one_character(buffer, p) result(q)
         integer, intent(in) :: buffer(0:)
         integer, intent(in) :: p
         integer :: mcnt
@@ -1808,16 +1810,16 @@ contains
         case default
             q = -1
         end select
-    end function skip_one_char
+    end function skip_one_character
 
     !> Iterate through all the char-matching operations directly reachable
     !> from P; see forall_firstchar.  LOOP_BEGINNING..LOOP_END delimit the
     !> current "block" of code.  Port of regex-emacs.c:forall_firstchar_1.
     recursive logical function forall_firstchar_1(bufp, p_in, pend, loop_beginning_in, loop_end_in, data) result(safe)
-        type(re_pattern_buffer_type), intent(inout) :: bufp
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
         integer, intent(in) :: p_in, pend, loop_beginning_in, loop_end_in
         type(visit_data_type), intent(inout) :: data
-        integer :: p, p_orig, newp1, newp2, tmp, p3, offset, loop_beginning, loop_end
+        integer :: p, p_original, newp1, newp2, temporary, p3, offset, loop_beginning, loop_end
         logical :: twoway
 
         p = p_in
@@ -1825,7 +1827,7 @@ contains
         loop_end = loop_end_in
 
         do
-            p_orig = p
+            p_original = p
 
             if (p == pend) then
                 safe = .false.
@@ -1889,7 +1891,7 @@ contains
                 ! jumps to the loop-entry.
                 if (bufp%buffer(newp2) == JUMP) then
                     p3 = extract_address(bufp%buffer, newp2 + 1)
-                    if (p3 > p_orig .or. newp1 > p_orig) newp2 = p3
+                    if (p3 > p_original .or. newp1 > p_original) newp2 = p3
                 end if
 
                 twoway = .true.
@@ -1933,12 +1935,12 @@ contains
                 ! We have to check that both destinations are safe.
                 ! Arrange for `newp1` to be the smaller of the two.
                 if (newp1 > newp2) then
-                    tmp = newp1
+                    temporary = newp1
                     newp1 = newp2
-                    newp2 = tmp
+                    newp2 = temporary
                 end if
 
-                if (newp2 <= p_orig) then
+                if (newp2 <= p_original) then
                     ! Both destinations go backward!
                     safe = .false.
                     return
@@ -1951,7 +1953,7 @@ contains
             end if
 
             ! do_jump:
-            if (newp1 <= p_orig) then
+            if (newp1 <= p_original) then
                 if (newp1 < loop_beginning) then
                     safe = .false.
                     return
@@ -1980,7 +1982,7 @@ contains
     !> a block being built.  PEND -1 is never reached.  Port of
     !> regex-emacs.c:forall_firstchar.
     recursive logical function forall_firstchar(bufp, whole, p, pend, data)
-        type(re_pattern_buffer_type), intent(inout) :: bufp
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
         logical, intent(in) :: whole
         integer, intent(in) :: p, pend
         type(visit_data_type), intent(inout) :: data
@@ -1995,7 +1997,7 @@ contains
     !> The visitor of forall_firstchar, by `data%mode': analyze_first_null,
     !> analyze_first_fastmap or mutually_exclusive_one.  Not a port.
     recursive logical function visit(bufp, p, data)
-        type(re_pattern_buffer_type), intent(inout) :: bufp
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
         integer, intent(in) :: p
         type(visit_data_type), intent(inout) :: data
 
@@ -2011,7 +2013,7 @@ contains
 
     !> Port of regex-emacs.c:analyze_first_fastmap.
     logical function analyze_first_fastmap(bufp, p_in, data) result(ok)
-        type(re_pattern_buffer_type), intent(inout) :: bufp
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
         integer, intent(in) :: p_in
         type(visit_data_type), intent(inout) :: data
         integer :: p, j, k, nbits, count, lc1, lc2
@@ -2034,9 +2036,9 @@ contains
                 fastmap(buffer(p + 1)) = .true.
 
                 ! Cover the case of matching a raw char.
-                if (is_char_byte8_head(int(buffer(p + 1), int32))) then
+                if (is_character_byte8_head(int(buffer(p + 1), int32))) then
                     call pchar(buffer, p + 1, c, length)
-                    fastmap(char_to_byte8(c)) = .true.
+                    fastmap(character_to_byte8(c)) = .true.
                 end if
 
                 ok = .true.
@@ -2065,7 +2067,7 @@ contains
                 ! fastmap.
                 do j = 128, nbits - 1
                     if (btest(buffer(p + 2 + j/8), mod(j, 8)) .neqv. inverted) then
-                        fastmap(char_leading_code(byte8_to_char(j))) = .true.
+                        fastmap(character_leading_code(byte8_to_character(j))) = .true.
                     end if
                 end do
 
@@ -2076,7 +2078,7 @@ contains
                     ! can match a character class, we can match any
                     ! multibyte characters.
                     if (.not. data%match_any_multibyte_characters) then
-                        fastmap(MIN_MULTIBYTE_LEADING_CODE:MAX_MULTIBYTE_LEADING_CODE) = .true.
+                        fastmap(MINIMUM_MULTIBYTE_LEADING_CODE:MAXIMUM_MULTIBYTE_LEADING_CODE) = .true.
                         data%match_any_multibyte_characters = .true.
                     end if
                 else if (.not. inverted .and. charset_range_table_exists(buffer, p) .and. &
@@ -2088,8 +2090,8 @@ contains
                     k = k + 2
 
                     do j = 1, count
-                        lc1 = char_leading_code(extract_character(buffer, k))
-                        lc2 = char_leading_code(extract_character(buffer, k + 3))
+                        lc1 = character_leading_code(extract_character(buffer, k))
+                        lc2 = character_leading_code(extract_character(buffer, k + 3))
                         fastmap(lc1:lc2) = .true.
                         k = k + 6
                     end do
@@ -2104,13 +2106,13 @@ contains
                 k = buffer(p + 1)
 
                 do j = 255, 0, -1
-                    if (char_has_category(j, achar(k)) .neqv. inverted) fastmap(j) = .true.
+                    if (character_has_category(j, achar(k)) .neqv. inverted) fastmap(j) = .true.
                 end do
 
                 ! Any leading code can possibly start a character which has
                 ! or doesn't have the specified category.
                 if (.not. data%match_any_multibyte_characters) then
-                    fastmap(MIN_MULTIBYTE_LEADING_CODE:MAX_MULTIBYTE_LEADING_CODE) = .true.
+                    fastmap(MINIMUM_MULTIBYTE_LEADING_CODE:MAXIMUM_MULTIBYTE_LEADING_CODE) = .true.
                     data%match_any_multibyte_characters = .true.
                 end if
 
@@ -2143,7 +2145,7 @@ contains
     !> least one char before reaching PEND.  Port of
     !> regex-emacs.c:analyze_first.
     recursive logical function analyze_first(bufp, whole, p, pend, with_fastmap)
-        type(re_pattern_buffer_type), intent(inout) :: bufp
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
         logical, intent(in) :: whole, with_fastmap
         integer, intent(in) :: p, pend
         type(visit_data_type) :: data
@@ -2159,13 +2161,13 @@ contains
 
     !> Compute the fastmap of the compiled pattern.  Port of
     !> regex-emacs.c:re_compile_fastmap.
-    subroutine re_compile_fastmap(bufp)
-        type(re_pattern_buffer_type), intent(inout) :: bufp
+    subroutine regular_expression_compile_fastmap(bufp)
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
 
         bufp%fastmap = .false.
         bufp%fastmap_accurate = .true.
         bufp%can_be_null = analyze_first(bufp, bufp%used > 0, 0, bufp%used, .true.)
-    end subroutine re_compile_fastmap
+    end subroutine regular_expression_compile_fastmap
 
     !> Test if C matches the charset at P, and advance P past it.  C is
     !> the character to test (after translation), CORIG the original one.
@@ -2290,7 +2292,7 @@ contains
             if (c /= c1) excl = .true.
         else if (buffer(p1) == CHARSET .or. buffer(p1) == CHARSET_NOT) then
             q = p1
-            if (.not. match_charset(buffer, q, c, c, is_ascii_char(c), .false.)) excl = .true.
+            if (.not. match_charset(buffer, q, c, c, is_ascii_character(c), .false.)) excl = .true.
         else if (buffer(p1) == ANYCHAR .and. c == 10) then
             excl = .true.
         end if
@@ -2339,7 +2341,7 @@ contains
 
     !> Port of regex-emacs.c:mutually_exclusive_one.
     logical function mutually_exclusive_one(bufp, p2, data) result(excl)
-        type(re_pattern_buffer_type), intent(in) :: bufp
+        type(regular_expression_pattern_buffer_type), intent(in) :: bufp
         integer, intent(in) :: p2
         type(visit_data_type), intent(inout) :: data
 
@@ -2415,7 +2417,7 @@ contains
     !> True if "p1 matches something" implies "p2 fails".  Port of
     !> regex-emacs.c:mutually_exclusive_p.
     recursive logical function is_mutually_exclusive(bufp, p1, p2)
-        type(re_pattern_buffer_type), intent(inout) :: bufp
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
         integer, intent(in) :: p1, p2
         type(visit_data_type) :: data
 
@@ -2432,11 +2434,11 @@ contains
     !> position at which the match was found, -1 if none, or -2 if the
     !> failure stack overflowed.  In REGS, return where the groups matched.
     !> Port of regex-emacs.c:re_search_2.
-    recursive integer(int64) function re_search(bufp, subj, startpos_in, range_in, regs, stop) result(val)
-        type(re_pattern_buffer_type), intent(inout) :: bufp
-        type(re_subject_type), intent(in) :: subj
+    recursive integer(int64) function regular_expression_search(bufp, subj, startpos_in, range_in, regs, stop) result(value)
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
+        type(regular_expression_subject_type), intent(in) :: subj
         integer(int64), intent(in) :: startpos_in, range_in, stop
-        type(re_registers_type), intent(inout), optional :: regs
+        type(regular_expression_registers_type), intent(inout), optional :: regs
         integer(int64) :: startpos, range, total_size, endpos, irange, d
         integer(int32) :: buf_ch, buf_charlen, length
         logical :: anchored_start, skip
@@ -2445,7 +2447,7 @@ contains
         range = range_in
         total_size = subj%size
         endpos = startpos + range
-        val = -1
+        value = -1
         ! Check for out-of-range STARTPOS.
         if (startpos < 0 .or. startpos > total_size) return
 
@@ -2466,12 +2468,12 @@ contains
         ! In a forward search for something that starts with \=, don't
         ! keep searching past point.
         if (bufp%used > 0 .and. bufp%buffer(0) == AT_DOT .and. range > 0 .and. subj%is_buffer) then
-            range = buffers(current)%pt_byte - subj%base - startpos
+            range = buffers(current)%point_byte - subj%base - startpos
             if (range < 0) return
         end if
 
         ! Update the fastmap now if not correct already.
-        if (.not. bufp%fastmap_accurate) call re_compile_fastmap(bufp)
+        if (.not. bufp%fastmap_accurate) call regular_expression_compile_fastmap(bufp)
         ! See whether the pattern is anchored.
         anchored_start = bufp%buffer(0) == BEGLINE
 
@@ -2499,7 +2501,7 @@ contains
                     do while (range > 0)
                         call schar(subj, d, buf_ch, buf_charlen)
                         if (bufp%translate) buf_ch = case_canon(buf_ch)
-                        if (bufp%fastmap(char_leading_code(buf_ch))) exit
+                        if (bufp%fastmap(character_leading_code(buf_ch))) exit
                         range = range - buf_charlen
                         d = d + buf_charlen
                     end do
@@ -2509,7 +2511,7 @@ contains
                     ! Searching backwards.
                     call schar(subj, d, buf_ch, length)
                     if (bufp%translate) buf_ch = case_canon(buf_ch)
-                    if (.not. bufp%fastmap(char_leading_code(buf_ch))) skip = .true.
+                    if (.not. bufp%fastmap(character_leading_code(buf_ch))) skip = .true.
                 end if
             end if
 
@@ -2517,15 +2519,15 @@ contains
                 ! If can't match the null string, and that's all we have
                 ! left, fail.
                 if (range >= 0 .and. startpos == total_size .and. .not. bufp%can_be_null) return
-                val = re_match_2_internal(bufp, subj, startpos, regs, stop)
+                value = regular_expression_match_2_internal(bufp, subj, startpos, regs, stop)
 
-                if (val >= 0) then
-                    val = startpos
+                if (value >= 0) then
+                    value = startpos
                     return
                 end if
 
-                if (val == -2) return
-                val = -1
+                if (value == -2) return
+                value = -1
             end if
 
             ! advance:
@@ -2533,7 +2535,7 @@ contains
                 exit
             else if (range > 0) then
                 ! Update STARTPOS to the next character boundary.
-                length = bytes_by_char_head(int(sbyte(subj, startpos), int32))
+                length = bytes_by_character_head(int(sbyte(subj, startpos), int32))
                 range = range - length
                 if (range < 0) exit
                 startpos = startpos + length
@@ -2543,8 +2545,8 @@ contains
                 ! Update STARTPOS to the previous character boundary.
                 d = startpos
 
-                do while (d > 0 .and. startpos - d < MAX_MULTIBYTE_LENGTH - 1)
-                    if (is_char_head(int(sbyte(subj, d), int32))) exit
+                do while (d > 0 .and. startpos - d < MAXIMUM_MULTIBYTE_LENGTH - 1)
+                    if (is_character_head(int(sbyte(subj, d), int32))) exit
                     d = d - 1
                 end do
 
@@ -2555,47 +2557,47 @@ contains
             end if
         end do
 
-        val = -1
-    end function re_search
+        value = -1
+    end function regular_expression_search
 
-    !> Match the compiled pattern against the subject at POS, not past
+    !> Match the compiled pattern against the subject at POSITION, not past
     !> STOP.  Return the length of the match, -1 if none, or -2 if the
     !> failure stack overflowed.  In REGS, return where the groups
     !> matched.  Port of regex-emacs.c:re_match_2.
-    recursive integer(int64) function re_match(bufp, subj, pos, regs, stop)
-        type(re_pattern_buffer_type), intent(inout) :: bufp
-        type(re_subject_type), intent(in) :: subj
-        integer(int64), intent(in) :: pos, stop
-        type(re_registers_type), intent(inout), optional :: regs
+    recursive integer(int64) function regular_expression_match(bufp, subj, position, regs, stop)
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
+        type(regular_expression_subject_type), intent(in) :: subj
+        integer(int64), intent(in) :: position, stop
+        type(regular_expression_registers_type), intent(inout), optional :: regs
 
-        re_match = re_match_2_internal(bufp, subj, pos, regs, stop)
-    end function re_match
+        regular_expression_match = regular_expression_match_2_internal(bufp, subj, position, regs, stop)
+    end function regular_expression_match
 
     !> The backtracking matcher.  Port of
     !> regex-emacs.c:re_match_2_internal.
-    recursive integer(int64) function re_match_2_internal(bufp, subj, pos, regs, stop) result(retval)
-        type(re_pattern_buffer_type), intent(inout) :: bufp
-        type(re_subject_type), intent(in) :: subj
-        integer(int64), intent(in) :: pos, stop
-        type(re_registers_type), intent(inout), optional :: regs
+    recursive integer(int64) function regular_expression_match_2_internal(bufp, subj, position, regs, stop) result(retval)
+        type(regular_expression_pattern_buffer_type), intent(inout) :: bufp
+        type(regular_expression_subject_type), intent(in) :: subj
+        integer(int64), intent(in) :: position, stop
+        type(regular_expression_registers_type), intent(inout), optional :: regs
         ! Where we are in the data, and where we were before an operator.
         integer(int64) :: d, dfail, d2, dend2, match_end, string
         ! Where we are in the pattern, and the end of the pattern.
-        integer :: p, pend, pat, mcnt, num_regs, regno, op, p1, p2, p3
+        integer :: p, pend, pattern_text, mcnt, number_regs, regno, op, p1, p2, p3
         ! The failure stack (fail_stack_type).
         integer(int64), allocatable :: fs(:)
         integer(int64) :: fs_avail, fs_frame
         ! Where each group matched (so far, and in the best match).
         integer(int64), allocatable :: regstart(:), regend(:), best_regstart(:), best_regend(:)
-        integer(int32) :: c, c1, c2, len1, len2, pat_ch, pat_charlen, buf_ch, buf_charlen, corig
+        integer(int32) :: c, c1, c2, len1, len2, pattern_ch, pattern_charlen, buf_ch, buf_charlen, corig
         integer :: s1, s2
-        logical :: best_regs_set, best_match_p, do_fail, inverted, cycle_found, overflow, unibyte_char
+        logical :: best_regs_set, best_match_p, do_fail, inverted, cycle_found, overflow, unibyte_character
 
         retval = -1
         pend = bufp%used
-        num_regs = bufp%re_nsub + 1
-        allocate (regstart(0:num_regs - 1), regend(0:num_regs - 1), best_regstart(0:num_regs - 1), &
-                  best_regend(0:num_regs - 1))
+        number_regs = bufp%regular_expression_nsub + 1
+        allocate (regstart(0:number_regs - 1), regend(0:number_regs - 1), best_regstart(0:number_regs - 1), &
+                  best_regend(0:number_regs - 1))
         regstart = -1
         regend = -1
         best_regstart = -1
@@ -2603,11 +2605,11 @@ contains
         best_regs_set = .false.
         match_end = -1
         overflow = .false.
-        allocate (fs(0:INIT_FAILURE_ALLOC*TYPICAL_FAILURE_SIZE - 1))
+        allocate (fs(0:INITIALIZE_FAILURE_ALLOC*TYPICAL_FAILURE_SIZE - 1))
         fs_avail = 0
         fs_frame = 0
         p = 0
-        d = pos
+        d = position
 
         ! This loops over pattern commands.  It exits by returning if the
         ! match is complete, or it drops through if the match fails at
@@ -2672,18 +2674,18 @@ contains
                             exit
                         end if
 
-                        call pchar(bufp%buffer, p, pat_ch, pat_charlen)
+                        call pchar(bufp%buffer, p, pattern_ch, pattern_charlen)
                         call schar(subj, d, buf_ch, buf_charlen)
 
-                        if (tr(buf_ch) /= pat_ch) then
+                        if (tr(buf_ch) /= pattern_ch) then
                             d = dfail
                             do_fail = .true.
                             exit
                         end if
 
-                        p = p + pat_charlen
+                        p = p + pattern_charlen
                         d = d + buf_charlen
-                        mcnt = mcnt - pat_charlen
+                        mcnt = mcnt - pattern_charlen
                         if (mcnt <= 0) exit
                     end do
                 case (ANYCHAR)
@@ -2705,12 +2707,12 @@ contains
                     else
                         call schar(subj, d, corig, buf_charlen)
                         c = tr(corig)
-                        c1 = char_to_byte_safe(c)
-                        unibyte_char = c1 >= 0
-                        if (unibyte_char) c = c1
+                        c1 = character_to_byte_safe(c)
+                        unibyte_character = c1 >= 0
+                        if (unibyte_character) c = c1
                         p = p - 1
 
-                        if (.not. match_charset(bufp%buffer, p, c, corig, unibyte_char, bufp%translate)) then
+                        if (.not. match_charset(bufp%buffer, p, c, corig, unibyte_character, bufp%translate)) then
                             do_fail = .true.
                         else
                             d = d + buf_charlen
@@ -3005,7 +3007,7 @@ contains
                 case (AT_DOT)
                     if (.not. subj%is_buffer) then
                         do_fail = .true.
-                    else if (subj%base + d /= buffers(current)%pt_byte) then
+                    else if (subj%base + d /= buffers(current)%point_byte) then
                         do_fail = .true.
                     end if
                 case (CATEGORYSPEC, NOTCATEGORYSPEC)
@@ -3018,7 +3020,7 @@ contains
                     else
                         call schar(subj, d, c, len1)
 
-                        if ((.not. char_has_category(c, achar(mcnt))) .neqv. inverted) then
+                        if ((.not. character_has_category(c, achar(mcnt))) .neqv. inverted) then
                             do_fail = .true.
                         else
                             d = d + len1
@@ -3036,21 +3038,21 @@ contains
             fail: do
                 if (fs_frame == 0) exit main
                 ! A restart point is known.  Restore to that state.
-                call pop_failure_point(string, pat)
-                op = bufp%buffer(pat)
-                pat = pat + 1
+                call pop_failure_point(string, pattern_text)
+                op = bufp%buffer(pattern_text)
+                pattern_text = pattern_text + 1
 
                 select case (op)
                 case (ON_FAILURE_KEEP_STRING_JUMP)
-                    p = extract_address(bufp%buffer, pat)
+                    p = extract_address(bufp%buffer, pattern_text)
                 case (ON_FAILURE_JUMP_NASTYLOOP)
-                    call push_failure_point(pat - 2, string)
+                    call push_failure_point(pattern_text - 2, string)
                     if (overflow) exit main
                     d = string
-                    p = extract_address(bufp%buffer, pat)
+                    p = extract_address(bufp%buffer, pattern_text)
                 case (ON_FAILURE_JUMP_LOOP, ON_FAILURE_JUMP, SUCCEED_N)
                     d = string
-                    p = extract_address(bufp%buffer, pat)
+                    p = extract_address(bufp%buffer, pattern_text)
                 case (NO_OP)
                     ! A special frame used for nastyloops.
                     cycle fail
@@ -3101,11 +3103,11 @@ contains
             if (present(regs)) then
                 if (allocated(regs%starts)) deallocate (regs%starts)
                 if (allocated(regs%ends)) deallocate (regs%ends)
-                allocate (regs%starts(0:num_regs - 1), regs%ends(0:num_regs - 1))
-                regs%starts(0) = pos
+                allocate (regs%starts(0:number_regs - 1), regs%ends(0:number_regs - 1))
+                regs%starts(0) = position
                 regs%ends(0) = d
 
-                do r = 1, num_regs - 1
+                do r = 1, number_regs - 1
                     if (regend(r) < 0) then
                         regs%starts(r) = -1
                         regs%ends(r) = -1
@@ -3116,7 +3118,7 @@ contains
                 end do
             end if
 
-            retval = d - pos
+            retval = d - position
         end subroutine accept
 
         !> Make room for `space' more items on the failure stack
@@ -3127,12 +3129,12 @@ contains
             integer(int64) :: new_size
 
             do while (size(fs, kind=int64) - fs_avail <= space)
-                if (size(fs, kind=int64) >= EMACS_RE_MAX_FAILURES*TYPICAL_FAILURE_SIZE) then
+                if (size(fs, kind=int64) >= EMACS_REGULAR_EXPRESSION_MAXIMUM_FAILURES*TYPICAL_FAILURE_SIZE) then
                     overflow = .true.
                     return
                 end if
 
-                new_size = min(EMACS_RE_MAX_FAILURES*TYPICAL_FAILURE_SIZE, size(fs, kind=int64)*4)
+                new_size = min(EMACS_REGULAR_EXPRESSION_MAXIMUM_FAILURES*TYPICAL_FAILURE_SIZE, size(fs, kind=int64)*4)
                 allocate (grown(0:new_size - 1))
                 grown(0:fs_avail - 1) = fs(0:fs_avail - 1)
                 call move_alloc(grown, fs)
@@ -3151,41 +3153,41 @@ contains
             pop_item = fs(fs_avail)
         end function pop_item
 
-        !> Push register NUM onto the stack (PUSH_FAILURE_REG).
-        subroutine push_failure_reg(num)
-            integer, intent(in) :: num
+        !> Push register NUMBER onto the stack (PUSH_FAILURE_REG).
+        subroutine push_failure_reg(number)
+            integer, intent(in) :: number
 
             call ensure_fail_stack(3_int64)
             if (overflow) return
-            call push_item(regstart(num))
-            call push_item(regend(num))
-            call push_item(int(num, int64))
+            call push_item(regstart(number))
+            call push_item(regend(number))
+            call push_item(int(number, int64))
         end subroutine push_failure_reg
 
-        !> Change the counter at PTR to VAL, but make sure that it will be
+        !> Change the counter at POINTER to VALUE, but make sure that it will be
         !> reset when backtracking (PUSH_NUMBER).
-        subroutine push_number(ptr, val)
-            integer, intent(in) :: ptr, val
+        subroutine push_number(pointer, value)
+            integer, intent(in) :: pointer, value
 
             call ensure_fail_stack(3_int64)
             if (overflow) return
-            call push_item(int(extract_number(bufp%buffer, ptr), int64))
-            call push_item(int(ptr, int64))
+            call push_item(int(extract_number(bufp%buffer, pointer), int64))
+            call push_item(int(pointer, int64))
             call push_item(-1_int64)
-            call store_number(bufp%buffer, ptr, val)
+            call store_number(bufp%buffer, pointer, value)
         end subroutine push_number
 
         !> Pop a saved register or counter (POP_FAILURE_REG_OR_COUNT).
         subroutine pop_failure_reg_or_count()
-            integer(int64) :: pfreg, ptr
+            integer(int64) :: pfreg, pointer
 
             pfreg = pop_item()
 
             if (pfreg == -1) then
                 ! It's a counter.
-                ptr = pop_item()
+                pointer = pop_item()
                 pfreg = pop_item()
-                call store_number(bufp%buffer, int(ptr), int(pfreg))
+                call store_number(bufp%buffer, int(pointer), int(pfreg))
             else
                 regend(pfreg) = pop_item()
                 regstart(pfreg) = pop_item()
@@ -3208,16 +3210,16 @@ contains
         end subroutine push_failure_point
 
         !> Pop what push_failure_point pushed (POP_FAILURE_POINT).
-        subroutine pop_failure_point(string_out, pat_out)
+        subroutine pop_failure_point(string_out, pattern_out)
             integer(int64), intent(out) :: string_out
-            integer, intent(out) :: pat_out
+            integer, intent(out) :: pattern_out
 
             ! Pop the saved registers.
             do while (fs_frame < fs_avail)
                 call pop_failure_reg_or_count()
             end do
 
-            pat_out = int(pop_item())
+            pattern_out = int(pop_item())
             ! If the saved string location is NULL, it came from an
             ! on_failure_keep_string_jump opcode, and we want to throw away
             ! the saved NULL, thus retaining our current position in the
@@ -3268,5 +3270,5 @@ contains
             p = p + 2
             p = p + mcnt
         end subroutine unconditional_jump
-    end function re_match_2_internal
+    end function regular_expression_match_2_internal
 end module regular_expression_mod

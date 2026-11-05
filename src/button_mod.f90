@@ -63,27 +63,27 @@
 !> Not applicable: a form as `help_echo' (no run-time Lisp).
 module button_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, format_message, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, format_message, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, vtag, xfixnum, xstring, xsymbol, xhandle, symbols, make_list, make_keymap_ref, &
+    use value_mod, only: value_type, vtag, xfixnum, xstring, xsymbol, xhandle, symbols, make_list, make_keymap_reference, &
                          V_INTEGER, V_STRING, V_NAME, V_KEYMAP
     use data_mod, only: value_eq
     use buffer_mod, only: current_buffer, buffers, current
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_substring_no_properties
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_substring_no_properties
     use text_properties_mod, only: get_text_property, put_text_property, add_text_properties, &
                                    next_single_property_change, previous_single_property_change, &
-                                   next_single_char_property_change, previous_single_char_property_change, &
-                                   get_char_property, get_char_property_and_overlay, remove_list_of_text_properties, &
+                                   next_single_character_property_change, previous_single_character_property_change, &
+                                   get_character_property, get_character_property_and_overlay, remove_list_of_text_properties, &
                                    add_face_text_property
     use interval_tree_mod, only: make_overlay, overlay_put, overlay_get, overlay_start, overlay_end, overlays_in, &
                                  is_overlay, destroy_overlay
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, keymap_set
-    use faces_mod, only: named_face_type, face_named, face_attrs, display_when, highlight
+    use faces_mod, only: named_face_type, face_named, face_attributes, display_when, highlight
     use frame_mod, only: selected_window
     use basic_subprograms_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end
     use display_engine_mod, only: message
@@ -92,14 +92,14 @@ module button_mod
     private
 
     public :: button_kind_type, button_type, button_action_procedure, button_help_echo_procedure
-    public :: init_button, is_button_subtype, button_start, button_end, activate_button, button_label, &
+    public :: initialize_button, is_button_subtype, button_start, button_end, activate_button, button_label, &
               has_button_type, make_button, insert_button, &
               make_text_button, insert_text_button, button_at, next_button, previous_button, push_button, &
               button_help_echo, forward_button, backward_button, describe_button, buttonize_region, &
               unbuttonize_region, button_mode
 
     !> The longest name of a button type.
-    integer, parameter, public :: BUTTON_NAME_MAX = 64
+    integer, parameter, public :: BUTTON_NAME_MAXIMUM = 64
 
     !> A button found in the current buffer: the overlay of an overlay
     !> button, or a position in a text button (upstream returns a marker
@@ -184,7 +184,7 @@ module button_mod
     !> type's category symbol.
     type :: button_kind_type
         !> The type's name, as `describe_button' shows it.
-        character(len=BUTTON_NAME_MAX) :: name = ""
+        character(len=BUTTON_NAME_MAXIMUM) :: name = ""
         !> The type the components were copied from when the type was
         !> defined (null for `default_button').
         type(button_kind_type), pointer :: supertype => null()
@@ -234,24 +234,24 @@ module button_mod
     type(button_kind_type), target, public :: default_button
 
     !> A pointer to a defined button type, for the registry.
-    type :: kind_ref_type
+    type :: kind_reference_type
         type(button_kind_type), pointer :: p => null()
-    end type kind_ref_type
+    end type kind_reference_type
 
     !> A procedure a button names as its own `action', `mouse_action' or
     !> `help_echo', for the registry.
-    type :: procedure_ref_type
+    type :: procedure_reference_type
         procedure(button_action_procedure), pointer, nopass :: action => null()
         procedure(button_help_echo_procedure), pointer, nopass :: help_echo => null()
-    end type procedure_ref_type
+    end type procedure_reference_type
 
     !> The defined button types: a button's `category' property is an
     !> index into it.
-    type(kind_ref_type), allocatable :: kinds(:)
+    type(kind_reference_type), allocatable :: kinds(:)
 
     !> The procedures buttons name: a button's own `action',
     !> `mouse_action' or `help_echo' procedure is an index into it.
-    type(procedure_ref_type), allocatable :: procedures(:)
+    type(procedure_reference_type), allocatable :: procedures(:)
 
     !> The last `button' property value given: each button gets its own,
     !> so that the property changes between two adjacent buttons.
@@ -281,17 +281,17 @@ contains
         character(len=*), intent(in) :: name
         type(button_kind_type), intent(in), target, optional :: supertype
         type(button_kind_type), pointer :: super
-        type(kind_ref_type) :: ref
+        type(kind_reference_type) :: reference
 
         super => default_button
         if (present(supertype)) super => supertype
 
         select type (self)
         type is (button_kind_type)
-            ref%p => self
+            reference%p => self
         end select
 
-        if (.not. associated(ref%p, super)) then
+        if (.not. associated(reference%p, super)) then
             ! Initialize NAME's properties using the supertype's.
             self%action => super%action
             self%mouse_action => super%mouse_action
@@ -308,7 +308,7 @@ contains
         self%name = name
         if (self%index /= 0) return
         if (.not. allocated(kinds)) allocate (kinds(0))
-        kinds = [kinds, ref]
+        kinds = [kinds, reference]
         self%index = size(kinds)
     end subroutine button_kind_define
 
@@ -349,7 +349,7 @@ contains
 
         ! Must be a text-property button.
         call previous_single_property_change(button%position + 1, value_type(name=P_BUTTON), start, found, st)
-        if (.not. found) start = point_min()
+        if (.not. found) start = point_minimum()
     end function button_start
 
     !> Return the position at which BUTTON ends.
@@ -368,46 +368,46 @@ contains
 
         ! Must be a text-property button.
         call next_single_property_change(button%position, value_type(name=P_BUTTON), end, found, st)
-        if (.not. found) end = point_max()
+        if (.not. found) end = point_maximum()
     end function button_end
 
     !> The property NAME of BUTTON, its own (unallocated if none).
     !> Not a port.
-    function own_property(button, name) result(val)
+    function own_property(button, name) result(value)
         type(button_type), intent(in) :: button
         character(len=*), intent(in) :: name
-        type(value_type) :: val
+        type(value_type) :: value
         type(status_type) :: st
 
         if (is_overlay(button%overlay)) then
-            val = overlay_get(button%overlay, name)
+            value = overlay_get(button%overlay, name)
         else
-            call get_text_property(button%position, value_type(name=name), val, st)
+            call get_text_property(button%position, value_type(name=name), value, st)
         end if
     end function own_property
 
     !> The type a `category' property value names, or null.  Not a port.
-    function kind_of(val) result(kind)
-        type(value_type), intent(in) :: val
+    function kind_of(value) result(kind)
+        type(value_type), intent(in) :: value
         type(button_kind_type), pointer :: kind
         integer(int64) :: k
 
         kind => null()
-        if (vtag(val) /= V_INTEGER) return
+        if (vtag(value) /= V_INTEGER) return
         if (.not. allocated(kinds)) return
-        k = xfixnum(val)
+        k = xfixnum(value)
         if (k >= 1 .and. k <= size(kinds, kind=int64)) kind => kinds(k)%p
     end function kind_of
 
     !> The registered procedure a property value names: its index, or 0.
     !> Not a port.
-    integer function procedure_index(val) result(k)
-        type(value_type), intent(in) :: val
+    integer function procedure_index(value) result(k)
+        type(value_type), intent(in) :: value
 
         k = 0
-        if (vtag(val) /= V_INTEGER) return
+        if (vtag(value) /= V_INTEGER) return
         if (.not. allocated(procedures)) return
-        if (xfixnum(val) >= 1 .and. xfixnum(val) <= size(procedures, kind=int64)) k = int(xfixnum(val))
+        if (xfixnum(value) >= 1 .and. xfixnum(value) <= size(procedures, kind=int64)) k = int(xfixnum(value))
     end function procedure_index
 
     !> Return the type of button SELF, or null for a button without one
@@ -473,13 +473,13 @@ contains
         character(len=*), intent(in) :: name
         type(named_face_type), pointer :: face
         type(button_kind_type), pointer :: kind
-        type(value_type) :: val
+        type(value_type) :: value
 
         face => null()
-        val = own_property(self, name)
+        value = own_property(self, name)
 
-        if (vtag(val) == V_NAME) then
-            face => face_named(trim(symbols(xsymbol(val))%name))
+        if (vtag(value) == V_NAME) then
+            face => face_named(trim(symbols(xsymbol(value))%name))
         else
             kind => kind_of(own_property(self, P_CATEGORY))
 
@@ -526,13 +526,13 @@ contains
         class(button_type), intent(in) :: self
         type(handle_type) :: keymap
         type(button_kind_type), pointer :: kind
-        type(value_type) :: val
+        type(value_type) :: value
 
         keymap = null_handle()
-        val = own_property(self, P_KEYMAP)
+        value = own_property(self, P_KEYMAP)
 
-        if (vtag(val) == V_KEYMAP) then
-            keymap = xhandle(val)
+        if (vtag(value) == V_KEYMAP) then
+            keymap = xhandle(value)
         else
             kind => kind_of(own_property(self, P_CATEGORY))
             if (associated(kind)) keymap = kind%keymap
@@ -550,13 +550,13 @@ contains
         class(button_type), intent(in) :: self
         character(len=:), allocatable :: help
         type(button_kind_type), pointer :: kind
-        type(value_type) :: val
+        type(value_type) :: value
 
-        val = own_property(self, P_HELP_ECHO)
+        value = own_property(self, P_HELP_ECHO)
 
-        if (vtag(val) == V_STRING) then
-            help = xstring(val)
-        else if (procedure_index(val) == 0) then
+        if (vtag(value) == V_STRING) then
+            help = xstring(value)
+        else if (procedure_index(value) == 0) then
             kind => kind_of(own_property(self, P_CATEGORY))
 
             if (associated(kind)) then
@@ -576,13 +576,13 @@ contains
         class(button_type), intent(in) :: self
         procedure(button_help_echo_procedure), pointer :: help_echo
         type(button_kind_type), pointer :: kind
-        type(value_type) :: val
+        type(value_type) :: value
         integer :: k
 
         help_echo => null()
-        val = own_property(self, P_HELP_ECHO)
-        if (vtag(val) == V_STRING) return
-        k = procedure_index(val)
+        value = own_property(self, P_HELP_ECHO)
+        if (vtag(value) == V_STRING) return
+        k = procedure_index(value)
 
         if (k > 0) then
             help_echo => procedures(k)%help_echo
@@ -599,10 +599,10 @@ contains
     logical function get_button_follow_link(self) result(follow_link)
         class(button_type), intent(in) :: self
         type(button_kind_type), pointer :: kind
-        type(value_type) :: val
+        type(value_type) :: value
 
-        val = own_property(self, P_FOLLOW_LINK)
-        follow_link = allocated(val%a)
+        value = own_property(self, P_FOLLOW_LINK)
+        follow_link = allocated(value%a)
         if (follow_link) return
         kind => kind_of(own_property(self, P_CATEGORY))
         if (associated(kind)) follow_link = kind%follow_link
@@ -615,10 +615,10 @@ contains
     logical function get_button_skip(self) result(skip)
         class(button_type), intent(in) :: self
         type(button_kind_type), pointer :: kind
-        type(value_type) :: val
+        type(value_type) :: value
 
-        val = own_property(self, P_SKIP)
-        skip = allocated(val%a)
+        value = own_property(self, P_SKIP)
+        skip = allocated(value%a)
         if (skip) return
         kind => kind_of(own_property(self, P_CATEGORY))
         if (associated(kind)) skip = kind%skip
@@ -641,7 +641,7 @@ contains
     integer(int64) function register_procedure(action, help_echo) result(k)
         procedure(button_action_procedure), optional :: action
         procedure(button_help_echo_procedure), optional :: help_echo
-        type(procedure_ref_type) :: ref
+        type(procedure_reference_type) :: reference
         integer :: i
 
         if (.not. allocated(procedures)) allocate (procedures(0))
@@ -660,47 +660,47 @@ contains
             end if
         end do
 
-        if (present(action)) ref%action => action
-        if (present(help_echo)) ref%help_echo => help_echo
-        procedures = [procedures, ref]
+        if (present(action)) reference%action => action
+        if (present(help_echo)) reference%help_echo => help_echo
+        procedures = [procedures, reference]
         k = size(procedures, kind=int64)
     end function register_procedure
 
-    !> Set BUTTON's property NAME to VAL: on its overlay, or on the whole
+    !> Set BUTTON's property NAME to VALUE: on its overlay, or on the whole
     !> text button.  Not a port.
-    subroutine put_property(button, name, val, status)
+    subroutine put_property(button, name, value, status)
         type(button_type), intent(in) :: button
         character(len=*), intent(in) :: name
-        type(value_type), intent(in) :: val
+        type(value_type), intent(in) :: value
         type(status_type), intent(out) :: status
 
         if (is_overlay(button%overlay)) then
-            call overlay_put(button%overlay, name, val, status)
+            call overlay_put(button%overlay, name, value, status)
         else
-            call put_text_property(button_start(button), button_end(button), value_type(name=name), val, status)
+            call put_text_property(button_start(button), button_end(button), value_type(name=name), value, status)
         end if
     end subroutine put_property
 
-    !> Give the text from START to END the property NAME with value VAL
+    !> Give the text from START to END the property NAME with value VALUE
     !> where it has none, or where it has the value OLD.  Not a port.
-    subroutine put_text_property_where_absent(start, end, name, val, status, old)
+    subroutine put_text_property_where_absent(start, end, name, value, status, old)
         integer(int64), intent(in) :: start, end
         character(len=*), intent(in) :: name
-        type(value_type), intent(in) :: val
+        type(value_type), intent(in) :: value
         type(status_type), intent(out) :: status
         type(value_type), intent(in), optional :: old
-        type(value_type) :: prop, here
-        integer(int64) :: pos, next
+        type(value_type) :: property, here
+        integer(int64) :: position, next
         logical :: found, replace
 
         status = status_type()
-        prop = value_type(name=name)
-        pos = start
+        property = value_type(name=name)
+        position = start
 
-        do while (pos < end)
-            call get_text_property(pos, prop, here, status)
+        do while (position < end)
+            call get_text_property(position, property, here, status)
             if (.not. status%ok()) return
-            call next_single_property_change(pos, prop, next, found, status, limit=end)
+            call next_single_property_change(position, property, next, found, status, limit=end)
             if (.not. status%ok()) return
             if (.not. found) next = end
             replace = .not. allocated(here%a)
@@ -710,28 +710,28 @@ contains
             end if
 
             if (replace) then
-                call put_text_property(pos, next, prop, val, status)
+                call put_text_property(position, next, property, value, status)
                 if (.not. status%ok()) return
             end if
 
-            pos = next
+            position = next
         end do
     end subroutine put_text_property_where_absent
 
     !> The value of a display property PROPERTY of KIND: `face',
     !> `mouse_face' or `keymap' (unallocated for none).  Not a port.
-    function kind_display_value(kind, property) result(val)
+    function kind_display_value(kind, property) result(value)
         type(button_kind_type), intent(in) :: kind
         character(len=*), intent(in) :: property
-        type(value_type) :: val
+        type(value_type) :: value
 
         select case (property)
         case (P_FACE)
-            if (associated(kind%face)) val = value_type(name=trim(kind%face%name))
+            if (associated(kind%face)) value = value_type(name=trim(kind%face%name))
         case (P_MOUSE_FACE)
-            if (associated(kind%mouse_face)) val = value_type(name=trim(kind%mouse_face%name))
+            if (associated(kind%mouse_face)) value = value_type(name=trim(kind%mouse_face%name))
         case default
-            if (kind%keymap%index /= 0) val = make_keymap_ref(kind%keymap)
+            if (kind%keymap%index /= 0) value = make_keymap_reference(kind%keymap)
         end select
     end function kind_display_value
 
@@ -744,14 +744,14 @@ contains
         type(status_type), intent(out) :: status
         type(button_kind_type), intent(in), optional :: old
         character(len=*), parameter :: DISPLAY(3) = [character(len=10) :: P_FACE, P_MOUSE_FACE, P_KEYMAP]
-        type(value_type) :: val, here
+        type(value_type) :: value, here
         integer :: k
 
         call put_property(button, P_CATEGORY, value_type(int(kind%index, int64)), status)
         if (.not. status%ok()) return
 
         do k = 1, size(DISPLAY)
-            val = kind_display_value(kind, trim(DISPLAY(k)))
+            value = kind_display_value(kind, trim(DISPLAY(k)))
 
             if (is_overlay(button%overlay)) then
                 here = overlay_get(button%overlay, trim(DISPLAY(k)))
@@ -761,12 +761,12 @@ contains
                     if (.not. value_eq(here, kind_display_value(old, trim(DISPLAY(k))))) cycle
                 end if
 
-                call overlay_put(button%overlay, trim(DISPLAY(k)), val, status)
+                call overlay_put(button%overlay, trim(DISPLAY(k)), value, status)
             else if (present(old)) then
-                call put_text_property_where_absent(button_start(button), button_end(button), trim(DISPLAY(k)), val, &
+                call put_text_property_where_absent(button_start(button), button_end(button), trim(DISPLAY(k)), value, &
                                                     status, old=kind_display_value(old, trim(DISPLAY(k))))
             else
-                call put_text_property_where_absent(button_start(button), button_end(button), trim(DISPLAY(k)), val, &
+                call put_text_property_where_absent(button_start(button), button_end(button), trim(DISPLAY(k)), value, &
                                                     status)
             end if
 
@@ -868,7 +868,7 @@ contains
         type(status_type), intent(out), optional :: status
         type(status_type) :: st
 
-        call put_property(self, P_KEYMAP, make_keymap_ref(keymap), st)
+        call put_property(self, P_KEYMAP, make_keymap_reference(keymap), st)
         if (present(status)) status = st
     end subroutine set_button_keymap
 
@@ -1056,11 +1056,11 @@ contains
     ! ------------------------------------------------------------------
 
     !> The next `button' property value.  Not a port.
-    function next_serial() result(val)
-        type(value_type) :: val
+    function next_serial() result(value)
+        type(value_type) :: value
 
         last_serial = last_serial + 1
-        val = value_type(last_serial)
+        value = value_type(last_serial)
     end function next_serial
 
     !> Make a button from BEGINNING to END in the current buffer.
@@ -1154,25 +1154,25 @@ contains
         procedure(button_help_echo_procedure), optional :: help_echo_function
         logical, intent(in), optional :: skip
         type(value_type), intent(in), optional :: button_data
-        type(value_type), allocatable :: props(:)
+        type(value_type), allocatable :: properties(:)
         logical :: changed
 
         button%overlay = null_handle()
         button%position = beginning
         ! Each button has its own `button' property so that
         ! next_single_property_change can detect boundaries reliably.
-        allocate (props(0))
-        call append_property(props, P_BUTTON, next_serial())
+        allocate (properties(0))
+        call append_property(properties, P_BUTTON, next_serial())
 
         if (present(kind)) then
-            call append_property(props, P_CATEGORY, value_type(int(kind%index, int64)))
+            call append_property(properties, P_CATEGORY, value_type(int(kind%index, int64)))
         else
             ! The user didn't specify a type, use the default.
-            call append_property(props, P_CATEGORY, value_type(int(default_button%index, int64)))
+            call append_property(properties, P_CATEGORY, value_type(int(default_button%index, int64)))
         end if
 
-        call append_property(props, P_REAR_NONSTICKY, value_type(.true.))
-        call add_text_properties(beginning, end, make_list(props), changed, status)
+        call append_property(properties, P_REAR_NONSTICKY, value_type(.true.))
+        call add_text_properties(beginning, end, make_list(properties), changed, status)
         if (.not. status%ok()) return
 
         if (present(kind)) then
@@ -1186,16 +1186,16 @@ contains
                             help_echo_function=help_echo_function, skip=skip, button_data=button_data)
     end subroutine make_text_button
 
-    !> Append the text property NAME with value VAL to PROPS, the names and
+    !> Append the text property NAME with value VALUE to PROPERTIES, the names and
     !> values of the text properties to add.  Not a port.
-    subroutine append_property(props, name, val)
-        type(value_type), allocatable, intent(inout) :: props(:)
+    subroutine append_property(properties, name, value)
+        type(value_type), allocatable, intent(inout) :: properties(:)
         character(len=*), intent(in) :: name
-        type(value_type), intent(in) :: val
+        type(value_type), intent(in) :: value
         type(value_type) :: key
 
         key = value_type(name=name)
-        props = [props, key, val]
+        properties = [properties, key, value]
     end subroutine append_property
 
     !> Insert a button with the label LABEL.
@@ -1239,14 +1239,14 @@ contains
         integer(int64), intent(in) :: position
         type(button_type), intent(out) :: button
         logical, intent(out) :: found
-        type(value_type) :: val, kind
+        type(value_type) :: value, kind
         type(handle_type) :: overlay
 
         button%overlay = null_handle()
         button%position = 0
-        call get_char_property_and_overlay(position, value_type(name=P_BUTTON), val, overlay)
-        kind = get_char_property(position, value_type(name=P_CATEGORY))
-        found = allocated(val%a) .and. allocated(kind%a)
+        call get_character_property_and_overlay(position, value_type(name=P_BUTTON), value, overlay)
+        kind = get_character_property(position, value_type(name=P_CATEGORY))
+        found = allocated(value%a) .and. allocated(kind%a)
         if (.not. found) return
 
         if (is_overlay(overlay)) then
@@ -1267,25 +1267,25 @@ contains
         type(button_type), intent(out) :: button
         logical, intent(out) :: found
         logical, intent(in), optional :: count_current
-        integer(int64) :: pos
+        integer(int64) :: position_value
         logical :: count
 
-        pos = position
+        position_value = position
         count = .false.
         if (present(count_current)) count = count_current
         ! Search for the next button boundary.
-        if (.not. count) pos = next_single_char_property_change(pos, value_type(name=P_BUTTON))
+        if (.not. count) position_value = next_single_character_property_change(position_value, value_type(name=P_BUTTON))
 
         do
             found = .false.
             button%overlay = null_handle()
             button%position = 0
-            if (pos >= point_max()) return
-            call button_at(pos, button, found)
+            if (position_value >= point_maximum()) return
+            call button_at(position_value, button, found)
             if (found) return
             ! We must have originally been on a button, and are now in the
             ! inter-button space: look further.
-            pos = next_single_char_property_change(pos, value_type(name=P_BUTTON))
+            position_value = next_single_character_property_change(position_value, value_type(name=P_BUTTON))
         end do
     end subroutine next_button
 
@@ -1300,7 +1300,7 @@ contains
         logical, intent(out) :: found
         logical, intent(in), optional :: count_current
         type(button_type) :: new_button
-        integer(int64) :: pos
+        integer(int64) :: position_value
         logical :: count, new_found
 
         count = .false.
@@ -1311,27 +1311,27 @@ contains
             if (count) return
             ! We started out on a button, so move to its start and look
             ! for the previous button boundary.
-            pos = previous_single_char_property_change(button_start(button), value_type(name=P_BUTTON))
-            call button_at(pos, new_button, new_found)
+            position_value = previous_single_character_property_change(button_start(button), value_type(name=P_BUTTON))
+            call button_at(position_value, new_button, new_found)
 
             if (new_found) then
                 ! We are in a button again; this can happen if there
                 ! are adjacent buttons (or at bob).
-                found = pos /= button_start(button)
+                found = position_value /= button_start(button)
                 button = new_button
             else
                 ! We are now in the space between buttons.
-                call previous_button(pos, button, found)
+                call previous_button(position_value, button, found)
             end if
 
             return
         end if
 
         ! We started out in the space between buttons.
-        pos = previous_single_char_property_change(position, value_type(name=P_BUTTON))
-        call button_at(pos, button, found)
+        position_value = previous_single_character_property_change(position, value_type(name=P_BUTTON))
+        call button_at(position_value, button, found)
         if (found) return
-        if (pos > point_min()) call button_at(pos - 1, button, found)
+        if (position_value > point_minimum()) call button_at(position_value - 1, button, found)
     end subroutine previous_button
 
     ! ------------------------------------------------------------------
@@ -1359,22 +1359,22 @@ contains
         logical, intent(in), optional :: use_mouse_action
         logical, intent(out), optional :: pushed
         type(button_type) :: button
-        integer(int64) :: pos
+        integer(int64) :: position_value
         logical :: found
 
         status = status_type()
-        pos = point()
-        if (present(position)) pos = position
-        call button_at(pos, button, found)
+        position_value = point()
+        if (present(position)) position_value = position
+        call button_at(position_value, button, found)
         if (present(pushed)) pushed = found
         if (found) call activate_button(button, status, use_mouse_action)
     end subroutine push_button
 
-    recursive subroutine cmd_push_button(status)
+    recursive subroutine execute_push_button(status)
         type(status_type), intent(out) :: status
 
         call push_button(status)
-    end subroutine cmd_push_button
+    end subroutine execute_push_button
 
     !> Compute BUTTON's `help_echo' property and return its value
     !> (unallocated for none).  If it is present, pass it through
@@ -1418,9 +1418,9 @@ contains
         type(button_type), intent(out), optional :: button
         logical, intent(out), optional :: found
         type(button_type) :: b
-        integer(int64) :: count, wrap_start, opoint
-        logical :: is_found, do_wrap, fail, have_opoint
-        character(len=:), allocatable :: msg
+        integer(int64) :: count, wrap_start, original_point
+        logical :: is_found, do_wrap, fail, have_original_point
+        character(len=:), allocatable :: message_text
 
         status = status_type()
         do_wrap = .false.
@@ -1429,13 +1429,13 @@ contains
         if (n == 0) then
             ! Move to start of current button.
             call button_at(point(), b, is_found)
-            if (is_found) call goto_char(button_start(b))
+            if (is_found) call goto_character(button_start(b))
         else
             ! Move to Nth next button.
-            wrap_start = point_min()
-            if (n < 0) wrap_start = point_max()
-            have_opoint = .false.
-            opoint = 0
+            wrap_start = point_minimum()
+            if (n < 0) wrap_start = point_maximum()
+            have_original_point = .false.
+            original_point = 0
             fail = .false.
             count = abs(n)
             ! Just to start the loop.
@@ -1446,14 +1446,14 @@ contains
                 if (.not. is_found .and. do_wrap) call iterate(wrap_start, .true.)
 
                 if (is_found) then
-                    call goto_char(button_start(b))
+                    call goto_character(button_start(b))
 
                     ! Avoid looping forever (e.g., if all the buttons have
                     ! the `skip' property).
-                    if (.not. have_opoint) then
-                        opoint = point()
-                        have_opoint = .true.
-                    else if (opoint == point()) then
+                    if (.not. have_original_point) then
+                        original_point = point()
+                        have_original_point = .true.
+                    else if (original_point == point()) then
                         fail = .true.
                     end if
 
@@ -1471,19 +1471,19 @@ contains
             end if
 
             if (do_wrap) then
-                call set_error(status, FM_USER_ERROR, "No buttons!")
+                call set_error(status, USER_ERROR_CODE, "No buttons!")
             else
-                call set_error(status, FM_USER_ERROR, "No more buttons")
+                call set_error(status, USER_ERROR_CODE, "No more buttons")
             end if
 
             return
         end if
 
         if (present(display_message)) then
-            if (display_message) msg = button_help_echo(b)
+            if (display_message) message_text = button_help_echo(b)
         end if
 
-        if (allocated(msg)) call message(msg)
+        if (allocated(message_text)) call message(message_text)
 
     contains
 
@@ -1500,11 +1500,11 @@ contains
         end subroutine iterate
     end subroutine forward_button
 
-    recursive subroutine cmd_forward_button(status)
+    recursive subroutine execute_forward_button(status)
         type(status_type), intent(out) :: status
 
-        call forward_button(prefix_numeric_value(current_prefix_arg), status, wrap=.true., display_message=.true.)
-    end subroutine cmd_forward_button
+        call forward_button(prefix_numeric_value(current_prefix_argument), status, wrap=.true., display_message=.true.)
+    end subroutine execute_forward_button
 
     !> Move to the Nth previous button, or Nth next button if N is negative.
     !> If N is 0, move to the start of any button at point.
@@ -1528,11 +1528,11 @@ contains
         call forward_button(-n, status, wrap, display_message, no_error, button, found)
     end subroutine backward_button
 
-    recursive subroutine cmd_backward_button(status)
+    recursive subroutine execute_backward_button(status)
         type(status_type), intent(out) :: status
 
-        call backward_button(prefix_numeric_value(current_prefix_arg), status, wrap=.true., display_message=.true.)
-    end subroutine cmd_backward_button
+        call backward_button(prefix_numeric_value(current_prefix_argument), status, wrap=.true., display_message=.true.)
+    end subroutine execute_backward_button
 
     !> Describe a button's type in a *Help* buffer.  Port of
     !> button.el:button--describe (the action's description is Deferred).
@@ -1576,11 +1576,11 @@ contains
         if (found) call describe_kind(b%get_kind(), status)
     end subroutine describe_button
 
-    recursive subroutine cmd_describe_button(status)
+    recursive subroutine execute_describe_button(status)
         type(status_type), intent(out) :: status
 
         call describe_button(status, point())
-    end subroutine cmd_describe_button
+    end subroutine execute_describe_button
 
     ! ------------------------------------------------------------------
     ! Buttonizing text
@@ -1589,30 +1589,30 @@ contains
     !> The text properties of a button made by `buttonize_region', with
     !> CALLBACK as its action, DATA and HELP_ECHO.  Port of
     !> button.el:button--properties.
-    subroutine buttonize_properties(props, callback, data, help_echo)
-        type(value_type), allocatable, intent(out) :: props(:)
+    subroutine buttonize_properties(properties, callback, data, help_echo)
+        type(value_type), allocatable, intent(out) :: properties(:)
         procedure(button_action_procedure), optional :: callback
         type(value_type), intent(in), optional :: data
         character(len=*), intent(in), optional :: help_echo
-        type(value_type) :: val
+        type(value_type) :: value
 
-        allocate (props(0))
-        call append_property(props, P_FONT_LOCK_FACE, value_type(name=trim(button_face%name)))
-        call append_property(props, P_MOUSE_FACE, value_type(name=trim(highlight%name)))
-        call append_property(props, P_BUTTON, value_type(.true.))
-        call append_property(props, P_FOLLOW_LINK, value_type(.true.))
-        call append_property(props, P_CATEGORY, value_type(.true.))
-        if (present(data)) val = data
-        call append_property(props, P_BUTTON_DATA, val)
-        call append_property(props, P_KEYMAP, make_keymap_ref(button_map))
-        val = value_type()
-        if (present(callback)) val = value_type(register_procedure(action=callback))
-        call append_property(props, P_ACTION, val)
+        allocate (properties(0))
+        call append_property(properties, P_FONT_LOCK_FACE, value_type(name=trim(button_face%name)))
+        call append_property(properties, P_MOUSE_FACE, value_type(name=trim(highlight%name)))
+        call append_property(properties, P_BUTTON, value_type(.true.))
+        call append_property(properties, P_FOLLOW_LINK, value_type(.true.))
+        call append_property(properties, P_CATEGORY, value_type(.true.))
+        if (present(data)) value = data
+        call append_property(properties, P_BUTTON_DATA, value)
+        call append_property(properties, P_KEYMAP, make_keymap_reference(button_map))
+        value = value_type()
+        if (present(callback)) value = value_type(register_procedure(action=callback))
+        call append_property(properties, P_ACTION, value)
 
         if (present(help_echo)) then
-            call append_property(props, P_HELP_ECHO, value_type(text=help_echo))
+            call append_property(properties, P_HELP_ECHO, value_type(text=help_echo))
             ! Record that button.el is responsible for this property.
-            call append_property(props, P_HELP_ECHO_BUTTON, value_type(.true.))
+            call append_property(properties, P_HELP_ECHO_BUTTON, value_type(.true.))
         end if
     end subroutine buttonize_properties
 
@@ -1630,11 +1630,11 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), intent(in), optional :: data
         character(len=*), intent(in), optional :: help_echo
-        type(value_type), allocatable :: props(:)
+        type(value_type), allocatable :: properties(:)
         logical :: changed
 
-        call buttonize_properties(props, callback, data, help_echo)
-        call add_text_properties(start, end, make_list(props), changed, status)
+        call buttonize_properties(properties, callback, data, help_echo)
+        call add_text_properties(start, end, make_list(properties), changed, status)
         if (.not. status%ok()) return
         call add_face_text_property(start, end, value_type(name=trim(button_face%name)), status, append=.true.)
     end subroutine buttonize_region
@@ -1646,8 +1646,8 @@ contains
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: overlays(:)
-        type(value_type), allocatable :: props(:), names(:)
-        type(value_type) :: val
+        type(value_type), allocatable :: properties(:), names(:)
+        type(value_type) :: value
         type(silent_modifications_type) :: silent
         logical :: changed
         integer :: k
@@ -1655,22 +1655,22 @@ contains
         call overlays_in(start, end, overlays)
 
         do k = 1, size(overlays)
-            val = overlay_get(overlays(k), P_BUTTON)
-            if (allocated(val%a)) call destroy_overlay(overlays(k))
+            value = overlay_get(overlays(k), P_BUTTON)
+            if (allocated(value%a)) call destroy_overlay(overlays(k))
         end do
 
         call silent_modifications_begin(silent)
-        call buttonize_properties(props)
+        call buttonize_properties(properties)
         ! Only remove help_echo if it was added by button.el.
-        call get_text_property(start, value_type(name=P_HELP_ECHO_BUTTON), val, status)
+        call get_text_property(start, value_type(name=P_HELP_ECHO_BUTTON), value, status)
 
-        if (allocated(val%a)) then
-            call append_property(props, P_HELP_ECHO, value_type())
-            call append_property(props, P_HELP_ECHO_BUTTON, value_type())
+        if (allocated(value%a)) then
+            call append_property(properties, P_HELP_ECHO, value_type())
+            call append_property(properties, P_HELP_ECHO_BUTTON, value_type())
         end if
 
         ! The property names alone.
-        names = props(1:size(props):2)
+        names = properties(1:size(properties):2)
         call remove_list_of_text_properties(start, end, make_list(names), changed, status)
         call silent_modifications_end(silent)
         if (.not. status%ok()) return
@@ -1708,36 +1708,37 @@ contains
         !> kept.
         subroutine unbuttonize_buffer(status)
             type(status_type), intent(out) :: status
-            integer(int64) :: saved_point, saved_begv, saved_zv, saved_begv_byte, saved_zv_byte
+            integer(int64) :: saved_point, saved_beginning_of_accessible_portion, saved_end_of_accessible_portion, &
+                              saved_beginning_of_accessible_portion_byte, saved_end_of_accessible_portion_byte
 
             saved_point = point()
-            saved_begv = buffers(current)%begv
-            saved_zv = buffers(current)%zv
-            saved_begv_byte = buffers(current)%begv_byte
-            saved_zv_byte = buffers(current)%zv_byte
-            buffers(current)%begv = 1
-            buffers(current)%begv_byte = 1
-            buffers(current)%zv = buffers(current)%text%z
-            buffers(current)%zv_byte = buffers(current)%text%z_byte
-            call unbuttonize_region(point_min(), point_max(), status)
-            buffers(current)%begv = saved_begv
-            buffers(current)%begv_byte = saved_begv_byte
-            buffers(current)%zv = saved_zv
-            buffers(current)%zv_byte = saved_zv_byte
-            call goto_char(saved_point)
+            saved_beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+            saved_end_of_accessible_portion = buffers(current)%end_of_accessible_portion
+            saved_beginning_of_accessible_portion_byte = buffers(current)%beginning_of_accessible_portion_byte
+            saved_end_of_accessible_portion_byte = buffers(current)%end_of_accessible_portion_byte
+            buffers(current)%beginning_of_accessible_portion = 1
+            buffers(current)%beginning_of_accessible_portion_byte = 1
+            buffers(current)%end_of_accessible_portion = buffers(current)%text%z
+            buffers(current)%end_of_accessible_portion_byte = buffers(current)%text%z_byte
+            call unbuttonize_region(point_minimum(), point_maximum(), status)
+            buffers(current)%beginning_of_accessible_portion = saved_beginning_of_accessible_portion
+            buffers(current)%beginning_of_accessible_portion_byte = saved_beginning_of_accessible_portion_byte
+            buffers(current)%end_of_accessible_portion = saved_end_of_accessible_portion
+            buffers(current)%end_of_accessible_portion_byte = saved_end_of_accessible_portion_byte
+            call goto_character(saved_point)
         end subroutine unbuttonize_buffer
     end subroutine button_mode_body
 
     !> Define the face, keymaps, default button type, mode and commands of
     !> button.el.  Not a port.
-    subroutine init_button()
+    subroutine initialize_button()
         type(named_face_type), pointer :: f
         type(status_type) :: st
 
         if (default_button%index /= 0) return
         f => button_face
         call f%define("button", "Default face used for buttons.")
-        call f%spec_entry(display_when(), face_attrs(inherit="link"))
+        call f%specification_entry(display_when(), face_attributes(inherit="link"))
         call minor_modes%button_mode%define("button_mode", hook=button_mode_hook, keymap=.true., body=button_mode_body)
         button_buffer_map = minor_modes%button_mode%map
         call keymap_set(button_buffer_map, "TAB", "forward_button", st)
@@ -1754,10 +1755,10 @@ contains
         default_button%action => null()
         default_button%help_echo = "mouse-2, RET: Push this button"
         call default_button%define("button")
-        commands%push_button%execute => cmd_push_button
-        commands%forward_button%execute => cmd_forward_button
-        commands%backward_button%execute => cmd_backward_button
-        commands%describe_button%execute => cmd_describe_button
+        commands%push_button%execute => execute_push_button
+        commands%forward_button%execute => execute_forward_button
+        commands%backward_button%execute => execute_backward_button
+        commands%describe_button%execute => execute_describe_button
         commands%button_mode%execute => button_mode
-    end subroutine init_button
+    end subroutine initialize_button
 end module button_mod

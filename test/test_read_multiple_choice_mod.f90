@@ -25,15 +25,15 @@
 !> `read-key`) and the layout of test-read-multiple-choice-help.
 module test_read_multiple_choice_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_QUIT
+    use error_mod, only: status_type, QUIT_CODE
     use value_mod, only: value_type
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, last_message
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use buffer_mod, only: get_or_make_buffer, set_buffer
     use handle_mod, only: handle_type
     use read_multiple_choice_mod, only: rmc_choice_type, rmc_add_key_description, read_multiple_choice, generated_help, &
-                                        read_char_choice_use_read_key
+                                        read_character_choice_use_read_key
     implicit none(type, external)
     private
 
@@ -70,7 +70,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("*scratch*", h, st)
         call set_buffer(h, st)
@@ -110,7 +110,7 @@ contains
         call key_parse("C-g", evs, st)
         call unread_command_events(evs)
         call read_multiple_choice("Do it? ", choices, answer, st)
-        call check(error, st%code == FM_QUIT)
+        call check(error, st%code == QUIT_CODE)
         call discard_input()
     end subroutine test_read
 
@@ -142,11 +142,11 @@ contains
         choices(1) = choice("y", "yes")
         choices(2) = choice("n", "no")
         call discard_input()
-        read_char_choice_use_read_key = .true.
+        read_character_choice_use_read_key = .true.
         call key_parse("n", evs, st)
         call unread_command_events(evs)
         call read_multiple_choice("Do it?", choices, answer, st)
-        read_char_choice_use_read_key = .false.
+        read_character_choice_use_read_key = .false.
         call check(error, st%ok() .and. answer == 2, "n")
         if (allocated(error)) return
         call check(error, last_message == "Do it? ([Y]es, [N]o, [?]): ", last_message)

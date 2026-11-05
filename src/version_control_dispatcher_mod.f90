@@ -24,7 +24,7 @@
 !> `vc_setup_buffer', running code after a command's process is done
 !> (`vc_exec_after', with a `vc_action_type' standing for the closure),
 !> `vc_parent_buffer', and bringing buffers back in sync with their files
-!> after a VC operation (`vc_resynch_buffer', `vc_buffer_sync',
+!> after a VC operation (`vc_resynch_buffer', `vc_buffer_synchronize',
 !> `vc_revert_buffer_internal'), the log entry buffer of an operation
 !> such as a commit (`vc_start_logentry', `vc_log_edit',
 !> `vc_finish_logentry', in the submodule version_control_dispatcher_log_mod), and
@@ -35,13 +35,13 @@
 module version_control_dispatcher_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use utility_functions_mod, only: count_characters
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, make_list, make_buffer_ref, xfixnum, xstring, vtag, V_INTEGER
+    use value_mod, only: value_type, make_list, make_buffer_reference, xfixnum, xstring, vtag, V_INTEGER
     use data_mod, only: symbol_value, set, clear_all_local_variables
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
                           erase_buffer, close_buffer, get_file_buffer, buffer_list, resolve_buffer
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, widen, buffer_substring, mark_position
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, widen, buffer_substring, mark_position
     use insert_delete_mod, only: insert
     use marker_mod, only: marker_position, set_marker
     use search_mod, only: search_forward, SEARCH_NOERROR
@@ -55,7 +55,7 @@ module version_control_dispatcher_mod
     use display_engine_mod, only: message, set_mode_line_process, clear_mode_line_process, mode_line_part_type, &
                                   add_minor_mode_lighter
     use basic_subprograms_mod, only: read_y_or_n
-    use version_control_hooks_mod, only: vc_file_clearprops, vc_dir_buffers, vc_dir_resynch_file
+    use version_control_hooks_mod, only: vc_file_clearprops, vc_directory_buffers, vc_directory_resynch_file
     use value_mod, only: command_procedure, value_type
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffer_serial_live
@@ -65,14 +65,14 @@ module version_control_dispatcher_mod
     private
 
     public :: vc_action_type, vc_action_procedure, vc_do_command, vc_setup_buffer, vc_exec_after, vc_process_filter, &
-              vc_delistify, vc_resynch_window, vc_resynch_buffer, vc_resynch_buffers_in_directory, vc_buffer_sync, &
+              vc_delistify, vc_resynch_window, vc_resynch_buffer, vc_resynch_buffers_in_directory, vc_buffer_synchronize, &
               vc_revert_buffer_internal, vc_parent_buffer, set_vc_parent_buffer, vc_parent_buffer_name, &
-              vc_mode_line_hook_execute, init_vc_dispatcher, vc_start_logentry, vc_finish_logentry, vc_log_edit, &
+              vc_mode_line_hook_execute, initialize_vc_dispatcher, vc_start_logentry, vc_finish_logentry, vc_log_edit, &
               vc_log_fileset, set_vc_log_fileset, vc_patch_string, set_vc_patch_string, set_vc_log_operation, &
               set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index, make_log_local_entry, &
               vc_set_mode_line_busy_indicator
     public :: vc_do_async_command, vc_user_edit_command, vc_compilation_mode, vc_set_async_update
-    public :: VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ANY, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
+    public :: VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ANY, VC_OKSTATUS_ASYNC, VC_DESTINATION_DISCARD, VC_DESTINATION_CURRENT, &
               VC_NOQUERY_NO, VC_NOQUERY_YES, VC_NOQUERY_UNLESS_MODIFIED
 
     !> Values of `vc_command_messages' besides .true. and .false.
@@ -104,13 +104,13 @@ module version_control_dispatcher_mod
     !> (never an error) and VC_OKSTATUS_ASYNC (don't wait for the process).
     integer, parameter :: VC_OKSTATUS_UNLESS_SIGNAL = -1, VC_OKSTATUS_ANY = -2, VC_OKSTATUS_ASYNC = -3
 
-    !> `vc_do_command' destinations besides a buffer: VC_DEST_DISCARD (discard the
-    !> output) and VC_DEST_CURRENT (the current buffer).
-    integer, parameter :: VC_DEST_DISCARD = 0, VC_DEST_CURRENT = 1
+    !> `vc_do_command' destinations besides a buffer: VC_DESTINATION_DISCARD (discard the
+    !> output) and VC_DESTINATION_CURRENT (the current buffer).
+    integer, parameter :: VC_DESTINATION_DISCARD = 0, VC_DESTINATION_CURRENT = 1
 
     ! What `vc_set_async_update' updates: a VC-Dir buffer, a Dired buffer
     ! or a file's buffer.
-    integer, parameter :: ASYNC_UPDATE_VC_DIR = 1, ASYNC_UPDATE_DIRED = 2, ASYNC_UPDATE_FILE = 3
+    integer, parameter :: ASYNC_UPDATE_VC_DIRECTORY = 1, ASYNC_UPDATE_DIRED = 2, ASYNC_UPDATE_FILE = 3
 
     !> `vc_resynch_buffer' NOQUERY values: VC_NOQUERY_NO, VC_NOQUERY_YES and VC_NOQUERY_UNLESS_MODIFIED.
     integer, parameter :: VC_NOQUERY_NO = 0, VC_NOQUERY_YES = 1, VC_NOQUERY_UNLESS_MODIFIED = 2
@@ -178,18 +178,18 @@ module version_control_dispatcher_mod
     procedure(vc_mode_line_hook_procedure), pointer, public :: vc_mode_line_hook => null()
 
     abstract interface
-        !> vc-dir.el's `vc_dir_refresh' of the current VC-Dir buffer, for
+        !> vc-dir.el's `vc_directory_refresh' of the current VC-Dir buffer, for
         !> `vc_set_async_update'.  Not a port.
-        recursive subroutine vc_dir_refresh_procedure(status)
+        recursive subroutine vc_directory_refresh_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine vc_dir_refresh_procedure
+        end subroutine vc_directory_refresh_procedure
     end interface
 
-    !> vc-dir.el's `vc_dir_refresh', associated once VC-Dir is loaded
+    !> vc-dir.el's `vc_directory_refresh', associated once VC-Dir is loaded
     !> (version_control_directory_mod), for `vc_set_async_update'.
-    procedure(vc_dir_refresh_procedure), pointer, public :: vc_dir_refresh_function => null()
+    procedure(vc_directory_refresh_procedure), pointer, public :: vc_directory_refresh_function => null()
 
     !> Hook run after entering `vc_compilation_mode'.  Port of
     !> vc-dispatcher.el vc-compilation-mode-hook.
@@ -198,11 +198,11 @@ module version_control_dispatcher_mod
     !> The operation of a log entry buffer (the ACTION of
     !> `vc_start_logentry', upstream's closure): its procedure, given the
     !> operation itself and so what it captured (a BACKEND, a revision
-    !> REV, a PATCH_STRING, files to REGISTER), and FILES and COMMENT.
+    !> REVISION, a PATCH_STRING, files to REGISTER), and FILES and COMMENT.
     type, public :: vc_log_operation_type
         procedure(vc_log_operation_procedure), pointer, nopass :: execute => null()
         integer :: backend = 0
-        character(len=:), allocatable :: rev, patch_string
+        character(len=:), allocatable :: revision, patch_string
         type(string_type), allocatable :: register(:)
     end type vc_log_operation_type
 
@@ -254,7 +254,7 @@ module version_control_dispatcher_mod
 
     interface
         !> Accept a comment for an operation on FILES.
-        !> If COMMENT is absent, pop up a LOGBUF buffer, emit MSG, and set the
+        !> If COMMENT is absent, pop up a LOGBUF buffer, emit LOG_MESSAGE, and set the
         !> action on close to ACTION.  If COMMENT is a string and
         !> INITIAL_CONTENTS is true, then COMMENT is used as the initial
         !> contents of the log entry buffer.  If COMMENT is a string and
@@ -269,12 +269,12 @@ module version_control_dispatcher_mod
         !> DIFF_FUNCTION is `log_edit_diff_function' for the Log Edit buffer.
         !> Port of vc-dispatcher.el:vc-start-logentry.  (In
         !> version_control_dispatcher_log_mod.)
-        recursive module subroutine vc_start_logentry(files, msg, logbuf, action, status, comment, comment_t, &
+        recursive module subroutine vc_start_logentry(files, log_message, logbuf, action, status, comment, comment_t, &
                                                       initial_contents, mode, after_hook, backend, patch_string, &
                                                       diff_function)
             implicit none(type, external)
             type(string_type), intent(in) :: files(:)
-            character(len=*), intent(in) :: msg, logbuf
+            character(len=*), intent(in) :: log_message, logbuf
             type(vc_log_operation_type), intent(in) :: action
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: comment, patch_string
@@ -406,12 +406,12 @@ contains
     !> Show `vc_parent_buffer_name' in the mode line of buffers with a
     !> `vc_parent_buffer'.  Part of vc.el (its minor-mode-alist entry).
     !> Not a port.
-    subroutine init_vc_dispatcher()
+    subroutine initialize_vc_dispatcher()
         use data_mod, only: append_locals_clearer
 
         call add_minor_mode_lighter("vc_parent_buffer", "", text=parent_name_of, first=.true.)
         call append_locals_clearer(clear_log_locals)
-    end subroutine init_vc_dispatcher
+    end subroutine initialize_vc_dispatcher
 
     ! ------------------------------------------------------------------
     ! The log entry buffer's variables
@@ -531,7 +531,7 @@ contains
     logical function vc_dispatcher_browsing() result(browsing)
         use derived_mod, only: is_derived_mode
 
-        browsing = is_derived_mode([character(len=13) :: "vc_dir_mode", "dired_mode", "diff_mode", "log_view_mode"])
+        browsing = is_derived_mode([character(len=17) :: "vc_directory_mode", "dired_mode", "diff_mode", "log_view_mode"])
     end function vc_dispatcher_browsing
 
     !> Set the current buffer's `vc_parent_buffer' to PARENT and its
@@ -562,24 +562,24 @@ contains
         type(handle_type) :: buffer, old, mark
         type(value_type) :: saved
         type(status_type) :: st
-        integer(int64) :: opoint, mpos
+        integer(int64) :: original_point, marked_position
 
         status = status_type()
         buffer = process_buffer(process)
         if (.not. is_buffer_live(buffer)) return
         old = current_buffer()
         call set_buffer(buffer, st)
-        opoint = point()
+        original_point = point()
         mark = process_mark(process)
-        call marker_position(mark, mpos, st)
+        call marker_position(mark, marked_position, st)
         call inhibit_read_only_begin(saved)
-        call goto_char(mpos)
+        call goto_character(marked_position)
         call insert(s, status)
         call set_marker(mark, point(), st)
         call inhibit_read_only_end(saved)
         ! (save-excursion): point stays, after the text if it was at the mark.
-        if (opoint > mpos) opoint = opoint + len(s, int64)
-        call goto_char(min(opoint, point_max()))
+        if (original_point > marked_position) original_point = original_point + len(s, int64)
+        call goto_character(min(original_point, point_maximum()))
         call set_buffer(old, st)
     end subroutine vc_process_filter
 
@@ -680,7 +680,7 @@ contains
             if (is_buffer_live(buffer)) call in_buffer_busy(buffer)
             call queue_action(p, action)
         else
-            call set_error(status, FM_GENERIC_ERROR, "Unexpected process state")
+            call set_error(status, GENERIC_ERROR_CODE, "Unexpected process state")
         end if
     end subroutine vc_exec_after
 
@@ -748,7 +748,7 @@ contains
         type(handle_type) :: buffer, old, m
         type(status_type) :: st
         character(len=:), allocatable :: pstatus
-        integer(int64) :: opoint, mpos
+        integer(int64) :: original_point, marked_position
         integer :: k, j
 
         status = status_type()
@@ -771,20 +771,20 @@ contains
         do j = 1, size(actions)
             vc_sentinel_movepoint = 0
             m = process_mark(process)
-            call marker_position(m, mpos, st)
+            call marker_position(m, marked_position, st)
             ! Normally, we want async code such as sentinels to not move
             ! point.
-            opoint = point()
-            call goto_char(mpos)
+            original_point = point()
+            call goto_character(marked_position)
             ! Each sentinel may move point and the next one should be run
             ! from that new position.
             call execute_action(actions(j), process, status)
             if (.not. is_buffer_live(buffer)) exit
             call set_buffer(buffer, st)
             call set_marker(m, point(), st)
-            call goto_char(min(opoint, point_max()))
+            call goto_character(min(original_point, point_maximum()))
             ! But sometimes the sentinels really want to move point.
-            if (vc_sentinel_movepoint /= 0) call goto_char(vc_sentinel_movepoint)
+            if (vc_sentinel_movepoint /= 0) call goto_character(vc_sentinel_movepoint)
             if (.not. status%ok()) exit
         end do
 
@@ -840,8 +840,8 @@ contains
 
     !> Execute an inferior command, notifying user and checking for errors.
     !>
-    !> DESTINATION specifies what to do with COMMAND's output: VC_DEST_CURRENT
-    !> for the current buffer, VC_DEST_DISCARD to discard output, or (with
+    !> DESTINATION specifies what to do with COMMAND's output: VC_DESTINATION_CURRENT
+    !> for the current buffer, VC_DESTINATION_DISCARD to discard output, or (with
     !> BUFFER) a buffer to insert output there.
     !> STDERR false means to discard standard error output, true (the
     !> default) to mix it with standard output.
@@ -876,12 +876,12 @@ contains
         type(handle_type), intent(out), optional :: process
         type(string_type), intent(in), optional :: environment(:)
         type(handle_type) :: old, new_process
-        type(string_type), allocatable :: rel(:)
+        type(string_type), allocatable :: relative(:)
         type(value_type), allocatable :: argv(:), envv(:)
         type(string_type), allocatable :: pargs(:), penv(:)
-        type(value_type) :: result, saved, dest
+        type(value_type) :: result, saved, destination_name
         type(status_type) :: st
-        character(len=:), allocatable :: full_command, cmd, expanded, desc
+        character(len=:), allocatable :: full_command, command_text, expanded, description
         character(len=24) :: status_text
         logical :: to_buffer, mix
         integer :: k, n, ne, code
@@ -892,7 +892,7 @@ contains
         mix = .true.
         if (present(stderr)) mix = stderr
         old = current_buffer()
-        to_buffer = destination /= VC_DEST_DISCARD
+        to_buffer = destination /= VC_DESTINATION_DISCARD
 
         if (present(buffer)) then
             to_buffer = .true.
@@ -906,22 +906,22 @@ contains
         ! FIXME: file-relative-name can return a bogus result because it
         ! doesn't look at the actual file-system to see if symlinks come
         ! into play.
-        allocate (rel(size(files)))
+        allocate (relative(size(files)))
 
         do k = 1, size(files)
             call expand_file_name(files(k)%text, expanded, st)
             if (.not. st%ok()) expanded = files(k)%text
-            rel(k)%text = file_relative_name(expanded)
+            relative(k)%text = file_relative_name(expanded)
         end do
 
-        cmd = command
+        command_text = command
 
-        if (len(cmd) > 0) then
-            if (cmd(len(cmd):len(cmd)) == achar(10)) cmd = cmd(1:len(cmd) - 1)
+        if (len(command_text) > 0) then
+            if (command_text(len(command_text):len(command_text)) == achar(10)) command_text = command_text(1:len(command_text) - 1)
         end if
 
-        full_command = cmd//" "//flag_list(flags)
-        if (size(rel) > 0) full_command = full_command//" "//vc_delistify(rel)
+        full_command = command_text//" "//flag_list(flags)
+        if (size(relative) > 0) full_command = full_command//" "//vc_delistify(relative)
         ! The squeezed arguments: the flags without nil, then the files.
         n = 0
 
@@ -929,7 +929,7 @@ contains
             if (allocated(flags(k)%text)) n = n + 1
         end do
 
-        allocate (argv(n + size(rel)))
+        allocate (argv(n + size(relative)))
         n = 0
 
         do k = 1, size(flags)
@@ -938,8 +938,8 @@ contains
             argv(n) = value_type(text=flags(k)%text)
         end do
 
-        do k = 1, size(rel)
-            argv(n + k) = value_type(text=rel(k)%text)
+        do k = 1, size(relative)
+            argv(n + k) = value_type(text=relative(k)%text)
         end do
 
         ! Since some functions need to parse the output from external
@@ -960,7 +960,7 @@ contains
         if (okstatus == VC_OKSTATUS_ASYNC) then
             ! Run asynchronously.
             allocate (pargs(size(argv) + 1))
-            pargs(1)%text = cmd
+            pargs(1)%text = command_text
 
             do k = 1, size(argv)
                 pargs(k + 1)%text = xstring(argv(k))
@@ -973,10 +973,11 @@ contains
             end do
 
             if (to_buffer) then
-                call make_process(cmd, pargs, new_process, status, buffer=current_buffer(), &
+                call make_process(command_text, pargs, new_process, status, buffer=current_buffer(), &
                                   connection_type=PROCESS_CONNECTION_PIPE, environment=penv)
             else
-                call make_process(cmd, pargs, new_process, status, connection_type=PROCESS_CONNECTION_PIPE, environment=penv)
+                call make_process(command_text, pargs, new_process, status, connection_type=PROCESS_CONNECTION_PIPE, &
+                                  environment=penv)
             end if
 
             if (status%ok()) then
@@ -987,15 +988,15 @@ contains
         else
             ! Run synchronously
             call vc_command_message("Running in foreground: "//full_command)
-            dest = value_type(.true.)
+            destination_name = value_type(.true.)
 
             if (.not. to_buffer) then
-                call execute_process(cmd, result, status, args=make_list(argv), environment=make_list(envv))
+                call execute_process(command_text, result, status, arguments=make_list(argv), environment=make_list(envv))
             else if (mix) then
-                call execute_process(cmd, result, status, destination=dest, args=make_list(argv), &
+                call execute_process(command_text, result, status, destination=destination_name, arguments=make_list(argv), &
                                      environment=make_list(envv))
             else
-                call execute_process(cmd, result, status, destination=dest, args=make_list(argv), &
+                call execute_process(command_text, result, status, destination=destination_name, arguments=make_list(argv), &
                                      error_file="/dev/null", environment=make_list(envv))
             end if
 
@@ -1008,18 +1009,18 @@ contains
                                                        (okstatus >= 0 .and. okstatus < code))) then
                     if (buffers(current)%name(1:min(1, len(buffers(current)%name))) /= " ") then
                         call pop_to_buffer(current_buffer(), st)
-                        call goto_char(point_min())
+                        call goto_character(point_minimum())
                         call shrink_window_if_larger_than_buffer()
                     end if
 
                     if (vtag(result) == V_INTEGER) then
                         write (status_text, '("status ", i0)') code
-                        desc = trim(status_text)
+                        description = trim(status_text)
                     else
-                        desc = xstring(result)
+                        description = xstring(result)
                     end if
 
-                    call set_error(status, FM_GENERIC_ERROR, "Failed ("//desc//"): "//full_command)
+                    call set_error(status, GENERIC_ERROR_CODE, "Failed ("//description//"): "//full_command)
                 else
                     write (status_text, '("Done (status=", i0, "):")') code
                     call vc_command_message(trim(status_text)//" "//full_command)
@@ -1028,7 +1029,7 @@ contains
         end if
 
         call inhibit_read_only_end(saved)
-        if (present(buffer) .or. destination /= VC_DEST_CURRENT) call set_buffer(old, st)
+        if (present(buffer) .or. destination /= VC_DESTINATION_CURRENT) call set_buffer(old, st)
 
     contains
 
@@ -1061,8 +1062,8 @@ contains
         type(status_type) :: st
 
         context%posn = posn
-        context%size = point_max() - point_min()
-        call buffer_substring(posn, min(point_max(), posn + 100), context%text, st)
+        context%size = point_maximum() - point_minimum()
+        call buffer_substring(posn, min(point_maximum(), posn + 100), context%text, st)
         if (.not. st%ok()) context%text = ""
         context%valid = .true.
     end function vc_position_context
@@ -1070,35 +1071,35 @@ contains
     !> Return the position of CONTEXT in the current buffer (0 if
     !> CONTEXT cannot be found).  Port of
     !> vc-dispatcher.el:vc-find-position-by-context.
-    integer(int64) function vc_find_position_by_context(context) result(pos)
+    integer(int64) function vc_find_position_by_context(context) result(position)
         type(vc_context_type), intent(in) :: context
         integer(int64) :: diff, saved, found
         type(status_type) :: st
 
         if (len(context%text) == 0) then
-            pos = point_max()
+            position = point_maximum()
             return
         end if
 
         saved = point()
-        pos = 0
-        diff = context%size - (point_max() - point_min())
+        position = 0
+        diff = context%size - (point_maximum() - point_minimum())
         if (diff < 0) diff = -diff
-        call goto_char(context%posn)
+        call goto_character(context%posn)
         call search_forward(context%text, found, st, noerror=SEARCH_NOERROR)
 
         if (found == 0) then
             ! Can't use search-backward since the match may continue after
             ! point.
-            call goto_char(point() - diff - len(context%text, int64))
+            call goto_character(point() - diff - len(context%text, int64))
             ! goto-char doesn't signal an error at beginning of buffer like
             ! backward-char would
             call search_forward(context%text, found, st, noerror=SEARCH_NOERROR)
         end if
 
         ! to beginning of OSTRING
-        if (found /= 0) pos = point() - count_characters(context%text)
-        call goto_char(saved)
+        if (found /= 0) position = point() - count_characters(context%text)
+        call goto_character(saved)
     end function vc_find_position_by_context
 
     !> Return true if POSN matches CONTEXT, false otherwise.  Port of
@@ -1112,8 +1113,8 @@ contains
 
         r = .false.
         endp = posn + count_characters(context%text)
-        if (endp > point_max() - point_min() + 1 + 1) return
-        if (endp > point_max()) return
+        if (endp > point_maximum() - point_minimum() + 1 + 1) return
+        if (endp > point_maximum()) return
         call buffer_substring(posn, endp, s, st)
         if (.not. st%ok()) return
         r = s == context%text .and. len(s) == len(context%text)
@@ -1123,12 +1124,12 @@ contains
     !> Try to be clever in the face of changes due to expanded VCS
     !> keywords (cf., e.g., Info node `(cvs)Keyword substitution').
     !> This is important for typeahead to work as expected.
-    !> ARG and NO_CONFIRM are passed on to `revert_buffer'.  Port of
+    !> ARGUMENT and NO_CONFIRM are passed on to `revert_buffer'.  Port of
     !> vc-dispatcher.el:vc-revert-buffer-internal (with vc-buffer-context
     !> and vc-restore-buffer-context).
-    recursive subroutine vc_revert_buffer_internal(status, arg, no_confirm)
+    recursive subroutine vc_revert_buffer_internal(status, argument, no_confirm)
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: arg, no_confirm
+        logical, intent(in), optional :: argument, no_confirm
         type(vc_context_type) :: point_context, mark_context
         integer(int64) :: saved, newpos, m
 
@@ -1144,14 +1145,14 @@ contains
         saved = point()
         ! t means don't call normal-mode; that's to preserve various minor
         ! modes.
-        call revert_buffer(status, ignore_auto=arg, noconfirm=no_confirm, preserve_modes=.true.)
+        call revert_buffer(status, ignore_auto=argument, noconfirm=no_confirm, preserve_modes=.true.)
         if (.not. status%ok()) return
-        call goto_char(min(max(saved, point_min()), point_max()))
+        call goto_character(min(max(saved, point_minimum()), point_maximum()))
 
         ! if necessary, restore point and mark
         if (.not. vc_context_matches(point(), point_context)) then
             newpos = vc_find_position_by_context(point_context)
-            if (newpos /= 0) call goto_char(newpos)
+            if (newpos /= 0) call goto_character(newpos)
         end if
 
         if (mark_context%valid .and. buffers(current)%mark_active) then
@@ -1164,12 +1165,12 @@ contains
         end if
     end subroutine vc_revert_buffer_internal
 
-    !> (set-mark POS) Not a port.
-    subroutine set_mark_at(pos)
+    !> (set-mark POSITION) Not a port.
+    subroutine set_mark_at(position)
         use simple_mod, only: set_mark
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
 
-        call set_mark(pos)
+        call set_mark(position)
     end subroutine set_mark_at
 
     !> Execute `vc_mode_line_hook' with FILE.  Not a port.
@@ -1200,7 +1201,7 @@ contains
     !> reverting.  NOQUERY should be true *only* if it is known the only
     !> difference between the buffer and the file is due to
     !> modifications by the dispatcher client code, rather than user
-    !> editing!  ROOT is `vc_root_dir', for relative names.  Port of
+    !> editing!  ROOT is `vc_root_directory', for relative names.  Port of
     !> vc-dispatcher.el:vc-resynch-window.
     recursive subroutine vc_resynch_window(file, root, status, keep, noquery, reset_vc_info)
         character(len=*), intent(in) :: file, root
@@ -1265,7 +1266,7 @@ contains
     !> only if it is known that the only
     !> difference between the buffer and the file is due to modifications by
     !> the dispatcher client code, rather than user editing.  ROOT is
-    !> `vc_root_dir', for relative names.  Port of
+    !> `vc_root_directory', for relative names.  Port of
     !> vc-dispatcher.el:vc-resynch-buffer (no *vc-dir* buffers).
     recursive subroutine vc_resynch_buffer(file, root, status, keep, noquery, reset_vc_info)
         character(len=*), intent(in) :: file, root
@@ -1309,8 +1310,8 @@ contains
 
         ! Try to avoid unnecessary work, a *vc-dir* buffer is only present
         ! if this is true.
-        if (allocated(vc_dir_buffers)) then
-            if (size(vc_dir_buffers) > 0 .and. associated(vc_dir_resynch_file)) call vc_dir_resynch_file(file)
+        if (allocated(vc_directory_buffers)) then
+            if (size(vc_directory_buffers) > 0 .and. associated(vc_directory_resynch_file)) call vc_directory_resynch_file(file)
         end if
 
     contains
@@ -1323,7 +1324,7 @@ contains
     !> Make sure the current buffer and its working file are in sync.
     !> NOT_ESSENTIAL means it is okay to continue if the user says not to save.
     !> Port of vc-dispatcher.el:vc-buffer-sync.
-    recursive subroutine vc_buffer_sync(status, not_essential)
+    recursive subroutine vc_buffer_synchronize(status, not_essential)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: not_essential
         logical :: missing, need, yes, ne
@@ -1357,9 +1358,9 @@ contains
         if (yes) then
             call save_buffer(1_int64, .false., status)
         else if (.not. ne) then
-            call set_error(status, FM_GENERIC_ERROR, "Aborted")
+            call set_error(status, GENERIC_ERROR_CODE, "Aborted")
         end if
-    end subroutine vc_buffer_sync
+    end subroutine vc_buffer_synchronize
 
     ! ------------------------------------------------------------------
     ! Asynchronous commands
@@ -1380,7 +1381,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: history
         type(string_type), allocatable :: edited_flags(:)
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         type(value_type) :: parts
         character(len=:), allocatable :: prompt, initial, answer
         logical :: files_separator
@@ -1413,13 +1414,13 @@ contains
         if (.not. status%ok()) return
         call split_string_and_unquote(answer, parts, status)
         if (.not. status%ok()) return
-        call list_elements(parts, elems)
+        call list_elements(parts, elements)
         command = ""
-        if (size(elems) > 0) command = xstring(elems(1))
+        if (size(elements) > 0) command = xstring(elements(1))
         allocate (edited_flags(0))
 
-        do k = 2, size(elems)
-            call append_string(edited_flags, xstring(elems(k)))
+        do k = 2, size(elements)
+            call append_string(edited_flags, xstring(elements(k)))
         end do
 
         if (files_separator) call append_string(edited_flags, "--")
@@ -1457,42 +1458,42 @@ contains
     !> vc-dispatcher.el:vc--display-async-command-buffer.
     recursive subroutine vc_display_async_command_buffer(buffer)
         use window_mod, only: display_buffer, set_window_start, windows
-        use search_mod, only: re_search_backward, match_end
+        use search_mod, only: regular_expression_search_backward, match_end
         type(handle_type), intent(in) :: buffer
         type(handle_type) :: window, old
         type(status_type) :: st
-        integer(int64) :: opoint, found, start
+        integer(int64) :: original_point, found, start
 
         call display_buffer(buffer, window, st)
         if (.not. st%ok() .or. window%index == 0) return
         old = current_buffer()
         call set_buffer(buffer, st)
-        opoint = point()
-        call goto_char(point_max())
-        call re_search_backward(achar(10), found, st, noerror=SEARCH_NOERROR)
+        original_point = point()
+        call goto_character(point_maximum())
+        call regular_expression_search_backward(achar(10), found, st, noerror=SEARCH_NOERROR)
         start = 0
         if (found /= 0) start = match_end(0, st)
-        call goto_char(opoint)
+        call goto_character(original_point)
         call set_buffer(old, st)
         if (start > 0) call set_window_start(windows(window%index), start, st)
     end subroutine vc_display_async_command_buffer
 
-    !> Run COMMAND asynchronously with ARGS, displaying the result.
+    !> Run COMMAND asynchronously with ARGUMENTS, displaying the result.
     !> Send the output to the buffer named BUFFER_NAME, which is created.
     !> ROOT should be the directory in which the command should be run.
     !> The process object is returned as PROCESS.
     !> Display the buffer in some window, but don't select it.
     !>
-    !> With EDIT, the user first edits COMMAND and ARGS as
+    !> With EDIT, the user first edits COMMAND and ARGUMENTS as
     !> `vc_user_edit_command' does (with the minibuffer history HISTORY),
     !> and they are given back edited.  Port of
     !> vc-dispatcher.el:vc-do-async-command (EDIT for
     !> `vc_filter_command_function' bound to `vc_user_edit_command').
-    recursive subroutine vc_do_async_command(buffer_name, root, command, args, status, process, edit, history)
+    recursive subroutine vc_do_async_command(buffer_name, root, command, arguments, status, process, edit, history)
         use simple_mod, only: special_mode
         character(len=*), intent(in) :: buffer_name, root
         character(len=:), allocatable, intent(inout) :: command
-        type(string_type), allocatable, intent(inout) :: args(:)
+        type(string_type), allocatable, intent(inout) :: arguments(:)
         type(status_type), intent(out) :: status
         type(handle_type), intent(out) :: process
         logical, intent(in), optional :: edit
@@ -1502,7 +1503,7 @@ contains
         type(value_type) :: saved
         type(vc_action_type) :: action
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         character(len=24) :: start_text
         integer(int64) :: start_count
         logical :: editing, fundamental
@@ -1511,10 +1512,10 @@ contains
         process = null_handle()
         editing = .false.
         if (present(edit)) editing = edit
-        dir = "./"
+        directory = "./"
 
         if (current /= 0) then
-            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+            if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
         end if
 
         call get_or_make_buffer(buffer_name, buffer, status)
@@ -1522,7 +1523,7 @@ contains
         old_process = get_buffer_process(buffer)
 
         if (old_process%index /= 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Another VC action on "//root//" is running")
+            call set_error(status, GENERIC_ERROR_CODE, "Another VC action on "//root//" is running")
             return
         end if
 
@@ -1542,10 +1543,10 @@ contains
         end if
 
         ! Run in the original working directory.
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
 
         if (editing) then
-            call vc_user_edit_command(command, .false., args, status, history)
+            call vc_user_edit_command(command, .false., arguments, status, history)
 
             if (.not. status%ok()) then
                 buffers(current)%directory = root
@@ -1555,27 +1556,27 @@ contains
         end if
 
         call inhibit_read_only_begin(saved)
-        call goto_char(point_max())
-        if (point() /= point_min()) call insert(achar(10), st)
+        call goto_character(point_maximum())
+        if (point() /= point_minimum()) call insert(achar(10), st)
         call insert("Running '"//command, st)
 
-        do k = 1, size(args)
-            if (.not. allocated(args(k)%text)) cycle
+        do k = 1, size(arguments)
+            if (.not. allocated(arguments(k)%text)) cycle
             call insert(" ", st)
 
             ! If the argument has newlines in it (as a commit message
             ! commonly will) then ellipse it down so that the whole command
             ! is more readable.
-            if (index(args(k)%text, achar(10)) > 0) then
-                call insert('"'//args(k)%text(1:index(args(k)%text, achar(10)) - 1)//'..."', st)
+            if (index(arguments(k)%text, achar(10)) > 0) then
+                call insert('"'//arguments(k)%text(1:index(arguments(k)%text, achar(10)) - 1)//'..."', st)
             else
-                call insert(args(k)%text, st)
+                call insert(arguments(k)%text, st)
             end if
         end do
 
         call insert("'..."//achar(10), st)
         call system_clock(start_count)
-        call vc_do_command(VC_DEST_CURRENT, VC_OKSTATUS_ASYNC, command, nofiles, args, status, process=process)
+        call vc_do_command(VC_DESTINATION_CURRENT, VC_OKSTATUS_ASYNC, command, nofiles, arguments, status, process=process)
         call inhibit_read_only_end(saved)
         buffers(current)%directory = root
 
@@ -1626,14 +1627,14 @@ contains
     end subroutine async_command_finished
 
     !> Compilation mode for buffers with output from VC commands.
-    !> Sets `compilation_error_regexps' in accordance with the VC backend
-    !> (ERROR_REGEXPS, its `vc_BACKEND_error_regexps'; none when
+    !> Sets `compilation_error_regular_expressions' in accordance with the VC backend
+    !> (ERROR_REGULAR_EXPRESSIONS, its `vc_BACKEND_error_regular_expressions'; none when
     !> absent).  Port of vc-dispatcher.el:vc-compilation-mode.
-    recursive subroutine vc_compilation_mode(status, error_regexps)
+    recursive subroutine vc_compilation_mode(status, error_regular_expressions)
         use compile_mod, only: compilation_rule_type, compilation_set_mode_locals
         use modes_mod, only: major_modes
         type(status_type), intent(out) :: status
-        type(compilation_rule_type), intent(in), optional :: error_regexps(:)
+        type(compilation_rule_type), intent(in), optional :: error_regular_expressions(:)
         type(compilation_rule_type) :: none(0)
         logical :: saved
 
@@ -1641,10 +1642,10 @@ contains
         call major_modes%vc_compilation_mode%begin(saved, status)
         if (.not. status%ok()) return
 
-        if (present(error_regexps)) then
-            call compilation_set_mode_locals(error_regexps=error_regexps)
+        if (present(error_regular_expressions)) then
+            call compilation_set_mode_locals(error_regular_expressions=error_regular_expressions)
         else
-            call compilation_set_mode_locals(error_regexps=none)
+            call compilation_set_mode_locals(error_regular_expressions=none)
         end if
 
         call major_modes%vc_compilation_mode%end(saved, status)
@@ -1661,10 +1662,10 @@ contains
     !> Port of vc-dispatcher.el's (derived-mode-set-parent
     !> 'vc-compilation-mode 'compilation-mode).
     subroutine define_vc_compilation_mode()
-        use compile_mod, only: init_compile
+        use compile_mod, only: initialize_compile
         use modes_mod, only: major_modes
 
-        if (.not. associated(major_modes%compilation_mode%execute)) call init_compile()
+        if (.not. associated(major_modes%compilation_mode%execute)) call initialize_compile()
         call major_modes%vc_compilation_mode%define("vc_compilation_mode", "VC-Compilation", vc_compilation_mode_execute, &
                                                     vc_compilation_mode_hook, parent=major_modes%compilation_mode)
     end subroutine define_vc_compilation_mode
@@ -1674,7 +1675,7 @@ contains
     !> asynchronous VC command has completed.  PROCESS_BUFFER is the
     !> buffer for the asynchronous VC process.
     !>
-    !> If the current buffer is a VC Dir buffer, call `vc_dir_refresh'.
+    !> If the current buffer is a VC Dir buffer, call `vc_directory_refresh'.
     !> If the current buffer is a Dired buffer, revert it.
     !> If the current buffer visits a file, call `vc_refresh_state'.
     !> Port of vc-dispatcher.el:vc-set-async-update.
@@ -1692,8 +1693,8 @@ contains
         action%buffer = current_buffer()
         action%n = 0
 
-        if (is_derived_mode(major_modes%vc_dir_mode)) then
-            action%n = ASYNC_UPDATE_VC_DIR
+        if (is_derived_mode(major_modes%vc_directory_mode)) then
+            action%n = ASYNC_UPDATE_VC_DIRECTORY
         else if (is_derived_mode(major_modes%dired_mode)) then
             action%n = ASYNC_UPDATE_DIRED
             ! The buffer's modification tick, as text.
@@ -1727,9 +1728,9 @@ contains
         call set_buffer(action%buffer, st)
 
         select case (action%n)
-        case (ASYNC_UPDATE_VC_DIR)
+        case (ASYNC_UPDATE_VC_DIRECTORY)
             ! Avoid interrupting the user with prompts to save buffers.
-            if (associated(vc_dir_refresh_function)) call vc_dir_refresh_function(status)
+            if (associated(vc_directory_refresh_function)) call vc_directory_refresh_function(status)
         case (ASYNC_UPDATE_DIRED)
             write (tick_text, "(i0)") buffers(current)%text%modiff
             if (trim(tick_text) == action%s1) call revert_buffer(status)

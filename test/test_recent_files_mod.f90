@@ -25,10 +25,10 @@ module test_recent_files_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
-    use value_mod, only: value_type, list_length, list_elt, xstring
+    use value_mod, only: value_type, list_length, list_element, xstring
     use data_mod, only: set, symbol_value
-    use files_mod, only: create_temp_file, delete_file
-    use bindings_mod, only: init_bindings
+    use files_mod, only: create_temporary_file, delete_file
+    use bindings_mod, only: initialize_bindings
     use recent_files_mod, only: recentf_files, recentf_add_file, recentf_exclude, recentf_check_type, recentf_keep, &
                                 recentf_keep_default_test, is_recentf_exclude_file_by_extension, &
                                 recentf_exclude_ignored_extensions, recentf_remove_if_non_kept, recentf_cleanup, &
@@ -56,7 +56,7 @@ contains
 
     !> Defaults, and an empty list.
     subroutine start()
-        call init_bindings()
+        call initialize_bindings()
         if (allocated(recentf_files)) deallocate (recentf_files)
         allocate (recentf_files(0))
         if (allocated(recentf_exclude)) deallocate (recentf_exclude)
@@ -101,7 +101,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call start()
-        recentf_exclude = [recentf_check_type(regexp="\.tmp\'"), &
+        recentf_exclude = [recentf_check_type(regular_expression="\.tmp\'"), &
                            recentf_check_type(test=is_recentf_exclude_file_by_extension)]
         recentf_exclude_ignored_extensions = [character(len=32) :: ".o"]
         call recentf_add_file("/tmp/a.tmp")
@@ -122,7 +122,7 @@ contains
         logical :: removed
 
         call start()
-        call create_temp_file("recentf-test", tmpfile, st)
+        call create_temporary_file("recentf-test", tmpfile, st)
         call recentf_add_file("/this/file/does/not/exist")
         call recentf_add_file(tmpfile)
         call recentf_remove_if_non_kept("/this/file/does/not/exist", removed)
@@ -151,7 +151,7 @@ contains
         type(value_type) :: history
 
         call start()
-        call create_temp_file("recentf-test", tmpfile, st)
+        call create_temporary_file("recentf-test", tmpfile, st)
         recentf_save_file = tmpfile
         deallocate (recentf_files)
         allocate (recentf_files(2))
@@ -169,7 +169,7 @@ contains
         call symbol_value(value_type(name="file_name_history"), history, st)
         call check(error, list_length(history) == 2, "file_name_history")
         if (allocated(error)) return
-        call check(error, xstring(list_elt(history, 1_int64)), "/tmp/one")
+        call check(error, xstring(list_element(history, 1_int64)), "/tmp/one")
         call delete_file(tmpfile, st)
     end subroutine test_save_load
 

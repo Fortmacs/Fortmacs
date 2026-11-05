@@ -27,8 +27,8 @@ module test_terminal_xterm_mod
     use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
     use data_mod, only: value_eq
     use keymap_mod, only: key_description
-    use keyboard_mod, only: kbd_store_bytes, read_key_sequence, discard_input
-    use bindings_mod, only: init_bindings
+    use keyboard_mod, only: keyboard_store_bytes, read_key_sequence, discard_input
+    use bindings_mod, only: initialize_bindings
     use terminal_xterm_mod, only: terminal_init_xterm
     implicit none(type, external)
     private
@@ -50,25 +50,25 @@ contains
     end subroutine collect_terminal_xterm_mod
 
     !> The key sequence read after typing `bytes`, as kbd text.
-    function decoded(bytes) result(desc)
+    function decoded(bytes) result(description)
         character(len=*), intent(in) :: bytes
-        character(len=:), allocatable :: desc
+        character(len=:), allocatable :: description
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding
         type(status_type) :: st
         logical :: eof
 
         call discard_input()
-        call kbd_store_bytes(bytes)
+        call keyboard_store_bytes(bytes)
         call read_key_sequence(keys, binding, eof, st)
-        desc = key_description(keys)
+        description = key_description(keys)
     end function decoded
 
     subroutine test_function_keys(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call terminal_init_xterm(st)
         call check(error, decoded(ESC//"[A"), "<up>")
         if (allocated(error)) return
@@ -114,16 +114,16 @@ contains
         type(status_type) :: st
         logical :: eof
 
-        call init_bindings()
+        call initialize_bindings()
         call terminal_init_xterm(st)
         call discard_input()
-        call kbd_store_bytes(ESC//"[C"//ESC//"[3~"//ESC//"5")
+        call keyboard_store_bytes(ESC//"[C"//ESC//"[3~"//ESC//"5")
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, value_type(name="right_char")), "<right>")
+        call check(error, value_eq(binding, value_type(name="right_character")), "<right>")
         if (allocated(error)) return
         ! <delete> becomes DEL through function-key-map.
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, value_type(name="delete_backward_char")) .and. &
+        call check(error, value_eq(binding, value_type(name="delete_backward_character")) .and. &
                    size(keys) == 1, "<delete>")
         if (allocated(error)) return
         call check(error, vtag(keys(1)) == V_INTEGER, "DEL event")

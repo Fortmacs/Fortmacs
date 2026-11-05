@@ -25,13 +25,13 @@ module test_system_dependent_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use, intrinsic :: iso_c_binding, only: c_sizeof, c_int
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_FILE_ERROR
+    use error_mod, only: status_type, FILE_ERROR_CODE
     use system_linux_mod, only: c_raise, cs8, echo, icanon, icrnl, iexten, ignbrk, inlcr, isig, istrip, &
                                 ixon, onlcr, opost, parenb, pollfd_type, sigwinch, tab3, termios_type, &
                                 vintr, vmin, vstop, vsusp, vtime, winsize_type
     use system_dependent_mod, only: close_fd, fortmacs_get_tty, fortmacs_read, fortmacs_tty_type, fortmacs_write, &
-                                    get_tty_size, init_sys_modes, input_available, &
-                                    install_window_change_handler, open_pty, reset_sys_modes, set_tty_size, &
+                                    get_tty_size, initialize_system_modes, input_available, &
+                                    install_window_change_handler, open_pty, reset_system_modes, set_tty_size, &
                                     tty_raw_settings, window_change_pending, clear_window_change
     implicit none(type, external)
     private
@@ -126,8 +126,8 @@ contains
         if (allocated(error)) return
 
         run: block
-            call init_sys_modes(slave, old, st)
-            call check(error, st%ok(), "init_sys_modes failed")
+            call initialize_system_modes(slave, old, st)
+            call check(error, st%ok(), "initialize_system_modes failed")
             if (allocated(error)) exit run
             call fortmacs_get_tty(slave, now, st)
             call check(error, iand(now%main%c_lflag, ior(ECHO, ICANON)), 0_c_int)
@@ -139,7 +139,7 @@ contains
             call fortmacs_read(slave, buffer, n, st)
             call check(error, buffer(1:n) == "ab"//char(1), "raw bytes garbled: "//buffer(1:n))
             if (allocated(error)) exit run
-            call reset_sys_modes(slave, old, st)
+            call reset_system_modes(slave, old, st)
             call fortmacs_get_tty(slave, now, st)
             call check(error, iand(now%main%c_lflag, ICANON), ICANON)
         end block run
@@ -213,7 +213,7 @@ contains
         type(status_type) :: st
 
         call fortmacs_read(-1_int32, buffer, n, st)
-        call check(error, st%code, FM_FILE_ERROR)
+        call check(error, st%code, FILE_ERROR_CODE)
         if (allocated(error)) return
         call check(error, index(st%detail, "read failed") == 1, "detail: "//st%detail)
     end subroutine test_bad_fd

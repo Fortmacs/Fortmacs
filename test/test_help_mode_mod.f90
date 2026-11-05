@@ -33,11 +33,11 @@ module test_help_mode_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, get_buffer, set_buffer, current_buffer, erase_buffer, set_buffer_read_only
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, point_max, buffer_string, widen
+    use editing_functions_mod, only: point, goto_character, point_maximum, buffer_string, widen
     use search_mod, only: search_forward
     use frame_mod, only: selected_frame, ensure_frame_windows
     use window_mod, only: delete_other_windows, resize_window_tree, switch_to_buffer
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use keyboard_mod, only: discard_input
     use help_mode_mod, only: help_mode, help_make_xrefs, help_xref_item_type, help_xref_stack, help_xref_forward_stack, &
                              help_xref_stack_item, help_xref_go_back, help_xref_go_forward, help_go_back, help_go_forward, &
@@ -77,11 +77,11 @@ contains
     end subroutine collect_help_mode_mod
 
     !> Empty stacks, and a fresh empty buffer (with-temp-buffer).
-    subroutine temp_buffer()
+    subroutine temporary_buffer()
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call empty_stacks()
         call get_or_make_buffer(" *help-mode-test*", buffer, st)
@@ -89,7 +89,7 @@ contains
         call set_buffer_read_only(buffer, .false., st)
         call widen()
         call erase_buffer(st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> Empty xref stacks and no current item.
     subroutine empty_stacks()
@@ -135,7 +135,7 @@ contains
     end function button_type_name
 
     !> The position where STRING starts, searching from the beginning.
-    integer(int64) function position_of(string) result(pos)
+    integer(int64) function position_of(string) result(position)
         character(len=*), intent(in) :: string
         integer(int64) :: found
         type(status_type) :: st
@@ -148,9 +148,9 @@ contains
             if (iachar(string(k:k)) < 128 .or. iachar(string(k:k)) >= 192) characters = characters + 1
         end do
 
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call search_forward(string, found, st)
-        pos = found - characters
+        position = found - characters
     end function position_of
 
     !> The text of *Help*.
@@ -169,38 +169,40 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
-        call insert("forward_char is an interactive function in "//LQ//"editing_commands_mod.f90"//RQ//", like "//LQ// &
-                    "backward_char"//RQ//"."//LF//LF//"Move point N characters forward.  See also "//LQ// &
-                    "backward_char"//RQ//" and the variable "//LQ//"fill_column"//RQ//", and M-x backward_char."//LF//LF, st)
+        call temporary_buffer()
+        call insert("forward_character is an interactive function in "//LQ//"editing_commands_mod.f90"//RQ//", like "//LQ// &
+                    "backward_character"//RQ//"."//LF//LF//"Move point N characters forward.  See also "//LQ// &
+                    "backward_character"//RQ//" and the variable "//LQ//"fill_column"//RQ//", and M-x backward_character."//LF &
+                    //LF, st)
         call help_mode(st)
         call help_make_xrefs(st)
         call check(error, st%ok(), "help_make_xrefs")
         if (allocated(error)) return
         ! The first paragraph is skipped.
-        call check(error, button_type_name(position_of("backward_char")) == "", "first paragraph")
+        call check(error, button_type_name(position_of("backward_character")) == "", "first paragraph")
         if (allocated(error)) return
-        call check(error, button_type_name(position_of("backward_char"//RQ//" and")) == "help_name", "name")
+        call check(error, button_type_name(position_of("backward_character"//RQ//" and")) == "help_name", "name")
         if (allocated(error)) return
         call check(error, button_type_name(position_of("fill_column")) == "help_variable", "variable")
         if (allocated(error)) return
-        call check(error, button_type_name(position_of("backward_char.")) == "help_function", "M-x")
+        call check(error, button_type_name(position_of("backward_character.")) == "help_function", "M-x")
         if (allocated(error)) return
         ! One newline at the end, no navigation buttons.
-        call check(error, buffer_string() == "forward_char is an interactive function in "//LQ//"editing_commands_mod.f90"//RQ// &
-                   ", like "//LQ//"backward_char"//RQ//"."//LF//LF//"Move point N characters forward.  See also "//LQ// &
-                   "backward_char"//RQ//" and the variable "//LQ//"fill_column"//RQ//", and M-x backward_char."//LF, &
+        call check(error, &
+                   buffer_string() == "forward_character is an interactive function in "//LQ//"editing_commands_mod.f90"//RQ// &
+                   ", like "//LQ//"backward_character"//RQ//"."//LF//LF//"Move point N characters forward.  See also "//LQ// &
+                   "backward_character"//RQ//" and the variable "//LQ//"fill_column"//RQ//", and M-x backward_character."//LF, &
                    buffer_string())
     end subroutine test_make_xrefs
 
     subroutine test_xref_button(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: NAMES(3) = [character(len=14) :: "forward_char", "fill_paragraph", "upcase_word"]
+        character(len=*), parameter :: NAMES(3) = [character(len=17) :: "forward_character", "fill_paragraph", "upcase_word"]
         type(status_type) :: st
         integer(int64) :: beginning
         integer :: k
 
-        call temp_buffer()
+        call temporary_buffer()
 
         do k = 1, size(NAMES)
             call erase_buffer(st)
@@ -220,7 +222,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call bar_stack(help_xref_stack)
         call insert("foo", st)
         call help_xref_go_back(current_buffer(), st)
@@ -231,7 +233,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call bar_stack(help_xref_forward_stack)
         call insert("foo", st)
         call help_xref_go_forward(current_buffer(), st)
@@ -242,7 +244,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call bar_stack(help_xref_stack)
         call insert("foo", st)
         call help_go_back(st)
@@ -253,7 +255,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call help_go_back(st)
         call check(error,.not. st%ok(), "an error")
     end subroutine test_go_back_no_stack
@@ -262,7 +264,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call bar_stack(help_xref_forward_stack)
         call insert("foo", st)
         call help_go_forward(st)
@@ -273,7 +275,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call help_go_forward(st)
         call check(error,.not. st%ok(), "an error")
     end subroutine test_go_forward_no_stack
@@ -283,7 +285,7 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
         call ensure_frame_windows()
@@ -298,7 +300,7 @@ contains
         character(len=:), allocatable :: text
 
         call fresh_window()
-        call temp_buffer()
+        call temporary_buffer()
         call insert("upcase_word", st)
         call help_mode(st)
         call help_follow_name(st, 3_int64)
@@ -312,7 +314,7 @@ contains
         character(len=:), allocatable :: text
 
         call fresh_window()
-        call temp_buffer()
+        call temporary_buffer()
         call insert("fill_column", st)
         call help_mode(st)
         call help_follow_name(st, 1_int64)
@@ -324,7 +326,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call insert("fXYEWnRHI0B9w6VJqQIw", st)
         call help_mode(st)
         call help_follow_name(st, 1_int64)
@@ -338,14 +340,14 @@ contains
         integer(int64) :: back
 
         call fresh_window()
-        call temp_buffer()
-        call describe_function("forward_char", st, interactive=.true.)
+        call temporary_buffer()
+        call describe_function("forward_character", st, interactive=.true.)
         text = help_text()
         call check(error, st%ok() .and. index(text, "[back]") == 0, "no [back] on the first page")
         if (allocated(error)) return
-        call describe_function("backward_char", st, interactive=.true.)
+        call describe_function("backward_character", st, interactive=.true.)
         text = help_text()
-        call check(error, index(text, "backward_char is ") == 1 .and. index(text, LF//LF//"[back]"//LF) == len(text) - 8, &
+        call check(error, index(text, "backward_character is ") == 1 .and. index(text, LF//LF//"[back]"//LF) == len(text) - 8, &
                    text)
         if (allocated(error)) return
         call check(error, size(help_xref_stack) == 1, "one item on the stack")
@@ -357,13 +359,13 @@ contains
         if (allocated(error)) return
         call push_button(st, back)
         text = help_text()
-        call check(error, st%ok() .and. index(text, "forward_char is ") == 1 .and. index(text, "[forward]") > 0 .and. &
+        call check(error, st%ok() .and. index(text, "forward_character is ") == 1 .and. index(text, "[forward]") > 0 .and. &
                    index(text, "[back]") == 0, text)
         if (allocated(error)) return
         call set_buffer(get_buffer("*Help*"), st)
         call help_go_forward(st)
         text = help_text()
-        call check(error, st%ok() .and. index(text, "backward_char is ") == 1 .and. index(text, "[back]") > 0 .and. &
+        call check(error, st%ok() .and. index(text, "backward_character is ") == 1 .and. index(text, "[back]") > 0 .and. &
                    index(text, "[forward]") == 0, text)
     end subroutine test_back_forward_buttons
 end module test_help_mode_mod

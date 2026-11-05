@@ -34,7 +34,7 @@ module test_fortmacs_diff_diff_mod
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string
     use keyboard_mod, only: discard_input
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use fortmacs_diff_settings_mod, only: ediff_sessions, ediff_session_index, EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B, &
                                           EDIFF_BUFFER_TYPE_C
     use fortmacs_diff_utilities_mod, only: get_ediff_diff_position, quit_ediff_session
@@ -55,7 +55,7 @@ contains
 
         testsuite = [ &
                     new_unittest("ediff-diff-tests--ediff-exec-process--quoted-file", test_exec_process_quoted_file), &
-                    new_unittest("ediff-diff-tests--ediff-exec-process--nil", test_exec_process_nil), &
+                    new_unittest("ediff-diff-tests--ediff-exec-process--nil", test_exec_process_false), &
                     new_unittest("ediff-diff-regions", test_diff_regions), &
                     new_unittest("ediff-diff3-regions", test_diff3_regions) &
                     ]
@@ -64,7 +64,7 @@ contains
     !> Whether PROGRAM is an executable file in a directory of PATH.
     logical function on_path(program) result(found)
         character(len=*), intent(in) :: program
-        character(len=:), allocatable :: path, dir
+        character(len=:), allocatable :: path, directory
         integer :: n, st, k
 
         found = .false.
@@ -76,7 +76,7 @@ contains
         do while (len(path) > 0)
             k = index(path, ":")
             if (k == 0) k = len(path) + 1
-            dir = path(1:k - 1)
+            directory = path(1:k - 1)
 
             if (k > len(path)) then
                 path = ""
@@ -84,8 +84,8 @@ contains
                 path = path(k + 1:)
             end if
 
-            if (len(dir) == 0) cycle
-            inquire (file=dir//"/"//program, exist=found)
+            if (len(directory) == 0) cycle
+            inquire (file=directory//"/"//program, exist=found)
             if (found) return
         end do
     end function on_path
@@ -100,7 +100,7 @@ contains
     end function has_program
 
     !> A fresh buffer NAME holding TEXT.
-    subroutine temp_buffer(name, text, h)
+    subroutine temporary_buffer(name, text, h)
         character(len=*), intent(in) :: name, text
         type(handle_type), intent(out) :: h
         type(handle_type) :: old
@@ -112,7 +112,7 @@ contains
         call erase_buffer(st)
         call insert(text, st)
         call set_buffer(old, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> The text of buffer H.
     function text_of(h) result(s)
@@ -132,7 +132,7 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
@@ -147,7 +147,7 @@ contains
 
         if (.not. has_program("echo", error)) return
         call setup()
-        call temp_buffer(" *ediff-exec-test*", "", h)
+        call temporary_buffer(" *ediff-exec-test*", "", h)
         call execute_ediff_process("echo", h, "", st, file1="/:/a", file2="/:/b")
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, text_of(h), "/a /b"//LF)
@@ -155,32 +155,32 @@ contains
     end subroutine test_exec_process_quoted_file
 
     !> Check that Bug#26378 is fixed: absent and "" files are ignored.
-    subroutine test_exec_process_nil(error)
+    subroutine test_exec_process_false(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         if (.not. has_program("echo", error)) return
         call setup()
-        call temp_buffer(" *ediff-exec-test*", "", h)
+        call temporary_buffer(" *ediff-exec-test*", "", h)
         call execute_ediff_process("echo", h, "", st, file1="foo", file3="")
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, text_of(h), "foo"//LF)
         call close_buffer(h, st)
-    end subroutine test_exec_process_nil
+    end subroutine test_exec_process_false
 
     !> The regions of a changed line and an added line, in buffers A and B.
     subroutine test_diff_regions(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b, control
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: k
 
         if (.not. has_program("diff", error)) return
         call setup()
-        call temp_buffer("ediff-a", "one"//LF//"two"//LF//"three"//LF, a)
-        call temp_buffer("ediff-b", "one"//LF//"TWO"//LF//"three"//LF//"four"//LF, b)
+        call temporary_buffer("ediff-a", "one"//LF//"two"//LF//"three"//LF, a)
+        call temporary_buffer("ediff-b", "one"//LF//"TWO"//LF//"three"//LF//"four"//LF, b)
         call ediff_buffers(a, b, st)
 
         body: block
@@ -195,29 +195,29 @@ contains
             call check(error, buffers(control%index)%major_mode, "ediff_mode")
             if (allocated(error)) exit body
             ! "two" in A (5 to 9), "TWO" in B.
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .false., pos, st, 0)
-            call check(error, pos, 5_int64)
+            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .false., position, st, 0)
+            call check(error, position, 5_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .true., pos, st, 0)
-            call check(error, pos, 9_int64)
+            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .true., position, st, 0)
+            call check(error, position, 9_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_B, .false., pos, st, 0)
-            call check(error, pos, 5_int64)
+            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_B, .false., position, st, 0)
+            call check(error, position, 5_int64)
             if (allocated(error)) exit body
             ! "four" added at the end of B: empty in A.
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .false., pos, st, 1)
-            call check(error, pos, 15_int64)
+            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .false., position, st, 1)
+            call check(error, position, 15_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .true., pos, st, 1)
-            call check(error, pos, 15_int64)
+            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .true., position, st, 1)
+            call check(error, position, 15_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_B, .false., pos, st, 1)
-            call check(error, pos, 15_int64)
+            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_B, .false., position, st, 1)
+            call check(error, position, 15_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_B, .true., pos, st, 1)
-            call check(error, pos, 20_int64)
+            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_B, .true., position, st, 1)
+            call check(error, position, 20_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .false., pos, st, 2)
+            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .false., position, st, 2)
             call check(error,.not. st%ok(), "difference 3 is invalid")
         end block body
 
@@ -231,14 +231,14 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b, c, control
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: k
 
         if (.not. has_program("diff3", error)) return
         call setup()
-        call temp_buffer("ediff-a", "one"//LF//"two"//LF//"three"//LF, a)
-        call temp_buffer("ediff-b", "one"//LF//"two"//LF//"three"//LF, b)
-        call temp_buffer("ediff-c", "one"//LF//"2"//LF//"three"//LF, c)
+        call temporary_buffer("ediff-a", "one"//LF//"two"//LF//"three"//LF, a)
+        call temporary_buffer("ediff-b", "one"//LF//"two"//LF//"three"//LF, b)
+        call temporary_buffer("ediff-c", "one"//LF//"2"//LF//"three"//LF, c)
         call ediff_buffers3(a, b, c, st)
 
         body: block
@@ -250,11 +250,11 @@ contains
             if (allocated(error)) exit body
             call check(error, ediff_sessions(k)%number_of_differences, 1)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_C, .false., pos, st, 0)
-            call check(error, pos, 5_int64)
+            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_C, .false., position, st, 0)
+            call check(error, position, 5_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_C, .true., pos, st, 0)
-            call check(error, pos, 7_int64)
+            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_C, .true., position, st, 0)
+            call check(error, position, 7_int64)
             if (allocated(error)) exit body
             ! A and B agree: C is the one that differs.
             call check(error, trim(ediff_sessions(k)%differences(EDIFF_BUFFER_TYPE_A, 1)%state_of_diff), "=diff(B)")

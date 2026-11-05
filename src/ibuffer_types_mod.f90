@@ -28,7 +28,7 @@
 !> sorting method an `ibuffer_sorter_type' added to
 !> `ibuffer_sorting_functions', an operation an `ibuffer_op_type' run by
 !> ibuffer_mod's `ibuffer_operate'.  The entries of `ibuffer_formats' are
-!> `ibuffer_column_spec_type' records, made with `ibuffer_column' and
+!> `ibuffer_column_specification_type' records, made with `ibuffer_column' and
 !> `ibuffer_text':
 !>
 !>     call ibuffer_formats%clear()
@@ -55,7 +55,7 @@ module ibuffer_types_mod
               ibuffer_size_gt, ibuffer_size_lt, ibuffer_modified, ibuffer_visiting_file, ibuffer_content, &
               ibuffer_test, ibuffer_filter_extent, ibuffer_filter_part, ibuffer_filter_equal
 
-    !> The ALIGN of an `ibuffer_column_spec_type' (:left, :center,
+    !> The ALIGN of an `ibuffer_column_specification_type' (:left, :center,
     !> :right).
     integer, parameter, public :: IBUFFER_ALIGN_LEFT = 0, IBUFFER_ALIGN_CENTER = 1, IBUFFER_ALIGN_RIGHT = 2
 
@@ -71,7 +71,7 @@ module ibuffer_types_mod
 
     !> The longest name of a column, a sorting method or a mode, and of a
     !> literal string in a format.
-    integer, parameter, public :: IBUFFER_NAME_LEN = 48, IBUFFER_TEXT_LEN = 64
+    integer, parameter, public :: IBUFFER_NAME_LENGTH = 48, IBUFFER_TEXT_LENGTH = 64
 
     !> The text of a column for one buffer: TEXT, in FACE if that is not
     !> empty (a `font-lock-face' property); SIZE is the buffer size the
@@ -165,30 +165,30 @@ module ibuffer_types_mod
 
     !> An entry of a format in `ibuffer_formats': a column NAME (such as
     !> "mark", "name" or "size"), or a literal string TEXT (its first
-    !> TEXT_LEN characters) when NAME is blank.  MIN_SIZE and MAX_SIZE
-    !> are integers (or MIN_FUNCTION and MAX_FUNCTION, functions of no
+    !> TEXT_LENGTH characters) when NAME is blank.  MINIMUM_SIZE and MAXIMUM_SIZE
+    !> are integers (or MINIMUM_FUNCTION and MAXIMUM_FUNCTION, functions of no
     !> arguments returning an integer) which constrict the size of a
-    !> column.  If MAX_SIZE is -1, there is no upper bound.  If MIN_SIZE
+    !> column.  If MAXIMUM_SIZE is -1, there is no upper bound.  If MINIMUM_SIZE
     !> is negative, use the end of the string.  ALIGN describes the
     !> alignment of the column (IBUFFER_ALIGN_LEFT, _CENTER or _RIGHT);
     !> ELIDE describes whether or not to elide the column if it is too
     !> long.  A COLUMN or (SYMBOL MIN-SIZE MAX-SIZE &optional ALIGN ELIDE)
     !> or "STRING" upstream.
-    type, public :: ibuffer_column_spec_type
-        character(len=IBUFFER_NAME_LEN) :: name = ""
-        character(len=IBUFFER_TEXT_LEN) :: text = ""
-        integer :: text_len = 0
-        integer :: min_size = 0
-        integer :: max_size = -1
-        procedure(ibuffer_size_procedure), pointer, nopass :: min_function => null()
-        procedure(ibuffer_size_procedure), pointer, nopass :: max_function => null()
+    type, public :: ibuffer_column_specification_type
+        character(len=IBUFFER_NAME_LENGTH) :: name = ""
+        character(len=IBUFFER_TEXT_LENGTH) :: text = ""
+        integer :: text_length = 0
+        integer :: minimum_size = 0
+        integer :: maximum_size = -1
+        procedure(ibuffer_size_procedure), pointer, nopass :: minimum_function => null()
+        procedure(ibuffer_size_procedure), pointer, nopass :: maximum_function => null()
         integer :: align = IBUFFER_ALIGN_LEFT
         logical :: elide = .false.
-    end type ibuffer_column_spec_type
+    end type ibuffer_column_specification_type
 
     !> One way to display buffer lines: its entries in order.
     type, public :: ibuffer_format_type
-        type(ibuffer_column_spec_type), allocatable :: entries(:)
+        type(ibuffer_column_specification_type), allocatable :: entries(:)
     end type ibuffer_format_type
 
     !> A list of ways to display buffer lines (the type of
@@ -210,8 +210,8 @@ module ibuffer_types_mod
     !> (MAKE), and a SUMMARIZER, given the texts of the column, to
     !> display at the bottom.  Port of ibuf-macs.el:define-ibuffer-column.
     type, public :: ibuffer_column_type
-        character(len=IBUFFER_NAME_LEN) :: name = ""
-        character(len=IBUFFER_NAME_LEN) :: title = ""
+        character(len=IBUFFER_NAME_LENGTH) :: name = ""
+        character(len=IBUFFER_NAME_LENGTH) :: title = ""
         procedure(ibuffer_column_procedure), pointer, nopass :: make => null()
         procedure(ibuffer_summarizer_procedure), pointer, nopass :: summarizer => null()
     end type ibuffer_column_type
@@ -221,8 +221,8 @@ module ibuffer_types_mod
     !> ibuf-macs.el:define-ibuffer-sorter (an element of
     !> `ibuffer-sorting-functions-alist').
     type, public :: ibuffer_sorter_type
-        character(len=IBUFFER_NAME_LEN) :: name = ""
-        character(len=IBUFFER_NAME_LEN) :: description = ""
+        character(len=IBUFFER_NAME_LENGTH) :: name = ""
+        character(len=IBUFFER_NAME_LENGTH) :: description = ""
         procedure(ibuffer_sorter_procedure), pointer, nopass :: less => null()
     end type ibuffer_sorter_type
 
@@ -239,8 +239,8 @@ module ibuffer_types_mod
         logical :: deletion = .false.
         integer :: modifier_p = IBUFFER_MODIFIER_NO
         logical :: dangerous = .false.
-        character(len=IBUFFER_TEXT_LEN) :: opstring = "operated on"
-        character(len=IBUFFER_TEXT_LEN) :: active_opstring = "Operate on"
+        character(len=IBUFFER_TEXT_LENGTH) :: opstring = "operated on"
+        character(len=IBUFFER_TEXT_LENGTH) :: active_opstring = "Operate on"
         logical :: complex = .false.
         procedure(ibuffer_op_hook_procedure), pointer, nopass :: before => null()
         procedure(ibuffer_op_hook_procedure), pointer, nopass :: after => null()
@@ -249,10 +249,10 @@ module ibuffer_types_mod
 
     !> A test of `ibuffer_maybe_show_tests',
     !> `ibuffer_never_show_tests' or `ibuffer_always_show_tests':
-    !> a REGEXP matched against the buffer's name, or (when REGEXP is
+    !> a REGULAR_EXPRESSION matched against the buffer's name, or (when REGULAR_EXPRESSION is
     !> blank) a TEST called with the buffer.
     type, public :: ibuffer_show_test_type
-        character(len=256) :: regexp = ""
+        character(len=256) :: regular_expression = ""
         procedure(ibuffer_buffer_test_procedure), pointer, nopass :: test => null()
     end type ibuffer_show_test_type
 
@@ -262,7 +262,7 @@ module ibuffer_types_mod
     type, public :: ibuffer_fontification_type
         integer :: priority = 0
         procedure(ibuffer_form_procedure), pointer, nopass :: form => null()
-        character(len=IBUFFER_NAME_LEN) :: face = ""
+        character(len=IBUFFER_NAME_LENGTH) :: face = ""
     end type ibuffer_fontification_type
 
     !> An element of `ibuffer_directory_abbrevs': FROM and TO.
@@ -280,15 +280,15 @@ module ibuffer_types_mod
     !> A node of a filter specification, in prefix order: its KIND, the
     !> number of operands (COUNT) of `not', `and' and `or' (which follow
     !> it), the NAME of a simple filter (such as "mode" or "name"), and its
-    !> qualifier: a string (QUALIFIER(1:QUALIFIER_LEN), also the name of a
+    !> qualifier: a string (QUALIFIER(1:QUALIFIER_LENGTH), also the name of a
     !> saved filter), an integer NUMBER, or a TEST.
     type, public :: ibuffer_filter_node_type
         integer :: kind = IBUFFER_FILTER_SIMPLE
         integer :: count = 0
-        character(len=IBUFFER_NAME_LEN) :: name = ""
+        character(len=IBUFFER_NAME_LENGTH) :: name = ""
         logical :: has_qualifier = .false.
         character(len=256) :: qualifier = ""
-        integer :: qualifier_len = 0
+        integer :: qualifier_length = 0
         logical :: is_number = .false.
         integer(int64) :: number = 0
         procedure(ibuffer_buffer_test_procedure), pointer, nopass :: test => null()
@@ -394,15 +394,15 @@ module ibuffer_types_mod
     !> ibuf-macs.el:define-ibuffer-filter (an element of
     !> `ibuffer-filtering-alist').
     type, public :: ibuffer_filter_def_type
-        character(len=IBUFFER_NAME_LEN) :: name = ""
-        character(len=IBUFFER_TEXT_LEN) :: description = ""
+        character(len=IBUFFER_NAME_LENGTH) :: name = ""
+        character(len=IBUFFER_TEXT_LENGTH) :: description = ""
         procedure(ibuffer_filter_test_procedure), pointer, nopass :: test => null()
     end type ibuffer_filter_def_type
 
     !> An element (FILTER (FORMAT FORMAT ...)) of
     !> `ibuffer_filter_formats'.
     type, public :: ibuffer_filter_format_type
-        character(len=IBUFFER_NAME_LEN) :: filter = ""
+        character(len=IBUFFER_NAME_LENGTH) :: filter = ""
         type(ibuffer_formats_type) :: formats
     end type ibuffer_filter_format_type
 
@@ -422,38 +422,39 @@ module ibuffer_types_mod
 contains
 
     !> A column entry of a format: the column NAME, limited to between
-    !> MIN_SIZE and MAX_SIZE characters (0 and -1 by default), aligned by
+    !> MINIMUM_SIZE and MAXIMUM_SIZE characters (0 and -1 by default), aligned by
     !> ALIGN (IBUFFER_ALIGN_LEFT by default) and elided if ELIDE.
     !> Not a port.
-    function ibuffer_column(name, min_size, max_size, align, elide, min_function, max_function) result(spec)
+    function ibuffer_column(name, minimum_size, maximum_size, align, elide, minimum_function, &
+                            maximum_function) result(specification)
         character(len=*), intent(in) :: name
-        integer, intent(in), optional :: min_size, max_size, align
+        integer, intent(in), optional :: minimum_size, maximum_size, align
         logical, intent(in), optional :: elide
-        procedure(ibuffer_size_procedure), optional :: min_function, max_function
-        type(ibuffer_column_spec_type) :: spec
+        procedure(ibuffer_size_procedure), optional :: minimum_function, maximum_function
+        type(ibuffer_column_specification_type) :: specification
 
-        spec%name = name
-        if (present(min_size)) spec%min_size = min_size
-        if (present(max_size)) spec%max_size = max_size
-        if (present(align)) spec%align = align
-        if (present(elide)) spec%elide = elide
-        if (present(min_function)) spec%min_function => min_function
-        if (present(max_function)) spec%max_function => max_function
+        specification%name = name
+        if (present(minimum_size)) specification%minimum_size = minimum_size
+        if (present(maximum_size)) specification%maximum_size = maximum_size
+        if (present(align)) specification%align = align
+        if (present(elide)) specification%elide = elide
+        if (present(minimum_function)) specification%minimum_function => minimum_function
+        if (present(maximum_function)) specification%maximum_function => maximum_function
     end function ibuffer_column
 
     !> A literal string entry of a format: TEXT.  Not a port.
-    function ibuffer_text(text) result(spec)
+    function ibuffer_text(text) result(specification)
         character(len=*), intent(in) :: text
-        type(ibuffer_column_spec_type) :: spec
+        type(ibuffer_column_specification_type) :: specification
 
-        spec%text = text
-        spec%text_len = min(len(text), IBUFFER_TEXT_LEN)
+        specification%text = text
+        specification%text_length = min(len(text), IBUFFER_TEXT_LENGTH)
     end function ibuffer_text
 
     ! The %append of ibuffer_formats_type.  Not a port.
     subroutine formats_append(self, entries)
         class(ibuffer_formats_type), intent(inout) :: self
-        type(ibuffer_column_spec_type), intent(in) :: entries(:)
+        type(ibuffer_column_specification_type), intent(in) :: entries(:)
         type(ibuffer_format_type) :: format
 
         if (.not. allocated(self%formats)) allocate (self%formats(0))
@@ -724,7 +725,7 @@ contains
 
         node%has_qualifier = .true.
         node%qualifier = s
-        node%qualifier_len = min(len(s), len(node%qualifier))
+        node%qualifier_length = min(len(s), len(node%qualifier))
     end subroutine set_string
 
     !> Buffers whose major mode is MODE (mode . MODE).  Not a port.
@@ -753,12 +754,12 @@ contains
         f = ibuffer_filter("derived_mode", qualifier=mode)
     end function ibuffer_derived_mode
 
-    !> Buffers whose name matches REGEXP (name . REGEXP).  Not a port.
-    function ibuffer_name(regexp) result(f)
-        character(len=*), intent(in) :: regexp
+    !> Buffers whose name matches REGULAR_EXPRESSION (name . REGULAR_EXPRESSION).  Not a port.
+    function ibuffer_name(regular_expression) result(f)
+        character(len=*), intent(in) :: regular_expression
         type(ibuffer_filter_type) :: f
 
-        f = ibuffer_filter("name", qualifier=regexp)
+        f = ibuffer_filter("name", qualifier=regular_expression)
     end function ibuffer_name
 
     !> Buffers running a process (process).  Not a port.
@@ -776,40 +777,40 @@ contains
         f = ibuffer_filter("starred_name")
     end function ibuffer_starred_name
 
-    !> Buffers whose full file name matches REGEXP (filename . REGEXP).
+    !> Buffers whose full file name matches REGULAR_EXPRESSION (filename . REGULAR_EXPRESSION).
     !> Not a port.
-    function ibuffer_filename(regexp) result(f)
-        character(len=*), intent(in) :: regexp
+    function ibuffer_filename(regular_expression) result(f)
+        character(len=*), intent(in) :: regular_expression
         type(ibuffer_filter_type) :: f
 
-        f = ibuffer_filter("filename", qualifier=regexp)
+        f = ibuffer_filter("filename", qualifier=regular_expression)
     end function ibuffer_filename
 
-    !> Buffers whose file basename matches REGEXP (basename . REGEXP).
+    !> Buffers whose file basename matches REGULAR_EXPRESSION (basename . REGULAR_EXPRESSION).
     !> Not a port.
-    function ibuffer_basename(regexp) result(f)
-        character(len=*), intent(in) :: regexp
+    function ibuffer_basename(regular_expression) result(f)
+        character(len=*), intent(in) :: regular_expression
         type(ibuffer_filter_type) :: f
 
-        f = ibuffer_filter("basename", qualifier=regexp)
+        f = ibuffer_filter("basename", qualifier=regular_expression)
     end function ibuffer_basename
 
-    !> Buffers whose file name extension matches REGEXP (file-extension .
-    !> REGEXP).  Not a port.
-    function ibuffer_file_extension(regexp) result(f)
-        character(len=*), intent(in) :: regexp
+    !> Buffers whose file name extension matches REGULAR_EXPRESSION (file-extension .
+    !> REGULAR_EXPRESSION).  Not a port.
+    function ibuffer_file_extension(regular_expression) result(f)
+        character(len=*), intent(in) :: regular_expression
         type(ibuffer_filter_type) :: f
 
-        f = ibuffer_filter("file_extension", qualifier=regexp)
+        f = ibuffer_filter("file_extension", qualifier=regular_expression)
     end function ibuffer_file_extension
 
-    !> Buffers whose directory matches REGEXP (directory . REGEXP).
+    !> Buffers whose directory matches REGULAR_EXPRESSION (directory . REGULAR_EXPRESSION).
     !> Not a port.
-    function ibuffer_directory(regexp) result(f)
-        character(len=*), intent(in) :: regexp
+    function ibuffer_directory(regular_expression) result(f)
+        character(len=*), intent(in) :: regular_expression
         type(ibuffer_filter_type) :: f
 
-        f = ibuffer_filter("directory", qualifier=regexp)
+        f = ibuffer_filter("directory", qualifier=regular_expression)
     end function ibuffer_directory
 
     !> Buffers bigger than SIZE (size-gt . SIZE).  Not a port.
@@ -842,12 +843,12 @@ contains
         f = ibuffer_filter("visiting_file")
     end function ibuffer_visiting_file
 
-    !> Buffers whose contents match REGEXP (content . REGEXP).  Not a port.
-    function ibuffer_content(regexp) result(f)
-        character(len=*), intent(in) :: regexp
+    !> Buffers whose contents match REGULAR_EXPRESSION (content . REGULAR_EXPRESSION).  Not a port.
+    function ibuffer_content(regular_expression) result(f)
+        character(len=*), intent(in) :: regular_expression
         type(ibuffer_filter_type) :: f
 
-        f = ibuffer_filter("content", qualifier=regexp)
+        f = ibuffer_filter("content", qualifier=regular_expression)
     end function ibuffer_content
 
     !> Buffers for which TEST, called with the buffer current, returns
@@ -918,7 +919,7 @@ contains
         do k = 1, size(a%nodes)
             associate (x => a%nodes(k), y => b%nodes(k))
                 if (x%kind /= y%kind .or. x%count /= y%count .or. x%name /= y%name .or. &
-                    (x%has_qualifier .neqv. y%has_qualifier) .or. x%qualifier_len /= y%qualifier_len .or. &
+                    (x%has_qualifier .neqv. y%has_qualifier) .or. x%qualifier_length /= y%qualifier_length .or. &
                     x%qualifier /= y%qualifier .or. (x%is_number .neqv. y%is_number) .or. x%number /= y%number) return
                 if (associated(x%test) .neqv. associated(y%test)) return
 
@@ -1103,15 +1104,15 @@ contains
         type(ibuffer_filter_type), intent(in) :: filters(:)
         integer, intent(in) :: at
         type(ibuffer_saved_filter_type) :: group
-        integer :: n, pos
+        integer :: n, position
 
         if (.not. allocated(self%groups)) allocate (self%groups(0))
         n = size(self%groups)
-        pos = max(1, min(at, n + 1))
+        position = max(1, min(at, n + 1))
         group%name = name
         allocate (group%filters(size(filters)))
         group%filters = filters
-        self%groups = [self%groups(1:pos - 1), group, self%groups(pos:n)]
+        self%groups = [self%groups(1:position - 1), group, self%groups(position:n)]
     end subroutine filter_groups_insert
 
     ! The %find of ibuffer_filter_groups_type.  Not a port.

@@ -32,18 +32,19 @@ module test_version_control_annotate_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, current_buffer, get_buffer, &
                           is_buffer_live, generate_new_buffer_name
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, point, point_min, goto_char, pos_bol, pos_eol
+    use editing_functions_mod, only: buffer_string, point, point_minimum, goto_character, position_beginning_of_line, &
+                                     position_end_of_line
     use editing_commands_mod, only: forward_line
     use text_properties_mod, only: get_text_property
     use data_mod, only: value_eq
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
                                      create_directory_internal, write_region
     use files_mod, only: delete_directory, find_file_noselect, executable_find
     use execute_process_mod, only: execute_process
     use process_mod, only: get_buffer_process, is_process_live, accept_process_output
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use version_control_hooks_mod, only: vc_handled_backends, vc_clear_context, vc_backend_named, vc_short_revision
-    use version_control_mod, only: vc_create_repo, vc_buffer_revision
+    use version_control_mod, only: vc_create_repository, vc_buffer_revision
     use font_lock_mod, only: font_lock_ensure
     use version_control_annotate_mod, only: vc_annotate, previous_vc_annotate_revision, next_vc_annotate_revision, &
                                             show_vc_annotate_diff_revision_at_line, show_vc_annotate_log_revision_at_line, &
@@ -55,7 +56,7 @@ module test_version_control_annotate_mod
     public :: collect_version_control_annotate_mod
 
     !> The test directory, under the build directory.
-    character(len=*), parameter :: subdir = "build/test-vc-annotate/"
+    character(len=*), parameter :: subdirectory = "build/test-vc-annotate/"
 
     character, parameter :: LF = achar(10)
 
@@ -67,7 +68,7 @@ contains
 
         testsuite = [ &
                     new_unittest("vc-annotate-git", test_annotate), &
-                    new_unittest("vc-annotate-git-prev-next", test_prev_next), &
+                    new_unittest("vc-annotate-git-prev-next", test_previous_next), &
                     new_unittest("vc-git-annotate-time", test_annotate_time), &
                     new_unittest("vc-annotate-git-diff-log", test_diff_log), &
                     new_unittest("log-view-annotate-version", test_log_view_annotate) &
@@ -79,20 +80,20 @@ contains
     ! ------------------------------------------------------------------
 
     !> A fresh temporary buffer, current.
-    subroutine temp_buffer(h)
+    subroutine temporary_buffer(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
         call get_or_make_buffer(generate_new_buffer_name(" *vc-annotate-test*"), h, st)
         call set_buffer(h, st)
         buffers(current)%directory = file_name_as_directory(fortmacs_wd)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> The test repository directory.
-    function tdir() result(dir)
-        character(len=:), allocatable :: dir
+    function tdir() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdirectory)
     end function tdir
 
     !> Whether git is available (else the test is skipped).
@@ -110,22 +111,22 @@ contains
         character(len=*), intent(in) :: file, text
         type(handle_type) :: old, h
         type(status_type) :: st
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message_text
 
         old = current_buffer()
-        call temp_buffer(h)
+        call temporary_buffer(h)
         call insert(text, st)
-        call write_region(file, .false., st, message=msg)
+        call write_region(file, .false., st, message=message_text)
         call close_buffer(h, st)
         call set_buffer(old, st)
     end subroutine write_file
 
-    !> Run git with ARGS in the test directory, reporting a failure on
+    !> Run git with ARGUMENTS in the test directory, reporting a failure on
     !> standard error.
     subroutine git(a1, a2, a3, a4, a5, a6)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4, a5, a6
-        type(value_type) :: args(10)
+        type(value_type) :: arguments(10)
         type(value_type) :: result
         type(handle_type) :: old, h
         type(status_type) :: st
@@ -133,11 +134,11 @@ contains
 
         ! One element at a time: function results in an array constructor
         ! of value_type leak.
-        args(1) = value_type(text="-c")
-        args(2) = value_type(text="user.name=t")
-        args(3) = value_type(text="-c")
-        args(4) = value_type(text="user.email=t@t")
-        args(5) = value_type(text=a1)
+        arguments(1) = value_type(text="-c")
+        arguments(2) = value_type(text="user.name=t")
+        arguments(3) = value_type(text="-c")
+        arguments(4) = value_type(text="user.email=t@t")
+        arguments(5) = value_type(text=a1)
         n = 5
         if (present(a2)) call append(a2)
         if (present(a3)) call append(a3)
@@ -145,9 +146,9 @@ contains
         if (present(a5)) call append(a5)
         if (present(a6)) call append(a6)
         old = current_buffer()
-        call temp_buffer(h)
+        call temporary_buffer(h)
         buffers(current)%directory = tdir()
-        call execute_process("git", result, st, destination=value_type(.true.), args=make_list(args(1:n)))
+        call execute_process("git", result, st, destination=value_type(.true.), arguments=make_list(arguments(1:n)))
 
         if (.not. st%ok()) then
             write (error_unit, "(a)") "git "//a1//": "//format_error(st)
@@ -164,7 +165,7 @@ contains
             character(len=*), intent(in) :: a
 
             n = n + 1
-            args(n) = value_type(text=a)
+            arguments(n) = value_type(text=a)
         end subroutine append
     end subroutine git
 
@@ -176,16 +177,16 @@ contains
         type(status_type), intent(out) :: status
         type(status_type) :: st
 
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call vc_clear_context()
         vc_handled_backends = [character(len=8) :: "Git"]
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call create_directory_internal(file_name_as_directory(fortmacs_wd)//"build", st)
         call create_directory_internal(tdir(), st)
-        call temp_buffer(h)
+        call temporary_buffer(h)
         buffers(current)%directory = tdir()
-        call vc_create_repo(vc_backend_named("Git"), status)
+        call vc_create_repository(vc_backend_named("Git"), status)
         if (.not. status%ok()) return
         call git("checkout", "-q", "-b", "main")
         call write_file(tdir()//"a.txt", "one"//LF//"two"//LF)
@@ -247,30 +248,30 @@ contains
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: annotate
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: rev
+        character(len=:), allocatable :: revision
         logical :: found
 
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
-        call vc_short_revision(buffers(current)%filename, rev, found)
-        call vc_annotate(buffers(current)%filename, rev, status, &
+        call vc_short_revision(buffers(current)%filename, revision, found)
+        call vc_annotate(buffers(current)%filename, revision, status, &
                          vc_annotate_display_mode_type(kind=VC_ANNOTATE_DISPLAY_MODE_FULLSCALE))
         if (.not. status%ok()) return
-        annotate = get_buffer("*Annotate a.txt (rev "//rev//")*")
+        annotate = get_buffer("*Annotate a.txt (rev "//revision//")*")
         if (.not. is_buffer_live(annotate)) return
         call wait_buffer_process(annotate)
         call set_buffer(annotate, status)
     end subroutine annotate_head
 
-    !> Whether the `face' text property at POS is the face NAME.
-    logical function has_face(pos, name)
-        integer(int64), intent(in) :: pos
+    !> Whether the `face' text property at POSITION is the face NAME.
+    logical function has_face(position, name)
+        integer(int64), intent(in) :: position
         character(len=*), intent(in) :: name
         type(value_type) :: v
         type(status_type) :: st
         character(len=*), parameter :: face_property = "face"
 
-        call get_text_property(pos, value_type(name=face_property), v, st)
+        call get_text_property(position, value_type(name=face_property), v, st)
         has_face = st%ok()
         if (has_face) has_face = value_eq(v, value_type(name=name))
     end function has_face
@@ -279,7 +280,7 @@ contains
     ! Tests
     ! ------------------------------------------------------------------
 
-    !> C-x v g shows `git blame' in *Annotate a.txt (rev REV)*, in
+    !> C-x v g shows `git blame' in *Annotate a.txt (rev REVISION)*, in
     !> VC-Annotate mode, with the annotations invisible-able and each line
     !> colored by its age: the newest in the first color of the map, the
     !> oldest in the last.
@@ -317,15 +318,16 @@ contains
             oldest = "vc_annotate_face_"//trim(map(size(map))%color(2:))
             very_old = "vc_annotate_face_"//vc_annotate_very_old_color(2:)
             ! Line 1 is the oldest.
-            call goto_char(point_min())
-            call check(error, has_face(pos_eol() - 1, oldest) .or. has_face(pos_eol() - 1, very_old), "line 1: "//oldest)
+            call goto_character(point_minimum())
+            call check(error, has_face(position_end_of_line() - 1, oldest) .or. has_face(position_end_of_line() - 1, very_old), &
+                       "line 1: "//oldest)
             if (allocated(error)) exit body
             ! Its annotation is invisible with `vc_annotate_annotation'.
-            call get_text_property(point_min(), value_type(name=invisible_property), v, st)
+            call get_text_property(point_minimum(), value_type(name=invisible_property), v, st)
             call check(error, allocated(v%a), "annotation invisible")
             if (allocated(error)) exit body
             shortage = forward_line(1_int64)
-            call check(error, has_face(pos_eol() - 1, newest), "line 2: "//newest)
+            call check(error, has_face(position_end_of_line() - 1, newest), "line 2: "//newest)
         end block body
 
         if (is_buffer_live(annotate)) call close_buffer(annotate, st)
@@ -334,7 +336,7 @@ contains
 
     !> p annotates the previous revision of the file in the same buffer,
     !> renamed; n goes back to the newest one (named by its branch).
-    subroutine test_prev_next(error)
+    subroutine test_previous_next(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer, annotate
         type(status_type) :: st
@@ -376,7 +378,7 @@ contains
 
         if (is_buffer_live(annotate)) call close_buffer(annotate, st)
         call teardown(h, buffer)
-    end subroutine test_prev_next
+    end subroutine test_previous_next
 
     !> d on a line shows the diff of its revision with the previous one; l
     !> shows the log entry of its revision.
@@ -397,7 +399,7 @@ contains
             call check(error, st%ok() .and. is_buffer_live(annotate), "vc-annotate: "//format_error(st))
             if (allocated(error)) exit body
             ! Line 2, changed by "second".
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             shortage = forward_line(1_int64)
             call show_vc_annotate_diff_revision_at_line(st)
             call check(error, st%ok(), "d: "//format_error(st))
@@ -411,7 +413,7 @@ contains
             call check(error, index(text, "-two"//LF//"+three"//LF) > 0, text)
             if (allocated(error)) exit body
             call set_buffer(annotate, st)
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             shortage = forward_line(1_int64)
             call show_vc_annotate_log_revision_at_line(st)
             call check(error, st%ok(), "l: "//format_error(st))
@@ -441,21 +443,21 @@ contains
         real(real64) :: days
         logical :: found
 
-        call temp_buffer(h)
+        call temporary_buffer(h)
         call insert("^abc1234 (t 2026-11-03 12:00:00 +0100 1) x"//LF//"no annotation"//LF, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call vc_git_annotate_time(days, found)
         call check(error, found, "found")
         if (allocated(error)) return
         call check(error, abs(days*86400.0_real64 - 1793703600.0_real64) < 1.0_real64, "the time")
         if (allocated(error)) return
-        call check(error, point() == point_min() + len("^abc1234 (t 2026-11-03 12:00:00 +0100 1) "), "point")
+        call check(error, point() == point_minimum() + len("^abc1234 (t 2026-11-03 12:00:00 +0100 1) "), "point")
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call extract_vc_git_annotate_revision_at_line(revision, file, found)
         call check(error, found .and. revision == "abc1234" .and. len(file) == 0, "revision: "//revision)
         if (allocated(error)) return
-        call goto_char(pos_eol() + 1)
+        call goto_character(position_end_of_line() + 1)
         call vc_git_annotate_time(days, found)
         call check(error,.not. found, "no annotation")
         call close_buffer(h, st)
@@ -483,7 +485,7 @@ contains
             log = get_buffer("*vc-change-log*")
             call wait_buffer_process(log)
             call set_buffer(log, st)
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call log_view_current_tag(tag, has)
             call check(error, has, "tag")
             if (allocated(error)) exit body

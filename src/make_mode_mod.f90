@@ -42,14 +42,14 @@
 module make_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: PREFIX_NONE
-    use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, xfixnum, xstring, make_list, list, list_length, list_elt, vtag, V_INTEGER
+    use value_mod, only: value_type, xfixnum, xstring, make_list, list, list_length, list_element, vtag, V_INTEGER
     use utility_functions_mod, only: is_string_less
     use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
                         append_locals_clearer
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, execute_interactively
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, execute_interactively
     use keyboard_mod, only: last_command_event
     use buffer_mod, only: buffers, current, buffer_serial_live, barf_if_buffer_read_only, get_buffer, get_or_make_buffer, &
                           set_buffer, current_buffer, erase_buffer, close_buffer
@@ -58,41 +58,43 @@ module make_mode_mod
     use add_log_mod, only: add_log_current_subprogram_function
     use derived_mod, only: is_derived_mode
     use keymap_mod, only: keymap_set
-    use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, skip_chars_forward, &
-                          skip_chars_backward
-    use editing_functions_mod, only: interactive_region, point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, &
-                            char_after, char_before, preceding_char, buffer_substring, line_beginning_position, line_end_position, &
-                                     delete_region, narrow_to_region, widen, buffer_size
-    use editing_commands_mod, only: forward_line, forward_char, beginning_of_line, end_of_line, self_insert_command
+    use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, skip_characters_forward, &
+                          skip_characters_backward
+    use editing_functions_mod, only: interactive_region, point, point_minimum, point_maximum, goto_character, &
+                                     is_beginning_of_line, is_end_of_line, is_beginning_of_buffer, is_end_of_buffer, &
+                                     character_after, character_before, preceding_character, buffer_substring, &
+                                     line_beginning_position, line_end_position, delete_region, narrow_to_region, widen, &
+                                     buffer_size
+    use editing_commands_mod, only: forward_line, forward_character, beginning_of_line, end_of_line, self_insert_command
     use insert_delete_mod, only: insert
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use indent_mod, only: current_column, indent_to, indent_line_function, indent_to_left_margin, indent_tabs_mode
-    use search_mod, only: looking_at, re_search_forward, string_match, match_beginning, match_end, match_data, &
-                          set_match_data, regexp_quote, SEARCH_NOERROR
+    use search_mod, only: looking_at, regular_expression_search_forward, string_match, match_beginning, match_end, match_data, &
+                          set_match_data, regular_expression_quote, SEARCH_NOERROR
     use basic_subprograms_mod, only: match_string_no_properties, read_y_or_n
-    use simple_mod, only: delete_horizontal_space, count_lines, line_number_at_pos
+    use simple_mod, only: delete_horizontal_space, count_lines, line_number_at_position
     use text_properties_mod, only: get_text_property, remove_text_properties
     use display_engine_mod, only: message, tab_width
-    use window_mod, only: window_text_cols, pop_to_buffer, shrink_window_if_larger_than_buffer
-    use frame_mod, only: frame_selected_window_ref
+    use window_mod, only: window_text_columns, pop_to_buffer, shrink_window_if_larger_than_buffer
+    use frame_mod, only: frame_selected_window_reference
     use buffer_mod, only: fill_column
     use fill_mod, only: fill_paragraph, fill_paragraph_function
     use files_mod, only: write_file_functions, delete_file
-    use file_input_output_mod, only: is_file_directory, file_name_directory, write_region, make_temp_name
+    use file_input_output_mod, only: is_file_directory, file_name_directory, write_region, make_temporary_name
     use directory_editor_mod, only: file_name_all_completions
     use execute_process_mod, only: execute_process
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_PREPEND, &
                              FONT_LOCK_OVERRIDE_APPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
-    use regular_expression_optimization_mod, only: regexp_opt, REGEXP_OPT_GROUP
+    use regular_expression_optimization_mod, only: regular_expression_optimization, REGULAR_EXPRESSION_OPTIMIZATION_GROUP
     use newcomment_mod, only: comment_start, comment_end, comment_start_skip
     use abbreviation_mod, only: abbrev_table_type
-    use dynamic_abbreviation_mod, only: dabbrev_abbrev_skip_leading_regexp
-    use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
+    use dynamic_abbreviation_mod, only: dabbrev_abbrev_skip_leading_regular_expression
+    use faces_mod, only: named_face_type, display_when, face_attributes, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     use minibuffer_reading_mod, only: completion_table_type, read_string
-    use minibuffer_reading_tables_mod, only: capf_data_type, COMPLETION_SOLE, COMPLETION_FINISHED
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type, COMPLETION_SOLE, COMPLETION_FINISHED
     use minibuffer_mod, only: completing_read, completion_at_point_functions
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use index_menu_mod, only: imenu_patterns, imenu_pattern_type
@@ -100,17 +102,17 @@ module make_mode_mod
     implicit none(type, external)
     private
 
-    public :: init_make_mode, makefile_mode, makefile_automake_mode, makefile_gmake_mode, makefile_makepp_mode, &
+    public :: initialize_make_mode, makefile_mode, makefile_automake_mode, makefile_gmake_mode, makefile_makepp_mode, &
               makefile_bsdmake_mode, makefile_imake_mode, makefile_next_dependency, makefile_previous_dependency, &
               makefile_electric_dot, makefile_insert_special_target, makefile_electric_equal, makefile_insert_macro, &
-              makefile_insert_macro_ref, makefile_insert_target, makefile_insert_target_ref, makefile_electric_colon, &
+              makefile_insert_macro_reference, makefile_insert_target, makefile_insert_target_reference, makefile_electric_colon, &
               makefile_pickup_targets, makefile_pickup_macros, makefile_pickup_everything, &
               makefile_pickup_filenames_as_targets, makefile_completions_at_point, makefile_backslash_region, &
               makefile_fill_paragraph, makefile_create_up_to_date_overview, makefile_query_by_make_minus_q, &
               makefile_cleanup_continuations_function, makefile_warn_suspicious_lines, makefile_warn_continuations, &
               makefile_insert_gmake_function, makefile_match_function_end, makefile_match_dependency, &
               makefile_match_action, makefile_do_macro_insertion, makefile_remember_target, makefile_remember_macro, &
-              makefile_format_macro_ref, makefile_add_log_target, makefile_syntax_propertize_function, &
+              makefile_format_macro_reference, makefile_add_log_target, makefile_syntax_propertize_function, &
               makefile_make_font_lock_keywords, makefile_target_table, makefile_macro_table, makefile_has_prereqs, &
               makefile_query_procedure
 
@@ -210,7 +212,7 @@ module make_mode_mod
     character(len=16), allocatable, public :: makefile_special_targets(:)
 
     !> List of macros that are resolved by make at runtime.
-    !> If you insert a macro reference using `makefile_insert_macro_ref', the name
+    !> If you insert a macro reference using `makefile_insert_macro_reference', the name
     !> of the macro is checked against this list.  If it can be found its name will
     !> not be enclosed in { } or ( ).  Port of make-mode.el
     !> makefile-runtime-macros-list.
@@ -218,11 +220,12 @@ module make_mode_mod
 
     !> Regex used to find dependency lines in a makefile.  Port of
     !> make-mode.el makefile-dependency-regex.
-    type(string_setting_type), target, public :: makefile_dependency_regexp = string_setting_type(name="makefile_dependency_regexp")
+    type(string_setting_type), target, public :: makefile_dependency_regular_expression = string_setting_type( &
+                                                 name="makefile_dependency_regular_expression")
 
     !> Regex used to find dependency lines in a BSD makefile.  Port of
     !> make-mode.el makefile-bsdmake-dependency-regex.
-    character(len=:), allocatable, public :: makefile_bsdmake_dependency_regexp
+    character(len=:), allocatable, public :: makefile_bsdmake_dependency_regular_expression
 
     !> Characters to skip to find a line that might be a dependency.
     !> Port of make-mode.el makefile-dependency-skip.
@@ -230,20 +233,20 @@ module make_mode_mod
 
     !> Regex used to highlight rule action lines in font lock mode.
     !> Port of make-mode.el makefile-rule-action-regex.
-    type(string_setting_type), target, public :: makefile_rule_action_regexp = &
-                                                 string_setting_type(name="makefile_rule_action_regexp")
+    type(string_setting_type), target, public :: makefile_rule_action_regular_expression = &
+                                                 string_setting_type(name="makefile_rule_action_regular_expression")
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
     !> Regex used to highlight makepp rule action lines in font lock mode.
     !> Port of make-mode.el makefile-makepp-rule-action-regex.
-    character(len=*), parameter, public :: makefile_makepp_rule_action_regexp = &
+    character(len=*), parameter, public :: makefile_makepp_rule_action_regular_expression = &
                                            "^"//TAB//"[ "//TAB//"]*\(\(?:\(?:noecho\|ignore[-_]error\|[-@]+\)[ "//TAB// &
                                            "]*\)*\)\(\(&\S +\)?\(?:.*\\"//LF//"\)*.*\)"
 
     !> Regex used to highlight BSD rule action lines in font lock mode.
     !> Port of make-mode.el makefile-bsdmake-rule-action-regex.
-    character(len=:), allocatable, public :: makefile_bsdmake_rule_action_regexp
+    character(len=:), allocatable, public :: makefile_bsdmake_rule_action_regular_expression
 
     !> Imenu generic expression for Makefile mode.  See
     !> `imenu_patterns'.  Port of make-mode.el
@@ -252,18 +255,18 @@ module make_mode_mod
 
     !> Regex used to find macro assignment lines in a makefile.  Port of
     !> make-mode.el makefile-macroassign-regex.
-    character(len=*), parameter, public :: makefile_macroassign_regexp = &
+    character(len=*), parameter, public :: makefile_macroassign_regular_expression = &
                                            "\(?:^\|^export\|^override\|:\|:[ "//TAB//"]*override\)[ "//TAB//"]*\([^ "//LF// &
                                            TAB//"][^:#= "//TAB//LF//"]*\)[ "//TAB//"]*\(?:!=\|[*:+]?[:?]?=\)"
 
     !> Regex used to find $(macro) uses in a makefile.  Port of
     !> make-mode.el makefile-var-use-regex.
-    character(len=*), parameter, public :: makefile_var_use_regexp = &
+    character(len=*), parameter, public :: makefile_variable_use_regular_expression = &
                                            "\(^\|[^$]\)\$[({]\([-a-zA-Z0-9_.]+\|[@%<?^+*][FD]?\)"
 
     !> Regex for filenames that will NOT be included in the target list.
     !> Port of make-mode.el makefile-ignored-files-in-pickup-regex.
-    character(len=*), parameter, public :: makefile_ignored_files_in_pickup_regexp = &
+    character(len=*), parameter, public :: makefile_ignored_files_in_pickup_regular_expression = &
                                            "\(^\..*\)\|\(.*~$\)\|\(.*,v$\)\|\(\.[chy]\)"
 
     !> List of keywords understood by standard make.  Port of make-mode.el
@@ -423,7 +426,7 @@ contains
 
     !> Define the Makefile modes, their keymap, syntax tables and keywords.
     !> Not a port.
-    subroutine init_make_mode()
+    subroutine initialize_make_mode()
         type(status_type) :: st
 
         if (is_syntax_table_live(makefile_mode_syntax_table)) return
@@ -436,9 +439,9 @@ contains
         call forward_setting(makefile_backslash_align)
         call forward_setting(makefile_pickup_everything_picks_up_filenames)
         call forward_setting(makefile_cleanup_continuations)
-        call forward_setting(makefile_dependency_regexp)
+        call forward_setting(makefile_dependency_regular_expression)
         call forward_setting(makefile_dependency_skip)
-        call forward_setting(makefile_rule_action_regexp)
+        call forward_setting(makefile_rule_action_regular_expression)
         call forward_setting(makefile_brave_make)
         call forward_setting(makefile_up_to_date_buffer_name)
         if (.not. allocated(makefile_target_colon%value)) makefile_target_colon = ":"
@@ -454,19 +457,21 @@ contains
             makefile_query_one_target_method_function => makefile_query_by_make_minus_q
         end if
 
-        if (.not. allocated(makefile_rule_action_regexp%value)) then
-            makefile_rule_action_regexp = "^"//TAB//"[ "//TAB//"]*\(?:\([-@]+\)[ "//TAB//"]*\)\(.*\(?:\\"//LF//".*\)*\)"
+        if (.not. allocated(makefile_rule_action_regular_expression%value)) then
+            makefile_rule_action_regular_expression = "^"//TAB//"[ "//TAB//"]*\(?:\([-@]+\)[ "//TAB//"]*\)\(.*\(?:\\"//LF//".*\)*\)"
         end if
 
-        makefile_bsdmake_rule_action_regexp = string_replace("-@", "-+@", makefile_rule_action_regexp%value)
+        makefile_bsdmake_rule_action_regular_expression = string_replace("-@", "-+@", makefile_rule_action_regular_expression%value)
 
-        if (.not. allocated(makefile_dependency_regexp%value)) then
+        if (.not. allocated(makefile_dependency_regular_expression%value)) then
             ! Allow for two nested levels $(v1:$(v2:$(v3:a=b)=c)=d)
-            makefile_dependency_regexp = "^\("//elems_regexp(3, .true.)//"\)\(:\)\(?:[ "//TAB//"]*$\|[^="//LF// &
-                                         "]\(?:[^#"//LF//"]*?;[ "//TAB//"]*\(.+\)\)?\)"
+            makefile_dependency_regular_expression = "^\("//elements_regular_expression(3, &
+                                                                                   .true.)//"\)\(:\)\(?:[ "//TAB//"]*$\|[^="//LF// &
+                                                     "]\(?:[^#"//LF//"]*?;[ "//TAB//"]*\(.+\)\)?\)"
         end if
 
-        makefile_bsdmake_dependency_regexp = replace_first("\(:\)", "\([:!]\)", makefile_dependency_regexp%value)
+        makefile_bsdmake_dependency_regular_expression = replace_first("\(:\)", "\([:!]\)", &
+                                                                       makefile_dependency_regular_expression%value)
 
         if (.not. allocated(makefile_special_targets)) then
             makefile_special_targets = [character(len=16) :: &
@@ -485,22 +490,23 @@ contains
             makefile_imenu_patterns(1) = imenu_pattern_type(menu_title="Dependencies", &
                                                             matcher=makefile_previous_dependency, subexpression=1)
             makefile_imenu_patterns(2) = imenu_pattern_type(menu_title="Macro Assignment", &
-                                                            regexp=makefile_macroassign_regexp, subexpression=1)
+                                                            regular_expression=makefile_macroassign_regular_expression, &
+                                                            subexpression=1)
         end if
 
         if (.not. allocated(makefile_runtime_macros)) then
             makefile_runtime_macros = [character(len=8) :: "@", "&", ">", "<", "*", "^", "+", "?", "%", "$"]
         end if
 
-        call init_gnumake_functions()
+        call initialize_gnumake_functions()
         call define_faces()
-        call init_syntax_tables()
-        call init_keywords()
-        call init_rules()
+        call initialize_syntax_tables()
+        call initialize_keywords()
+        call initialize_rules()
         call makefile_mode_abbrev_table%define_table("makefile_mode_abbrev_table")
         call append_locals_clearer(clear_make_locals)
         call major_modes%makefile_mode%define("makefile_mode", "Makefile", makefile_mode, makefile_mode_hook, &
-                                              parent=major_modes%prog_mode, syntax_table=makefile_mode_syntax_table, &
+                                              parent=major_modes%programming_mode, syntax_table=makefile_mode_syntax_table, &
                                               abbrev_table=makefile_mode_abbrev_table)
         makefile_mode_map = major_modes%makefile_mode%map
         call major_modes%makefile_automake_mode%define("makefile_automake_mode", "Makefile.am", makefile_automake_mode, &
@@ -514,7 +520,7 @@ contains
         call major_modes%makefile_imake_mode%define("makefile_imake_mode", "Imakefile", makefile_imake_mode, &
                                                     makefile_imake_mode_hook, parent=major_modes%makefile_mode, &
                                                     syntax_table=makefile_imake_mode_syntax_table)
-        call keymap_set(makefile_mode_map, "C-c :", "makefile_insert_target_ref", st)
+        call keymap_set(makefile_mode_map, "C-c :", "makefile_insert_target_reference", st)
         call keymap_set(makefile_mode_map, "C-c C-f", "makefile_pickup_filenames_as_targets", st)
         call keymap_set(makefile_mode_map, "C-c C-c", "comment_region", st)
         call keymap_set(makefile_mode_map, "C-c C-p", "makefile_pickup_everything", st)
@@ -537,40 +543,41 @@ contains
         commands%makefile_makepp_mode%execute => makefile_makepp_mode
         commands%makefile_bsdmake_mode%execute => makefile_bsdmake_mode
         commands%makefile_imake_mode%execute => makefile_imake_mode
-        commands%makefile_next_dependency%execute => cmd_makefile_next_dependency
-        commands%makefile_previous_dependency%execute => cmd_makefile_previous_dependency
-        commands%makefile_electric_dot%execute => cmd_makefile_electric_dot
+        commands%makefile_next_dependency%execute => execute_makefile_next_dependency
+        commands%makefile_previous_dependency%execute => execute_makefile_previous_dependency
+        commands%makefile_electric_dot%execute => execute_makefile_electric_dot
         commands%makefile_insert_special_target%execute => makefile_insert_special_target
-        commands%makefile_electric_equal%execute => cmd_makefile_electric_equal
-        commands%makefile_insert_macro%execute => cmd_makefile_insert_macro
-        commands%makefile_insert_macro_ref%execute => cmd_makefile_insert_macro_ref
-        commands%makefile_insert_target%execute => cmd_makefile_insert_target
-        commands%makefile_insert_target_ref%execute => cmd_makefile_insert_target_ref
-        commands%makefile_electric_colon%execute => cmd_makefile_electric_colon
+        commands%makefile_electric_equal%execute => execute_makefile_electric_equal
+        commands%makefile_insert_macro%execute => execute_makefile_insert_macro
+        commands%makefile_insert_macro_reference%execute => execute_makefile_insert_macro_reference
+        commands%makefile_insert_target%execute => execute_makefile_insert_target
+        commands%makefile_insert_target_reference%execute => execute_makefile_insert_target_reference
+        commands%makefile_electric_colon%execute => execute_makefile_electric_colon
         commands%makefile_pickup_targets%execute => makefile_pickup_targets
         commands%makefile_pickup_macros%execute => makefile_pickup_macros
-        commands%makefile_pickup_everything%execute => cmd_makefile_pickup_everything
+        commands%makefile_pickup_everything%execute => execute_makefile_pickup_everything
         commands%makefile_pickup_filenames_as_targets%execute => makefile_pickup_filenames_as_targets
-        commands%makefile_backslash_region%execute => cmd_makefile_backslash_region
+        commands%makefile_backslash_region%execute => execute_makefile_backslash_region
         commands%makefile_create_up_to_date_overview%execute => makefile_create_up_to_date_overview
         commands%makefile_insert_gmake_function%execute => makefile_insert_gmake_function
-    end subroutine init_make_mode
+    end subroutine initialize_make_mode
 
     !> One level of makefile-dependency-regex's elems-re.
     !> Port of make-mode.el:makefile-dependency-regex (its elems-re).
-    recursive function elems_regexp(n, outer) result(regexp)
+    recursive function elements_regular_expression(n, outer) result(regular_expression)
         integer, intent(in) :: n
         logical, intent(in) :: outer
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
 
         if (n < 1) then
-            regexp = "[^"//LF//"$#})]+?"
+            regular_expression = "[^"//LF//"$#})]+?"
         else if (outer) then
-            regexp = "\(?:\$\(?:[({]"//elems_regexp(n - 1, .false.)//"[})]\|[^({]\)\|[^"//LF//"$#"//TAB//":=]\)+?"
+            regular_expression = "\(?:\$\(?:[({]"//elements_regular_expression(n - 1, &
+                                                                             .false.)//"[})]\|[^({]\)\|[^"//LF//"$#"//TAB//":=]\)+?"
         else
-            regexp = "\(?:\$\(?:[({]"//elems_regexp(n - 1, .false.)//"[})]\|[^({]\)\|[^"//LF//"$#)}]\)+?"
+            regular_expression = "\(?:\$\(?:[({]"//elements_regular_expression(n - 1, .false.)//"[})]\|[^({]\)\|[^"//LF//"$#)}]\)+?"
         end if
-    end function elems_regexp
+    end function elements_regular_expression
 
     !> TEXT with every FROM replaced by TO (subr.el's string-replace).
     !> Not a port.
@@ -612,7 +619,7 @@ contains
     end function replace_first
 
     ! Not a port.
-    subroutine init_gnumake_functions()
+    subroutine initialize_gnumake_functions()
         integer :: k
 
         if (allocated(makefile_gnumake_functions)) return
@@ -671,7 +678,7 @@ contains
             makefile_gnumake_functions(k)%name = name
             makefile_gnumake_functions(k)%prompts(1:size(prompts)) = prompts
         end subroutine append
-    end subroutine init_gnumake_functions
+    end subroutine initialize_gnumake_functions
 
     ! The faces.
     ! Not a port.
@@ -681,25 +688,25 @@ contains
 
         f => makefile_space
         call f%define("makefile_space", "Face to use for highlighting leading spaces in Font-Lock mode.")
-        call f%spec_entry(display_when(classes=[C]), face_attrs(background="hotpink"))
-        call f%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call f%specification_entry(display_when(classes=[C]), face_attributes(background="hotpink"))
+        call f%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         f => makefile_targets
         ! This needs to go along both with foreground and background colors (i.e. shell)
         call f%define("makefile_targets", "Face to use for additionally highlighting rule targets in Font-Lock mode.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_function_name_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_function_name_face"))
         f => makefile_shell
         call f%define("makefile_shell", "Face to use for additionally highlighting Shell commands in Font-Lock mode.")
-        call f%spec_entry(display_when(), face_attrs())
+        call f%specification_entry(display_when(), face_attributes())
         f => makefile_makepp_perl
         call f%define("makefile_makepp_perl", "Face to use for additionally highlighting Perl code in Font-Lock mode.")
         ! Camel Book
-        call f%spec_entry(display_when(classes=[C], backgrounds=[LIGHT]), face_attrs(background="LightBlue1"))
-        call f%spec_entry(display_when(classes=[C], backgrounds=[DARK]), face_attrs(background="DarkBlue"))
-        call f%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call f%specification_entry(display_when(classes=[C], backgrounds=[LIGHT]), face_attributes(background="LightBlue1"))
+        call f%specification_entry(display_when(classes=[C], backgrounds=[DARK]), face_attributes(background="DarkBlue"))
+        call f%specification_entry(display_when(), face_attributes(inverse_video=.true.))
     end subroutine define_faces
 
     ! Not a port.
-    subroutine init_syntax_tables()
+    subroutine initialize_syntax_tables()
         type(status_type) :: st
         type(handle_type) :: t
 
@@ -723,7 +730,7 @@ contains
         call modify_syntax_entry(iachar("*"), iachar("*"), ". 23", st, t)
         call modify_syntax_entry(iachar("#"), iachar("#"), "'", st, t)
         call modify_syntax_entry(10, 10, ". b", st, t)
-    end subroutine init_syntax_tables
+    end subroutine initialize_syntax_tables
 
     ! A highlight of subexpression N in FACE.
     ! Not a port.
@@ -738,23 +745,23 @@ contains
     end function h
 
     !> The keywords of a Makefile mode: macro assignments, rule actions,
-    !> the variable references matching VAR, automatic variables, the
+    !> the variable references matching VARIABLE, automatic variables, the
     !> statements KEYWORDS (none if absent; with DASH, a `-' in them
     !> alternately means `_'), the NEGATION regexp, with SPACE suspicious
     !> whitespace, FL_KEYWORDS and dependencies.  Port of
     !> make-mode.el:makefile-make-font-lock-keywords.
-    function makefile_make_font_lock_keywords(var, space, keywords, negation, fl_keywords, dash) result(kw)
-        character(len=*), intent(in) :: var
+    function makefile_make_font_lock_keywords(variable, space, keywords, negation, fl_keywords, dash) result(kw)
+        character(len=*), intent(in) :: variable
         logical, intent(in) :: space
         character(len=*), intent(in), optional :: keywords(:)
         character(len=*), intent(in), optional :: negation
         type(font_lock_keyword_type), intent(in), optional :: fl_keywords(:)
         logical, intent(in), optional :: dash
         type(font_lock_keyword_type), allocatable :: kw(:)
-        character(len=*), parameter :: VA = "font_lock_variable_name_face", NEG = "font_lock_negation_char_face"
+        character(len=*), parameter :: VA = "font_lock_variable_name_face", NEG = "font_lock_negation_character_face"
         type(font_lock_keyword_type) :: all(64)
         type(font_lock_highlight_type) :: h1(1), h2(2), h3(3)
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer :: n, k
         logical :: d
 
@@ -765,7 +772,7 @@ contains
         h3(2) = h(2, "makefile_shell", FONT_LOCK_OVERRIDE_PREPEND, .true.)
         ! This is for after normal assignment
         h3(3) = h(3, "font_lock_string_face", FONT_LOCK_OVERRIDE_PREPEND, .true.)
-        call append(font_lock_keyword(makefile_macroassign_regexp, highlights=h3))
+        call append(font_lock_keyword(makefile_macroassign_regular_expression, highlights=h3))
         ! Rule actions.
         ! FIXME: When this spans multiple lines we need font-lock-multiline.
         h3(1) = h(1, "font_lock_type_face", lax=.true.)
@@ -775,7 +782,7 @@ contains
         call append(font_lock_keyword(matcher=makefile_match_action, highlights=h3))
         ! Variable references even in targets/strings/comments.
         h1(1) = h(2, VA, FONT_LOCK_OVERRIDE_PREPEND)
-        call append(font_lock_keyword(var, highlights=h1))
+        call append(font_lock_keyword(variable, highlights=h1))
         ! Automatic variable references and single character variable references,
         ! but not shell variables references.
         h1(1) = h(1, "font_lock_constant_face", FONT_LOCK_OVERRIDE_PREPEND)
@@ -789,14 +796,16 @@ contains
             if (present(dash)) d = dash
 
             if (d) then
-                regexp = string_replace("-", "[_-]", regexp_opt(keywords, REGEXP_OPT_GROUP))
+                regular_expression = string_replace("-", "[_-]", regular_expression_optimization(keywords, &
+                                                                                             REGULAR_EXPRESSION_OPTIMIZATION_GROUP))
             else
-                regexp = regexp_opt(keywords, REGEXP_OPT_GROUP)
+                regular_expression = regular_expression_optimization(keywords, REGULAR_EXPRESSION_OPTIMIZATION_GROUP)
             end if
 
             h2(1) = h(1, "font_lock_keyword_face")
             h2(2) = h(2, VA)
-            call append(font_lock_keyword("^\(?: [ "//TAB//"]*\)?"//string_replace(" ", "[ "//TAB//"]+", regexp)//"\>[ "//TAB// &
+            call append(font_lock_keyword("^\(?: [ "//TAB//"]*\)?"//string_replace(" ", "[ "//TAB//"]+", &
+                                                                                   regular_expression)//"\>[ "//TAB// &
                                           "]*\([^: "//TAB//LF//"#]*\)", highlights=h2))
         end if
 
@@ -844,7 +853,7 @@ contains
     end function makefile_make_font_lock_keywords
 
     ! Not a port.
-    subroutine init_keywords()
+    subroutine initialize_keywords()
         character(len=*), parameter :: KW = "font_lock_keyword_face", FN = "font_lock_function_name_face", &
                                        VA = "font_lock_variable_name_face", TY = "font_lock_type_face", &
                                        PERL = "makefile_makepp_perl", SH = "makefile_shell", TG = "makefile_targets"
@@ -855,8 +864,9 @@ contains
         type(font_lock_highlight_type) :: h1(1), h2(2), h3(3), a(1)
         integer :: n
 
-        makefile_font_lock_keywords = makefile_make_font_lock_keywords(makefile_var_use_regexp, .true., makefile_statements)
-        makefile_automake_font_lock_keywords = makefile_make_font_lock_keywords(makefile_var_use_regexp, .true., &
+        makefile_font_lock_keywords = makefile_make_font_lock_keywords(makefile_variable_use_regular_expression, .true., &
+                                                                       makefile_statements)
+        makefile_automake_font_lock_keywords = makefile_make_font_lock_keywords(makefile_variable_use_regular_expression, .true., &
                                                                                 makefile_automake_statements)
         ! GNU make.
         h1(1) = h(1, TG, APPEND)
@@ -870,7 +880,7 @@ contains
         h1(1) = h(1, SH, PREPEND, .true.)
         a(1) = font_lock_anchored(h1, matcher=makefile_match_function_end)
         extra(4) = font_lock_keyword("[^$]\$\([({]\)shell[ "//TAB//"]+", highlights=a)
-        makefile_gmake_font_lock_keywords = makefile_make_font_lock_keywords(makefile_var_use_regexp, .true., &
+        makefile_gmake_font_lock_keywords = makefile_make_font_lock_keywords(makefile_variable_use_regular_expression, .true., &
                                                                              makefile_gmake_statements, &
                                                                              "^\(?: [ "//TAB//"]*\)?if\(n\)\(?:def\|eq\)\>", &
                                                                              extra(1:4))
@@ -918,19 +928,20 @@ contains
         extra(11) = font_lock_keyword("perl[-_]begin\s *\(?:\s #.*\)?"//LF//"\(\(?:.*"//LF//"\)+?\)\s *perl[-_]end\>", &
                                       highlights=h1)
         makefile_makepp_font_lock_keywords = &
-            makefile_make_font_lock_keywords(makefile_var_use_regexp, .false., makefile_makepp_statements, &
+            makefile_make_font_lock_keywords(makefile_variable_use_regular_expression, .false., makefile_makepp_statements, &
                                              "^\(?: [ "//TAB//"]*\)?\(?:and[ "//TAB//"]+\|else[ "//TAB//"]+\|or[ "//TAB// &
                                              "]+\)?if\(n\)\(?:def\|eq\|sys\|true\)\>", extra(1:11), dash=.true.)
         ! BSD make.  A lot more could be done for variables here.
         h1(1) = h(1, KW)
         extra(1) = font_lock_keyword("^[ "//TAB//"]*\.for[ "//TAB//"].+[ "//TAB//"]\(in\)\>", highlights=h1)
-        base = makefile_make_font_lock_keywords(makefile_var_use_regexp, .true., &
+        base = makefile_make_font_lock_keywords(makefile_variable_use_regular_expression, .true., &
                                                 negation="^\(?: [ "//TAB//"]*\)?\.\(?:el\)?if\(n?\)\(?:def\|make\)?\>[ " &
                                                 //TAB//"]*\(!?\)", fl_keywords=extra(1:1))
         n = size(base)
         allocate (makefile_bsdmake_font_lock_keywords(n + 1))
         makefile_bsdmake_font_lock_keywords(1:n) = base
-        makefile_bsdmake_font_lock_keywords(n + 1) = font_lock_keyword("^\. *"//regexp_opt(makefile_bsdmake_statements) &
+        makefile_bsdmake_font_lock_keywords(n + 1) = font_lock_keyword("^\. *"//regular_expression_optimization( &
+                                                                       makefile_bsdmake_statements) &
                                                                        //"\>", face=KW)
         ! Imake.
         n = size(makefile_font_lock_keywords)
@@ -940,11 +951,11 @@ contains
         makefile_imake_font_lock_keywords(2) = font_lock_keyword("XVAR\(?:use\|def\)[0-9]", highlights=h1)
         makefile_imake_font_lock_keywords(3) = font_lock_keyword("@@", face="font_lock_preprocessor_face")
         makefile_imake_font_lock_keywords(4:) = makefile_font_lock_keywords
-    end subroutine init_keywords
+    end subroutine initialize_keywords
 
     ! The rules of `makefile_syntax_propertize_function'.
     ! Not a port.
-    subroutine init_rules()
+    subroutine initialize_rules()
         type(syntax_highlight_type) :: hl
 
         if (allocated(propertize_rules%rules)) return
@@ -954,14 +965,14 @@ contains
         ! of a word.  In the shell, words are separated by metacharacters.
         ! The list of special chars is taken from the single-unix spec of the
         ! shell command language (under `quoting') but with `$' removed.
-        propertize_rules%rules(1)%regexp = "[^|&;<>()`\""' "//TAB//LF//"]\(#+\)"
+        propertize_rules%rules(1)%regular_expression = "[^|&;<>()`\""' "//TAB//LF//"]\(#+\)"
         hl = syntax_highlight_type(group=1, syntax="_")
         propertize_rules%rules(1)%highlights = [hl]
         ! Change the syntax of a quoted newline so that it does not end a comment.
-        propertize_rules%rules(2)%regexp = "\\"//LF
+        propertize_rules%rules(2)%regular_expression = "\\"//LF
         hl = syntax_highlight_type(group=0, syntax=".")
         propertize_rules%rules(2)%highlights = [hl]
-    end subroutine init_rules
+    end subroutine initialize_rules
 
     !> The `syntax_propertize_function' of Makefile mode.  Port of
     !> make-mode.el makefile-syntax-propertize-function.
@@ -969,7 +980,7 @@ contains
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
 
-        call goto_char(start)
+        call goto_character(start)
         call propertize_rules%apply(start, end, status)
     end subroutine makefile_syntax_propertize_function
 
@@ -1122,7 +1133,7 @@ contains
         loaded = .true.
 
         if (makefile_electric_keys%value) then
-            call keymap_set(makefile_mode_map, "$", "makefile_insert_macro_ref", st)
+            call keymap_set(makefile_mode_map, "$", "makefile_insert_macro_reference", st)
             call keymap_set(makefile_mode_map, ":", "makefile_electric_colon", st)
             call keymap_set(makefile_mode_map, "=", "makefile_electric_equal", st)
             call keymap_set(makefile_mode_map, ".", "makefile_electric_dot", st)
@@ -1201,7 +1212,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call init_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call initialize_make_mode()
         call load_make_mode()
         call major_modes%makefile_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -1218,7 +1229,7 @@ contains
         ! Imenu.
         call imenu_patterns%set_local(makefile_imenu_patterns)
         ! Dabbrev.
-        call dabbrev_abbrev_skip_leading_regexp%set_local("\$")
+        call dabbrev_abbrev_skip_leading_regular_expression%set_local("\$")
         ! Filling.
         call fill_paragraph_function%set_local(makefile_fill_paragraph)
         ! Comment stuff.
@@ -1238,7 +1249,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call init_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call initialize_make_mode()
         call major_modes%makefile_automake_mode%begin(saved, status)
         if (.not. status%ok()) return
         call set_font_lock_defaults(makefile_automake_font_lock_keywords)
@@ -1251,7 +1262,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call init_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call initialize_make_mode()
         call major_modes%makefile_gmake_mode%begin(saved, status)
         if (.not. status%ok()) return
         call set_font_lock_defaults(makefile_gmake_font_lock_keywords)
@@ -1265,14 +1276,14 @@ contains
         type(imenu_pattern_type), allocatable :: old(:), patterns(:)
         logical :: saved
 
-        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call init_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call initialize_make_mode()
         call major_modes%makefile_makepp_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call makefile_rule_action_regexp%set_local(makefile_makepp_rule_action_regexp)
+        call makefile_rule_action_regular_expression%set_local(makefile_makepp_rule_action_regular_expression)
         call set_font_lock_defaults(makefile_makepp_font_lock_keywords)
         old = imenu_patterns%current()
         allocate (patterns(size(old) + 1))
-        patterns(1) = imenu_pattern_type(menu_title="Functions", regexp="^[ "//TAB//"]*\(?:make\)?sub[ "//TAB// &
+        patterns(1) = imenu_pattern_type(menu_title="Functions", regular_expression="^[ "//TAB//"]*\(?:make\)?sub[ "//TAB// &
                                          "]+\([A-Za-z0-9_]+\)", subexpression=1)
         patterns(2:) = old
         call imenu_patterns%set_local(patterns)
@@ -1285,12 +1296,12 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call init_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call initialize_make_mode()
         call major_modes%makefile_bsdmake_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call makefile_dependency_regexp%set_local(makefile_bsdmake_dependency_regexp)
+        call makefile_dependency_regular_expression%set_local(makefile_bsdmake_dependency_regular_expression)
         call makefile_dependency_skip%set_local("^:!")
-        call makefile_rule_action_regexp%set_local(makefile_bsdmake_rule_action_regexp)
+        call makefile_rule_action_regular_expression%set_local(makefile_bsdmake_rule_action_regular_expression)
         call set_font_lock_defaults(makefile_bsdmake_font_lock_keywords)
         call major_modes%makefile_bsdmake_mode%end(saved, status)
     end subroutine makefile_bsdmake_mode
@@ -1301,7 +1312,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call init_make_mode()
+        if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call initialize_make_mode()
         call major_modes%makefile_imake_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! (setq-local syntax-propertize-function nil)
@@ -1329,64 +1340,64 @@ contains
         if (found) then
             call beginning_of_line()
         else
-            call goto_char(here)
+            call goto_character(here)
         end if
     end subroutine makefile_next_dependency
 
     !> Move point to the beginning of the next dependency line.  Port of
     !> make-mode.el:makefile-next-dependency.
-    subroutine cmd_makefile_next_dependency(status)
+    subroutine execute_makefile_next_dependency(status)
         type(status_type), intent(out) :: status
         logical :: found
 
         status = status_type()
         call makefile_next_dependency(found)
-    end subroutine cmd_makefile_next_dependency
+    end subroutine execute_makefile_next_dependency
 
     !> Move point to the beginning of the previous dependency line (FOUND,
     !> if there is one).  Port of make-mode.el:makefile-previous-dependency.
     subroutine makefile_previous_dependency(found)
         logical, intent(out) :: found
-        integer(int64) :: pt, moved
+        integer(int64) :: point_value, moved
         type(status_type) :: st
         logical :: is_equal
 
-        pt = point()
+        point_value = point()
         call beginning_of_line()
         found = .false.
 
         ! makefile-match-dependency done backwards:
         do
-            moved = skip_chars_backward(makefile_dependency_skip%value, st)
-            if (is_bob()) exit
-            is_equal = after_char() == iachar("=")
-            call goto_char(point() - 1)
+            moved = skip_characters_backward(makefile_dependency_skip%value, st)
+            if (is_beginning_of_buffer()) exit
+            is_equal = after_character() == iachar("=")
+            call goto_character(point() - 1)
             if (is_equal) cycle
             if (has_face(point())) cycle
             call beginning_of_line()
 
-            if (point() > point_min() + 2) then
-                if (char_before_at(point() - 1) == iachar("\")) cycle
+            if (point() > point_minimum() + 2) then
+                if (character_before_at(point() - 1) == iachar("\")) cycle
             end if
 
-            if (looking_at(makefile_dependency_regexp%value, st)) then
+            if (looking_at(makefile_dependency_regular_expression%value, st)) then
                 found = .true.
                 return
             end if
         end do
 
-        call goto_char(pt)
+        call goto_character(point_value)
     end subroutine makefile_previous_dependency
 
     !> Move point to the beginning of the previous dependency line.  Port
     !> of make-mode.el:makefile-previous-dependency.
-    subroutine cmd_makefile_previous_dependency(status)
+    subroutine execute_makefile_previous_dependency(status)
         type(status_type), intent(out) :: status
         logical :: found
 
         status = status_type()
         call makefile_previous_dependency(found)
-    end subroutine cmd_makefile_previous_dependency
+    end subroutine execute_makefile_previous_dependency
 
     ! ------------------------------------------------------------------
     ! Electric keys
@@ -1394,32 +1405,32 @@ contains
 
     ! The character of the key that invoked the command.
     ! Not a port.
-    integer(int64) function event_char() result(c)
+    integer(int64) function event_character() result(c)
         c = -1
         if (vtag(last_command_event) == V_INTEGER) c = xfixnum(last_command_event)
-    end function event_char
+    end function event_character
 
     !> Prompt for the name of a special target to insert.
     !> Only does electric insertion at beginning of line.
     !> Anywhere else just self-inserts.  Port of
     !> make-mode.el:makefile-electric-dot.
-    recursive subroutine makefile_electric_dot(arg, status)
-        integer(int64), intent(in) :: arg
+    recursive subroutine makefile_electric_dot(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        if (is_bol()) then
+        if (is_beginning_of_line()) then
             call makefile_insert_special_target(status)
         else
-            call self_insert_command(arg, event_char(), status)
+            call self_insert_command(argument, event_character(), status)
         end if
     end subroutine makefile_electric_dot
 
     !> Prompt for the name of a special target to insert (the command).
-    recursive subroutine cmd_makefile_electric_dot(status)
+    recursive subroutine execute_makefile_electric_dot(status)
         type(status_type), intent(out) :: status
 
-        call makefile_electric_dot(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_makefile_electric_dot
+        call makefile_electric_dot(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_makefile_electric_dot
 
     !> Prompt for and insert a special target name.
     !> Uses `makefile_special_targets' list.  Port of
@@ -1452,26 +1463,26 @@ contains
     !> Only does prompting if point is at beginning of line.
     !> Anywhere else just self-inserts.  Port of
     !> make-mode.el:makefile-electric-equal.
-    recursive subroutine makefile_electric_equal(arg, status)
-        integer(int64), intent(in) :: arg
+    recursive subroutine makefile_electric_equal(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
         call makefile_pickup_macros(status)
         if (.not. status%ok()) return
 
-        if (is_bol()) then
+        if (is_beginning_of_line()) then
             call execute_interactively(value_type(name="makefile_insert_macro"), status)
         else
-            call self_insert_command(arg, event_char(), status)
+            call self_insert_command(argument, event_character(), status)
         end if
     end subroutine makefile_electric_equal
 
     !> Prompt for name of a macro to insert (the command).
-    recursive subroutine cmd_makefile_electric_equal(status)
+    recursive subroutine execute_makefile_electric_equal(status)
         type(status_type), intent(out) :: status
 
-        call makefile_electric_equal(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_makefile_electric_equal
+        call makefile_electric_equal(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_makefile_electric_equal
 
     !> Prepare definition of a new macro named MACRO_NAME.
     !> Interactively, prompt for the name of the macro.  Port of
@@ -1498,27 +1509,27 @@ contains
     end subroutine makefile_insert_macro
 
     !> Prepare definition of a new macro (the command).
-    recursive subroutine cmd_makefile_insert_macro(status)
+    recursive subroutine execute_makefile_insert_macro(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
         call read_string("Macro Name: ", name, status)
         if (.not. status%ok()) return
         call makefile_insert_macro(name, status)
-    end subroutine cmd_makefile_insert_macro
+    end subroutine execute_makefile_insert_macro
 
     !> Complete on a list of known macros, then insert complete ref at point.
     !> Port of make-mode.el:makefile-insert-macro-ref.
-    recursive subroutine makefile_insert_macro_ref(macro_name, status)
+    recursive subroutine makefile_insert_macro_reference(macro_name, status)
         character(len=*), intent(in) :: macro_name
         type(status_type), intent(out) :: status
 
         call makefile_do_macro_insertion(macro_name, status)
-    end subroutine makefile_insert_macro_ref
+    end subroutine makefile_insert_macro_reference
 
     !> Complete on a list of known macros, then insert complete ref at point
     !> (the command).
-    recursive subroutine cmd_makefile_insert_macro_ref(status)
+    recursive subroutine execute_makefile_insert_macro_reference(status)
         type(status_type), intent(out) :: status
         type(completion_table_type) :: table
         character(len=:), allocatable :: name
@@ -1530,8 +1541,8 @@ contains
         table%list = names_list(s%macros)
         call completing_read("Refer to macro: ", table, name, status)
         if (.not. status%ok()) return
-        call makefile_insert_macro_ref(name, status)
-    end subroutine cmd_makefile_insert_macro_ref
+        call makefile_insert_macro_reference(name, status)
+    end subroutine execute_makefile_insert_macro_reference
 
     !> Prepare definition of a new target (dependency line).  Port of
     !> make-mode.el:makefile-insert-target.
@@ -1555,29 +1566,29 @@ contains
     end subroutine makefile_insert_target
 
     !> Prepare definition of a new target (the command).
-    recursive subroutine cmd_makefile_insert_target(status)
+    recursive subroutine execute_makefile_insert_target(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
         call read_string("Target: ", name, status)
         if (.not. status%ok()) return
         call makefile_insert_target(name, status)
-    end subroutine cmd_makefile_insert_target
+    end subroutine execute_makefile_insert_target
 
     !> Complete on a list of known targets, then insert TARGET_NAME at point.
     !> Port of make-mode.el:makefile-insert-target-ref.
-    recursive subroutine makefile_insert_target_ref(target_name, status)
+    recursive subroutine makefile_insert_target_reference(target_name, status)
         character(len=*), intent(in) :: target_name
         type(status_type), intent(out) :: status
 
         status = status_type()
         if (len(target_name) == 0) return
         call insert(target_name//" ", status)
-    end subroutine makefile_insert_target_ref
+    end subroutine makefile_insert_target_reference
 
     !> Complete on a list of known targets, then insert it at point (the
     !> command).
-    recursive subroutine cmd_makefile_insert_target_ref(status)
+    recursive subroutine execute_makefile_insert_target_reference(status)
         type(status_type), intent(out) :: status
         type(completion_table_type) :: table
         character(len=:), allocatable :: name
@@ -1589,30 +1600,30 @@ contains
         table%list = names_list(s%targets)
         call completing_read("Refer to target: ", table, name, status)
         if (.not. status%ok()) return
-        call makefile_insert_target_ref(name, status)
-    end subroutine cmd_makefile_insert_target_ref
+        call makefile_insert_target_reference(name, status)
+    end subroutine execute_makefile_insert_target_reference
 
     !> Prompt for name of new target.
     !> Prompting only happens at beginning of line.
     !> Anywhere else just self-inserts.  Port of
     !> make-mode.el:makefile-electric-colon.
-    recursive subroutine makefile_electric_colon(arg, status)
-        integer(int64), intent(in) :: arg
+    recursive subroutine makefile_electric_colon(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        if (is_bol()) then
+        if (is_beginning_of_line()) then
             call execute_interactively(value_type(name="makefile_insert_target"), status)
         else
-            call self_insert_command(arg, event_char(), status)
+            call self_insert_command(argument, event_character(), status)
         end if
     end subroutine makefile_electric_colon
 
     !> Prompt for name of new target (the command).
-    recursive subroutine cmd_makefile_electric_colon(status)
+    recursive subroutine execute_makefile_electric_colon(status)
         type(status_type), intent(out) :: status
 
-        call makefile_electric_colon(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_makefile_electric_colon
+        call makefile_electric_colon(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_makefile_electric_colon
 
     ! ------------------------------------------------------------------
     ! Extracting targets and macros from an existing makefile
@@ -1625,7 +1636,7 @@ contains
         type(make_state_type), pointer :: s
         character(len=:), allocatable :: target_name
         character(len=32) :: line_text
-        integer(int64) :: opoint, start, moved, shortage
+        integer(int64) :: original_point, start, moved, shortage
         logical :: found, has_prereqs
         type(status_type) :: st
 
@@ -1635,34 +1646,34 @@ contains
         s%need_target_pickup = .false.
         call clear_names(s%targets)
         call clear_names(s%prereqs)
-        opoint = point()
-        call goto_char(point_min())
+        original_point = point()
+        call goto_character(point_minimum())
 
         do
             call match_dependency(0_int64, found)
             if (.not. found) exit
-            call goto_char(match_beginning(1, st))
+            call goto_character(match_beginning(1, st))
 
             do
                 start = point()
-                moved = skip_chars_forward("^ "//TAB//":#", st)
+                moved = skip_characters_forward("^ "//TAB//":#", st)
                 call buffer_substring(start, point(), target_name, st)
                 has_prereqs = .not. looking_at(":["//TAB//" ]*$", st)
 
                 if (makefile_remember_target(target_name, has_prereqs)) then
-                    write (line_text, '(""" from line ", i0)') line_number_at_pos()
+                    write (line_text, '(""" from line ", i0)') line_number_at_position()
                     call message("Picked up target """//target_name//trim(line_text))
                 end if
 
-                moved = skip_chars_forward(" "//TAB, st)
-                if (is_eol()) exit
-                if (after_char() == iachar(":")) exit
+                moved = skip_characters_forward(" "//TAB, st)
+                if (is_end_of_line()) exit
+                if (after_character() == iachar(":")) exit
             end do
 
             shortage = forward_line()
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
         call message("Read targets OK")
     end subroutine makefile_pickup_targets
 
@@ -1673,7 +1684,7 @@ contains
         type(make_state_type), pointer :: s
         character(len=:), allocatable :: macro_name
         character(len=32) :: line_text
-        integer(int64) :: opoint, start, moved, shortage, found
+        integer(int64) :: original_point, start, moved, shortage, found
         type(status_type) :: st
 
         status = status_type()
@@ -1681,38 +1692,38 @@ contains
         if (.not. s%need_macro_pickup) return
         s%need_macro_pickup = .false.
         call clear_names(s%macros)
-        opoint = point()
-        call goto_char(point_min())
+        original_point = point()
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward(makefile_macroassign_regexp, found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(makefile_macroassign_regular_expression, found, st, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found <= 0) exit
-            call goto_char(match_beginning(1, st))
+            call goto_character(match_beginning(1, st))
             start = point()
-            moved = skip_chars_forward("^ "//TAB//":#=*", st)
+            moved = skip_characters_forward("^ "//TAB//":#=*", st)
             call buffer_substring(start, point(), macro_name, st)
 
             if (makefile_remember_macro(macro_name)) then
-                write (line_text, '(""" from line ", i0)') line_number_at_pos()
+                write (line_text, '(""" from line ", i0)') line_number_at_position()
                 call message("Picked up macro """//macro_name//trim(line_text))
             end if
 
             shortage = forward_line()
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
         call message("Read macros OK")
     end subroutine makefile_pickup_macros
 
     !> Notice names of all macros and targets in Makefile.
-    !> Prefix argument ARG means force pickups to be redone.  Port of
+    !> Prefix argument ARGUMENT means force pickups to be redone.  Port of
     !> make-mode.el:makefile-pickup-everything.
-    recursive subroutine makefile_pickup_everything(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine makefile_pickup_everything(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(make_state_type), pointer :: s
 
-        if (arg) then
+        if (argument) then
             s => state()
             s%need_target_pickup = .true.
             s%need_macro_pickup = .true.
@@ -1726,36 +1737,36 @@ contains
     end subroutine makefile_pickup_everything
 
     !> Notice names of all macros and targets in Makefile (the command).
-    recursive subroutine cmd_makefile_pickup_everything(status)
+    recursive subroutine execute_makefile_pickup_everything(status)
         type(status_type), intent(out) :: status
 
-        call makefile_pickup_everything(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_makefile_pickup_everything
+        call makefile_pickup_everything(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_makefile_pickup_everything
 
     !> Scan the current directory for filenames to use as targets.
-    !> Checks each filename against `makefile_ignored_files_in_pickup_regexp'
+    !> Checks each filename against `makefile_ignored_files_in_pickup_regular_expression'
     !> and adds all qualifying names to the list of known targets.  Port of
     !> make-mode.el:makefile-pickup-filenames-as-targets.
     recursive subroutine makefile_pickup_filenames_as_targets(status)
         type(status_type), intent(out) :: status
         type(value_type) :: names
-        character(len=:), allocatable :: name, dir
+        character(len=:), allocatable :: name, directory
         integer(int64) :: k
         type(status_type) :: st
 
         if (.not. allocated(buffers(current)%filename)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected character(len=*)")
             return
         end if
 
-        dir = file_name_directory(buffers(current)%filename)
-        call file_name_all_completions("", dir, names, status)
+        directory = file_name_directory(buffers(current)%filename)
+        call file_name_all_completions("", directory, names, status)
         if (.not. status%ok()) return
 
         do k = 1, list_length(names)
-            name = xstring(list_elt(names, k))
+            name = xstring(list_element(names, k))
             if (is_file_directory(name)) cycle
-            if (string_match(makefile_ignored_files_in_pickup_regexp, name, st) > 0) cycle
+            if (string_match(makefile_ignored_files_in_pickup_regular_expression, name, st) > 0) cycle
             if (makefile_remember_target(name)) call message("Picked up file """//name//""" as target")
         end do
     end subroutine makefile_pickup_filenames_as_targets
@@ -1768,22 +1779,22 @@ contains
     !> `completion_at_point_functions').  Port of
     !> make-mode.el:makefile-completions-at-point.
     recursive subroutine makefile_completions_at_point(data, status)
-        type(capf_data_type), intent(out) :: data
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
-        integer(int64) :: beginning, opoint, moved
-        integer :: pc, paren
-        logical :: do_macros, at_bol
+        integer(int64) :: beginning, original_point, moved
+        integer :: pc, parenthesis
+        logical :: do_macros, at_beginning_of_line
         type(make_state_type), pointer :: s
         type(value_type) :: targets, macros, all
         integer(int64) :: k, n
 
         status = status_type()
-        opoint = point()
-        moved = skip_chars_backward("^$(){}:#= "//TAB//LF, status)
+        original_point = point()
+        moved = skip_characters_backward("^$(){}:#= "//TAB//LF, status)
         beginning = point()
-        paren = 0
+        parenthesis = 0
         do_macros = .false.
-        pc = before_char()
+        pc = before_character()
 
         if (pc == iachar("$")) then
             ! Preceding "$" means macros only.
@@ -1791,26 +1802,26 @@ contains
         else if (pc == iachar("{") .or. pc == iachar("(")) then
             ! Preceding "$(" or "${" means macros only.
             if (pc == iachar("{")) then
-                paren = iachar("}")
+                parenthesis = iachar("}")
             else
-                paren = iachar(")")
+                parenthesis = iachar(")")
             end if
 
-            call goto_char(point() - 1)
-            do_macros = before_char() == iachar("$")
+            call goto_character(point() - 1)
+            do_macros = before_character() == iachar("$")
         end if
 
-        call goto_char(beginning)
-        at_bol = is_bol()
-        call goto_char(opoint)
+        call goto_character(beginning)
+        at_beginning_of_line = is_beginning_of_line()
+        call goto_character(original_point)
 
         if (do_macros) then
-            if (paren /= 0) then
-                completion_suffix = achar(paren)
+            if (parenthesis /= 0) then
+                completion_suffix = achar(parenthesis)
             else if (allocated(completion_suffix)) then
                 deallocate (completion_suffix)
             end if
-        else if (at_bol) then
+        else if (at_beginning_of_line) then
             completion_suffix = ":"
         else
             completion_suffix = " "
@@ -1830,11 +1841,11 @@ contains
                 allocate (items(n + list_length(macros)))
 
                 do k = 1, n
-                    items(k) = list_elt(targets, k)
+                    items(k) = list_element(targets, k)
                 end do
 
                 do k = 1, list_length(macros)
-                    items(n + k) = list_elt(macros, k)
+                    items(n + k) = list_element(macros, k)
                 end do
 
                 all = make_list(items)
@@ -1858,8 +1869,8 @@ contains
         if (len(string) < 0) return
         if (finished /= COMPLETION_SOLE .and. finished /= COMPLETION_FINISHED) return
 
-        if (looking_at(regexp_quote(completion_suffix), st)) then
-            call goto_char(match_end(0, st))
+        if (looking_at(regular_expression_quote(completion_suffix), st)) then
+            call goto_character(match_end(0, st))
         else
             call insert(completion_suffix, st)
         end if
@@ -1888,7 +1899,7 @@ contains
 
         status = status_type()
         here = point()
-        call goto_char(from)
+        call goto_character(from)
         column = makefile_backslash_column%value
         call copy_marker_at(to, endmark, .false., status)
 
@@ -1897,9 +1908,9 @@ contains
             do while (point() < to)
                 call end_of_line()
 
-                if (preceding_char() == iachar("\")) then
-                    call forward_char(status, -1_int64)
-                    moved = skip_chars_backward(" "//TAB, status)
+                if (preceding_character() == iachar("\")) then
+                    call forward_character(status, -1_int64)
+                    moved = skip_characters_backward(" "//TAB, status)
                 end if
 
                 column = max(column, 1 + current_column())
@@ -1917,25 +1928,25 @@ contains
         end if
 
         ! Don't modify blank lines at start of region.
-        call goto_char(from)
+        call goto_character(from)
 
-        do while (point() < mpos(endmark) .and. is_eol())
+        do while (point() < marked_position(endmark) .and. is_end_of_line())
             moved = forward_line(1_int64)
         end do
 
         ! Add or remove backslashes on all the lines.
-        do while (point() < mpos(endmark))
+        do while (point() < marked_position(endmark))
             ! Don't backslashify the last line
             ! if the region ends right at the start of the next line.
             next = point()
             moved = forward_line(1_int64)
 
-            if (.not. (point() < mpos(endmark))) then
-                call goto_char(next)
+            if (.not. (point() < marked_position(endmark))) then
+                call goto_character(next)
                 exit
             end if
 
-            call goto_char(next)
+            call goto_character(next)
 
             if (.not. delete_flag) then
                 call makefile_append_backslash(column, status)
@@ -1947,12 +1958,12 @@ contains
         end do
 
         call destroy_marker(endmark, st)
-        call goto_char(here)
+        call goto_character(here)
     end subroutine makefile_backslash_region
 
     !> Insert, align, or delete end-of-line backslashes on the lines in the
     !> region (the command).  Port of make-mode.el:makefile-backslash-region.
-    subroutine cmd_makefile_backslash_region(status)
+    subroutine execute_makefile_backslash_region(status)
         type(status_type), intent(out) :: status
         type(status_type) :: st
         type(handle_type) :: mark
@@ -1962,43 +1973,43 @@ contains
         if (.not. status%ok()) return
         ! (save-excursion ...)
         call copy_marker_at(point(), mark, .false., status)
-        call makefile_backslash_region(b, e, current_prefix_arg%kind /= PREFIX_NONE, status)
-        call goto_char(mpos(mark))
+        call makefile_backslash_region(b, e, current_prefix_argument%kind /= PREFIX_NONE, status)
+        call goto_character(marked_position(mark))
         call destroy_marker(mark, st)
-    end subroutine cmd_makefile_backslash_region
+    end subroutine execute_makefile_backslash_region
 
     ! The width of the selected window (window-width).
     ! Not a port.
     integer function window_width()
-        window_width = window_text_cols(frame_selected_window_ref())
+        window_width = window_text_columns(frame_selected_window_reference())
     end function window_width
 
     ! The position of marker M.
     ! Not a port.
-    integer(int64) function mpos(m)
+    integer(int64) function marked_position(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
-        call marker_position(m, mpos, st)
-    end function mpos
+        call marker_position(m, marked_position, st)
+    end function marked_position
 
     ! Port of make-mode.el:makefile-append-backslash.
     subroutine makefile_append_backslash(column, status)
         integer(int64), intent(in) :: column
         type(status_type), intent(out) :: status
-        integer(int64) :: minimum, col
+        integer(int64) :: minimum, column_number
 
         call end_of_line()
         minimum = 1
         if (makefile_backslash_align%value) minimum = 0
 
         ! Note that "\\\\" is needed to get one backslash.
-        if (preceding_char() == iachar("\")) then
-            call forward_char(status, -1_int64)
+        if (preceding_character() == iachar("\")) then
+            call forward_character(status, -1_int64)
             call delete_horizontal_space(.false., status)
-            col = indent_to(column, status, minimum)
+            column_number = indent_to(column, status, minimum)
         else
-            col = indent_to(column, status, minimum)
+            column_number = indent_to(column, status, minimum)
             call insert("\", status)
         end if
     end subroutine makefile_append_backslash
@@ -2010,12 +2021,12 @@ contains
 
         status = status_type()
         call end_of_line()
-        if (is_bol()) return
-        call forward_char(status, -1_int64)
+        if (is_beginning_of_line()) return
+        call forward_character(status, -1_int64)
 
         if (looking_at("\\", status)) then
             here = point() + 1
-            moved = skip_chars_backward(" "//TAB, status)
+            moved = skip_characters_backward(" "//TAB, status)
             call delete_region(here, point(), status)
         end if
     end subroutine makefile_delete_backslash
@@ -2031,24 +2042,24 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(out) :: done
         integer, intent(in), optional :: justify
-        type(handle_type) :: opoint
+        type(handle_type) :: original_point
         type(status_type) :: st
-        integer(int64) :: beginning, end, begv, zv_from_end, moved
+        integer(int64) :: beginning, end, beginning_of_accessible_portion, end_of_accessible_portion_from_end, moved
         logical :: changed
 
         status = status_type()
         done = .true.
         if (present(justify)) continue
         ! (save-excursion)
-        call copy_marker_at(point(), opoint, .false., status)
+        call copy_marker_at(point(), original_point, .false., status)
         if (.not. status%ok()) return
         call beginning_of_line()
 
         if (looking_at("^[ "//TAB//"]*#+\s-*", st)) then
             ! Found a comment.  Return nil to let normal filling take place.
             done = .false.
-        else if (char_before_at(line_end_position(1_int64)) == iachar("\") &
-                 .or. char_before_at(line_end_position(0_int64)) == iachar("\")) then
+        else if (character_before_at(line_end_position(1_int64)) == iachar("\") &
+                 .or. character_before_at(line_end_position(0_int64)) == iachar("\")) then
             ! Must look for backslashed-region before looking for variable
             ! assignment.
             ! A backslash region.  Find beginning and end, remove
@@ -2057,12 +2068,12 @@ contains
             beginning = point()
             call end_of_line(0_int64)
 
-            do while (preceding_char() == iachar("\"))
+            do while (preceding_character() == iachar("\"))
                 call end_of_line(0_int64)
             end do
 
-            ! Maybe we hit is_bob, in which case we are not at EOL.
-            if (is_eol()) then
+            ! Maybe we hit is_beginning_of_buffer, in which case we are not at END_OF_LINE.
+            if (is_end_of_line()) then
                 beginning = point() + 1
             else
                 beginning = point()
@@ -2070,51 +2081,53 @@ contains
 
             call end_of_line()
 
-            do while (preceding_char() == iachar("\") .and. .not. is_eob())
+            do while (preceding_character() == iachar("\") .and. .not. is_end_of_buffer())
                 call end_of_line(2_int64)
             end do
 
             end = point()
             ! (save-restriction)
-            begv = buffers(current)%begv
-            zv_from_end = buffers(current)%text%z - buffers(current)%zv
+            beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+            end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
             call narrow_to_region(beginning, end, status)
 
             if (status%ok()) then
-                call makefile_backslash_region(point_min(), point_max(), .true., status)
+                call makefile_backslash_region(point_minimum(), point_maximum(), .true., status)
                 ! Backslashed newlines are marked as punctuation, so when
                 ! fill-delete-newlines turns the LF into SPC, we end up with spaces
                 ! which back-to-indentation (called via fill-newline ->
                 ! fill-indent-to-left-margin -> indent-line-to) thinks are real code
                 ! (bug#13179).
-                call remove_text_properties(point_min(), point_max(), list(value_type(name="syntax_table"), value_type()), &
+                call remove_text_properties(point_minimum(), point_maximum(), list(value_type(name="syntax_table"), value_type()), &
                                             changed, st)
                 ! Adjust fill-column to allow space for the backslash.
                 call fill_one_less(status)
-                if (status%ok()) call makefile_backslash_region(point_min(), point_max(), .false., status)
-                call goto_char(point_max())
-                moved = skip_chars_backward(LF, st)
-                if (moved < 0) call delete_region(point(), point_max(), st)
+                if (status%ok()) call makefile_backslash_region(point_minimum(), point_maximum(), .false., status)
+                call goto_character(point_maximum())
+                moved = skip_characters_backward(LF, st)
+                if (moved < 0) call delete_region(point(), point_maximum(), st)
                 call widen()
-                call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
+                call narrow_to_region(beginning_of_accessible_portion, &
+                                      buffers(current)%text%z - end_of_accessible_portion_from_end, st)
             end if
-        else if (looking_at(makefile_macroassign_regexp, st)) then
+        else if (looking_at(makefile_macroassign_regular_expression, st)) then
             ! Have a macro assign.  Fill just this line, and then backslash
             ! resulting region.
-            begv = buffers(current)%begv
-            zv_from_end = buffers(current)%text%z - buffers(current)%zv
+            beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+            end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
             call narrow_to_region(point(), line_beginning_position(2_int64), status)
 
             if (status%ok()) then
                 call fill_one_less(status)
-                if (status%ok()) call makefile_backslash_region(point_min(), point_max(), .false., status)
+                if (status%ok()) call makefile_backslash_region(point_minimum(), point_maximum(), .false., status)
                 call widen()
-                call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
+                call narrow_to_region(beginning_of_accessible_portion, &
+                                      buffers(current)%text%z - end_of_accessible_portion_from_end, st)
             end if
         end if
 
-        call goto_char(mpos(opoint))
-        call destroy_marker(opoint, st)
+        call goto_character(marked_position(original_point))
+        call destroy_marker(original_point, st)
     end subroutine makefile_fill_paragraph
 
     ! (let ((fill-paragraph-function nil) (fill-column (- fill-column 1)))
@@ -2217,12 +2230,12 @@ contains
     subroutine sort_lines_in_buffer(status)
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: lines(:)
-        type(string_type) :: tmp
+        type(string_type) :: temporary
         character(len=:), allocatable :: text
         integer :: i, j, n, k, start
         logical :: final_newline
 
-        call buffer_substring(point_min(), point_max(), text, status)
+        call buffer_substring(point_minimum(), point_maximum(), text, status)
         if (.not. status%ok()) return
         if (len(text) == 0) return
         final_newline = text(len(text):len(text)) == LF
@@ -2249,16 +2262,16 @@ contains
         end do
 
         do i = 2, n
-            tmp = lines(i)
+            temporary = lines(i)
             j = i - 1
 
             do while (j >= 1)
-                if (.not. is_string_less(tmp%text, lines(j)%text)) exit
+                if (.not. is_string_less(temporary%text, lines(j)%text)) exit
                 lines(j + 1) = lines(j)
                 j = j - 1
             end do
 
-            lines(j + 1) = tmp
+            lines(j + 1) = temporary
         end do
 
         text = ""
@@ -2268,9 +2281,9 @@ contains
             if (i < n .or. final_newline) text = text//LF
         end do
 
-        call delete_region(point_min(), point_max(), status)
+        call delete_region(point_minimum(), point_maximum(), status)
         if (status%ok()) call insert(text, status)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine sort_lines_in_buffer
 
     !> Create a temporary file from the current makefile buffer.  Port of
@@ -2278,11 +2291,11 @@ contains
     subroutine makefile_save_temporary(filename, status)
         character(len=:), allocatable, intent(out) :: filename
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message_text
 
-        call make_temp_name("mktmp.", filename, status)
+        call make_temporary_name("mktmp.", filename, status)
         if (.not. status%ok()) return
-        call write_region(filename, .false., status, point_min(), point_max(), message=msg)
+        call write_region(filename, .false., status, point_minimum(), point_maximum(), message=message_text)
     end subroutine makefile_save_temporary
 
     !> Fill the up-to-date overview buffer.
@@ -2323,7 +2336,7 @@ contains
         end do
 
         call insert(text, status)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! remove the tmpfile
         call delete_file(filename, st)
     end subroutine makefile_query_targets
@@ -2336,8 +2349,8 @@ contains
         type(status_type) :: st
 
         call execute_process(makefile_brave_make%value, result, st, &
-                             args=list(value_type(text="-f"), value_type(text=filename), value_type(text="-q"), &
-                                       value_type(text=target)))
+                             arguments=list(value_type(text="-f"), value_type(text=filename), value_type(text="-q"), &
+                                            value_type(text=target)))
         rebuild = .true.
         if (vtag(result) == V_INTEGER) rebuild = xfixnum(result) /= 0
     end function makefile_query_by_make_minus_q
@@ -2353,24 +2366,24 @@ contains
     recursive subroutine makefile_cleanup_continuations_function(done, status)
         logical, intent(out) :: done
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, found
+        integer(int64) :: original_point, found
         type(status_type) :: st
 
         status = status_type()
         done = .false.
         if (.not. is_derived_mode("makefile_mode")) return
         if (.not. makefile_cleanup_continuations%value .or. buffers(current)%read_only) return
-        opoint = point()
-        call goto_char(point_min())
+        original_point = point()
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward("\\[ "//TAB//"]+$", found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("\\[ "//TAB//"]+$", found, st, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found <= 0) exit
             call delete_region(match_beginning(0, st) + 1, match_end(0, st), status)
             if (.not. status%ok()) exit
         end do
 
-        call goto_char(min(opoint, point_max()))
+        call goto_character(min(original_point, point_maximum()))
     end subroutine makefile_cleanup_continuations_function
 
     !> Ask whether to save a Makefile with a suspicious line (one of only
@@ -2395,13 +2408,13 @@ contains
         call warn_lines("\\[ "//TAB//"]+$", "Suspicious continuation in line ", done, status)
     end subroutine makefile_warn_continuations
 
-    ! The body of the warnings: look for REGEXP and ask with PROMPT.
+    ! The body of the warnings: look for REGULAR_EXPRESSION and ask with PROMPT.
     ! Port of make-mode.el:makefile-warn-suspicious-lines (and makefile-warn-continuations).
-    recursive subroutine warn_lines(regexp, prompt, done, status)
-        character(len=*), intent(in) :: regexp, prompt
+    recursive subroutine warn_lines(regular_expression, prompt, done, status)
+        character(len=*), intent(in) :: regular_expression, prompt
         logical, intent(out) :: done
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, found
+        integer(int64) :: original_point, found
         type(status_type) :: st
         character(len=40) :: line_text
         logical :: ok
@@ -2409,17 +2422,17 @@ contains
         status = status_type()
         done = .false.
         if (.not. is_derived_mode("makefile_mode")) return
-        opoint = point()
-        call goto_char(point_min())
-        call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR)
+        original_point = point()
+        call goto_character(point_minimum())
+        call regular_expression_search_forward(regular_expression, found, st, noerror=SEARCH_NOERROR)
 
         if (st%ok() .and. found > 0) then
-            write (line_text, '(i0, ".  Save anyway?")') count_lines(point_min(), point())
+            write (line_text, '(i0, ".  Save anyway?")') count_lines(point_minimum(), point())
             call read_y_or_n(prompt//trim(line_text), ok, status)
             done = .not. ok
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine warn_lines
 
     ! ------------------------------------------------------------------
@@ -2434,7 +2447,7 @@ contains
         type(status_type), intent(out) :: status
         type(completion_table_type) :: table
         type(value_type), allocatable :: items(:)
-        character(len=:), allocatable :: name, args, arg
+        character(len=:), allocatable :: name, arguments, argument
         integer :: k, j
 
         allocate (items(size(makefile_gnumake_functions)))
@@ -2447,23 +2460,23 @@ contains
         call completing_read("Function: ", table, name, status, require_match=1)
         if (.not. status%ok()) return
         if (len(name) == 0) return
-        args = ""
+        arguments = ""
 
         do k = 1, size(makefile_gnumake_functions)
             if (trim(makefile_gnumake_functions(k)%name) /= name) cycle
 
             do j = 1, size(makefile_gnumake_functions(k)%prompts)
                 if (len_trim(makefile_gnumake_functions(k)%prompts(j)) == 0) exit
-                call read_string("["//name//"] "//trim(makefile_gnumake_functions(k)%prompts(j))//": ", arg, status)
+                call read_string("["//name//"] "//trim(makefile_gnumake_functions(k)%prompts(j))//": ", argument, status)
                 if (.not. status%ok()) return
-                if (j > 1) args = args//","
-                args = args//arg
+                if (j > 1) arguments = arguments//","
+                arguments = arguments//argument
             end do
 
             exit
         end do
 
-        call insert(makefile_format_macro_ref(name//" "//args)//" ", status)
+        call insert(makefile_format_macro_reference(name//" "//arguments)//" ", status)
     end subroutine makefile_insert_gmake_function
 
     ! ------------------------------------------------------------------
@@ -2503,11 +2516,12 @@ contains
             return
         end select
 
-        call re_search_forward("\(.*\)[ "//TAB//"]*"//closer, f, status, bound=line_end_position(), noerror=SEARCH_NOERROR)
+        call regular_expression_search_forward("\(.*\)[ "//TAB//"]*"//closer, f, status, bound=line_end_position(), &
+                                               noerror=SEARCH_NOERROR)
         found = status%ok() .and. f > 0
     end subroutine makefile_match_function_end
 
-    !> Search for `makefile_dependency_regexp' up to LIMIT.
+    !> Search for `makefile_dependency_regular_expression' up to LIMIT.
     !> Checks that the colon has not already been fontified, else we
     !> matched in a rule action.  Port of make-mode.el:makefile-match-dependency.
     recursive subroutine makefile_match_dependency(limit, found, status)
@@ -2524,64 +2538,64 @@ contains
     subroutine match_dependency(bound, found)
         integer(int64), intent(in) :: bound
         logical, intent(out) :: found
-        integer(int64) :: pt, limit, moved, deps_end, opoint
+        integer(int64) :: point_value, limit, moved, deps_end, original_point
         integer(int64), allocatable :: data(:)
         type(status_type) :: st
         logical :: matched
 
         found = .false.
-        pt = point()
+        point_value = point()
 
         do
             if (bound > 0) then
                 limit = bound
-                moved = skip_chars_forward(makefile_dependency_skip%value, st, bound)
+                moved = skip_characters_forward(makefile_dependency_skip%value, st, bound)
             else
-                limit = point_max()
-                moved = skip_chars_forward(makefile_dependency_skip%value, st)
+                limit = point_maximum()
+                moved = skip_characters_forward(makefile_dependency_skip%value, st)
             end if
 
             if (.not. point() < limit) exit
-            call goto_char(point() + 1)
+            call goto_character(point() + 1)
             ! The GNU immediate assignment operator is ":=", while the
             ! POSIX operator is "::=".
             if (looking_at(":?=", st)) cycle
             if (has_face(point() - 1)) cycle
 
-            if (line_beginning_position() > point_min() + 2) then
-                if (char_before_at(line_end_position(0_int64)) == iachar("\")) cycle
+            if (line_beginning_position() > point_minimum() + 2) then
+                if (character_before_at(line_end_position(0_int64)) == iachar("\")) cycle
             end if
 
-            opoint = point()
+            original_point = point()
             call beginning_of_line()
-            matched = looking_at(makefile_dependency_regexp%value, st)
+            matched = looking_at(makefile_dependency_regular_expression%value, st)
 
             if (matched) then
                 deps_end = match_end(1, st)
                 data = match_data()
-                call goto_char(deps_end)
-                moved = skip_chars_backward(" "//TAB, st)
+                call goto_character(deps_end)
+                moved = skip_characters_backward(" "//TAB, st)
                 deps_end = point()
                 call beginning_of_line()
-                moved = skip_chars_forward(" "//TAB, st)
+                moved = skip_characters_forward(" "//TAB, st)
                 ! Alter the bounds recorded for subexp 1,
                 ! which is what is supposed to match the targets.
                 data(3) = point()
                 data(4) = deps_end
                 call set_match_data(data)
-                call goto_char(opoint)
+                call goto_character(original_point)
                 call end_of_line()
                 found = .true.
                 return
             end if
 
-            call goto_char(opoint)
+            call goto_character(original_point)
         end do
 
-        call goto_char(pt)
+        call goto_character(point_value)
     end subroutine match_dependency
 
-    !> Search for a rule action (`makefile_rule_action_regexp') up to LIMIT,
+    !> Search for a rule action (`makefile_rule_action_regular_expression') up to LIMIT,
     !> not after a continued line.  Port of make-mode.el:makefile-match-action.
     recursive subroutine makefile_match_action(limit, found, status)
         integer(int64), intent(in) :: limit
@@ -2593,10 +2607,11 @@ contains
         found = .false.
 
         do
-            call re_search_forward(makefile_rule_action_regexp%value, f, status, bound=limit, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(makefile_rule_action_regular_expression%value, f, status, bound=limit, &
+                                                   noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. f <= 0) return
 
-            if (after_char_at(match_beginning(0, status) - 2) /= iachar("\")) then
+            if (after_character_at(match_beginning(0, status) - 2) /= iachar("\")) then
                 found = .true.
                 return
             end if
@@ -2621,7 +2636,7 @@ contains
             end if
         end do
 
-        call insert(makefile_format_macro_ref(macro_name), status)
+        call insert(makefile_format_macro_reference(macro_name), status)
     end subroutine makefile_do_macro_insertion
 
     !> Remember a given target if it is not already remembered for this buffer.
@@ -2678,42 +2693,42 @@ contains
     !> Format a macro reference.
     !> Uses `makefile_use_curly_braces_for_macros'.  Port of
     !> make-mode.el:makefile-format-macro-ref.
-    function makefile_format_macro_ref(macro_name) result(ref)
+    function makefile_format_macro_reference(macro_name) result(reference)
         character(len=*), intent(in) :: macro_name
-        character(len=:), allocatable :: ref
+        character(len=:), allocatable :: reference
         logical :: open
 
         open = .false.
         if (len(macro_name) > 0) open = macro_name(1:1) == "(" .or. macro_name(1:1) == "{"
 
         if (open) then
-            ref = "$"//macro_name
+            reference = "$"//macro_name
         else if (makefile_use_curly_braces_for_macros%value) then
-            ref = "${"//macro_name//"}"
+            reference = "${"//macro_name//"}"
         else
-            ref = "$("//macro_name//")"
+            reference = "$("//macro_name//")"
         end if
-    end function makefile_format_macro_ref
+    end function makefile_format_macro_reference
 
     !> Return name of target or variable assignment that point is in.
     !> If it isn't in one, FOUND is unallocated.  Port of
     !> make-mode.el:makefile-add-log-defun.
     subroutine makefile_add_log_target(found)
         character(len=:), allocatable, intent(out) :: found
-        integer(int64) :: opoint, shortage
+        integer(int64) :: original_point, shortage
         type(status_type) :: st
         integer :: k
 
-        opoint = point()
+        original_point = point()
         call beginning_of_line()
 
         ! Scan back line by line, noticing when we come to a
         ! variable or rule definition, and giving up when we see
         ! a line that is not part of either of those.
         do
-            if (looking_at(makefile_macroassign_regexp, st)) then
+            if (looking_at(makefile_macroassign_regular_expression, st)) then
                 found = match_string_no_properties(1)
-            else if (looking_at(makefile_dependency_regexp%value, st)) then
+            else if (looking_at(makefile_dependency_regular_expression%value, st)) then
                 found = match_string_no_properties(1)
             end if
 
@@ -2735,71 +2750,71 @@ contains
             end if
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine makefile_add_log_target
 
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
 
-    ! Whether the character at POS has a `face' property.
+    ! Whether the character at POSITION has a `face' property.
     ! Not a port.
-    logical function has_face(pos)
-        integer(int64), intent(in) :: pos
+    logical function has_face(position)
+        integer(int64), intent(in) :: position
         type(value_type) :: face
         type(status_type) :: st
 
         has_face = .false.
-        if (pos < point_min()) return
-        call get_text_property(pos, value_type(name="face"), face, st)
+        if (position < point_minimum()) return
+        call get_text_property(position, value_type(name="face"), face, st)
         if (st%ok()) has_face = allocated(face%a)
     end function has_face
 
     ! The character after point, -1 if none.
     ! Not a port.
-    integer function after_char()
+    integer function after_character()
         integer(int32) :: c
         logical :: found
 
-        call char_after(c, found)
-        after_char = -1
-        if (found) after_char = c
-    end function after_char
+        call character_after(c, found)
+        after_character = -1
+        if (found) after_character = c
+    end function after_character
 
-    ! The character after POS, -1 if none.
+    ! The character after POSITION, -1 if none.
     ! Not a port.
-    integer function after_char_at(pos)
-        integer(int64), intent(in) :: pos
+    integer function after_character_at(position)
+        integer(int64), intent(in) :: position
         integer(int32) :: c
         logical :: found
 
-        after_char_at = -1
-        if (pos < point_min()) return
-        call char_after(c, found, pos)
-        if (found) after_char_at = c
-    end function after_char_at
+        after_character_at = -1
+        if (position < point_minimum()) return
+        call character_after(c, found, position)
+        if (found) after_character_at = c
+    end function after_character_at
 
     ! The character before point, -1 if none.
     ! Not a port.
-    integer function before_char()
+    integer function before_character()
         integer(int32) :: c
         logical :: found
 
-        call char_before(c, found)
-        before_char = -1
-        if (found) before_char = c
-    end function before_char
+        call character_before(c, found)
+        before_character = -1
+        if (found) before_character = c
+    end function before_character
 
-    ! The character before POS, -1 if none.
+    ! The character before POSITION, -1 if none.
     ! Not a port.
-    integer function char_before_at(pos)
-        integer(int64), intent(in) :: pos
+    integer function character_before_at(position)
+        integer(int64), intent(in) :: position
         integer(int32) :: c
         logical :: found
 
-        char_before_at = -1
-        if (pos <= point_min()) return
-        call char_before(c, found, pos)
-        if (found) char_before_at = c
-    end function char_before_at
+        character_before_at = -1
+        if (position <= point_minimum()) return
+        call character_before(c, found, position)
+        if (found) character_before_at = c
+    end function character_before_at
 end module make_mode_mod

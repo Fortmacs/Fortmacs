@@ -32,7 +32,7 @@
 !> ported yet is listed in docs/status/version_control_annotate_mod.md.
 module version_control_annotate_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type
     use data_mod, only: clear_all_local_variables, append_locals_clearer, value_eq
@@ -42,12 +42,13 @@ module version_control_annotate_mod
     use derived_mod, only: is_derived_mode
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
                           get_file_buffer, rename_buffer, erase_buffer, buffer_serial_live
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_eob, widen, narrow_to_region, is_buffer_narrowed
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_end_of_buffer, widen, &
+                                     narrow_to_region, is_buffer_narrowed
     use editing_commands_mod, only: forward_line
-    use simple_mod, only: line_number_at_pos
-    use basic_subprograms_mod, only: add_to_invisibility_spec, remove_from_invisibility_spec
+    use simple_mod, only: line_number_at_position
+    use basic_subprograms_mod, only: add_to_invisibility_specification, remove_from_invisibility_specification
     use text_properties_mod, only: put_text_property
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, prefix_arg_type, PREFIX_NONE
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, prefix_argument_type, PREFIX_NONE
     use minibuffer_reading_mod, only: read_string, minibuf_level
     use display_engine_mod, only: message
     use keymap_mod, only: keymap_set
@@ -73,7 +74,7 @@ module version_control_annotate_mod
     implicit none(type, external)
     private
 
-    public :: init_vc_annotate, vc_annotate, vc_annotate_mode, toggle_vc_annotate_annotation_visibility, &
+    public :: initialize_vc_annotate, vc_annotate, vc_annotate_mode, toggle_vc_annotate_annotation_visibility, &
               display_vc_annotate_default, vc_annotate_oldest_in_map, display_vc_annotate_autoscale, &
               display_vc_annotate_select, previous_vc_annotate_revision, next_vc_annotate_revision, &
               vc_annotate_working_revision, extract_vc_annotate_revision_at_line, vc_annotate_revision_at_line, &
@@ -445,13 +446,13 @@ contains
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: saved
 
-        if (.not. associated(major_modes%vc_annotate_mode%execute)) call init_vc_annotate()
+        if (.not. associated(major_modes%vc_annotate_mode%execute)) call initialize_vc_annotate()
         call major_modes%vc_annotate_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! Frob buffer-invisibility-spec so that if it is originally a naked t,
         ! it will become a list, to avoid initial annotations being invisible.
-        call add_to_invisibility_spec("foo")
-        call remove_from_invisibility_spec("foo")
+        call add_to_invisibility_specification("foo")
+        call remove_from_invisibility_specification("foo")
         ! The fontification is done by vc-annotate-lines instead of font-lock.
         allocate (keywords(1))
         keywords(1)%matcher => vc_annotate_lines
@@ -472,18 +473,18 @@ contains
         visible = .true.
 
         associate (b => buffers(current))
-            if (.not. b%invisibility_spec_t .and. allocated(b%invisibility_spec)) then
-                do k = 1, size(b%invisibility_spec)
-                    if (b%invisibility_spec(k)%cons) cycle
-                    if (value_eq(b%invisibility_spec(k)%atom, value_type(name=ANNOTATION))) visible = .false.
+            if (.not. b%invisibility_specification_t .and. allocated(b%invisibility_specification)) then
+                do k = 1, size(b%invisibility_specification)
+                    if (b%invisibility_specification(k)%cons) cycle
+                    if (value_eq(b%invisibility_specification(k)%atom, value_type(name=ANNOTATION))) visible = .false.
                 end do
             end if
         end associate
 
         if (visible) then
-            call add_to_invisibility_spec(ANNOTATION)
+            call add_to_invisibility_specification(ANNOTATION)
         else
-            call remove_from_invisibility_spec(ANNOTATION)
+            call remove_from_invisibility_specification(ANNOTATION)
         end if
     end subroutine toggle_vc_annotate_annotation_visibility
 
@@ -519,17 +520,17 @@ contains
     ! false if none) and make its annotation invisible with the property
     ! `vc_annotate_annotation'.  Port of
     ! vc-annotate.el:vc-annotate-get-time-set-line-props.
-    recursive subroutine get_time_set_line_props(days, found)
+    recursive subroutine get_time_set_line_properties(days, found)
         real(real64), intent(out) :: days
         logical, intent(out) :: found
-        integer(int64) :: bol
+        integer(int64) :: beginning_of_line
         type(status_type) :: st
         logical :: read_only
         integer :: b
 
         days = 0
         found = .false.
-        bol = point()
+        beginning_of_line = point()
         b = annotate_backend()
         if (b == 0) return
         if (.not. associated(vc_backends(b)%annotate_time)) return
@@ -537,9 +538,9 @@ contains
         ! (let ((inhibit-read-only t)) ...)
         read_only = buffers(current)%read_only
         buffers(current)%read_only = .false.
-        call put_text_property(bol, point(), value_type(name=INVISIBLE_PROPERTY), value_type(name=ANNOTATION), st)
+        call put_text_property(beginning_of_line, point(), value_type(name=INVISIBLE_PROPERTY), value_type(name=ANNOTATION), st)
         buffers(current)%read_only = read_only
-    end subroutine get_time_set_line_props
+    end subroutine get_time_set_line_properties
 
     !> Highlight the output of \[vc_annotate] using an autoscaled color map.
     !> Autoscaling means that the map is scaled from the current time to the
@@ -551,7 +552,7 @@ contains
         logical, intent(in), optional :: full
         type(vc_annotate_color_type), allocatable :: map(:)
         real(real64) :: newest, oldest, now, date
-        integer(int64) :: opoint, shortage
+        integer(int64) :: original_point, shortage
         logical :: is_full, found
         character(len=40) :: oldest_text, newest_text
 
@@ -563,11 +564,11 @@ contains
         now = convert_vc_annotate_time()
         call message("Redisplaying annotation...")
         ! Run through this file and find the oldest and newest dates annotated.
-        opoint = point()
-        call goto_char(point_min())
+        original_point = point()
+        call goto_character(point_minimum())
 
-        do while (.not. is_eob())
-            call get_time_set_line_props(date, found)
+        do while (.not. is_end_of_buffer())
+            call get_time_set_line_properties(date, found)
 
             if (found) then
                 if (date > newest) newest = date
@@ -577,7 +578,7 @@ contains
             shortage = forward_line(1_int64)
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
         call vc_annotate_current_color_map(map)
 
         if (is_full) then
@@ -636,7 +637,7 @@ contains
             call vc_annotate_current_color_map(map)
             call display_vc_annotate_default(vc_annotate_display_mode%days/vc_annotate_oldest_in_map(map), status)
         case default
-            call set_error(status, FM_GENERIC_ERROR, "No such display mode")
+            call set_error(status, GENERIC_ERROR_CODE, "No such display mode")
         end select
     end subroutine display_vc_annotate_select
 
@@ -668,7 +669,7 @@ contains
     !> everything that is older than that is shown in blue.
     !>
     !> With a prefix argument, this command asks two questions in the
-    !> minibuffer.  First, you may enter a revision number REV; then the buffer
+    !> minibuffer.  First, you may enter a revision number REVISION; then the buffer
     !> displays and annotates that revision instead of the working revision
     !> (type RET in the minibuffer to leave that default unchanged).  Then,
     !> you are prompted for the time span in days which the color range
@@ -690,8 +691,8 @@ contains
     !> should be applied to the background or to the foreground.  Port of
     !> vc-annotate.el:vc-annotate (DISPLAY_MODE absent is
     !> VC_ANNOTATE_DISPLAY_MODE_COLOR_MAP, as upstream without one).
-    recursive subroutine vc_annotate(file, rev, status, display_mode, buffer, move_point_to, backend)
-        character(len=*), intent(in) :: file, rev
+    recursive subroutine vc_annotate(file, revision, status, display_mode, buffer, move_point_to, backend)
+        character(len=*), intent(in) :: file, revision
         type(status_type), intent(out) :: status
         type(vc_annotate_display_mode_type), intent(in), optional :: display_mode
         type(handle_type), intent(in), optional :: buffer
@@ -702,7 +703,7 @@ contains
         type(handle_type) :: file_buffer, old, out
         type(vc_action_type) :: action
         type(status_type) :: st
-        character(len=:), allocatable :: temp_buffer_name, root, name, dir
+        character(len=:), allocatable :: temporary_buffer_name, root, name, directory
         integer(int64) :: current_line
         logical :: has, found
         integer :: b, k
@@ -724,7 +725,7 @@ contains
         if (b == 0) b = vc_backend(file)
 
         if (b == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "File "//file//" is not under version control")
+            call set_error(status, GENERIC_ERROR_CODE, "File "//file//" is not under version control")
             return
         end if
 
@@ -739,16 +740,16 @@ contains
             name = file_relative_name(file, root)
         end if
 
-        temp_buffer_name = "*Annotate "//name//" (rev "//rev//")*"
+        temporary_buffer_name = "*Annotate "//name//" (rev "//revision//")*"
         ! If BUFFER is specified, we presume the caller maintains current line,
         ! so we don't need to do it here.  This implementation may give
-        ! strange results occasionally in the case of REV != WORKFILE-REV.
+        ! strange results occasionally in the case of REVISION != WORKFILE-REV.
         current_line = 0
 
         if (present(move_point_to)) then
             current_line = move_point_to
         else if (.not. present(buffer)) then
-            current_line = line_number_at_pos(absolute=.true.)
+            current_line = line_number_at_position(absolute=.true.)
         end if
 
         call message("Annotating...")
@@ -759,21 +760,21 @@ contains
         ! revision, so we should update the buffer's name.
         if (present(buffer)) then
             call set_buffer(buffer, st)
-            call rename_buffer(temp_buffer_name, .true., name, status)
+            call rename_buffer(temporary_buffer_name, .true., name, status)
             ! In case it had to be uniquified.
-            if (status%ok()) temp_buffer_name = buffers(current)%name
+            if (status%ok()) temporary_buffer_name = buffers(current)%name
             call set_buffer(old, st)
             if (.not. status%ok()) return
         end if
 
         ! (with-output-to-temp-buffer temp-buffer-name ...): the buffer is
         ! emptied, with no local variables.
-        dir = default_directory()
-        call get_or_make_buffer(temp_buffer_name, out, status)
+        directory = default_directory()
+        call get_or_make_buffer(temporary_buffer_name, out, status)
         if (.not. status%ok()) return
         call set_buffer(out, st)
         call clear_all_local_variables()
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
         buffers(current)%read_only = .false.
         call erase_buffer(st)
         call set_buffer(old, st)
@@ -783,7 +784,7 @@ contains
             return
         end if
 
-        call vc_backends(b)%annotate_command(file, out, rev, status)
+        call vc_backends(b)%annotate_command(file, out, revision, status)
         if (.not. status%ok()) return
         ! we must setup the mode first, and then set our local
         ! variables before the show-function is called at the exit of
@@ -802,13 +803,13 @@ contains
         allocate (fs%files(1))
         fs%files(1)%text = file
         call set_vc_buffer_overriding_fileset(fs)
-        call set_vc_buffer_revision(rev)
+        call set_vc_buffer_revision(revision)
         ! (internal-temp-output-buffer-show buffer): unmodified, at its
         ! beginning, then `display_vc_annotate_select' as
-        ! `temp_buffer_show_function'.
+        ! `temporary_buffer_show_function'.
         buffers(current)%text%save_modiff = buffers(current)%text%modiff
         call widen()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call display_vc_annotate_select(status, out)
         if (.not. status%ok()) return
         call set_buffer(out, st)
@@ -819,12 +820,12 @@ contains
     end subroutine vc_annotate
 
     ! The current buffer's `default_directory'.  Not a port.
-    function default_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function default_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = "./"
+        directory = "./"
         if (current == 0) return
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
     end function default_directory
 
     ! (vc-run-delayed ...) of `vc_annotate': go to the line ACTION%N (none
@@ -844,7 +845,7 @@ contains
         ! moved it elsewhere, but really point here is not the position
         ! of the user's cursor :-(
         if (action%n > 0) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             shortage = forward_line(int(action%n - 1, int64))
             vc_sentinel_movepoint = point()
         end if
@@ -882,7 +883,7 @@ contains
     !> vc-annotate.el:vc-annotate-working-revision.
     recursive subroutine vc_annotate_working_revision(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: warp_rev
+        character(len=:), allocatable :: warp_revision
         logical :: found
 
         status = status_type()
@@ -890,12 +891,12 @@ contains
         if (.not. is_annotate_buffer()) then
             call message("Cannot be invoked outside of a vc annotate buffer")
         else
-            call vc_working_revision(annotated_file(), warp_rev, found)
+            call vc_working_revision(annotated_file(), warp_revision, found)
 
-            if (warp_rev == vc_buffer_revision()) then
-                call message("Already at revision "//warp_rev)
+            if (warp_revision == vc_buffer_revision()) then
+                call message("Already at revision "//warp_revision)
             else
-                call warp_vc_annotate_revision(status, revision=warp_rev)
+                call warp_vc_annotate_revision(status, revision=warp_revision)
             end if
         end if
     end subroutine vc_annotate_working_revision
@@ -970,19 +971,19 @@ contains
         end if
     end subroutine find_vc_annotate_revision_at_line
 
-    ! The backend's `previous_revision' of REV for FILE ("" for none),
+    ! The backend's `previous_revision' of REVISION for FILE ("" for none),
     ! with `vc_use_short_revision' bound to `vc_annotate_use_short_revision'
     ! (FOUND false if there is none).  Not a port.
-    recursive subroutine previous_revision(b, file, rev, prev, found, status)
+    recursive subroutine previous_revision(b, file, revision, previous, found, status)
         integer, intent(in) :: b
-        character(len=*), intent(in) :: file, rev
-        character(len=:), allocatable, intent(out) :: prev
+        character(len=*), intent(in) :: file, revision
+        character(len=:), allocatable, intent(out) :: previous
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         logical :: saved
 
         status = status_type()
-        prev = ""
+        previous = ""
         found = .false.
 
         if (.not. associated(vc_backends(b)%previous_revision)) then
@@ -992,7 +993,7 @@ contains
 
         saved = vc_use_short_revision
         vc_use_short_revision = vc_annotate_use_short_revision
-        call vc_backends(b)%previous_revision(file, rev, prev, found)
+        call vc_backends(b)%previous_revision(file, revision, previous, found)
         vc_use_short_revision = saved
     end subroutine previous_revision
 
@@ -1000,7 +1001,7 @@ contains
     !> Port of vc-annotate.el:vc-annotate-revision-previous-to-line.
     recursive subroutine vc_annotate_revision_previous_to_line(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: revision, file_name, prev_rev
+        character(len=:), allocatable :: revision, file_name, previous_revision_name
         logical :: found
 
         status = status_type()
@@ -1017,13 +1018,13 @@ contains
             return
         end if
 
-        call previous_revision(annotate_backend(), file_name, revision, prev_rev, found, status)
+        call previous_revision(annotate_backend(), file_name, revision, previous_revision_name, found, status)
         if (.not. status%ok()) return
 
         if (.not. found) then
             call message("No previous revisions")
         else
-            call warp_vc_annotate_revision(status, revision=prev_rev, file=file_name)
+            call warp_vc_annotate_revision(status, revision=previous_revision_name, file=file_name)
         end if
     end subroutine vc_annotate_revision_previous_to_line
 
@@ -1039,7 +1040,7 @@ contains
         character(len=:), allocatable :: revision, file
         type(handle_type) :: log_buffer, old
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
         logical :: found, has, saved_follow
         integer :: b
 
@@ -1063,7 +1064,7 @@ contains
         saved_follow = vc_git_print_log_follow
         vc_git_print_log_follow = .false.
         found = .false.
-        pos = 0
+        position = 0
 
         if (is_buffer_live(log_buffer)) then
             ! Look for a log buffer that already displays the correct file.
@@ -1076,7 +1077,7 @@ contains
                     ! Check if the entry we require can be found.
                     if (fileset(1)%text == file .and. associated(vc_backends(b)%show_log_entry)) then
                         call vc_backends(b)%show_log_entry(revision, found)
-                        pos = point()
+                        position = point()
                     end if
                 end if
             end if
@@ -1086,7 +1087,7 @@ contains
 
         if (found) then
             call pop_to_buffer(log_buffer, status)
-            if (status%ok()) call goto_char(pos)
+            if (status%ok()) call goto_character(position)
         else
             ! Ask the backend to display a single log entry.
             allocate (files(1))
@@ -1106,7 +1107,7 @@ contains
         logical, intent(in) :: filediff
         type(status_type), intent(out) :: status
         type(vc_fileset_type) :: fs
-        character(len=:), allocatable :: revision, file_name, prev_rev
+        character(len=:), allocatable :: revision, file_name, previous_revision_name
         logical :: found, changes
 
         status = status_type()
@@ -1124,9 +1125,9 @@ contains
         end if
 
         if (filediff) then
-            call previous_revision(annotate_backend(), file_name, revision, prev_rev, found, status)
+            call previous_revision(annotate_backend(), file_name, revision, previous_revision_name, found, status)
         else
-            call previous_revision(annotate_backend(), "", revision, prev_rev, found, status)
+            call previous_revision(annotate_backend(), "", revision, previous_revision_name, found, status)
         end if
 
         if (.not. status%ok()) return
@@ -1142,7 +1143,7 @@ contains
         end if
 
         if (found) then
-            call vc_diff_internal(vc_allow_async_diff, fs, changes, status, prev_rev, revision)
+            call vc_diff_internal(vc_allow_async_diff, fs, changes, status, previous_revision_name, revision)
         else
             call vc_diff_internal(vc_allow_async_diff, fs, changes, status, rev2=revision)
         end if
@@ -1161,7 +1162,7 @@ contains
     !> vc-annotate.el:vc-annotate-show-changeset-diff-revision-at-line.
     recursive subroutine show_vc_annotate_changeset_diff_revision_at_line(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: saved_dir, root
+        character(len=:), allocatable :: saved_directory, root
         logical :: found
         integer :: b
 
@@ -1169,22 +1170,22 @@ contains
         b = annotate_backend()
 
         if (b == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Not in a VC-Annotate buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "Not in a VC-Annotate buffer")
             return
         end if
 
         if (vc_backends(b)%revision_granularity == VC_REVISION_GRANULARITY_FILE) then
-            call set_error(status, FM_GENERIC_ERROR, "The "//vc_backend_name(b)//" backend does not support changeset diffs")
+            call set_error(status, GENERIC_ERROR_CODE, "The "//vc_backend_name(b)//" backend does not support changeset diffs")
             return
         end if
 
         ! Make sure `diff-goto-source' will be able to find all files.
-        saved_dir = default_directory()
-        call vc_execute_root(b, saved_dir, root, found, status)
+        saved_directory = default_directory()
+        call vc_execute_root(b, saved_directory, root, found, status)
         if (.not. status%ok()) return
         if (found) buffers(current)%directory = root
         call show_diff_revision_at_line_internal(.false., status)
-        if (current /= 0) buffers(current)%directory = saved_dir
+        if (current /= 0) buffers(current)%directory = saved_directory
     end subroutine show_vc_annotate_changeset_diff_revision_at_line
 
     !> Annotate the revision described by COUNT or REVISION (of FILE, if
@@ -1206,7 +1207,7 @@ contains
         integer(int64) :: oldline, lastline, revspec, shortage
         type(vc_annotate_display_mode_type) :: parent_mode
         character(len=21) :: count_text
-        logical :: found, saved, has_rev
+        logical :: found, saved, has_revision
         integer :: b, k
 
         status = status_type()
@@ -1218,22 +1219,22 @@ contains
 
         buffer = current_buffer()
         parent_mode = vc_annotate_display_mode_type(kind=VC_ANNOTATE_DISPLAY_MODE_COLOR_MAP)
-        oldline = line_number_at_pos()
+        oldline = line_number_at_position()
         b = annotate_backend()
         the_file = annotated_file()
         if (present(file)) the_file = file
-        has_rev = .false.
+        has_revision = .false.
 
         if (present(revision)) then
             newrev = revision
-            has_rev = .true.
+            has_revision = .true.
         else if (.not. present(count)) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid argument to vc-annotate-warp-revision")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid argument to vc-annotate-warp-revision")
             return
         else if (count > 0) then
             revspec = count
             newrev = vc_buffer_revision()
-            has_rev = .true.
+            has_revision = .true.
 
             if (.not. associated(vc_backends(b)%next_revision)) then
                 call vc_not_supported(status, "next-revision", b)
@@ -1243,17 +1244,17 @@ contains
             saved = vc_use_short_revision
             vc_use_short_revision = vc_annotate_use_short_revision
 
-            do while (revspec > 0 .and. has_rev)
+            do while (revspec > 0 .and. has_revision)
                 call vc_backends(b)%next_revision(the_file, newrev, next, found)
-                has_rev = found
+                has_revision = found
                 newrev = next
-                if (has_rev) the_file = vc_annotate_file_name_change(the_file, newrev, b)
+                if (has_revision) the_file = vc_annotate_file_name_change(the_file, newrev, b)
                 revspec = revspec - 1
             end do
 
             vc_use_short_revision = saved
 
-            if (.not. has_rev) then
+            if (.not. has_revision) then
                 write (count_text, "(i0)") count
                 call message("Cannot increment "//trim(count_text)//" revisions from revision " &
                              //vc_buffer_revision())
@@ -1261,15 +1262,15 @@ contains
         else if (count < 0) then
             revspec = count
             newrev = vc_buffer_revision()
-            has_rev = .true.
+            has_revision = .true.
             saved = vc_use_short_revision
             vc_use_short_revision = vc_annotate_use_short_revision
 
-            do while (revspec < 0 .and. has_rev)
+            do while (revspec < 0 .and. has_revision)
                 the_file = vc_annotate_file_name_change(the_file, newrev, b, backward=.true.)
                 call previous_revision(b, the_file, newrev, next, found, status)
                 if (.not. status%ok()) exit
-                has_rev = found
+                has_revision = found
                 newrev = next
                 revspec = revspec + 1
             end do
@@ -1277,35 +1278,35 @@ contains
             vc_use_short_revision = saved
             if (.not. status%ok()) return
 
-            if (.not. has_rev) then
+            if (.not. has_revision) then
                 write (count_text, "(i0)") - count
                 call message("Cannot decrement "//trim(count_text)//" revisions from revision " &
                              //vc_buffer_revision())
             end if
         else
-            call set_error(status, FM_GENERIC_ERROR, "Invalid argument to vc-annotate-warp-revision")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid argument to vc-annotate-warp-revision")
             return
         end if
 
-        if (has_rev) then
+        if (has_revision) then
             ! Pass the current line so that vc-annotate will
             ! place the point in the line.
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             shortage = forward_line(-1_int64)
-            lastline = line_number_at_pos()
+            lastline = line_number_at_position()
             k = local_index()
             if (k > 0) parent_mode = locals(k)%parent_display_mode
             call vc_annotate(the_file, newrev, status, parent_mode, buffer, min(oldline, lastline), b)
         end if
     end subroutine warp_vc_annotate_revision
 
-    !> Return the name of FILE at revision REV using backend B.
+    !> Return the name of FILE at revision REVISION using backend B.
     !> If the file name has changed in the given revision, return the new name;
     !> otherwise, return FILE unchanged.
-    !> If BACKWARD, return the name for FILE before REV.  Port of
+    !> If BACKWARD, return the name for FILE before REVISION.  Port of
     !> vc-annotate.el:vc-annotate--file-name-change.
-    recursive function vc_annotate_file_name_change(file, rev, b, backward) result(name)
-        character(len=*), intent(in) :: file, rev
+    recursive function vc_annotate_file_name_change(file, revision, b, backward) result(name)
+        character(len=*), intent(in) :: file, revision
         integer, intent(in) :: b
         logical, intent(in), optional :: backward
         character(len=:), allocatable :: name
@@ -1317,7 +1318,7 @@ contains
         if (.not. associated(vc_backends(b)%file_name_changes)) return
         back = .false.
         if (present(backward)) back = backward
-        call vc_backends(b)%file_name_changes(rev, changes)
+        call vc_backends(b)%file_name_changes(revision, changes)
 
         do k = 1, size(changes)
             if (back) then
@@ -1367,7 +1368,7 @@ contains
         real(real64) :: next_time
 
         difference = 0
-        call get_time_set_line_props(next_time, found)
+        call get_time_set_line_properties(next_time, found)
         if (.not. found) return
 
         if (present(offset)) then
@@ -1503,20 +1504,20 @@ contains
     !> vc-annotate.el:vc-annotate-goto-line.
     recursive subroutine goto_vc_annotate_line(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: rev, file, working
+        character(len=:), allocatable :: revision, file, working
         type(handle_type) :: parent, target
-        integer(int64) :: line, begv, zv, shortage
+        integer(int64) :: line, beginning_of_accessible_portion, end_of_accessible_portion, shortage
         logical :: narrowed, found
 
         status = status_type()
 
         if (.not. is_annotate_buffer()) then
-            call set_error(status, FM_GENERIC_ERROR, "Not in a VC-Annotate buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "Not in a VC-Annotate buffer")
             return
         end if
 
-        line = line_number_at_pos(absolute=.true.)
-        rev = vc_buffer_revision()
+        line = line_number_at_position(absolute=.true.)
+        revision = vc_buffer_revision()
         file = annotated_file()
         parent = vc_parent_buffer()
 
@@ -1526,7 +1527,7 @@ contains
             call find_file_noselect(file, target, status)
             if (.not. status%ok()) return
         else
-            call set_error(status, FM_GENERIC_ERROR, "File not found: "//file)
+            call set_error(status, GENERIC_ERROR_CODE, "File not found: "//file)
             return
         end if
 
@@ -1536,13 +1537,13 @@ contains
         if (.not. status%ok()) return
         ! (save-restriction (widen) ...)
         narrowed = is_buffer_narrowed()
-        begv = point_min()
-        zv = point_max()
+        beginning_of_accessible_portion = point_minimum()
+        end_of_accessible_portion = point_maximum()
         call widen()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         shortage = forward_line(line - 1)
-        call recenter(prefix_arg_type(), .false., status)
-        if (narrowed) call narrow_to_region(begv, zv, status)
+        call recenter(prefix_argument_type(), .false., status)
+        if (narrowed) call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, status)
         if (.not. status%ok()) return
 
         ! Issue a warning if the lines might be incorrect.
@@ -1552,7 +1553,7 @@ contains
             call message("File is not up-to-date; annotated line numbers may be incorrect")
         else
             call vc_working_revision(buffer_file_name(), working, found)
-            if (working /= rev) call message("Annotations were for revision "//rev//"; line numbers may be incorrect")
+            if (working /= revision) call message("Annotations were for revision "//revision//"; line numbers may be incorrect")
         end if
     end subroutine goto_vc_annotate_line
 
@@ -1573,14 +1574,14 @@ contains
     ! overriding fileset or the visited file, the revision and span with
     ! a prefix argument).  Port of the interactive form of
     ! vc-annotate.el:vc-annotate.
-    recursive subroutine cmd_vc_annotate(status)
+    recursive subroutine execute_vc_annotate(status)
         type(status_type), intent(out) :: status
         type(vc_annotate_display_mode_type) :: mode
         type(vc_fileset_type) :: fs
         type(string_type) :: files(1)
         type(handle_type) :: old
         type(status_type) :: st
-        character(len=:), allocatable :: name, def, rev, prompt, answer
+        character(len=:), allocatable :: name, def, revision, prompt, answer
         logical :: has, found
         integer :: ios
 
@@ -1613,13 +1614,13 @@ contains
 
         mode = vc_annotate_display_mode
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
-            rev = def
+        if (current_prefix_argument%kind == PREFIX_NONE) then
+            revision = def
         else
             prompt = "Annotate from revision: "
             if (len(def) > 0) prompt = "Annotate from revision (default "//def//"): "
             files(1)%text = name
-            call vc_read_revision(prompt, rev, status, files, default=def)
+            call vc_read_revision(prompt, revision, status, files, default=def)
 
             if (status%ok()) then
                 call read_string("Annotate span days (default 20): ", answer, status, default="20")
@@ -1637,52 +1638,52 @@ contains
         end if
 
         if (is_buffer_live(old)) call set_buffer(old, st)
-        call vc_annotate(name, rev, status, mode)
-    end subroutine cmd_vc_annotate
+        call vc_annotate(name, revision, status, mode)
+    end subroutine execute_vc_annotate
 
     ! (interactive (progn (kill-local-variable 'vc-annotate-color-map) '(1.0))).
-    recursive subroutine cmd_display_vc_annotate_default(status)
+    recursive subroutine execute_display_vc_annotate_default(status)
         type(status_type), intent(out) :: status
 
         call clear_local_color_map()
         call display_vc_annotate_default(1.0_real64, status)
-    end subroutine cmd_display_vc_annotate_default
+    end subroutine execute_display_vc_annotate_default
 
     ! (interactive "P").
-    recursive subroutine cmd_display_vc_annotate_autoscale(status)
+    recursive subroutine execute_display_vc_annotate_autoscale(status)
         type(status_type), intent(out) :: status
 
-        call display_vc_annotate_autoscale(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_display_vc_annotate_autoscale
+        call display_vc_annotate_autoscale(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_display_vc_annotate_autoscale
 
-    recursive subroutine cmd_display_vc_annotate_select(status)
+    recursive subroutine execute_display_vc_annotate_select(status)
         type(status_type), intent(out) :: status
 
         call display_vc_annotate_select(status)
-    end subroutine cmd_display_vc_annotate_select
+    end subroutine execute_display_vc_annotate_select
 
     ! (interactive "p").
-    recursive subroutine cmd_previous_vc_annotate_revision(status)
+    recursive subroutine execute_previous_vc_annotate_revision(status)
         type(status_type), intent(out) :: status
 
-        call previous_vc_annotate_revision(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_previous_vc_annotate_revision
+        call previous_vc_annotate_revision(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_previous_vc_annotate_revision
 
     ! (interactive "p").
-    recursive subroutine cmd_next_vc_annotate_revision(status)
+    recursive subroutine execute_next_vc_annotate_revision(status)
         type(status_type), intent(out) :: status
 
-        call next_vc_annotate_revision(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_next_vc_annotate_revision
+        call next_vc_annotate_revision(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_next_vc_annotate_revision
 
     ! `log_view_vc_annotate' of log-view.el's `log_view_annotate_version':
-    ! annotate revision REV of FILE with BACKEND.  Not a port.
-    recursive subroutine annotate_from_log_view(file, rev, backend, status)
-        character(len=*), intent(in) :: file, rev
+    ! annotate revision REVISION of FILE with BACKEND.  Not a port.
+    recursive subroutine annotate_from_log_view(file, revision, backend, status)
+        character(len=*), intent(in) :: file, revision
         integer, intent(in) :: backend
         type(status_type), intent(out) :: status
 
-        call vc_annotate(file, rev, status, backend=backend)
+        call vc_annotate(file, revision, status, backend=backend)
     end subroutine annotate_from_log_view
 
     ! ------------------------------------------------------------------
@@ -1691,7 +1692,7 @@ contains
 
     !> Define VC-Annotate mode and its keymap, register the commands and
     !> bind C-x v g.  Not a port.
-    subroutine init_vc_annotate()
+    subroutine initialize_vc_annotate()
         type(status_type) :: st
 
         if (associated(major_modes%vc_annotate_mode%execute)) return
@@ -1699,14 +1700,14 @@ contains
         call major_modes%vc_annotate_mode%define("vc_annotate_mode", "Annotate", vc_annotate_mode, &
                                                  vc_annotate_mode_hook, parent=major_modes%special_mode)
         vc_annotate_mode_map = major_modes%vc_annotate_mode%map
-        commands%vc_annotate%execute => cmd_vc_annotate
+        commands%vc_annotate%execute => execute_vc_annotate
         commands%vc_annotate_mode%execute => vc_annotate_mode
         commands%toggle_vc_annotate_annotation_visibility%execute => toggle_vc_annotate_annotation_visibility
-        commands%display_vc_annotate_default%execute => cmd_display_vc_annotate_default
-        commands%display_vc_annotate_autoscale%execute => cmd_display_vc_annotate_autoscale
-        commands%display_vc_annotate_select%execute => cmd_display_vc_annotate_select
-        commands%previous_vc_annotate_revision%execute => cmd_previous_vc_annotate_revision
-        commands%next_vc_annotate_revision%execute => cmd_next_vc_annotate_revision
+        commands%display_vc_annotate_default%execute => execute_display_vc_annotate_default
+        commands%display_vc_annotate_autoscale%execute => execute_display_vc_annotate_autoscale
+        commands%display_vc_annotate_select%execute => execute_display_vc_annotate_select
+        commands%previous_vc_annotate_revision%execute => execute_previous_vc_annotate_revision
+        commands%next_vc_annotate_revision%execute => execute_next_vc_annotate_revision
         commands%vc_annotate_working_revision%execute => vc_annotate_working_revision
         commands%vc_annotate_revision_at_line%execute => vc_annotate_revision_at_line
         commands%find_vc_annotate_revision_at_line%execute => find_vc_annotate_revision_at_line
@@ -1732,5 +1733,5 @@ contains
         call keymap_set(vc_prefix_map, "g", "vc_annotate", st)
         log_view_vc_annotate => annotate_from_log_view
         call append_locals_clearer(clear_annotate_locals)
-    end subroutine init_vc_annotate
+    end subroutine initialize_vc_annotate
 end module version_control_annotate_mod

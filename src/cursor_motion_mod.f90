@@ -71,19 +71,19 @@ contains
             w%cc_ll = cost_of(w%cm_ll)
             w%cc_tab = BIG
             if (w%cm_tabwidth /= 0) w%cc_tab = cost_of(w%cm_tab)
-            w%cc_abs = cmcost(w%cm_abs)
+            w%cc_absolute = cmcost(w%cm_absolute)
             w%cc_habs = cmcost(w%cm_habs)
             w%cc_vabs = cmcost(w%cm_vabs)
         end associate
     end subroutine cmcostinit
 
-    !> Assume the cursor is at `row', `col'.  Port of cm.h:cmat.
-    subroutine cmat(tty, row, col)
+    !> Assume the cursor is at `row', `column'.  Port of cm.h:cmat.
+    subroutine cmat(tty, row, column)
         type(tty_display_info_type), intent(inout) :: tty
-        integer, intent(in) :: row, col
+        integer, intent(in) :: row, column
 
         tty%wcm%cm_cury = row
-        tty%wcm%cm_curx = col
+        tty%wcm%cm_curx = column
     end subroutine cmat
 
     !> Forget where the cursor is.  Port of cm.h:losecursor.
@@ -102,7 +102,7 @@ contains
         associate (w => tty%wcm)
             w%cm_curx = w%cm_curx + n
 
-            if (w%cm_curx >= w%cm_cols .and. .not. w%cm_magicwrap) then
+            if (w%cm_curx >= w%cm_columns .and. .not. w%cm_magicwrap) then
                 if (w%cm_losewrap) then
                     call losecursor(tty)
                 else if (w%cm_autowrap) then
@@ -122,7 +122,7 @@ contains
     subroutine cmcheckmagic(tty)
         type(tty_display_info_type), intent(inout) :: tty
 
-        if (tty%wcm%cm_curx /= tty%wcm%cm_cols) return
+        if (tty%wcm%cm_curx /= tty%wcm%cm_columns) return
 
         if (.not. tty%wcm%cm_magicwrap .or. tty%wcm%cm_cury >= tty%wcm%cm_rows - 1) then
             call losecursor(tty)
@@ -164,7 +164,7 @@ contains
 
         associate (w => tty%wcm)
             ! Just wrapped on a terminal with xn: don't trust the position.
-            if (w%cm_curx == w%cm_cols) return
+            if (w%cm_curx == w%cm_columns) return
             totalcost = 0
             deltay = dsty - srcy
 
@@ -200,7 +200,7 @@ contains
                     ! One more tab, then back up, unless past the edge.
                     n2tabs = ntabs + 1
                     tab2x = tabx + w%cm_tabwidth
-                    if (tab2x >= w%cm_cols) n2tabs = 0
+                    if (tab2x >= w%cm_columns) n2tabs = 0
                     if (n2tabs /= 0) c = n2tabs*w%cc_tab + (tab2x - dstx)*w%cc_left
                 end if
 
@@ -242,25 +242,25 @@ contains
         end associate
     end function calccost
 
-    !> Move the cursor to (`row', `col') the cheapest way.  Port of
+    !> Move the cursor to (`row', `column') the cheapest way.  Port of
     !> cm.c:cmgoto.
-    subroutine cmgoto(tty, row, col)
+    subroutine cmgoto(tty, row, column)
         type(tty_display_info_type), intent(inout) :: tty
-        integer, intent(in) :: row, col
+        integer, intent(in) :: row, column
         integer :: homecost, crcost, llcost, relcost, directcost, use, ignored, which
         character(len=:), allocatable :: p
 
-        if (row == tty%wcm%cm_cury .and. col == tty%wcm%cm_curx) return
+        if (row == tty%wcm%cm_cury .and. column == tty%wcm%cm_curx) return
         use = USEREL
-        ! which: 1 cm_abs, 2 cm_habs, 3 cm_vabs.
+        ! which: 1 cm_absolute, 2 cm_habs, 3 cm_vabs.
         which = 1
 
         if (tty%wcm%cm_cury >= 0 .and. tty%wcm%cm_curx >= 0) then
             ! Quick ways to the upper-left, bottom-left, start-of-line, or
             ! from where we are: pick the cheapest.
-            relcost = calccost(tty, tty%wcm%cm_cury, tty%wcm%cm_curx, row, col, .false.)
+            relcost = calccost(tty, tty%wcm%cm_cury, tty%wcm%cm_curx, row, column, .false.)
             homecost = tty%wcm%cc_home
-            if (homecost < BIG) homecost = homecost + calccost(tty, 0, 0, row, col, .false.)
+            if (homecost < BIG) homecost = homecost + calccost(tty, 0, 0, row, column, .false.)
 
             if (homecost < relcost) then
                 relcost = homecost
@@ -269,7 +269,7 @@ contains
 
             llcost = tty%wcm%cc_ll
             if (llcost < BIG) llcost = llcost + &
-                                       calccost(tty, tty%wcm%cm_rows - 1, 0, row, col, .false.)
+                                       calccost(tty, tty%wcm%cm_rows - 1, 0, row, column, .false.)
 
             if (llcost < relcost) then
                 relcost = llcost
@@ -283,10 +283,10 @@ contains
                     if (tty%wcm%cm_cury + 1 >= tty%wcm%cm_rows) then
                         crcost = BIG
                     else
-                        crcost = crcost + calccost(tty, tty%wcm%cm_cury + 1, 0, row, col, .false.)
+                        crcost = crcost + calccost(tty, tty%wcm%cm_cury + 1, 0, row, column, .false.)
                     end if
                 else
-                    crcost = crcost + calccost(tty, tty%wcm%cm_cury, 0, row, col, .false.)
+                    crcost = crcost + calccost(tty, tty%wcm%cm_cury, 0, row, column, .false.)
                 end if
             end if
 
@@ -295,12 +295,12 @@ contains
                 use = USECR
             end if
 
-            directcost = tty%wcm%cc_abs
+            directcost = tty%wcm%cc_absolute
 
             if (row == tty%wcm%cm_cury .and. tty%wcm%cc_habs < BIG) then
                 directcost = tty%wcm%cc_habs
                 which = 2
-            else if (col == tty%wcm%cm_curx .and. tty%wcm%cc_vabs < BIG) then
+            else if (column == tty%wcm%cm_curx .and. tty%wcm%cc_vabs < BIG) then
                 directcost = tty%wcm%cc_vabs
                 which = 3
             end if
@@ -313,17 +313,17 @@ contains
         if (directcost <= relcost) then
             select case (which)
             case (2)
-                p = tgoto(tty%wcm%cm_habs, int(row, int64), int(col, int64))
+                p = tgoto(tty%wcm%cm_habs, int(row, int64), int(column, int64))
             case (3)
-                p = tgoto(tty%wcm%cm_vabs, int(col, int64), int(row, int64))
+                p = tgoto(tty%wcm%cm_vabs, int(column, int64), int(row, int64))
             case default
-                if (allocated(tty%wcm%cm_abs)) p = tgoto(tty%wcm%cm_abs, int(col, int64), int(row, int64))
+                if (allocated(tty%wcm%cm_absolute)) p = tgoto(tty%wcm%cm_absolute, int(column, int64), int(row, int64))
             end select
 
             if (allocated(p)) then
                 if (len(delete_padding(p)) <= relcost) then
                     call tty_output(tty, p)
-                    call cmat(tty, row, col)
+                    call cmat(tty, row, column)
                     return
                 end if
             end if
@@ -344,8 +344,8 @@ contains
             ! Nothing to do for other values.
         end select
 
-        ignored = calccost(tty, tty%wcm%cm_cury, tty%wcm%cm_curx, row, col, .true.)
-        call cmat(tty, row, col)
+        ignored = calccost(tty, tty%wcm%cm_cury, tty%wcm%cm_curx, row, column, .true.)
+        call cmat(tty, row, column)
     end subroutine cmgoto
 
     !> Forget all cursor-motion capabilities.  Port of cm.c:Wcm_clear.
@@ -361,14 +361,14 @@ contains
         type(tty_display_info_type), intent(in) :: tty
 
         r = 0
-        if (allocated(tty%wcm%cm_abs)) return
+        if (allocated(tty%wcm%cm_absolute)) return
 
         ! Need up and left, and without absolute motion down and right.
         if (.not. allocated(tty%wcm%cm_up) .or. .not. allocated(tty%wcm%cm_left)) then
             r = -1
         else if (.not. allocated(tty%wcm%cm_down) .or. .not. allocated(tty%wcm%cm_right)) then
             r = -1
-        else if (tty%wcm%cm_rows <= 0 .or. tty%wcm%cm_cols <= 0) then
+        else if (tty%wcm%cm_rows <= 0 .or. tty%wcm%cm_columns <= 0) then
             r = -2
         end if
     end function wcm_init

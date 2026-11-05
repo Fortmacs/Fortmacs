@@ -44,7 +44,7 @@ C-h L `describe-language-environment`;
 `set-display-table-and-terminal-coding-system`;
 mule-diag.el's charset commands: `list-character-sets` (with C-u, `list-character-sets-1` and -2; the C-u listing's header names its first field CHARSET-NAME, upstream's CHARSET-SYMBOL-NAME),
 `read-charset`,
-`list-charset-chars` (`list-block-of-chars`, the charset in the mode line through `%12b`, the `charset` text property; its body as the BODY procedure of help_mod's `with_output_to_temp_buffer`),
+`list-charset-chars` (`list-block-of-chars`, the charset in the mode line through `%12b`, the `charset` text property; its body as the BODY procedure of help_mod's `with_output_to_temporary_buffer`),
 `describe-character-set`;
 the input method framework: `input-method-alist` (as the registry `input_methods` of `input_method_type`, found with `find_input_method`),
 `register-input-method`,

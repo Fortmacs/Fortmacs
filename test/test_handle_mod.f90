@@ -21,7 +21,7 @@
 module test_handle_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_INVALID_HANDLE
+    use error_mod, only: status_type, INVALID_HANDLE_CODE
     use handle_mod, only: handle_type, slot_table_type, null_handle
     implicit none(type, external)
     private
@@ -76,11 +76,11 @@ contains
 
         call t%acquire(h)
         call t%resolve(null_handle(), i, st)
-        call check(error, st%code, FM_INVALID_HANDLE)
+        call check(error, st%code, INVALID_HANDLE_CODE)
         if (allocated(error)) return
         ! A default-initialized handle is the null handle too.
         call t%resolve(d, i, st)
-        call check(error, st%code, FM_INVALID_HANDLE)
+        call check(error, st%code, INVALID_HANDLE_CODE)
         if (allocated(error)) return
         call check(error, i, 0_int64)
     end subroutine test_null
@@ -116,7 +116,7 @@ contains
         call check(error, new%generation /= old%generation, "generation not bumped")
         if (allocated(error)) return
         call t%resolve(old, i, st)                ! ...but the old handle is stale
-        call check(error, st%code, FM_INVALID_HANDLE)
+        call check(error, st%code, INVALID_HANDLE_CODE)
         if (allocated(error)) return
         call check(error, t%is_live(new), "new handle not live")
     end subroutine test_stale_after_reuse
@@ -130,7 +130,7 @@ contains
         call t%acquire(h)
         call t%release(h, st)
         call t%release(h, st)
-        call check(error, st%code, FM_INVALID_HANDLE)
+        call check(error, st%code, INVALID_HANDLE_CODE)
         if (allocated(error)) return
         call check(error, t%count(), 0_int64)
     end subroutine test_double_release

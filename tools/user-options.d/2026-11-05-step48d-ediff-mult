@@ -1,6 +1,6 @@
 ediff_after_session_group_setup_hook
 ediff_cmp_program
-ediff_default_filtering_regexp
+ediff_default_filtering_regular_expression
 ediff_merge_filename_prefix
 ediff_meta_buffer_keymap_setup_hook
 ediff_meta_mode_hook

@@ -28,12 +28,12 @@
 module test_button_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_USER_ERROR
+    use error_mod, only: status_type, USER_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, vtag, xstring, xfixnum, V_STRING
     use buffer_mod, only: get_or_make_buffer, get_buffer, set_buffer, current_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, widen
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_string, widen
     use text_properties_mod, only: get_text_property, put_text_property
     use interval_tree_mod, only: is_overlay, overlay_buffer, overlay_start
     use keymap_mod, only: make_sparse_keymap, keymap_set, key_parse
@@ -42,7 +42,7 @@ module test_button_mod
     use window_mod, only: delete_other_windows, resize_window_tree, switch_to_buffer
     use help_mod, only: register_keymap_name
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use help_mode_mod, only: help_mode
     use button_mod, only: button_type, button_kind_type, default_button, button_face, button_at, &
                           button_start, button_end, button_label, &
@@ -89,18 +89,18 @@ contains
     end subroutine collect_button_mod
 
     !> A fresh empty buffer (with-temp-buffer).
-    subroutine temp_buffer()
+    subroutine temporary_buffer()
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *button-test*", buffer, st)
         call set_buffer(buffer, st)
         call widen()
         call erase_buffer(st)
         pushes = 0
         pushed_data = value_type()
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> A test action: count the pushes and keep the data.
     recursive subroutine count_push(button, data, status)
@@ -160,7 +160,7 @@ contains
         type(status_type) :: st
         logical :: found
 
-        call temp_buffer()
+        call temporary_buffer()
         call button_at(point(), button, found)
         call check(error,.not. found, "no button in an empty buffer")
         if (allocated(error)) return
@@ -182,7 +182,7 @@ contains
         type(button_type) :: button
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call define_test_things()
         ! Text property buttons.
         call insert_text_button("text", button, st, help_echo="text: \<button_tests_map>\[ignore]")
@@ -200,7 +200,7 @@ contains
         type(handle_type) :: window, buffer
         integer(int64) :: opos
 
-        call temp_buffer()
+        call temporary_buffer()
         call define_test_things()
         ! Text property buttons.
         opos = point()
@@ -224,16 +224,16 @@ contains
                    help_position == opos, "overlay button arguments")
     end subroutine test_help_echo_function
 
-    !> The string value of text property `help_echo' at POS, or "nil".
-    function help_echo_at(pos) result(text)
-        integer(int64), intent(in) :: pos
+    !> The string value of text property `help_echo' at POSITION, or "nil".
+    function help_echo_at(position) result(text)
+        integer(int64), intent(in) :: position
         character(len=:), allocatable :: text
-        type(value_type) :: val
+        type(value_type) :: value
         type(status_type) :: st
 
-        call get_text_property(pos, value_type(name="help_echo"), val, st)
+        call get_text_property(position, value_type(name="help_echo"), value, st)
         text = "nil"
-        if (vtag(val) == V_STRING) text = xstring(val)
+        if (vtag(value) == V_STRING) text = xstring(value)
     end function help_echo_at
 
     subroutine test_preserve_help_echo(error)
@@ -241,25 +241,25 @@ contains
         type(status_type) :: st
 
         ! buttonize-region.
-        call temp_buffer()
+        call temporary_buffer()
         call insert("button text", st)
-        call put_text_property(point_min(), point(), value_type(name="help_echo"), value_type(text="help text"), st)
-        call buttonize_region(point_min(), point(), count_push, st)
-        call check(error, help_echo_at(point_min()), "help text")
+        call put_text_property(point_minimum(), point(), value_type(name="help_echo"), value_type(text="help text"), st)
+        call buttonize_region(point_minimum(), point(), count_push, st)
+        call check(error, help_echo_at(point_minimum()), "help text")
         if (allocated(error)) return
         ! unbuttonize-region should not clear the property either.
-        call unbuttonize_region(point_min(), point(), st)
-        call check(error, help_echo_at(point_min()), "help text")
+        call unbuttonize_region(point_minimum(), point(), st)
+        call check(error, help_echo_at(point_minimum()), "help text")
         if (allocated(error)) return
         ! unbuttonize-region should still clear properties applied with
         ! buttonize.
-        call temp_buffer()
+        call temporary_buffer()
         call insert("button text", st)
-        call buttonize_region(point_min(), point(), count_push, st, help_echo="help text")
-        call check(error, help_echo_at(point_min()), "help text")
+        call buttonize_region(point_minimum(), point(), count_push, st, help_echo="help text")
+        call check(error, help_echo_at(point_minimum()), "help text")
         if (allocated(error)) return
-        call unbuttonize_region(point_min(), point(), st)
-        call check(error, help_echo_at(point_min()), "nil")
+        call unbuttonize_region(point_minimum(), point(), st)
+        call check(error, help_echo_at(point_minimum()), "nil")
     end subroutine test_preserve_help_echo
 
     !> A buffer "a b c dd e f" with buttons on b, dd (an overlay) and f.
@@ -267,14 +267,14 @@ contains
         type(button_type) :: button
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call insert("a ", st)
         call insert_text_button("b", button, st)
         call insert(" c ", st)
         call insert_button("dd", button, st)
         call insert(" e ", st)
         call insert_text_button("f", button, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine three_buttons
 
     subroutine test_forward_backward(error)
@@ -294,7 +294,7 @@ contains
         call check(error, point() == 12, "to f")
         if (allocated(error)) return
         call forward_button(1_int64, st)
-        call check(error, st%code == FM_USER_ERROR .and. st%detail == "No more buttons", "No more buttons")
+        call check(error, st%code == USER_ERROR_CODE .and. st%detail == "No more buttons", "No more buttons")
         if (allocated(error)) return
         call forward_button(1_int64, st, wrap=.true.)
         call check(error, point() == 3, "wrapped to b")
@@ -308,7 +308,7 @@ contains
         call forward_button(-1_int64, st, no_error=.true., found=found)
         call check(error,.not. found .and. st%ok() .and. point() == 3, "no error")
         if (allocated(error)) return
-        call goto_char(8_int64)
+        call goto_character(8_int64)
         call forward_button(0_int64, st)
         call check(error, point() == 7, "to the start of dd")
         if (allocated(error)) return
@@ -328,7 +328,7 @@ contains
         call three_buttons()
         call button_at(7_int64, button, found)
         call button%set_skip(.true., st)
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call forward_button(1_int64, st)
         call check(error, point() == 12, "dd skipped")
     end subroutine test_skip
@@ -339,27 +339,27 @@ contains
         type(status_type) :: st
         logical :: pushed
 
-        call temp_buffer()
+        call temporary_buffer()
         call define_test_things()
         call insert_text_button("go", button, st, action=count_push, button_data=value_type(42_int64))
         call push_button(st, position=1_int64, pushed=pushed)
         call check(error, pushed .and. pushes == 1 .and. xfixnum(pushed_data) == 42 .and. pushed_start == 1, &
                    "the button's own action")
         if (allocated(error)) return
-        call push_button(st, position=point_max(), pushed=pushed)
+        call push_button(st, position=point_maximum(), pushed=pushed)
         call check(error,.not. pushed .and. pushes == 1, "no button at the end")
         if (allocated(error)) return
         call insert_button("typed", button, st, kind=test_button)
-        call goto_char(4_int64)
+        call goto_character(4_int64)
         call push_button(st, pushed=pushed)
         call check(error, pushed .and. pushes == 2 .and. .not. allocated(pushed_data%a), "the type's action")
         if (allocated(error)) return
         ! RET on a button runs push_button through the button's keymap.
         call fresh_window()
-        call temp_buffer()
+        call temporary_buffer()
         call switch_to_buffer(" *button-test*", st)
         call insert_text_button("go", button, st, kind=test_button)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call type_keys("RET")
         call command_loop(st)
         call check(error, pushes == 1, "RET")
@@ -371,7 +371,7 @@ contains
         type(button_kind_type), pointer :: kind
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call define_test_things()
         call check(error, is_button_subtype(test_sub_button, test_button) .and. &
                    is_button_subtype(test_sub_button, default_button) .and. &
@@ -409,7 +409,7 @@ contains
         character(len=:), allocatable :: text
 
         call fresh_window()
-        call temp_buffer()
+        call temporary_buffer()
         call define_test_things()
         call insert_text_button("go", button, st, kind=test_button)
         call describe_button(st, position=1_int64, described=described)
@@ -419,7 +419,7 @@ contains
         call set_buffer(old, st)
         call check(error, described .and. text == "This button"//RQ//"s type is "//LQ//"test"//RQ//"."//achar(10), text)
         if (allocated(error)) return
-        call describe_button(st, position=point_max(), described=described)
+        call describe_button(st, position=point_maximum(), described=described)
         call check(error,.not. described, "no button")
     end subroutine test_describe
 
@@ -444,14 +444,14 @@ contains
         type(status_type) :: st
 
         call fresh_window()
-        call temp_buffer()
+        call temporary_buffer()
         call define_test_things()
         call switch_to_buffer(" *button-test*", st)
         call insert("x ", st)
         call insert_text_button("one", button, st, kind=test_button)
         call insert(" ", st)
         call insert_text_button("two", button, st, kind=test_button)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call help_mode(st)
         call type_keys("TAB")
         call command_loop(st)
@@ -471,7 +471,7 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)

@@ -30,13 +30,13 @@
 !> index into the caller's own array of elements).
 module fortmacs_widget_for_object_collections_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, null_handle, slot_table_type
     use value_mod, only: value_type
     use data_mod, only: symbol_value, set
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live
     use marker_mod, only: copy_marker_at, marker_position, set_marker, destroy_marker
-    use editing_functions_mod, only: point, goto_char, delete_region
+    use editing_functions_mod, only: point, goto_character, delete_region
     use text_properties_mod, only: put_text_property
     use insert_delete_mod, only: insert
     implicit none(type, external)
@@ -44,8 +44,8 @@ module fortmacs_widget_for_object_collections_mod
 
     public :: ewoc_type, ewoc_pp_procedure, ewoc_test_procedure, ewoc_set_hf_parts
     public :: make_ewoc, destroy_ewoc, ewoc_location, ewoc_data, ewoc_set_data, ewoc_enter_first, ewoc_enter_last, &
-              ewoc_enter_after, ewoc_enter_before, ewoc_next, ewoc_prev, ewoc_nth, ewoc_map, ewoc_delete, &
-              ewoc_filter, ewoc_locate, ewoc_invalidate, ewoc_goto_prev, ewoc_goto_next, ewoc_goto_node, &
+              ewoc_enter_after, ewoc_enter_before, ewoc_next, ewoc_previous, ewoc_nth, ewoc_map, ewoc_delete, &
+              ewoc_filter, ewoc_locate, ewoc_invalidate, ewoc_goto_previous, ewoc_goto_next, ewoc_goto_node, &
               ewoc_refresh, ewoc_collect, ewoc_buffer, ewoc_get_hf, ewoc_set_hf
 
     !> A part of a header or footer: TEXT with the face FACE ("" for
@@ -124,10 +124,10 @@ contains
     end function slot
 
     ! A new node of E for DATA (and a header or footer string HF),
-    ! starting at POS.  Not a port.
-    integer function make_node(e, data, pos, hf) result(node)
+    ! starting at POSITION.  Not a port.
+    integer function make_node(e, data, position, hf) result(node)
         type(ewoc_data_type), intent(inout) :: e
-        integer(int64), intent(in) :: data, pos
+        integer(int64), intent(in) :: data, position
         character(len=*), intent(in), optional :: hf
         type(node_type), allocatable :: grown(:)
         type(status_type) :: st
@@ -153,7 +153,7 @@ contains
         e%n = e%n + 1
         node = e%n
         e%nodes(node)%data = data
-        call copy_marker_at(pos, e%nodes(node)%start_marker, .false., st)
+        call copy_marker_at(position, e%nodes(node)%start_marker, .false., st)
 
         if (present(hf)) then
             e%nodes(node)%is_hf = .true.
@@ -164,13 +164,13 @@ contains
     end function make_node
 
     ! The position of NODE's start marker.  Not a port.
-    integer(int64) function mpos(e, node)
+    integer(int64) function marked_position(e, node)
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
         type(status_type) :: st
 
-        call marker_position(e%nodes(node)%start_marker, mpos, st)
-    end function mpos
+        call marker_position(e%nodes(node)%start_marker, marked_position, st)
+    end function marked_position
 
     ! Return the node after NODE, or nil if NODE is the last node.  Port of
     ! ewoc.el:ewoc--node-next.
@@ -184,13 +184,13 @@ contains
 
     ! Return the node before NODE, or nil if NODE is the first node.
     ! Port of ewoc.el:ewoc--node-prev.
-    integer function node_prev(e, node) result(l)
+    integer function node_previous(e, node) result(l)
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
 
         l = e%nodes(node)%left
         if (l == DLL) l = 0
-    end function node_prev
+    end function node_previous
 
     ! Return the Nth node from the doubly linked list.
     ! N counts from zero.  If N is negative, return the -(N+1)th last element.
@@ -253,7 +253,7 @@ contains
         node = node_in
 
         do
-            if (mpos(e, node) /= beginning) exit
+            if (marked_position(e, node) /= beginning) exit
             call set_marker(e%nodes(node)%start_marker, end, st)
             ! The "dummy" node `dll' actually holds the marker that
             ! points to the end of the footer, so we check `dll'
@@ -300,20 +300,20 @@ contains
         integer(int64), intent(in) :: data
         character(len=*), intent(in), optional :: hf
         type(handle_type) :: pm
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: left
         type(status_type) :: st
 
         call copy_marker_at(point(), pm, .false., st)
-        elemnode = make_node(ewocs(i), data, mpos(ewocs(i), node), hf)
+        elemnode = make_node(ewocs(i), data, marked_position(ewocs(i), node), hf)
         left = ewocs(i)%nodes(node)%left
         ewocs(i)%nodes(elemnode)%left = left
         ewocs(i)%nodes(elemnode)%right = node
         ewocs(i)%nodes(left)%right = elemnode
         ewocs(i)%nodes(node)%left = elemnode
         call refresh_node(i, elemnode)
-        call marker_position(pm, pos, st)
-        call goto_char(pos)
+        call marker_position(pm, position, st)
+        call goto_character(position)
         call destroy_marker(pm, st)
     end function insert_new_node
 
@@ -321,46 +321,46 @@ contains
     ! Port of ewoc.el:ewoc--refresh-node.
     recursive subroutine refresh_node(i, node)
         integer, intent(in) :: i, node
-        integer(int64) :: m, end, opoint, offset, pos
+        integer(int64) :: m, end, original_point, offset, position
         integer :: r
         logical :: at_end, has_offset
         type(value_type) :: saved
         type(handle_type) :: pm
         type(status_type) :: st
 
-        m = mpos(ewocs(i), node)
+        m = marked_position(ewocs(i), node)
         r = ewocs(i)%nodes(node)%right
-        end = mpos(ewocs(i), r)
+        end = marked_position(ewocs(i), r)
         call symbol_value(value_type(name="inhibit_read_only"), saved, st)
         if (.not. st%ok()) saved = value_type()
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
-        opoint = point()
-        at_end = opoint == end
+        original_point = point()
+        at_end = original_point == end
         has_offset = .false.
         offset = 0
 
-        if (.not. at_end .and. m < opoint .and. opoint < end) then
+        if (.not. at_end .and. m < original_point .and. original_point < end) then
             has_offset = .true.
-            offset = opoint - m
+            offset = original_point - m
         end if
 
-        call copy_marker_at(opoint, pm, .false., st)
+        call copy_marker_at(original_point, pm, .false., st)
         ! First, remove the string from the buffer:
         call delete_region(m, end, st)
         ! Calculate and insert the string.
-        call goto_char(m)
+        call goto_character(m)
         call print_node(ewocs(i), node)
         end = point()
         call adjust(ewocs(i), m, point(), r)
         ! (The end of save-excursion.)
-        call marker_position(pm, pos, st)
-        call goto_char(pos)
+        call marker_position(pm, position, st)
+        call goto_character(position)
         call destroy_marker(pm, st)
 
         if (at_end) then
-            call goto_char(end)
+            call goto_character(end)
         else if (has_offset) then
-            call goto_char(min(m + offset, end - 1))
+            call goto_character(min(m + offset, end - 1))
         end if
 
         call set(value_type(name="inhibit_read_only"), saved, st)
@@ -412,7 +412,7 @@ contains
         logical, intent(in), optional :: nosep
         type(ewoc_type) :: ewoc
         type(ewoc_data_type), allocatable :: grown(:)
-        integer(int64) :: k, pos
+        integer(int64) :: k, position
         integer :: i, foot, head
         type(status_type) :: st
 
@@ -441,9 +441,9 @@ contains
         ewocs(i)%buffer = current_buffer()
         ewocs(i)%pretty_printer => pretty_printer
         if (present(nosep)) ewocs(i)%nosep = nosep
-        pos = point()
+        position = point()
         ! The dummy node.
-        foot = make_node(ewocs(i), 0_int64, pos)
+        foot = make_node(ewocs(i), 0_int64, position)
         ewocs(i)%nodes(DLL)%left = DLL
         ewocs(i)%nodes(DLL)%right = DLL
 
@@ -491,7 +491,7 @@ contains
         ewoc_location = 0
         i = slot(ewoc)
         if (i == 0 .or. node == 0) return
-        ewoc_location = mpos(ewocs(i), node)
+        ewoc_location = marked_position(ewocs(i), node)
     end function ewoc_location
 
     !> Extract the data encapsulated by NODE and return it.  Port of
@@ -595,16 +595,16 @@ contains
     !> Return the node in EWOC that precedes NODE.
     !> Return 0 if NODE is 0 or the first element.  Port of
     !> ewoc.el:ewoc-prev.
-    integer function ewoc_prev(ewoc, node) result(prev)
+    integer function ewoc_previous(ewoc, node) result(previous)
         type(ewoc_type), intent(in) :: ewoc
         integer, intent(in) :: node
         integer :: i
 
-        prev = 0
+        previous = 0
         i = slot(ewoc)
         if (i == 0 .or. node == 0) return
-        prev = filter_hf_nodes(ewocs(i), node_prev(ewocs(i), node))
-    end function ewoc_prev
+        previous = filter_hf_nodes(ewocs(i), node_previous(ewocs(i), node))
+    end function ewoc_previous
 
     !> Return the Nth node.
     !> N counts from zero.  Return 0 if there are less than N elements.
@@ -677,7 +677,7 @@ contains
             ! set last-node to nil.
             if (ewocs(i)%last_node == node) ewocs(i)%last_node = 0
             next = ewocs(i)%nodes(node)%right
-            call delete_region(mpos(ewocs(i), node), mpos(ewocs(i), next), st)
+            call delete_region(marked_position(ewocs(i), node), marked_position(ewocs(i), next), st)
             call destroy_marker(ewocs(i)%nodes(node)%start_marker, st)
             l = ewocs(i)%nodes(node)%left
             r = ewocs(i)%nodes(node)%right
@@ -732,36 +732,36 @@ contains
         call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine ewoc_filter
 
-    !> Return the node that POS (a buffer position) is within.
-    !> POS defaults to point.
-    !> GUESS should be a node that it is likely to be near POS.
+    !> Return the node that POSITION (a buffer position) is within.
+    !> POSITION defaults to point.
+    !> GUESS should be a node that it is likely to be near POSITION.
     !>
-    !> If POS points before the first element, the first node is returned.
-    !> If POS points after the last element, the last node is returned.
+    !> If POSITION points before the first element, the first node is returned.
+    !> If POSITION points after the last element, the last node is returned.
     !> If the EWOC is empty, 0 is returned.  Port of ewoc.el:ewoc-locate.
-    integer function ewoc_locate(ewoc, pos_in, guess) result(node)
+    integer function ewoc_locate(ewoc, position_in, guess) result(node)
         type(ewoc_type), intent(in) :: ewoc
-        integer(int64), intent(in), optional :: pos_in
+        integer(int64), intent(in), optional :: position_in
         integer, intent(in), optional :: guess
         type(handle_type) :: old
-        integer(int64) :: pos, distance, d
+        integer(int64) :: position, distance, d
         integer :: i, best_guess, g
 
         node = 0
         i = slot(ewoc)
         if (i == 0) return
-        pos = point()
+        position = point()
         call enter_buffer(i, old)
-        if (present(pos_in)) pos = pos_in
+        if (present(position_in)) position = position_in
 
         associate (e => ewocs(i))
             if (node_nth(e, 1) == node_nth(e, -1)) then
                 ! Nothing present?
                 node = 0
-            else if (pos < mpos(e, node_nth(e, 2))) then
+            else if (position < marked_position(e, node_nth(e, 2))) then
                 ! Before second elem?
                 node = node_nth(e, 1)
-            else if (pos >= mpos(e, node_nth(e, -2))) then
+            else if (position >= marked_position(e, node_nth(e, -2))) then
                 ! After one-before-last elem?
                 node = node_nth(e, -2)
             else
@@ -769,11 +769,11 @@ contains
                 ! Make an educated guess about which of the three known
                 ! node'es (the first, the last, or GUESS) is nearest.
                 best_guess = node_nth(e, 1)
-                distance = abs(pos - mpos(e, best_guess))
+                distance = abs(position - marked_position(e, best_guess))
 
                 if (present(guess)) then
                     if (guess /= 0) then
-                        d = abs(pos - mpos(e, guess))
+                        d = abs(position - marked_position(e, guess))
 
                         if (d < distance) then
                             distance = d
@@ -783,7 +783,7 @@ contains
                 end if
 
                 g = node_nth(e, -1)        ! Check the last elem
-                d = abs(pos - mpos(e, g))
+                d = abs(position - marked_position(e, g))
 
                 if (d < distance) then
                     distance = d
@@ -792,7 +792,7 @@ contains
 
                 if (e%last_node /= 0) then  ! Check "previous".
                     g = e%last_node
-                    d = abs(pos - mpos(e, g))
+                    d = abs(position - marked_position(e, g))
 
                     if (d < distance) then
                         distance = d
@@ -803,20 +803,20 @@ contains
                 ! best-guess is now a "best guess".
                 ! Find the correct node. First determine in which direction
                 ! it lies, and then move in that direction until it is found.
-                if (pos >= mpos(e, best_guess)) then
+                if (position >= marked_position(e, best_guess)) then
                     ! Loop until we are exactly one node too far down...
-                    do while (pos >= mpos(e, best_guess))
+                    do while (position >= marked_position(e, best_guess))
                         best_guess = node_next(e, best_guess)
                         if (best_guess == 0) best_guess = DLL
                         if (best_guess == DLL) exit
                     end do
 
                     ! ...and return the previous node.
-                    node = node_prev(e, best_guess)
+                    node = node_previous(e, best_guess)
                 else
                     ! Pos is before best-guess
-                    do while (pos < mpos(e, best_guess))
-                        best_guess = node_prev(e, best_guess)
+                    do while (position < marked_position(e, best_guess))
+                        best_guess = node_previous(e, best_guess)
                         if (best_guess == 0) exit
                     end do
 
@@ -851,26 +851,26 @@ contains
     !> Move point to the ARGth previous element in EWOC.
     !> Don't move if we are at the first element, or if EWOC is empty.
     !> Return the node we moved to.  Port of ewoc.el:ewoc-goto-prev.
-    integer function ewoc_goto_prev(ewoc, arg_in) result(node)
+    integer function ewoc_goto_previous(ewoc, argument_in) result(node)
         type(ewoc_type), intent(in) :: ewoc
-        integer, intent(in) :: arg_in
+        integer, intent(in) :: argument_in
         type(handle_type) :: old
-        integer :: i, arg
+        integer :: i, argument
 
         node = 0
         i = slot(ewoc)
         if (i == 0) return
-        arg = arg_in
+        argument = argument_in
         node = ewoc_locate(ewoc, point())
         call enter_buffer(i, old)
 
         if (node /= 0) then
             ! If we were past the last element, first jump to it.
-            if (point() >= mpos(ewocs(i), ewocs(i)%nodes(node)%right)) arg = arg - 1
+            if (point() >= marked_position(ewocs(i), ewocs(i)%nodes(node)%right)) argument = argument - 1
 
-            do while (node /= 0 .and. arg > 0)
-                arg = arg - 1
-                node = node_prev(ewocs(i), node)
+            do while (node /= 0 .and. argument > 0)
+                argument = argument - 1
+                node = node_previous(ewocs(i), node)
             end do
 
             ! Never step above the first element.
@@ -880,26 +880,26 @@ contains
         else
             call leave_buffer(old)
         end if
-    end function ewoc_goto_prev
+    end function ewoc_goto_previous
 
     !> Move point to the ARGth next element in EWOC.
     !> Return the node (or 0 if we just passed the last node).  Port of
     !> ewoc.el:ewoc-goto-next.
-    integer function ewoc_goto_next(ewoc, arg_in, status) result(node)
+    integer function ewoc_goto_next(ewoc, argument_in, status) result(node)
         type(ewoc_type), intent(in) :: ewoc
-        integer, intent(in) :: arg_in
+        integer, intent(in) :: argument_in
         type(status_type), intent(out) :: status
-        integer :: i, arg
+        integer :: i, argument
 
         status = status_type()
         node = 0
         i = slot(ewoc)
         if (i == 0) return
-        arg = arg_in
+        argument = argument_in
         node = ewoc_locate(ewoc, point())
 
-        do while (node /= 0 .and. arg > 0)
-            arg = arg - 1
+        do while (node /= 0 .and. argument > 0)
+            argument = argument - 1
             node = node_next(ewocs(i), node)
         end do
 
@@ -907,7 +907,7 @@ contains
         ! (unless (ewoc--filter-hf-nodes ewoc node)
         !   (setq node (ewoc--node-nth dll -2)))
         if (node == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No next")
+            call set_error(status, GENERIC_ERROR_CODE, "No next")
             return
         end if
 
@@ -928,7 +928,7 @@ contains
         i = slot(ewoc)
         if (i == 0 .or. node == 0) return
         call enter_buffer(i, old)
-        call goto_char(mpos(ewocs(i), node))
+        call goto_character(marked_position(ewocs(i), node))
         if (goal_column >= 0) call move_to_column(goal_column, reached, .false., st)
         ewocs(i)%last_node = node
         call leave_buffer(old)
@@ -954,8 +954,8 @@ contains
         call symbol_value(value_type(name="inhibit_read_only"), saved, st)
         if (.not. st%ok()) saved = value_type()
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
-        call delete_region(mpos(ewocs(i), node_nth(ewocs(i), 1)), mpos(ewocs(i), footer), st)
-        call goto_char(mpos(ewocs(i), footer))
+        call delete_region(marked_position(ewocs(i), node_nth(ewocs(i), 1)), marked_position(ewocs(i), footer), st)
+        call goto_character(marked_position(ewocs(i), footer))
         node = node_nth(ewocs(i), 1)
 
         do while (node /= footer .and. node /= 0)
@@ -1000,7 +1000,7 @@ contains
                 found(n) = ewocs(i)%nodes(node)%data
             end if
 
-            node = node_prev(ewocs(i), node)
+            node = node_previous(ewocs(i), node)
         end do
 
         ! (push ...): the first found ends last.

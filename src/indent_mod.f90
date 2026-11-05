@@ -30,25 +30,25 @@
 !> horizontal scrolling of ordinary windows, and truncated lines.
 module indent_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use buffer_mod, only: buffers, current, buf_fetch_char, buf_next_char_len, buffer_serial_live
-    use category_mod, only: char_has_category
-    use marker_mod, only: char_to_byte
+    use category_mod, only: character_has_category
+    use marker_mod, only: character_to_byte
     use error_mod, only: status_type
     use value_mod, only: value_type, xstring, xfixnum, list_elements, vtag, V_INTEGER, V_STRING, V_ARRAY, command_type
     use data_mod, only: value_eq
     use handle_mod, only: handle_type
-    use character_mod, only: string_char_and_length
-    use text_properties_mod, only: get_char_property, get_char_property_and_overlay, text_prop_means_invisible, &
+    use character_mod, only: string_character_and_length
+    use text_properties_mod, only: get_character_property, get_character_property_and_overlay, text_property_means_invisible, &
                                    next_property_change, next_single_property_change, get_property_and_range
     use interval_tree_mod, only: next_overlay_change, overlay_end
     use data_mod, only: logical_setting_type, integer_setting_type, setting_type
-    use editing_functions_mod, only: goto_char, pos_bol, point, insert_char_n
-    use insert_delete_mod, only: del_range
+    use editing_functions_mod, only: goto_character, position_beginning_of_line, point, insert_character_n
+    use insert_delete_mod, only: delete_range
     use display_engine_mod, only: glyph_columns, tab_width, row_start_type, display_line_rows, display_row_of, display_row, &
                                   line_beginning
-    use frame_mod, only: selected_frame, frame_selected_window_ref
-    use window_mod, only: window_type, window_text_cols
+    use frame_mod, only: selected_frame, frame_selected_window_reference
+    use window_mod, only: window_type, window_text_columns
     implicit none(type, external)
     private
 
@@ -70,7 +70,7 @@ module indent_mod
               delete_to_left_margin, beginning_of_line_text, indent_region, indent_region_line_by_line, &
               indent_relative, indent_relative_first_indent_point, indent_next_tab_stop, &
               indent_line_function_name, indent_line_function_named, &
-              indent_accumulate_tab_stops, tab_to_tab_stop, move_to_tab_stop, init_indent
+              indent_accumulate_tab_stops, tab_to_tab_stop, move_to_tab_stop, initialize_indent
 
     abstract interface
         !> An `indent_line_function': indent the current line; `noindent'
@@ -191,17 +191,17 @@ module indent_mod
         !> prefix argument is ignored.  Port of
         !> indent.el:indent-for-tab-command (no prefix-argument expression
         !> reindentation, no completion).
-        module subroutine indent_for_tab_command(arg, status)
+        module subroutine indent_for_tab_command(argument, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine indent_for_tab_command
 
-        !> Insert a tab, or indent to the next tab column, ARG times.  Port of
+        !> Insert a tab, or indent to the next tab column, ARGUMENT times.  Port of
         !> indent.el:insert-tab.
-        module subroutine insert_tab(arg, status)
+        module subroutine insert_tab(argument, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine insert_tab
 
@@ -215,18 +215,18 @@ module indent_mod
         !> acted upon as normally.  If `transient_mark_mode' is enabled,
         !> exiting also deactivates the mark.
         !>
-        !> If called from a program, or interactively with prefix ARG,
-        !> indent all lines starting in the region forward by ARG columns.
+        !> If called from a program, or interactively with prefix ARGUMENT,
+        !> indent all lines starting in the region forward by ARGUMENT columns.
         !> If called from a program, START and END specify the beginning and
         !> end of the text to act on, in place of the region.
         !>
-        !> Negative values of ARG indent backward, so you can remove all
-        !> indentation by specifying a large negative ARG.  Port of
+        !> Negative values of ARGUMENT indent backward, so you can remove all
+        !> indentation by specifying a large negative ARGUMENT.  Port of
         !> indent.el:indent-rigidly (the program path; the command is
-        !> cmd_indent_rigidly).
-        module subroutine indent_rigidly(start, end, arg, status)
+        !> execute_indent_rigidly).
+        module subroutine indent_rigidly(start, end, argument, status)
             implicit none(type, external)
-            integer(int64), intent(in) :: start, end, arg
+            integer(int64), intent(in) :: start, end, argument
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly
 
@@ -413,12 +413,12 @@ module indent_mod
         end subroutine indent_relative_first_indent_point
 
         !> Return the next tab stop after COLUMN.
-        !> If PREV is .true., return the previous one instead.  Port of
+        !> If PREVIOUS is .true., return the previous one instead.  Port of
         !> indent.el:indent-next-tab-stop.
-        module integer(int64) function indent_next_tab_stop(column, prev)
+        module integer(int64) function indent_next_tab_stop(column, previous)
             implicit none(type, external)
             integer(int64), intent(in) :: column
-            logical, intent(in), optional :: prev
+            logical, intent(in), optional :: previous
         end function indent_next_tab_stop
 
         !> Get a list of tab stops before LIMIT (inclusive).  Port of
@@ -448,9 +448,9 @@ module indent_mod
 
         !> Register the indentation commands.
         !> Port of indent.c:syms_of_indent in part.
-        module subroutine init_indent()
+        module subroutine initialize_indent()
             implicit none(type, external)
-        end subroutine init_indent
+        end subroutine initialize_indent
     end interface
 
     !> Width when no window is set up (as in batch use).
@@ -534,30 +534,30 @@ contains
     !> (unless shown as an ellipsis) takes no columns, text with a display
     !> string or space as many as they take.
     !> Port of indent.c:Fcurrent_column (current_column).
-    integer(int64) function current_column() result(col)
-        integer(int64) :: pos, prev_pos, prev_col
+    integer(int64) function current_column() result(column)
+        integer(int64) :: position, previous_position, previous_column
 
-        pos = buffers(current)%pt
-        call scan_for_column(pos, huge(0_int64), col, prev_pos, prev_col)
+        position = buffers(current)%point
+        call scan_for_column(position, huge(0_int64), column, previous_position, previous_column)
     end function current_column
 
     !> Scan from the start of the current line up to END (stopping at a
     !> newline) or until column GOAL is reached: END is where the scan
-    !> stopped and COL its column; PREV_POS and PREV_COL the position and
+    !> stopped and COLUMN its column; PREVIOUS_POSITION and PREVIOUS_COLUMN the position and
     !> column of the last character scanned.  Port of
     !> indent.c:scan_for_column (no compositions or display tables).
-    subroutine scan_for_column(end, goal, col, prev_pos, prev_col)
+    subroutine scan_for_column(end, goal, column, previous_position, previous_column)
         integer(int64), intent(inout) :: end
         integer(int64), intent(in) :: goal
-        integer(int64), intent(out) :: col, prev_pos, prev_col
+        integer(int64), intent(out) :: column, previous_position, previous_column
         integer(int64) :: scan, byte, next_boundary, endp, width
         integer(int32) :: c
 
-        scan = pos_bol()
-        col = 0
-        prev_col = 0
+        scan = position_beginning_of_line()
+        column = 0
+        previous_column = 0
         next_boundary = scan
-        prev_pos = scan
+        previous_position = scan
 
         ! Scan forward to the target position.
         do while (scan < end)
@@ -573,14 +573,14 @@ contains
             ! Test reaching the goal column.  We do this after skipping
             ! invisible characters, so that we put point before the
             ! character on which the cursor will appear.
-            if (col >= goal) exit
-            prev_col = col
-            prev_pos = scan
+            if (column >= goal) exit
+            previous_column = column
+            previous_position = scan
             ! Check display property.
-            width = check_display_width(scan, col, endp)
+            width = check_display_width(scan, column, endp)
 
             if (width >= 0) then
-                col = col + width
+                column = column + width
 
                 ! Avoid infinite loops with 0-width overlays.
                 if (endp > scan) then
@@ -589,22 +589,22 @@ contains
                 end if
             end if
 
-            byte = char_to_byte(scan)
+            byte = character_to_byte(scan)
             c = buf_fetch_char(buffers(current), byte)
             if (c == 10) exit
-            col = col + glyph_columns(c, int(col))
+            column = column + glyph_columns(c, int(column))
             scan = scan + 1
         end do
 
         end = scan
     end subroutine scan_for_column
 
-    !> If the text at POS is invisible (not shown as an ellipsis), the
-    !> position to skip to, else POS; NEXT_BOUNDARY gets the next position
+    !> If the text at POSITION is invisible (not shown as an ellipsis), the
+    !> position to skip to, else POSITION; NEXT_BOUNDARY gets the next position
     !> where the invisibility might change.  Port of indent.c:skip_invisible
     !> for columns (WINDOW absent).
-    integer(int64) function skip_invisible(pos, next_boundary, to) result(newpos)
-        integer(int64), intent(in) :: pos, to
+    integer(int64) function skip_invisible(position, next_boundary, to) result(newpos)
+        integer(int64), intent(in) :: position, to
         integer(int64), intent(out) :: next_boundary
         integer(int64) :: overlay_limit, proplimit
         type(status_type) :: st
@@ -613,58 +613,59 @@ contains
         ! We must not advance farther than the next overlay change.  The
         ! overlay change might change the invisible property; or there
         ! might be overlay strings to be displayed there.
-        overlay_limit = next_overlay_change(pos)
+        overlay_limit = next_overlay_change(position)
         ! As for text properties, this gives a lower bound for where the
         ! invisible text property could change.
-        call next_property_change(pos, proplimit, found, st)
-        if (.not. found) proplimit = buffers(current)%zv
+        call next_property_change(position, proplimit, found, st)
+        if (.not. found) proplimit = buffers(current)%end_of_accessible_portion
         proplimit = min(proplimit, overlay_limit)
 
-        if (proplimit > pos + 100 .or. proplimit >= to) then
+        if (proplimit > position + 100 .or. proplimit >= to) then
             next_boundary = proplimit
         else
             ! Don't scan terribly far, and no matter what, don't go past
             ! next overlay change.
-            proplimit = min(pos + 100, to, overlay_limit)
-            call next_single_property_change(pos, value_type(name="invisible"), next_boundary, found, st, proplimit)
+            proplimit = min(position + 100, to, overlay_limit)
+            call next_single_property_change(position, value_type(name="invisible"), next_boundary, found, st, proplimit)
             if (.not. found) next_boundary = proplimit
         end if
 
         ! If the `invisible' property is set, we can skip to the next
         ! property change; when counting columns, don't skip over
         ! ellipsis text.
-        newpos = pos
-        if (text_prop_means_invisible(get_char_property(pos, value_type(name="invisible"))) == 1) newpos = next_boundary
+        newpos = position
+        if (text_property_means_invisible(get_character_property(position, &
+                                                                 value_type(name="invisible"))) == 1) newpos = next_boundary
     end function skip_invisible
 
-    !> The width in columns of text at POS (column COL) that a `display'
+    !> The width in columns of text at POSITION (column COLUMN) that a `display'
     !> property replaces with a space or a string, and in ENDPOS the end
     !> of that text; -1 if there is no such display property.  Port of
     !> indent.c:check_display_width (images are deferred).
-    integer(int64) function check_display_width(pos, col, endpos) result(width)
-        integer(int64), intent(in) :: pos, col
+    integer(int64) function check_display_width(position, column, endpos) result(width)
+        integer(int64), intent(in) :: position, column
         integer(int64), intent(out) :: endpos
-        type(value_type) :: val
-        type(value_type), allocatable :: elts(:)
+        type(value_type) :: value
+        type(value_type), allocatable :: elements(:)
         type(handle_type) :: overlay
         integer(int64) :: start
         integer :: k
 
         width = -1
-        endpos = pos
-        call get_char_property_and_overlay(pos, value_type(name="display"), val, overlay)
-        if (.not. allocated(val%a)) return
+        endpos = position
+        call get_character_property_and_overlay(position, value_type(name="display"), value, overlay)
+        if (.not. allocated(value%a)) return
 
-        if (vtag(val) == V_ARRAY) then
-            call list_elements(val, elts)
+        if (vtag(value) == V_ARRAY) then
+            call list_elements(value, elements)
 
             ! Handle '(space ...)' display specs.
-            if (value_eq(elts(1), value_type(name="space"))) then
-                do k = 2, size(elts) - 1, 2
-                    if (value_eq(elts(k), value_type(name=":width")) .or. value_eq(elts(k), &
-                                                                                   value_type(name=":relative-width"))) then
-                        if (vtag(elts(k + 1)) == V_INTEGER) then
-                            if (xfixnum(elts(k + 1)) >= 0) width = xfixnum(elts(k + 1))
+            if (value_eq(elements(1), value_type(name="space"))) then
+                do k = 2, size(elements) - 1, 2
+                    if (value_eq(elements(k), value_type(name=":width")) .or. value_eq(elements(k), &
+                                                                                       value_type(name=":relative-width"))) then
+                        if (vtag(elements(k + 1)) == V_INTEGER) then
+                            if (xfixnum(elements(k + 1)) >= 0) width = xfixnum(elements(k + 1))
                         end if
 
                         exit
@@ -672,10 +673,10 @@ contains
                 end do
 
                 if (width < 0) then
-                    do k = 2, size(elts) - 1, 2
-                        if (value_eq(elts(k), value_type(name=":align-to"))) then
-                            if (vtag(elts(k + 1)) == V_INTEGER) then
-                                if (xfixnum(elts(k + 1)) >= col) width = xfixnum(elts(k + 1)) - col
+                    do k = 2, size(elements) - 1, 2
+                        if (value_eq(elements(k), value_type(name=":align-to"))) then
+                            if (vtag(elements(k + 1)) == V_INTEGER) then
+                                if (xfixnum(elements(k + 1)) >= column) width = xfixnum(elements(k + 1)) - column
                             end if
 
                             exit
@@ -683,16 +684,16 @@ contains
                     end do
                 end if
             end if
-        else if (vtag(val) == V_STRING) then
+        else if (vtag(value) == V_STRING) then
             ! Handle 'display' strings.
-            width = display_string_width(xstring(val))
+            width = display_string_width(xstring(value))
         end if
 
         if (width >= 0) then
             if (overlay%index /= 0) then
                 endpos = overlay_end(overlay)
             else
-                call get_property_and_range(pos, value_type(name="display"), val, start, endpos)
+                call get_property_and_range(position, value_type(name="display"), value, start, endpos)
             end if
         end if
     end function check_display_width
@@ -708,7 +709,7 @@ contains
         i = 1
 
         do while (i <= len(string, kind=int64))
-            call string_char_and_length(string, i, c, clen)
+            call string_character_and_length(string, i, c, clen)
             i = i + clen
             width = width + glyph_columns(c, int(width))
         end do
@@ -741,7 +742,7 @@ contains
         logical, intent(in), optional :: force
         type(status_type), intent(out), optional :: status
         logical, intent(in), optional :: coerce
-        integer(int64) :: pos, prev_pos, prev_col, goal_pt, col
+        integer(int64) :: position, previous_position, previous_column, goal_point, column_number
         integer(int32) :: c
         type(status_type) :: st
         logical :: split, pad
@@ -750,26 +751,27 @@ contains
         if (present(force)) pad = force
         split = pad
         if (present(coerce)) split = split .or. coerce
-        pos = buffers(current)%zv
-        call scan_for_column(pos, column, reached, prev_pos, prev_col)
+        position = buffers(current)%end_of_accessible_portion
+        call scan_for_column(position, column, reached, previous_position, previous_column)
         c = 0
-        if (prev_pos < buffers(current)%zv) c = buf_fetch_char(buffers(current), char_to_byte(prev_pos))
-        call goto_char(pos)
+        if (previous_position < buffers(current)%end_of_accessible_portion) c = buf_fetch_char(buffers(current), &
+                                                                                               character_to_byte(previous_position))
+        call goto_character(position)
         if (present(status)) status = status_type()
         if (.not. split) return
 
         ! If a tab char made us overshoot, change it to spaces and scan
         ! through it again.
-        if (reached > column .and. c == 9 .and. prev_col < column .and. prev_pos < pos) then
+        if (reached > column .and. c == 9 .and. previous_column < column .and. previous_position < position) then
             ! Insert spaces in front of the tab to reach GOAL.  Do this
             ! first so that a marker at the end of the tab gets adjusted.
-            call goto_char(prev_pos)
-            call insert_char_n(32, column - prev_col, st)
-            ! Now delete the tab, and indent to COL.
-            if (st%ok()) call del_range(point(), point() + 1, st)
-            goal_pt = point()
-            if (st%ok()) col = indent_to(reached, st)
-            call goto_char(goal_pt)
+            call goto_character(previous_position)
+            call insert_character_n(32, column - previous_column, st)
+            ! Now delete the tab, and indent to COLUMN.
+            if (st%ok()) call delete_range(point(), point() + 1, st)
+            goal_point = point()
+            if (st%ok()) column_number = indent_to(reached, st)
+            call goto_character(goal_point)
             reached = column
         end if
 
@@ -804,13 +806,13 @@ contains
             n = mincol/tw - fromcol/tw
 
             if (n /= 0) then
-                call insert_char_n(9, n, status)
+                call insert_character_n(9, n, status)
                 if (.not. status%ok()) return
                 fromcol = (mincol/tw)*tw
             end if
         end if
 
-        call insert_char_n(32, mincol - fromcol, status)
+        call insert_character_n(32, mincol - fromcol, status)
     end function indent_to
 
     !> Return the indentation of the current line.
@@ -819,25 +821,25 @@ contains
     !> position_indentation (no invisible text): in a unibyte buffer the
     !> byte 0240 counts as a space, in a multibyte one characters of the
     !> category ` ' (space for indent) do.
-    integer(int64) function current_indentation() result(col)
+    integer(int64) function current_indentation() result(column)
         integer(int64) :: byte, tw
         integer(int32) :: c
 
         tw = sane_tab_width()
-        byte = char_to_byte(pos_bol())
-        col = 0
+        byte = character_to_byte(position_beginning_of_line())
+        column = 0
 
-        do while (byte < buffers(current)%zv_byte)
+        do while (byte < buffers(current)%end_of_accessible_portion_byte)
             c = buf_fetch_char(buffers(current), byte)
 
             if (c == 32 .or. (c == int(o'240') .and. .not. buffers(current)%multibyte)) then
-                col = col + 1
+                column = column + 1
             else if (c == 9) then
-                col = col + tw - mod(col, tw)
+                column = column + tw - mod(column, tw)
             else if (c < 128 .or. .not. buffers(current)%multibyte) then
                 exit
-            else if (char_has_category(c, " ")) then
-                col = col + 1
+            else if (character_has_category(c, " ")) then
+                column = column + 1
             else
                 exit
             end if
@@ -862,8 +864,8 @@ contains
             ! The minibuffer scrolls horizontally instead of continuing.
             width = huge(0)/2
         else
-            sw => frame_selected_window_ref()
-            width = window_text_cols(sw) - 1
+            sw => frame_selected_window_reference()
+            width = window_text_columns(sw) - 1
             if (width < 1) width = DEFAULT_WIDTH - 1
         end if
     end function window_text_width
@@ -873,14 +875,14 @@ contains
     integer function screen_column() result(x)
         type(row_start_type), allocatable :: rows(:)
         type(row_start_type) :: row
-        integer(int64) :: eol
+        integer(int64) :: end_of_line
         integer :: nrows, k, width, ends, used
 
         width = window_text_width()
-        call display_line_rows(current, line_beginning(current, buffers(current)%pt), width, rows, nrows, eol)
-        k = display_row_of(buffers(current)%pt, rows, nrows)
+        call display_line_rows(current, line_beginning(current, buffers(current)%point), width, rows, nrows, end_of_line)
+        k = display_row_of(buffers(current)%point, rows, nrows)
         row = rows(k)
-        call display_row(current, row, width, buffers(current)%pt, ends, x, used)
+        call display_row(current, row, width, buffers(current)%point, ends, x, used)
         if (x < 0) x = 0
     end function screen_column
 
@@ -891,7 +893,7 @@ contains
     !> beginning or end of the buffer.  Screen lines are those redisplay
     !> shows (display_engine_mod:display_line_rows), with invisible text, display
     !> strings and overlay strings.  Port of indent.c:Fvertical_motion
-    !> (LINES alone or with COLS; no CUR-COL).  Lines are as wide as in
+    !> (LINES alone or with COLUMNS; no CUR-COL).  Lines are as wide as in
     !> WINDOW, by default the selected window.
     subroutine vertical_motion(lines, moved, goal, window)
         integer(int64), intent(in) :: lines
@@ -900,53 +902,53 @@ contains
         type(window_type), intent(in), optional :: window
         type(row_start_type), allocatable :: rows(:)
         type(row_start_type) :: row
-        integer(int64) :: bol, eol, target, pos
-        integer :: nrows, width, ends, col, used
+        integer(int64) :: beginning_of_line, end_of_line, target, position
+        integer :: nrows, width, ends, column, used
 
         if (present(window)) then
-            width = window_text_cols(window) - 1
+            width = window_text_columns(window) - 1
             if (width < 1) width = DEFAULT_WIDTH - 1
         else
             width = window_text_width()
         end if
 
-        bol = line_beginning(current, buffers(current)%pt)
-        call display_line_rows(current, bol, width, rows, nrows, eol)
-        target = display_row_of(buffers(current)%pt, rows, nrows) + lines
+        beginning_of_line = line_beginning(current, buffers(current)%point)
+        call display_line_rows(current, beginning_of_line, width, rows, nrows, end_of_line)
+        target = display_row_of(buffers(current)%point, rows, nrows) + lines
         moved = lines
 
         ! Walk whole lines until the target row is in the current one.
         do while (target > nrows)
-            if (eol >= buffers(current)%zv) then
+            if (end_of_line >= buffers(current)%end_of_accessible_portion) then
                 moved = moved - (target - nrows)
                 target = nrows
                 exit
             end if
 
             target = target - nrows
-            bol = eol + 1
-            call display_line_rows(current, bol, width, rows, nrows, eol)
+            beginning_of_line = end_of_line + 1
+            call display_line_rows(current, beginning_of_line, width, rows, nrows, end_of_line)
         end do
 
         do while (target < 1)
-            if (bol <= buffers(current)%begv) then
+            if (beginning_of_line <= buffers(current)%beginning_of_accessible_portion) then
                 moved = moved + (1 - target)
                 target = 1
                 exit
             end if
 
-            bol = line_beginning(current, bol - 1)
-            call display_line_rows(current, bol, width, rows, nrows, eol)
+            beginning_of_line = line_beginning(current, beginning_of_line - 1)
+            call display_line_rows(current, beginning_of_line, width, rows, nrows, end_of_line)
             target = target + nrows
         end do
 
-        pos = rows(target)%pos
+        position = rows(target)%position
 
         if (present(goal)) then
             row = rows(target)
-            call display_row(current, row, width, -1_int64, ends, col, used, goal_x=goal, goal_pos=pos)
+            call display_row(current, row, width, -1_int64, ends, column, used, goal_x=goal, goal_position=position)
         end if
 
-        call goto_char(pos)
+        call goto_character(position)
     end subroutine vertical_motion
 end module indent_mod

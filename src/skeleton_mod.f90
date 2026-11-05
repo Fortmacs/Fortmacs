@@ -30,7 +30,7 @@
 !> SKELETON_POINT_OVERRIDE (-), SKELETON_INDENT (>), SKELETON_POSITION
 !> (@), SKELETON_IF_MOVED (&), SKELETON_IF_NOT_MOVED (|),
 !> SKELETON_RESUME (resume:), SKELETON_STRING (string), SKELETON_V1 and
-!> SKELETON_V2, deletions (`skeleton_delete', -NUM), procedures called
+!> SKELETON_V2, deletions (`skeleton_delete', -NUMBER), procedures called
 !> for their side effects (`skeleton_action', upstream's quoted
 !> expressions) or for an element to insert (`skeleton_value', upstream's
 !> other expressions), and sub-skeletons: an interactor in the middle of
@@ -60,29 +60,30 @@
 !> skeleton-transformation and skeleton-filter.
 module skeleton_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_QUIT, FM_GENERIC_ERROR, FM_VOID_FUNCTION, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, QUIT_CODE, GENERIC_ERROR_CODE, VOID_FUNCTION_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, buffer_serial_live, barf_if_buffer_read_only, transient_mark_mode
     use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
-    use execute_interactively_mod, only: prefix_arg_type, current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER
-    use editing_functions_mod, only: point, goto_char, is_bol, is_eol, line_beginning_position, line_end_position, &
-                                     buffer_substring, delete_region, preceding_char, char_to_string
-    use editing_commands_mod, only: delete_char, end_of_line, self_insert_command
+    use execute_interactively_mod, only: prefix_argument_type, current_prefix_argument, prefix_numeric_value, PREFIX_NONE, &
+                                         PREFIX_NUMBER
+    use editing_functions_mod, only: point, goto_character, is_beginning_of_line, is_end_of_line, line_beginning_position, &
+                                     line_end_position, buffer_substring, delete_region, preceding_character, character_to_string
+    use editing_commands_mod, only: delete_character, end_of_line, self_insert_command
     use insert_delete_mod, only: insert
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use indent_mod, only: current_column, current_indentation, indent_to, indent_according_to_mode, indent_region, &
                           move_to_column
-    use syntax_mod, only: forward_word, skip_chars_backward, char_syntax
+    use syntax_mod, only: forward_word, skip_characters_backward, character_syntax
     use search_mod, only: looking_at
-    use simple_mod, only: newline_and_indent, reindent_then_newline_and_indent, backward_delete_char_untabify, &
+    use simple_mod, only: newline_and_indent, reindent_then_newline_and_indent, backward_delete_character_untabify, &
                           is_use_region, deactivate_mark
     use basic_subprograms_mod, only: change_group_type, prepare_change_group, activate_change_group, accept_change_group, &
                                      cancel_change_group
     use minibuffer_reading_mod, only: read_string
     use keyboard_mod, only: sit_for, last_command_event
     use value_mod, only: vtag, V_INTEGER
-    use window_mod, only: window_buffer, is_pos_visible_in_window, recenter
+    use window_mod, only: window_buffer, is_position_visible_in_window, recenter
     use frame_mod, only: selected_window
     use help_mod, only: substitute_command_keys
     use commands_mod, only: commands
@@ -91,7 +92,7 @@ module skeleton_mod
 
     public :: skeleton_text, skeleton_literal, skeleton_delete, skeleton_prompt, skeleton_interactor, skeleton_for_each, &
               skeleton_action, skeleton_value, skeleton_insert, skeleton_read, skeleton_proxy_new, skeleton_variants_proxy_new, &
-              skeleton_command, skeleton_variants_command, skeleton_pair_insert_maybe, init_skeleton, &
+              skeleton_command, skeleton_variants_command, skeleton_pair_insert_maybe, initialize_skeleton, &
               skeleton_transformation_function_set_local, skeleton_filter_function_set_local, &
               skeleton_pair_filter_function_set_local, skeleton_further_elements_set_local, skeleton_pairs_set_local, &
               skeleton_default_pairs_set_local, skeleton_next_element, skeleton_read_string, skeleton_transform
@@ -106,7 +107,7 @@ module skeleton_mod
 
     !> The longest text of a skeleton element, and the most strings of a
     !> `skeleton_for_each' interactor.
-    integer, parameter, public :: SKELETON_TEXT_MAX = 400, SKELETON_STRINGS_MAX = 16
+    integer, parameter, public :: SKELETON_TEXT_MAXIMUM = 400, SKELETON_STRINGS_MAXIMUM = 16
 
     character(len=*), parameter :: LF = achar(10)
     !> A quit's data while a skeleton runs: SKELETON_QUIT_ITERATION ends the
@@ -154,11 +155,11 @@ module skeleton_mod
         integer :: interactor = INTERACTOR_NONE
         !> The text (a string to insert, a prompt, or the strings of a
         !> `skeleton_for_each' one after the other) and its length.
-        character(len=SKELETON_TEXT_MAX) :: text = ""
+        character(len=SKELETON_TEXT_MAXIMUM) :: text = ""
         integer :: length = 0
         !> The characters to delete, or the number of strings.
         integer :: count = 0
-        integer :: lengths(SKELETON_STRINGS_MAX) = 0
+        integer :: lengths(SKELETON_STRINGS_MAXIMUM) = 0
         procedure(skeleton_action_procedure), pointer, nopass :: action => null()
         procedure(skeleton_value_procedure), pointer, nopass :: value => null()
         procedure(skeleton_read_procedure), pointer, nopass :: read => null()
@@ -318,7 +319,7 @@ module skeleton_mod
     !> Controls wrapping behavior of commands created by `skeleton_command'.
     !> When the region is visible (due to `transient_mark_mode' or marking a region
     !> with the mouse) and this is true and the command was called without an
-    !> explicit ARG, then the ARG defaults to -1, i.e. wrapping around the visible
+    !> explicit ARGUMENT, then the ARGUMENT defaults to -1, i.e. wrapping around the visible
     !> region.  Port of skeleton.el skeleton-autowrap.
     type(logical_setting_type), target, public :: skeleton_autowrap = &
                                                   logical_setting_type(name="skeleton_autowrap", value=.true.)
@@ -421,7 +422,7 @@ contains
 
         element%kind = KIND_TEXT
         element%text = string
-        element%length = min(len(string), SKELETON_TEXT_MAX)
+        element%length = min(len(string), SKELETON_TEXT_MAXIMUM)
     end function skeleton_text
 
     !> A string to insert literally (upstream's value of an expression).
@@ -434,7 +435,7 @@ contains
         element%kind = KIND_LITERAL
     end function skeleton_literal
 
-    !> Delete COUNT preceding characters (-NUM; see `skeleton_untabify').
+    !> Delete COUNT preceding characters (-NUMBER; see `skeleton_untabify').
     !> Not a port.
     function skeleton_delete(count) result(element)
         integer, intent(in) :: count
@@ -474,7 +475,7 @@ contains
 
         element%kind = KIND_INTERACTOR
         element%interactor = INTERACTOR_STRINGS
-        element%count = min(size(strings), SKELETON_STRINGS_MAX)
+        element%count = min(size(strings), SKELETON_STRINGS_MAXIMUM)
         n = 0
 
         do k = 1, element%count
@@ -769,7 +770,7 @@ contains
     !>         SKELETON_POSITION       add position to `skeleton_positions'
     !>         SKELETON_IF_MOVED       do next ELEMENT if previous moved point
     !>         SKELETON_IF_NOT_MOVED   do next ELEMENT if previous didn't move point
-    !>         skeleton_delete(NUM)    delete NUM preceding characters (see `skeleton_untabify')
+    !>         skeleton_delete(NUMBER)    delete NUMBER preceding characters (see `skeleton_untabify')
     !>         SKELETON_RESUME         skipped, continue here if a quit occurs
     !>
     !> After termination, point will be positioned at the last occurrence of
@@ -844,19 +845,19 @@ contains
             if (associated(further)) call further(.false.)
             ! The cleanup of upstream's unwind-protect: it runs after an
             ! error or a quit too.
-            if (.not. is_eol() .and. skeleton_end_newline%value) call newline_and_indent(st)
+            if (.not. is_end_of_line() .and. skeleton_end_newline%value) call newline_and_indent(st)
             call skeleton_end_hook%execute(st)
             call sit_for(0_int32)
             window = selected_window()
 
             if (same_buffer(window_buffer(window, st), current_buffer())) then
-                if (.not. is_pos_visible_in_window(beginning, window)) then
-                    call goto_char(beginning)
-                    call recenter(prefix_arg_type(PREFIX_NUMBER, 0_int64), .true., st)
+                if (.not. is_position_visible_in_window(beginning, window)) then
+                    call goto_character(beginning)
+                    call recenter(prefix_argument_type(PREFIX_NUMBER, 0_int64), .true., st)
                 end if
             end if
 
-            if (interesting_point > 0) call goto_char(interesting_point)
+            if (interesting_point > 0) call goto_character(interesting_point)
         end if
 
         call destroy_regions()
@@ -882,7 +883,7 @@ contains
         type(handle_type) :: m
         type(handle_type), allocatable :: copies(:)
         integer(int64), allocatable :: positions(:)
-        integer(int64) :: n, pos, key
+        integer(int64) :: n, position, key
         integer :: i, j, k, ring
         type(handle_type) :: key_marker
 
@@ -893,10 +894,10 @@ contains
             deallocate (regions)
             allocate (regions(2))
             call copy_marker_at(point(), regions(1), .true., status)
-            pos = point()
+            position = point()
             call forward_word(regions_count)
             call copy_marker_at(point(), regions(2), .false., status)
-            call goto_char(pos)
+            call goto_character(position)
         else
             ! Copy -REGIONS_COUNT elements of the mark and the mark ring.
             n = -regions_count
@@ -913,16 +914,16 @@ contains
                     m = buffers(current)%mark_ring(k)
                 end if
 
-                call marker_position(m, pos, status)
+                call marker_position(m, position, status)
 
-                if (.not. status%ok() .or. pos <= 0) then
+                if (.not. status%ok() .or. position <= 0) then
                     call destroy_list(copies)
-                    call set_error(status, FM_GENERIC_ERROR, "Marker does not point anywhere")
+                    call set_error(status, GENERIC_ERROR_CODE, "Marker does not point anywhere")
                     return
                 end if
 
                 copies = [copies, m]
-                call copy_marker_at(pos, copies(size(copies)), .true., status)
+                call copy_marker_at(position, copies(size(copies)), .true., status)
                 k = k + 1
                 n = n - 1
             end do
@@ -956,8 +957,8 @@ contains
             call move_alloc(copies, regions)
         end if
 
-        call marker_position(regions(1), pos, status)
-        call goto_char(pos)
+        call marker_position(regions(1), position, status)
+        call goto_character(position)
         region_next = 2
     end subroutine setup_regions
 
@@ -987,10 +988,10 @@ contains
     end function has_regions
 
     ! The position of the next marker of skeleton-regions.  Not a port.
-    integer(int64) function next_region() result(pos)
+    integer(int64) function next_region() result(position)
         type(status_type) :: st
 
-        call marker_position(regions(region_next), pos, st)
+        call marker_position(regions(region_next), position, st)
     end function next_region
 
     !> Function for reading a string from the minibuffer within skeletons.
@@ -1010,18 +1011,18 @@ contains
         character(len=*), intent(in), optional :: initial_input
         logical, intent(in), optional :: recursive
         character(len=:), allocatable :: initial
-        logical :: at_eol, quit
+        logical :: at_end_of_line, quit
         type(status_type) :: st
-        type(handle_type) :: opoint
-        integer(int64) :: pos
+        type(handle_type) :: original_point
+        integer(int64) :: position_value
 
         status = status_type()
-        at_eol = is_eol()
+        at_end_of_line = is_end_of_line()
 
         ! since Emacs doesn't show main window's cursor, do something noticeable
-        if (.not. at_eol) then
+        if (.not. at_end_of_line) then
             call insert(LF, st)
-            call goto_char(point() - 1)
+            call goto_character(point() - 1)
         end if
 
         if (present(initial_input)) initial = initial_input
@@ -1033,7 +1034,7 @@ contains
                 if (allocated(skeleton_state%initial_input)) initial = skeleton_state%initial_input
             end if
 
-            call copy_marker_at(point(), opoint, .false., st)
+            call copy_marker_at(point(), original_point, .false., st)
 
             if (allocated(initial)) then
                 if (present(initial_input) .or. skeleton_state%initial_position == 0) then
@@ -1046,14 +1047,14 @@ contains
                 call read_string(format_subprompt(prompt), result, status)
             end if
 
-            call marker_position(opoint, pos, st)
-            call goto_char(pos)
-            call destroy_marker(opoint, st)
+            call marker_position(original_point, position_value, st)
+            call goto_character(position_value)
+            call destroy_marker(original_point, st)
         else if (present(reader)) then
             call reader(result, status)
         end if
 
-        if (.not. at_eol) call delete_char(1_int64, st)
+        if (.not. at_end_of_line) call delete_character(1_int64, st)
         if (.not. status%ok()) return
 
         if (present(recursive)) then
@@ -1065,7 +1066,7 @@ contains
                     if (allocated(initial)) quit = quit .or. result == initial
                 end if
 
-                if (quit) call set_error(status, FM_QUIT, SKELETON_QUIT_ITERATION)
+                if (quit) call set_error(status, QUIT_CODE, SKELETON_QUIT_ITERATION)
             end if
         end if
     end subroutine skeleton_read
@@ -1078,7 +1079,7 @@ contains
         logical :: used
         integer :: i
 
-        if (.not. allocated(skeleton_subprompt)) call init_subprompt()
+        if (.not. allocated(skeleton_subprompt)) call initialize_subprompt()
         out = ""
         used = .false.
         i = 1
@@ -1117,7 +1118,7 @@ contains
         character(len=:), allocatable :: line, saved_string
         type(skeleton_element_type) :: saved_interactor, element
         logical :: saved_pending, saved_recursive, first_as_indent, recursive, quitting, has_saved_string
-        integer(int64) :: start, column, opoint, reached
+        integer(int64) :: start, column, original_point, reached
         integer :: il, k
         type(status_type) :: st
 
@@ -1157,19 +1158,19 @@ contains
 
         if (first + 1 <= last .and. .not. recursive) then
             if (skeleton(first + 1)%kind == KIND_NEWLINE) then
-                opoint = point()
-                k = int(skip_chars_backward(" "//achar(9), st))
-                first_as_indent = is_bol()
-                call goto_char(opoint)
+                original_point = point()
+                k = int(skip_characters_backward(" "//achar(9), st))
+                first_as_indent = is_beginning_of_line()
+                call goto_character(original_point)
             end if
         end if
 
         il = first
-        opoint = -1
+        original_point = -1
 
         do
-            point_unmoved = opoint == point()
-            opoint = point()
+            point_unmoved = original_point == point()
+            original_point = point()
 
             if (il == first) then
                 il = first + 1
@@ -1182,7 +1183,7 @@ contains
             if (il == first + 1 .and. first_as_indent) element = SKELETON_INDENT
             call internal_1(skeleton, il, last, element, .false., recursive, status)
             if (status%ok()) cycle
-            if (status%code /= FM_QUIT) exit
+            if (status%code /= QUIT_CODE) exit
 
             if (quit_detail(status) == SKELETON_QUIT_RECURSIVE) then
                 status = status_type()
@@ -1214,7 +1215,7 @@ contains
                     quitting = .false.
                     recursive = .false.
                 else
-                    call set_error(status, FM_QUIT, SKELETON_QUIT_RECURSIVE)
+                    call set_error(status, QUIT_CODE, SKELETON_QUIT_RECURSIVE)
                 end if
 
                 exit
@@ -1232,7 +1233,7 @@ contains
         skeleton_state%recursive = saved_recursive
         result = recursive
         ! maybe continue loop or go on to next outer resume: section
-        if (status%ok() .and. quitting) call set_error(status, FM_QUIT, SKELETON_QUIT_RECURSIVE)
+        if (status%ok() .and. quitting) call set_error(status, QUIT_CODE, SKELETON_QUIT_RECURSIVE)
     end subroutine internal_list
 
     ! The data of a quit (the status detail): SKELETON_QUIT_ITERATION (upstream's
@@ -1259,7 +1260,7 @@ contains
         type(status_type), intent(out) :: status
         type(skeleton_element_type), allocatable :: value(:)
         type(status_type) :: st
-        integer(int64) :: pos, pt, column
+        integer(int64) :: position, point_value, column
         integer :: next
 
         status = status_type()
@@ -1274,14 +1275,14 @@ contains
             end if
         case (KIND_DELETE)
             if (skeleton_untabify%value) then
-                call backward_delete_char_untabify(int(element%count, int64), status)
+                call backward_delete_character_untabify(int(element%count, int64), status)
             else
-                call delete_char(-int(element%count, int64), status)
+                call delete_character(-int(element%count, int64), status)
             end if
         case (KIND_NEWLINE, KIND_INDENT)
             ! The sequence `> \n' is handled specially so as to indent the first
             ! line after inserting the newline (to get the proper indentation).
-            pos = 0
+            position = 0
 
             if (element%kind == KIND_INDENT) then
                 if (next > last) then
@@ -1294,25 +1295,25 @@ contains
                     return
                 end if
 
-                pos = point()
+                position = point()
                 il = next
                 next = next_index(skeleton, il)
             end if
 
             if (has_regions() .and. is_next(KIND_POINT)) then
-                if (.not. is_eol()) call insert(LF, status)
-                if (pos > 0) call indent_at(pos)
+                if (.not. is_end_of_line()) call insert(LF, status)
+                if (position > 0) call indent_at(position)
                 call indent_region(line_beginning_position(), next_region(), status)
-            else if (next > last .and. .not. recursive .and. is_eol()) then
+            else if (next > last .and. .not. recursive .and. is_end_of_line()) then
                 ! \n as last element only inserts \n if not at eol.
-                if (pos > 0) call indent_according_to_mode(status)
+                if (position > 0) call indent_according_to_mode(status)
             else if (skeleton_newline_indent_rigidly%value) then
-                pt = point()
+                point_value = point()
                 call insert(LF, status)
-                column = indentation_at(pt, pos > 0)
+                column = indentation_at(point_value, position > 0)
                 column = indent_to(column, status)
             else
-                if (pos > 0) then
+                if (position > 0) then
                     call reindent_then_newline_and_indent(status)
                 else
                     call insert(LF, status)
@@ -1321,7 +1322,7 @@ contains
             end if
         case (KIND_POINT)
             if (has_regions()) then
-                call goto_char(next_region())
+                call goto_character(next_region())
                 region_next = region_next + 1
 
                 if (current_column() <= current_indentation() .and. is_next(KIND_NEWLINE)) then
@@ -1408,37 +1409,37 @@ contains
         end subroutine value_element
     end subroutine internal_1
 
-    ! Indent the line at POS according to mode, point staying where it is
+    ! Indent the line at POSITION according to mode, point staying where it is
     ! (save-excursion).  Not a port.
-    recursive subroutine indent_at(pos)
-        integer(int64), intent(in) :: pos
+    recursive subroutine indent_at(position)
+        integer(int64), intent(in) :: position
         type(handle_type) :: m
         type(status_type) :: st
         integer(int64) :: back
 
         call copy_marker_at(point(), m, .false., st)
-        call goto_char(pos)
+        call goto_character(position)
         call indent_according_to_mode(st)
         call marker_position(m, back, st)
-        call goto_char(back)
+        call goto_character(back)
         call destroy_marker(m, st)
     end subroutine indent_at
 
-    ! The indentation of the line at POS, after indenting it if INDENT,
+    ! The indentation of the line at POSITION, after indenting it if INDENT,
     ! point staying where it is (save-excursion).  Not a port.
-    recursive integer(int64) function indentation_at(pos, indent) result(column)
-        integer(int64), intent(in) :: pos
+    recursive integer(int64) function indentation_at(position, indent) result(column)
+        integer(int64), intent(in) :: position
         logical, intent(in) :: indent
         type(handle_type) :: m
         type(status_type) :: st
         integer(int64) :: back
 
         call copy_marker_at(point(), m, .false., st)
-        call goto_char(pos)
+        call goto_character(position)
         if (indent) call indent_according_to_mode(st)
         column = current_indentation()
         call marker_position(m, back, st)
-        call goto_char(back)
+        call goto_character(back)
         call destroy_marker(m, st)
     end function indentation_at
 
@@ -1504,33 +1505,33 @@ contains
     end subroutine skeleton_read_string
 
     !> Insert SKELETON.
-    !> Prefix ARG allows wrapping around words or regions (see `skeleton_insert').
-    !> If no ARG was given, but the region is visible, ARG defaults to -1 depending
-    !> on `skeleton_autowrap'.  An ARG of  M-0  will prevent this just for once.
+    !> Prefix ARGUMENT allows wrapping around words or regions (see `skeleton_insert').
+    !> If no ARGUMENT was given, but the region is visible, ARGUMENT defaults to -1 depending
+    !> on `skeleton_autowrap'.  An ARGUMENT of  M-0  will prevent this just for once.
     !>
     !> Optional argument STRING may also be a string which will be the value
     !> of string whereas the skeleton's interactor is then ignored.  Port of
     !> skeleton.el:skeleton-proxy-new.
-    recursive subroutine skeleton_proxy_new(skeleton, status, string, arg)
+    recursive subroutine skeleton_proxy_new(skeleton, status, string, argument)
         type(skeleton_element_type), intent(in) :: skeleton(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
         integer(int64) :: regions_count
         logical :: has_count
 
         ! Pretend  C-x a e  passed its prefix arg to us
         has_count = .false.
 
-        if (present(arg)) then
-            if (arg%kind /= PREFIX_NONE) then
-                regions_count = prefix_numeric_value(arg)
+        if (present(argument)) then
+            if (argument%kind /= PREFIX_NONE) then
+                regions_count = prefix_numeric_value(argument)
                 has_count = .true.
             end if
         end if
 
-        if (.not. has_count .and. current_prefix_arg%kind /= PREFIX_NONE) then
-            regions_count = prefix_numeric_value(current_prefix_arg)
+        if (.not. has_count .and. current_prefix_argument%kind /= PREFIX_NONE) then
+            regions_count = prefix_numeric_value(current_prefix_argument)
             has_count = .true.
         end if
 
@@ -1559,11 +1560,11 @@ contains
     !> is called, a `void-function' error condition naming it (with one
     !> variant nothing is inserted).  Port of skeleton.el:skeleton-proxy-new
     !> (with skeleton-filter-function).
-    recursive subroutine skeleton_variants_proxy_new(variants, status, string, arg)
+    recursive subroutine skeleton_variants_proxy_new(variants, status, string, argument)
         type(skeleton_variants_type), intent(in) :: variants
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
         procedure(skeleton_filter_procedure), pointer :: fn
         type(skeleton_element_type), allocatable :: skeleton(:)
         integer :: k
@@ -1584,40 +1585,40 @@ contains
 
         if (.not. associated(fn) .and. allocated(variants%entries)) then
             if (size(variants%entries) >= 2) then
-                call skeleton_proxy_new(skeleton, status, string, arg)
-                if (status%ok()) call set_error(status, FM_VOID_FUNCTION, variants%entries(2)%name)
+                call skeleton_proxy_new(skeleton, status, string, argument)
+                if (status%ok()) call set_error(status, VOID_FUNCTION_CODE, variants%entries(2)%name)
                 return
             end if
         end if
 
-        call skeleton_proxy_new(skeleton, status, string, arg)
+        call skeleton_proxy_new(skeleton, status, string, argument)
     end subroutine skeleton_variants_proxy_new
 
     !> Insert SKELETON, the body of a command defined with upstream's
     !> define-skeleton: its changes are undone if an error or a quit occurs.
-    !> STRING and ARG are the command's arguments (see `skeleton_proxy_new').
+    !> STRING and ARGUMENT are the command's arguments (see `skeleton_proxy_new').
     !>
     !> This is a skeleton command (see `skeleton_insert').
     !> Normally the skeleton text is inserted at point, with nothing "inside".
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> skeleton.el:define-skeleton (the command it defines).
-    recursive subroutine skeleton_command(skeleton, status, string, arg)
+    recursive subroutine skeleton_command(skeleton, status, string, argument)
         type(skeleton_element_type), intent(in) :: skeleton(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
         type(change_group_type) :: handle
         type(status_type) :: st
 
         call prepare_change_group(handle)
         call activate_change_group(handle)
-        call skeleton_proxy_new(skeleton, status, string, arg)
+        call skeleton_proxy_new(skeleton, status, string, argument)
 
         if (status%ok()) then
             call accept_change_group(handle)
@@ -1629,17 +1630,17 @@ contains
     !> `skeleton_command' for a command whose skeletons are VARIANTS (see
     !> `skeleton_variants_proxy_new').  Port of skeleton.el:define-skeleton
     !> (the command it defines).
-    recursive subroutine skeleton_variants_command(variants, status, string, arg)
+    recursive subroutine skeleton_variants_command(variants, status, string, argument)
         type(skeleton_variants_type), intent(in) :: variants
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
         type(change_group_type) :: handle
         type(status_type) :: st
 
         call prepare_change_group(handle)
         call activate_change_group(handle)
-        call skeleton_variants_proxy_new(variants, status, string, arg)
+        call skeleton_variants_proxy_new(variants, status, string, argument)
 
         if (status%ok()) then
             call accept_change_group(handle)
@@ -1652,9 +1653,9 @@ contains
     ! Paired insertion
     ! ------------------------------------------------------------------
 
-    !> Insert the character you type ARG times.
+    !> Insert the character you type ARGUMENT times.
     !>
-    !> With no ARG, if `skeleton_pair' is true, pairing can occur.  If the region
+    !> With no ARGUMENT, if `skeleton_pair' is true, pairing can occur.  If the region
     !> is visible the characters are wrapped around it depending on `skeleton_autowrap'.
     !> Else, if `skeleton_pair_on_word' is true or we are not before or inside a
     !> word, and if `skeleton_pair_filter_function' returns false, pairing is performed.
@@ -1665,8 +1666,8 @@ contains
     !> the defaults are used.  These are (), [], {}, <> and (grave
     !> accent, apostrophe) for the paired ones, and the same character
     !> twice for the others.  Port of skeleton.el:skeleton-pair-insert-maybe.
-    recursive subroutine skeleton_pair_insert_maybe(arg, status)
-        type(prefix_arg_type), intent(in) :: arg
+    recursive subroutine skeleton_pair_insert_maybe(argument, status)
+        type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         type(skeleton_element_type), allocatable :: skeleton(:)
         procedure(skeleton_test_procedure), pointer :: filter
@@ -1680,8 +1681,8 @@ contains
         if (vtag(last_command_event) == V_INTEGER) c = last_command_event%a(1)%i
         status = status_type()
 
-        if (arg%kind /= PREFIX_NONE .or. .not. skeleton_pair%value) then
-            call self_insert_command(prefix_numeric_value(arg), c, status)
+        if (argument%kind /= PREFIX_NONE .or. .not. skeleton_pair%value) then
+            call self_insert_command(prefix_numeric_value(argument), c, status)
             return
         end if
 
@@ -1713,12 +1714,12 @@ contains
         end if
 
         if (.not. found) then
-            call char_to_string(int(c, int32), text, status)
+            call character_to_string(int(c, int32), text, status)
             if (.not. status%ok()) return
             skeleton = [SKELETON_NO_INTERACTOR, skeleton_text(text), SKELETON_POINT, skeleton_text(text)]
         end if
 
-        syntax = char_syntax(preceding_char())
+        syntax = character_syntax(preceding_character())
         inhibit = syntax == "\" .or. syntax == "/"
 
         if (.not. inhibit .and. .not. mark) then
@@ -1736,7 +1737,7 @@ contains
         end if
 
         if (inhibit) then
-            call self_insert_command(prefix_numeric_value(arg), c, status)
+            call self_insert_command(prefix_numeric_value(argument), c, status)
             return
         end if
 
@@ -1772,28 +1773,28 @@ contains
     end subroutine skeleton_pair_insert_maybe
 
     ! Not a port.
-    recursive subroutine cmd_skeleton_pair_insert_maybe(status)
+    recursive subroutine execute_skeleton_pair_insert_maybe(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
-        call skeleton_pair_insert_maybe(current_prefix_arg, status)
-    end subroutine cmd_skeleton_pair_insert_maybe
+        call skeleton_pair_insert_maybe(current_prefix_argument, status)
+    end subroutine execute_skeleton_pair_insert_maybe
 
     ! skeleton-subprompt's value.  Not a port.
-    subroutine init_subprompt()
+    subroutine initialize_subprompt()
         skeleton_subprompt = substitute_command_keys("RET, \<minibuffer_local_map>\[abort_recursive_edit] or \[help_command]")
-    end subroutine init_subprompt
+    end subroutine initialize_subprompt
 
     !> Register the commands and the settings, and make the default pairing partners.
     !> Not a port.
-    subroutine init_skeleton()
+    subroutine initialize_skeleton()
         integer :: k
         character(len=:), allocatable :: opening_text, closing_text
         type(status_type) :: st
         integer, parameter :: opening(6) = [40, 91, 123, 60, 171, 96], closing(6) = [41, 93, 125, 62, 187, 39]
 
-        commands%skeleton_pair_insert_maybe%execute => cmd_skeleton_pair_insert_maybe
+        commands%skeleton_pair_insert_maybe%execute => execute_skeleton_pair_insert_maybe
         call forward_setting(skeleton_autowrap)
         call forward_setting(skeleton_end_newline)
         call forward_setting(skeleton_untabify)
@@ -1803,8 +1804,8 @@ contains
         if (allocated(skeleton_default_pairs%entries)) deallocate (skeleton_default_pairs%entries)
 
         do k = 1, size(opening)
-            call char_to_string(opening(k), opening_text, st)
-            call char_to_string(closing(k), closing_text, st)
+            call character_to_string(opening(k), opening_text, st)
+            call character_to_string(closing(k), closing_text, st)
             call skeleton_default_pairs%append(opening(k), [skeleton_text(opening_text), SKELETON_POINT, &
                                                             skeleton_text(closing_text)])
             if (k < size(opening)) call skeleton_default_pairs%append(closing(k), [skeleton_text(closing_text)])
@@ -1813,5 +1814,5 @@ contains
         if (.not. allocated(skeleton_pairs%entries)) allocate (skeleton_pairs%entries(0))
         if (.not. allocated(skeleton_positions)) allocate (skeleton_positions(0))
         call append_locals_clearer(clear_skeleton_locals)
-    end subroutine init_skeleton
+    end subroutine initialize_skeleton
 end module skeleton_mod

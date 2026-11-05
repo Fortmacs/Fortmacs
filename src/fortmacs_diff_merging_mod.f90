@@ -27,14 +27,16 @@
 !> ancestor, by the variant that changed the region (prefer-A, prefer-B).
 !> The control buffer's keys + (combine), & (merge again with a new
 !> default) and s (shrink window C) are here; fortmacs_diff_utilities_mod's keys n and
-!> p skip regions with the tests here when $$ or $* asks for it.
+!> p skip regions with the tests here (through `check_region_skip' of
+!> `ediff_session_type', fortmacs_diff_settings_skip_mod) when $$ or $* asks
+!> for it.
 module fortmacs_diff_merging_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use value_mod, only: value_type, make_list
     use data_mod, only: choice_setting_type
     use hooks_mod, only: hook_type
-    use execute_interactively_mod, only: prefix_arg_type, current_prefix_arg, PREFIX_NUMBER, PREFIX_MINUS
+    use execute_interactively_mod, only: prefix_argument_type, current_prefix_argument, PREFIX_NUMBER, PREFIX_MINUS
     use commands_mod, only: commands
     use files_mod, only: normal_mode, write_file_functions
     use minibuffer_reading_mod, only: completion_list_table
@@ -50,10 +52,9 @@ module fortmacs_diff_merging_mod
     private
 
     public :: ediff_variant_state_of_merge, get_ediff_state_of_merge, is_ediff_merge_region_non_clash, &
-              is_ediff_merge_region_non_clash_to_skip, is_ediff_skip_merge_region_if_changed_from_default, &
               get_ediff_combined_region, set_ediff_state_of_all_diffs_in_all_buffers, set_ediff_state_of_diff_in_all_buffers, &
-              set_ediff_merge_mode, do_ediff_merge, re_merge_ediff, shrink_ediff_window_c, combine_ediff_diffs, &
-              is_ediff_merge_changed_from_default, ediff_default_variant_name, init_ediff_merg
+              set_ediff_merge_mode, do_ediff_merge, regular_expression_merge_ediff, shrink_ediff_window_c, combine_ediff_diffs, &
+              is_ediff_merge_changed_from_default, ediff_default_variant_name, initialize_ediff_merg
 
     character, parameter :: LF = achar(10)
 
@@ -187,37 +188,6 @@ contains
                                                                                  EDIFF_STATE_OF_MERGE_PREFER_B])
     end function is_ediff_merge_region_non_clash
 
-    !> If the session's `ediff_show_clashes_only', whether region N of
-    !> session K has no clash between the ancestor and one of the variants
-    !> (so it is skipped).  Port of
-    !> ediff-merg.el:ediff-merge-region-is-non-clash-to-skip.
-    logical function is_ediff_merge_region_non_clash_to_skip(k, n)
-        integer, intent(in) :: k, n
-
-        is_ediff_merge_region_non_clash_to_skip = .false.
-        if (.not. ediff_sessions(k)%merge_job) return
-        if (.not. ediff_sessions(k)%show_clashes_only) return
-        is_ediff_merge_region_non_clash_to_skip = is_ediff_merge_region_non_clash(k, n)
-    end function is_ediff_merge_region_non_clash_to_skip
-
-    !> If the session's `ediff_skip_merge_regions_that_differ_from_default',
-    !> give in SKIP whether merge region N of session K differs from the
-    !> current default.  If a region is different from the default, it
-    !> means that the user has made determination as to how to merge for
-    !> this particular region.  Port of
-    !> ediff-merg.el:ediff-skip-merge-region-if-changed-from-default-p.
-    recursive subroutine is_ediff_skip_merge_region_if_changed_from_default(k, n, skip, status)
-        integer, intent(in) :: k, n
-        logical, intent(out) :: skip
-        type(status_type), intent(out) :: status
-
-        status = status_type()
-        skip = .false.
-        if (.not. ediff_sessions(k)%merge_job) return
-        if (.not. ediff_sessions(k)%skip_merge_regions_that_differ_from_default) return
-        call is_ediff_merge_changed_from_default(k, n, skip, status, prefers_too=.true.)
-    end subroutine is_ediff_skip_merge_region_if_changed_from_default
-
     !> The combination of difference region N of buffers A and B (and the
     !> ancestor) of session K by `ediff_combination_pattern', in TEXT.  A
     !> region that cannot be read (the ancestor's in a merge without one)
@@ -227,7 +197,7 @@ contains
         integer, intent(in) :: k, n
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
-        character(len=*), parameter :: ERR_MSG = &
+        character(len=*), parameter :: ERR_MESSAGE = &
                                        "ediff_combination_pattern: Invalid format. Please consult the documentation"
         character(len=:), allocatable :: region
         type(status_type) :: st
@@ -239,14 +209,14 @@ contains
         if (allocated(ediff_combination_pattern)) m = size(ediff_combination_pattern)
 
         if (m < 3) then
-            call set_error(status, FM_GENERIC_ERROR, ERR_MSG)
+            call set_error(status, GENERIC_ERROR_CODE, ERR_MESSAGE)
             return
         end if
 
         do j = 1, m - 1
             if (all(ediff_combination_pattern(j)%buffer_type /= [EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B, &
                                                                  EDIFF_BUFFER_TYPE_ANCESTOR])) then
-                call set_error(status, FM_GENERIC_ERROR, ERR_MSG)
+                call set_error(status, GENERIC_ERROR_CODE, ERR_MESSAGE)
                 return
             end if
 
@@ -255,7 +225,7 @@ contains
         end do
 
         if (ediff_combination_pattern(m)%buffer_type /= 0) then
-            call set_error(status, FM_GENERIC_ERROR, ERR_MSG)
+            call set_error(status, GENERIC_ERROR_CODE, ERR_MESSAGE)
             return
         end if
 
@@ -340,17 +310,17 @@ contains
         done = .true.
     end subroutine set_ediff_merge_mode
 
-    !> Go over all diffs of session K starting with DIFF_NUM and copy
+    !> Go over all diffs of session K starting with DIFF_NUMBER and copy
     !> regions into buffer C according to the state of the difference.
     !> Since `copy_ediff_diff' refuses to copy identical diff regions,
     !> there is no need to optimize this any further.
     !>
     !> If REMERGING, change state of merge in all diffs starting with
-    !> DIFF_NUM, except those where the state is prefer-* or where it is
+    !> DIFF_NUMBER, except those where the state is prefer-* or where it is
     !> default-* or combined but the buffer C region appears to be modified
     !> since last set by default.  Port of ediff-merg.el:ediff-do-merge.
-    recursive subroutine do_ediff_merge(k, diff_num, status, remerging)
-        integer, intent(in) :: k, diff_num
+    recursive subroutine do_ediff_merge(k, diff_number, status, remerging)
+        integer, intent(in) :: k, diff_number
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: remerging
         integer :: n, state, from_type
@@ -360,7 +330,7 @@ contains
         status = status_type()
         again = .false.
         if (present(remerging)) again = remerging
-        n = max(0, diff_num)
+        n = max(0, diff_number)
 
         do while (n < ediff_sessions(k)%number_of_differences)
             ! Reset after each cycle.
@@ -425,7 +395,7 @@ contains
 
     !> Remerge unmodified diff regions using a new default.
     !> Start with the current region.  Port of ediff-merg.el:ediff-re-merge.
-    recursive subroutine re_merge_ediff(status)
+    recursive subroutine regular_expression_merge_ediff(status)
         type(status_type), intent(out) :: status
         type(value_type) :: items(2)
         character(len=:), allocatable :: answer
@@ -455,14 +425,14 @@ contains
         call do_ediff_merge(k, ediff_sessions(k)%current_difference, status, remerging=.true.)
         if (.not. status%ok()) return
         call recenter_ediff(status)
-    end subroutine re_merge_ediff
+    end subroutine regular_expression_merge_ediff
 
     !> Shrink window C to just one line.
-    !> With a prefix argument ARG, returns window C to its normal size.
+    !> With a prefix argument ARGUMENT, returns window C to its normal size.
     !> Used only for merging jobs.  Port of
     !> ediff-merg.el:ediff-shrink-window-C.
-    recursive subroutine shrink_ediff_window_c(arg, status)
-        type(prefix_arg_type), intent(in) :: arg
+    recursive subroutine shrink_ediff_window_c(argument, status)
+        type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         real :: saved
         integer :: k, height_a, height_c
@@ -472,15 +442,15 @@ contains
         if (.not. status%ok()) return
 
         if (.not. ediff_sessions(k)%merge_job) then
-            call set_error(status, FM_USER_ERROR, "shrink_ediff_window_c can be used only for merging jobs")
+            call set_error(status, USER_ERROR_CODE, "shrink_ediff_window_c can be used only for merging jobs")
             return
         end if
 
-        select case (arg%kind)
+        select case (argument%kind)
         case (PREFIX_MINUS)
             n = -1
         case (PREFIX_NUMBER)
-            n = arg%value
+            n = argument%value
         case default
             ! No number: shrink window C, or return it to its size, for
             ! this redisplay only.
@@ -489,7 +459,7 @@ contains
             if (.not. status%ok()) return
             if (height_c >= 3) ediff_sessions(k)%merge_window_share = 0
             ! Force redisplay.
-            ediff_sessions(k)%window_config_saved = ""
+            ediff_sessions(k)%window_configuration_saved = ""
             call recenter_ediff(status, no_rehighlight=.true.)
             ediff_sessions(k)%merge_window_share = saved
             return
@@ -515,7 +485,7 @@ contains
         end if
 
         ! Force redisplay.
-        ediff_sessions(k)%window_config_saved = ""
+        ediff_sessions(k)%window_configuration_saved = ""
         call recenter_ediff(status, no_rehighlight=.true.)
     end subroutine shrink_ediff_window_c
 
@@ -592,11 +562,11 @@ contains
     !> With a prefix argument, returns window C to its normal size.
     !> Used only for merging jobs.  Port of
     !> ediff-merg.el:ediff-shrink-window-C (the command).
-    recursive subroutine cmd_shrink_ediff_window_c(status)
+    recursive subroutine execute_shrink_ediff_window_c(status)
         type(status_type), intent(out) :: status
 
-        call shrink_ediff_window_c(current_prefix_arg, status)
-    end subroutine cmd_shrink_ediff_window_c
+        call shrink_ediff_window_c(current_prefix_argument, status)
+    end subroutine execute_shrink_ediff_window_c
 
     !> Combine Nth diff regions of buffers A and B and place the
     !> combination in C.
@@ -605,24 +575,24 @@ contains
     !> Combining is done according to the specifications in variable
     !> `ediff_combination_pattern'.  Port of ediff-merg.el:ediff-combine-diffs
     !> (the command).
-    recursive subroutine cmd_combine_ediff_diffs(status)
+    recursive subroutine execute_combine_ediff_diffs(status)
         type(status_type), intent(out) :: status
         integer :: k, n
 
         call check_ediff_control_buffer(k, status)
         if (.not. status%ok()) return
         n = ediff_sessions(k)%current_difference
-        if (current_prefix_arg%kind == PREFIX_NUMBER) n = int(current_prefix_arg%value) - 1
+        if (current_prefix_argument%kind == PREFIX_NUMBER) n = int(current_prefix_argument%value) - 1
         call combine_ediff_diffs(k, n, status)
-    end subroutine cmd_combine_ediff_diffs
+    end subroutine execute_combine_ediff_diffs
 
     !> Register the commands of ediff-merg.el and give
     !> `ediff_combination_pattern' its default.  Not a port.
-    subroutine init_ediff_merg()
-        if (associated(commands%re_merge_ediff%execute)) return
-        commands%re_merge_ediff%execute => re_merge_ediff
-        commands%shrink_ediff_window_c%execute => cmd_shrink_ediff_window_c
-        commands%combine_ediff_diffs%execute => cmd_combine_ediff_diffs
+    subroutine initialize_ediff_merg()
+        if (associated(commands%regular_expression_merge_ediff%execute)) return
+        commands%regular_expression_merge_ediff%execute => regular_expression_merge_ediff
+        commands%shrink_ediff_window_c%execute => execute_shrink_ediff_window_c
+        commands%combine_ediff_diffs%execute => execute_combine_ediff_diffs
 
         if (.not. allocated(ediff_combination_pattern)) then
             ediff_combination_pattern = [ediff_combination_part_type(delimiter="<<<<<<< variant A", &
@@ -633,5 +603,5 @@ contains
                                                                      buffer_type=EDIFF_BUFFER_TYPE_ANCESTOR), &
                                          ediff_combination_part_type(delimiter="======= end", buffer_type=0)]
         end if
-    end subroutine init_ediff_merg
+    end subroutine initialize_ediff_merg
 end module fortmacs_diff_merging_mod

@@ -24,27 +24,27 @@
 !> handlers, the minibuffer and Lisp hooks, none of which exist yet.
 module test_files_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use test_support_mod, only: show_alone
     use error_mod, only: format_message
-    use error_mod, only: status_type, format_error, condition_matches, FM_QUIT, FM_USER_ERROR, &
-                         FM_FILE_ERROR
+    use error_mod, only: status_type, format_error, condition_matches, QUIT_CODE, USER_ERROR_CODE, &
+                         FILE_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, &
                           current_buffer, resolve_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, buffer_string, goto_char, point_max
+    use editing_functions_mod, only: point, buffer_string, goto_character, point_maximum
     use keyboard_mod, only: unread_command_events, discard_input, last_message, is_exit_requested
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, file_exists, &
                                      file_modes, set_file_modes, write_region, create_directory_internal, &
                                      delete_file_internal, delete_directory_internal, is_file_directory
     use files_mod, only: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, &
                          save_buffer, basic_save_buffer, make_backup_file_name, &
                          normal_backup_enable_test_function, save_some_buffers, &
                          save_buffers_exit_fortmacs, temporary_file_directory, create_directory, require_final_newline, &
-                         REQUIRE_FINAL_NEWLINE_ASK, REQUIRE_FINAL_NEWLINE_VISIT, find_file_run_dired, create_temp_file, &
+                         REQUIRE_FINAL_NEWLINE_ASK, REQUIRE_FINAL_NEWLINE_VISIT, find_file_run_dired, create_temporary_file, &
                          mode_require_final_newline, MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, &
                          REQUIRE_FINAL_NEWLINE_VISIT_SAVE, set_require_final_newline_from_mode
     use basic_subprograms_mod, only: read_y_or_n
@@ -104,7 +104,7 @@ contains
                     new_unittest("files-tests-revert-buffer", test_revert_buffer), &
                     new_unittest("revert-buffer-replace", test_revert_buffer_replace), &
                     new_unittest("revert-buffer-nonexistent", test_revert_nonexistent), &
-                    new_unittest("make-temp-file-empty-prefix", test_create_temp_file_empty_prefix) &
+                    new_unittest("make-temp-file-empty-prefix", test_create_temporary_file_empty_prefix) &
                     ]
     end subroutine collect_files_mod
 
@@ -125,8 +125,8 @@ contains
                                                    "a.txt", "b.txt", "c.txt", "new", "ro", "x"]
         integer :: i
 
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
@@ -263,7 +263,7 @@ contains
         if (allocated(error)) return
         call check(error, buffers(i)%directory == path(""), buffers(i)%directory)
         if (allocated(error)) return
-        call check(error, buffers(i)%pt == 1 .and. .not. buffers(i)%read_only)
+        call check(error, buffers(i)%point == 1 .and. .not. buffers(i)%read_only)
         if (allocated(error)) return
         call check(error, buffers(i)%text%save_modiff >= buffers(i)%text%modiff, "unmodified")
         if (allocated(error)) return
@@ -358,7 +358,7 @@ contains
 
             call set_file_modes(path("a.txt"), int(o'600', int32), st)
             call find_file(path("a.txt"), st)
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call insert("beta"//new_line("a"), st)
             call save_buffer(1_int64, .true., st)
             call check(error, st%ok(), format_error(st))
@@ -420,7 +420,7 @@ contains
         ! It asks for a file name ("File to save in: "); C-g gives up.
         call type_keys(achar(7))
         call basic_save_buffer(.true., st)
-        call check(error, st%code == FM_QUIT, format_error(st))
+        call check(error, st%code == QUIT_CODE, format_error(st))
         if (allocated(error)) return
         ! RET accepts the default, the buffer name in its directory.
         call type_keys(achar(13))
@@ -499,23 +499,23 @@ contains
         if (allocated(error)) return
         call type_keys(achar(7))
         call read_y_or_n("Go? ", answer, st)
-        call check(error, st%code == FM_QUIT)
+        call check(error, st%code == QUIT_CODE)
         if (allocated(error)) return
         ! End of input reads as quit.
         call read_y_or_n("Go? ", answer, st)
-        call check(error, st%code == FM_QUIT)
+        call check(error, st%code == QUIT_CODE)
     end subroutine test_read_y_or_n
 
     subroutine ask_all(k, how, prompt)
         integer, intent(in) :: k
         integer, intent(out) :: how
         character(len=:), allocatable, intent(out) :: prompt
-        character(len=12) :: num
+        character(len=12) :: number
 
-        write (num, "(i0)") k
+        write (number, "(i0)") k
         how = YNP_ASK
         if (k == 2) how = YNP_SKIP
-        prompt = "Item "//trim(num)//"? "
+        prompt = "Item "//trim(number)//"? "
     end subroutine ask_all
 
     subroutine act(k, status)
@@ -562,7 +562,7 @@ contains
         if (allocated(error)) return
         call type_keys(achar(7))
         call map_read_y_or_n(5, ask_all, act, actions, st)
-        call check(error, st%code == FM_QUIT)
+        call check(error, st%code == QUIT_CODE)
     end subroutine test_map_ynp
 
     subroutine test_save_some_buffers(error)
@@ -584,7 +584,7 @@ contains
             ! Text mode (from the file name) sets require-final-newline.
             call check(error, slurp(path("b.txt")) == "bee"//achar(10) .and. .not. file_exists(path("c.txt")))
             if (allocated(error)) exit body
-            ! With ARG, save all without asking.
+            ! With ARGUMENT, save all without asking.
             call save_some_buffers(.true., .true., st)
             call check(error, slurp(path("c.txt")) == "sea"//achar(10))
             if (allocated(error)) exit body
@@ -635,14 +635,14 @@ contains
 
     subroutine test_command_line(error)
         type(error_type), allocatable, intent(out) :: error
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
 
         body: block
             call setup()
             call set_buffer_text_file()
-            call append_string(args, "+2", testdir//"/a.txt", "--", "-dashed")
-            call command_line_1(args, st)
+            call append_string(arguments, "+2", testdir//"/a.txt", "--", "-dashed")
+            call command_line_1(arguments, st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, bname(current_buffer()) == "-dashed", "last file is current")
@@ -650,14 +650,14 @@ contains
             call find_file(path("a.txt"), st)
             call check(error, point() == 7, "+2 put point on line 2")
             if (allocated(error)) exit body
-            deallocate (args)
-            call append_string(args, "+2:4", testdir//"/a.txt")
-            call command_line_1(args, st)
+            deallocate (arguments)
+            call append_string(arguments, "+2:4", testdir//"/a.txt")
+            call command_line_1(arguments, st)
             call check(error, point() == 10, "+2:4 put point on column 3 of line 2")
             if (allocated(error)) exit body
-            deallocate (args)
-            call append_string(args, "--bogus")
-            call command_line_1(args, st)
+            deallocate (arguments)
+            call append_string(arguments, "--bogus")
+            call command_line_1(arguments, st)
             call check(error, format_error(st) == format_message("Unknown option `")//"--bogus"//format_message("'"), &
                        format_error(st))
         end block body
@@ -683,17 +683,17 @@ contains
 
     subroutine test_create_directory(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: dir, dirname, file, subdir1, subdir2, a_b
+        character(len=:), allocatable :: directory, directory_name, file, subdir1, subdir2, a_b
         type(status_type) :: st
         logical :: already
 
-        dir = path("mkdir")
-        dirname = dir//"/"
-        file = dirname//"file"
-        subdir1 = dirname//"subdir1"
-        subdir2 = dirname//"subdir2"
-        a_b = dirname//"a/b"
-        call create_directory_internal(dir, st)
+        directory = path("mkdir")
+        directory_name = directory//"/"
+        file = directory_name//"file"
+        subdir1 = directory_name//"subdir1"
+        subdir2 = directory_name//"subdir2"
+        a_b = directory_name//"a/b"
+        call create_directory_internal(directory, st)
         call write_region(file, .false., st)
 
         body: block
@@ -703,16 +703,16 @@ contains
             call create_directory("/", st, parents=.true., already=already)
             call check(error, st%ok() .and. already, "/ with parents")
             if (allocated(error)) exit body
-            call create_directory(dir, st)
+            call create_directory(directory, st)
             call check(error,.not. st%ok(), "dir")
             if (allocated(error)) exit body
-            call create_directory(dir, st, parents=.true., already=already)
+            call create_directory(directory, st, parents=.true., already=already)
             call check(error, st%ok() .and. already, "dir with parents")
             if (allocated(error)) exit body
-            call create_directory(dirname, st)
+            call create_directory(directory_name, st)
             call check(error,.not. st%ok(), "dirname")
             if (allocated(error)) exit body
-            call create_directory(dirname, st, parents=.true., already=already)
+            call create_directory(directory_name, st, parents=.true., already=already)
             call check(error, st%ok() .and. already, "dirname with parents")
             if (allocated(error)) exit body
             call create_directory(file, st)
@@ -735,11 +735,11 @@ contains
         end block body
 
         call delete_directory_internal(a_b, st)
-        call delete_directory_internal(dirname//"a", st)
+        call delete_directory_internal(directory_name//"a", st)
         call delete_directory_internal(subdir1, st)
         call delete_directory_internal(subdir2, st)
         call delete_file_internal(file, st)
-        call delete_directory_internal(dir, st)
+        call delete_directory_internal(directory, st)
     end subroutine test_create_directory
 
     !> A mode gives `require_final_newline' the state of
@@ -884,31 +884,31 @@ contains
         use files_mod, only: write_file, revert_buffer
         use buffer_mod, only: erase_buffer
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: nl = achar(10)
-        character(len=*), parameter :: lao = "The Way that can be told of is not the eternal Way;"//nl// &
-                                       "The name that can be named is not the eternal name."//nl// &
-                                       "The Nameless is the origin of Heaven and Earth;"//nl// &
-                                       "The Named is the mother of all things."//nl// &
-                                       "Therefore let there always be non-being,"//nl// &
-                                       "  so we may see their subtlety,"//nl// &
-                                       "And let there always be being,"//nl// &
-                                       "  so we may see their outcome."//nl// &
-                                       "The two are the same,"//nl// &
-                                       "But after they are produced,"//nl// &
-                                       "  they have different names."//nl
-        character(len=*), parameter :: tzu = "The Nameless is the origin of Heaven and Earth;"//nl// &
-                                       "The named is the mother of all things."//nl// &
-                                       nl// &
-                                       "Therefore let there always be non-being,"//nl// &
-                                       "  so we may see their subtlety,"//nl// &
-                                       "And let there always be being,"//nl// &
-                                       "  so we may see their outcome."//nl// &
-                                       "The two are the same,"//nl// &
-                                       "But after they are produced,"//nl// &
-                                       "  they have different names."//nl// &
-                                       "They both may be called deep and profound."//nl// &
-                                       "Deeper and more profound,"//nl// &
-                                       "The door of all subtleties!"//nl
+        character(len=*), parameter :: newline = achar(10)
+        character(len=*), parameter :: lao = "The Way that can be told of is not the eternal Way;"//newline// &
+                                       "The name that can be named is not the eternal name."//newline// &
+                                       "The Nameless is the origin of Heaven and Earth;"//newline// &
+                                       "The Named is the mother of all things."//newline// &
+                                       "Therefore let there always be non-being,"//newline// &
+                                       "  so we may see their subtlety,"//newline// &
+                                       "And let there always be being,"//newline// &
+                                       "  so we may see their outcome."//newline// &
+                                       "The two are the same,"//newline// &
+                                       "But after they are produced,"//newline// &
+                                       "  they have different names."//newline
+        character(len=*), parameter :: tzu = "The Nameless is the origin of Heaven and Earth;"//newline// &
+                                       "The named is the mother of all things."//newline// &
+                                       newline// &
+                                       "Therefore let there always be non-being,"//newline// &
+                                       "  so we may see their subtlety,"//newline// &
+                                       "And let there always be being,"//newline// &
+                                       "  so we may see their outcome."//newline// &
+                                       "The two are the same,"//newline// &
+                                       "But after they are produced,"//newline// &
+                                       "  they have different names."//newline// &
+                                       "They both may be called deep and profound."//newline// &
+                                       "Deeper and more profound,"//newline// &
+                                       "The door of all subtleties!"//newline
         type(status_type) :: st
         type(handle_type) :: buffer
 
@@ -932,21 +932,21 @@ contains
         use files_mod, only: revert_buffer
         use simple_mod, only: read_only_mode
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: nl = achar(10)
+        character(len=*), parameter :: newline = achar(10)
         type(status_type) :: st
         type(handle_type) :: buffer
 
         body: block
             call setup()
-            call put_file(path("c.txt"), "abc"//nl//"def"//nl)
+            call put_file(path("c.txt"), "abc"//newline//"def"//newline)
             call find_file_noselect(path("c.txt"), buffer, st)
             call set_buffer(buffer, st)
-            call goto_char(6_int64)
-            call put_file(path("c.txt"), "abc"//nl//"def"//nl//"ghi"//nl)
+            call goto_character(6_int64)
+            call put_file(path("c.txt"), "abc"//newline//"def"//newline//"ghi"//newline)
             call revert_buffer(st, .true., .true.)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error, buffer_string(), "abc"//nl//"def"//nl//"ghi"//nl)
+            call check(error, buffer_string(), "abc"//newline//"def"//newline//"ghi"//newline)
             if (allocated(error)) exit body
             call check(error, point() == 6_int64, "point kept")
             if (allocated(error)) exit body
@@ -957,9 +957,9 @@ contains
             call read_only_mode(st)
             call check(error, buffers(current)%read_only, "C-x C-q")
             if (allocated(error)) exit body
-            call put_file(path("c.txt"), "x"//nl)
+            call put_file(path("c.txt"), "x"//newline)
             call revert_buffer(st, .true., .true.)
-            call check(error, buffer_string() == "x"//nl .and. buffers(current)%read_only, "still read-only")
+            call check(error, buffer_string() == "x"//newline .and. buffers(current)%read_only, "still read-only")
         end block body
 
         call close_file_buffers()
@@ -991,7 +991,7 @@ contains
     !> make-temp-file with an empty prefix, ".", or "..": a file or a
     !> directory in `temporary_file_directory'.  Port of
     !> files-tests.el:files-tests-make-temp-file-empty-prefix.
-    subroutine test_create_temp_file_empty_prefix(error)
+    subroutine test_create_temporary_file_empty_prefix(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: PREFIXES(3) = [character(len=2) :: "", ".", ".."]
         character(len=:), allocatable :: file
@@ -999,15 +999,15 @@ contains
         integer :: k
 
         do k = 1, size(PREFIXES)
-            call create_temp_file(trim(PREFIXES(k)), file, st)
+            call create_temporary_file(trim(PREFIXES(k)), file, st)
             call check(error, st%ok() .and. file_exists(file), "file, prefix """//trim(PREFIXES(k))//""": "//format_error(st))
             if (allocated(error)) return
             call delete_file_internal(file, st)
-            call create_temp_file(trim(PREFIXES(k)), file, st, directory=.true.)
+            call create_temporary_file(trim(PREFIXES(k)), file, st, directory=.true.)
             call check(error, st%ok() .and. is_file_directory(file), &
                        "directory, prefix """//trim(PREFIXES(k))//""": "//format_error(st))
             if (allocated(error)) return
             call delete_directory_internal(file, st)
         end do
-    end subroutine test_create_temp_file_empty_prefix
+    end subroutine test_create_temporary_file_empty_prefix
 end module test_files_mod

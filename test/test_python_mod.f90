@@ -27,46 +27,51 @@
 !> from their forms).
 module test_python_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, widen, is_bob, is_eob, is_bol, is_eol, &
-                                     line_beginning_position, line_end_position
-    use simple_mod, only: back_to_indentation, line_number_at_pos
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, widen, is_beginning_of_buffer, &
+                                     is_end_of_buffer, is_beginning_of_line, is_end_of_line, line_beginning_position, &
+                                     line_end_position
+    use simple_mod, only: back_to_indentation, line_number_at_position
     use indent_mod, only: current_column, indent_for_tab_command
-    use editing_commands_mod, only: forward_line, end_of_line, beginning_of_line, forward_char
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, regexp_quote, match_end, match_beginning, &
-                          SEARCH_NOERROR
+    use editing_commands_mod, only: forward_line, end_of_line, beginning_of_line, forward_character
+    use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, &
+                          regular_expression_quote, match_end, match_beginning, SEARCH_NOERROR
     use indent_mod, only: current_indentation
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use python_mod, only: python_mode, python_indent_context, python_indent_calculate_indentation, python_indent_line, &
-                          python_indent_guess_indent_offset_variable, python_syntax_context, python_nav_beginning_of_definition, &
-                          python_nav_end_of_definition, python_nav_backward_definition, python_nav_forward_definition, &
-                          python_nav_beginning_of_statement, python_nav_end_of_statement, python_nav_forward_statement, &
-                          python_nav_backward_statement, python_nav_beginning_of_block, python_nav_end_of_block, &
-               python_nav_forward_block, python_nav_backward_block, python_nav_forward_expression, python_nav_backward_expression, &
-                          python_nav_forward_expression_safe, python_nav_backward_expression_safe, python_nav_up_group, &
-                          python_nav_backward_up_group, python_info_current_definition, is_python_info_statement_starts_block, &
-                          is_python_info_statement_ends_block, is_python_info_beginning_of_statement, &
-                          is_python_info_end_of_statement, is_python_info_beginning_of_block, is_python_info_end_of_block, &
+                          python_indent_guess_indent_offset_variable, python_syntax_context, &
+                          python_navigation_beginning_of_definition, python_navigation_end_of_definition, &
+                          python_navigation_backward_definition, python_navigation_forward_definition, &
+                          python_navigation_beginning_of_statement, python_navigation_end_of_statement, &
+                          python_navigation_forward_statement, python_navigation_backward_statement, &
+                          python_navigation_beginning_of_block, python_navigation_end_of_block, python_navigation_forward_block, &
+                          python_navigation_backward_block, python_navigation_forward_expression, &
+                          python_navigation_backward_expression, python_navigation_forward_expression_safe, &
+                          python_navigation_backward_expression_safe, python_navigation_up_group, &
+                          python_navigation_backward_up_group, python_info_current_definition, &
+                          is_python_info_statement_starts_block, is_python_info_statement_ends_block, &
+                          is_python_info_beginning_of_statement, is_python_info_end_of_statement, &
+                          is_python_info_beginning_of_block, is_python_info_end_of_block, &
                           python_info_dedenter_opening_block_position, is_python_info_dedenter_statement, &
-                         is_python_info_line_ends_backslash, python_info_beginning_of_backslash, is_python_info_continuation_line, &
-                          is_python_info_block_continuation_line, is_python_info_assignment_continuation_line, &
-                          python_info_looking_at_beginning_of_definition, python_info_looking_at_beginning_of_block, &
-                          is_python_info_current_line_comment, is_python_info_current_line_empty, is_python_info_docstring, &
-                          is_python_info_triple_quoted_string, python_info_encoding_from_cookie, python_util_forward_comment, &
-                          python_nav_if_name_main, PYTHON_CONTEXT_COMMENT, PYTHON_CONTEXT_STRING, &
-                          PYTHON_CONTEXT_SINGLE_QUOTED_STRING, PYTHON_CONTEXT_TRIPLE_QUOTED_STRING, PYTHON_CONTEXT_PAREN, &
-                          PYTHON_INDENT_NO_INDENT, PYTHON_INDENT_AFTER_COMMENT, PYTHON_INDENT_INSIDE_STRING, &
-                          PYTHON_INDENT_INSIDE_DOCSTRING, PYTHON_INDENT_INSIDE_PAREN, &
-                          PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_NESTED_PAREN, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_PAREN, &
-                          PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START_FROM_BLOCK, &
-                          PYTHON_INDENT_INSIDE_PAREN_FROM_BLOCK, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE, &
-                          PYTHON_INDENT_AFTER_BACKSLASH, PYTHON_INDENT_AFTER_BACKSLASH_ASSIGNMENT_CONTINUATION, &
-                          PYTHON_INDENT_AFTER_BACKSLASH_BLOCK_CONTINUATION, &
+                          is_python_info_line_ends_backslash, python_info_beginning_of_backslash, &
+                          is_python_info_continuation_line, is_python_info_block_continuation_line, &
+                          is_python_info_assignment_continuation_line, python_info_looking_at_beginning_of_definition, &
+                          python_info_looking_at_beginning_of_block, is_python_info_current_line_comment, &
+                          is_python_info_current_line_empty, is_python_info_docstring, is_python_info_triple_quoted_string, &
+                          python_info_encoding_from_cookie, python_utility_forward_comment, python_navigation_if_name_main, &
+                          PYTHON_CONTEXT_COMMENT, PYTHON_CONTEXT_STRING, PYTHON_CONTEXT_SINGLE_QUOTED_STRING, &
+                          PYTHON_CONTEXT_TRIPLE_QUOTED_STRING, PYTHON_CONTEXT_PARENTHESIS, PYTHON_INDENT_NO_INDENT, &
+                          PYTHON_INDENT_AFTER_COMMENT, PYTHON_INDENT_INSIDE_STRING, PYTHON_INDENT_INSIDE_DOCSTRING, &
+                          PYTHON_INDENT_INSIDE_PARENTHESIS, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_NESTED_PARENTHESIS, &
+                          PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_PARENTHESIS, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START, &
+                          PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START_FROM_BLOCK, PYTHON_INDENT_INSIDE_PARENTHESIS_FROM_BLOCK, &
+                          PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE, PYTHON_INDENT_AFTER_BACKSLASH, &
+                          PYTHON_INDENT_AFTER_BACKSLASH_ASSIGNMENT_CONTINUATION, PYTHON_INDENT_AFTER_BACKSLASH_BLOCK_CONTINUATION, &
                           PYTHON_INDENT_AFTER_BACKSLASH_DOTTED_CONTINUATION, PYTHON_INDENT_AFTER_BACKSLASH_FIRST_LINE, &
                           PYTHON_INDENT_AFTER_BLOCK_END, PYTHON_INDENT_AFTER_BLOCK_START, PYTHON_INDENT_AFTER_LINE, &
                           PYTHON_INDENT_AT_DEDENTER_BLOCK_START
@@ -87,22 +92,22 @@ contains
                     new_unittest("python-indent-pep8-1", test_python_indent_pep8_1), &
                     new_unittest("python-indent-pep8-2", test_python_indent_pep8_2), &
                     new_unittest("python-indent-pep8-3", test_python_indent_pep8_3), &
-                    new_unittest("python-indent-hanging-close-paren", test_python_indent_hanging_close_paren), &
+                    new_unittest("python-indent-hanging-close-paren", test_python_indent_hanging_close_parenthesis), &
                     new_unittest("python-indent-base-case", test_python_indent_base_case), &
                     new_unittest("python-indent-after-comment-1", test_python_indent_after_comment_1), &
                     new_unittest("python-indent-after-comment-2", test_python_indent_after_comment_2), &
                     new_unittest("python-indent-after-comment-3", test_python_indent_after_comment_3), &
-                    new_unittest("python-indent-inside-paren-1", test_python_indent_inside_paren_1), &
-                    new_unittest("python-indent-inside-paren-2", test_python_indent_inside_paren_2), &
-                    new_unittest("python-indent-inside-paren-3", test_python_indent_inside_paren_3), &
-                    new_unittest("python-indent-inside-paren-4", test_python_indent_inside_paren_4), &
-                    new_unittest("python-indent-inside-paren-5", test_python_indent_inside_paren_5), &
-                    new_unittest("python-indent-inside-paren-6", test_python_indent_inside_paren_6), &
-                    new_unittest("python-indent-inside-paren-7", test_python_indent_inside_paren_7), &
-                    new_unittest("python-indent-inside-paren-8", test_python_indent_inside_paren_8), &
-                    new_unittest("python-indent-inside-paren-9", test_python_indent_inside_paren_9), &
-                    new_unittest("python-indent-inside-paren-block-1", test_python_indent_inside_paren_block_1), &
-                    new_unittest("python-indent-inside-paren-block-3", test_python_indent_inside_paren_block_3), &
+                    new_unittest("python-indent-inside-paren-1", test_python_indent_inside_parenthesis_1), &
+                    new_unittest("python-indent-inside-paren-2", test_python_indent_inside_parenthesis_2), &
+                    new_unittest("python-indent-inside-paren-3", test_python_indent_inside_parenthesis_3), &
+                    new_unittest("python-indent-inside-paren-4", test_python_indent_inside_parenthesis_4), &
+                    new_unittest("python-indent-inside-paren-5", test_python_indent_inside_parenthesis_5), &
+                    new_unittest("python-indent-inside-paren-6", test_python_indent_inside_parenthesis_6), &
+                    new_unittest("python-indent-inside-paren-7", test_python_indent_inside_parenthesis_7), &
+                    new_unittest("python-indent-inside-paren-8", test_python_indent_inside_parenthesis_8), &
+                    new_unittest("python-indent-inside-paren-9", test_python_indent_inside_parenthesis_9), &
+                    new_unittest("python-indent-inside-paren-block-1", test_python_indent_inside_parenthesis_block_1), &
+                    new_unittest("python-indent-inside-paren-block-3", test_python_indent_inside_parenthesis_block_3), &
                     new_unittest("python-indent-after-block-1", test_python_indent_after_block_1), &
                     new_unittest("python-indent-after-block-2", test_python_indent_after_block_2), &
                     new_unittest("python-indent-after-block-3", test_python_indent_after_block_3), &
@@ -134,40 +139,40 @@ contains
                     new_unittest("python-indent-inside-string-3", test_python_indent_inside_string_3), &
                     new_unittest("python-indent-after-match-block", test_python_indent_after_match_block), &
                     new_unittest("python-indent-after-case-block", test_python_indent_after_case_block), &
-                    new_unittest("python-indent-after-re-match", test_python_indent_after_re_match), &
+                    new_unittest("python-indent-after-re-match", test_python_indent_after_regular_expression_match), &
                     new_unittest("python-indent-after-bare-match", test_python_indent_after_bare_match), &
                     new_unittest("python-indent-badly-indented-block-end", test_python_indent_badly_indented_block_end), &
                     new_unittest("python-syntax-context-1", test_python_syntax_context_1), &
-                    new_unittest("python-nav-beginning-of-defun-1", test_python_nav_beginning_of_definition_1), &
-                    new_unittest("python-nav-beginning-of-defun-2", test_python_nav_beginning_of_definition_2), &
-                    new_unittest("python-nav-beginning-of-defun-3", test_python_nav_beginning_of_definition_3), &
-                    new_unittest("python-nav-beginning-of-defun-4", test_python_nav_beginning_of_definition_4), &
-                    new_unittest("python-nav-beginning-of-defun-5", test_python_nav_beginning_of_definition_5), &
-                    new_unittest("python-nav-beginning-of-defun-6", test_python_nav_beginning_of_definition_6), &
-                    new_unittest("python-nav-end-of-defun-1", test_python_nav_end_of_definition_1), &
-                    new_unittest("python-nav-end-of-defun-2", test_python_nav_end_of_definition_2), &
-                    new_unittest("python-nav-end-of-defun-3", test_python_nav_end_of_definition_3), &
-                    new_unittest("python-nav-backward-defun-1", test_python_nav_backward_definition_1), &
-                    new_unittest("python-nav-backward-defun-2", test_python_nav_backward_definition_2), &
-                    new_unittest("python-nav-backward-defun-4", test_python_nav_backward_definition_4), &
-                    new_unittest("python-nav-forward-defun-1", test_python_nav_forward_definition_1), &
-                    new_unittest("python-nav-forward-defun-2", test_python_nav_forward_definition_2), &
-                    new_unittest("python-nav-forward-defun-4", test_python_nav_forward_definition_4), &
-                    new_unittest("python-nav-beginning-of-statement-1", test_python_nav_beginning_of_statement_1), &
-                    new_unittest("python-nav-end-of-statement-1", test_python_nav_end_of_statement_1), &
-                    new_unittest("python-nav-end-of-statement-2", test_python_nav_end_of_statement_2), &
-                    new_unittest("python-nav-end-of-statement-3", test_python_nav_end_of_statement_3), &
-                    new_unittest("python-nav-end-of-statement-4", test_python_nav_end_of_statement_4), &
-                    new_unittest("python-nav-forward-statement-1", test_python_nav_forward_statement_1), &
-                    new_unittest("python-nav-backward-statement-1", test_python_nav_backward_statement_1), &
-                    new_unittest("python-nav-beginning-of-block-1", test_python_nav_beginning_of_block_1), &
-                    new_unittest("python-nav-beginning-of-block-2", test_python_nav_beginning_of_block_2), &
-                    new_unittest("python-nav-end-of-block-1", test_python_nav_end_of_block_1), &
-                    new_unittest("python-nav-end-of-block-2", test_python_nav_end_of_block_2), &
-                    new_unittest("python-nav-forward-block-1", test_python_nav_forward_block_1), &
-                    new_unittest("python-nav-forward-sexp-2", test_python_nav_forward_expression_2), &
-                    new_unittest("python-nav-forward-sexp-3", test_python_nav_forward_expression_3), &
-                    new_unittest("python-nav-up-list-1", test_python_nav_up_group_1), &
+                    new_unittest("python-nav-beginning-of-defun-1", test_python_navigation_beginning_of_definition_1), &
+                    new_unittest("python-nav-beginning-of-defun-2", test_python_navigation_beginning_of_definition_2), &
+                    new_unittest("python-nav-beginning-of-defun-3", test_python_navigation_beginning_of_definition_3), &
+                    new_unittest("python-nav-beginning-of-defun-4", test_python_navigation_beginning_of_definition_4), &
+                    new_unittest("python-nav-beginning-of-defun-5", test_python_navigation_beginning_of_definition_5), &
+                    new_unittest("python-nav-beginning-of-defun-6", test_python_navigation_beginning_of_definition_6), &
+                    new_unittest("python-nav-end-of-defun-1", test_python_navigation_end_of_definition_1), &
+                    new_unittest("python-nav-end-of-defun-2", test_python_navigation_end_of_definition_2), &
+                    new_unittest("python-nav-end-of-defun-3", test_python_navigation_end_of_definition_3), &
+                    new_unittest("python-nav-backward-defun-1", test_python_navigation_backward_definition_1), &
+                    new_unittest("python-nav-backward-defun-2", test_python_navigation_backward_definition_2), &
+                    new_unittest("python-nav-backward-defun-4", test_python_navigation_backward_definition_4), &
+                    new_unittest("python-nav-forward-defun-1", test_python_navigation_forward_definition_1), &
+                    new_unittest("python-nav-forward-defun-2", test_python_navigation_forward_definition_2), &
+                    new_unittest("python-nav-forward-defun-4", test_python_navigation_forward_definition_4), &
+                    new_unittest("python-nav-beginning-of-statement-1", test_python_navigation_beginning_of_statement_1), &
+                    new_unittest("python-nav-end-of-statement-1", test_python_navigation_end_of_statement_1), &
+                    new_unittest("python-nav-end-of-statement-2", test_python_navigation_end_of_statement_2), &
+                    new_unittest("python-nav-end-of-statement-3", test_python_navigation_end_of_statement_3), &
+                    new_unittest("python-nav-end-of-statement-4", test_python_navigation_end_of_statement_4), &
+                    new_unittest("python-nav-forward-statement-1", test_python_navigation_forward_statement_1), &
+                    new_unittest("python-nav-backward-statement-1", test_python_navigation_backward_statement_1), &
+                    new_unittest("python-nav-beginning-of-block-1", test_python_navigation_beginning_of_block_1), &
+                    new_unittest("python-nav-beginning-of-block-2", test_python_navigation_beginning_of_block_2), &
+                    new_unittest("python-nav-end-of-block-1", test_python_navigation_end_of_block_1), &
+                    new_unittest("python-nav-end-of-block-2", test_python_navigation_end_of_block_2), &
+                    new_unittest("python-nav-forward-block-1", test_python_navigation_forward_block_1), &
+                    new_unittest("python-nav-forward-sexp-2", test_python_navigation_forward_expression_2), &
+                    new_unittest("python-nav-forward-sexp-3", test_python_navigation_forward_expression_3), &
+                    new_unittest("python-nav-up-list-1", test_python_navigation_up_group_1), &
                     new_unittest("python-info-current-defun-1", test_python_info_current_definition_1), &
                     new_unittest("python-info-current-defun-4", test_python_info_current_definition_4), &
                     new_unittest("python-info-statement-starts-block-p-1", test_is_python_info_statement_starts_block_1), &
@@ -225,7 +230,7 @@ contains
         type(status_type) :: st
         logical :: saved
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *python-test*", buffer, st)
         call set_buffer(buffer, st)
         call widen()
@@ -235,35 +240,35 @@ contains
         call python_mode(st)
         python_indent_guess_indent_offset_variable = saved
         call insert(contents, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine py_buffer
 
     !> Move point at beginning of STRING in the current buffer.
-    !> Optional argument NUM defaults to 1 and is an integer indicating
+    !> Optional argument NUMBER defaults to 1 and is an integer indicating
     !> how many occurrences must be found, when positive the search is
     !> done forwards, otherwise backwards.  When searching forward and
     !> point is already looking at STRING, it is skipped so the next
     !> STRING occurrence is selected (python-tests-look-at).
-    subroutine look(string, num)
+    subroutine look(string, number)
         character(len=*), intent(in) :: string
-        integer(int64), intent(in), optional :: num
+        integer(int64), intent(in), optional :: number
         integer(int64) :: n, f
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         type(status_type) :: st
 
         n = 1
-        if (present(num)) n = num
-        regexp = regexp_quote(string)
+        if (present(number)) n = number
+        regular_expression = regular_expression_quote(string)
 
         do while (n /= 0)
             if (n > 0) then
-                if (looking_at(regexp, st)) call goto_char(match_end(0, st))
-                call re_search_forward(regexp, f, st, noerror=SEARCH_NOERROR)
+                if (looking_at(regular_expression, st)) call goto_character(match_end(0, st))
+                call regular_expression_search_forward(regular_expression, f, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. f <= 0) return
-                call goto_char(match_beginning(0, st))
+                call goto_character(match_beginning(0, st))
                 n = n - 1
             else
-                call re_search_backward(regexp, f, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_backward(regular_expression, f, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. f <= 0) return
                 n = n + 1
             end if
@@ -272,28 +277,28 @@ contains
 
     !> python-tests-look-at returning the position found (0 if none):
     !> with RESTORE, point is not moved.
-    integer(int64) function look_pos(string, num, restore) result(found)
+    integer(int64) function look_position(string, number, restore) result(found)
         character(len=*), intent(in) :: string
-        integer(int64), intent(in) :: num
+        integer(int64), intent(in) :: number
         logical, intent(in) :: restore
         integer(int64) :: n, f, starting_point
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         type(status_type) :: st
 
-        n = num
+        n = number
         starting_point = point()
-        regexp = regexp_quote(string)
+        regular_expression = regular_expression_quote(string)
         found = 0
 
         do while (n /= 0)
             if (n > 0) then
-                if (looking_at(regexp, st)) call goto_char(match_end(0, st))
-                call re_search_forward(regexp, f, st, noerror=SEARCH_NOERROR)
+                if (looking_at(regular_expression, st)) call goto_character(match_end(0, st))
+                call regular_expression_search_forward(regular_expression, f, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. f <= 0) exit
-                call goto_char(match_beginning(0, st))
+                call goto_character(match_beginning(0, st))
                 n = n - 1
             else
-                call re_search_backward(regexp, f, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_backward(regular_expression, f, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. f <= 0) exit
                 n = n + 1
             end if
@@ -301,8 +306,8 @@ contains
             found = point()
         end do
 
-        if (restore) call goto_char(starting_point)
-    end function look_pos
+        if (restore) call goto_character(starting_point)
+    end function look_position
 
     !> True when NAME is allocated and equal to EXPECTED.
     logical function name_is(name, expected)
@@ -319,11 +324,11 @@ contains
         integer, intent(in) :: kind
         integer :: actual
         integer(int64) :: start
-        character(len=64) :: msg
+        character(len=64) :: message
 
         call python_indent_context(actual, start)
-        write (msg, "(a, i0, a, i0)") "context ", actual, " instead of ", kind
-        call check(error, actual == kind, trim(msg))
+        write (message, "(a, i0, a, i0)") "context ", actual, " instead of ", kind
+        call check(error, actual == kind, trim(message))
     end subroutine expect_context
 
     !> (should (= (python-indent-calculate-indentation [PREVIOUS]) N))
@@ -332,11 +337,11 @@ contains
         integer(int64), intent(in) :: n
         logical, intent(in), optional :: previous
         integer(int64) :: actual
-        character(len=64) :: msg
+        character(len=64) :: message
 
         actual = python_indent_calculate_indentation(previous)
-        write (msg, "(a, i0, a, i0)") "indentation ", actual, " instead of ", n
-        call check(error, actual == n, trim(msg))
+        write (message, "(a, i0, a, i0)") "indentation ", actual, " instead of ", n
+        call check(error, actual == n, trim(message))
     end subroutine expect_indent
 
     subroutine test_python_indent_pep8_1(error)
@@ -357,7 +362,7 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         call look("var_three, var_four)")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 25_int64)
         if (allocated(error)) return
@@ -385,12 +390,12 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         call look("var_one, var_two, var_three,")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START_FROM_BLOCK)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START_FROM_BLOCK)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
         call look("var_four):")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
@@ -422,12 +427,12 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         call look("var_one, var_two,")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
         call look("var_three, var_four)")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 2_int64)
         if (allocated(error)) return
@@ -435,7 +440,7 @@ contains
         if (.false.) call python_indent_line(st)
     end subroutine test_python_indent_pep8_3
 
-    subroutine test_python_indent_hanging_close_paren(error)
+    subroutine test_python_indent_hanging_close_parenthesis(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -446,13 +451,13 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         call look(")")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 25_int64)
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_hanging_close_paren
+    end subroutine test_python_indent_hanging_close_parenthesis
 
     subroutine test_python_indent_base_case(error)
         type(error_type), allocatable, intent(out) :: error
@@ -461,7 +466,7 @@ contains
 
         call py_buffer(LF &
                        //LF)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call expect_context(error, PYTHON_INDENT_NO_INDENT)
         if (allocated(error)) return
         call expect_indent(error, 0_int64)
@@ -603,7 +608,7 @@ contains
         if (.false.) call python_indent_line(st)
     end subroutine test_python_indent_after_comment_3
 
-    subroutine test_python_indent_inside_paren_1(error)
+    subroutine test_python_indent_inside_parenthesis_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -630,80 +635,80 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         call look("'key':")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
         call look("{")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
         call look("'objlist': [")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
         call look("{")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 12_int64)
         if (allocated(error)) return
         call look("'pk': 1,")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 16_int64)
         if (allocated(error)) return
         call look("'name': 'first',")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 16_int64)
         if (allocated(error)) return
         call look("},")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_NESTED_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_NESTED_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 12_int64)
         if (allocated(error)) return
         call look("{")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 12_int64)
         if (allocated(error)) return
         call look("'pk': 2,")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 16_int64)
         if (allocated(error)) return
         call look("'name': 'second',")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 16_int64)
         if (allocated(error)) return
         call look("}")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_NESTED_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_NESTED_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 12_int64)
         if (allocated(error)) return
         call look("]")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_NESTED_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_NESTED_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
         call look("}")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_NESTED_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_NESTED_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
         call look("}")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_inside_paren_1
+    end subroutine test_python_indent_inside_parenthesis_1
 
-    subroutine test_python_indent_inside_paren_2(error)
+    subroutine test_python_indent_inside_parenthesis_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -723,50 +728,50 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         call look("'objlist': [")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
         call look("{'pk': 1,")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
         call look("'name': 'first'},")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 9_int64)
         if (allocated(error)) return
         call look("{'pk': 2,")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
         call look("'name': 'second'}")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 9_int64)
         if (allocated(error)) return
         call look("]")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_NESTED_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_NESTED_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
         call look("}}")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_NESTED_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_NESTED_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         call look("}")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_inside_paren_2
+    end subroutine test_python_indent_inside_parenthesis_2
 
-    subroutine test_python_indent_inside_paren_3(error)
+    subroutine test_python_indent_inside_parenthesis_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -782,25 +787,25 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_inside_paren_3
+    end subroutine test_python_indent_inside_parenthesis_3
 
-    subroutine test_python_indent_inside_paren_4(error)
+    subroutine test_python_indent_inside_parenthesis_4(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -814,15 +819,15 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 9_int64)
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_inside_paren_4
+    end subroutine test_python_indent_inside_parenthesis_4
 
-    subroutine test_python_indent_inside_paren_5(error)
+    subroutine test_python_indent_inside_parenthesis_5(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -838,7 +843,7 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_FROM_BLOCK)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_FROM_BLOCK)
         if (allocated(error)) return
         call expect_indent(error, 7_int64)
         if (allocated(error)) return
@@ -848,15 +853,15 @@ contains
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_inside_paren_5
+    end subroutine test_python_indent_inside_parenthesis_5
 
-    subroutine test_python_indent_inside_paren_6(error)
+    subroutine test_python_indent_inside_parenthesis_6(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -871,34 +876,34 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 11_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 11_int64)
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_inside_paren_6
+    end subroutine test_python_indent_inside_parenthesis_6
 
-    subroutine test_python_indent_inside_paren_7(error)
+    subroutine test_python_indent_inside_parenthesis_7(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
 
         call py_buffer("import re as myre"//LF &
                        //"var = ["//LF)
-        call goto_char(point_max())
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call goto_character(point_maximum())
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_inside_paren_7
+    end subroutine test_python_indent_inside_parenthesis_7
 
-    subroutine test_python_indent_inside_paren_8(error)
+    subroutine test_python_indent_inside_parenthesis_8(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -913,20 +918,20 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START_FROM_BLOCK)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START_FROM_BLOCK)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 10_int64)
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_inside_paren_8
+    end subroutine test_python_indent_inside_parenthesis_8
 
-    subroutine test_python_indent_inside_paren_9(error)
+    subroutine test_python_indent_inside_parenthesis_9(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -948,17 +953,17 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 6_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 5_int64)
         if (allocated(error)) return
@@ -968,35 +973,35 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 5_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 5_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 5_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_inside_paren_9
+    end subroutine test_python_indent_inside_parenthesis_9
 
-    subroutine test_python_indent_inside_paren_block_1(error)
+    subroutine test_python_indent_inside_parenthesis_block_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -1014,7 +1019,7 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_FROM_BLOCK)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_FROM_BLOCK)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
@@ -1029,7 +1034,7 @@ contains
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_FROM_BLOCK)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_FROM_BLOCK)
         if (allocated(error)) return
         call expect_indent(error, 6_int64)
         if (allocated(error)) return
@@ -1040,9 +1045,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_inside_paren_block_1
+    end subroutine test_python_indent_inside_parenthesis_block_1
 
-    subroutine test_python_indent_inside_paren_block_3(error)
+    subroutine test_python_indent_inside_parenthesis_block_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -1063,7 +1068,7 @@ contains
         call expect_indent(error, 3_int64)
         if (allocated(error)) return
         shortage = forward_line(1_int64)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_FROM_BLOCK)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_FROM_BLOCK)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
@@ -1074,7 +1079,7 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_inside_paren_block_3
+    end subroutine test_python_indent_inside_parenthesis_block_3
 
     subroutine test_python_indent_after_block_1(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1087,7 +1092,7 @@ contains
         if (allocated(error)) return
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call expect_context(error, PYTHON_INDENT_AFTER_BLOCK_START)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
@@ -1105,7 +1110,7 @@ contains
                        //"def foo(a, b, c={"//LF &
                        //"    'a':"//LF &
                        //"}):"//LF)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call expect_context(error, PYTHON_INDENT_AFTER_BLOCK_START)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
@@ -1152,7 +1157,7 @@ contains
         if (allocated(error)) return
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call expect_context(error, PYTHON_INDENT_AFTER_BLOCK_START)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
@@ -1172,7 +1177,7 @@ contains
         if (allocated(error)) return
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call expect_context(error, PYTHON_INDENT_AFTER_BLOCK_START)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
@@ -1192,7 +1197,7 @@ contains
         if (allocated(error)) return
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call expect_context(error, PYTHON_INDENT_AFTER_BLOCK_START)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
@@ -1225,7 +1230,7 @@ contains
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call expect_context(error, PYTHON_INDENT_AFTER_LINE)
         if (allocated(error)) return
         call expect_indent(error, 0_int64)
@@ -1260,17 +1265,17 @@ contains
         call expect_indent(error, 23_int64)
         if (allocated(error)) return
         call look("type='toy',")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 27_int64)
         if (allocated(error)) return
         call look("status='bought'")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_CONTINUATION_LINE)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
         if (allocated(error)) return
         call expect_indent(error, 27_int64)
         if (allocated(error)) return
         call look(") \")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 23_int64)
         if (allocated(error)) return
@@ -1280,12 +1285,12 @@ contains
         call expect_indent(error, 23_int64)
         if (allocated(error)) return
         call look("Sum('amount')")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_NEWLINE_START)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_NEWLINE_START)
         if (allocated(error)) return
         call expect_indent(error, 27_int64)
         if (allocated(error)) return
         call look(") \")
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_AT_CLOSING_PAREN)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_AT_CLOSING_PARENTHESIS)
         if (allocated(error)) return
         call expect_indent(error, 23_int64)
         if (allocated(error)) return
@@ -1444,7 +1449,7 @@ contains
         call look("return")
         call expect_indent(error, 12_int64)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call expect_context(error, PYTHON_INDENT_AFTER_BLOCK_END)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
@@ -1761,7 +1766,7 @@ contains
         call expect_indent(error, 0_int64, .true.)
         if (allocated(error)) return
         call look("a == 4):"//LF)
-        call expect_context(error, PYTHON_INDENT_INSIDE_PAREN_FROM_BLOCK)
+        call expect_context(error, PYTHON_INDENT_INSIDE_PARENTHESIS_FROM_BLOCK)
         if (allocated(error)) return
         call expect_indent(error, 6_int64)
         if (allocated(error)) return
@@ -1933,7 +1938,7 @@ contains
         if (allocated(error)) return
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call expect_context(error, PYTHON_INDENT_AFTER_BLOCK_START)
         if (allocated(error)) return
         call expect_indent(error, 4_int64)
@@ -1954,7 +1959,7 @@ contains
         if (allocated(error)) return
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call expect_context(error, PYTHON_INDENT_AFTER_BLOCK_START)
         if (allocated(error)) return
         call expect_indent(error, 8_int64)
@@ -1963,7 +1968,7 @@ contains
         if (.false.) call python_indent_line(st)
     end subroutine test_python_indent_after_case_block
 
-    subroutine test_python_indent_after_re_match(error)
+    subroutine test_python_indent_after_regular_expression_match(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -1979,7 +1984,7 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_after_re_match
+    end subroutine test_python_indent_after_regular_expression_match
 
     subroutine test_python_indent_after_bare_match(error)
         type(error_type), allocatable, intent(out) :: error
@@ -2008,7 +2013,7 @@ contains
 
         call py_buffer(LF &
                        //"return"//LF)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call expect_indent(error, 0_int64)
         if (allocated(error)) return
         if (.false.) shortage = 0
@@ -2027,12 +2032,12 @@ contains
                        //"s = 'Single Quoted String'"//LF &
                        //"t = '''Triple Quoted String'''"//LF &
                        //"p = (1 + 2)"//LF)
-        v(1) = look_pos("Comment", 1_int64, .false.)
+        v(1) = look_position("Comment", 1_int64, .false.)
         v(2) = python_syntax_context(PYTHON_CONTEXT_COMMENT)
         v(3) = line_beginning_position()
         call check(error, v(2) == v(3), "(= (python-syntax-context 'comment) (pos-bol))")
         if (allocated(error)) return
-        v(4) = look_pos("Single", 1_int64, .false.)
+        v(4) = look_position("Single", 1_int64, .false.)
         v(5) = python_syntax_context(PYTHON_CONTEXT_STRING)
         v(6) = point()
         v(7) = v(6) - 1
@@ -2046,7 +2051,7 @@ contains
         v(11) = python_syntax_context(PYTHON_CONTEXT_TRIPLE_QUOTED_STRING)
         call check(error,.not. (v(11) /= 0), "(not (python-syntax-context 'triple-quoted-string))")
         if (allocated(error)) return
-        v(12) = look_pos("Triple", 1_int64, .false.)
+        v(12) = look_position("Triple", 1_int64, .false.)
         v(13) = python_syntax_context(PYTHON_CONTEXT_STRING)
         v(14) = point()
         v(15) = v(14) - 1
@@ -2060,8 +2065,8 @@ contains
         v(19) = v(18) - 1
         call check(error, v(17) == v(19), "(= (python-syntax-context 'triple-quoted-string) (1- (point)")
         if (allocated(error)) return
-        v(20) = look_pos("1 + 2", 1_int64, .false.)
-        v(21) = python_syntax_context(PYTHON_CONTEXT_PAREN)
+        v(20) = look_position("1 + 2", 1_int64, .false.)
+        v(21) = python_syntax_context(PYTHON_CONTEXT_PARENTHESIS)
         v(22) = point()
         v(23) = v(22) - 1
         call check(error, v(21) == v(23), "(= (python-syntax-context 'paren) (1- (point)))")
@@ -2070,7 +2075,7 @@ contains
         if (.false.) name = ""
     end subroutine test_python_syntax_context_1
 
-    subroutine test_python_nav_beginning_of_definition_1(error)
+    subroutine test_python_navigation_beginning_of_definition_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2097,67 +2102,67 @@ contains
                        //"            print 'After f(*args)'"//LF &
                        //"        return wrapped_f"//LF &
                        //"    return wwrap"//LF)
-        v(1) = look_pos("return wwrap", 1_int64, .false.)
+        v(1) = look_position("return wwrap", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_definition(1_int64, b(1), st)
+        call python_navigation_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
-        call goto_char(v(2))
+        call goto_character(v(2))
         v(5) = point()
-        v(6) = look_pos("def decoratorFunctionWithArguments", -1_int64, .false.)
+        v(6) = look_position("def decoratorFunctionWithArguments", -1_int64, .false.)
         call beginning_of_line()
         v(7) = point()
         v(8) = v(7)
-        call goto_char(v(5))
+        call goto_character(v(5))
         call check(error, v(4) == v(8), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
-        v(9) = look_pos("return wrap", -1_int64, .false.)
+        v(9) = look_position("return wrap", -1_int64, .false.)
         v(10) = point()
-        call python_nav_beginning_of_definition(1_int64, b(2), st)
+        call python_navigation_beginning_of_definition(1_int64, b(2), st)
         v(11) = point()
         v(12) = v(11)
-        call goto_char(v(10))
+        call goto_character(v(10))
         v(13) = point()
-        v(14) = look_pos("def wwrap(f):", -1_int64, .false.)
+        v(14) = look_position("def wwrap(f):", -1_int64, .false.)
         call beginning_of_line()
         v(15) = point()
         v(16) = v(15)
-        call goto_char(v(13))
+        call goto_character(v(13))
         call check(error, v(12) == v(16), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
-        v(17) = look_pos("def wrapped_f(*args):", -1_int64, .false.)
+        v(17) = look_position("def wrapped_f(*args):", -1_int64, .false.)
         v(18) = point()
-        call python_nav_beginning_of_definition(1_int64, b(3), st)
+        call python_navigation_beginning_of_definition(1_int64, b(3), st)
         v(19) = point()
         v(20) = v(19)
-        call goto_char(v(18))
+        call goto_character(v(18))
         v(21) = point()
-        v(22) = look_pos("def wwrap(f):", -1_int64, .false.)
+        v(22) = look_position("def wwrap(f):", -1_int64, .false.)
         call beginning_of_line()
         v(23) = point()
         v(24) = v(23)
-        call goto_char(v(21))
+        call goto_character(v(21))
         call check(error, v(20) == v(24), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
-        v(25) = look_pos("def wwrap(f):", -1_int64, .false.)
+        v(25) = look_position("def wwrap(f):", -1_int64, .false.)
         v(26) = point()
-        call python_nav_beginning_of_definition(1_int64, b(4), st)
+        call python_navigation_beginning_of_definition(1_int64, b(4), st)
         v(27) = point()
         v(28) = v(27)
-        call goto_char(v(26))
+        call goto_character(v(26))
         v(29) = point()
-        v(30) = look_pos("def decoratorFunctionWithArguments", -1_int64, .false.)
+        v(30) = look_position("def decoratorFunctionWithArguments", -1_int64, .false.)
         call beginning_of_line()
         v(31) = point()
         v(32) = v(31)
-        call goto_char(v(29))
+        call goto_character(v(29))
         call check(error, v(28) == v(32), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_definition_1
+    end subroutine test_python_navigation_beginning_of_definition_1
 
-    subroutine test_python_nav_beginning_of_definition_2(error)
+    subroutine test_python_navigation_beginning_of_definition_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2181,110 +2186,110 @@ contains
                        //LF &
                        //"    def c(self):"//LF &
                        //"        pass"//LF)
-        v(1) = look_pos("def c(self):", 1_int64, .false.)
+        v(1) = look_position("def c(self):", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_definition(1_int64, b(1), st)
+        call python_navigation_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
-        call goto_char(v(2))
+        call goto_character(v(2))
         v(5) = point()
-        v(6) = look_pos("def m(self):", -1_int64, .false.)
+        v(6) = look_position("def m(self):", -1_int64, .false.)
         call beginning_of_line()
         v(7) = point()
         v(8) = v(7)
-        call goto_char(v(5))
+        call goto_character(v(5))
         call check(error, v(4) == v(8), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
         shortage = forward_line(-1_int64)
         v(9) = point()
-        call python_nav_beginning_of_definition(1_int64, b(2), st)
+        call python_navigation_beginning_of_definition(1_int64, b(2), st)
         v(10) = point()
         v(11) = v(10)
-        call goto_char(v(9))
+        call goto_character(v(9))
         v(12) = point()
-        v(13) = look_pos("def m(self):", -1_int64, .false.)
+        v(13) = look_position("def m(self):", -1_int64, .false.)
         call beginning_of_line()
         v(14) = point()
         v(15) = v(14)
-        call goto_char(v(12))
+        call goto_character(v(12))
         call check(error, v(11) == v(15), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
-        v(16) = look_pos("if True:", -1_int64, .false.)
+        v(16) = look_position("if True:", -1_int64, .false.)
         shortage = forward_line(-1_int64)
         v(17) = point()
-        call python_nav_beginning_of_definition(1_int64, b(3), st)
+        call python_navigation_beginning_of_definition(1_int64, b(3), st)
         v(18) = point()
         v(19) = v(18)
-        call goto_char(v(17))
+        call goto_character(v(17))
         v(20) = point()
-        v(21) = look_pos("def a():", -1_int64, .false.)
+        v(21) = look_position("def a():", -1_int64, .false.)
         call beginning_of_line()
         v(22) = point()
         v(23) = v(22)
-        call goto_char(v(20))
+        call goto_character(v(20))
         call check(error, v(19) == v(23), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
-        v(24) = look_pos("def a():", -1_int64, .false.)
+        v(24) = look_position("def a():", -1_int64, .false.)
         v(25) = point()
-        call python_nav_beginning_of_definition(1_int64, b(4), st)
+        call python_navigation_beginning_of_definition(1_int64, b(4), st)
         v(26) = point()
         v(27) = v(26)
-        call goto_char(v(25))
+        call goto_character(v(25))
         v(28) = point()
-        v(29) = look_pos("def b():", -1_int64, .false.)
+        v(29) = look_position("def b():", -1_int64, .false.)
         call beginning_of_line()
         v(30) = point()
         v(31) = v(30)
-        call goto_char(v(28))
+        call goto_character(v(28))
         call check(error, v(27) == v(31), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
-        v(32) = look_pos("def b():", -1_int64, .false.)
+        v(32) = look_position("def b():", -1_int64, .false.)
         v(33) = point()
-        call python_nav_beginning_of_definition(1_int64, b(5), st)
+        call python_navigation_beginning_of_definition(1_int64, b(5), st)
         v(34) = point()
         v(35) = v(34)
-        call goto_char(v(33))
+        call goto_character(v(33))
         v(36) = point()
-        v(37) = look_pos("def m(self):", -1_int64, .false.)
+        v(37) = look_position("def m(self):", -1_int64, .false.)
         call beginning_of_line()
         v(38) = point()
         v(39) = v(38)
-        call goto_char(v(36))
+        call goto_character(v(36))
         call check(error, v(35) == v(39), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
         shortage = forward_line(-1_int64)
         v(40) = point()
-        call python_nav_beginning_of_definition(1_int64, b(6), st)
+        call python_navigation_beginning_of_definition(1_int64, b(6), st)
         v(41) = point()
         v(42) = v(41)
-        call goto_char(v(40))
+        call goto_character(v(40))
         v(43) = point()
-        v(44) = look_pos("def m(self):", -1_int64, .false.)
+        v(44) = look_position("def m(self):", -1_int64, .false.)
         call beginning_of_line()
         v(45) = point()
         v(46) = v(45)
-        call goto_char(v(43))
+        call goto_character(v(43))
         call check(error, v(42) == v(46), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
-        v(47) = look_pos("def m(self):", -1_int64, .false.)
+        v(47) = look_position("def m(self):", -1_int64, .false.)
         v(48) = point()
-        call python_nav_beginning_of_definition(1_int64, b(7), st)
+        call python_navigation_beginning_of_definition(1_int64, b(7), st)
         v(49) = point()
         v(50) = v(49)
-        call goto_char(v(48))
+        call goto_character(v(48))
         v(51) = point()
-        v(52) = look_pos("class C(object):", -1_int64, .false.)
+        v(52) = look_position("class C(object):", -1_int64, .false.)
         call beginning_of_line()
         v(53) = point()
         v(54) = v(53)
-        call goto_char(v(51))
+        call goto_character(v(51))
         call check(error, v(50) == v(54), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_definition_2
+    end subroutine test_python_navigation_beginning_of_definition_2
 
-    subroutine test_python_nav_beginning_of_definition_3(error)
+    subroutine test_python_navigation_beginning_of_definition_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2299,25 +2304,25 @@ contains
                        //LF &
                        //"    async def c(self):"//LF &
                        //"        pass"//LF)
-        v(1) = look_pos("self.c()", 1_int64, .false.)
+        v(1) = look_position("self.c()", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_definition(1_int64, b(1), st)
+        call python_navigation_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
-        call goto_char(v(2))
+        call goto_character(v(2))
         v(5) = point()
-        v(6) = look_pos("async def m", -1_int64, .false.)
+        v(6) = look_position("async def m", -1_int64, .false.)
         call beginning_of_line()
         v(7) = point()
         v(8) = v(7)
-        call goto_char(v(5))
+        call goto_character(v(5))
         call check(error, v(4) == v(8), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_definition_3
+    end subroutine test_python_navigation_beginning_of_definition_3
 
-    subroutine test_python_nav_beginning_of_definition_4(error)
+    subroutine test_python_navigation_beginning_of_definition_4(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2334,67 +2339,67 @@ contains
                        //LF &
                        //"def c():"//LF &
                        //"    pass"//LF)
-        v(1) = look_pos("def c():", 1_int64, .false.)
+        v(1) = look_position("def c():", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_definition(1_int64, b(1), st)
+        call python_navigation_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
-        call goto_char(v(2))
+        call goto_character(v(2))
         v(5) = point()
-        v(6) = look_pos("def \", -1_int64, .false.)
+        v(6) = look_position("def \", -1_int64, .false.)
         call beginning_of_line()
         v(7) = point()
         v(8) = v(7)
-        call goto_char(v(5))
+        call goto_character(v(5))
         call check(error, v(4) == v(8), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
-        v(9) = look_pos("return 0", -1_int64, .false.)
+        v(9) = look_position("return 0", -1_int64, .false.)
         v(10) = point()
-        call python_nav_beginning_of_definition(1_int64, b(2), st)
+        call python_navigation_beginning_of_definition(1_int64, b(2), st)
         v(11) = point()
         v(12) = v(11)
-        call goto_char(v(10))
+        call goto_character(v(10))
         v(13) = point()
-        v(14) = look_pos("def \", -1_int64, .false.)
+        v(14) = look_position("def \", -1_int64, .false.)
         call beginning_of_line()
         v(15) = point()
         v(16) = v(15)
-        call goto_char(v(13))
+        call goto_character(v(13))
         call check(error, v(12) == v(16), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
-        v(17) = look_pos("b():", -1_int64, .false.)
+        v(17) = look_position("b():", -1_int64, .false.)
         v(18) = point()
-        call python_nav_beginning_of_definition(1_int64, b(3), st)
+        call python_navigation_beginning_of_definition(1_int64, b(3), st)
         v(19) = point()
         v(20) = v(19)
-        call goto_char(v(18))
+        call goto_character(v(18))
         v(21) = point()
-        v(22) = look_pos("def \", -1_int64, .false.)
+        v(22) = look_position("def \", -1_int64, .false.)
         call beginning_of_line()
         v(23) = point()
         v(24) = v(23)
-        call goto_char(v(21))
+        call goto_character(v(21))
         call check(error, v(20) == v(24), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
-        v(25) = look_pos("def a():", -1_int64, .false.)
+        v(25) = look_position("def a():", -1_int64, .false.)
         v(26) = point()
-        call python_nav_beginning_of_definition(-1_int64, b(4), st)
+        call python_navigation_beginning_of_definition(-1_int64, b(4), st)
         v(27) = point()
         v(28) = v(27)
-        call goto_char(v(26))
+        call goto_character(v(26))
         v(29) = point()
-        v(30) = look_pos("def \", 1_int64, .false.)
+        v(30) = look_position("def \", 1_int64, .false.)
         call beginning_of_line()
         v(31) = point()
         v(32) = v(31)
-        call goto_char(v(29))
+        call goto_character(v(29))
         call check(error, v(28) == v(32), "(= (save-excursion (python-nav-beginning-of-defun -1) (point")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_definition_4
+    end subroutine test_python_navigation_beginning_of_definition_4
 
-    subroutine test_python_nav_beginning_of_definition_5(error)
+    subroutine test_python_navigation_beginning_of_definition_5(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2407,39 +2412,39 @@ contains
                        //"    def \"//LF &
                        //"            m(self):"//LF &
                        //"        pass"//LF)
-        v(1) = look_pos("m(self):", 1_int64, .false.)
+        v(1) = look_position("m(self):", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_definition(1_int64, b(1), st)
+        call python_navigation_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
-        call goto_char(v(2))
+        call goto_character(v(2))
         v(5) = point()
-        v(6) = look_pos("def \", -1_int64, .false.)
+        v(6) = look_position("def \", -1_int64, .false.)
         call beginning_of_line()
         v(7) = point()
         v(8) = v(7)
-        call goto_char(v(5))
+        call goto_character(v(5))
         call check(error, v(4) == v(8), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
-        v(9) = look_pos("class C:", -1_int64, .false.)
+        v(9) = look_position("class C:", -1_int64, .false.)
         v(10) = point()
-        call python_nav_beginning_of_definition(-1_int64, b(2), st)
+        call python_navigation_beginning_of_definition(-1_int64, b(2), st)
         v(11) = point()
         v(12) = v(11)
-        call goto_char(v(10))
+        call goto_character(v(10))
         v(13) = point()
-        v(14) = look_pos("def \", 1_int64, .false.)
+        v(14) = look_position("def \", 1_int64, .false.)
         call beginning_of_line()
         v(15) = point()
         v(16) = v(15)
-        call goto_char(v(13))
+        call goto_character(v(13))
         call check(error, v(12) == v(16), "(= (save-excursion (python-nav-beginning-of-defun -1) (point")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_definition_5
+    end subroutine test_python_navigation_beginning_of_definition_5
 
-    subroutine test_python_nav_beginning_of_definition_6(error)
+    subroutine test_python_navigation_beginning_of_definition_6(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2450,24 +2455,24 @@ contains
                        //"class C:"//LF &
                        //"    def foo(self):"//LF &
                        //"        pass"//LF)
-        v(1) = look_pos("self", 1_int64, .false.)
+        v(1) = look_position("self", 1_int64, .false.)
         v(2) = point()
-        call python_nav_beginning_of_definition(1_int64, b(1), st)
+        call python_navigation_beginning_of_definition(1_int64, b(1), st)
         v(3) = point()
         v(4) = v(3)
-        call goto_char(v(2))
+        call goto_character(v(2))
         v(5) = point()
         call beginning_of_line()
         v(6) = point()
         v(7) = v(6)
-        call goto_char(v(5))
+        call goto_character(v(5))
         call check(error, v(4) == v(7), "(= (save-excursion (python-nav-beginning-of-defun) (point)) ")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_definition_6
+    end subroutine test_python_navigation_beginning_of_definition_6
 
-    subroutine test_python_nav_end_of_definition_1(error)
+    subroutine test_python_navigation_end_of_definition_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2489,85 +2494,85 @@ contains
                        //"    def c(self):"//LF &
                        //"        pass"//LF)
         v(1) = point()
-        v(2) = look_pos("class C(object):", 1_int64, .false.)
-        b(1) = python_nav_end_of_definition()
+        v(2) = look_position("class C(object):", 1_int64, .false.)
+        b(1) = python_navigation_end_of_definition()
         v(3) = point()
         v(4) = v(3)
-        call goto_char(v(1))
+        call goto_character(v(1))
         v(5) = point()
-        v(6) = point_max()
+        v(6) = point_maximum()
         v(7) = v(6)
-        call goto_char(v(5))
+        call goto_character(v(5))
         call check(error, v(4) == v(7), "(= (save-excursion (python-tests-look-at 'class C(object):')")
         if (allocated(error)) return
         v(8) = point()
-        v(9) = look_pos("def m(self):", 1_int64, .false.)
-        b(2) = python_nav_end_of_definition()
+        v(9) = look_position("def m(self):", 1_int64, .false.)
+        b(2) = python_navigation_end_of_definition()
         v(10) = point()
         v(11) = v(10)
-        call goto_char(v(8))
+        call goto_character(v(8))
         v(12) = point()
-        v(13) = look_pos("def c(self):", 1_int64, .false.)
+        v(13) = look_position("def c(self):", 1_int64, .false.)
         shortage = forward_line(-1_int64)
         v(14) = point()
         v(15) = v(14)
-        call goto_char(v(12))
+        call goto_character(v(12))
         call check(error, v(11) == v(15), "(= (save-excursion (python-tests-look-at 'def m(self):') (py")
         if (allocated(error)) return
         v(16) = point()
-        v(17) = look_pos("def b():", 1_int64, .false.)
+        v(17) = look_position("def b():", 1_int64, .false.)
         shortage = forward_line(-1_int64)
-        b(3) = python_nav_end_of_definition()
+        b(3) = python_navigation_end_of_definition()
         v(18) = point()
         v(19) = v(18)
-        call goto_char(v(16))
+        call goto_character(v(16))
         v(20) = point()
-        v(21) = look_pos("def c(self):", 1_int64, .false.)
+        v(21) = look_position("def c(self):", 1_int64, .false.)
         shortage = forward_line(-1_int64)
         v(22) = point()
         v(23) = v(22)
-        call goto_char(v(20))
+        call goto_character(v(20))
         call check(error, v(19) == v(23), "(= (save-excursion (python-tests-look-at 'def b():') (forwar")
         if (allocated(error)) return
         v(24) = point()
-        v(25) = look_pos("def b():", 1_int64, .false.)
-        b(4) = python_nav_end_of_definition()
+        v(25) = look_position("def b():", 1_int64, .false.)
+        b(4) = python_navigation_end_of_definition()
         v(26) = point()
         v(27) = v(26)
-        call goto_char(v(24))
+        call goto_character(v(24))
         v(28) = point()
-        v(29) = look_pos("def b():", 1_int64, .false.)
+        v(29) = look_position("def b():", 1_int64, .false.)
         shortage = forward_line(2_int64)
         v(30) = point()
         v(31) = v(30)
-        call goto_char(v(28))
+        call goto_character(v(28))
         call check(error, v(27) == v(31), "(= (save-excursion (python-tests-look-at 'def b():') (python")
         if (allocated(error)) return
         v(32) = point()
-        v(33) = look_pos("def a():", 1_int64, .false.)
+        v(33) = look_position("def a():", 1_int64, .false.)
         shortage = forward_line(-1_int64)
-        b(5) = python_nav_end_of_definition()
+        b(5) = python_navigation_end_of_definition()
         b(6) = b(5)
-        call goto_char(v(32))
+        call goto_character(v(32))
         call check(error,.not. (b(6)), "(not (save-excursion (python-tests-look-at 'def a():') (forw")
         if (allocated(error)) return
         v(34) = point()
-        v(35) = look_pos("def c(self):", 1_int64, .false.)
-        b(7) = python_nav_end_of_definition()
+        v(35) = look_position("def c(self):", 1_int64, .false.)
+        b(7) = python_navigation_end_of_definition()
         v(36) = point()
         v(37) = v(36)
-        call goto_char(v(34))
+        call goto_character(v(34))
         v(38) = point()
-        v(39) = point_max()
+        v(39) = point_maximum()
         v(40) = v(39)
-        call goto_char(v(38))
+        call goto_character(v(38))
         call check(error, v(37) == v(40), "(= (save-excursion (python-tests-look-at 'def c(self):') (py")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_definition_1
+    end subroutine test_python_navigation_end_of_definition_1
 
-    subroutine test_python_nav_end_of_definition_2(error)
+    subroutine test_python_navigation_end_of_definition_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2595,73 +2600,73 @@ contains
                        //"        return wrapped_f"//LF &
                        //"    return wwrap"//LF)
         v(1) = point()
-        v(2) = look_pos("def decoratorFunctionWithArguments", 1_int64, .false.)
-        b(1) = python_nav_end_of_definition()
+        v(2) = look_position("def decoratorFunctionWithArguments", 1_int64, .false.)
+        b(1) = python_navigation_end_of_definition()
         v(3) = point()
         v(4) = v(3)
-        call goto_char(v(1))
+        call goto_character(v(1))
         v(5) = point()
-        v(6) = point_max()
+        v(6) = point_maximum()
         v(7) = v(6)
-        call goto_char(v(5))
+        call goto_character(v(5))
         call check(error, v(4) == v(7), "(= (save-excursion (python-tests-look-at 'def decoratorFunct")
         if (allocated(error)) return
         v(8) = point()
-        v(9) = look_pos("@decoratorFunctionWithArguments", 1_int64, .false.)
-        b(2) = python_nav_end_of_definition()
+        v(9) = look_position("@decoratorFunctionWithArguments", 1_int64, .false.)
+        b(2) = python_navigation_end_of_definition()
         v(10) = point()
         v(11) = v(10)
-        call goto_char(v(8))
+        call goto_character(v(8))
         v(12) = point()
-        v(13) = point_max()
+        v(13) = point_maximum()
         v(14) = v(13)
-        call goto_char(v(12))
+        call goto_character(v(12))
         call check(error, v(11) == v(14), "(= (save-excursion (python-tests-look-at '@decoratorFunction")
         if (allocated(error)) return
         v(15) = point()
-        v(16) = look_pos("def wwrap(f):", 1_int64, .false.)
-        b(3) = python_nav_end_of_definition()
+        v(16) = look_position("def wwrap(f):", 1_int64, .false.)
+        b(3) = python_navigation_end_of_definition()
         v(17) = point()
         v(18) = v(17)
-        call goto_char(v(15))
+        call goto_character(v(15))
         v(19) = point()
-        v(20) = look_pos("return wwrap", 1_int64, .false.)
+        v(20) = look_position("return wwrap", 1_int64, .false.)
         v(21) = line_beginning_position()
         v(22) = v(21)
-        call goto_char(v(19))
+        call goto_character(v(19))
         call check(error, v(18) == v(22), "(= (save-excursion (python-tests-look-at 'def wwrap(f):') (p")
         if (allocated(error)) return
         v(23) = point()
-        v(24) = look_pos("def wrapped_f(*args):", 1_int64, .false.)
-        b(4) = python_nav_end_of_definition()
+        v(24) = look_position("def wrapped_f(*args):", 1_int64, .false.)
+        b(4) = python_navigation_end_of_definition()
         v(25) = point()
         v(26) = v(25)
-        call goto_char(v(23))
+        call goto_character(v(23))
         v(27) = point()
-        v(28) = look_pos("return wrapped_f", 1_int64, .false.)
+        v(28) = look_position("return wrapped_f", 1_int64, .false.)
         v(29) = line_beginning_position()
         v(30) = v(29)
-        call goto_char(v(27))
+        call goto_character(v(27))
         call check(error, v(26) == v(30), "(= (save-excursion (python-tests-look-at 'def wrapped_f(*arg")
         if (allocated(error)) return
         v(31) = point()
-        v(32) = look_pos("f(*args)", 1_int64, .false.)
-        b(5) = python_nav_end_of_definition()
+        v(32) = look_position("f(*args)", 1_int64, .false.)
+        b(5) = python_navigation_end_of_definition()
         v(33) = point()
         v(34) = v(33)
-        call goto_char(v(31))
+        call goto_character(v(31))
         v(35) = point()
-        v(36) = look_pos("return wrapped_f", 1_int64, .false.)
+        v(36) = look_position("return wrapped_f", 1_int64, .false.)
         v(37) = line_beginning_position()
         v(38) = v(37)
-        call goto_char(v(35))
+        call goto_character(v(35))
         call check(error, v(34) == v(38), "(= (save-excursion (python-tests-look-at 'f(*args)') (python")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_definition_2
+    end subroutine test_python_navigation_end_of_definition_2
 
-    subroutine test_python_nav_end_of_definition_3(error)
+    subroutine test_python_navigation_end_of_definition_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2673,22 +2678,22 @@ contains
                        //"        a():"//LF &
                        //"    return 0"//LF)
         v(1) = point()
-        v(2) = look_pos("def \", 1_int64, .false.)
-        b(1) = python_nav_end_of_definition()
+        v(2) = look_position("def \", 1_int64, .false.)
+        b(1) = python_navigation_end_of_definition()
         v(3) = point()
         v(4) = v(3)
-        call goto_char(v(1))
+        call goto_character(v(1))
         v(5) = point()
-        v(6) = point_max()
+        v(6) = point_maximum()
         v(7) = v(6)
-        call goto_char(v(5))
+        call goto_character(v(5))
         call check(error, v(4) == v(7), "(= (save-excursion (python-tests-look-at 'def \\\\') (python-n")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_definition_3
+    end subroutine test_python_navigation_end_of_definition_3
 
-    subroutine test_python_nav_backward_definition_1(error)
+    subroutine test_python_navigation_backward_definition_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2719,65 +2724,65 @@ contains
                        //LF &
                        //"    # def d(self): # d"//LF &
                        //"    #     pass"//LF)
-        v(1) = point_max()
-        call goto_char(v(1))
+        v(1) = point_maximum()
+        call goto_character(v(1))
         v(2) = point()
-        v(3) = python_nav_backward_definition(1_int64)
+        v(3) = python_navigation_backward_definition(1_int64)
         v(4) = v(3)
-        call goto_char(v(2))
-        v(5) = look_pos("    def c(self): # c", -1_int64, .false.)
+        call goto_character(v(2))
+        v(5) = look_position("    def c(self): # c", -1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(6) = point()
-        v(7) = python_nav_backward_definition(1_int64)
+        v(7) = python_navigation_backward_definition(1_int64)
         v(8) = v(7)
-        call goto_char(v(6))
-        v(9) = look_pos("            def d(self): # d", -1_int64, .false.)
+        call goto_character(v(6))
+        v(9) = look_position("            def d(self): # d", -1_int64, .false.)
         call check(error, v(8) == v(9), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(10) = point()
-        v(11) = python_nav_backward_definition(1_int64)
+        v(11) = python_navigation_backward_definition(1_int64)
         v(12) = v(11)
-        call goto_char(v(10))
-        v(13) = look_pos("        class C(object): # C", -1_int64, .false.)
+        call goto_character(v(10))
+        v(13) = look_position("        class C(object): # C", -1_int64, .false.)
         call check(error, v(12) == v(13), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(14) = point()
-        v(15) = python_nav_backward_definition(1_int64)
+        v(15) = python_navigation_backward_definition(1_int64)
         v(16) = v(15)
-        call goto_char(v(14))
-        v(17) = look_pos("    class B(object): # B", -1_int64, .false.)
+        call goto_character(v(14))
+        v(17) = look_position("    class B(object): # B", -1_int64, .false.)
         call check(error, v(16) == v(17), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(18) = point()
-        v(19) = python_nav_backward_definition(1_int64)
+        v(19) = python_navigation_backward_definition(1_int64)
         v(20) = v(19)
-        call goto_char(v(18))
-        v(21) = look_pos("    def b(self): # b", -1_int64, .false.)
+        call goto_character(v(18))
+        v(21) = look_position("    def b(self): # b", -1_int64, .false.)
         call check(error, v(20) == v(21), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(22) = point()
-        v(23) = python_nav_backward_definition(1_int64)
+        v(23) = python_navigation_backward_definition(1_int64)
         v(24) = v(23)
-        call goto_char(v(22))
-        v(25) = look_pos("    def a(self): # a", -1_int64, .false.)
+        call goto_character(v(22))
+        v(25) = look_position("    def a(self): # a", -1_int64, .false.)
         call check(error, v(24) == v(25), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(26) = point()
-        v(27) = python_nav_backward_definition(1_int64)
+        v(27) = python_navigation_backward_definition(1_int64)
         v(28) = v(27)
-        call goto_char(v(26))
-        v(29) = look_pos("class A(object): # A", -1_int64, .false.)
+        call goto_character(v(26))
+        v(29) = look_position("class A(object): # A", -1_int64, .false.)
         call check(error, v(28) == v(29), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
-        v(30) = python_nav_backward_definition(1_int64)
+        v(30) = python_navigation_backward_definition(1_int64)
         call check(error,.not. (v(30) /= 0), "(not (python-nav-backward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_backward_definition_1
+    end subroutine test_python_navigation_backward_definition_1
 
-    subroutine test_python_nav_backward_definition_2(error)
+    subroutine test_python_navigation_backward_definition_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2804,37 +2809,37 @@ contains
                        //"            print 'After f(*args)'"//LF &
                        //"        return wrapped_f"//LF &
                        //"    return wwrap"//LF)
-        v(1) = point_max()
-        call goto_char(v(1))
+        v(1) = point_maximum()
+        call goto_character(v(1))
         v(2) = point()
-        v(3) = python_nav_backward_definition(1_int64)
+        v(3) = python_navigation_backward_definition(1_int64)
         v(4) = v(3)
-        call goto_char(v(2))
-        v(5) = look_pos("        def wrapped_f(*args):", -1_int64, .false.)
+        call goto_character(v(2))
+        v(5) = look_position("        def wrapped_f(*args):", -1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(6) = point()
-        v(7) = python_nav_backward_definition(1_int64)
+        v(7) = python_navigation_backward_definition(1_int64)
         v(8) = v(7)
-        call goto_char(v(6))
-        v(9) = look_pos("    def wwrap(f):", -1_int64, .false.)
+        call goto_character(v(6))
+        v(9) = look_position("    def wwrap(f):", -1_int64, .false.)
         call check(error, v(8) == v(9), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
         v(10) = point()
-        v(11) = python_nav_backward_definition(1_int64)
+        v(11) = python_navigation_backward_definition(1_int64)
         v(12) = v(11)
-        call goto_char(v(10))
-        v(13) = look_pos("def decoratorFunctionWithArguments(arg1, arg2, arg3):", -1_int64, .false.)
+        call goto_character(v(10))
+        v(13) = look_position("def decoratorFunctionWithArguments(arg1, arg2, arg3):", -1_int64, .false.)
         call check(error, v(12) == v(13), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
-        v(14) = python_nav_backward_definition(1_int64)
+        v(14) = python_navigation_backward_definition(1_int64)
         call check(error,.not. (v(14) /= 0), "(not (python-nav-backward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_backward_definition_2
+    end subroutine test_python_navigation_backward_definition_2
 
-    subroutine test_python_nav_backward_definition_4(error)
+    subroutine test_python_navigation_backward_definition_4(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2845,23 +2850,23 @@ contains
                        //"def \"//LF &
                        //"        a():"//LF &
                        //"    return 0"//LF)
-        v(1) = point_max()
-        call goto_char(v(1))
+        v(1) = point_maximum()
+        call goto_character(v(1))
         v(2) = point()
-        v(3) = python_nav_backward_definition(1_int64)
+        v(3) = python_navigation_backward_definition(1_int64)
         v(4) = v(3)
-        call goto_char(v(2))
-        v(5) = look_pos("def \", -1_int64, .false.)
+        call goto_character(v(2))
+        v(5) = look_position("def \", -1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-backward-defun)) (python-test")
         if (allocated(error)) return
-        v(6) = python_nav_backward_definition(1_int64)
+        v(6) = python_navigation_backward_definition(1_int64)
         call check(error,.not. (v(6) /= 0), "(not (python-nav-backward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_backward_definition_4
+    end subroutine test_python_navigation_backward_definition_4
 
-    subroutine test_python_nav_forward_definition_1(error)
+    subroutine test_python_navigation_forward_definition_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2892,65 +2897,65 @@ contains
                        //LF &
                        //"    # def d(self): # d"//LF &
                        //"    #     pass"//LF)
-        v(1) = point_min()
-        call goto_char(v(1))
+        v(1) = point_minimum()
+        call goto_character(v(1))
         v(2) = point()
-        v(3) = python_nav_forward_definition(1_int64)
+        v(3) = python_navigation_forward_definition(1_int64)
         v(4) = v(3)
-        call goto_char(v(2))
-        v(5) = look_pos("(object): # A", 1_int64, .false.)
+        call goto_character(v(2))
+        v(5) = look_position("(object): # A", 1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(6) = point()
-        v(7) = python_nav_forward_definition(1_int64)
+        v(7) = python_navigation_forward_definition(1_int64)
         v(8) = v(7)
-        call goto_char(v(6))
-        v(9) = look_pos("(self): # a", 1_int64, .false.)
+        call goto_character(v(6))
+        v(9) = look_position("(self): # a", 1_int64, .false.)
         call check(error, v(8) == v(9), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(10) = point()
-        v(11) = python_nav_forward_definition(1_int64)
+        v(11) = python_navigation_forward_definition(1_int64)
         v(12) = v(11)
-        call goto_char(v(10))
-        v(13) = look_pos("(self): # b", 1_int64, .false.)
+        call goto_character(v(10))
+        v(13) = look_position("(self): # b", 1_int64, .false.)
         call check(error, v(12) == v(13), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(14) = point()
-        v(15) = python_nav_forward_definition(1_int64)
+        v(15) = python_navigation_forward_definition(1_int64)
         v(16) = v(15)
-        call goto_char(v(14))
-        v(17) = look_pos("(object): # B", 1_int64, .false.)
+        call goto_character(v(14))
+        v(17) = look_position("(object): # B", 1_int64, .false.)
         call check(error, v(16) == v(17), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(18) = point()
-        v(19) = python_nav_forward_definition(1_int64)
+        v(19) = python_navigation_forward_definition(1_int64)
         v(20) = v(19)
-        call goto_char(v(18))
-        v(21) = look_pos("(object): # C", 1_int64, .false.)
+        call goto_character(v(18))
+        v(21) = look_position("(object): # C", 1_int64, .false.)
         call check(error, v(20) == v(21), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(22) = point()
-        v(23) = python_nav_forward_definition(1_int64)
+        v(23) = python_navigation_forward_definition(1_int64)
         v(24) = v(23)
-        call goto_char(v(22))
-        v(25) = look_pos("(self): # d", 1_int64, .false.)
+        call goto_character(v(22))
+        v(25) = look_position("(self): # d", 1_int64, .false.)
         call check(error, v(24) == v(25), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(26) = point()
-        v(27) = python_nav_forward_definition(1_int64)
+        v(27) = python_navigation_forward_definition(1_int64)
         v(28) = v(27)
-        call goto_char(v(26))
-        v(29) = look_pos("(self): # c", 1_int64, .false.)
+        call goto_character(v(26))
+        v(29) = look_position("(self): # c", 1_int64, .false.)
         call check(error, v(28) == v(29), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
-        v(30) = python_nav_forward_definition(1_int64)
+        v(30) = python_navigation_forward_definition(1_int64)
         call check(error,.not. (v(30) /= 0), "(not (python-nav-forward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_forward_definition_1
+    end subroutine test_python_navigation_forward_definition_1
 
-    subroutine test_python_nav_forward_definition_2(error)
+    subroutine test_python_navigation_forward_definition_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -2977,37 +2982,37 @@ contains
                        //"            print 'After f(*args)'"//LF &
                        //"        return wrapped_f"//LF &
                        //"    return wwrap"//LF)
-        v(1) = point_min()
-        call goto_char(v(1))
+        v(1) = point_minimum()
+        call goto_character(v(1))
         v(2) = point()
-        v(3) = python_nav_forward_definition(1_int64)
+        v(3) = python_navigation_forward_definition(1_int64)
         v(4) = v(3)
-        call goto_char(v(2))
-        v(5) = look_pos("(arg1, arg2, arg3):", 1_int64, .false.)
+        call goto_character(v(2))
+        v(5) = look_position("(arg1, arg2, arg3):", 1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(6) = point()
-        v(7) = python_nav_forward_definition(1_int64)
+        v(7) = python_navigation_forward_definition(1_int64)
         v(8) = v(7)
-        call goto_char(v(6))
-        v(9) = look_pos("(f):", 1_int64, .false.)
+        call goto_character(v(6))
+        v(9) = look_position("(f):", 1_int64, .false.)
         call check(error, v(8) == v(9), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
         v(10) = point()
-        v(11) = python_nav_forward_definition(1_int64)
+        v(11) = python_navigation_forward_definition(1_int64)
         v(12) = v(11)
-        call goto_char(v(10))
-        v(13) = look_pos("(*args):", 1_int64, .false.)
+        call goto_character(v(10))
+        v(13) = look_position("(*args):", 1_int64, .false.)
         call check(error, v(12) == v(13), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
-        v(14) = python_nav_forward_definition(1_int64)
+        v(14) = python_navigation_forward_definition(1_int64)
         call check(error,.not. (v(14) /= 0), "(not (python-nav-forward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_forward_definition_2
+    end subroutine test_python_navigation_forward_definition_2
 
-    subroutine test_python_nav_forward_definition_4(error)
+    subroutine test_python_navigation_forward_definition_4(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3018,23 +3023,23 @@ contains
                        //"def \"//LF &
                        //"        a():"//LF &
                        //"    return 0"//LF)
-        v(1) = point_min()
-        call goto_char(v(1))
+        v(1) = point_minimum()
+        call goto_character(v(1))
         v(2) = point()
-        v(3) = python_nav_forward_definition(1_int64)
+        v(3) = python_navigation_forward_definition(1_int64)
         v(4) = v(3)
-        call goto_char(v(2))
-        v(5) = look_pos("():", 1_int64, .false.)
+        call goto_character(v(2))
+        v(5) = look_position("():", 1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-forward-defun)) (python-tests")
         if (allocated(error)) return
-        v(6) = python_nav_forward_definition(1_int64)
+        v(6) = python_navigation_forward_definition(1_int64)
         call check(error,.not. (v(6) /= 0), "(not (python-nav-forward-defun))")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_forward_definition_4
+    end subroutine test_python_navigation_forward_definition_4
 
-    subroutine test_python_nav_beginning_of_statement_1(error)
+    subroutine test_python_navigation_beginning_of_statement_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3061,52 +3066,52 @@ contains
                        //"a very long"//LF &
                        //"string"//LF &
                        //"'''"//LF)
-        v(1) = look_pos("v2 =", 1_int64, .false.)
-        b(300) = python_util_forward_comment(-1)
+        v(1) = look_position("v2 =", 1_int64, .false.)
+        b(300) = python_utility_forward_comment(-1)
         v(2) = point()
-        v(3) = python_nav_beginning_of_statement()
+        v(3) = python_navigation_beginning_of_statement()
         v(4) = point()
         v(5) = v(4)
-        call goto_char(v(2))
-        v(6) = look_pos("v1 =", -1_int64, .true.)
+        call goto_character(v(2))
+        v(6) = look_position("v1 =", -1_int64, .true.)
         call check(error, v(5) == v(6), "(= (save-excursion (python-nav-beginning-of-statement) (poin")
         if (allocated(error)) return
-        v(7) = look_pos("v3 =", 1_int64, .false.)
-        b(300) = python_util_forward_comment(-1)
+        v(7) = look_position("v3 =", 1_int64, .false.)
+        b(300) = python_utility_forward_comment(-1)
         v(8) = point()
-        v(9) = python_nav_beginning_of_statement()
+        v(9) = python_navigation_beginning_of_statement()
         v(10) = point()
         v(11) = v(10)
-        call goto_char(v(8))
-        v(12) = look_pos("v2 =", -1_int64, .true.)
+        call goto_character(v(8))
+        v(12) = look_position("v2 =", -1_int64, .true.)
         call check(error, v(11) == v(12), "(= (save-excursion (python-nav-beginning-of-statement) (poin")
         if (allocated(error)) return
-        v(13) = look_pos("v4 =", 1_int64, .false.)
-        b(300) = python_util_forward_comment(-1)
+        v(13) = look_position("v4 =", 1_int64, .false.)
+        b(300) = python_utility_forward_comment(-1)
         v(14) = point()
-        v(15) = python_nav_beginning_of_statement()
+        v(15) = python_navigation_beginning_of_statement()
         v(16) = point()
         v(17) = v(16)
-        call goto_char(v(14))
-        v(18) = look_pos("v3 =", -1_int64, .true.)
+        call goto_character(v(14))
+        v(18) = look_position("v3 =", -1_int64, .true.)
         call check(error, v(17) == v(18), "(= (save-excursion (python-nav-beginning-of-statement) (poin")
         if (allocated(error)) return
-        v(19) = point_max()
-        call goto_char(v(19))
-        b(300) = python_util_forward_comment(-1)
+        v(19) = point_maximum()
+        call goto_character(v(19))
+        b(300) = python_utility_forward_comment(-1)
         v(20) = point()
-        v(21) = python_nav_beginning_of_statement()
+        v(21) = python_navigation_beginning_of_statement()
         v(22) = point()
         v(23) = v(22)
-        call goto_char(v(20))
-        v(24) = look_pos("v4 =", -1_int64, .true.)
+        call goto_character(v(20))
+        v(24) = look_position("v4 =", -1_int64, .true.)
         call check(error, v(23) == v(24), "(= (save-excursion (python-nav-beginning-of-statement) (poin")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_statement_1
+    end subroutine test_python_navigation_beginning_of_statement_1
 
-    subroutine test_python_nav_end_of_statement_1(error)
+    subroutine test_python_navigation_end_of_statement_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3133,65 +3138,65 @@ contains
                        //"a very long"//LF &
                        //"string"//LF &
                        //"'''"//LF)
-        v(1) = look_pos("v1 =", 1_int64, .false.)
+        v(1) = look_position("v1 =", 1_int64, .false.)
         v(2) = point()
-        v(3) = python_nav_end_of_statement()
+        v(3) = python_navigation_end_of_statement()
         v(4) = point()
         v(5) = v(4)
-        call goto_char(v(2))
+        call goto_character(v(2))
         v(6) = point()
-        v(7) = look_pos("789", 1_int64, .false.)
+        v(7) = look_position("789", 1_int64, .false.)
         v(8) = line_end_position()
         v(9) = v(8)
-        call goto_char(v(6))
+        call goto_character(v(6))
         call check(error, v(5) == v(9), "(= (save-excursion (python-nav-end-of-statement) (point)) (s")
         if (allocated(error)) return
-        v(10) = look_pos("v2 =", 1_int64, .false.)
+        v(10) = look_position("v2 =", 1_int64, .false.)
         v(11) = point()
-        v(12) = python_nav_end_of_statement()
+        v(12) = python_navigation_end_of_statement()
         v(13) = point()
         v(14) = v(13)
-        call goto_char(v(11))
+        call goto_character(v(11))
         v(15) = point()
-        v(16) = look_pos("value4)", 1_int64, .false.)
+        v(16) = look_position("value4)", 1_int64, .false.)
         v(17) = line_end_position()
         v(18) = v(17)
-        call goto_char(v(15))
+        call goto_character(v(15))
         call check(error, v(14) == v(18), "(= (save-excursion (python-nav-end-of-statement) (point)) (s")
         if (allocated(error)) return
-        v(19) = look_pos("v3 =", 1_int64, .false.)
+        v(19) = look_position("v3 =", 1_int64, .false.)
         v(20) = point()
-        v(21) = python_nav_end_of_statement()
+        v(21) = python_navigation_end_of_statement()
         v(22) = point()
         v(23) = v(22)
-        call goto_char(v(20))
+        call goto_character(v(20))
         v(24) = point()
-        v(25) = look_pos("'continue previous line')", 1_int64, .false.)
+        v(25) = look_position("'continue previous line')", 1_int64, .false.)
         v(26) = line_end_position()
         v(27) = v(26)
-        call goto_char(v(24))
+        call goto_character(v(24))
         call check(error, v(23) == v(27), "(= (save-excursion (python-nav-end-of-statement) (point)) (s")
         if (allocated(error)) return
-        v(28) = look_pos("v4 =", 1_int64, .false.)
+        v(28) = look_position("v4 =", 1_int64, .false.)
         v(29) = point()
-        v(30) = python_nav_end_of_statement()
+        v(30) = python_navigation_end_of_statement()
         v(31) = point()
         v(32) = v(31)
-        call goto_char(v(29))
+        call goto_character(v(29))
         v(33) = point()
-        v(34) = point_max()
-        call goto_char(v(34))
-        b(300) = python_util_forward_comment(-1)
+        v(34) = point_maximum()
+        call goto_character(v(34))
+        b(300) = python_utility_forward_comment(-1)
         v(35) = point()
         v(36) = v(35)
-        call goto_char(v(33))
+        call goto_character(v(33))
         call check(error, v(32) == v(36), "(= (save-excursion (python-nav-end-of-statement) (point)) (s")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_statement_1
+    end subroutine test_python_navigation_end_of_statement_1
 
-    subroutine test_python_nav_end_of_statement_2(error)
+    subroutine test_python_navigation_end_of_statement_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3200,12 +3205,12 @@ contains
 
         call py_buffer("'"//LF &
                        //"''"//LF)
-        v(1) = python_nav_end_of_statement()
+        v(1) = python_navigation_end_of_statement()
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_statement_2
+    end subroutine test_python_navigation_end_of_statement_2
 
-    subroutine test_python_nav_end_of_statement_3(error)
+    subroutine test_python_navigation_end_of_statement_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3215,23 +3220,23 @@ contains
         call py_buffer(LF &
                        //"' """""""//LF &
                        //"v = 1"//LF)
-        v(1) = look_pos("v =", 1_int64, .false.)
+        v(1) = look_position("v =", 1_int64, .false.)
         v(2) = point()
-        v(3) = python_nav_end_of_statement()
+        v(3) = python_navigation_end_of_statement()
         v(4) = point()
         v(5) = v(4)
-        call goto_char(v(2))
+        call goto_character(v(2))
         v(6) = point()
-        v(7) = point_max()
+        v(7) = point_maximum()
         v(8) = v(7)
-        call goto_char(v(6))
+        call goto_character(v(6))
         call check(error, v(5) == v(8), "(= (save-excursion (python-nav-end-of-statement) (point)) (s")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_statement_3
+    end subroutine test_python_navigation_end_of_statement_3
 
-    subroutine test_python_nav_end_of_statement_4(error)
+    subroutine test_python_navigation_end_of_statement_4(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3243,24 +3248,24 @@ contains
                        //"b\"//LF &
                        //"c'"//LF &
                        //"d = '''d'''"//LF)
-        v(1) = look_pos("b\", 1_int64, .false.)
+        v(1) = look_position("b\", 1_int64, .false.)
         v(2) = point()
-        v(3) = python_nav_end_of_statement()
+        v(3) = python_navigation_end_of_statement()
         v(4) = point()
         v(5) = v(4)
-        call goto_char(v(2))
+        call goto_character(v(2))
         v(6) = point()
-        v(7) = look_pos("c'", 1_int64, .false.)
+        v(7) = look_position("c'", 1_int64, .false.)
         v(8) = line_end_position()
         v(9) = v(8)
-        call goto_char(v(6))
+        call goto_character(v(6))
         call check(error, v(5) == v(9), "(= (save-excursion (python-nav-end-of-statement) (point)) (s")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_statement_4
+    end subroutine test_python_navigation_end_of_statement_4
 
-    subroutine test_python_nav_forward_statement_1(error)
+    subroutine test_python_navigation_forward_statement_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3287,44 +3292,44 @@ contains
                        //"a very long"//LF &
                        //"string"//LF &
                        //"'''"//LF)
-        v(1) = look_pos("v1 =", 1_int64, .false.)
+        v(1) = look_position("v1 =", 1_int64, .false.)
         v(2) = point()
-        call python_nav_forward_statement(1_int64)
+        call python_navigation_forward_statement(1_int64)
         v(3) = point()
         v(4) = v(3)
-        call goto_char(v(2))
-        v(5) = look_pos("v2 =", 1_int64, .false.)
+        call goto_character(v(2))
+        v(5) = look_position("v2 =", 1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-forward-statement) (point)) (")
         if (allocated(error)) return
         v(6) = point()
-        call python_nav_forward_statement(1_int64)
+        call python_navigation_forward_statement(1_int64)
         v(7) = point()
         v(8) = v(7)
-        call goto_char(v(6))
-        v(9) = look_pos("v3 =", 1_int64, .false.)
+        call goto_character(v(6))
+        v(9) = look_position("v3 =", 1_int64, .false.)
         call check(error, v(8) == v(9), "(= (save-excursion (python-nav-forward-statement) (point)) (")
         if (allocated(error)) return
         v(10) = point()
-        call python_nav_forward_statement(1_int64)
+        call python_navigation_forward_statement(1_int64)
         v(11) = point()
         v(12) = v(11)
-        call goto_char(v(10))
-        v(13) = look_pos("v4 =", 1_int64, .false.)
+        call goto_character(v(10))
+        v(13) = look_position("v4 =", 1_int64, .false.)
         call check(error, v(12) == v(13), "(= (save-excursion (python-nav-forward-statement) (point)) (")
         if (allocated(error)) return
         v(14) = point()
-        call python_nav_forward_statement(1_int64)
+        call python_navigation_forward_statement(1_int64)
         v(15) = point()
         v(16) = v(15)
-        call goto_char(v(14))
-        v(17) = point_max()
+        call goto_character(v(14))
+        v(17) = point_maximum()
         call check(error, v(16) == v(17), "(= (save-excursion (python-nav-forward-statement) (point)) (")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_forward_statement_1
+    end subroutine test_python_navigation_forward_statement_1
 
-    subroutine test_python_nav_backward_statement_1(error)
+    subroutine test_python_navigation_backward_statement_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3351,45 +3356,45 @@ contains
                        //"a very long"//LF &
                        //"string"//LF &
                        //"'''"//LF)
-        v(1) = point_max()
-        call goto_char(v(1))
+        v(1) = point_maximum()
+        call goto_character(v(1))
         v(2) = point()
-        call python_nav_backward_statement(1_int64)
+        call python_navigation_backward_statement(1_int64)
         v(3) = point()
         v(4) = v(3)
-        call goto_char(v(2))
-        v(5) = look_pos("v4 =", -1_int64, .false.)
+        call goto_character(v(2))
+        v(5) = look_position("v4 =", -1_int64, .false.)
         call check(error, v(4) == v(5), "(= (save-excursion (python-nav-backward-statement) (point)) ")
         if (allocated(error)) return
         v(6) = point()
-        call python_nav_backward_statement(1_int64)
+        call python_navigation_backward_statement(1_int64)
         v(7) = point()
         v(8) = v(7)
-        call goto_char(v(6))
-        v(9) = look_pos("v3 =", -1_int64, .false.)
+        call goto_character(v(6))
+        v(9) = look_position("v3 =", -1_int64, .false.)
         call check(error, v(8) == v(9), "(= (save-excursion (python-nav-backward-statement) (point)) ")
         if (allocated(error)) return
         v(10) = point()
-        call python_nav_backward_statement(1_int64)
+        call python_navigation_backward_statement(1_int64)
         v(11) = point()
         v(12) = v(11)
-        call goto_char(v(10))
-        v(13) = look_pos("v2 =", -1_int64, .false.)
+        call goto_character(v(10))
+        v(13) = look_position("v2 =", -1_int64, .false.)
         call check(error, v(12) == v(13), "(= (save-excursion (python-nav-backward-statement) (point)) ")
         if (allocated(error)) return
         v(14) = point()
-        call python_nav_backward_statement(1_int64)
+        call python_navigation_backward_statement(1_int64)
         v(15) = point()
         v(16) = v(15)
-        call goto_char(v(14))
-        v(17) = look_pos("v1 =", -1_int64, .false.)
+        call goto_character(v(14))
+        v(17) = look_position("v1 =", -1_int64, .false.)
         call check(error, v(16) == v(17), "(= (save-excursion (python-nav-backward-statement) (point)) ")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_backward_statement_1
+    end subroutine test_python_navigation_backward_statement_1
 
-    subroutine test_python_nav_beginning_of_block_1(error)
+    subroutine test_python_navigation_beginning_of_block_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3416,48 +3421,48 @@ contains
                        //"            print 'After f(*args)'"//LF &
                        //"        return wrapped_f"//LF &
                        //"    return wwrap"//LF)
-        v(1) = look_pos("return wwrap", 1_int64, .false.)
+        v(1) = look_position("return wwrap", 1_int64, .false.)
         v(2) = point()
-        v(3) = python_nav_beginning_of_block()
+        v(3) = python_navigation_beginning_of_block()
         v(4) = point()
         v(5) = v(4)
-        call goto_char(v(2))
-        v(6) = look_pos("def decoratorFunctionWithArguments", -1_int64, .false.)
+        call goto_character(v(2))
+        v(6) = look_position("def decoratorFunctionWithArguments", -1_int64, .false.)
         call check(error, v(5) == v(6), "(= (save-excursion (python-nav-beginning-of-block) (point)) ")
         if (allocated(error)) return
-        v(7) = look_pos("print 'Inside wwrap()'", 1_int64, .false.)
+        v(7) = look_position("print 'Inside wwrap()'", 1_int64, .false.)
         v(8) = point()
-        v(9) = python_nav_beginning_of_block()
+        v(9) = python_navigation_beginning_of_block()
         v(10) = point()
         v(11) = v(10)
-        call goto_char(v(8))
-        v(12) = look_pos("def wwrap(f):", -1_int64, .false.)
+        call goto_character(v(8))
+        v(12) = look_position("def wwrap(f):", -1_int64, .false.)
         call check(error, v(11) == v(12), "(= (save-excursion (python-nav-beginning-of-block) (point)) ")
         if (allocated(error)) return
-        v(13) = look_pos("print 'After f(*args)'", 1_int64, .false.)
+        v(13) = look_position("print 'After f(*args)'", 1_int64, .false.)
         call end_of_line()
         v(14) = point()
-        v(15) = python_nav_beginning_of_block()
+        v(15) = python_navigation_beginning_of_block()
         v(16) = point()
         v(17) = v(16)
-        call goto_char(v(14))
-        v(18) = look_pos("def wrapped_f(*args):", -1_int64, .false.)
+        call goto_character(v(14))
+        v(18) = look_position("def wrapped_f(*args):", -1_int64, .false.)
         call check(error, v(17) == v(18), "(= (save-excursion (python-nav-beginning-of-block) (point)) ")
         if (allocated(error)) return
-        v(19) = look_pos("return wrapped_f", 1_int64, .false.)
+        v(19) = look_position("return wrapped_f", 1_int64, .false.)
         v(20) = point()
-        v(21) = python_nav_beginning_of_block()
+        v(21) = python_navigation_beginning_of_block()
         v(22) = point()
         v(23) = v(22)
-        call goto_char(v(20))
-        v(24) = look_pos("def wwrap(f):", -1_int64, .false.)
+        call goto_character(v(20))
+        v(24) = look_position("def wwrap(f):", -1_int64, .false.)
         call check(error, v(23) == v(24), "(= (save-excursion (python-nav-beginning-of-block) (point)) ")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_block_1
+    end subroutine test_python_navigation_beginning_of_block_1
 
-    subroutine test_python_nav_beginning_of_block_2(error)
+    subroutine test_python_navigation_beginning_of_block_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3471,30 +3476,30 @@ contains
                        //"if False:"//LF &
                        //"    # comment"//LF &
                        //"    pass"//LF)
-        v(1) = look_pos("if True:", 1_int64, .false.)
+        v(1) = look_position("if True:", 1_int64, .false.)
         shortage = forward_line(1_int64)
         v(2) = point()
-        v(3) = python_nav_beginning_of_block()
+        v(3) = python_navigation_beginning_of_block()
         v(4) = point()
         v(5) = v(4)
-        call goto_char(v(2))
-        v(6) = look_pos("if True:", -1_int64, .false.)
+        call goto_character(v(2))
+        v(6) = look_position("if True:", -1_int64, .false.)
         call check(error, v(5) == v(6), "(= (save-excursion (python-nav-beginning-of-block) (point)) ")
         if (allocated(error)) return
-        v(7) = look_pos("# comment", 1_int64, .false.)
+        v(7) = look_position("# comment", 1_int64, .false.)
         v(8) = point()
-        v(9) = python_nav_beginning_of_block()
+        v(9) = python_navigation_beginning_of_block()
         v(10) = point()
         v(11) = v(10)
-        call goto_char(v(8))
-        v(12) = look_pos("if False:", -1_int64, .false.)
+        call goto_character(v(8))
+        v(12) = look_position("if False:", -1_int64, .false.)
         call check(error, v(11) == v(12), "(= (save-excursion (python-nav-beginning-of-block) (point)) ")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_beginning_of_block_2
+    end subroutine test_python_navigation_beginning_of_block_2
 
-    subroutine test_python_nav_end_of_block_1(error)
+    subroutine test_python_navigation_end_of_block_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3521,65 +3526,65 @@ contains
                        //"            print 'After f(*args)'"//LF &
                        //"        return wrapped_f"//LF &
                        //"    return wwrap"//LF)
-        v(1) = look_pos("def decoratorFunctionWithArguments", 1_int64, .false.)
+        v(1) = look_position("def decoratorFunctionWithArguments", 1_int64, .false.)
         v(2) = point()
-        v(3) = python_nav_end_of_block()
+        v(3) = python_navigation_end_of_block()
         v(4) = point()
         v(5) = v(4)
-        call goto_char(v(2))
+        call goto_character(v(2))
         v(6) = point()
-        v(7) = point_max()
-        call goto_char(v(7))
-        b(300) = python_util_forward_comment(-1)
+        v(7) = point_maximum()
+        call goto_character(v(7))
+        b(300) = python_utility_forward_comment(-1)
         v(8) = point()
         v(9) = v(8)
-        call goto_char(v(6))
+        call goto_character(v(6))
         call check(error, v(5) == v(9), "(= (save-excursion (python-nav-end-of-block) (point)) (save-")
         if (allocated(error)) return
-        v(10) = look_pos("def wwrap(f):", 1_int64, .false.)
+        v(10) = look_position("def wwrap(f):", 1_int64, .false.)
         v(11) = point()
-        v(12) = python_nav_end_of_block()
+        v(12) = python_navigation_end_of_block()
         v(13) = point()
         v(14) = v(13)
-        call goto_char(v(11))
+        call goto_character(v(11))
         v(15) = point()
-        v(16) = look_pos("return wrapped_f", 1_int64, .false.)
+        v(16) = look_position("return wrapped_f", 1_int64, .false.)
         v(17) = line_end_position()
         v(18) = v(17)
-        call goto_char(v(15))
+        call goto_character(v(15))
         call check(error, v(14) == v(18), "(= (save-excursion (python-nav-end-of-block) (point)) (save-")
         if (allocated(error)) return
         call end_of_line()
         v(19) = point()
-        v(20) = python_nav_end_of_block()
+        v(20) = python_navigation_end_of_block()
         v(21) = point()
         v(22) = v(21)
-        call goto_char(v(19))
+        call goto_character(v(19))
         v(23) = point()
-        v(24) = look_pos("return wrapped_f", 1_int64, .false.)
+        v(24) = look_position("return wrapped_f", 1_int64, .false.)
         v(25) = line_end_position()
         v(26) = v(25)
-        call goto_char(v(23))
+        call goto_character(v(23))
         call check(error, v(22) == v(26), "(= (save-excursion (python-nav-end-of-block) (point)) (save-")
         if (allocated(error)) return
-        v(27) = look_pos("f(*args)", 1_int64, .false.)
+        v(27) = look_position("f(*args)", 1_int64, .false.)
         v(28) = point()
-        v(29) = python_nav_end_of_block()
+        v(29) = python_navigation_end_of_block()
         v(30) = point()
         v(31) = v(30)
-        call goto_char(v(28))
+        call goto_character(v(28))
         v(32) = point()
-        v(33) = look_pos("print 'After f(*args)'", 1_int64, .false.)
+        v(33) = look_position("print 'After f(*args)'", 1_int64, .false.)
         v(34) = line_end_position()
         v(35) = v(34)
-        call goto_char(v(32))
+        call goto_character(v(32))
         call check(error, v(31) == v(35), "(= (save-excursion (python-nav-end-of-block) (point)) (save-")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_block_1
+    end subroutine test_python_navigation_end_of_block_1
 
-    subroutine test_python_nav_end_of_block_2(error)
+    subroutine test_python_navigation_end_of_block_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3592,12 +3597,12 @@ contains
                        //""""""""""""""//LF &
                        //" #"//LF &
                        //"''"//LF)
-        v(1) = python_nav_end_of_block()
+        v(1) = python_navigation_end_of_block()
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_end_of_block_2
+    end subroutine test_python_navigation_end_of_block_2
 
-    subroutine test_python_nav_forward_block_1(error)
+    subroutine test_python_navigation_forward_block_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3621,72 +3626,72 @@ contains
                        //"        profile.views += 1"//LF &
                        //"        profile.save()"//LF)
         v(1) = point()
-        v(2) = python_nav_forward_block(1_int64)
+        v(2) = python_navigation_forward_block(1_int64)
         v(3) = v(2)
-        call goto_char(v(1))
-        v(4) = look_pos("if request.user.is_authenticated():", 1_int64, .false.)
+        call goto_character(v(1))
+        v(4) = look_position("if request.user.is_authenticated():", 1_int64, .false.)
         call check(error, v(3) == v(4), "(= (save-excursion (python-nav-forward-block)) (python-tests")
         if (allocated(error)) return
         v(5) = point()
-        v(6) = python_nav_forward_block(1_int64)
+        v(6) = python_navigation_forward_block(1_int64)
         v(7) = v(6)
-        call goto_char(v(5))
-        v(8) = look_pos("try:", 1_int64, .false.)
+        call goto_character(v(5))
+        v(8) = look_position("try:", 1_int64, .false.)
         call check(error, v(7) == v(8), "(= (save-excursion (python-nav-forward-block)) (python-tests")
         if (allocated(error)) return
         v(9) = point()
-        v(10) = python_nav_forward_block(1_int64)
+        v(10) = python_navigation_forward_block(1_int64)
         v(11) = v(10)
-        call goto_char(v(9))
-        v(12) = look_pos("except Profile.DoesNotExist:", 1_int64, .false.)
+        call goto_character(v(9))
+        v(12) = look_position("except Profile.DoesNotExist:", 1_int64, .false.)
         call check(error, v(11) == v(12), "(= (save-excursion (python-nav-forward-block)) (python-tests")
         if (allocated(error)) return
         v(13) = point()
-        v(14) = python_nav_forward_block(1_int64)
+        v(14) = python_navigation_forward_block(1_int64)
         v(15) = v(14)
-        call goto_char(v(13))
-        v(16) = look_pos("else:", 1_int64, .false.)
+        call goto_character(v(13))
+        v(16) = look_position("else:", 1_int64, .false.)
         call check(error, v(15) == v(16), "(= (save-excursion (python-nav-forward-block)) (python-tests")
         if (allocated(error)) return
         v(17) = point()
-        v(18) = python_nav_forward_block(1_int64)
+        v(18) = python_navigation_forward_block(1_int64)
         v(19) = v(18)
-        call goto_char(v(17))
-        v(20) = look_pos("if profile.stats:", 1_int64, .false.)
+        call goto_character(v(17))
+        v(20) = look_position("if profile.stats:", 1_int64, .false.)
         call check(error, v(19) == v(20), "(= (save-excursion (python-nav-forward-block)) (python-tests")
         if (allocated(error)) return
         v(21) = point()
-        v(22) = python_nav_forward_block(1_int64)
+        v(22) = python_navigation_forward_block(1_int64)
         v(23) = v(22)
-        call goto_char(v(21))
-        v(24) = look_pos("else:", 1_int64, .false.)
+        call goto_character(v(21))
+        v(24) = look_position("else:", 1_int64, .false.)
         call check(error, v(23) == v(24), "(= (save-excursion (python-nav-forward-block)) (python-tests")
         if (allocated(error)) return
         v(25) = point()
-        v(26) = python_nav_forward_block(1_int64)
+        v(26) = python_navigation_forward_block(1_int64)
         v(27) = v(26)
-        call goto_char(v(25))
-        v(28) = look_pos("finally:", 1_int64, .false.)
+        call goto_character(v(25))
+        v(28) = look_position("finally:", 1_int64, .false.)
         call check(error, v(27) == v(28), "(= (save-excursion (python-nav-forward-block)) (python-tests")
         if (allocated(error)) return
         v(29) = point()
-        v(30) = python_nav_forward_block(1_int64)
+        v(30) = python_navigation_forward_block(1_int64)
         v(31) = v(30)
-        call goto_char(v(29))
+        call goto_character(v(29))
         call check(error,.not. (v(31) /= 0), "(not (save-excursion (python-nav-forward-block)))")
         if (allocated(error)) return
         v(32) = point()
-        v(33) = python_nav_forward_block(-10_int64)
+        v(33) = python_navigation_forward_block(-10_int64)
         v(34) = v(33)
-        call goto_char(v(32))
-        v(35) = look_pos("if request.user.is_authenticated():", -1_int64, .false.)
+        call goto_character(v(32))
+        v(35) = look_position("if request.user.is_authenticated():", -1_int64, .false.)
         call check(error, v(34) == v(35), "(= (save-excursion (python-nav-forward-block -10)) (python-t")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_forward_block_1
+    end subroutine test_python_navigation_forward_block_1
 
-    subroutine test_python_nav_forward_expression_2(error)
+    subroutine test_python_navigation_forward_expression_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3700,12 +3705,12 @@ contains
                        //"        ccc = ddd"//LF &
                        //"        eee = fff"//LF &
                        //"    return ggg"//LF)
-        v(1) = look_pos("aa =", 1_int64, .false.)
-        call python_nav_forward_expression(1_int64, st)
+        v(1) = look_position("aa =", 1_int64, .false.)
+        call python_navigation_forward_expression(1_int64, st)
         b(1) = looking_at(" = bbb", st)
         call check(error, b(1), "(looking-at ' = bbb')")
         if (allocated(error)) return
-        call python_nav_forward_expression(1_int64, st)
+        call python_navigation_forward_expression(1_int64, st)
         b(2) = looking_at("$", st)
         call check(error, b(2), "(looking-at '$')")
         if (allocated(error)) return
@@ -3713,10 +3718,10 @@ contains
         call back_to_indentation()
         b(3) = looking_at("aaa = bbb", st)
         b(4) = b(3)
-        call goto_char(v(2))
+        call goto_character(v(2))
         call check(error, b(4), "(save-excursion (back-to-indentation) (looking-at 'aaa = bbb")
         if (allocated(error)) return
-        call python_nav_forward_expression(1_int64, st)
+        call python_navigation_forward_expression(1_int64, st)
         b(5) = looking_at("$", st)
         call check(error, b(5), "(looking-at '$')")
         if (allocated(error)) return
@@ -3724,10 +3729,10 @@ contains
         call back_to_indentation()
         b(6) = looking_at("ccc = ddd", st)
         b(7) = b(6)
-        call goto_char(v(3))
+        call goto_character(v(3))
         call check(error, b(7), "(save-excursion (back-to-indentation) (looking-at 'ccc = ddd")
         if (allocated(error)) return
-        call python_nav_forward_expression(1_int64, st)
+        call python_navigation_forward_expression(1_int64, st)
         b(8) = looking_at("$", st)
         call check(error, b(8), "(looking-at '$')")
         if (allocated(error)) return
@@ -3735,10 +3740,10 @@ contains
         call back_to_indentation()
         b(9) = looking_at("eee = fff", st)
         b(10) = b(9)
-        call goto_char(v(4))
+        call goto_character(v(4))
         call check(error, b(10), "(save-excursion (back-to-indentation) (looking-at 'eee = fff")
         if (allocated(error)) return
-        call python_nav_forward_expression(1_int64, st)
+        call python_navigation_forward_expression(1_int64, st)
         b(11) = looking_at("$", st)
         call check(error, b(11), "(looking-at '$')")
         if (allocated(error)) return
@@ -3746,18 +3751,18 @@ contains
         call back_to_indentation()
         b(12) = looking_at("return ggg", st)
         b(13) = b(12)
-        call goto_char(v(5))
+        call goto_character(v(5))
         call check(error, b(13), "(save-excursion (back-to-indentation) (looking-at 'return gg")
         if (allocated(error)) return
-        call python_nav_forward_expression(-1_int64, st)
+        call python_navigation_forward_expression(-1_int64, st)
         b(14) = looking_at("def func():", st)
         call check(error, b(14), "(looking-at 'def func():')")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_forward_expression_2
+    end subroutine test_python_navigation_forward_expression_2
 
-    subroutine test_python_nav_forward_expression_3(error)
+    subroutine test_python_navigation_forward_expression_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3770,16 +3775,16 @@ contains
                        //LF &
                        //"def another_statement():"//LF &
                        //"    pass"//LF)
-        v(1) = look_pos("some_module", 1_int64, .false.)
-        call python_nav_forward_expression(1_int64, st)
+        v(1) = look_position("some_module", 1_int64, .false.)
+        call python_navigation_forward_expression(1_int64, st)
         b(1) = looking_at(" import", st)
         call check(error, b(1), "(looking-at ' import')")
         if (allocated(error)) return
-        call python_nav_forward_expression(1_int64, st)
+        call python_navigation_forward_expression(1_int64, st)
         b(2) = looking_at(" some_sub_module", st)
         call check(error, b(2), "(looking-at ' some_sub_module')")
         if (allocated(error)) return
-        call python_nav_forward_expression(1_int64, st)
+        call python_navigation_forward_expression(1_int64, st)
         b(3) = looking_at("$", st)
         call check(error, b(3), "(looking-at '$')")
         if (allocated(error)) return
@@ -3787,10 +3792,10 @@ contains
         call back_to_indentation()
         b(4) = looking_at("from some_module import some_sub_module", st)
         b(5) = b(4)
-        call goto_char(v(2))
+        call goto_character(v(2))
         call check(error, b(5), "(save-excursion (back-to-indentation) (looking-at 'from some")
         if (allocated(error)) return
-        call python_nav_forward_expression(1_int64, st)
+        call python_navigation_forward_expression(1_int64, st)
         b(6) = looking_at("$", st)
         call check(error, b(6), "(looking-at '$')")
         if (allocated(error)) return
@@ -3798,10 +3803,10 @@ contains
         call back_to_indentation()
         b(7) = looking_at("from another_module import another_sub_module", st)
         b(8) = b(7)
-        call goto_char(v(3))
+        call goto_character(v(3))
         call check(error, b(8), "(save-excursion (back-to-indentation) (looking-at 'from anot")
         if (allocated(error)) return
-        call python_nav_forward_expression(1_int64, st)
+        call python_navigation_forward_expression(1_int64, st)
         b(9) = looking_at("$", st)
         call check(error, b(9), "(looking-at '$')")
         if (allocated(error)) return
@@ -3809,26 +3814,26 @@ contains
         call back_to_indentation()
         b(10) = looking_at("pass", st)
         b(11) = b(10)
-        call goto_char(v(4))
+        call goto_character(v(4))
         call check(error, b(11), "(save-excursion (back-to-indentation) (looking-at 'pass'))")
         if (allocated(error)) return
-        call python_nav_forward_expression(-1_int64, st)
+        call python_navigation_forward_expression(-1_int64, st)
         b(12) = looking_at("def another_statement():", st)
         call check(error, b(12), "(looking-at 'def another_statement():')")
         if (allocated(error)) return
-        call python_nav_forward_expression(-1_int64, st)
+        call python_navigation_forward_expression(-1_int64, st)
         b(13) = looking_at("from another_module import another_sub_module", st)
         call check(error, b(13), "(looking-at 'from another_module import another_sub_module')")
         if (allocated(error)) return
-        call python_nav_forward_expression(-1_int64, st)
+        call python_navigation_forward_expression(-1_int64, st)
         b(14) = looking_at("from some_module import some_sub_module", st)
         call check(error, b(14), "(looking-at 'from some_module import some_sub_module')")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_forward_expression_3
+    end subroutine test_python_navigation_forward_expression_3
 
-    subroutine test_python_nav_up_group_1(error)
+    subroutine test_python_navigation_up_group_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage, v(300)
@@ -3839,18 +3844,18 @@ contains
                        //"def f():"//LF &
                        //"    if True:"//LF &
                        //"        return [i for i in range(3)]"//LF)
-        v(1) = look_pos("3)]", 1_int64, .false.)
-        call python_nav_up_group(1_int64, st)
+        v(1) = look_position("3)]", 1_int64, .false.)
+        call python_navigation_up_group(1_int64, st)
         b(1) = looking_at("]", st)
         call check(error, b(1), "(looking-at ']')")
         if (allocated(error)) return
-        call python_nav_up_group(1_int64, st)
+        call python_navigation_up_group(1_int64, st)
         b(2) = looking_at("$", st)
         call check(error, b(2), "(looking-at '$')")
         if (allocated(error)) return
         if (.false.) shortage = v(1) + merge(1, 0, b(1))
         if (.false.) name = ""
-    end subroutine test_python_nav_up_group_1
+    end subroutine test_python_navigation_up_group_1
 
     subroutine test_python_info_current_definition_1(error)
         type(error_type), allocatable, intent(out) :: error
@@ -3872,7 +3877,7 @@ contains
         call python_info_current_definition(name)
         call check(error,.not. (allocated(name)), "(not (python-info-current-defun))")
         if (allocated(error)) return
-        call indent_for_tab_command(prefix_arg_type(), st)
+        call indent_for_tab_command(prefix_argument_type(), st)
         call python_info_current_definition(name)
         call check(error, name_is(name, "foo"), "(string= 'foo' (python-info-current-defun))")
         if (allocated(error)) return
@@ -3894,7 +3899,7 @@ contains
                        //"def func():"//LF &
                        //"    ' """""""//LF &
                        //"    v = 1"//LF)
-        v(1) = look_pos("v = 1", 1_int64, .false.)
+        v(1) = look_position("v = 1", 1_int64, .false.)
         call python_info_current_definition(name)
         call check(error, name_is(name, "func"), "(string= (python-info-current-defun) 'func')")
         if (allocated(error)) return
@@ -3917,12 +3922,12 @@ contains
                        //"        var_one, var_two, var_three,"//LF &
                        //"        var_four):"//LF &
                        //"    print (var_one)"//LF)
-        v(1) = look_pos("def long_function_name", 1_int64, .false.)
+        v(1) = look_position("def long_function_name", 1_int64, .false.)
         b(1) = is_python_info_statement_starts_block()
         call check(error, b(1), "(python-info-statement-starts-block-p)")
         if (allocated(error)) return
-        v(2) = look_pos("print (var_one)", 1_int64, .false.)
-        b(300) = python_util_forward_comment(-1)
+        v(2) = look_position("print (var_one)", 1_int64, .false.)
+        b(300) = python_utility_forward_comment(-1)
         b(2) = is_python_info_statement_starts_block()
         call check(error, b(2), "(python-info-statement-starts-block-p)")
         if (allocated(error)) return
@@ -3942,12 +3947,12 @@ contains
                        //"   color == 'red' and emphasis == 'strong' or \"//LF &
                        //"   highlight > 100:"//LF &
                        //"    raise ValueError('sorry, you lose')"//LF)
-        v(1) = look_pos("if width == 0 and", 1_int64, .false.)
+        v(1) = look_position("if width == 0 and", 1_int64, .false.)
         b(1) = is_python_info_statement_starts_block()
         call check(error, b(1), "(python-info-statement-starts-block-p)")
         if (allocated(error)) return
-        v(2) = look_pos("raise ValueError(", 1_int64, .false.)
-        b(300) = python_util_forward_comment(-1)
+        v(2) = look_position("raise ValueError(", 1_int64, .false.)
+        b(300) = python_utility_forward_comment(-1)
         b(2) = is_python_info_statement_starts_block()
         call check(error, b(2), "(python-info-statement-starts-block-p)")
         if (allocated(error)) return
@@ -3967,7 +3972,7 @@ contains
                        //"        var_one, var_two, var_three,"//LF &
                        //"        var_four):"//LF &
                        //"    print (var_one)"//LF)
-        v(1) = look_pos("print (var_one)", 1_int64, .false.)
+        v(1) = look_position("print (var_one)", 1_int64, .false.)
         b(1) = is_python_info_statement_ends_block()
         call check(error, b(1), "(python-info-statement-ends-block-p)")
         if (allocated(error)) return
@@ -3990,7 +3995,7 @@ contains
                        //"'sorry, you lose'"//LF &
                        //LF &
                        //")"//LF)
-        v(1) = look_pos("raise ValueError(", 1_int64, .false.)
+        v(1) = look_position("raise ValueError(", 1_int64, .false.)
         b(1) = is_python_info_statement_ends_block()
         call check(error, b(1), "(python-info-statement-ends-block-p)")
         if (allocated(error)) return
@@ -4008,7 +4013,7 @@ contains
         call py_buffer(LF &
                        //"def function():"//LF &
                        //"    print()  # Comment"//LF)
-        v(1) = look_pos("print()", 1_int64, .false.)
+        v(1) = look_position("print()", 1_int64, .false.)
         b(1) = is_python_info_statement_ends_block()
         call check(error, b(1), "(python-info-statement-ends-block-p)")
         if (allocated(error)) return
@@ -4028,20 +4033,20 @@ contains
                        //"        var_one, var_two, var_three,"//LF &
                        //"        var_four):"//LF &
                        //"    print (var_one)"//LF)
-        v(1) = look_pos("def long_function_name", 1_int64, .false.)
+        v(1) = look_position("def long_function_name", 1_int64, .false.)
         b(1) = is_python_info_beginning_of_statement()
         call check(error, b(1), "(python-info-beginning-of-statement-p)")
         if (allocated(error)) return
-        call forward_char(st, 10_int64)
+        call forward_character(st, 10_int64)
         b(2) = is_python_info_beginning_of_statement()
         call check(error,.not. (b(2)), "(not (python-info-beginning-of-statement-p))")
         if (allocated(error)) return
-        v(2) = look_pos("print (var_one)", 1_int64, .false.)
+        v(2) = look_position("print (var_one)", 1_int64, .false.)
         b(3) = is_python_info_beginning_of_statement()
         call check(error, b(3), "(python-info-beginning-of-statement-p)")
         if (allocated(error)) return
         v(3) = line_beginning_position()
-        call goto_char(v(3))
+        call goto_character(v(3))
         b(4) = is_python_info_beginning_of_statement()
         call check(error,.not. (b(4)), "(not (python-info-beginning-of-statement-p))")
         if (allocated(error)) return
@@ -4064,20 +4069,20 @@ contains
                        //"'sorry, you lose'"//LF &
                        //LF &
                        //")"//LF)
-        v(1) = look_pos("if width == 0 and", 1_int64, .false.)
+        v(1) = look_position("if width == 0 and", 1_int64, .false.)
         b(1) = is_python_info_beginning_of_statement()
         call check(error, b(1), "(python-info-beginning-of-statement-p)")
         if (allocated(error)) return
-        call forward_char(st, 10_int64)
+        call forward_character(st, 10_int64)
         b(2) = is_python_info_beginning_of_statement()
         call check(error,.not. (b(2)), "(not (python-info-beginning-of-statement-p))")
         if (allocated(error)) return
-        v(2) = look_pos("raise ValueError(", 1_int64, .false.)
+        v(2) = look_position("raise ValueError(", 1_int64, .false.)
         b(3) = is_python_info_beginning_of_statement()
         call check(error, b(3), "(python-info-beginning-of-statement-p)")
         if (allocated(error)) return
         v(3) = line_beginning_position()
-        call goto_char(v(3))
+        call goto_character(v(3))
         b(4) = is_python_info_beginning_of_statement()
         call check(error,.not. (b(4)), "(not (python-info-beginning-of-statement-p))")
         if (allocated(error)) return
@@ -4097,7 +4102,7 @@ contains
                        //"        var_one, var_two, var_three,"//LF &
                        //"        var_four):"//LF &
                        //"    print (var_one)"//LF)
-        v(1) = look_pos("def long_function_name", 1_int64, .false.)
+        v(1) = look_position("def long_function_name", 1_int64, .false.)
         b(1) = is_python_info_end_of_statement()
         call check(error,.not. (b(1)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
@@ -4105,12 +4110,12 @@ contains
         b(2) = is_python_info_end_of_statement()
         call check(error,.not. (b(2)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
-        v(2) = look_pos("print (var_one)", 1_int64, .false.)
-        b(300) = python_util_forward_comment(-1)
+        v(2) = look_position("print (var_one)", 1_int64, .false.)
+        b(300) = python_utility_forward_comment(-1)
         b(3) = is_python_info_end_of_statement()
         call check(error, b(3), "(python-info-end-of-statement-p)")
         if (allocated(error)) return
-        v(3) = look_pos("print (var_one)", 1_int64, .false.)
+        v(3) = look_position("print (var_one)", 1_int64, .false.)
         b(4) = is_python_info_end_of_statement()
         call check(error,.not. (b(4)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
@@ -4137,7 +4142,7 @@ contains
                        //"'sorry, you lose'"//LF &
                        //LF &
                        //")"//LF)
-        v(1) = look_pos("if width == 0 and", 1_int64, .false.)
+        v(1) = look_position("if width == 0 and", 1_int64, .false.)
         b(1) = is_python_info_end_of_statement()
         call check(error,.not. (b(1)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
@@ -4145,12 +4150,12 @@ contains
         b(2) = is_python_info_end_of_statement()
         call check(error,.not. (b(2)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
-        v(2) = look_pos("raise ValueError(", 1_int64, .false.)
-        b(300) = python_util_forward_comment(-1)
+        v(2) = look_position("raise ValueError(", 1_int64, .false.)
+        b(300) = python_utility_forward_comment(-1)
         b(3) = is_python_info_end_of_statement()
         call check(error, b(3), "(python-info-end-of-statement-p)")
         if (allocated(error)) return
-        v(3) = look_pos("raise ValueError(", 1_int64, .false.)
+        v(3) = look_position("raise ValueError(", 1_int64, .false.)
         b(4) = is_python_info_end_of_statement()
         call check(error,.not. (b(4)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
@@ -4158,9 +4163,9 @@ contains
         b(5) = is_python_info_end_of_statement()
         call check(error,.not. (b(5)), "(not (python-info-end-of-statement-p))")
         if (allocated(error)) return
-        v(4) = point_max()
-        call goto_char(v(4))
-        b(300) = python_util_forward_comment(-1)
+        v(4) = point_maximum()
+        call goto_character(v(4))
+        b(300) = python_utility_forward_comment(-1)
         b(6) = is_python_info_end_of_statement()
         call check(error, b(6), "(python-info-end-of-statement-p)")
         if (allocated(error)) return
@@ -4180,15 +4185,15 @@ contains
                        //"        var_one, var_two, var_three,"//LF &
                        //"        var_four):"//LF &
                        //"    print (var_one)"//LF)
-        v(1) = look_pos("def long_function_name", 1_int64, .false.)
+        v(1) = look_position("def long_function_name", 1_int64, .false.)
         b(1) = is_python_info_beginning_of_block()
         call check(error, b(1), "(python-info-beginning-of-block-p)")
         if (allocated(error)) return
-        v(2) = look_pos("var_one, var_two, var_three,", 1_int64, .false.)
+        v(2) = look_position("var_one, var_two, var_three,", 1_int64, .false.)
         b(2) = is_python_info_beginning_of_block()
         call check(error,.not. (b(2)), "(not (python-info-beginning-of-block-p))")
         if (allocated(error)) return
-        v(3) = look_pos("print (var_one)", 1_int64, .false.)
+        v(3) = look_position("print (var_one)", 1_int64, .false.)
         b(3) = is_python_info_beginning_of_block()
         call check(error,.not. (b(3)), "(not (python-info-beginning-of-block-p))")
         if (allocated(error)) return
@@ -4211,15 +4216,15 @@ contains
                        //"'sorry, you lose'"//LF &
                        //LF &
                        //")"//LF)
-        v(1) = look_pos("if width == 0 and", 1_int64, .false.)
+        v(1) = look_position("if width == 0 and", 1_int64, .false.)
         b(1) = is_python_info_beginning_of_block()
         call check(error, b(1), "(python-info-beginning-of-block-p)")
         if (allocated(error)) return
-        v(2) = look_pos("color == 'red' and emphasis", 1_int64, .false.)
+        v(2) = look_position("color == 'red' and emphasis", 1_int64, .false.)
         b(2) = is_python_info_beginning_of_block()
         call check(error,.not. (b(2)), "(not (python-info-beginning-of-block-p))")
         if (allocated(error)) return
-        v(3) = look_pos("raise ValueError(", 1_int64, .false.)
+        v(3) = look_position("raise ValueError(", 1_int64, .false.)
         b(3) = is_python_info_beginning_of_block()
         call check(error,.not. (b(3)), "(not (python-info-beginning-of-block-p))")
         if (allocated(error)) return
@@ -4237,7 +4242,7 @@ contains
         call py_buffer(LF &
                        //"def function():"//LF &
                        //"    print()  # Comment"//LF)
-        v(1) = look_pos("  # Comment", 1_int64, .false.)
+        v(1) = look_position("  # Comment", 1_int64, .false.)
         b(1) = is_python_info_end_of_block()
         call check(error, b(1), "(python-info-end-of-block-p)")
         if (allocated(error)) return
@@ -4266,31 +4271,31 @@ contains
                        //"    finally:"//LF &
                        //"        profile.views += 1"//LF &
                        //"        profile.save()"//LF)
-        v(1) = look_pos("try:", 1_int64, .false.)
+        v(1) = look_position("try:", 1_int64, .false.)
         v(2) = python_info_dedenter_opening_block_position()
         call check(error,.not. (v(2) /= 0), "(not (python-info-dedenter-opening-block-position))")
         if (allocated(error)) return
-        v(3) = look_pos("except Profile.DoesNotExist:", 1_int64, .false.)
-        v(4) = look_pos("try:", -1_int64, .true.)
+        v(3) = look_position("except Profile.DoesNotExist:", 1_int64, .false.)
+        v(4) = look_position("try:", -1_int64, .true.)
         v(5) = python_info_dedenter_opening_block_position()
         call check(error, v(4) == v(5), "(= (python-tests-look-at 'try:' -1 t) (python-info-dedenter-")
         if (allocated(error)) return
-        v(6) = look_pos("else:", 1_int64, .false.)
-        v(7) = look_pos("except Profile.DoesNotExist:", -1_int64, .true.)
+        v(6) = look_position("else:", 1_int64, .false.)
+        v(7) = look_position("except Profile.DoesNotExist:", -1_int64, .true.)
         v(8) = python_info_dedenter_opening_block_position()
         call check(error, v(7) == v(8), "(= (python-tests-look-at 'except Profile.DoesNotExist:' -1 t")
         if (allocated(error)) return
-        v(9) = look_pos("if profile.stats:", 1_int64, .false.)
+        v(9) = look_position("if profile.stats:", 1_int64, .false.)
         v(10) = python_info_dedenter_opening_block_position()
         call check(error,.not. (v(10) /= 0), "(not (python-info-dedenter-opening-block-position))")
         if (allocated(error)) return
-        v(11) = look_pos("else:", 1_int64, .false.)
-        v(12) = look_pos("if profile.stats:", -1_int64, .true.)
+        v(11) = look_position("else:", 1_int64, .false.)
+        v(12) = look_position("if profile.stats:", -1_int64, .true.)
         v(13) = python_info_dedenter_opening_block_position()
         call check(error, v(12) == v(13), "(= (python-tests-look-at 'if profile.stats:' -1 t) (python-i")
         if (allocated(error)) return
-        v(14) = look_pos("finally:", 1_int64, .false.)
-        v(15) = look_pos("else:", -2_int64, .true.)
+        v(14) = look_position("finally:", 1_int64, .false.)
+        v(15) = look_position("else:", -2_int64, .true.)
         v(16) = python_info_dedenter_opening_block_position()
         call check(error, v(15) == v(16), "(= (python-tests-look-at 'else:' -2 t) (python-info-dedenter")
         if (allocated(error)) return
@@ -4315,11 +4320,11 @@ contains
                        //"    'else': 'do it'"//LF &
                        //"}"//LF &
                        //"    'else'"//LF)
-        v(1) = look_pos("'else': 'do it'", 1_int64, .false.)
+        v(1) = look_position("'else': 'do it'", 1_int64, .false.)
         v(2) = python_info_dedenter_opening_block_position()
         call check(error,.not. (v(2) /= 0), "(not (python-info-dedenter-opening-block-position))")
         if (allocated(error)) return
-        v(3) = look_pos("'else'", 1_int64, .false.)
+        v(3) = look_position("'else'", 1_int64, .false.)
         v(4) = python_info_dedenter_opening_block_position()
         call check(error,.not. (v(4) /= 0), "(not (python-info-dedenter-opening-block-position))")
         if (allocated(error)) return
@@ -4340,7 +4345,7 @@ contains
                        //"except:"//LF &
                        //"    logger.exception('something went wrong')"//LF &
                        //"'''"//LF)
-        v(1) = look_pos("except"//LF, 1_int64, .false.)
+        v(1) = look_position("except"//LF, 1_int64, .false.)
         v(2) = is_python_info_dedenter_statement()
         call check(error,.not. (v(2) /= 0), "(not (python-info-dedenter-statement-p))")
         if (allocated(error)) return
@@ -4360,7 +4365,7 @@ contains
                        //"    something()"//LF &
                        //"except:"//LF &
                        //"    logger.exception('something went wrong')"//LF)
-        v(1) = look_pos("except:", 1_int64, .false.)
+        v(1) = look_position("except:", 1_int64, .false.)
         v(2) = point()
         v(3) = is_python_info_dedenter_statement()
         call check(error, v(2) == v(3), "(= (point) (python-info-dedenter-statement-p))")
@@ -4370,7 +4375,7 @@ contains
         call back_to_indentation()
         v(5) = point()
         v(6) = v(5)
-        call goto_char(v(4))
+        call goto_character(v(4))
         v(7) = is_python_info_dedenter_statement()
         call check(error, v(6) == v(7), "(= (save-excursion (back-to-indentation) (point)) (python-in")
         if (allocated(error)) return
@@ -4392,7 +4397,7 @@ contains
                        //"    logger.exception('something went wrong')"//LF &
                        //"else:"//LF &
                        //"    logger.debug('all good')"//LF)
-        v(1) = look_pos("else:", 1_int64, .false.)
+        v(1) = look_position("else:", 1_int64, .false.)
         v(2) = point()
         v(3) = is_python_info_dedenter_statement()
         call check(error, v(2) == v(3), "(= (point) (python-info-dedenter-statement-p))")
@@ -4402,7 +4407,7 @@ contains
         call back_to_indentation()
         v(5) = point()
         v(6) = v(5)
-        call goto_char(v(4))
+        call goto_character(v(4))
         v(7) = is_python_info_dedenter_statement()
         call check(error, v(6) == v(7), "(= (save-excursion (back-to-indentation) (point)) (python-in")
         if (allocated(error)) return
@@ -4426,7 +4431,7 @@ contains
                        //"    logger.debug('all good')"//LF &
                        //"finally:"//LF &
                        //"    clean()"//LF)
-        v(1) = look_pos("finally:", 1_int64, .false.)
+        v(1) = look_position("finally:", 1_int64, .false.)
         v(2) = point()
         v(3) = is_python_info_dedenter_statement()
         call check(error, v(2) == v(3), "(= (point) (python-info-dedenter-statement-p))")
@@ -4436,7 +4441,7 @@ contains
         call back_to_indentation()
         v(5) = point()
         v(6) = v(5)
-        call goto_char(v(4))
+        call goto_character(v(4))
         v(7) = is_python_info_dedenter_statement()
         call check(error, v(6) == v(7), "(= (save-excursion (back-to-indentation) (point)) (python-in")
         if (allocated(error)) return
@@ -4455,7 +4460,7 @@ contains
                        //"if a:"//LF &
                        //"    something()"//LF &
                        //"elif b:"//LF)
-        v(1) = look_pos("elif b:", 1_int64, .false.)
+        v(1) = look_position("elif b:", 1_int64, .false.)
         v(2) = point()
         v(3) = is_python_info_dedenter_statement()
         call check(error, v(2) == v(3), "(= (point) (python-info-dedenter-statement-p))")
@@ -4465,7 +4470,7 @@ contains
         call back_to_indentation()
         v(5) = point()
         v(6) = v(5)
-        call goto_char(v(4))
+        call goto_character(v(4))
         v(7) = is_python_info_dedenter_statement()
         call check(error, v(6) == v(7), "(= (save-excursion (back-to-indentation) (point)) (python-in")
         if (allocated(error)) return
@@ -4487,15 +4492,15 @@ contains
                        //"            case 2:"//LF &
                        //"                something()"//LF &
                        //"            case 3:"//LF)
-        v(1) = look_pos("case 1:", 1_int64, .false.)
+        v(1) = look_position("case 1:", 1_int64, .false.)
         v(2) = is_python_info_dedenter_statement()
         call check(error,.not. (v(2) /= 0), "(not (python-info-dedenter-statement-p))")
         if (allocated(error)) return
-        v(3) = look_pos("case 2:", 1_int64, .false.)
+        v(3) = look_position("case 2:", 1_int64, .false.)
         v(4) = is_python_info_dedenter_statement()
         call check(error,.not. (v(4) /= 0), "(not (python-info-dedenter-statement-p))")
         if (allocated(error)) return
-        v(5) = look_pos("case 3:", 1_int64, .false.)
+        v(5) = look_position("case 3:", 1_int64, .false.)
         v(6) = point()
         v(7) = is_python_info_dedenter_statement()
         call check(error, v(6) == v(7), "(= (point) (python-info-dedenter-statement-p))")
@@ -4567,23 +4572,23 @@ contains
                        //"'sorry, you lose'"//LF &
                        //LF &
                        //")"//LF)
-        v(1) = look_pos("if width == 0 and height == 0 and", 1_int64, .false.)
+        v(1) = look_position("if width == 0 and height == 0 and", 1_int64, .false.)
         v(2) = is_python_info_continuation_line()
         call check(error,.not. (v(2) /= 0), "(not (python-info-continuation-line-p))")
         if (allocated(error)) return
-        v(3) = look_pos("color == 'red' and emphasis == 'strong' or", 1_int64, .false.)
+        v(3) = look_position("color == 'red' and emphasis == 'strong' or", 1_int64, .false.)
         v(4) = is_python_info_continuation_line()
         call check(error, v(4) /= 0, "(python-info-continuation-line-p)")
         if (allocated(error)) return
-        v(5) = look_pos("highlight > 100:", 1_int64, .false.)
+        v(5) = look_position("highlight > 100:", 1_int64, .false.)
         v(6) = is_python_info_continuation_line()
         call check(error, v(6) /= 0, "(python-info-continuation-line-p)")
         if (allocated(error)) return
-        v(7) = look_pos("raise ValueError(", 1_int64, .false.)
+        v(7) = look_position("raise ValueError(", 1_int64, .false.)
         v(8) = is_python_info_continuation_line()
         call check(error,.not. (v(8) /= 0), "(not (python-info-continuation-line-p))")
         if (allocated(error)) return
-        v(9) = look_pos("'sorry, you lose'", 1_int64, .false.)
+        v(9) = look_position("'sorry, you lose'", 1_int64, .false.)
         v(10) = is_python_info_continuation_line()
         call check(error, v(10) /= 0, "(python-info-continuation-line-p)")
         if (allocated(error)) return
@@ -4591,7 +4596,7 @@ contains
         v(11) = is_python_info_continuation_line()
         call check(error, v(11) /= 0, "(python-info-continuation-line-p)")
         if (allocated(error)) return
-        v(12) = look_pos(")", 1_int64, .false.)
+        v(12) = look_position(")", 1_int64, .false.)
         v(13) = is_python_info_continuation_line()
         call check(error, v(13) /= 0, "(python-info-continuation-line-p)")
         if (allocated(error)) return
@@ -4618,16 +4623,16 @@ contains
                        //"'sorry, you lose'"//LF &
                        //LF &
                        //")"//LF)
-        v(1) = look_pos("if width == 0 and", 1_int64, .false.)
+        v(1) = look_position("if width == 0 and", 1_int64, .false.)
         v(2) = is_python_info_block_continuation_line()
         call check(error,.not. (v(2) /= 0), "(not (python-info-block-continuation-line-p))")
         if (allocated(error)) return
-        v(3) = look_pos("color == 'red' and emphasis == 'strong' or", 1_int64, .false.)
+        v(3) = look_position("color == 'red' and emphasis == 'strong' or", 1_int64, .false.)
         v(4) = is_python_info_block_continuation_line()
-        v(5) = look_pos("if width == 0 and", -1_int64, .true.)
+        v(5) = look_position("if width == 0 and", -1_int64, .true.)
         call check(error, v(4) == v(5), "(= (python-info-block-continuation-line-p) (python-tests-loo")
         if (allocated(error)) return
-        v(6) = look_pos("highlight > 100:", 1_int64, .false.)
+        v(6) = look_position("highlight > 100:", 1_int64, .false.)
         v(7) = is_python_info_block_continuation_line()
         call check(error,.not. (v(7) /= 0), "(not (python-info-block-continuation-line-p))")
         if (allocated(error)) return
@@ -4647,16 +4652,16 @@ contains
                        //"        b,"//LF &
                        //"        c):"//LF &
                        //"    pass"//LF)
-        v(1) = look_pos("def foo(a,", 1_int64, .false.)
+        v(1) = look_position("def foo(a,", 1_int64, .false.)
         v(2) = is_python_info_block_continuation_line()
         call check(error,.not. (v(2) /= 0), "(not (python-info-block-continuation-line-p))")
         if (allocated(error)) return
-        v(3) = look_pos("b,", 1_int64, .false.)
+        v(3) = look_position("b,", 1_int64, .false.)
         v(4) = is_python_info_block_continuation_line()
-        v(5) = look_pos("def foo(a,", -1_int64, .true.)
+        v(5) = look_position("def foo(a,", -1_int64, .true.)
         call check(error, v(4) == v(5), "(= (python-info-block-continuation-line-p) (python-tests-loo")
         if (allocated(error)) return
-        v(6) = look_pos("c):", 1_int64, .false.)
+        v(6) = look_position("c):", 1_int64, .false.)
         v(7) = is_python_info_block_continuation_line()
         call check(error,.not. (v(7) /= 0), "(not (python-info-block-continuation-line-p))")
         if (allocated(error)) return
@@ -4675,16 +4680,16 @@ contains
                        //"data = foo(), bar() \"//LF &
                        //"       baz(), 4 \"//LF &
                        //"       5, 6"//LF)
-        v(1) = look_pos("data = foo(), bar()", 1_int64, .false.)
+        v(1) = look_position("data = foo(), bar()", 1_int64, .false.)
         v(2) = is_python_info_assignment_continuation_line()
         call check(error,.not. (v(2) /= 0), "(not (python-info-assignment-continuation-line-p))")
         if (allocated(error)) return
-        v(3) = look_pos("baz(), 4", 1_int64, .false.)
+        v(3) = look_position("baz(), 4", 1_int64, .false.)
         v(4) = is_python_info_assignment_continuation_line()
-        v(5) = look_pos("foo(),", -1_int64, .true.)
+        v(5) = look_position("foo(),", -1_int64, .true.)
         call check(error, v(4) == v(5), "(= (python-info-assignment-continuation-line-p) (python-test")
         if (allocated(error)) return
-        v(6) = look_pos("5, 6", 1_int64, .false.)
+        v(6) = look_position("5, 6", 1_int64, .false.)
         v(7) = is_python_info_assignment_continuation_line()
         call check(error,.not. (v(7) /= 0), "(not (python-info-assignment-continuation-line-p))")
         if (allocated(error)) return
@@ -4703,16 +4708,16 @@ contains
                        //"data = (foo(), bar()"//LF &
                        //"        baz(), 4"//LF &
                        //"        5, 6)"//LF)
-        v(1) = look_pos("data = (foo(), bar()", 1_int64, .false.)
+        v(1) = look_position("data = (foo(), bar()", 1_int64, .false.)
         v(2) = is_python_info_assignment_continuation_line()
         call check(error,.not. (v(2) /= 0), "(not (python-info-assignment-continuation-line-p))")
         if (allocated(error)) return
-        v(3) = look_pos("baz(), 4", 1_int64, .false.)
+        v(3) = look_position("baz(), 4", 1_int64, .false.)
         v(4) = is_python_info_assignment_continuation_line()
-        v(5) = look_pos("(foo(),", -1_int64, .true.)
+        v(5) = look_position("(foo(),", -1_int64, .true.)
         call check(error, v(4) == v(5), "(= (python-info-assignment-continuation-line-p) (python-test")
         if (allocated(error)) return
-        v(6) = look_pos("5, 6)", 1_int64, .false.)
+        v(6) = look_position("5, 6)", 1_int64, .false.)
         v(7) = is_python_info_assignment_continuation_line()
         call check(error,.not. (v(7) /= 0), "(not (python-info-assignment-continuation-line-p))")
         if (allocated(error)) return
@@ -4738,19 +4743,19 @@ contains
                        //"    def wrap():"//LF &
                        //"        deff()"//LF &
                        //"    return wwrap"//LF)
-        v(1) = look_pos("def decorat0r(deff):", 1_int64, .false.)
+        v(1) = look_position("def decorat0r(deff):", 1_int64, .false.)
         b(1) = python_info_looking_at_beginning_of_definition()
         call check(error, b(1), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
-        v(2) = look_pos("def foo(arg):", 1_int64, .false.)
+        v(2) = look_position("def foo(arg):", 1_int64, .false.)
         b(2) = python_info_looking_at_beginning_of_definition()
         call check(error,.not. (b(2)), "(not (python-info-looking-at-beginning-of-defun))")
         if (allocated(error)) return
-        v(3) = look_pos("def wrap():", 1_int64, .false.)
+        v(3) = look_position("def wrap():", 1_int64, .false.)
         b(3) = python_info_looking_at_beginning_of_definition()
         call check(error, b(3), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
-        v(4) = look_pos("deff()", 1_int64, .false.)
+        v(4) = look_position("deff()", 1_int64, .false.)
         b(4) = python_info_looking_at_beginning_of_definition()
         call check(error,.not. (b(4)), "(not (python-info-looking-at-beginning-of-defun))")
         if (allocated(error)) return
@@ -4769,21 +4774,21 @@ contains
                        //"def \"//LF &
                        //"        foo(arg):"//LF &
                        //"    pass"//LF)
-        v(1) = look_pos("def \", 1_int64, .false.)
+        v(1) = look_position("def \", 1_int64, .false.)
         b(1) = python_info_looking_at_beginning_of_definition()
         call check(error, b(1), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
         b(2) = python_info_looking_at_beginning_of_definition(check_statement=.true.)
         call check(error, b(2), "(python-info-looking-at-beginning-of-defun nil t)")
         if (allocated(error)) return
-        v(2) = look_pos("foo(arg):", 1_int64, .false.)
+        v(2) = look_position("foo(arg):", 1_int64, .false.)
         b(3) = python_info_looking_at_beginning_of_definition()
         call check(error,.not. (b(3)), "(not (python-info-looking-at-beginning-of-defun))")
         if (allocated(error)) return
         b(4) = python_info_looking_at_beginning_of_definition(check_statement=.true.)
         call check(error, b(4), "(python-info-looking-at-beginning-of-defun nil t)")
         if (allocated(error)) return
-        v(3) = look_pos("pass", 1_int64, .false.)
+        v(3) = look_position("pass", 1_int64, .false.)
         b(5) = python_info_looking_at_beginning_of_definition()
         call check(error,.not. (b(5)), "(not (python-info-looking-at-beginning-of-defun))")
         if (allocated(error)) return
@@ -4804,15 +4809,15 @@ contains
         call py_buffer(LF &
                        //"def foo(arg=""default""):  # Comment"//LF &
                        //"    pass"//LF)
-        v(1) = look_pos("arg", 1_int64, .false.)
+        v(1) = look_position("arg", 1_int64, .false.)
         b(1) = python_info_looking_at_beginning_of_definition()
         call check(error, b(1), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
-        v(2) = look_pos("default", 1_int64, .false.)
+        v(2) = look_position("default", 1_int64, .false.)
         b(2) = python_info_looking_at_beginning_of_definition()
         call check(error, b(2), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
-        v(3) = look_pos("Comment", 1_int64, .false.)
+        v(3) = look_position("Comment", 1_int64, .false.)
         b(3) = python_info_looking_at_beginning_of_definition()
         call check(error, b(3), "(python-info-looking-at-beginning-of-defun)")
         if (allocated(error)) return
@@ -4834,23 +4839,23 @@ contains
                        //"if foo:"//LF &
                        //"    # more comments"//LF &
                        //"    print ('bar') # print bar"//LF)
-        v(1) = look_pos("# this is a comment", 1_int64, .false.)
+        v(1) = look_position("# this is a comment", 1_int64, .false.)
         b(1) = is_python_info_current_line_comment()
         call check(error, b(1), "(python-info-current-line-comment-p)")
         if (allocated(error)) return
-        v(2) = look_pos("foo = True  # another comment", 1_int64, .false.)
+        v(2) = look_position("foo = True  # another comment", 1_int64, .false.)
         b(2) = is_python_info_current_line_comment()
         call check(error,.not. (b(2)), "(not (python-info-current-line-comment-p))")
         if (allocated(error)) return
-        v(3) = look_pos("'#this is a string'", 1_int64, .false.)
+        v(3) = look_position("'#this is a string'", 1_int64, .false.)
         b(3) = is_python_info_current_line_comment()
         call check(error,.not. (b(3)), "(not (python-info-current-line-comment-p))")
         if (allocated(error)) return
-        v(4) = look_pos("# more comments", 1_int64, .false.)
+        v(4) = look_position("# more comments", 1_int64, .false.)
         b(4) = is_python_info_current_line_comment()
         call check(error, b(4), "(python-info-current-line-comment-p)")
         if (allocated(error)) return
-        v(5) = look_pos("print ('bar') # print bar", 1_int64, .false.)
+        v(5) = look_position("print ('bar') # print bar", 1_int64, .false.)
         b(5) = is_python_info_current_line_comment()
         call check(error,.not. (b(5)), "(not (python-info-current-line-comment-p))")
         if (allocated(error)) return
@@ -4872,7 +4877,7 @@ contains
         b(1) = is_python_info_current_line_empty()
         call check(error, b(1), "(python-info-current-line-empty-p)")
         if (allocated(error)) return
-        v(1) = look_pos("# this is a comment", 1_int64, .false.)
+        v(1) = look_position("# this is a comment", 1_int64, .false.)
         b(2) = is_python_info_current_line_empty()
         call check(error,.not. (b(2)), "(not (python-info-current-line-empty-p))")
         if (allocated(error)) return
@@ -4899,15 +4904,15 @@ contains
                        //"'''"//LF &
                        //"u'''Additional module docstring.'''"//LF &
                        //"'''Not a module docstring.'''"//LF)
-        v(1) = look_pos("Module Docstring Django style.", 1_int64, .false.)
+        v(1) = look_position("Module Docstring Django style.", 1_int64, .false.)
         b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(2) = look_pos("u'''Additional module docstring.'''", 1_int64, .false.)
+        v(2) = look_position("u'''Additional module docstring.'''", 1_int64, .false.)
         b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(3) = look_pos("'''Not a module docstring.'''", 1_int64, .false.)
+        v(3) = look_position("'''Not a module docstring.'''", 1_int64, .false.)
         b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
@@ -4927,15 +4932,15 @@ contains
                        //"U'''Variable docstring.'''"//LF &
                        //"'''Additional variable docstring.'''"//LF &
                        //"'''Not a variable docstring.'''"//LF)
-        v(1) = look_pos("Variable docstring.", 1_int64, .false.)
+        v(1) = look_position("Variable docstring.", 1_int64, .false.)
         b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(2) = look_pos("u'''Additional variable docstring.'''", 1_int64, .false.)
+        v(2) = look_position("u'''Additional variable docstring.'''", 1_int64, .false.)
         b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(3) = look_pos("'''Not a variable docstring.'''", 1_int64, .false.)
+        v(3) = look_position("'''Not a variable docstring.'''", 1_int64, .false.)
         b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
@@ -4960,15 +4965,15 @@ contains
                        //"    R'''Additional function docstring.'''"//LF &
                        //"    '''Not a function docstring.'''"//LF &
                        //"    return a + b"//LF)
-        v(1) = look_pos("Function docstring.", 1_int64, .false.)
+        v(1) = look_position("Function docstring.", 1_int64, .false.)
         b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(2) = look_pos("R'''Additional function docstring.'''", 1_int64, .false.)
+        v(2) = look_position("R'''Additional function docstring.'''", 1_int64, .false.)
         b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(3) = look_pos("'''Not a function docstring.'''", 1_int64, .false.)
+        v(3) = look_position("'''Not a function docstring.'''", 1_int64, .false.)
         b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
@@ -4995,15 +5000,15 @@ contains
                        //"    '''"//LF &
                        //"    '''Not a class docstring.'''"//LF &
                        //"    pass"//LF)
-        v(1) = look_pos("Class docstring.", 1_int64, .false.)
+        v(1) = look_position("Class docstring.", 1_int64, .false.)
         b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(2) = look_pos("uR'''", 1_int64, .false.)
+        v(2) = look_position("uR'''", 1_int64, .false.)
         b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(3) = look_pos("'''Not a class docstring.'''", 1_int64, .false.)
+        v(3) = look_position("'''Not a class docstring.'''", 1_int64, .false.)
         b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
@@ -5032,15 +5037,15 @@ contains
                        //"    '''"//LF &
                        //"    '''Not a class attribute docstring.'''"//LF &
                        //"    pass"//LF)
-        v(1) = look_pos("Class attribute docstring.", 1_int64, .false.)
+        v(1) = look_position("Class attribute docstring.", 1_int64, .false.)
         b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(2) = look_pos("UR'''", 1_int64, .false.)
+        v(2) = look_position("UR'''", 1_int64, .false.)
         b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(3) = look_pos("'''Not a class attribute docstring.'''", 1_int64, .false.)
+        v(3) = look_position("'''Not a class attribute docstring.'''", 1_int64, .false.)
         b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
@@ -5070,15 +5075,15 @@ contains
                        //"        '''Additional method docstring.'''"//LF &
                        //"        '''Not a method docstring.'''"//LF &
                        //"        return self.a + self.b"//LF)
-        v(1) = look_pos("Method docstring.", 1_int64, .false.)
+        v(1) = look_position("Method docstring.", 1_int64, .false.)
         b(1) = is_python_info_docstring()
         call check(error, b(1), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(2) = look_pos("'''Additional method docstring.'''", 1_int64, .false.)
+        v(2) = look_position("'''Additional method docstring.'''", 1_int64, .false.)
         b(2) = is_python_info_docstring()
         call check(error, b(2), "(python-info-docstring-p)")
         if (allocated(error)) return
-        v(3) = look_pos("'''Not a method docstring.'''", 1_int64, .false.)
+        v(3) = look_position("'''Not a method docstring.'''", 1_int64, .false.)
         b(3) = is_python_info_docstring()
         call check(error,.not. (b(3)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
@@ -5096,11 +5101,11 @@ contains
         call py_buffer(LF &
                        //"{'Not a docstring': 1}"//LF &
                        //"'Also not a docstring'"//LF)
-        v(1) = look_pos("Not a docstring", 1_int64, .false.)
+        v(1) = look_position("Not a docstring", 1_int64, .false.)
         b(1) = is_python_info_docstring()
         call check(error,.not. (b(1)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
-        v(2) = look_pos("Also not a docstring", 1_int64, .false.)
+        v(2) = look_position("Also not a docstring", 1_int64, .false.)
         b(2) = is_python_info_docstring()
         call check(error,.not. (b(2)), "(not (python-info-docstring-p))")
         if (allocated(error)) return
@@ -5117,7 +5122,7 @@ contains
 
         call py_buffer("import sys"//LF &
                        //"'''Not a docstring.'''"//LF)
-        v(1) = look_pos("Not a docstring", 1_int64, .false.)
+        v(1) = look_position("Not a docstring", 1_int64, .false.)
         b(1) = is_python_info_docstring()
         call check(error,.not. (b(1)), "(not (python-info-docstring-p))")
         if (allocated(error)) return

@@ -32,7 +32,7 @@
 !> fortmacs_diff_multiple_mod.
 module fortmacs_diff_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           close_buffer, is_buffer_modified
@@ -49,40 +49,41 @@ module fortmacs_diff_mod
     use minibuffer_mod, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use basic_subprograms_mod, only: add_to_history
     use display_engine_mod, only: message
-    use fortmacs_diff_settings_mod, only: init_ediff_init, ediff_session_index
-    use fortmacs_diff_utilities_mod, only: set_up_ediff, read_ediff_file_name, create_ediff_temp_file, verify_ediff_file_buffer, &
-                                           ediff_other_buffer, init_ediff_util
-    use fortmacs_diff_window_mod, only: init_ediff_wind
-    use fortmacs_diff_diff_mod, only: init_ediff_diff
-    use fortmacs_diff_merging_mod, only: do_ediff_merge, init_ediff_merg
+    use fortmacs_diff_settings_mod, only: initialize_ediff_init, ediff_session_index
+    use fortmacs_diff_utilities_mod, only: set_up_ediff, read_ediff_file_name, create_ediff_temporary_file, &
+                                           verify_ediff_file_buffer, ediff_other_buffer, initialize_ediff_utility
+    use fortmacs_diff_window_mod, only: initialize_ediff_wind
+    use fortmacs_diff_diff_mod, only: initialize_ediff_diff
+    use fortmacs_diff_merging_mod, only: do_ediff_merge, initialize_ediff_merg
     implicit none(type, external)
     private
 
     public :: ediff_files, ediff_files3, ediff_buffers, ediff_buffers3, ediff_current_file, ediff_backup, &
               ediff_merge_files, ediff_merge_files_with_ancestor, ediff_merge_buffers, ediff_merge_buffers_with_ancestor, &
-              merge_ediff_on_startup, find_ediff_file, get_ediff_default_file_name, init_ediff, ediff_directories, &
+              merge_ediff_on_startup, find_ediff_file, get_ediff_default_file_name, initialize_ediff, ediff_directories, &
               ediff_directories3, ediff_merge_directories, ediff_merge_directories_with_ancestor, ediff_directories_internal
 
     !> If .true., Ediff will use previous directory as default when
     !> reading file name.  Port of ediff.el ediff-use-last-dir.
-    logical, public :: ediff_use_last_dir = .false.
+    logical, public :: ediff_use_last_directory = .false.
 
     !> Last directory used by an Ediff command for file-A.  Port of
     !> ediff.el ediff-last-dir-A.
-    character(len=:), allocatable, public :: ediff_last_dir_a
+    character(len=:), allocatable, public :: ediff_last_directory_a
     !> Last directory used by an Ediff command for file-B.  Port of
     !> ediff.el ediff-last-dir-B.
-    character(len=:), allocatable, public :: ediff_last_dir_b
+    character(len=:), allocatable, public :: ediff_last_directory_b
     !> Last directory used by an Ediff command for file-C.  Port of
     !> ediff.el ediff-last-dir-C.
-    character(len=:), allocatable, public :: ediff_last_dir_c
+    character(len=:), allocatable, public :: ediff_last_directory_c
     !> Last directory used by an Ediff command for the ancestor file.
     !> Port of ediff.el ediff-last-dir-ancestor.
-    character(len=:), allocatable, public :: ediff_last_dir_ancestor
+    character(len=:), allocatable, public :: ediff_last_directory_ancestor
 
     !> Which of the last directories `find_ediff_file' records
     !> (upstream's LAST-DIR symbol).
-    integer, parameter :: LAST_DIR_NONE = 0, LAST_DIR_A = 1, LAST_DIR_B = 2, LAST_DIR_C = 3, LAST_DIR_ANCESTOR = 4
+    integer, parameter :: LAST_DIRECTORY_NONE = 0, LAST_DIRECTORY_A = 1, LAST_DIRECTORY_B = 2, LAST_DIRECTORY_C = 3, &
+                          LAST_DIRECTORY_ANCESTOR = 4
 
     !> Last directory used by an Ediff command as the output directory for
     !> merge.  Port of ediff.el ediff-last-merge-autostore-dir.
@@ -92,12 +93,12 @@ module fortmacs_diff_mod
         !> Run Ediff on directories DIRECTORY1 and DIRECTORY2, comparing files.
         !> Consider only files that have the same name in both directories.
         !>
-        !> REGEXP is "" or a regular expression; only file names that match
+        !> REGULAR_EXPRESSION is "" or a regular expression; only file names that match
         !> the regexp are considered.  Port of ediff.el:ediff-directories.
         !> (In fortmacs_diff_directories_mod.)
-        recursive module subroutine ediff_directories(directory1, directory2, regexp, status)
+        recursive module subroutine ediff_directories(directory1, directory2, regular_expression, status)
             implicit none(type, external)
-            character(len=*), intent(in) :: directory1, directory2, regexp
+            character(len=*), intent(in) :: directory1, directory2, regular_expression
             type(status_type), intent(out) :: status
         end subroutine ediff_directories
 
@@ -105,24 +106,25 @@ module fortmacs_diff_mod
         !> Consider only files that have the same name in all three
         !> directories.
         !>
-        !> REGEXP is "" or a regular expression; only file names that match
+        !> REGULAR_EXPRESSION is "" or a regular expression; only file names that match
         !> the regexp are considered.  Port of ediff.el:ediff-directories3.
         !> (In fortmacs_diff_directories_mod.)
-        recursive module subroutine ediff_directories3(directory1, directory2, directory3, regexp, status)
+        recursive module subroutine ediff_directories3(directory1, directory2, directory3, regular_expression, status)
             implicit none(type, external)
-            character(len=*), intent(in) :: directory1, directory2, directory3, regexp
+            character(len=*), intent(in) :: directory1, directory2, directory3, regular_expression
             type(status_type), intent(out) :: status
         end subroutine ediff_directories3
 
         !> Run Ediff on two directories, DIRECTORY1 and DIRECTORY2, merging files
-        !> that have the same name in both.  The third argument, REGEXP, is ""
+        !> that have the same name in both.  The third argument, REGULAR_EXPRESSION, is ""
         !> or a regular expression; only file names that match the regexp
         !> are considered.  MERGE_AUTOSTORE_DIRECTORY is the directory in which to
         !> store merged files.  Port of ediff.el:ediff-merge-directories.
         !> (In fortmacs_diff_directories_mod.)
-        recursive module subroutine ediff_merge_directories(directory1, directory2, regexp, status, merge_autostore_directory)
+        recursive module subroutine ediff_merge_directories(directory1, directory2, regular_expression, status, &
+                                                            merge_autostore_directory)
             implicit none(type, external)
-            character(len=*), intent(in) :: directory1, directory2, regexp
+            character(len=*), intent(in) :: directory1, directory2, regular_expression
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: merge_autostore_directory
         end subroutine ediff_merge_directories
@@ -132,16 +134,17 @@ module fortmacs_diff_mod
         !> Ediff merges files that have identical names in DIRECTORY1, DIRECTORY2.  If two
         !> files in DIRECTORY1 and DIRECTORY2 don't have an ancestor in
         !> ANCESTOR_DIRECTORY, Ediff will merge without ancestor.  The fourth
-        !> argument, REGEXP, is "" or a regular expression; only file names
+        !> argument, REGULAR_EXPRESSION, is "" or a regular expression; only file names
         !> that match the regexp are considered.  MERGE_AUTOSTORE_DIRECTORY is the
         !> directory in which to store merged files.  Port of
         !> ediff.el:ediff-merge-directories-with-ancestor.  (In
         !> fortmacs_diff_directories_mod.)
-        recursive module subroutine ediff_merge_directories_with_ancestor(directory1, directory2, ancestor_directory, regexp, &
+        recursive module subroutine ediff_merge_directories_with_ancestor(directory1, directory2, ancestor_directory, &
+                                                                          regular_expression, &
                                                                           status, &
                                                                           merge_autostore_directory)
             implicit none(type, external)
-            character(len=*), intent(in) :: directory1, directory2, ancestor_directory, regexp
+            character(len=*), intent(in) :: directory1, directory2, ancestor_directory, regular_expression
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: merge_autostore_directory
         end subroutine ediff_merge_directories_with_ancestor
@@ -152,17 +155,18 @@ module fortmacs_diff_mod
         !> DIRECTORY1 and DIRECTORY2 (and DIRECTORY3, the ancestors when merging; "" for
         !> none): its sessions compare or merge the files with
         !> `ediff_files', `ediff_files3', `ediff_merge_files' or
-        !> `ediff_merge_files_with_ancestor'.  REGEXP is "" or a regular
+        !> `ediff_merge_files_with_ancestor'.  REGULAR_EXPRESSION is "" or a regular
         !> expression; only file names that match the regexp are
         !> considered.  STARTUP_HOOKS run in the group buffer once it is
         !> made.  MERGE_AUTOSTORE_DIRECTORY is the directory in which to store
         !> merged files.  Port of ediff.el:ediff-directories-internal (the
         !> job gives ACTION).  (In fortmacs_diff_directories_mod.)
-        recursive module subroutine ediff_directories_internal(directory1, directory2, directory3, regexp, job_name, status, &
+        recursive module subroutine ediff_directories_internal(directory1, directory2, directory3, regular_expression, job_name, &
+                                                               status, &
                                                                startup_hooks, &
                                                                merge_autostore_directory)
             implicit none(type, external)
-            character(len=*), intent(in) :: directory1, directory2, directory3, regexp
+            character(len=*), intent(in) :: directory1, directory2, directory3, regular_expression
             type(command_type), pointer, intent(in) :: job_name
             type(status_type), intent(out) :: status
             type(hook_type), intent(inout), optional :: startup_hooks
@@ -171,9 +175,9 @@ module fortmacs_diff_mod
 
         !> Register the directory commands of ediff.el and set up
         !> fortmacs_diff_multiple_mod.  Not a port.  (In fortmacs_diff_directories_mod.)
-        module subroutine init_ediff_directories()
+        module subroutine initialize_ediff_directories()
             implicit none(type, external)
-        end subroutine init_ediff_directories
+        end subroutine initialize_ediff_directories
     end interface
 
 contains
@@ -244,28 +248,28 @@ contains
 
     !> Visit FILE and arrange its buffer to Ediff's liking.
     !> FILE is the file name.
-    !> LAST_DIR is the last directory (A, B, C or the ancestor's) where
+    !> LAST_DIRECTORY is the last directory (A, B, C or the ancestor's) where
     !> FILE's directory name should be recorded.
     !> BUFFER is the buffer into which the file is visited.  Port of
     !> ediff.el:ediff-find-file (compressed and remote files, which need
     !> temporary copies, are deferred with file name handlers).
-    recursive subroutine find_ediff_file(file_in, last_dir, buffer, status)
+    recursive subroutine find_ediff_file(file_in, last_directory, buffer, status)
         character(len=*), intent(in) :: file_in
-        integer, intent(in) :: last_dir
+        integer, intent(in) :: last_directory
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: file, dir
+        character(len=:), allocatable :: file, directory
         type(handle_type) :: old
         type(status_type) :: st
 
         status = status_type()
 
         if (.not. is_file_readable(file_in)) then
-            call set_error(status, FM_USER_ERROR, format_message("File `")//file_in// &
+            call set_error(status, USER_ERROR_CODE, format_message("File `")//file_in// &
                            format_message("' does not exist or is not readable"))
             return
         else if (is_file_directory(file_in)) then
-            call set_error(status, FM_USER_ERROR, format_message("File `")//file_in//format_message("' is a directory"))
+            call set_error(status, USER_ERROR_CODE, format_message("File `")//file_in//format_message("' is a directory"))
             return
         end if
 
@@ -273,18 +277,18 @@ contains
         call expand_file_name(file_in, file, status)
         if (.not. status%ok()) return
         ! Record the directory of the file.
-        call expand_file_name(file_name_directory(file), dir, status)
+        call expand_file_name(file_name_directory(file), directory, status)
         if (.not. status%ok()) return
 
-        select case (last_dir)
-        case (LAST_DIR_A)
-            ediff_last_dir_a = dir
-        case (LAST_DIR_B)
-            ediff_last_dir_b = dir
-        case (LAST_DIR_C)
-            ediff_last_dir_c = dir
-        case (LAST_DIR_ANCESTOR)
-            ediff_last_dir_ancestor = dir
+        select case (last_directory)
+        case (LAST_DIRECTORY_A)
+            ediff_last_directory_a = directory
+        case (LAST_DIRECTORY_B)
+            ediff_last_directory_b = directory
+        case (LAST_DIRECTORY_C)
+            ediff_last_directory_c = directory
+        case (LAST_DIRECTORY_ANCESTOR)
+            ediff_last_directory_ancestor = directory
         case default
             continue
         end select
@@ -321,25 +325,25 @@ contains
         status = status_type()
 
         if (file_a == file_b) then
-            call set_error(status, FM_GENERIC_ERROR, "Files A and B are the same")
+            call set_error(status, GENERIC_ERROR_CODE, "Files A and B are the same")
             return
         end if
 
         if (len(file_c) > 0) then
             if (file_a == file_c) then
-                call set_error(status, FM_GENERIC_ERROR, "Files A and C are the same")
+                call set_error(status, GENERIC_ERROR_CODE, "Files A and C are the same")
                 return
             else if (file_b == file_c) then
-                call set_error(status, FM_GENERIC_ERROR, "Files B and C are the same")
+                call set_error(status, GENERIC_ERROR_CODE, "Files B and C are the same")
                 return
             end if
         end if
 
         call message("Reading file "//file_a//" ... ")
-        call find_ediff_file(file_a, LAST_DIR_A, buffer_a, status)
+        call find_ediff_file(file_a, LAST_DIRECTORY_A, buffer_a, status)
         if (.not. status%ok()) return
         call message("Reading file "//file_b//" ... ")
-        call find_ediff_file(file_b, LAST_DIR_B, buffer_b, status)
+        call find_ediff_file(file_b, LAST_DIRECTORY_B, buffer_b, status)
         if (.not. status%ok()) return
         buffer_c = null_handle()
 
@@ -347,9 +351,9 @@ contains
             call message("Reading file "//file_c//" ... ")
 
             if (associated(job_name, commands%ediff_merge_files_with_ancestor)) then
-                call find_ediff_file(file_c, LAST_DIR_ANCESTOR, buffer_c, status)
+                call find_ediff_file(file_c, LAST_DIRECTORY_ANCESTOR, buffer_c, status)
             else
-                call find_ediff_file(file_c, LAST_DIR_C, buffer_c, status)
+                call find_ediff_file(file_c, LAST_DIRECTORY_C, buffer_c, status)
             end if
 
             if (.not. status%ok()) return
@@ -403,12 +407,12 @@ contains
         end if
 
         if (.not. revertible) then
-            call set_error(status, FM_GENERIC_ERROR, "Nothing to revert")
+            call set_error(status, GENERIC_ERROR_CODE, "Nothing to revert")
             return
         end if
 
         if (.not. allocated(buffers(current)%filename)) then
-            call set_error(status, FM_GENERIC_ERROR, "Buffer does not seem to be associated with any file")
+            call set_error(status, GENERIC_ERROR_CODE, "Buffer does not seem to be associated with any file")
             return
         end if
 
@@ -462,7 +466,7 @@ contains
             call diff_latest_backup_file(file, bak, found)
 
             if (.not. found) then
-                call set_error(status, FM_GENERIC_ERROR, "No backup found for "//file)
+                call set_error(status, GENERIC_ERROR_CODE, "No backup found for "//file)
                 return
             end if
 
@@ -528,10 +532,10 @@ contains
         file_c = ""
 
         if (.not. is_buffer_live(buffer_a)) then
-            call set_error(status, FM_USER_ERROR, "Buffer #<killed buffer> doesn't exist")
+            call set_error(status, USER_ERROR_CODE, "Buffer #<killed buffer> doesn't exist")
             return
         else if (.not. is_buffer_live(buffer_b)) then
-            call set_error(status, FM_USER_ERROR, "Buffer #<killed buffer> doesn't exist")
+            call set_error(status, USER_ERROR_CODE, "Buffer #<killed buffer> doesn't exist")
             return
         end if
 
@@ -539,13 +543,13 @@ contains
                                    associated(job_name, commands%ediff_buffers3)
 
         if (three_way_comparison_job .and. .not. buffer_c_is_alive) then
-            call set_error(status, FM_USER_ERROR, "Buffer #<killed buffer> doesn't exist")
+            call set_error(status, USER_ERROR_CODE, "Buffer #<killed buffer> doesn't exist")
             return
         end if
 
-        call make_temp(buffer_a, file_a)
-        if (status%ok()) call make_temp(buffer_b, file_b)
-        if (status%ok() .and. buffer_c_is_alive) call make_temp(buffer_c, file_c)
+        call make_temporary(buffer_a, file_a)
+        if (status%ok()) call make_temporary(buffer_b, file_b)
+        if (status%ok() .and. buffer_c_is_alive) call make_temporary(buffer_c, file_c)
 
         if (status%ok()) then
             call set_up_ediff(buffer_a, file_a, buffer_b, file_b, buffer_c, file_c, job_name, control, status, startup_hooks, &
@@ -553,33 +557,33 @@ contains
         end if
 
         ! Delete the temporary files, keeping the first error.
-        if (allocated(file_a)) call delete_temp(file_a)
-        if (allocated(file_b)) call delete_temp(file_b)
-        if (len(file_c) > 0) call delete_temp(file_c)
+        if (allocated(file_a)) call delete_temporary(file_a)
+        if (allocated(file_b)) call delete_temporary(file_b)
+        if (len(file_c) > 0) call delete_temporary(file_c)
 
     contains
 
         ! A temporary file with the text of BUFFER, named after its file.
-        subroutine make_temp(buffer, file)
+        subroutine make_temporary(buffer, file)
             type(handle_type), intent(in) :: buffer
             character(len=:), allocatable, intent(out) :: file
 
             if (allocated(buffers(buffer%index)%filename)) then
-                call create_ediff_temp_file(buffer, file, status, file_name_nondirectory(buffers(buffer%index)%filename))
+                call create_ediff_temporary_file(buffer, file, status, file_name_nondirectory(buffers(buffer%index)%filename))
             else
-                call create_ediff_temp_file(buffer, file, status)
+                call create_ediff_temporary_file(buffer, file, status)
             end if
-        end subroutine make_temp
+        end subroutine make_temporary
 
         ! Delete FILE if it exists; its error goes to STATUS unless an
         ! error is already recorded there.
-        subroutine delete_temp(file)
+        subroutine delete_temporary(file)
             character(len=*), intent(in) :: file
 
             if (.not. file_exists(file)) return
             call delete_file(file, st)
             if (status%ok()) status = st
-        end subroutine delete_temp
+        end subroutine delete_temporary
     end subroutine ediff_buffers_internal
 
     ! ------------------------------------------------------------------
@@ -710,88 +714,88 @@ contains
 
     ! The default directory of reading file A: the last one, or
     ! `default_directory'.  Not a port.
-    function directory_a() result(dir)
-        character(len=:), allocatable :: dir
+    function directory_a() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = ""
+        directory = ""
 
-        if (ediff_use_last_dir) then
-            if (allocated(ediff_last_dir_a)) dir = ediff_last_dir_a
+        if (ediff_use_last_directory) then
+            if (allocated(ediff_last_directory_a)) directory = ediff_last_directory_a
         else if (allocated(buffers(current)%directory)) then
-            dir = buffers(current)%directory
+            directory = buffers(current)%directory
         end if
     end function directory_a
 
-    ! Read the file after FILE: in DIR_LAST (the last one) or the
+    ! Read the file after FILE: in DIRECTORY_LAST (the last one) or the
     ! directory of FILE, adding FILE's name in it to the file name history.
     ! Not a port.
-    recursive subroutine read_next_file(prompt, file, dir_last, result, status)
+    recursive subroutine read_next_file(prompt, file, directory_last, result, status)
         character(len=*), intent(in) :: prompt, file
-        character(len=:), allocatable, intent(in) :: dir_last
+        character(len=:), allocatable, intent(in) :: directory_last
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dir, expanded
+        character(len=:), allocatable :: directory, expanded
 
-        if (ediff_use_last_dir) then
-            dir = ""
-            if (allocated(dir_last)) dir = dir_last
+        if (ediff_use_last_directory) then
+            directory = ""
+            if (allocated(directory_last)) directory = directory_last
         else
-            dir = file_name_directory(file)
+            directory = file_name_directory(file)
         end if
 
-        call expand_file_name(file_name_nondirectory(file), expanded, status, dir)
+        call expand_file_name(file_name_nondirectory(file), expanded, status, directory)
         if (.not. status%ok()) return
         call add_to_history("file_name_history", abbreviate_file_name(expanded), status=status)
         if (.not. status%ok()) return
-        call read_ediff_file_name(prompt, dir, get_ediff_default_file_name(file), result, status)
+        call read_ediff_file_name(prompt, directory, get_ediff_default_file_name(file), result, status)
     end subroutine read_next_file
 
     !> Run Ediff on two files, FILE_A and FILE_B.  Port of
     !> ediff.el:ediff-files (the command; also `ediff').
-    recursive subroutine cmd_ediff_files(status)
+    recursive subroutine execute_ediff_files(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: f, ff
 
         call read_ediff_file_name("File A to compare", directory_a(), get_ediff_default_file_name(), f, status, .true.)
         if (.not. status%ok()) return
-        call read_next_file("File B to compare", f, ediff_last_dir_b, ff, status)
+        call read_next_file("File B to compare", f, ediff_last_directory_b, ff, status)
         if (.not. status%ok()) return
         call ediff_files(f, ff, status)
-    end subroutine cmd_ediff_files
+    end subroutine execute_ediff_files
 
     !> Run Ediff on three files, FILE_A, FILE_B, and FILE_C.  Port of
     !> ediff.el:ediff-files3 (the command; also `ediff3').
-    recursive subroutine cmd_ediff_files3(status)
+    recursive subroutine execute_ediff_files3(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: f, ff, fff
 
         call read_ediff_file_name("File A to compare", directory_a(), get_ediff_default_file_name(), f, status, .true.)
         if (.not. status%ok()) return
-        call read_next_file("File B to compare", f, ediff_last_dir_b, ff, status)
+        call read_next_file("File B to compare", f, ediff_last_directory_b, ff, status)
         if (.not. status%ok()) return
-        call read_next_file("File C to compare", ff, ediff_last_dir_c, fff, status)
+        call read_next_file("File C to compare", ff, ediff_last_directory_c, fff, status)
         if (.not. status%ok()) return
         call ediff_files3(f, ff, fff, status)
-    end subroutine cmd_ediff_files3
+    end subroutine execute_ediff_files3
 
-    recursive subroutine cmd_ediff_current_file(status)
+    recursive subroutine execute_ediff_current_file(status)
         type(status_type), intent(out) :: status
 
         call ediff_current_file(status)
-    end subroutine cmd_ediff_current_file
+    end subroutine execute_ediff_current_file
 
-    recursive subroutine cmd_ediff_backup(status)
+    recursive subroutine execute_ediff_backup(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         call read_file_name("Ediff (file with backup): ", file, status)
         if (.not. status%ok()) return
         call ediff_backup(file, status)
-    end subroutine cmd_ediff_backup
+    end subroutine execute_ediff_backup
 
     !> Run Ediff on two buffers, BUFFER_A and BUFFER_B.  Port of
     !> ediff.el:ediff-buffers (the command; also `ebuffers').
-    recursive subroutine cmd_ediff_buffers(status)
+    recursive subroutine execute_ediff_buffers(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bf, bff, default
 
@@ -802,11 +806,11 @@ contains
         call read_buffer("Buffer B to compare: ", bff, status, def=default, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call ediff_buffers(get_buffer(bf), get_buffer(bff), status)
-    end subroutine cmd_ediff_buffers
+    end subroutine execute_ediff_buffers
 
     !> Run Ediff on three buffers, BUFFER_A, BUFFER_B, and BUFFER_C.  Port
     !> of ediff.el:ediff-buffers3 (the command; also `ebuffers3').
-    recursive subroutine cmd_ediff_buffers3(status)
+    recursive subroutine execute_ediff_buffers3(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bf, bff, bfff, default
 
@@ -820,44 +824,44 @@ contains
         call read_buffer("Buffer C to compare: ", bfff, status, def=default, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call ediff_buffers3(get_buffer(bf), get_buffer(bff), get_buffer(bfff), status)
-    end subroutine cmd_ediff_buffers3
+    end subroutine execute_ediff_buffers3
 
     !> Merge two files without ancestor.
     !> FILE_A and FILE_B are the names of the files to be merged.  Port of
     !> ediff.el:ediff-merge-files (the command; also `ediff_merge').
-    recursive subroutine cmd_ediff_merge_files(status)
+    recursive subroutine execute_ediff_merge_files(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: f, ff
 
         call read_ediff_file_name("File A to merge", directory_a(), get_ediff_default_file_name(), f, status, .true.)
         if (.not. status%ok()) return
-        call read_next_file("File B to merge", f, ediff_last_dir_b, ff, status)
+        call read_next_file("File B to merge", f, ediff_last_directory_b, ff, status)
         if (.not. status%ok()) return
         call ediff_merge_files(f, ff, status)
-    end subroutine cmd_ediff_merge_files
+    end subroutine execute_ediff_merge_files
 
     !> Merge two files with ancestor.
     !> FILE_A and FILE_B are the names of the files to be merged, and
     !> FILE_ANCESTOR is the name of the ancestor file.  Port of
     !> ediff.el:ediff-merge-files-with-ancestor (the command; also
     !> `ediff_merge_with_ancestor').
-    recursive subroutine cmd_ediff_merge_files_with_ancestor(status)
+    recursive subroutine execute_ediff_merge_files_with_ancestor(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: f, ff, fff
 
         call read_ediff_file_name("File A to merge", directory_a(), get_ediff_default_file_name(), f, status, .true.)
         if (.not. status%ok()) return
-        call read_next_file("File B to merge", f, ediff_last_dir_b, ff, status)
+        call read_next_file("File B to merge", f, ediff_last_directory_b, ff, status)
         if (.not. status%ok()) return
-        call read_next_file("Ancestor file", ff, ediff_last_dir_ancestor, fff, status)
+        call read_next_file("Ancestor file", ff, ediff_last_directory_ancestor, fff, status)
         if (.not. status%ok()) return
         call ediff_merge_files_with_ancestor(f, ff, fff, status)
-    end subroutine cmd_ediff_merge_files_with_ancestor
+    end subroutine execute_ediff_merge_files_with_ancestor
 
     !> Merge buffers without ancestor.
     !> BUFFER_A and BUFFER_B are the buffers to be merged.  Port of
     !> ediff.el:ediff-merge-buffers (the command).
-    recursive subroutine cmd_ediff_merge_buffers(status)
+    recursive subroutine execute_ediff_merge_buffers(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bf, bff, default
 
@@ -868,13 +872,13 @@ contains
         call read_buffer("Buffer B to merge: ", bff, status, def=default, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call ediff_merge_buffers(get_buffer(bf), get_buffer(bff), status)
-    end subroutine cmd_ediff_merge_buffers
+    end subroutine execute_ediff_merge_buffers
 
     !> Merge buffers with ancestor.
     !> BUFFER_A and BUFFER_B are the buffers to be merged, and
     !> BUFFER_ANCESTOR is their ancestor.  Port of
     !> ediff.el:ediff-merge-buffers-with-ancestor (the command).
-    recursive subroutine cmd_ediff_merge_buffers_with_ancestor(status)
+    recursive subroutine execute_ediff_merge_buffers_with_ancestor(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bf, bff, bfff, default
 
@@ -888,32 +892,32 @@ contains
         call read_buffer("Ancestor buffer: ", bfff, status, def=default, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call ediff_merge_buffers_with_ancestor(get_buffer(bf), get_buffer(bff), get_buffer(bfff), status)
-    end subroutine cmd_ediff_merge_buffers_with_ancestor
+    end subroutine execute_ediff_merge_buffers_with_ancestor
 
     !> Register the commands of Ediff and set up its modules.  Not a port.
-    subroutine init_ediff()
+    subroutine initialize_ediff()
         if (associated(commands%ediff_files%execute)) return
-        call init_ediff_init()
-        call init_ediff_wind()
-        call init_ediff_diff()
-        call init_ediff_util()
-        call init_ediff_merg()
-        commands%ediff_files%execute => cmd_ediff_files
-        commands%ediff%execute => cmd_ediff_files
-        commands%ediff_files3%execute => cmd_ediff_files3
-        commands%ediff3%execute => cmd_ediff_files3
-        commands%ediff_current_file%execute => cmd_ediff_current_file
-        commands%ediff_backup%execute => cmd_ediff_backup
-        commands%ediff_buffers%execute => cmd_ediff_buffers
-        commands%ebuffers%execute => cmd_ediff_buffers
-        commands%ediff_buffers3%execute => cmd_ediff_buffers3
-        commands%ebuffers3%execute => cmd_ediff_buffers3
-        commands%ediff_merge_files%execute => cmd_ediff_merge_files
-        commands%ediff_merge%execute => cmd_ediff_merge_files
-        commands%ediff_merge_files_with_ancestor%execute => cmd_ediff_merge_files_with_ancestor
-        commands%ediff_merge_with_ancestor%execute => cmd_ediff_merge_files_with_ancestor
-        commands%ediff_merge_buffers%execute => cmd_ediff_merge_buffers
-        commands%ediff_merge_buffers_with_ancestor%execute => cmd_ediff_merge_buffers_with_ancestor
-        call init_ediff_directories()
-    end subroutine init_ediff
+        call initialize_ediff_init()
+        call initialize_ediff_wind()
+        call initialize_ediff_diff()
+        call initialize_ediff_utility()
+        call initialize_ediff_merg()
+        commands%ediff_files%execute => execute_ediff_files
+        commands%ediff%execute => execute_ediff_files
+        commands%ediff_files3%execute => execute_ediff_files3
+        commands%ediff3%execute => execute_ediff_files3
+        commands%ediff_current_file%execute => execute_ediff_current_file
+        commands%ediff_backup%execute => execute_ediff_backup
+        commands%ediff_buffers%execute => execute_ediff_buffers
+        commands%ebuffers%execute => execute_ediff_buffers
+        commands%ediff_buffers3%execute => execute_ediff_buffers3
+        commands%ebuffers3%execute => execute_ediff_buffers3
+        commands%ediff_merge_files%execute => execute_ediff_merge_files
+        commands%ediff_merge%execute => execute_ediff_merge_files
+        commands%ediff_merge_files_with_ancestor%execute => execute_ediff_merge_files_with_ancestor
+        commands%ediff_merge_with_ancestor%execute => execute_ediff_merge_files_with_ancestor
+        commands%ediff_merge_buffers%execute => execute_ediff_merge_buffers
+        commands%ediff_merge_buffers_with_ancestor%execute => execute_ediff_merge_buffers_with_ancestor
+        call initialize_ediff_directories()
+    end subroutine initialize_ediff
 end module fortmacs_diff_mod

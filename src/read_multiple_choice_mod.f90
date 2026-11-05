@@ -28,22 +28,22 @@
 !> Not ported: dialog boxes, touch-screen events.
 module read_multiple_choice_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
-    use error_mod, only: status_type, set_error, FM_QUIT
+    use execute_interactively_mod, only: prefix_argument_type
+    use error_mod, only: status_type, set_error, QUIT_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
     use buffer_mod, only: current_buffer, get_or_make_buffer, set_buffer, set_buffer_read_only, erase_buffer, &
                           close_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char
+    use editing_functions_mod, only: goto_character
     use keymap_mod, only: single_key_description
     use basic_subprograms_mod, only: read_key, query_replace_answer, ANSWER_RECENTER, ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN, &
                                      ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_EDIT
-    use window_mod, only: window_ref, window_type, set_window_buffer, split_window, delete_window, is_window_live, &
+    use window_mod, only: window_reference, window_type, set_window_buffer, split_window, delete_window, is_window_live, &
                           recenter, scroll_up_command, scroll_down_command
-    use value_mod, only: make_keymap_ref, make_list, command_type, value_type
+    use value_mod, only: make_keymap_reference, make_list, command_type, value_type
     use data_mod, only: value_eq
-    use character_mod, only: MAX_CHAR
+    use character_mod, only: MAXIMUM_CHARACTER
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, define_key, define_key_range, lookup_key, &
                           current_global_map, destroy_keymap
     use keyboard_mod, only: recursive_edit, this_command, real_this_command, last_command_event, sit_for
@@ -63,7 +63,7 @@ module read_multiple_choice_mod
     !> `read_multiple_choice' (read-char-choice).  Otherwise, use the
     !> minibuffer (this is the default).  Port of subr.el
     !> read-char-choice-use-read-key.
-    logical, public :: read_char_choice_use_read_key = .false.
+    logical, public :: read_character_choice_use_read_key = .false.
 
     !> A choice of `read_multiple_choice': (CHAR NAME [DESCRIPTION]).
     type, public :: rmc_choice_type
@@ -80,7 +80,7 @@ module read_multiple_choice_mod
     type(handle_type) :: rmc_buffer, rmc_help_window
     !> The key the minibuffer path read (tchar), -1 for none.
     integer :: rmc_tchar = -1
-    type(command_type), target :: cmd_char, cmd_help, cmd_wrong
+    type(command_type), target :: command_character, command_help, command_wrong
 
 contains
 
@@ -90,20 +90,22 @@ contains
     !> Port of rmc.el:rmc--add-key-description.
     function rmc_add_key_description(choice) result(altered)
         type(rmc_choice_type), intent(in) :: choice
-        character(len=:), allocatable :: altered, desc
+        character(len=:), allocatable :: altered, description
         type(value_type) :: key
-        integer :: pos
+        integer :: position
 
         key = value_type(int(choice%key, int64))
-        desc = single_key_description(key)
-        pos = 0
-        if (choice%key < 128) pos = index(choice%name, achar(choice%key))
+        description = single_key_description(key)
+        position = 0
+        if (choice%key < 128) position = index(choice%name, achar(choice%key))
 
-        if (pos == 0 .or. desc == "ESC" .or. desc == "TAB" .or. desc == "RET" .or. desc == "DEL" .or. &
-            desc == "SPC") then
-            altered = desc//" "//choice%name
+        if (position == 0 .or. description == "ESC" .or. description == "TAB" .or. description == "RET" .or. description == "DEL" &
+            .or. &
+            description == "SPC") then
+            altered = description//" "//choice%name
         else
-            altered = choice%name(1:pos - 1)//"["//upcase_ascii(choice%name(pos:pos))//"]"//choice%name(pos + 1:)
+            altered = choice%name(1:position - 1)//"["//upcase_ascii(choice%name(position:position))//"]"//choice%name(position &
+                                                                                                                       + 1:)
         end if
     end function rmc_add_key_description
 
@@ -140,7 +142,7 @@ contains
     !>
     !> If the user types the `?' key, the help is displayed.  The answer
     !> is read in the minibuffer, or with `read_key' if
-    !> `read_char_choice_use_read_key' is true.  Port of
+    !> `read_character_choice_use_read_key' is true.  Port of
     !> rmc.el:read-multiple-choice (no dialog boxes or touch-screen
     !> events).
     recursive subroutine read_multiple_choice(prompt, choices, answer, status, help_string, show_help, long_form)
@@ -175,7 +177,7 @@ contains
 
             rmc_shown = .false.
 
-            if (read_char_choice_use_read_key) then
+            if (read_character_choice_use_read_key) then
                 call short_answers(answer, status)
             else
                 call from_minibuffer(answer, status)
@@ -220,16 +222,16 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: key
         type(status_type) :: st
-        logical :: wrong_char, again
+        logical :: wrong_character, again
         integer :: k, c
 
         answer = 0
         status = status_type()
         if (rmc_have_show_help) call show_help_window()
-        wrong_char = .false.
+        wrong_character = .false.
 
         do
-            if (wrong_char) then
+            if (wrong_character) then
                 call read_key("Invalid choice.  "//full_prompt(), key, status)
             else
                 call read_key(full_prompt(), key, status)
@@ -240,7 +242,7 @@ contains
             if (vtag(key) == V_INTEGER) c = int(xfixnum(key))
 
             if (c == 7) then
-                call set_error(status, FM_QUIT)
+                call set_error(status, QUIT_CODE)
                 return
             end if
 
@@ -248,11 +250,11 @@ contains
 
             select case (query_replace_answer(key))
             case (ANSWER_RECENTER)
-                call recenter(prefix_arg_type(), .false., st)
+                call recenter(prefix_argument_type(), .false., st)
             case (ANSWER_SCROLL_UP)
-                call scroll_up_command(prefix_arg_type(), st)
+                call scroll_up_command(prefix_argument_type(), st)
             case (ANSWER_SCROLL_DOWN)
-                call scroll_down_command(prefix_arg_type(), st)
+                call scroll_down_command(prefix_argument_type(), st)
             case (ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN)
                 ! scroll-other-window and scroll-other-window-down are not
                 ! ported (Deferred).
@@ -265,7 +267,7 @@ contains
             end select
 
             if (again) then
-                wrong_char = .false.
+                wrong_character = .false.
                 cycle
             end if
 
@@ -274,8 +276,8 @@ contains
             if (answer /= 0) exit
             ! The user has entered an invalid choice, so display the help
             ! messages.
-            wrong_char = c /= iachar("?") .and. c /= 8
-            if (wrong_char) call ding()
+            wrong_character = c /= iachar("?") .and. c /= 8
+            if (wrong_character) call ding()
             call show_help_window()
         end do
     end subroutine short_answers
@@ -308,8 +310,8 @@ contains
         ! [remap self-insert-command]
         do c = 0, 127
             key1(1) = value_type(c)
-            call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
-            if (.not. allocated(b%a)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+            call lookup_key(make_keymap_reference(minibuffer_local_map), key1, b, st)
+            if (.not. allocated(b%a)) call lookup_key(make_keymap_reference(current_global_map()), key1, b, st)
 
             if (value_eq(b, value_type(name="self_insert_command"))) then
                 call define_key(map, key1, value_type(name="rmc_wrong"), st)
@@ -317,15 +319,15 @@ contains
         end do
 
         key1(1) = value_type(128_int64)
-        call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+        call lookup_key(make_keymap_reference(current_global_map()), key1, b, st)
 
         if (value_eq(b, value_type(name="self_insert_command"))) then
-            call define_key_range(map, 128_int64, int(MAX_CHAR, int64), value_type(name="rmc_wrong"), st)
+            call define_key_range(map, 128_int64, int(MAXIMUM_CHARACTER, int64), value_type(name="rmc_wrong"), st)
         end if
 
         do k = 1, size(rmc_choices)
             key1(1) = value_type(int(rmc_choices(k)%key, int64))
-            call define_key(map, key1, value_type(name="rmc_char"), st)
+            call define_key(map, key1, value_type(name="rmc_character"), st)
         end do
 
         key1(1) = value_type(int(iachar("?"), int64))
@@ -347,24 +349,24 @@ contains
 
     !> Make the minibuffer path's commands known.  Not a port.
     subroutine define_commands()
-        if (len_trim(cmd_char%name) > 0) return
-        cmd_char = command_type("rmc_char", rmc_char)
-        call cmd_char%define()
-        cmd_help = command_type("rmc_help", rmc_help)
-        call cmd_help%define()
-        cmd_wrong = command_type("rmc_wrong", rmc_wrong)
-        call cmd_wrong%define()
+        if (len_trim(command_character%name) > 0) return
+        command_character = command_type("rmc_character", rmc_character)
+        call command_character%define()
+        command_help = command_type("rmc_help", rmc_help)
+        call command_help%define()
+        command_wrong = command_type("rmc_wrong", rmc_wrong)
+        call command_wrong%define()
     end subroutine define_commands
 
     !> cmd-char: the key is the answer.  Port of the cmd-char procedure of
     !> rmc.el:read-multiple-choice--from-minibuffer.
-    subroutine rmc_char(status)
+    subroutine rmc_character(status)
         type(status_type), intent(out) :: status
 
         rmc_tchar = -1
         if (vtag(last_command_event) == V_INTEGER) rmc_tchar = int(xfixnum(last_command_event))
         call exit_minibuffer(status)
-    end subroutine rmc_char
+    end subroutine rmc_character
 
     !> cmd-help: show the help.  Port of the cmd-help procedure of
     !> rmc.el:read-multiple-choice--from-minibuffer.
@@ -442,7 +444,7 @@ contains
         end if
 
         call insert(text, st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call set_buffer_read_only(rmc_buffer, .true., st)
         call set_buffer(previous, st)
 
@@ -475,8 +477,8 @@ contains
 
         columns = 80/25
         if (.not. is_window_live(selected_window())) return
-        w => window_ref(selected_window())
-        if (w%total_cols > 0) columns = max(1, w%total_cols/25)
+        w => window_reference(selected_window())
+        if (w%total_columns > 0) columns = max(1, w%total_columns/25)
     end function help_columns
 
     ! Number of characters of the UTF-8 string S.  Not a port.

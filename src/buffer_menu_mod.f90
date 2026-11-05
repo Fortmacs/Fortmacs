@@ -43,7 +43,7 @@
 module buffer_menu_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use execute_interactively_mod, only: PREFIX_NONE
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, QUIT_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
     use data_mod, only: integer_setting_type, string_to_number
@@ -53,11 +53,12 @@ module buffer_menu_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, buffer_handle, &
                           buffer_list, frame_buffer_list, buffer_serial_live, close_buffer, is_buffer_modified, &
                           restore_buffer_modified
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_eob, is_bob, buffer_size, following_char
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_end_of_buffer, &
+                                     is_beginning_of_buffer, buffer_size, following_character
     use editing_commands_mod, only: forward_line, beginning_of_line
-    use search_mod, only: re_search_forward
+    use search_mod, only: regular_expression_search_forward
     use keyboard_mod, only: read_event
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use display_engine_mod, only: message, mode_line_process_text, cursor_in_echo_area
     use display_update_mod, only: ding
     use help_mod, only: substitute_command_keys
@@ -65,17 +66,17 @@ module buffer_menu_mod
                          BUFFER_STALE_FAST, revert_buffer
     use shell_mod, only: list_buffers_directory
     use frame_mod, only: selected_frame, selected_window, frame_lines
-    use window_mod, only: windows, window_text_cols, switch_to_buffer, switch_to_buffer_other_window, display_buffer, &
+    use window_mod, only: windows, window_text_columns, switch_to_buffer, switch_to_buffer_other_window, display_buffer, &
                          display_action_parameters_type, delete_other_windows, split_window, other_window, bury_buffer, other_buffer
     use view_mod, only: view_buffer, view_buffer_other_window
-    use replace_mod, only: multi_occur, occur_read_primary_args
+    use replace_mod, only: multi_occur, occur_read_primary_arguments
     use keymap_mod, only: keymap_set
-    use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_desc_type, tabulated_list_entry_type, &
+    use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_description_type, tabulated_list_entry_type, &
                                   set_tabulated_list_format, set_tabulated_list_entries, &
                                   set_tabulated_list_use_header_line, tabulated_list_get_id, tabulated_list_get_entry, &
-                                  tabulated_list_set_col, tabulated_list_delete_entry, tabulated_list_print, &
+                                  tabulated_list_set_column, tabulated_list_delete_entry, tabulated_list_print, &
                                   tabulated_list_print_entry, tabulated_list_init_header, tabulated_list_revert_hook
-    use faces_mod, only: named_face_type, display_when, face_attrs
+    use faces_mod, only: named_face_type, display_when, face_attributes
     implicit none(type, external)
     private
 
@@ -87,15 +88,15 @@ module buffer_menu_mod
               buffer_menu_1_window, buffer_menu_this_window, buffer_menu_other_window_command, &
               buffer_menu_switch_other_window, buffer_menu_2_window, buffer_menu_toggle_read_only, buffer_menu_bury, &
               buffer_menu_view, buffer_menu_view_other_window, buffer_menu_dynamic_name_width, &
-              tabulated_list_entry_size_greater, init_buff_menu
+              tabulated_list_entry_size_greater, initialize_buffer_menu
 
     abstract interface
         !> A `buffer_menu_name_width%procedure': the width of the name column
         !> for the BUFFERS listed.  Not a port.
-        integer function buffer_menu_name_width_procedure(bufs)
+        integer function buffer_menu_name_width_procedure(buffers)
             import :: handle_type
             implicit none(type, external)
-            type(handle_type), intent(in) :: bufs(:)
+            type(handle_type), intent(in) :: buffers(:)
         end function buffer_menu_name_width_procedure
 
         !> A `Buffer-menu-filter-predicate': whether to list BUFFER.
@@ -108,10 +109,10 @@ module buffer_menu_mod
 
         !> A `Buffer-menu-buffer-list' function: the buffers to list.
         !> Not a port.
-        subroutine buffer_menu_buffer_list_procedure(bufs, status)
+        subroutine buffer_menu_buffer_list_procedure(buffers, status)
             import :: handle_type, status_type
             implicit none(type, external)
-            type(handle_type), allocatable, intent(out) :: bufs(:)
+            type(handle_type), allocatable, intent(out) :: buffers(:)
             type(status_type), intent(out) :: status
         end subroutine buffer_menu_buffer_list_procedure
     end interface
@@ -120,11 +121,11 @@ module buffer_menu_mod
 
     !> The mark character for marked buffers.  Port of buff-menu.el
     !> Buffer-menu-marker-char.
-    character, public :: buffer_menu_marker_char = ">"
+    character, public :: buffer_menu_marker_character = ">"
 
     !> Character used to flag buffers for deletion.  Port of buff-menu.el
     !> Buffer-menu-del-char.
-    character, public :: buffer_menu_del_char = "D"
+    character, public :: buffer_menu_delete_character = "D"
 
     !> If true, use the header line to display Buffer Menu column titles.
     !> Port of buff-menu.el Buffer-menu-use-header-line.
@@ -257,25 +258,25 @@ contains
     !> The width will never exceed the actual width of the buffer names,
     !> but will never be narrower than 19 characters.  Port of
     !> buff-menu.el:Buffer-menu--dynamic-name-width.
-    integer function buffer_menu_dynamic_name_width(bufs) result(width)
-        type(handle_type), intent(in) :: bufs(:)
-        integer :: k, longest, cols
+    integer function buffer_menu_dynamic_name_width(buffer_handles) result(width)
+        type(handle_type), intent(in) :: buffer_handles(:)
+        integer :: k, longest, columns
 
         longest = 0
 
-        do k = 1, size(bufs)
-            if (is_buffer_live(bufs(k))) longest = max(longest, len(buffers(bufs(k)%index)%name))
+        do k = 1, size(buffer_handles)
+            if (is_buffer_live(buffer_handles(k))) longest = max(longest, len(buffers(buffer_handles(k)%index)%name))
         end do
 
-        cols = 80
+        columns = 80
 
         if (selected_frame%selected_window%index /= 0) then
-            cols = window_text_cols(windows(selected_frame%selected_window%index))
+            columns = window_text_columns(windows(selected_frame%selected_window%index))
         end if
 
         ! This gives 19 on an 80 column window, and take up
         ! proportionally more space as the window widens.
-        width = max(19, min(int(real(cols, real64)/4.2_real64), longest))
+        width = max(19, min(int(real(columns, real64)/4.2_real64), longest))
     end function buffer_menu_dynamic_name_width
 
     !> Major mode for Buffer Menu buffers.
@@ -360,16 +361,16 @@ contains
                                              //"\[quit_window] to quit; \[describe_mode] for help"))
     end subroutine display_help
 
-    ! FILES-ONLY from the raw prefix argument (nil if not ARG).  Not a port.
+    ! FILES-ONLY from the raw prefix argument (nil if not ARGUMENT).  Not a port.
     logical function prefix_files_only() result(files_only)
-        files_only = current_prefix_arg%kind /= PREFIX_NONE
-        if (files_only) files_only = prefix_numeric_value(current_prefix_arg) >= 0
+        files_only = current_prefix_argument%kind /= PREFIX_NONE
+        if (files_only) files_only = prefix_numeric_value(current_prefix_argument) >= 0
     end function prefix_files_only
 
     !> Switch to the Buffer Menu.
     !> By default, the Buffer Menu lists all buffers except those whose
     !> names start with a space (which are for internal use).  With
-    !> prefix argument ARG, show only buffers that are visiting files.
+    !> prefix argument ARGUMENT, show only buffers that are visiting files.
     !>
     !> In the Buffer Menu, the first column (denoted "C") shows "."
     !> for the buffer from which you came, ">" for buffers you mark to
@@ -405,7 +406,7 @@ contains
     !>
     !> By default, all buffers are listed except those whose names start
     !> with a space (which are for internal use).  With prefix argument
-    !> ARG, show only buffers that are visiting files.  Port of
+    !> ARGUMENT, show only buffers that are visiting files.  Port of
     !> buff-menu.el:buffer-menu-other-window.
     recursive subroutine buffer_menu_other_window(status)
         type(status_type), intent(out) :: status
@@ -424,7 +425,7 @@ contains
     !>
     !> By default, all buffers are listed except those whose names start
     !> with a space (which are for internal use).  With prefix argument
-    !> ARG, show only buffers that are visiting files.  Port of
+    !> ARGUMENT, show only buffers that are visiting files.  Port of
     !> buff-menu.el:list-buffers.
     recursive subroutine list_buffers(status)
         type(status_type), intent(out) :: status
@@ -451,8 +452,8 @@ contains
     end subroutine selection_message
 
     !> Toggle whether the current `buffer_menu' displays only file buffers.
-    !> With a positive ARG, display only file buffers.  With zero or
-    !> negative ARG, display other buffers as well.  Port of
+    !> With a positive ARGUMENT, display only file buffers.  With zero or
+    !> negative ARGUMENT, display other buffers as well.  Port of
     !> buff-menu.el:Buffer-menu-toggle-files-only.
     recursive subroutine buffer_menu_toggle_files_only(status)
         type(status_type), intent(out) :: status
@@ -460,10 +461,10 @@ contains
 
         call make_local_entry(k)
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             locals(k)%files_only = .not. locals(k)%files_only
         else
-            locals(k)%files_only = prefix_numeric_value(current_prefix_arg) > 0
+            locals(k)%files_only = prefix_numeric_value(current_prefix_argument) > 0
         end if
 
         call selection_message()
@@ -471,8 +472,8 @@ contains
     end subroutine buffer_menu_toggle_files_only
 
     !> Toggle whether the current `buffer_menu' displays internal buffers.
-    !> With a positive ARG, don't show internal buffers.  With zero or
-    !> negative ARG, display internal buffers as well.  Port of
+    !> With a positive ARGUMENT, don't show internal buffers.  With zero or
+    !> negative ARGUMENT, display internal buffers as well.  Port of
     !> buff-menu.el:Buffer-menu-toggle-internal.
     recursive subroutine buffer_menu_toggle_internal(status)
         type(status_type), intent(out) :: status
@@ -480,10 +481,10 @@ contains
 
         call make_local_entry(k)
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             locals(k)%show_internal = .not. locals(k)%show_internal
         else
-            locals(k)%show_internal = prefix_numeric_value(current_prefix_arg) > 0
+            locals(k)%show_internal = prefix_numeric_value(current_prefix_argument) > 0
         end if
 
         call selection_message()
@@ -508,9 +509,9 @@ contains
         buffer = id_buffer(id)
 
         if (.not. has_id(id)) then
-            if (signal) call set_error(status, FM_GENERIC_ERROR, "No buffer on this line")
+            if (signal) call set_error(status, GENERIC_ERROR_CODE, "No buffer on this line")
         else if (buffer%index == 0) then
-            if (signal) call set_error(status, FM_GENERIC_ERROR, "This buffer has been closed")
+            if (signal) call set_error(status, GENERIC_ERROR_CODE, "This buffer has been closed")
         end if
     end function buffer_menu_buffer
 
@@ -518,21 +519,21 @@ contains
     subroutine buffer_menu_beginning()
         integer(int64) :: shortage
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         if (.not. buffer_menu_use_header_line) shortage = forward_line()
     end subroutine buffer_menu_beginning
 
-    ! (tabulated-list-set-col COL TEXT t).  Not a port.
-    recursive subroutine set_col(col, text, status)
-        integer, intent(in) :: col
+    ! (tabulated-list-set-col COLUMN TEXT t).  Not a port.
+    recursive subroutine set_column(column, text, status)
+        integer, intent(in) :: column
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
-        type(tabulated_list_desc_type) :: desc
+        type(tabulated_list_description_type) :: description
 
-        desc%text = text
-        desc%face = ""
-        call tabulated_list_set_col(desc, status, col=col, change_entry_data=.true.)
-    end subroutine set_col
+        description%text = text
+        description%face = ""
+        call tabulated_list_set_column(description, status, column=column, change_entry_data=.true.)
+    end subroutine set_column
 
     !> Mark the Buffer menu entry at point for later display.
     !> It will be displayed by the \<buffer_menu_mode_map>\[buffer_menu_select] command.
@@ -544,7 +545,7 @@ contains
         status = status_type()
 
         if (has_id(tabulated_list_get_id())) then
-            call set_col(1, buffer_menu_marker_char, status)
+            call set_column(1, buffer_menu_marker_character, status)
             if (.not. status%ok()) return
         end if
 
@@ -574,11 +575,11 @@ contains
         shortage = forward_line(n)
     end subroutine buffer_menu_unmark
 
-    recursive subroutine cmd_buffer_menu_unmark(status)
+    recursive subroutine execute_buffer_menu_unmark(status)
         type(status_type), intent(out) :: status
 
-        call buffer_menu_unmark(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_buffer_menu_unmark
+        call buffer_menu_unmark(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_buffer_menu_unmark
 
     !> Cancel a requested operation on all buffers.
     !> MARK is the character to flag the operation on the buffers.
@@ -591,22 +592,22 @@ contains
 
         status = status_type()
         saved = point()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        do while (.not. is_eob())
+        do while (.not. is_end_of_buffer())
             call unmark(mark, status)
             if (.not. status%ok()) exit
             shortage = forward_line()
         end do
 
-        call goto_char(saved)
+        call goto_character(saved)
     end subroutine buffer_menu_unmark_all_buffers
 
-    recursive subroutine cmd_buffer_menu_unmark_all_buffers(status)
+    recursive subroutine execute_buffer_menu_unmark_all_buffers(status)
         type(status_type), intent(out) :: status
         integer(int64) :: c
 
-        call read_char("Remove marks (RET means all):", c, status)
+        call read_character("Remove marks (RET means all):", c, status)
         if (.not. status%ok()) return
 
         if (c > 127) then
@@ -615,7 +616,7 @@ contains
         else
             call buffer_menu_unmark_all_buffers(achar(c), status)
         end if
-    end subroutine cmd_buffer_menu_unmark_all_buffers
+    end subroutine execute_buffer_menu_unmark_all_buffers
 
     !> Cancel all requested operations on buffers.  Port of
     !> buff-menu.el:Buffer-menu-unmark-all.
@@ -634,7 +635,7 @@ contains
         status = status_type()
         shortage = forward_line(-1_int64)
 
-        do while (.not. has_id(tabulated_list_get_id()) .and. .not. is_bob())
+        do while (.not. has_id(tabulated_list_get_id()) .and. .not. is_beginning_of_buffer())
             shortage = forward_line(-1_int64)
         end do
 
@@ -651,8 +652,8 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
         logical :: found, modified
-        integer :: col
-        integer, parameter :: cols(2) = [1, 3]
+        integer :: column
+        integer, parameter :: columns(2) = [1, 3]
         integer :: j
 
         status = status_type()
@@ -661,10 +662,10 @@ contains
 
         ! A mark could appear in column 0 or 2.
         do j = 1, 2
-            col = cols(j)
+            column = columns(j)
 
-            if (mark == char(13) .or. first_char_equal(mark, entry%cols(col)%text)) then
-                call set_col(col, " ", status)
+            if (mark == char(13) .or. first_character_equal(mark, entry%columns(column)%text)) then
+                call set_column(column, " ", status)
                 if (.not. status%ok()) return
             end if
         end do
@@ -674,14 +675,14 @@ contains
 
         if (buffer%index /= 0) then
             call is_buffer_modified(buffer, modified, st)
-            if (modified .and. entry%cols(3)%text == " ") call set_col(3, "*", status)
+            if (modified .and. entry%columns(3)%text == " ") call set_column(3, "*", status)
         end if
     end subroutine unmark
 
     ! (char-equal MARK (string-to-char TEXT)), case folding as
     ! case-fold-search does.  Not a port.
-    logical function first_char_equal(mark, text) result(equal)
-        use casefiddle_mod, only: downcase_char
+    logical function first_character_equal(mark, text) result(equal)
+        use casefiddle_mod, only: downcase_character
         character, intent(in) :: mark
         character(len=*), intent(in) :: text
         integer(int32) :: a, b
@@ -689,33 +690,33 @@ contains
         a = 0
         if (len(text) > 0) a = iachar(text(1:1))
         b = iachar(mark)
-        equal = downcase_char(a) == downcase_char(b)
-    end function first_char_equal
+        equal = downcase_character(a) == downcase_character(b)
+    end function first_character_equal
 
     !> Mark the buffer on this Buffer Menu buffer line for deletion.
     !> A subsequent \<buffer_menu_mode_map>\[buffer_menu_execute] command
     !> will delete it.
     !>
-    !> If prefix argument ARG is true, it specifies the number of
-    !> buffers to delete; a negative ARG means to delete backwards.
+    !> If prefix argument ARGUMENT is true, it specifies the number of
+    !> buffers to delete; a negative ARGUMENT means to delete backwards.
     !> Port of buff-menu.el:Buffer-menu-delete.
-    recursive subroutine buffer_menu_delete(status, arg)
+    recursive subroutine buffer_menu_delete(status, argument)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
+        integer(int64), intent(in), optional :: argument
         type(handle_type) :: buffer
         type(status_type) :: st
         integer(int64) :: n, shortage
 
         status = status_type()
         n = 1
-        if (present(arg)) n = arg
+        if (present(argument)) n = argument
         if (n == 0) n = 1
 
         do while (n > 0)
             buffer = buffer_menu_buffer(st)
 
             if (buffer%index /= 0) then
-                call set_col(1, buffer_menu_del_char, status)
+                call set_column(1, buffer_menu_delete_character, status)
                 if (.not. status%ok()) return
             end if
 
@@ -727,7 +728,7 @@ contains
             buffer = buffer_menu_buffer(st)
 
             if (buffer%index /= 0) then
-                call set_col(1, buffer_menu_del_char, status)
+                call set_column(1, buffer_menu_delete_character, status)
                 if (.not. status%ok()) return
             end if
 
@@ -736,32 +737,32 @@ contains
         end do
     end subroutine buffer_menu_delete
 
-    recursive subroutine cmd_buffer_menu_delete(status)
+    recursive subroutine execute_buffer_menu_delete(status)
         type(status_type), intent(out) :: status
 
-        call buffer_menu_delete(status, prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_buffer_menu_delete
+        call buffer_menu_delete(status, prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_buffer_menu_delete
 
     !> Mark the buffer on this Buffer Menu line for deletion, and move up.
     !> A subsequent \<buffer_menu_mode_map>\[buffer_menu_execute] command
-    !> will delete the marked buffer.  Prefix ARG
+    !> will delete the marked buffer.  Prefix ARGUMENT
     !>  means move that many lines.  Port of
     !> buff-menu.el:Buffer-menu-delete-backwards.
-    recursive subroutine buffer_menu_delete_backwards(status, arg)
+    recursive subroutine buffer_menu_delete_backwards(status, argument)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
+        integer(int64), intent(in), optional :: argument
         integer(int64) :: n
 
         n = 1
-        if (present(arg)) n = arg
+        if (present(argument)) n = argument
         call buffer_menu_delete(status, -n)
     end subroutine buffer_menu_delete_backwards
 
-    recursive subroutine cmd_buffer_menu_delete_backwards(status)
+    recursive subroutine execute_buffer_menu_delete_backwards(status)
         type(status_type), intent(out) :: status
 
-        call buffer_menu_delete_backwards(status, prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_buffer_menu_delete_backwards
+        call buffer_menu_delete_backwards(status, prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_buffer_menu_delete_backwards
 
     !> Mark the buffer on this Buffer Menu line for saving.
     !> A subsequent \<buffer_menu_mode_map>\[buffer_menu_execute]
@@ -778,7 +779,7 @@ contains
             buffer = buffer_menu_buffer(st)
 
             if (buffer%index /= 0) then
-                call set_col(3, "S", status)
+                call set_column(3, "S", status)
                 if (.not. status%ok()) return
             end if
         end if
@@ -787,17 +788,17 @@ contains
     end subroutine buffer_menu_save
 
     !> Mark the buffer on this line as unmodified (no changes to save).
-    !> If ARG is true (interactively, with a prefix argument), mark
+    !> If ARGUMENT is true (interactively, with a prefix argument), mark
     !> it as modified.  Port of buff-menu.el:Buffer-menu-not-modified.
-    recursive subroutine buffer_menu_not_modified(status, arg)
+    recursive subroutine buffer_menu_not_modified(status, argument)
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: arg
+        logical, intent(in), optional :: argument
         type(handle_type) :: buffer, old
         type(status_type) :: st
         logical :: modified
 
         modified = .false.
-        if (present(arg)) modified = arg
+        if (present(argument)) modified = argument
         buffer = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         old = current_buffer()
@@ -807,17 +808,17 @@ contains
         call set_buffer(old, st)
 
         if (modified) then
-            call set_col(3, "*", status)
+            call set_column(3, "*", status)
         else
-            call set_col(3, " ", status)
+            call set_column(3, " ", status)
         end if
     end subroutine buffer_menu_not_modified
 
-    recursive subroutine cmd_buffer_menu_not_modified(status)
+    recursive subroutine execute_buffer_menu_not_modified(status)
         type(status_type), intent(out) :: status
 
-        call buffer_menu_not_modified(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_buffer_menu_not_modified
+        call buffer_menu_not_modified(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_buffer_menu_not_modified
 
     !> Save and/or delete marked buffers in the Buffer Menu.
     !> Buffers marked with \<buffer_menu_mode_map>\[buffer_menu_save] are saved.
@@ -836,7 +837,7 @@ contains
         saved = point()
         call buffer_menu_beginning()
 
-        do while (.not. is_eob())
+        do while (.not. is_end_of_buffer())
             buffer = id_buffer(tabulated_list_get_id())
             call tabulated_list_get_entry(entry, found)
 
@@ -846,16 +847,16 @@ contains
                 call tabulated_list_delete_entry(deleted, found, status)
                 if (.not. status%ok()) exit
             else
-                delete = following_char() == iachar("D")
+                delete = following_character() == iachar("D")
 
-                if (entry%cols(3)%text == "S") then
+                if (entry%columns(3)%text == "S") then
                     call set_buffer(buffer, st)
                     call save_buffer(1_int64, .false., st)
                     call set_buffer(menu, status)
                     if (.not. status%ok()) exit
 
                     if (st%ok()) then
-                        call set_col(3, " ", status)
+                        call set_column(3, " ", status)
                         if (.not. status%ok()) exit
                     end if
                 end if
@@ -878,7 +879,7 @@ contains
             end if
         end do
 
-        call goto_char(min(saved, point_max()))
+        call goto_character(min(saved, point_maximum()))
     end subroutine buffer_menu_execute
 
     !> Select this line's buffer; also, display buffers marked with `>'.
@@ -931,11 +932,11 @@ contains
         call other_window(1_int64, status)
     end subroutine buffer_menu_select
 
-    !> Return in BUFS the list of buffers marked with `buffer_menu_mark'.
+    !> Return in BUFFERS the list of buffers marked with `buffer_menu_mark'.
     !> If UNMARK is true, unmark them.  Port of
     !> buff-menu.el:Buffer-menu-marked-buffers.
-    recursive subroutine buffer_menu_marked_buffers(bufs, status, unmark)
-        type(handle_type), allocatable, intent(out) :: bufs(:)
+    recursive subroutine buffer_menu_marked_buffers(buffers, status, unmark)
+        type(handle_type), allocatable, intent(out) :: buffers(:)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: unmark
         type(handle_type) :: buffer
@@ -945,55 +946,55 @@ contains
 
         clear = .false.
         if (present(unmark)) clear = unmark
-        allocate (bufs(0))
+        allocate (buffers(0))
         saved = point()
         call buffer_menu_beginning()
 
         do
-            call re_search_forward("^>", found, status, noerror=1)
+            call regular_expression_search_forward("^>", found, status, noerror=1)
             if (.not. status%ok()) exit
             if (found == 0) exit
             buffer = buffer_menu_buffer(st)
 
             if (buffer%index /= 0 .and. clear) then
-                call set_col(1, " ", status)
+                call set_column(1, " ", status)
                 if (.not. status%ok()) exit
             end if
 
-            if (buffer%index /= 0) bufs = [bufs, buffer]
+            if (buffer%index /= 0) buffers = [buffers, buffer]
         end do
 
-        call goto_char(saved)
+        call goto_character(saved)
     end subroutine buffer_menu_marked_buffers
 
     !> Show all lines in marked buffers containing a match for a regexp.
     !> Port of buff-menu.el:Buffer-menu-multi-occur.
-    recursive subroutine buffer_menu_multi_occur(regexp, status, nlines)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine buffer_menu_multi_occur(regular_expression, status, nlines)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: nlines
-        type(handle_type), allocatable :: bufs(:)
+        type(handle_type), allocatable :: buffers(:)
 
-        call buffer_menu_marked_buffers(bufs, status)
+        call buffer_menu_marked_buffers(buffers, status)
         if (.not. status%ok()) return
-        call multi_occur(bufs, regexp, status, nlines)
+        call multi_occur(buffers, regular_expression, status, nlines)
     end subroutine buffer_menu_multi_occur
 
-    recursive subroutine cmd_buffer_menu_multi_occur(status)
+    recursive subroutine execute_buffer_menu_multi_occur(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp, collect
+        character(len=:), allocatable :: regular_expression, collect
         logical :: has_nlines, has_collect
         integer(int64) :: nlines
 
-        call occur_read_primary_args(regexp, has_nlines, nlines, has_collect, collect, status)
+        call occur_read_primary_arguments(regular_expression, has_nlines, nlines, has_collect, collect, status)
         if (.not. status%ok()) return
 
         if (has_nlines) then
-            call buffer_menu_multi_occur(regexp, status, nlines)
+            call buffer_menu_multi_occur(regular_expression, status, nlines)
         else
-            call buffer_menu_multi_occur(regexp, status)
+            call buffer_menu_multi_occur(regular_expression, status)
         end if
-    end subroutine cmd_buffer_menu_multi_occur
+    end subroutine execute_buffer_menu_multi_occur
 
     !> Select this line's buffer, alone, in full frame.  Port of
     !> buff-menu.el:Buffer-menu-1-window.
@@ -1051,9 +1052,9 @@ contains
     !> Port of buff-menu.el:Buffer-menu-2-window.
     recursive subroutine buffer_menu_2_window(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buff, menu, other
+        type(handle_type) :: buffer, menu, other
 
-        buff = buffer_menu_buffer(status, .true.)
+        buffer = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         menu = current_buffer()
         call delete_other_windows(selected_window(), status)
@@ -1061,7 +1062,7 @@ contains
         other = other_buffer(current_buffer())
         call switch_to_buffer(buffers(other%index)%name, status)
         if (.not. status%ok()) return
-        call switch_to_buffer_other_window(buff, status)
+        call switch_to_buffer_other_window(buffer, status)
         if (.not. status%ok()) return
         call bury_buffer(status, menu)
     end subroutine buffer_menu_2_window
@@ -1086,9 +1087,9 @@ contains
         if (.not. status%ok()) return
 
         if (read_only) then
-            call set_col(2, "%", status)
+            call set_column(2, "%", status)
         else
-            call set_col(2, " ", status)
+            call set_column(2, " ", status)
         end if
     end subroutine buffer_menu_toggle_read_only
 
@@ -1096,7 +1097,7 @@ contains
     !> buff-menu.el:Buffer-menu-bury.
     recursive subroutine buffer_menu_bury(status)
         type(status_type), intent(out) :: status
-        type(tabulated_list_entry_type) :: elt
+        type(tabulated_list_entry_type) :: element
         type(handle_type) :: buffer
         character(len=:), allocatable :: id
         integer(int64) :: saved
@@ -1112,18 +1113,18 @@ contains
             call bury_buffer(status, buffer)
             if (.not. status%ok()) return
             saved = point()
-            call tabulated_list_delete_entry(elt, found, status)
+            call tabulated_list_delete_entry(element, found, status)
 
             if (status%ok()) then
-                call goto_char(point_max())
-                call tabulated_list_print_entry(elt, status)
+                call goto_character(point_maximum())
+                call tabulated_list_print_entry(element, status)
             end if
 
-            call goto_char(min(saved, point_max()))
+            call goto_character(min(saved, point_maximum()))
             if (.not. status%ok()) return
             call message("Buffer buried.")
         else
-            call tabulated_list_delete_entry(elt, found, status)
+            call tabulated_list_delete_entry(element, found, status)
             if (.not. status%ok()) return
             call message("Buffer is dead; removing from list.")
         end if
@@ -1282,28 +1283,28 @@ contains
                     ! The entry's ID: the buffer's serial number.
                     write (s, "(i0)") buffers(bi)%serial
                     e%id = trim(s)
-                    allocate (e%cols(7))
+                    allocate (e%columns(7))
 
                     do k = 1, 7
-                        e%cols(k)%face = ""
+                        e%columns(k)%face = ""
                     end do
 
                     if (bi == old%index) then
-                        e%cols(1)%text = "."
+                        e%columns(1)%text = "."
                     else if (any(marked%index == bi)) then
-                        e%cols(1)%text = ">"
+                        e%columns(1)%text = ">"
                     else
-                        e%cols(1)%text = " "
+                        e%columns(1)%text = " "
                     end if
 
-                    e%cols(2)%text = " "
-                    if (buffers(bi)%read_only) e%cols(2)%text = "%"
+                    e%columns(2)%text = " "
+                    if (buffers(bi)%read_only) e%columns(2)%text = "%"
                     call is_buffer_modified(candidates(j), modified, st)
-                    e%cols(3)%text = " "
-                    if (modified) e%cols(3)%text = "*"
+                    e%columns(3)%text = " "
+                    if (modified) e%columns(3)%text = "*"
                     ! (Buffer-menu--pretty-name.)
-                    e%cols(4)%text = name
-                    e%cols(4)%face = "buffer_menu_buffer"
+                    e%columns(4)%text = name
+                    e%columns(4)%face = "buffer_menu_buffer"
 
                     if (buffer_menu_human_readable_sizes) then
                         size_text = file_size_human_readable(real(buffer_size(), real64))
@@ -1312,12 +1313,12 @@ contains
                         size_text = trim(s)
                     end if
 
-                    e%cols(5)%text = size_text
+                    e%columns(5)%text = size_text
                     ! (format-mode-line mode-name: "Fundamental" until a mode sets it.)
-                    e%cols(6)%text = "Fundamental"
-                    if (allocated(buffers(bi)%mode_name)) e%cols(6)%text = buffers(bi)%mode_name
-                    e%cols(6)%text = e%cols(6)%text//mode_line_process_text(bi)
-                    e%cols(7)%text = pretty_file_name(file)
+                    e%columns(6)%text = "Fundamental"
+                    if (allocated(buffers(bi)%mode_name)) e%columns(6)%text = buffers(bi)%mode_name
+                    e%columns(6)%text = e%columns(6)%text//mode_line_process_text(bi)
+                    e%columns(7)%text = pretty_file_name(file)
                 end associate
             end if
         end do
@@ -1366,8 +1367,8 @@ contains
         type(tabulated_list_entry_type), intent(in) :: a, b
         real(real64) :: size_a, size_b
 
-        call string_to_number(a%cols(5)%text, size_a)
-        call string_to_number(b%cols(5)%text, size_b)
+        call string_to_number(a%columns(5)%text, size_a)
+        call string_to_number(b%columns(5)%text, size_b)
         greater = size_a > size_b
     end function tabulated_list_entry_size_greater
 
@@ -1392,7 +1393,7 @@ contains
 
     ! Read a character in the echo area after PROMPT (read-char): C-g
     ! quits, other non-characters are an error.  Not a port.
-    subroutine read_char(prompt, c, status)
+    subroutine read_character(prompt, c, status)
         character(len=*), intent(in) :: prompt
         integer(int64), intent(out) :: c
         type(status_type), intent(out) :: status
@@ -1407,21 +1408,21 @@ contains
         if (.not. status%ok()) return
 
         if (.not. have) then
-            call set_error(status, FM_QUIT)
+            call set_error(status, QUIT_CODE)
         else if (vtag(ev) /= V_INTEGER) then
-            call set_error(status, FM_GENERIC_ERROR, "Non-character input-event")
+            call set_error(status, GENERIC_ERROR_CODE, "Non-character input-event")
         else if (xfixnum(ev) == 7) then
-            call set_error(status, FM_QUIT)
+            call set_error(status, QUIT_CODE)
         else if (xfixnum(ev) < 0 .or. xfixnum(ev) > int(z'3FFFFF', int64)) then
-            call set_error(status, FM_GENERIC_ERROR, "Non-character input-event")
+            call set_error(status, GENERIC_ERROR_CODE, "Non-character input-event")
         else
             c = xfixnum(ev)
         end if
-    end subroutine read_char
+    end subroutine read_character
 
     !> Define Buffer Menu mode, its keymap and commands, and C-x C-b.
     !> Not a port.
-    subroutine init_buff_menu()
+    subroutine initialize_buffer_menu()
         type(status_type) :: st
 
         if (.not. associated(buffer_menu_name_width%procedure)) then
@@ -1429,7 +1430,7 @@ contains
         end if
 
         call buffer_menu_buffer_face%define("buffer_menu_buffer", "Face for buffer names in the Buffer Menu.")
-        call buffer_menu_buffer_face%spec_entry(display_when(), face_attrs(weight="bold"))
+        call buffer_menu_buffer_face%specification_entry(display_when(), face_attributes(weight="bold"))
         call major_modes%buffer_menu_mode%define("buffer_menu_mode", "Buffer Menu", buffer_menu_mode, &
                                                  buffer_menu_mode_hook, parent=major_modes%tabulated_list_mode)
         buffer_menu_mode_map = major_modes%buffer_menu_mode%map
@@ -1440,17 +1441,17 @@ contains
         commands%buffer_menu_toggle_files_only%execute => buffer_menu_toggle_files_only
         commands%buffer_menu_toggle_internal%execute => buffer_menu_toggle_internal
         commands%buffer_menu_mark%execute => buffer_menu_mark
-        commands%buffer_menu_unmark%execute => cmd_buffer_menu_unmark
-        commands%buffer_menu_unmark_all_buffers%execute => cmd_buffer_menu_unmark_all_buffers
+        commands%buffer_menu_unmark%execute => execute_buffer_menu_unmark
+        commands%buffer_menu_unmark_all_buffers%execute => execute_buffer_menu_unmark_all_buffers
         commands%buffer_menu_unmark_all%execute => buffer_menu_unmark_all
         commands%buffer_menu_backup_unmark%execute => buffer_menu_backup_unmark
-        commands%buffer_menu_delete%execute => cmd_buffer_menu_delete
-        commands%buffer_menu_delete_backwards%execute => cmd_buffer_menu_delete_backwards
+        commands%buffer_menu_delete%execute => execute_buffer_menu_delete
+        commands%buffer_menu_delete_backwards%execute => execute_buffer_menu_delete_backwards
         commands%buffer_menu_save%execute => buffer_menu_save
-        commands%buffer_menu_not_modified%execute => cmd_buffer_menu_not_modified
+        commands%buffer_menu_not_modified%execute => execute_buffer_menu_not_modified
         commands%buffer_menu_execute%execute => buffer_menu_execute
         commands%buffer_menu_select%execute => buffer_menu_select
-        commands%buffer_menu_multi_occur%execute => cmd_buffer_menu_multi_occur
+        commands%buffer_menu_multi_occur%execute => execute_buffer_menu_multi_occur
         commands%buffer_menu_1_window%execute => buffer_menu_1_window
         commands%buffer_menu_this_window%execute => buffer_menu_this_window
         commands%buffer_menu_other_window_command%execute => buffer_menu_other_window_command
@@ -1488,7 +1489,7 @@ contains
         call keymap_set(buffer_menu_mode_map, "T", "buffer_menu_toggle_files_only", st)
         call keymap_set(buffer_menu_mode_map, "I", "buffer_menu_toggle_internal", st)
         call keymap_set(buffer_menu_mode_map, "M-s a C-o", "buffer_menu_multi_occur", st)
-    end subroutine init_buff_menu
+    end subroutine initialize_buffer_menu
 
     !> Forget the procedure of `buffer_menu_name_width', as any assignment to it does.
     !> Not a port.

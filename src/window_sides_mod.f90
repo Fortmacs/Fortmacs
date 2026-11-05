@@ -28,7 +28,7 @@
 !> `split_window', `delete_window', `delete_other_windows' and
 !> `other_window' (window_commands_mod) respect them.
 submodule(window_mod) window_sides_mod
-    use error_mod, only: set_error, FM_GENERIC_ERROR
+    use error_mod, only: set_error, GENERIC_ERROR_CODE
     use buffer_mod, only: is_buffer_live
     use frame_mod, only: selected_frame
     implicit none(type, external)
@@ -94,7 +94,7 @@ contains
 
         do k = 1, size(list)
             if (is_side(list(k))) cycle
-            if (is_side(windows(list(k)%index)%prev) .or. is_side(windows(list(k)%index)%next)) main = list(k)
+            if (is_side(windows(list(k)%index)%previous) .or. is_side(windows(list(k)%index)%next)) main = list(k)
         end do
     end function window_main_window
 
@@ -149,20 +149,20 @@ contains
                         ! If WINDOW is live there must be no other window on
                         ! this frame with the same `window_side' parameter.
                         if (windows(this%index)%window_side == side .and. .not. same_window(this, window)) then
-                            call set_error(status, FM_GENERIC_ERROR, "Window "//window_description(this)// &
+                            call set_error(status, GENERIC_ERROR_CODE, "Window "//window_description(this)// &
                                            " has same side "//side_name(side)//" as window "// &
                                            window_description(window)//" but no common parent")
                             return
                         end if
                     else if (same_window(windows(this%index)%parent, window)) then
                         if (windows(this%index)%window_side /= side) then
-                            call set_error(status, FM_GENERIC_ERROR, "Window "//window_description(this)// &
+                            call set_error(status, GENERIC_ERROR_CODE, "Window "//window_description(this)// &
                                            " has not same side "//side_name(side)//" as its parent "// &
                                            window_description(window))
                             return
                         end if
                     else if (windows(this%index)%window_side == side .and. .not. same_window(this, window)) then
-                        call set_error(status, FM_GENERIC_ERROR, "Window "//window_description(this)// &
+                        call set_error(status, GENERIC_ERROR_CODE, "Window "//window_description(this)// &
                                        " has same side "//side_name(side)//" as major side window "// &
                                        window_description(window)//" but its parent is "// &
                                        window_description(windows(this%index)%parent))
@@ -258,7 +258,7 @@ contains
             end if
 
             if (is_window_valid(other)) then
-                window = windows(other%index)%prev
+                window = windows(other%index)%previous
                 return
             end if
         case (WINDOW_SIDE_RIGHT, WINDOW_SIDE_BOTTOM)
@@ -286,7 +286,7 @@ contains
             end if
 
             other = window_with_side(WINDOW_SIDE_BOTTOM, .true.)
-            if (is_window_valid(other)) window = windows(other%index)%prev
+            if (is_window_valid(other)) window = windows(other%index)%previous
         else
             if (.not. window_sides_vertical) return
             other = window_with_side(WINDOW_SIDE_LEFT, .true.)
@@ -297,7 +297,7 @@ contains
             end if
 
             other = window_with_side(WINDOW_SIDE_RIGHT, .true.)
-            if (is_window_valid(other)) window = windows(other%index)%prev
+            if (is_window_valid(other)) window = windows(other%index)%previous
         end if
     end function make_major_side_window_next_to
 
@@ -359,7 +359,7 @@ contains
         associate (root => windows(selected_frame%root_window%index))
             if (left_or_right) then
                 if (entries%window_width%columns == 0 .and. entries%window_width%fraction == 0.0_real64) then
-                    entries%window_width%columns = root%total_cols/4
+                    entries%window_width%columns = root%total_columns/4
                 end if
             else if (entries%window_height%lines == 0 .and. entries%window_height%fraction == 0.0_real64 .and. &
                      .not. associated(entries%window_height%procedure)) then
@@ -378,11 +378,11 @@ contains
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status
         type(display_action_parameters_type) :: entries
-        type(handle_type) :: major, first, next, this_window, prev_window, next_window, best_window, new
+        type(handle_type) :: major, first, next, this_window, previous_window, next_window, best_window, new
         type(handle_type), allocatable :: list(:)
         type(status_type) :: ignored
         character(len=20) :: number
-        integer :: side, slot, slots, max_slots, this_slot, best_slot, abs_slot, k, n
+        integer :: side, slot, slots, maximum_slots, this_slot, best_slot, absolute_slot, k, n
         logical :: left_or_right, reversed, has_best, saved_inhibit
 
         status = status_type()
@@ -392,7 +392,7 @@ contains
 
         if (side < WINDOW_SIDE_LEFT .or. side > WINDOW_SIDE_BOTTOM) then
             write (number, "(i0)") side
-            call set_error(status, FM_GENERIC_ERROR, "Invalid side "//trim(number)//" specified")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid side "//trim(number)//" specified")
             return
         end if
 
@@ -424,13 +424,13 @@ contains
 
         select case (side)
         case (WINDOW_SIDE_LEFT)
-            max_slots = window_sides_slots%left
+            maximum_slots = window_sides_slots%left
         case (WINDOW_SIDE_TOP)
-            max_slots = window_sides_slots%top
+            maximum_slots = window_sides_slots%top
         case (WINDOW_SIDE_RIGHT)
-            max_slots = window_sides_slots%right
+            maximum_slots = window_sides_slots%right
         case default
-            max_slots = window_sides_slots%bottom
+            maximum_slots = window_sides_slots%bottom
         end select
 
         saved_inhibit = window_sides_inhibit_check
@@ -443,7 +443,7 @@ contains
             if (entries%dedicated == DEDICATED_NONE) entries%dedicated = DEDICATED_SIDE
         end if
 
-        if (max_slots <= 0) then
+        if (maximum_slots <= 0) then
             ! No side-slots available on this side.  Don't raise an error,
             ! just return the null handle.
             window_sides_inhibit_check = saved_inhibit
@@ -459,7 +459,7 @@ contains
 
         ! Scan windows on SIDE.
         this_window = null_handle()
-        prev_window = null_handle()
+        previous_window = null_handle()
         next_window = null_handle()
         best_window = null_handle()
         has_best = .false.
@@ -478,32 +478,32 @@ contains
             ! Check if this window has a better slot value wrt the slot of
             ! the window we want.
             if ((this_slot > 0 .and. slot > 0) .or. (this_slot < 0 .and. slot < 0)) then
-                abs_slot = abs(slot - this_slot)
+                absolute_slot = abs(slot - this_slot)
             else
-                abs_slot = abs(slot) + abs(this_slot)
+                absolute_slot = abs(slot) + abs(this_slot)
             end if
 
-            if (.not. has_best .or. best_slot > abs_slot) then
+            if (.not. has_best .or. best_slot > absolute_slot) then
                 best_window = list(k)
-                best_slot = abs_slot
+                best_slot = absolute_slot
                 has_best = .true.
             end if
 
             if (reversed) then
                 if (this_slot <= slot) then
                     next_window = list(k)
-                else if (prev_window%index == 0) then
-                    prev_window = list(k)
+                else if (previous_window%index == 0) then
+                    previous_window = list(k)
                 end if
             else if (this_slot <= slot) then
-                prev_window = list(k)
+                previous_window = list(k)
             else if (next_window%index == 0) then
                 next_window = list(k)
             end if
         end do
 
         ! `this_window' is the first window with the same SLOT.
-        ! `prev_window' is the window with the largest slot < SLOT.  A new
+        ! `previous_window' is the window with the largest slot < SLOT.  A new
         ! window will be created after it.
         ! `next_window' is the window with the smallest slot > SLOT.  A new
         ! window will be created before it.
@@ -520,7 +520,7 @@ contains
             end if
         end if
 
-        if (slots < max_slots) then
+        if (slots < maximum_slots) then
             new = null_handle()
 
             if (is_window_live(next_window)) then
@@ -530,9 +530,9 @@ contains
                 if (.not. ignored%ok()) new = null_handle()
             end if
 
-            if (.not. is_window_live(new) .and. is_window_live(prev_window)) then
-                ! Make new window after `prev_window'.
-                call split_window(prev_window, 0, .false.,.not. left_or_right, new, ignored, side_resize=.true.)
+            if (.not. is_window_live(new) .and. is_window_live(previous_window)) then
+                ! Make new window after `previous_window'.
+                call split_window(previous_window, 0, .false.,.not. left_or_right, new, ignored, side_resize=.true.)
                 if (.not. ignored%ok()) new = null_handle()
             end if
 

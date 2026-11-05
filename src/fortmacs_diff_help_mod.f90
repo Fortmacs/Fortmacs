@@ -30,12 +30,12 @@ module fortmacs_diff_help_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use buffer_mod, only: buffers, current
-    use editing_functions_mod, only: point, goto_char, point_min, point_max
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum
     use basic_subprograms_mod, only: match_string
     use insert_delete_mod, only: insert
     use editing_commands_mod, only: forward_line, end_of_line, beginning_of_line
     use indent_mod, only: current_column
-    use search_mod, only: re_search_forward, match_beginning, match_end, SEARCH_NOERROR
+    use search_mod, only: regular_expression_search_forward, match_beginning, match_end, SEARCH_NOERROR
     use interval_tree_mod, only: make_overlay, overlay_put
     use window_mod, only: window_body_width
     use frame_mod, only: selected_frame
@@ -130,25 +130,25 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: found, beginning, end
         type(handle_type) :: overlay
-        character(len=:), allocatable :: cmd
+        character(len=:), allocatable :: command
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward(" *\([^ "//achar(9)//LF//"|]+\||\) +-[^|"//LF//"]+", found, status, &
-                                   noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(" *\([^ "//achar(9)//LF//"|]+\||\) +-[^|"//LF//"]+", found, status, &
+                                                   noerror=SEARCH_NOERROR)
             if (.not. status%ok()) return
             if (found == 0) exit
             beginning = match_beginning(1, status)
             if (.not. status%ok()) return
             end = match_end(0, status)
             if (.not. status%ok()) return
-            cmd = match_string(1)
+            command = match_string(1)
             call make_overlay(overlay, beginning, end, status)
             if (.not. status%ok()) return
             call overlay_put(overlay, "mouse_face", value_type(name=HIGHLIGHT_FACE), status)
             if (.not. status%ok()) return
-            call overlay_put(overlay, "ediff_help_info", value_type(text=cmd), status)
+            call overlay_put(overlay, "ediff_help_info", value_type(text=command), status)
             if (.not. status%ok()) return
         end do
     end subroutine set_ediff_help_overlays
@@ -158,14 +158,14 @@ contains
     !> ediff-help.el:ediff-help-message-line-length.
     integer function ediff_help_message_line_length(k) result(n)
         integer, intent(in) :: k
-        integer(int64) :: opoint, shortage
+        integer(int64) :: original_point, shortage
 
-        opoint = point()
-        call goto_char(point_min())
+        original_point = point()
+        call goto_character(point_minimum())
         if (ediff_sessions(k)%use_long_help_message) shortage = forward_line(1_int64)
         call end_of_line(1_int64)
         n = int(current_column())
-        call goto_char(opoint)
+        call goto_character(original_point)
     end function ediff_help_message_line_length
 
     !> Center the help message in the control window: indent each line of
@@ -174,20 +174,20 @@ contains
     subroutine indent_ediff_help_message(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, shortage
+        integer(int64) :: original_point, shortage
         integer :: shift, width
 
         width = window_body_width(selected_frame%selected_window, status)
         if (.not. status%ok()) return
         shift = max(0, width - ediff_help_message_line_length(k))/2
-        opoint = point()
-        call goto_char(point_min())
+        original_point = point()
+        call goto_character(point_minimum())
 
-        do while (point() < point_max())
+        do while (point() < point_maximum())
             call insert(repeat(" ", shift), status)
 
             if (.not. status%ok()) then
-                call goto_char(opoint)
+                call goto_character(original_point)
                 return
             end if
 
@@ -195,7 +195,7 @@ contains
             shortage = forward_line(1_int64)
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine indent_ediff_help_message
 
     !> Compose the help message of session K: the long one for its kind

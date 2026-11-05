@@ -6,8 +6,8 @@
 
 ## Ported
 
-`flyspell-mode` (its keymap: M-TAB and C-. `auto_correct_flyspell_word`, C-; `auto_correct_previous_flyspell_word`, C-, `goto_next_flyspell_error`; the lighter " Fly/" and the dictionary's first two characters; the welcome message),
-`flyspell-prog-mode` (`flyspell-generic-progmode-verify` as `is_flyspell_prog_text`, over `flyspell_prog_text_faces`),
+`flyspell-mode` (its keymap: M-TAB and C-. `auto_correct_spellcheck_mode_word`, C-; `auto_correct_previous_spellcheck_mode_word`, C-, `goto_next_spellcheck_error`; the lighter " Fly/" and the dictionary's first two characters; the welcome message),
+`flyspell-prog-mode` (`flyspell-generic-progmode-verify` as `is_spellcheck_programming_text`, over `spellcheck_programming_text_faces`),
 `flyspell-word`,
 `flyspell-region`,
 `flyspell-buffer`,
@@ -20,7 +20,7 @@
 `flyspell-pre-command-hook`,
 `flyspell-post-command-hook`,
 `flyspell-check-changes`;
-checking after commands (`flyspell--mode-on`, `flyspell--mode-off`, `flyspell-check-pre-word-p`, `flyspell-check-word-p` with `sit-for` or the idle timer of `flyspell-delay-use-timer`, `flyspell-check-changed-word-p`, `flyspell-after-change-function`, the delayed and deplacement commands as the `flyspell_delayed` and `flyspell_deplacement` components of `command_type`);
+checking after commands (`flyspell--mode-on`, `flyspell--mode-off`, `flyspell-check-pre-word-p`, `flyspell-check-word-p` with `sit-for` or the idle timer of `flyspell-delay-use-timer`, `flyspell-check-changed-word-p`, `flyspell-after-change-function`, the delayed and deplacement commands as the `spellcheck_delayed` and `spellcheck_deplacement` components of `command_type`);
 the word cache, repeated words and their exceptions, duplicate misspellings (`flyspell-word-search-backward`, `-forward`), `flyspell-get-word`, `flyspell-tex-command-p`, `flyspell-math-tex-command-p` (AUCTeX's `texmathp` is never defined);
 small regions (`flyspell-small-region`) and large ones through the speller's `list`/`-l` run (`flyspell-large-region`, `flyspell-external-point-words`, `flyspell-process-localwords`, `flyspell-check-region-doublons`);
 the highlighting overlays (`make-flyspell-overlay`, `flyspell-highlight-incorrect-region`, `flyspell-highlight-duplicate-region`, `flyspell-unhighlight-at`, `flyspell-delete-region-overlays`, `flyspell-delete-all-overlays`, `flyspell-overlay-p`, `flyspell-properties-at-p`) and the faces `flyspell-incorrect` and `flyspell-duplicate`;
@@ -30,8 +30,8 @@ the highlighting overlays (`make-flyspell-overlay`, `flyspell-highlight-incorrec
 `flyspell-notify-misspell`,
 `flyspell-accept-buffer-local-defs` and the dash dictionaries,
 `flyspell-kill-ispell-hook`;
-the mode tests of Mail and SGML/HTML modes (`mail-mode-flyspell-verify`, `sgml-mode-flyspell-verify`) as the `flyspell_mode_test_function` of `major_mode_type` (upstream's `flyspell-mode-predicate` property);
-the options, with `flyspell-large-region` as `flyspell_large_region_variable` (`%characters`, R6-39) and `flyspell-duplicate-distance` with `FLYSPELL_DUPLICATE_DISTANCE_UNLIMITED`
+the mode tests of Mail and SGML/HTML modes (`mail-mode-flyspell-verify`, `sgml-mode-flyspell-verify`) as the `spellcheck_mode_test_function` of `major_mode_type` (upstream's `flyspell-mode-predicate` property);
+the options, with `flyspell-large-region` as `spellcheck_large_region_variable` (`%characters`, R6-39) and `flyspell-duplicate-distance` with `SPELLCHECK_DUPLICATE_DISTANCE_UNLIMITED`
 
 ## Deferred
 

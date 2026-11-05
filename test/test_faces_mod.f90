@@ -20,12 +20,12 @@
 
 module test_faces_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use faces_mod, only: named_face_type, init_faces, set_frame_display, face_spec_recalc_all, face_count, face_at, &
+    use faces_mod, only: named_face_type, initialize_faces, set_frame_display, face_specification_recalc_all, face_count, face_at, &
                          FACE_CLASS_COLOR, FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK, &
                          FACE_UNSPECIFIED, FACE_NO, FACE_YES, FACE_PLIST, FACE_LIST, &
-                         line_number, line_number_major_tick, fill_column_indicator, show_paren_match, &
+                         line_number, line_number_major_tick, fill_column_indicator, show_parenthesis_match, &
                          tty_menu_selected_face, tty_menu_disabled_face, read_multiple_choice_face, tool_bar, &
-                         glyphless_char, tab_line, menu, cursor, region, FACE_COLOR
+                         glyphless_character, tab_line, menu, cursor, region, FACE_COLOR
     use command_interpreter_mod, only: comint_highlight_input_face
     use fortmacs, only: faces, face_underline, face_box, FACE_STYLE_WAVE, FACE_STYLE_LINE, FACE_BOX_RELEASED_BUTTON
     implicit none(type, external)
@@ -45,7 +45,7 @@ contains
                     new_unittest("color-8-dark", test_color_8_dark), &
                     new_unittest("mono-fallbacks", test_mono), &
                     new_unittest("default-alternative", test_default_alternative), &
-                    new_unittest("config-faces", test_config_faces), &
+                    new_unittest("config-faces", test_configuration_faces), &
                     new_unittest("relative-height", test_relative_height) &
                     ]
     end subroutine collect_faces_mod
@@ -53,7 +53,7 @@ contains
     !> The faces are registered in the order faces.el defines them.
     subroutine test_face_list_order(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: names(*) = [character(len=27) :: &
+        character(len=*), parameter :: names(*) = [character(len=33) :: &
                                                    "default", "bold", "italic", "bold_italic", "underline", &
                                                    "fixed_pitch", "fixed_pitch_serif", "variable_pitch", &
                                                    "variable_pitch_text", "shadow", "link", "link_visited", &
@@ -71,15 +71,15 @@ contains
                                                    "margin", "fringe", "scroll_bar", "border", "cursor", "mouse", &
                                                    "tool_bar", "tab_bar", "tab_line", "tab_line_active", &
                                                    "tab_line_inactive", "menu", "help_argument_name", &
-                                                   "help_key_binding", "glyphless_char", "error", "warning", &
+                                                   "help_key_binding", "glyphless_character", "error", "warning", &
                                                    "success", "read_multiple_choice_face", "tty_menu_enabled_face", &
                                                    "tty_menu_disabled_face", "tty_menu_selected_face", &
-                                                   "show_paren_match", "show_paren_match_expression", &
-                                                   "show_paren_mismatch"]
+                                                   "show_parenthesis_match", "show_parenthesis_match_expression", &
+                                                   "show_parenthesis_mismatch"]
         type(named_face_type), pointer :: face
         integer :: k
 
-        call init_faces()
+        call initialize_faces()
         ! (Faces of other files, such as font-lock.el's, may follow.)
         call check(error, face_count() >= size(names), "all of faces.el's faces")
         if (allocated(error)) return
@@ -95,9 +95,9 @@ contains
     subroutine test_color_light(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_faces()
+        call initialize_faces()
         call set_frame_display(FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, 256, "tty")
-        call face_spec_recalc_all()
+        call face_specification_recalc_all()
         ! line-number: (t :inherit (shadow default)).
         call check(error, line_number%lface%inherit%state, FACE_LIST)
         if (allocated(error)) return
@@ -111,7 +111,7 @@ contains
         if (allocated(error)) return
         call check(error, line_number_major_tick%lface%weight, "bold")
         if (allocated(error)) return
-        call check(error, show_paren_match%lface%background, "turquoise")
+        call check(error, show_parenthesis_match%lface%background, "turquoise")
         if (allocated(error)) return
         call check(error, tty_menu_selected_face%lface%background, "red")
         if (allocated(error)) return
@@ -148,10 +148,10 @@ contains
     subroutine test_color_8_dark(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_faces()
+        call initialize_faces()
         call set_frame_display(FACE_CLASS_COLOR, FACE_BACKGROUND_DARK, 8, "tty")
-        call face_spec_recalc_all()
-        call check(error, show_paren_match%lface%background, "steelblue3")
+        call face_specification_recalc_all()
+        call check(error, show_parenthesis_match%lface%background, "steelblue3")
         if (allocated(error)) return
         ! tty-menu-disabled-face: (min-colors 16) fails.
         call check(error, tty_menu_disabled_face%lface%foreground, "white")
@@ -168,9 +168,9 @@ contains
     subroutine test_mono(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_faces()
+        call initialize_faces()
         call set_frame_display(FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, 2, "tty")
-        call face_spec_recalc_all()
+        call face_specification_recalc_all()
         ! line-number-major-tick: (t :inherit line-number).
         call check(error, allocated(line_number_major_tick%lface%background), .false.)
         if (allocated(error)) return
@@ -183,9 +183,9 @@ contains
         call check(error, trim(tty_menu_disabled_face%lface%inherit%names(1)), "shadow")
         if (allocated(error)) return
         ! show-paren-match: (min-colors 4) fails with 2 colors.
-        call check(error, allocated(show_paren_match%lface%background), .false.)
+        call check(error, allocated(show_parenthesis_match%lface%background), .false.)
         if (allocated(error)) return
-        call check(error, trim(show_paren_match%lface%inherit%names(1)), "underline")
+        call check(error, trim(show_parenthesis_match%lface%inherit%names(1)), "underline")
         if (allocated(error)) return
         call check(error, tab_line%lface%background, "grey")
     end subroutine test_mono
@@ -195,9 +195,9 @@ contains
     subroutine test_default_alternative(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_faces()
+        call initialize_faces()
         call set_frame_display(FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, 256, "tty")
-        call face_spec_recalc_all()
+        call face_specification_recalc_all()
         call check(error, tool_bar%lface%foreground, "black")
         if (allocated(error)) return
         call check(error, allocated(tool_bar%lface%background), .false.)
@@ -210,7 +210,7 @@ contains
         if (allocated(error)) return
         ! (type x w32 ns pgtk android) (class color).
         call set_frame_display(FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, 16777216, "pgtk")
-        call face_spec_recalc_all()
+        call face_specification_recalc_all()
         call check(error, tool_bar%lface%background, "grey75")
         if (allocated(error)) return
         call check(error, tool_bar%lface%foreground, "black")
@@ -219,16 +219,16 @@ contains
         call check(error, menu%lface%inverse_video%state, FACE_YES)
         if (allocated(error)) return
         call set_frame_display(FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, 2, "x")
-        call face_spec_recalc_all()
+        call face_specification_recalc_all()
         call check(error, tool_bar%lface%background, "grey")
     end subroutine test_default_alternative
 
     !> The configuration sets faces through `faces', and property-list
     !> attributes through `face_underline' and `face_box'.
-    subroutine test_config_faces(error)
+    subroutine test_configuration_faces(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_faces()
+        call initialize_faces()
         faces%region%background = "blue"
         call check(error, associated(faces%region, region), "faces%region is the region face")
         if (allocated(error)) return
@@ -262,27 +262,27 @@ contains
         call faces%link%underline%unspecify()
         call faces%error%underline%unspecify()
         call faces%mode_line%box%unspecify()
-    end subroutine test_config_faces
+    end subroutine test_configuration_faces
 
     !> Float heights are relative.
     subroutine test_relative_height(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_faces()
+        call initialize_faces()
         call set_frame_display(FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, 256, "x")
-        call face_spec_recalc_all()
-        call check(error, glyphless_char%lface%height%state, FACE_PLIST)
+        call face_specification_recalc_all()
+        call check(error, glyphless_character%lface%height%state, FACE_PLIST)
         if (allocated(error)) return
-        call check(error, abs(glyphless_char%lface%height%factor - 0.6) < 1.0e-6, .true.)
+        call check(error, abs(glyphless_character%lface%height%factor - 0.6) < 1.0e-6, .true.)
         if (allocated(error)) return
         call check(error, abs(tab_line%lface%height%factor - 0.9) < 1.0e-6, .true.)
         if (allocated(error)) return
         call set_frame_display(FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, 256, "tty")
-        call face_spec_recalc_all()
-        call check(error, glyphless_char%lface%height%state, FACE_UNSPECIFIED)
+        call face_specification_recalc_all()
+        call check(error, glyphless_character%lface%height%state, FACE_UNSPECIFIED)
         if (allocated(error)) return
-        call check(error, glyphless_char%lface%underline%state, FACE_YES)
+        call check(error, glyphless_character%lface%underline%state, FACE_YES)
         if (allocated(error)) return
-        call check(error, trim(glyphless_char%lface%inherit%names(1)), "escape_glyph")
+        call check(error, trim(glyphless_character%lface%inherit%names(1)), "escape_glyph")
     end subroutine test_relative_height
 end module test_faces_mod

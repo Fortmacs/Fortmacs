@@ -35,29 +35,30 @@
 !> What is not ported yet is listed in docs/status/cross_reference_mod.md.
 module cross_reference_mod
     use, intrinsic :: iso_fortran_env, only: int64, int32
-    use error_mod, only: status_type, set_error, format_error, FM_USER_ERROR, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, format_error, USER_ERROR_CODE, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use string_type_mod, only: string_type, append_string
     use value_mod, only: value_type, vtag, V_INTEGER, V_NULL, xfixnum, list, make_list, choice_type
     use data_mod, only: history_setting_type, forward_setting, append_locals_clearer, choice_setting_type, choice_state
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
-    use execute_interactively_mod, only: this_command, current_prefix_arg, PREFIX_NONE, PREFIX_NUMBER, prefix_arg_type
+    use execute_interactively_mod, only: this_command, current_prefix_argument, PREFIX_NONE, PREFIX_NUMBER, prefix_argument_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, close_buffer, &
                           erase_buffer, buffer_file_name, buffer_name, get_file_buffer, is_buffer_modified, &
                           restore_buffer_modified
     use marker_mod, only: copy_marker_at, marker_position, marker_buffer, destroy_marker, set_marker
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, line_beginning_position, line_end_position, &
-                                    buffer_substring, buffer_substring_no_properties, is_eob, is_bob, is_eol, point_marker, widen, &
-                                     narrow_to_region
-    use editing_commands_mod, only: forward_line, forward_char
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, line_beginning_position, &
+                                     line_end_position, buffer_substring, buffer_substring_no_properties, is_end_of_buffer, &
+                                     is_beginning_of_buffer, is_end_of_line, point_marker, widen, narrow_to_region
+    use editing_commands_mod, only: forward_line, forward_character
     use insert_delete_mod, only: insert, before_change_functions, after_change_functions
     use text_properties_mod, only: put_text_property, get_text_property, add_text_properties, &
-                                   next_single_char_property_change, previous_single_char_property_change, get_char_property, &
-                                   remove_list_of_text_properties, next_single_property_change, text_property_not_all
-    use search_mod, only: re_search_forward, string_match, match_beginning, match_end, regexp_quote, case_fold_search, &
-                          string_index_to_offset, looking_at, SEARCH_NOERROR
-    use basic_subprograms_mod, only: bounds_of_identifier_at_point, shell_quote_argument, add_to_invisibility_spec, &
+                                   next_single_character_property_change, previous_single_character_property_change, &
+                                   get_character_property, remove_list_of_text_properties, next_single_property_change, &
+                                   text_property_not_all
+    use search_mod, only: regular_expression_search_forward, string_match, match_beginning, match_end, regular_expression_quote, &
+                          case_fold_search, string_index_to_offset, looking_at, SEARCH_NOERROR
+    use basic_subprograms_mod, only: bounds_of_identifier_at_point, shell_quote_argument, add_to_invisibility_specification, &
                                      execute_mode_hooks
     use simple_mod, only: push_mark, is_region_active, next_error_last_buffer, set_next_error_function, next_error_found, &
                           widen_automatically, shell_command_switch, back_to_indentation
@@ -78,16 +79,16 @@ module cross_reference_mod
     use minibuffer_reading_mod, only: completion_ignore_case, read_string
     use minibuffer_mod, only: completing_read
     use minibuffer_reading_tables_mod, only: completion_table_type, completion_list_table
-    use replace_mod, only: format_prompt, read_regexp, occur_add_target, occur_after_change_function
-    use apropos_mod, only: apropos_parse_pattern, apropos_regexp
+    use replace_mod, only: format_prompt, read_regular_expression, occur_add_target, occur_after_change_function
+    use apropos_mod, only: apropos_parse_pattern, apropos_regular_expression
     use grep_mod, only: grep_compute_defaults, grep_expand_template, grep_find_template, grep_highlight_matches, &
-                        grep_regexps, find_name_arg
+                        grep_regular_expressions, find_name_argument
     use execute_process_mod, only: execute_process, execute_process_region, shell_file_name
     use project_mod, only: project_type, transient_project_type, get_current_project, combine_project_directories
     use display_engine_mod, only: message, mode_line_part_type, set_mode_line_process
-    use faces_mod, only: named_face_type, display_when, face_attrs
+    use faces_mod, only: named_face_type, display_when, face_attributes
     use help_mod, only: substitute_command_keys
-    use syntax_propertize_mod, only: syntax_propertize, syntax_ppss_flush_cache
+    use syntax_propertize_mod, only: syntax_propertize, syntax_parser_state_flush_cache
     implicit none(type, external)
     private
 
@@ -96,13 +97,13 @@ module cross_reference_mod
               clear_xref_marker_stack, is_xref_marker_stack_empty, is_xref_forward_history_empty, go_back_in_xref_history, &
               go_forward_in_xref_history, pop_to_xref_location, show_xrefs, show_xref_buffer, show_xref_definitions_buffer, &
               show_xref_definitions_completing_read, find_xref_definitions, find_xref_definitions_other_window, &
-              find_xref_references, find_xref_apropos, xref_apropos_regexp, xref_references_in_directory, &
+              find_xref_references, find_xref_apropos, xref_apropos_regular_expression, xref_references_in_directory, &
               xref_references_in_directory_grep, xref_matches_in_directory, xref_matches_in_files, &
-              read_xref_identifier, xref_group_name_for_display, xref_regexp_to_extended, xref_xref_buffer_mode, &
+              read_xref_identifier, xref_group_name_for_display, xref_regular_expression_to_extended, xref_xref_buffer_mode, &
               xref_transient_buffer_mode, xref_edit_mode, change_to_xref_edit_mode, save_xref_edit_changes, &
               next_xref_line, previous_xref_line, next_xref_line_no_show, previous_xref_line_no_show, &
               next_xref_group, previous_xref_group, goto_xref, quit_and_goto_xref, quit_and_pop_xref_marker_stack, &
-              show_xref_location_at_point, xref_etags_mode, xref_items_at, init_xref
+              show_xref_location_at_point, xref_etags_mode, xref_items_at, initialize_xref
 
     !> The name of the buffer to show xrefs.  Port of xref.el
     !> xref-buffer-name.
@@ -304,7 +305,7 @@ module cross_reference_mod
         !> Find all identifiers that match PATTERN string.
         !> The second argument has the same meaning as in `apropos'.
         !>
-        !> The backend can use `xref_apropos_regexp' to convert the pattern
+        !> The backend can use `xref_apropos_regular_expression' to convert the pattern
         !> to regexp.  Port of xref.el:xref-backend-apropos.
         procedure :: apropos => xref_backend_apropos
         !> The relevant identifier at point (FOUND false for none).
@@ -565,7 +566,7 @@ module cross_reference_mod
     !> XREF_AUTO_JUMP_MOVE means to only move point to the first result.
     !> This variable also affects commands similar to
     !> `find_xref_references', such as `find_xref_apropos', and
-    !> `find_project_regexp'.  Port of xref.el xref-auto-jump-to-first-xref.
+    !> `find_project_regular_expression'.  Port of xref.el xref-auto-jump-to-first-xref.
     type(choice_setting_type), public :: xref_auto_jump_to_first_xref = choice_setting_type(name="xref_auto_jump_to_first_xref")
 
     !> Special hook to find the xref backend for the current context.
@@ -641,7 +642,7 @@ module cross_reference_mod
     !> This must reference a corresponding entry in `xref_search_programs'.
     !>
     !> This variable is used in `xref_matches_in_files', which is the
-    !> utility function used by commands like `find_project_regexp'.
+    !> utility function used by commands like `find_project_regular_expression'.
     !> Port of xref.el xref-search-program.
     integer, public :: xref_search_program = XREF_SEARCH_PROGRAM_GREP
 
@@ -692,7 +693,7 @@ module cross_reference_mod
     ! xref--hits-file-prefix.
     character(len=:), allocatable :: last_file
     type(handle_type) :: last_file_buffer
-    character(len=:), allocatable :: temp_buffer_file_name, hits_file_prefix
+    character(len=:), allocatable :: temporary_buffer_file_name, hits_file_prefix
 
 contains
 
@@ -805,23 +806,23 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, old
         type(status_type) :: st
-        integer(int64) :: opoint, begv, zv, shortage
+        integer(int64) :: original_point, beginning_of_accessible_portion, end_of_accessible_portion, shortage
 
         old = current_buffer()
         call find_file_noselect(this%file, buffer, status)
         if (.not. status%ok()) return
         call set_buffer(buffer, st)
-        opoint = point()
-        begv = point_min()
-        zv = point_max()
+        original_point = point()
+        beginning_of_accessible_portion = point_minimum()
+        end_of_accessible_portion = point_maximum()
         call widen()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! (beginning-of-line line) (forward-char column), ignoring errors.
         shortage = forward_line(this%line - 1)
-        call goto_char(min(point() + this%column, point_max()))
+        call goto_character(min(point() + this%column, point_maximum()))
         call point_marker(marker)
-        call narrow_to_region(begv, zv, st)
-        call goto_char(opoint)
+        call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
+        call goto_character(original_point)
         call set_buffer(old, st)
     end subroutine xref_file_location_marker
 
@@ -885,7 +886,7 @@ contains
 
         marker = null_handle()
         status = status_type()
-        call set_error(status, FM_USER_ERROR, this%message)
+        call set_error(status, USER_ERROR_CODE, this%message)
     end subroutine xref_bogus_location_marker
 
     !> The group of a bogus location: "(No location)".  Port of
@@ -908,7 +909,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call set_error(status, FM_USER_ERROR, "No Xref backend.  Try `M-x eglot', `M-x visit_tags_table', or "// &
+        call set_error(status, USER_ERROR_CODE, "No Xref backend.  Try `M-x eglot', `M-x visit_tags_table', or "// &
                        "`M-x etags_regen_mode'.")
     end subroutine report_no_xref_backend
 
@@ -934,21 +935,21 @@ contains
         character(len=*), intent(in) :: identifier
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dirs(:)
+        character(len=:), allocatable :: directories(:)
         type(xref_item_type), allocatable :: found(:)
         integer :: k
 
         allocate (items(0))
-        allocate (character(len=1) :: dirs(0))
-        call xref_project_directories(dirs, status)
+        allocate (character(len=1) :: directories(0))
+        call xref_project_directories(directories, status)
         if (.not. status%ok()) return
 
-        do k = 1, size(dirs)
-            call message("Searching "//trim(dirs(k))//"...")
-            call xref_references_in_directory(identifier, trim(dirs(k)), found, status)
+        do k = 1, size(directories)
+            call message("Searching "//trim(directories(k))//"...")
+            call xref_references_in_directory(identifier, trim(directories(k)), found, status)
             if (.not. status%ok()) return
             call append_xref_items(items, found)
-            call message("Searching "//trim(dirs(k))//"... done")
+            call message("Searching "//trim(directories(k))//"... done")
         end do
     end subroutine xref_backend_references
 
@@ -956,14 +957,14 @@ contains
     !> project's root and external roots, combined (the current project
     !> is asked for when there is none).  Port of the directories of
     !> xref.el:xref-backend-references (with xref--project-root).
-    recursive subroutine xref_project_directories(dirs, status)
-        character(len=:), allocatable, intent(out) :: dirs(:)
+    recursive subroutine xref_project_directories(directories, status)
+        character(len=:), allocatable, intent(out) :: directories(:)
         type(status_type), intent(out) :: status
         class(project_type), allocatable :: project
         type(string_type), allocatable :: roots(:), external(:), combined(:)
         integer :: k, width
 
-        allocate (character(len=1) :: dirs(0))
+        allocate (character(len=1) :: directories(0))
         call get_current_project(project, status, maybe_prompt=.true.)
         if (.not. status%ok()) return
         allocate (roots(0))
@@ -983,11 +984,11 @@ contains
             width = max(width, len(combined(k)%text))
         end do
 
-        deallocate (dirs)
-        allocate (character(len=width) :: dirs(size(combined)))
+        deallocate (directories)
+        allocate (character(len=width) :: directories(size(combined)))
 
         do k = 1, size(combined)
-            dirs(k) = combined(k)%text
+            directories(k) = combined(k)%text
         end do
     end subroutine xref_project_directories
 
@@ -1393,13 +1394,13 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: marker, buffer, pm
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         status = status_type()
         if (.not. allocated(from)) allocate (from(0))
 
         if (size(from) == 0) then
-            call set_error(status, FM_USER_ERROR, empty)
+            call set_error(status, USER_ERROR_CODE, empty)
             return
         end if
 
@@ -1410,7 +1411,7 @@ contains
 
         if (buffer%index == 0) then
             call destroy_marker(marker, st)
-            call set_error(status, FM_USER_ERROR, "The marked buffer has been deleted")
+            call set_error(status, USER_ERROR_CODE, "The marked buffer has been deleted")
             return
         end if
 
@@ -1421,8 +1422,8 @@ contains
             return
         end if
 
-        call marker_position(marker, pos, st)
-        call goto_char(pos)
+        call marker_position(marker, position, st)
+        call goto_character(position)
         call destroy_marker(marker, st)
         call xref_after_return_hook%execute(status)
     end subroutine go_through_history
@@ -1445,36 +1446,36 @@ contains
         call go_through_history(xref_history%forward, xref_history%backward, "At end of xref history", status)
     end subroutine go_forward_in_xref_history
 
-    ! Go to POS, widening when it is outside the accessible part of the
+    ! Go to POSITION, widening when it is outside the accessible part of the
     ! buffer and `widen_automatically' is true.  Port of
     ! xref.el:xref--goto-char.
-    subroutine goto_xref_char(pos, status)
-        integer(int64), intent(in) :: pos
+    subroutine goto_xref_character(position, status)
+        integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
 
         status = status_type()
 
-        if (pos < point_min() .or. pos > point_max()) then
+        if (position < point_minimum() .or. position > point_maximum()) then
             if (.not. widen_automatically) then
-                call set_error(status, FM_USER_ERROR, "Position is outside accessible part of buffer")
+                call set_error(status, USER_ERROR_CODE, "Position is outside accessible part of buffer")
                 return
             end if
 
             call widen()
         end if
 
-        call goto_char(pos)
-    end subroutine goto_xref_char
+        call goto_character(position)
+    end subroutine goto_xref_character
 
     ! The buffer and position of MARKER.  Not a port.
-    subroutine marker_place(marker, buffer, pos)
+    subroutine marker_place(marker, buffer, position)
         type(handle_type), intent(in) :: marker
         type(handle_type), intent(out) :: buffer
-        integer(int64), intent(out) :: pos
+        integer(int64), intent(out) :: position
         type(status_type) :: st
 
         call marker_buffer(marker, buffer, st)
-        call marker_position(marker, pos, st)
+        call marker_position(marker, position, st)
     end subroutine marker_place
 
     ! Run `xref_after_jump_hook' with ITEM as `xref_current_item'.
@@ -1501,11 +1502,11 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: marker, buffer
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call item%location%marker(marker, status)
         if (.not. status%ok()) return
-        call marker_place(marker, buffer, pos)
+        call marker_place(marker, buffer, position)
         call destroy_marker(marker, st)
 
         if (action == XREF_DISPLAY_ACTION_WINDOW) then
@@ -1515,7 +1516,7 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call goto_xref_char(pos, status)
+        call goto_xref_character(position, status)
         if (.not. status%ok()) return
         call execute_after_jump_hook(item, status)
     end subroutine pop_to_xref_location
@@ -1525,7 +1526,7 @@ contains
     recursive subroutine recenter_adapter(status)
         type(status_type), intent(out) :: status
 
-        call recenter(prefix_arg_type(PREFIX_NONE, 0_int64), .false., status)
+        call recenter(prefix_argument_type(PREFIX_NONE, 0_int64), .false., status)
     end subroutine recenter_adapter
 
     ! ------------------------------------------------------------------
@@ -1587,10 +1588,10 @@ contains
         call set_buffer(old, st)
     end subroutine xref_items_at
 
-    ! The value of PROPERTY at POS, as an integer (0 for none) and whether
+    ! The value of PROPERTY at POSITION, as an integer (0 for none) and whether
     ! it has one.  Not a port.
-    subroutine property_at(pos, property, value, found)
-        integer(int64), intent(in) :: pos
+    subroutine property_at(position, property, value, found)
+        integer(int64), intent(in) :: position
         character(len=*), intent(in) :: property
         integer, intent(out) :: value
         logical, intent(out) :: found
@@ -1599,8 +1600,8 @@ contains
 
         value = 0
         found = .false.
-        if (pos < point_min() .or. pos >= point_max()) return
-        call get_text_property(pos, value_type(name=property), v, st)
+        if (position < point_minimum() .or. position >= point_maximum()) return
+        call get_text_property(position, value_type(name=property), v, st)
         found = allocated(v%a)
         if (found .and. vtag(v) == V_INTEGER) value = int(xfixnum(v))
     end subroutine property_at
@@ -1624,19 +1625,19 @@ contains
 
         do
             if (backward) then
-                call goto_char(previous_single_char_property_change(point(), value_type(name=property)))
+                call goto_character(previous_single_character_property_change(point(), value_type(name=property)))
             else
-                call goto_char(next_single_char_property_change(point(), value_type(name=property)))
+                call goto_character(next_single_character_property_change(point(), value_type(name=property)))
             end if
 
-            invisible = get_char_property(point(), value_type(name=P_INVISIBLE))
+            invisible = get_character_property(point(), value_type(name=P_INVISIBLE))
             visible = vtag(invisible) == V_NULL
             if (.not. visible) visible = is_ellipsis(invisible)
             if (visible) call property_at(point(), property, index, found)
-            if (found .or. is_eob() .or. is_bob()) exit
+            if (found .or. is_end_of_buffer() .or. is_beginning_of_buffer()) exit
         end do
 
-        if (.not. found) call goto_char(start)
+        if (.not. found) call goto_character(start)
 
     contains
 
@@ -1654,12 +1655,12 @@ contains
     ! The index of the item at point (0 for none): at the end of a line,
     ! the one before point.  Port of xref.el:xref--item-at-point.
     integer function xref_item_at_point() result(index)
-        integer(int64) :: pos
+        integer(int64) :: position
         logical :: found
 
-        pos = point()
-        if (is_eol() .and. pos > point_min()) pos = pos - 1
-        call property_at(pos, P_XREF_ITEM, index, found)
+        position = point()
+        if (is_end_of_line() .and. position > point_minimum()) position = position - 1
+        call property_at(position, P_XREF_ITEM, index, found)
         if (index /= 0 .and. xref_buffer_index() == 0) index = 0
     end function xref_item_at_point
 
@@ -1676,12 +1677,12 @@ contains
         item = xref_buffers(k)%items(index)
     end function buffer_item
 
-    !> Go to POS of TARGET_BUFFER, displayed in a window, honoring the *xref*
+    !> Go to POSITION of TARGET_BUFFER, displayed in a window, honoring the *xref*
     !> buffer's original window intent; run `xref_after_jump_hook' and
     !> give the WINDOW.  Port of xref.el:xref--show-pos-in-buf (the `frame'
     !> intent is not ported).
-    recursive subroutine show_xref_position_in_buffer(pos, target_buffer, item, window, status)
-        integer(int64), intent(in) :: pos
+    recursive subroutine show_xref_position_in_buffer(position, target_buffer, item, window, status)
+        integer(int64), intent(in) :: position
         type(handle_type), intent(in) :: target_buffer
         type(xref_item_type), intent(in) :: item
         type(handle_type), intent(out) :: window
@@ -1749,7 +1750,7 @@ contains
         ! with-selected-window.
         call select_window(window, status, norecord=.true.)
         if (.not. status%ok()) return
-        call goto_xref_char(pos, status)
+        call goto_xref_character(position, status)
         if (status%ok()) call execute_after_jump_hook(item, status)
         window = selected_window()
         call select_window(old_window, st, norecord=.true.)
@@ -1772,13 +1773,13 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: marker, target_buffer, xref_buffer, window, old_window
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         status = status_type()
         call item%location%marker(marker, status)
 
         if (.not. status%ok()) then
-            if (status%code == FM_USER_ERROR) then
+            if (status%code == USER_ERROR_CODE) then
                 call message(format_error(status))
                 status = status_type()
             end if
@@ -1786,7 +1787,7 @@ contains
             return
         end if
 
-        call marker_place(marker, target_buffer, pos)
+        call marker_place(marker, target_buffer, position)
         call destroy_marker(marker, st)
         xref_buffer = current_buffer()
 
@@ -1794,17 +1795,17 @@ contains
             if (select == SELECT_QUIT) call quit_window(.false., status)
             if (.not. status%ok()) return
             call set_buffer(xref_buffer, st)
-            call show_xref_position_in_buffer(pos, target_buffer, item, window, status)
+            call show_xref_position_in_buffer(position, target_buffer, item, window, status)
             if (status%ok() .and. window%index /= 0) call select_window(window, status)
         else
             old_window = selected_window()
-            call show_xref_position_in_buffer(pos, target_buffer, item, window, status)
+            call show_xref_position_in_buffer(position, target_buffer, item, window, status)
             call select_window(old_window, st, norecord=.true.)
             call set_buffer(xref_buffer, st)
         end if
 
         if (.not. status%ok()) then
-            if (status%code == FM_USER_ERROR) then
+            if (status%code == USER_ERROR_CODE) then
                 call message(format_error(status))
                 status = status_type()
             end if
@@ -1908,7 +1909,7 @@ contains
         index = xref_item_at_point()
 
         if (index == 0) then
-            call set_error(status, FM_USER_ERROR, "Choose a reference to visit")
+            call set_error(status, USER_ERROR_CODE, "Choose a reference to visit")
             return
         end if
 
@@ -1923,11 +1924,11 @@ contains
 
     ! The command: `goto_xref' with QUIT from the prefix argument.
     ! Not a port.
-    recursive subroutine cmd_goto_xref(status)
+    recursive subroutine execute_goto_xref(status)
         type(status_type), intent(out) :: status
 
-        call goto_xref(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_goto_xref
+        call goto_xref(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_goto_xref
 
     !> Quit *xref* buffer, then jump to xref on current line.  Port of
     !> xref.el:xref-quit-and-goto-xref.
@@ -1953,14 +1954,14 @@ contains
         integer(int64), intent(in) :: n
         logical, intent(in) :: reset
         type(status_type), intent(out) :: status
-        type(handle_type) :: win
+        type(handle_type) :: window
         type(status_type) :: st
         integer(int64) :: i
         integer :: index
         logical :: backward, found
 
         status = status_type()
-        if (reset) call goto_char(point_min())
+        if (reset) call goto_character(point_minimum())
         backward = n < 0
         index = 0
 
@@ -1974,9 +1975,9 @@ contains
 
         if (index == 0) then
             if (backward) then
-                call set_error(status, FM_USER_ERROR, "No previous xref")
+                call set_error(status, USER_ERROR_CODE, "No previous xref")
             else
-                call set_error(status, FM_USER_ERROR, "No next xref")
+                call set_error(status, USER_ERROR_CODE, "No next xref")
             end if
 
             return
@@ -1984,8 +1985,8 @@ contains
 
         ! Save the current position (when the buffer is visible, it gets
         ! reset to that window's point from time to time).
-        win = get_buffer_window(current_buffer())
-        if (win%index /= 0) call set_window_point(windows(win%index), point(), st)
+        window = get_buffer_window(current_buffer())
+        if (window%index /= 0) call set_window_point(windows(window%index), point(), st)
         call show_xref_location(buffer_item(index), SELECT_YES, status)
     end subroutine xref_next_error_function
 
@@ -1996,49 +1997,52 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: v
         type(status_type) :: st
-        integer(int64) :: bol, eol, pos, adjusted_bol, width
-        logical :: ro, apply, shown_eol, shown_bol, hidden_point
+        integer(int64) :: beginning_of_line, end_of_line, position, adjusted_beginning_of_line, width
+        logical :: ro, apply, shown_end_of_line, shown_beginning_of_line, hidden_point
 
         status = status_type()
         if (xref_truncation_width == XREF_TRUNCATION_WIDTH_NONE) return
-        bol = line_beginning_position()
-        eol = line_end_position()
+        beginning_of_line = line_beginning_position()
+        end_of_line = line_end_position()
         width = xref_truncation_width
-        if (eol - bol <= width) return
-        call get_text_property(eol - 1, value_type(name=P_INVISIBLE), v, st)
-        shown_eol = .not. allocated(v%a)
-        call get_text_property(bol, value_type(name=P_INVISIBLE), v, st)
-        shown_bol = .not. allocated(v%a)
+        if (end_of_line - beginning_of_line <= width) return
+        call get_text_property(end_of_line - 1, value_type(name=P_INVISIBLE), v, st)
+        shown_end_of_line = .not. allocated(v%a)
+        call get_text_property(beginning_of_line, value_type(name=P_INVISIBLE), v, st)
+        shown_beginning_of_line = .not. allocated(v%a)
         call get_text_property(point(), value_type(name=P_INVISIBLE), v, st)
         hidden_point = allocated(v%a)
         ! Either truncation not applied yet, or it hides the current
         ! position: need to refresh.
-        apply = (shown_eol .and. shown_bol) .or. hidden_point
+        apply = (shown_end_of_line .and. shown_beginning_of_line) .or. hidden_point
         if (.not. apply) return
         ro = buffers(current)%read_only
         buffers(current)%read_only = .false.
-        call get_text_property(bol, value_type(name=P_FACE), v, st)
-        adjusted_bol = bol
+        call get_text_property(beginning_of_line, value_type(name=P_FACE), v, st)
+        adjusted_beginning_of_line = beginning_of_line
 
         if (is_name(v, FACE_XREF_LINE_NUMBER)) then
-            adjusted_bol = next_single_char_property_change(bol, value_type(name=P_FACE))
+            adjusted_beginning_of_line = next_single_character_property_change(beginning_of_line, value_type(name=P_FACE))
         end if
 
-        if (point() - bol < width) then
-            pos = bol + width
-            call remove_invisible(bol, pos)
-            call put_text_property(pos, eol, value_type(name=P_INVISIBLE), value_type(name=INVISIBLE_ELLIPSIS), st)
-        else if (eol - point() < width) then
-            pos = eol - width
-            call remove_invisible(pos, eol)
-            call put_text_property(adjusted_bol, pos, value_type(name=P_INVISIBLE), value_type(name=INVISIBLE_ELLIPSIS), &
+        if (point() - beginning_of_line < width) then
+            position = beginning_of_line + width
+            call remove_invisible(beginning_of_line, position)
+            call put_text_property(position, end_of_line, value_type(name=P_INVISIBLE), value_type(name=INVISIBLE_ELLIPSIS), st)
+        else if (end_of_line - point() < width) then
+            position = end_of_line - width
+            call remove_invisible(position, end_of_line)
+            call put_text_property(adjusted_beginning_of_line, position, value_type(name=P_INVISIBLE), &
+                                   value_type(name=INVISIBLE_ELLIPSIS), &
                                    st)
         else
-            pos = point() - width/2
-            call put_text_property(adjusted_bol, pos, value_type(name=P_INVISIBLE), value_type(name=INVISIBLE_ELLIPSIS), &
+            position = point() - width/2
+            call put_text_property(adjusted_beginning_of_line, position, value_type(name=P_INVISIBLE), &
+                                   value_type(name=INVISIBLE_ELLIPSIS), &
                                    st)
-            call remove_invisible(pos, pos + width)
-            call put_text_property(pos + width, eol, value_type(name=P_INVISIBLE), value_type(name=INVISIBLE_ELLIPSIS), &
+            call remove_invisible(position, position + width)
+            call put_text_property(position + width, end_of_line, value_type(name=P_INVISIBLE), &
+                                   value_type(name=INVISIBLE_ELLIPSIS), &
                                    st)
         end if
 
@@ -2084,30 +2088,30 @@ contains
         type(xref_group_type), intent(in) :: groups(:)
         type(status_type), intent(out) :: status
         type(status_type) :: st
-        character(len=:), allocatable :: prev_group, prefix
+        character(len=:), allocatable :: previous_group, prefix
         character(len=24) :: digits
-        integer(int64) :: line, prev_line, max_line, start, prefix_end, mb
+        integer(int64) :: line, previous_line, maximum_line, start, prefix_end, mb
         integer :: g, i, k, width, n
-        logical :: has_prev, changed
+        logical :: has_previous, changed
 
         status = status_type()
         call make_xref_buffer_entry(k)
         if (allocated(xref_buffers(k)%items)) deallocate (xref_buffers(k)%items)
         allocate (xref_buffers(k)%items(0))
         xref_buffers(k)%found_match_count = 0
-        has_prev = .false.
-        prev_line = 0
-        prev_group = ""
+        has_previous = .false.
+        previous_line = 0
+        previous_group = ""
 
         do g = 1, size(groups)
-            max_line = 0
+            maximum_line = 0
 
             do i = 1, size(groups(g)%items)
-                max_line = max(max_line, groups(g)%items(i)%location%line_number())
+                maximum_line = max(maximum_line, groups(g)%items(i)%location%line_number())
             end do
 
             width = 1
-            if (max_line > 0) width = 1 + floor(log10(real(max_line)))
+            if (maximum_line > 0) width = 1 + floor(log10(real(maximum_line)))
             start = point()
             call insert(groups(g)%name, status)
             if (.not. status%ok()) return
@@ -2123,7 +2127,7 @@ contains
 
                 if (line == 0) then
                     prefix = "  "
-                else if (has_prev .and. line == prev_line .and. prev_group == groups(g)%name) then
+                else if (has_previous .and. line == previous_line .and. previous_group == groups(g)%name) then
                     prefix = ""
                 else
                     write (digits, "(i0)") line
@@ -2131,8 +2135,8 @@ contains
                 end if
 
                 ! Render multiple matches on the same line, together.
-                if (has_prev .and. prev_group == groups(g)%name) then
-                    if (line == 0 .or. line /= prev_line) call insert(LF, status)
+                if (has_previous .and. previous_group == groups(g)%name) then
+                    if (line == 0 .or. line /= previous_line) call insert(LF, status)
                 end if
 
                 start = point()
@@ -2167,23 +2171,23 @@ contains
                                                              "RET or mouse-1: follow reference")), changed, st)
                 end if
 
-                prev_line = line
-                prev_group = groups(g)%name
-                has_prev = .true.
+                previous_line = line
+                previous_group = groups(g)%name
+                has_previous = .true.
             end do
 
             call insert(LF, status)
         end do
 
-        call add_to_invisibility_spec(INVISIBLE_ELLIPSIS, .true.)
+        call add_to_invisibility_specification(INVISIBLE_ELLIPSIS, .true.)
         start = point()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do while (forward_line(1_int64) == 0)
             call apply_xref_truncation(st)
         end do
 
-        call goto_char(start)
+        call goto_character(start)
         call xref_after_update_hook%execute(status)
     end subroutine insert_xrefs
 
@@ -2286,7 +2290,7 @@ contains
         call erase_buffer(status)
         if (status%ok()) call insert_xrefs(groups, status)
         call post_command_hook%prepend(apply_truncation_hook, local=.true.)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call make_xref_buffer_entry(k)
         xref_buffers(k)%original_window = parameters%window
         xref_buffers(k)%original_window_intent = parameters%display_action
@@ -2382,7 +2386,7 @@ contains
         type(xref_group_type), allocatable :: groups(:)
         class(xref_fetcher_type), allocatable :: fetcher
         type(status_type) :: st
-        integer(int64) :: opoint, start
+        integer(int64) :: original_point, start
         integer :: k
         logical :: ro, undo
 
@@ -2391,7 +2395,7 @@ contains
         if (k == 0) return
         if (.not. allocated(xref_buffers(k)%fetcher)) return
         allocate (fetcher, source=xref_buffers(k)%fetcher)
-        opoint = point()
+        original_point = point()
         ro = buffers(current)%read_only
         undo = buffers(current)%undo_enabled
         buffers(current)%read_only = .false.
@@ -2409,7 +2413,7 @@ contains
                 call erase_buffer(st)
                 call insert_xrefs(groups, status)
             end if
-        else if (status%code == FM_USER_ERROR) then
+        else if (status%code == USER_ERROR_CODE) then
             call erase_buffer(st)
             start = point()
             call insert(format_error(status), st)
@@ -2417,7 +2421,7 @@ contains
             status = status_type()
         end if
 
-        call goto_char(min(opoint, point_max()))
+        call goto_character(min(original_point, point_maximum()))
         buffers(current)%read_only = ro
         buffers(current)%undo_enabled = undo
         call update_mode_line()
@@ -2438,7 +2442,7 @@ contains
             window = get_buffer_window(target_buffer)
             if (window%index /= 0) call select_window(window, status)
             if (.not. status%ok()) return
-            call goto_char(point_min())
+            call goto_character(point_minimum())
         end if
 
         if (value%value) then
@@ -2622,20 +2626,20 @@ contains
     ! Xref-Edit mode
     ! ------------------------------------------------------------------
 
-    ! The next region from FROM where PROP has a value
+    ! The next region from FROM where PROPERTY has a value
     ! (text-property-search-forward).  Not a port.
-    subroutine next_region(prop, from, b, e, found)
-        character(len=*), intent(in) :: prop
+    subroutine next_region(property, from, b, e, found)
+        character(len=*), intent(in) :: property
         integer(int64), intent(in) :: from
         integer(int64), intent(out) :: b, e
         logical, intent(out) :: found
         type(status_type) :: st
 
         e = 0
-        call text_property_not_all(from, point_max(), value_type(name=prop), value_type(), b, found, st)
+        call text_property_not_all(from, point_maximum(), value_type(name=property), value_type(), b, found, st)
         if (.not. found) return
-        call next_single_property_change(b, value_type(name=prop), e, found, st)
-        if (.not. found) e = point_max()
+        call next_single_property_change(b, value_type(name=property), e, found, st)
+        if (.not. found) e = point_maximum()
         found = .true.
     end subroutine next_region
 
@@ -2644,30 +2648,30 @@ contains
     recursive subroutine prepare_xref_edit_buffer(status)
         type(status_type), intent(out) :: status
         type(status_type) :: st
-        integer(int64) :: pos, b, e, opoint, line_number_end
+        integer(int64) :: position, b, e, original_point, line_number_end
         logical :: found, changed, ro
 
         status = status_type()
-        opoint = point()
+        original_point = point()
         ro = buffers(current)%read_only
         buffers(current)%read_only = .false.
-        pos = point_min()
+        position = point_minimum()
 
         do
-            call next_region(P_XREF_GROUP, pos, b, e, found)
+            call next_region(P_XREF_GROUP, position, b, e, found)
             if (.not. found) exit
             call add_text_properties(b, e, list(value_type(name=P_READ_ONLY), value_type(.true.), &
                                                 value_type(name=P_FRONT_STICKY), value_type(.true.)), changed, st)
-            pos = e
+            position = e
         end do
 
-        pos = point_min()
+        position = point_minimum()
 
         do
-            call next_region(P_XREF_ITEM, pos, b, e, found)
+            call next_region(P_XREF_ITEM, position, b, e, found)
             if (.not. found) exit
-            call goto_char(b)
-            call goto_char(line_beginning_position())
+            call goto_character(b)
+            call goto_character(line_beginning_position())
             line_number_end = 0
             if (looking_at(" *[0-9]+:", st)) line_number_end = match_end(0, st)
 
@@ -2681,11 +2685,11 @@ contains
                                               value_type(name=P_REAR_NONSTICKY), value_type(.true.)), changed, st)
             end if
 
-            pos = e
+            position = e
         end do
 
         buffers(current)%read_only = ro
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine prepare_xref_edit_buffer
 
     !> Major mode for editing *xref* buffers.
@@ -2701,7 +2705,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call set_error(status, FM_GENERIC_ERROR, "This mode can be enabled only by `change_to_xref_edit_mode'")
+        call set_error(status, GENERIC_ERROR_CODE, "This mode can be enabled only by `change_to_xref_edit_mode'")
     end subroutine xref_edit_mode
 
     !> Switch to `xref_edit_mode' to edit *xref* buffer.  Port of
@@ -2712,7 +2716,7 @@ contains
         status = status_type()
 
         if (.not. is_derived_mode(major_modes%xref_xref_buffer_mode)) then
-            call set_error(status, FM_GENERIC_ERROR, "Not an Xref buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "Not an Xref buffer")
             return
         end if
 
@@ -2743,7 +2747,7 @@ contains
         status = status_type()
 
         if (.not. is_derived_mode("xref_edit_mode")) then
-            call set_error(status, FM_GENERIC_ERROR, "Not a Xref-Edit buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "Not a Xref-Edit buffer")
             return
         end if
 
@@ -2757,7 +2761,7 @@ contains
         buffers(current)%undo_enabled = .false.
         if (allocated(buffers(current)%undo_entries)) deallocate (buffers(current)%undo_entries)
         buffers(current)%read_only = .false.
-        call remove_list_of_text_properties(point_min(), point_max(), &
+        call remove_list_of_text_properties(point_minimum(), point_maximum(), &
                                             list(value_type(name=P_OCCUR_TARGET), value_type(name=P_OCCUR_PREFIX)), &
                                             changed, st)
         buffers(current)%read_only = .true.
@@ -2772,18 +2776,18 @@ contains
         type(handle_type) :: m(1), e(1), old
         type(value_type) :: v
         type(status_type) :: st
-        integer(int64) :: bol, eol, pos
+        integer(int64) :: beginning_of_line, end_of_line, position
         integer :: index, target
         logical :: found, ro, undo
 
         status = status_type()
-        bol = line_beginning_position()
-        eol = line_end_position()
-        call get_text_property(bol, value_type(name=P_OCCUR_TARGET), v, st)
+        beginning_of_line = line_beginning_position()
+        end_of_line = line_end_position()
+        call get_text_property(beginning_of_line, value_type(name=P_OCCUR_TARGET), v, st)
         if (allocated(v%a)) return
-        call get_text_property(bol, value_type(name=P_OCCUR_PREFIX), v, st)
+        call get_text_property(beginning_of_line, value_type(name=P_OCCUR_PREFIX), v, st)
         if (.not. allocated(v%a)) return
-        call property_at(bol, P_XREF_ITEM, index, found)
+        call property_at(beginning_of_line, P_XREF_ITEM, index, found)
         if (index == 0) return
         old = current_buffer()
 
@@ -2794,10 +2798,10 @@ contains
             if (.not. allocated(item%location)) return
             call item%location%marker(marker, status)
             if (.not. status%ok()) return
-            call marker_place(marker, buffer, pos)
+            call marker_place(marker, buffer, position)
             call set_buffer(buffer, st)
-            call copy_marker_at(pos, m(1), .false., st)
-            call copy_marker_at(pos, e(1), .false., st)
+            call copy_marker_at(position, m(1), .false., st)
+            call copy_marker_at(position, e(1), .false., st)
             call destroy_marker(marker, st)
             call set_buffer(old, st)
         end block
@@ -2807,7 +2811,7 @@ contains
         undo = buffers(current)%undo_enabled
         buffers(current)%read_only = .false.
         buffers(current)%undo_enabled = .false.
-        call put_text_property(bol, eol, value_type(name=P_OCCUR_TARGET), value_type(int(target, int64)), st)
+        call put_text_property(beginning_of_line, end_of_line, value_type(name=P_OCCUR_TARGET), value_type(int(target, int64)), st)
         buffers(current)%read_only = ro
         buffers(current)%undo_enabled = undo
     end subroutine xref_edit_before_change_function
@@ -2827,16 +2831,16 @@ contains
         type(status_type), intent(out) :: status
         type(xref_show_parameters_type) :: parameters
         type(handle_type) :: cb
-        integer(int64) :: pt
+        integer(int64) :: point_value
 
         cb = current_buffer()
-        pt = point()
+        point_value = point()
         parameters%window = selected_window()
         parameters%display_action = display_action
         parameters%auto_jump = choice_state(xref_auto_jump_to_first_xref)
         call xref_show_xrefs_function(fetcher, parameters, buffer, status)
         if (.not. status%ok()) return
-        call push_xref_markers(cb, pt, parameters%window)
+        call push_xref_markers(cb, point_value, parameters%window)
     end subroutine show_xrefs
 
     ! Show ITEMS (a fetcher of definitions) with
@@ -2848,38 +2852,38 @@ contains
         type(status_type), intent(out) :: status
         type(xref_show_parameters_type) :: parameters
         type(handle_type) :: cb
-        integer(int64) :: pt
+        integer(int64) :: point_value
 
         cb = current_buffer()
-        pt = point()
+        point_value = point()
         parameters%window = selected_window()
         parameters%display_action = display_action
         parameters%auto_jump = choice_state(xref_auto_jump_to_first_definition)
         call xref_show_definitions_function(fetcher, parameters, buffer, status)
         if (.not. status%ok()) return
-        call push_xref_markers(cb, pt, parameters%window)
+        call push_xref_markers(cb, point_value, parameters%window)
     end subroutine show_xref_definitions
 
-    ! Push the mark (unless the region is active) and a marker at PT of TARGET_BUFFER
-    ! onto the marker stack, with WIN selected.  Port of
+    ! Push the mark (unless the region is active) and a marker at POINT of TARGET_BUFFER
+    ! onto the marker stack, with WINDOW selected.  Port of
     ! xref.el:xref--push-markers.
-    recursive subroutine push_xref_markers(target_buffer, pt, win)
-        type(handle_type), intent(in) :: target_buffer, win
-        integer(int64), intent(in) :: pt
+    recursive subroutine push_xref_markers(target_buffer, point_value, window)
+        type(handle_type), intent(in) :: target_buffer, window
+        integer(int64), intent(in) :: point_value
         type(handle_type) :: old_window, old_buffer
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
 
         if (.not. is_buffer_live(target_buffer)) return
         old_window = selected_window()
         old_buffer = current_buffer()
-        if (is_window_live(win)) call select_window(win, st, norecord=.true.)
+        if (is_window_live(window)) call select_window(window, st, norecord=.true.)
         call set_buffer(target_buffer, st)
-        opoint = point()
-        call goto_char(pt)
+        original_point = point()
+        call goto_character(point_value)
         if (.not. is_region_active()) call push_mark(nomsg=.true.)
         call push_xref_marker_stack()
-        call goto_char(opoint)
+        call goto_character(original_point)
         call select_window(old_window, st, norecord=.true.)
         call set_buffer(old_buffer, st)
     end subroutine push_xref_markers
@@ -2921,7 +2925,7 @@ contains
         call backend%identifier_at_point(def, has_def)
         command = ""
         if (associated(this_command)) command = trim(this_command%name)
-        prompting = current_prefix_arg%kind /= PREFIX_NONE .or. .not. has_def
+        prompting = current_prefix_argument%kind /= PREFIX_NONE .or. .not. has_def
         if (.not. prompting) prompting = is_xref_prompt(command)
 
         if (.not. prompting) then
@@ -2951,7 +2955,7 @@ contains
             if (has_def) then
                 identifier = def
             else
-                call set_error(status, FM_USER_ERROR, "There is no default identifier")
+                call set_error(status, USER_ERROR_CODE, "There is no default identifier")
             end if
         end if
     end subroutine read_xref_identifier
@@ -2981,18 +2985,18 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
         character(len=:), allocatable :: kind_name
 
         old = current_buffer()
-        opoint = point()
+        original_point = point()
 
         ! Xref methods are generally allowed to depend on the text around
         ! point, not just on their explicit arguments.
         if (is_buffer_live(this%buffer)) then
             call set_buffer(this%buffer, st)
-            opoint = point()
-            call goto_char(max(point_min(), min(this%position, point_max())))
+            original_point = point()
+            call goto_character(max(point_minimum(), min(this%position, point_maximum())))
         end if
 
         select case (this%kind)
@@ -3007,11 +3011,11 @@ contains
             call this%backend%definitions(this%argument, items, status)
         end select
 
-        call goto_char(opoint)
+        call goto_character(original_point)
         call set_buffer(old, st)
         if (.not. status%ok()) return
         if (.not. allocated(items)) allocate (items(0))
-        if (size(items) == 0) call set_error(status, FM_USER_ERROR, "No "//kind_name//" found for: "//this%input)
+        if (size(items) == 0) call set_error(status, USER_ERROR_CODE, "No "//kind_name//" found for: "//this%input)
     end subroutine fetch_from_backend
 
     !> The items, the first time; after that, "Refresh is not supported".
@@ -3025,7 +3029,7 @@ contains
 
         if (this%fetched) then
             allocate (items(0))
-            call set_error(status, FM_USER_ERROR, "Refresh is not supported")
+            call set_error(status, USER_ERROR_CODE, "Refresh is not supported")
             return
         end if
 
@@ -3086,14 +3090,14 @@ contains
 
     ! The command: read the identifier, then `find_xref_definitions'.
     ! Not a port.
-    recursive subroutine cmd_find_xref_definitions(status)
+    recursive subroutine execute_find_xref_definitions(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: identifier
         type(handle_type) :: buffer
 
         call read_xref_identifier("Find definitions of: ", identifier, status)
         if (status%ok()) call find_xref_definitions(identifier, buffer, status)
-    end subroutine cmd_find_xref_definitions
+    end subroutine execute_find_xref_definitions
 
     !> Like `find_xref_definitions' but switch to the other window.
     !> If this command needs to split the current window, it by default
@@ -3111,14 +3115,14 @@ contains
 
     ! The command: read the identifier, then
     ! `find_xref_definitions_other_window'.  Not a port.
-    recursive subroutine cmd_find_xref_definitions_other_window(status)
+    recursive subroutine execute_find_xref_definitions_other_window(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: identifier
         type(handle_type) :: buffer
 
         call read_xref_identifier("Find definitions of: ", identifier, status)
         if (status%ok()) call find_xref_definitions_other_window(identifier, buffer, status)
-    end subroutine cmd_find_xref_definitions_other_window
+    end subroutine execute_find_xref_definitions_other_window
 
     !> Find references to the identifier at point.
     !> This command might prompt for the identifier as needed, perhaps
@@ -3138,14 +3142,14 @@ contains
 
     ! The command: read the identifier, then `find_xref_references'.
     ! Not a port.
-    recursive subroutine cmd_find_xref_references(status)
+    recursive subroutine execute_find_xref_references(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: identifier
         type(handle_type) :: buffer
 
         call read_xref_identifier("Find references of: ", identifier, status)
         if (status%ok()) call find_xref_references(identifier, buffer, status)
-    end subroutine cmd_find_xref_references
+    end subroutine execute_find_xref_references
 
     !> Find all meaningful identifiers that match PATTERN.
     !> The argument has the same meaning as in `apropos'.  Port of
@@ -3160,7 +3164,7 @@ contains
     end subroutine find_xref_apropos
 
     ! The command: read the pattern, then `find_xref_apropos'.  Not a port.
-    recursive subroutine cmd_find_xref_apropos(status)
+    recursive subroutine execute_find_xref_apropos(status)
         type(status_type), intent(out) :: status
         class(xref_backend_type), allocatable :: backend
         character(len=:), allocatable :: pattern, def
@@ -3180,23 +3184,23 @@ contains
         end if
 
         if (status%ok()) call find_xref_apropos(pattern, buffer, status)
-    end subroutine cmd_find_xref_apropos
+    end subroutine execute_find_xref_apropos
 
     !> An Emacs regexp from PATTERN similar to `apropos': a pattern without
     !> regexp special characters is a list of words.  Port of
     !> xref.el:xref-apropos-regexp.
-    subroutine xref_apropos_regexp(pattern, regexp, status)
+    subroutine xref_apropos_regular_expression(pattern, regular_expression, status)
         character(len=*), intent(in) :: pattern
-        character(len=:), allocatable, intent(out) :: regexp
+        character(len=:), allocatable, intent(out) :: regular_expression
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: words(:)
         type(string_type) :: word
         integer :: i, j
 
         status = status_type()
-        regexp = ""
+        regular_expression = ""
 
-        if (regexp_quote(pattern) == pattern) then
+        if (regular_expression_quote(pattern) == pattern) then
             ! Split into words.
             allocate (words(0))
             i = 1
@@ -3220,7 +3224,7 @@ contains
             end do
 
             if (size(words) == 0) then
-                call set_error(status, FM_USER_ERROR, "No word list given")
+                call set_error(status, USER_ERROR_CODE, "No word list given")
                 return
             end if
 
@@ -3229,8 +3233,8 @@ contains
             call apropos_parse_pattern(pattern, words, .false.)
         end if
 
-        regexp = apropos_regexp
-    end subroutine xref_apropos_regexp
+        regular_expression = apropos_regular_expression
+    end subroutine xref_apropos_regular_expression
 
     !> Minor mode to make xref use etags again.
     !>
@@ -3321,18 +3325,19 @@ contains
             ignores(k) = patterns(k)%text
         end do
 
-        call xref_matches_in_directory(regexp_quote(identifier), "*", directory, ignores, items, status, delimited=.true.)
+        call xref_matches_in_directory(regular_expression_quote(identifier), "*", directory, ignores, items, status, &
+                                       delimited=.true.)
     end subroutine xref_references_in_directory_grep
 
-    !> Find all matches for REGEXP in directory DIRECTORY.
+    !> Find all matches for REGULAR_EXPRESSION in directory DIRECTORY.
     !> Gives an array of xref items.
     !> Only files matching some of FILES and none of IGNORES are searched.
     !> FILES is a string with glob patterns separated by spaces.
     !> IGNORES is an array of glob patterns for files to ignore.
     !> If DELIMITED is true (upstream's `symbol'), only select matches that
     !> span full identifiers.  Port of xref.el:xref-matches-in-directory.
-    recursive subroutine xref_matches_in_directory(regexp, files, directory, ignores, items, status, delimited)
-        character(len=*), intent(in) :: regexp, files, directory
+    recursive subroutine xref_matches_in_directory(regular_expression, files, directory, ignores, items, status, delimited)
+        character(len=*), intent(in) :: regular_expression, files, directory
         character(len=*), intent(in) :: ignores(:)
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
@@ -3341,7 +3346,7 @@ contains
         type(handle_type) :: target_buffer, old
         type(value_type) :: result
         type(status_type) :: st
-        character(len=:), allocatable :: template, command, local_directory, hits_regexp, expanded
+        character(len=:), allocatable :: template, command, local_directory, hits_regular_expression, expanded
         type(choice_type) :: saved_highlight
         integer :: at
         logical :: delimit
@@ -3355,14 +3360,14 @@ contains
         if (at > 0) template = template(1:at + 2)//" -E"//template(at + 3:)
         saved_highlight = choice_state(grep_highlight_matches)
         grep_highlight_matches = .false.
-        command = xref_rgrep_command(template, xref_regexp_to_extended(regexp), files, ".", ignores)
+        command = xref_rgrep_command(template, xref_regular_expression_to_extended(regular_expression), files, ".", ignores)
         grep_highlight_matches = saved_highlight
         call expand_file_name(directory, expanded, st)
         local_directory = directory_file_name(expanded)
         delimit = .false.
         if (present(delimited)) delimit = delimited
-        hits_regexp = regexp
-        if (delimit) hits_regexp = "\_<"//regexp//"\_>"
+        hits_regular_expression = regular_expression
+        if (delimit) hits_regular_expression = "\_<"//regular_expression//"\_>"
         old = current_buffer()
         call get_or_make_buffer(" *xref-grep*", target_buffer, status)
         if (.not. status%ok()) return
@@ -3370,33 +3375,34 @@ contains
         call erase_buffer(st)
         buffers(current)%directory = file_name_as_directory(directory)
         call execute_process(shell_file_name%value, result, status, destination=value_type(.true.), &
-                             args=list(value_type(text=shell_command_switch%value), value_type(text=command)))
+                             arguments=list(value_type(text=shell_command_switch%value), value_type(text=command)))
 
         if (status%ok()) then
-            call parse_xref_hits(grep_regexps(1)%regexp, grep_regexps(1)%line, grep_regexps(1)%file, result, hits, &
+            call parse_xref_hits(grep_regular_expressions(1)%regular_expression, grep_regular_expressions(1)%line, &
+                                 grep_regular_expressions(1)%file, result, hits, &
                                  status, local_directory)
         end if
 
         call set_buffer(old, st)
         if (.not. status%ok()) return
         call sort_xref_hits(hits)
-        call convert_xref_hits(hits, hits_regexp, items, status)
+        call convert_xref_hits(hits, hits_regular_expression, items, status)
     end subroutine xref_matches_in_directory
 
-    !> Find all matches for REGEXP in FILES.
+    !> Find all matches for REGULAR_EXPRESSION in FILES.
     !> Gives an array of xref items.
     !> FILES must be an array of absolute file names.
     !>
     !> See `xref_search_program' and `xref_search_programs' for how
     !> to control which program to use when looking for matches.  Port of
     !> xref.el:xref-matches-in-files (remote files are not ported).
-    recursive subroutine xref_matches_in_files(regexp, files, items, status)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine xref_matches_in_files(regular_expression, files, items, status)
+        character(len=*), intent(in) :: regular_expression
         character(len=*), intent(in) :: files(:)
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         type(xref_hit_type), allocatable :: hits(:)
-        type(handle_type) :: output, temp, old
+        type(handle_type) :: output, temporary, old
         type(value_type) :: result
         type(status_type) :: st
         character(len=:), allocatable :: directory, command, template, joined
@@ -3426,7 +3432,7 @@ contains
         end if
 
         if (k == 0) then
-            call set_error(status, FM_USER_ERROR, "Unknown search program `"//program_name(xref_search_program)//"'")
+            call set_error(status, USER_ERROR_CODE, "Unknown search program `"//program_name(xref_search_program)//"'")
             return
         end if
 
@@ -3435,7 +3441,7 @@ contains
         saved_highlight = choice_state(grep_highlight_matches)
         grep_highlight_matches = .false.
         template = trim(xref_search_programs(k)%template)
-        command = grep_expand_template(template, xref_regexp_to_extended(regexp))
+        command = grep_expand_template(template, xref_regular_expression_to_extended(regular_expression))
         grep_highlight_matches = saved_highlight
         joined = ""
 
@@ -3446,26 +3452,27 @@ contains
 
         call set_buffer(output, st)
         call erase_buffer(st)
-        call get_or_make_buffer(" *xref-temp-input*", temp, status)
+        call get_or_make_buffer(" *xref-temp-input*", temporary, status)
 
         if (status%ok()) then
-            call set_buffer(temp, st)
+            call set_buffer(temporary, st)
             call erase_buffer(st)
             call insert(joined, st)
             if (len(directory) > 0) buffers(current)%directory = file_name_as_directory(directory)
-            call execute_process_region(shell_file_name%value, result, status, start=point_min(), end=point_max(), &
+            call execute_process_region(shell_file_name%value, result, status, start=point_minimum(), end=point_maximum(), &
                                         destination=value_type(text=" *project grep output*"), &
-                                        args=list(value_type(text=shell_command_switch%value), value_type(text=command)))
-            call close_buffer(temp, st)
+                                        arguments=list(value_type(text=shell_command_switch%value), value_type(text=command)))
+            call close_buffer(temporary, st)
             call set_buffer(output, st)
-            if (status%ok()) call parse_xref_hits(grep_regexps(1)%regexp, grep_regexps(1)%line, grep_regexps(1)%file, &
+            if (status%ok()) call parse_xref_hits(grep_regular_expressions(1)%regular_expression, &
+                                                  grep_regular_expressions(1)%line, grep_regular_expressions(1)%file, &
                                                   result, hits, status)
         end if
 
         call set_buffer(old, st)
         if (.not. status%ok()) return
         call sort_xref_hits(hits)
-        call convert_xref_hits(hits, regexp, items, status)
+        call convert_xref_hits(hits, regular_expression, items, status)
 
     contains
 
@@ -3488,12 +3495,12 @@ contains
         end function program_name
     end subroutine xref_matches_in_files
 
-    ! The hits of the search output in the current buffer: GREP_REGEXP with
+    ! The hits of the search output in the current buffer: GREP_REGULAR_EXPRESSION with
     ! the line and file in groups LINE_GROUP and FILE_GROUP; RESULT is the
     ! exit status.  A file name starting with "." is relative to
     ! PARENT_DIRECTORY when given.  Port of xref.el:xref--parse-hits.
-    recursive subroutine parse_xref_hits(grep_regexp, line_group, file_group, result, hits, status, parent_directory)
-        character(len=*), intent(in) :: grep_regexp
+    recursive subroutine parse_xref_hits(grep_regular_expression, line_group, file_group, result, hits, status, parent_directory)
+        character(len=*), intent(in) :: grep_regular_expression
         integer, intent(in) :: line_group, file_group
         type(value_type), intent(in) :: result
         type(xref_hit_type), allocatable, intent(out) :: hits(:)
@@ -3508,27 +3515,27 @@ contains
 
         status = status_type()
         allocate (hits(0))
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         ! Can't use the exit status: Grep exits with 1 to mean "no matches
         ! found".  Find exits with 1 if any of the invocations exit with
         ! non-zero. "No matches" and "Grep program not found" are all the
         ! same to it.
-        if (point_min() /= point_max()) then
-            if (.not. looking_at(grep_regexp, st)) then
+        if (point_minimum() /= point_maximum()) then
+            if (.not. looking_at(grep_regular_expression, st)) then
                 ! TODO: Show these matches as well somehow?
                 if (.not. looking_at(".*[bB]inary file.* matches", st)) then
-                    call buffer_substring(point_min(), line_end_position(), first_line, st)
+                    call buffer_substring(point_minimum(), line_end_position(), first_line, st)
                     code = "?"
                     if (vtag(result) == V_INTEGER) write (code, "(i0)") xfixnum(result)
-                    call set_error(status, FM_USER_ERROR, "Search failed with status "//trim(code)//": "//first_line)
+                    call set_error(status, USER_ERROR_CODE, "Search failed with status "//trim(code)//": "//first_line)
                     return
                 end if
             end if
         end if
 
         do
-            call re_search_forward(grep_regexp, found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(grep_regular_expression, found, st, noerror=SEARCH_NOERROR)
             if (found == 0 .or. .not. st%ok()) exit
             digits = substring_of_match(line_group)
             read (digits, *, iostat=ios) hit%line
@@ -3583,11 +3590,11 @@ contains
     end subroutine sort_xref_hits
 
     !> The command of `xref_matches_in_directory': GREP_FIND_TEMPLATE
-    !> expanded for REGEXP in the FILES (glob patterns separated by spaces)
+    !> expanded for REGULAR_EXPRESSION in the FILES (glob patterns separated by spaces)
     !> of directory DIRECTORY, without IGNORES.  Port of
     !> xref.el:xref--rgrep-command.
-    function xref_rgrep_command(grep_find_template, regexp, files, directory, ignores) result(command)
-        character(len=*), intent(in) :: grep_find_template, regexp, files, directory
+    function xref_rgrep_command(grep_find_template, regular_expression, files, directory, ignores) result(command)
+        character(len=*), intent(in) :: grep_find_template, regular_expression, files, directory
         character(len=*), intent(in) :: ignores(:)
         character(len=:), allocatable :: command, names
         integer :: i, j
@@ -3610,14 +3617,14 @@ contains
                 j = j + 1
             end do
 
-            if (.not. first) names = names//" -o "//find_name_arg//" "
+            if (.not. first) names = names//" -o "//find_name_argument//" "
             names = names//shell_quote_argument(files(i:j))
             first = .false.
             i = j + 1
         end do
 
-        command = grep_expand_template(grep_find_template, regexp, &
-                                       shell_quote_argument("(")//" "//find_name_arg//" "//names//" "// &
+        command = grep_expand_template(grep_find_template, regular_expression, &
+                                       shell_quote_argument("(")//" "//find_name_argument//" "//names//" "// &
                                        shell_quote_argument(")"), &
                                        shell_quote_argument(directory), xref_find_ignores_arguments(ignores, directory))
     end function xref_rgrep_command
@@ -3656,12 +3663,12 @@ contains
         arguments = arguments//" "//shell_quote_argument(")")//" -prune -o "
     end function xref_find_ignores_arguments
 
-    !> REGEXP, an Emacs regexp, in the extended syntax of grep -E: the
+    !> REGULAR_EXPRESSION, an Emacs regexp, in the extended syntax of grep -E: the
     !> grouping, alternation and repetition operators lose their backslash
     !> and the literal characters gain one.  Port of
     !> xref.el:xref--regexp-to-extended.
-    function xref_regexp_to_extended(regexp) result(extended)
-        character(len=*), intent(in) :: regexp
+    function xref_regular_expression_to_extended(regular_expression) result(extended)
+        character(len=*), intent(in) :: regular_expression
         character(len=:), allocatable :: extended, matched, group
         character(len=*), parameter :: PATTERN = "\(?:\\\\\)*\(?:\\[][]\)?\(?:\[.+?]\|\(\\?[(){|}]\)\)"
         type(status_type) :: st
@@ -3675,67 +3682,69 @@ contains
         case_fold_search = .false.
 
         do
-            found = string_match(PATTERN, regexp, st, start)
+            found = string_match(PATTERN, regular_expression, st, start)
             if (found == 0 .or. .not. st%ok()) exit
             b = match_beginning(0, st)
             e = match_end(0, st)
             g1 = match_beginning(1, st)
             g1e = match_end(1, st)
-            ob = string_index_to_offset(regexp, b)
-            oe = string_index_to_offset(regexp, e)
-            extended = extended//regexp(string_index_to_offset(regexp, start) + 1:ob)
-            matched = regexp(ob + 1:oe)
+            ob = string_index_to_offset(regular_expression, b)
+            oe = string_index_to_offset(regular_expression, e)
+            extended = extended//regular_expression(string_index_to_offset(regular_expression, start) + 1:ob)
+            matched = regular_expression(ob + 1:oe)
 
             if (g1 == 0) then
                 extended = extended//matched
             else
-                og = string_index_to_offset(regexp, g1)
-                oge = string_index_to_offset(regexp, g1e)
-                group = regexp(og + 1:oge)
+                og = string_index_to_offset(regular_expression, g1)
+                oge = string_index_to_offset(regular_expression, g1e)
+                group = regular_expression(og + 1:oge)
 
                 if (len(group) == 2) then
-                    extended = extended//regexp(ob + 1:og)//group(2:2)
+                    extended = extended//regular_expression(ob + 1:og)//group(2:2)
                 else
-                    extended = extended//regexp(ob + 1:og)//"\"//group
+                    extended = extended//regular_expression(ob + 1:og)//"\"//group
                 end if
             end if
 
             if (e == b) then
                 ! An empty match: keep the next character as it is.
-                if (oe >= len(regexp)) then
+                if (oe >= len(regular_expression)) then
                     start = e
                     exit
                 end if
 
-                extended = extended//regexp(oe + 1:oe + 1)
+                extended = extended//regular_expression(oe + 1:oe + 1)
                 start = e + 1
             else
                 start = e
             end if
         end do
 
-    if (string_index_to_offset(regexp, start) < len(regexp)) extended = extended//regexp(string_index_to_offset(regexp, start) + 1:)
+        if (string_index_to_offset(regular_expression, &
+              start) < len(regular_expression)) extended = extended//regular_expression(string_index_to_offset(regular_expression, &
+                                                                                                                        start) + 1:)
         case_fold_search = saved
-    end function xref_regexp_to_extended
+    end function xref_regular_expression_to_extended
 
-    ! Whether REGEXP depends on the buffer's syntax, such as the current syntax
+    ! Whether REGULAR_EXPRESSION depends on the buffer's syntax, such as the current syntax
     ! table and the applied syntax properties.  Port of
     ! xref.el:xref--regexp-syntax-dependent-p.
-    logical function is_xref_regexp_syntax_dependent(regexp) result(dependent)
-        character(len=*), intent(in) :: regexp
+    logical function is_xref_regular_expression_syntax_dependent(regular_expression) result(dependent)
+        character(len=*), intent(in) :: regular_expression
         type(status_type) :: st
         logical :: saved
 
         saved = case_fold_search%value
         case_fold_search = .false.
-        dependent = string_match("\(?:\`\|[^\\]\)\(?:\\\\\)*\\[bB<>wW_sS]", regexp, st) /= 0
+        dependent = string_match("\(?:\`\|[^\\]\)\(?:\\\\\)*\\[bB<>wW_sS]", regular_expression, st) /= 0
         case_fold_search = saved
-    end function is_xref_regexp_syntax_dependent
+    end function is_xref_regular_expression_syntax_dependent
 
-    ! The match items of HITS for REGEXP.  Port of xref.el:xref--convert-hits.
-    recursive subroutine convert_xref_hits(hits, regexp, items, status)
+    ! The match items of HITS for REGULAR_EXPRESSION.  Port of xref.el:xref--convert-hits.
+    recursive subroutine convert_xref_hits(hits, regular_expression, items, status)
         type(xref_hit_type), intent(in) :: hits(:)
-        character(len=*), intent(in) :: regexp
+        character(len=*), intent(in) :: regular_expression
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         type(xref_item_type), allocatable :: matches(:)
@@ -3749,7 +3758,7 @@ contains
         status = status_type()
         if (allocated(last_file)) deallocate (last_file)
         last_file_buffer = null_handle()
-        if (allocated(temp_buffer_file_name)) deallocate (temp_buffer_file_name)
+        if (allocated(temporary_buffer_file_name)) deallocate (temporary_buffer_file_name)
         name = " *xref-temp*"
         call get_or_make_buffer(name, temporary_buffer, status)
         if (.not. status%ok()) return
@@ -3762,10 +3771,10 @@ contains
             end if
         end if
 
-        syntax_needed = is_xref_regexp_syntax_dependent(regexp)
+        syntax_needed = is_xref_regular_expression_syntax_dependent(regular_expression)
 
         do i = 1, size(hits)
-            call collect_xref_matches(hits(i), regexp, temporary_buffer, syntax_needed, matches, status)
+            call collect_xref_matches(hits(i), regular_expression, temporary_buffer, syntax_needed, matches, status)
             if (.not. status%ok()) exit
             call append_xref_items(items, matches)
         end do
@@ -3773,12 +3782,12 @@ contains
         call close_buffer(temporary_buffer, st)
     end subroutine convert_xref_hits
 
-    ! The match items of HIT for REGEXP, from the line in the buffer
+    ! The match items of HIT for REGULAR_EXPRESSION, from the line in the buffer
     ! visiting its file (when it is up to date) or else from the hit's text
     ! in TEMPORARY_BUFFER.  Port of xref.el:xref--collect-matches.
-    recursive subroutine collect_xref_matches(hit, regexp, temporary_buffer, syntax_needed, matches, status)
+    recursive subroutine collect_xref_matches(hit, regular_expression, temporary_buffer, syntax_needed, matches, status)
         type(xref_hit_type), intent(in) :: hit
-        character(len=*), intent(in) :: regexp
+        character(len=*), intent(in) :: regular_expression
         type(handle_type), intent(in) :: temporary_buffer
         logical, intent(in) :: syntax_needed
         type(xref_item_type), allocatable, intent(out) :: matches(:)
@@ -3786,7 +3795,7 @@ contains
         type(handle_type) :: target_buffer, old
         type(status_type) :: st
         character(len=:), allocatable :: file
-        integer(int64) :: opoint, begv, zv, shortage, inserted
+        integer(int64) :: original_point, beginning_of_accessible_portion, end_of_accessible_portion, shortage, inserted
         character(len=:), allocatable :: saved_filename
         logical :: had_filename
 
@@ -3797,16 +3806,16 @@ contains
 
         if (target_buffer%index /= 0) then
             call set_buffer(target_buffer, st)
-            opoint = point()
-            begv = point_min()
-            zv = point_max()
+            original_point = point()
+            beginning_of_accessible_portion = point_minimum()
+            end_of_accessible_portion = point_maximum()
             call widen()
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             shortage = forward_line(hit%line - 1)
-            call collect_xref_line_matches(regexp, file, hit%line, line_beginning_position(), line_end_position(), &
+            call collect_xref_line_matches(regular_expression, file, hit%line, line_beginning_position(), line_end_position(), &
                                            syntax_needed, matches)
-            call narrow_to_region(begv, zv, st)
-            call goto_char(opoint)
+            call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
+            call goto_character(original_point)
         else
             ! Using the temporary buffer is both a performance and a buffer
             ! management optimization.
@@ -3814,9 +3823,9 @@ contains
             call erase_buffer(st)
 
             if (syntax_needed) then
-                if (.not. allocated(temp_buffer_file_name)) temp_buffer_file_name = ""
+                if (.not. allocated(temporary_buffer_file_name)) temporary_buffer_file_name = ""
 
-                if (temp_buffer_file_name /= file) then
+                if (temporary_buffer_file_name /= file) then
                     call insert_file_contents(file, .false., inserted, st, beginning_byte=0_int64, end_byte=200_int64)
                     had_filename = allocated(buffers(current)%filename)
                     if (had_filename) saved_filename = buffers(current)%filename
@@ -3829,27 +3838,27 @@ contains
                         deallocate (buffers(current)%filename)
                     end if
 
-                    temp_buffer_file_name = file
+                    temporary_buffer_file_name = file
                     buffers(current)%read_only = .false.
                     call erase_buffer(st)
                 end if
             end if
 
             call insert(hit%text, st)
-            call goto_char(point_min())
-            if (syntax_needed) call syntax_ppss_flush_cache(point())
-            call collect_xref_line_matches(regexp, file, hit%line, point(), point_max(), syntax_needed, matches)
+            call goto_character(point_minimum())
+            if (syntax_needed) call syntax_parser_state_flush_cache(point())
+            call collect_xref_line_matches(regular_expression, file, hit%line, point(), point_maximum(), syntax_needed, matches)
         end if
 
         call set_buffer(old, st)
     end subroutine collect_xref_matches
 
-    ! The match items of REGEXP on the line LINE_BEGINNING..LINE_END of the
+    ! The match items of REGULAR_EXPRESSION on the line LINE_BEGINNING..LINE_END of the
     ! current buffer, line LINE of FILE: each item's summary runs from its
     ! match (the line's beginning for the first) to the next match (the
     ! line's end for the last).  Port of xref.el:xref--collect-matches-1.
-    recursive subroutine collect_xref_line_matches(regexp, file, line, line_beginning, line_end, syntax_needed, matches)
-        character(len=*), intent(in) :: regexp, file
+    recursive subroutine collect_xref_line_matches(regular_expression, file, line, line_beginning, line_end, syntax_needed, matches)
+        character(len=*), intent(in) :: regular_expression, file
         integer(int64), intent(in) :: line, line_beginning, line_end
         logical, intent(in) :: syntax_needed
         type(xref_item_type), allocatable, intent(out) :: matches(:)
@@ -3871,9 +3880,9 @@ contains
         do while (.not. stop)
             found = 0
 
-            ! REGEXP might match an empty string.  Or line.
+            ! REGULAR_EXPRESSION might match an empty string.  Or line.
             if (.not. (has_last .and. end == line_beginning)) then
-                call re_search_forward(regexp, found, st, bound=line_end, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(regular_expression, found, st, bound=line_end, noerror=SEARCH_NOERROR)
                 if (.not. st%ok()) found = 0
             end if
 
@@ -3951,10 +3960,10 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define the faces, modes, keymaps and commands of xref.el, and bind
-    !> the global keys in ESC_MAP and CTL_X_4_MAP.  Port of xref.el's
+    !> the global keys in ESC_MAP and CONTROL_X_4_MAP.  Port of xref.el's
     !> top-level forms and its key bindings.
-    subroutine init_xref(esc_map, ctl_x_4_map)
-        type(handle_type), intent(in) :: esc_map, ctl_x_4_map
+    subroutine initialize_xref(escape_map, control_x_4_map)
+        type(handle_type), intent(in) :: escape_map, control_x_4_map
         type(named_face_type), pointer :: f
         type(status_type) :: st
 
@@ -3986,13 +3995,13 @@ contains
         call xref_after_jump_hook%append(recenter_adapter)
         f => xref_file_header_face
         call f%define("xref_file_header", "Face used to highlight file header in the xref buffer.")
-        call f%spec_entry(display_when(), face_attrs(inherit="compilation_info"))
+        call f%specification_entry(display_when(), face_attributes(inherit="compilation_info"))
         f => xref_line_number_face
         call f%define("xref_line_number", "Face for displaying line numbers in the xref buffer.")
-        call f%spec_entry(display_when(), face_attrs(inherit="compilation_line_number"))
+        call f%specification_entry(display_when(), face_attributes(inherit="compilation_line_number"))
         f => xref_match_face
         call f%define("xref_match", "Face used to highlight matches in the xref buffer.")
-        call f%spec_entry(display_when(), face_attrs(inherit="match"))
+        call f%specification_entry(display_when(), face_attributes(inherit="match"))
         call major_modes%xref_xref_buffer_mode%define("xref_xref_buffer_mode", "Xref", xref_xref_buffer_mode, &
                                                       xref_xref_buffer_mode_hook, parent=major_modes%special_mode)
         call major_modes%xref_transient_buffer_mode%define("xref_transient_buffer_mode", "Xref Transient", &
@@ -4022,20 +4031,20 @@ contains
         call forward_setting(xref_read_identifier_history)
         call forward_setting(xref_read_pattern_history)
         ! The key bindings (xref.el's autoloads).
-        call keymap_set(esc_map, ".", "find_xref_definitions", st)
-        call keymap_set(esc_map, ",", "go_back_in_xref_history", st)
-        call keymap_set(esc_map, "C-,", "go_forward_in_xref_history", st)
-        call keymap_set(esc_map, "?", "find_xref_references", st)
-        call keymap_set(esc_map, "C-.", "find_xref_apropos", st)
-        call keymap_set(ctl_x_4_map, ".", "find_xref_definitions_other_window", st)
+        call keymap_set(escape_map, ".", "find_xref_definitions", st)
+        call keymap_set(escape_map, ",", "go_back_in_xref_history", st)
+        call keymap_set(escape_map, "C-,", "go_forward_in_xref_history", st)
+        call keymap_set(escape_map, "?", "find_xref_references", st)
+        call keymap_set(escape_map, "C-.", "find_xref_apropos", st)
+        call keymap_set(control_x_4_map, ".", "find_xref_definitions_other_window", st)
         commands%xref_xref_buffer_mode%execute => xref_xref_buffer_mode
         commands%xref_transient_buffer_mode%execute => xref_transient_buffer_mode
         commands%xref_edit_mode%execute => xref_edit_mode
         commands%xref_etags_mode%execute => xref_etags_mode
-        commands%find_xref_definitions%execute => cmd_find_xref_definitions
-        commands%find_xref_definitions_other_window%execute => cmd_find_xref_definitions_other_window
-        commands%find_xref_references%execute => cmd_find_xref_references
-        commands%find_xref_apropos%execute => cmd_find_xref_apropos
+        commands%find_xref_definitions%execute => execute_find_xref_definitions
+        commands%find_xref_definitions_other_window%execute => execute_find_xref_definitions_other_window
+        commands%find_xref_references%execute => execute_find_xref_references
+        commands%find_xref_apropos%execute => execute_find_xref_apropos
         commands%go_back_in_xref_history%execute => go_back_in_xref_history
         commands%pop_xref_marker_stack%execute => go_back_in_xref_history
         commands%go_forward_in_xref_history%execute => go_forward_in_xref_history
@@ -4045,14 +4054,14 @@ contains
         commands%previous_xref_line_no_show%execute => previous_xref_line_no_show
         commands%next_xref_group%execute => next_xref_group
         commands%previous_xref_group%execute => previous_xref_group
-        commands%goto_xref%execute => cmd_goto_xref
+        commands%goto_xref%execute => execute_goto_xref
         commands%quit_and_goto_xref%execute => quit_and_goto_xref
         commands%quit_and_pop_xref_marker_stack%execute => quit_and_pop_xref_marker_stack
         commands%show_xref_location_at_point%execute => show_xref_location_at_point
         commands%change_to_xref_edit_mode%execute => change_to_xref_edit_mode
         commands%save_xref_edit_changes%execute => save_xref_edit_changes
         call append_locals_clearer(clear_xref_locals)
-    end subroutine init_xref
+    end subroutine initialize_xref
 
     !> `xref_prompt_for_identifier' as help shows it in the two states that
     !> use `%commands' (upstream's list of commands): the state and the

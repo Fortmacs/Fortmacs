@@ -24,14 +24,14 @@
 !> `executable_find' (files_mod cannot use execute_process_mod, which uses it).
 !>
 !> Deferred: `executable_interpret' (C-c C-x; it needs rule specifications
-!> in `compilation_error_regexp_names', so `executable_error_regexps'
+!> in `compilation_error_regular_expression_names', so `executable_error_regular_expressions'
 !> is deferred with it) and `executable_command_find_posix_p' (needs
 !> `data_directory').
 module executable_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, format_message, format_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, format_message, format_error, GENERIC_ERROR_CODE
     use buffer_mod, only: buffers, current, current_buffer
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_substring, widen, narrow_to_region
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, buffer_substring, widen, narrow_to_region
     use search_mod, only: looking_at, string_match, match_beginning, match_end, replace_match, match_data, set_match_data
     use insert_delete_mod, only: insert
     use file_input_output_mod, only: is_file_name_absolute, file_name_nondirectory, is_file_executable, set_file_modes, &
@@ -50,7 +50,7 @@ module executable_mod
     private
 
     public :: executable_find, executable_chmod_function, executable_set_magic, executable_self_display_command, &
-              executable_make_buffer_file_executable_if_script, init_executable
+              executable_make_buffer_file_executable_if_script, initialize_executable
 
     !> Values of `executable_query' besides .true. and .false.
     integer, parameter, public :: EXECUTABLE_QUERY_FUNCTION = 2
@@ -74,10 +74,10 @@ module executable_mod
 
     !> On files with this kind of name no magic is inserted or changed.
     !> Port of executable.el executable-magicless-file-regexp.
-    character(len=:), allocatable, public :: executable_magicless_file_regexp
+    character(len=:), allocatable, public :: executable_magicless_file_regular_expression
 
     !> Interpreter magic number prefix inserted when there was no magic number.
-    !> Use of `executable_prefix_env' is preferable to this option.  Port of
+    !> Use of `executable_prefix_environment' is preferable to this option.  Port of
     !> executable.el executable-prefix.
     character(len=:), allocatable, public :: executable_prefix
 
@@ -86,7 +86,7 @@ module executable_mod
     !> by `executable_set_magic' will be "#!/usr/bin/env INTERPRETER",
     !> otherwise it will be "#!/path/to/INTERPRETER".  Port of
     !> executable.el executable-prefix-env.
-    logical, public :: executable_prefix_env = .false.
+    logical, public :: executable_prefix_environment = .false.
 
     !> After saving, if the file is not executable, set this mode.
     !> This mode passed to `set_file_modes' is taken absolutely when negative, or
@@ -114,15 +114,15 @@ contains
     function executable_find(command) result(path)
         character(len=*), intent(in) :: command
         character(len=:), allocatable :: path
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
-        dir = "/"
+        directory = "/"
 
         if (current /= 0) then
-            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+            if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
         end if
 
-        call locate_program(command, dir, path)
+        call locate_program(command, directory, path)
     end function executable_find
 
     !> This gets called after saving a file to assure that it be executable.
@@ -146,7 +146,7 @@ contains
     end subroutine executable_chmod_function
 
     !> Set this buffer's interpreter to INTERPRETER with optional ARGUMENT.
-    !> The variables `executable_magicless_file_regexp', `executable_prefix_env',
+    !> The variables `executable_magicless_file_regular_expression', `executable_prefix_environment',
     !> `executable_insert', `executable_query' and `executable_chmod' control
     !> when and how magic numbers are inserted or replaced and scripts made
     !> executable.  The interpreter's file name is returned in RESULT.
@@ -157,7 +157,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: argument_in
         logical, intent(in), optional :: no_query_flag, insert_flag
-        character(len=:), allocatable :: interpreter, argument, current_char
+        character(len=:), allocatable :: interpreter, argument, current_character
         integer(int64) :: here, index, mb1, me1
         integer(int64), allocatable :: saved(:)
         logical :: noquery, insert_it, skip, ok, matched
@@ -174,7 +174,7 @@ contains
             interpreter = executable_find(interpreter_in)
 
             if (len(interpreter) == 0) then
-                call set_error(status, FM_GENERIC_ERROR, "Interpreter "//interpreter_in//" not recognized")
+                call set_error(status, GENERIC_ERROR_CODE, "Interpreter "//interpreter_in//" not recognized")
                 return
             end if
         end if
@@ -192,12 +192,12 @@ contains
             if (len(argument_in) > 0) argument = argument//" "//argument_in
         end if
 
-        ! For backward compatibility, allow `executable_prefix_env' to be
+        ! For backward compatibility, allow `executable_prefix_environment' to be
         ! overridden by custom `executable_prefix'.
         index = string_match("#!\([ "//achar(9)//"]*/usr/bin/env[ "//achar(9)//"]*\)?$", executable_prefix, status)
 
         if (index > 0) then
-            if (executable_prefix_env) argument = "/usr/bin/env "//file_name_nondirectory(argument)
+            if (executable_prefix_environment) argument = "/usr/bin/env "//file_name_nondirectory(argument)
         else
             argument = executable_prefix(3:)//argument
         end if
@@ -205,29 +205,29 @@ contains
         skip = buffers(current)%read_only
 
         if (.not. skip .and. allocated(buffers(current)%filename)) then
-            skip = string_match(executable_magicless_file_regexp, buffers(current)%filename, status) > 0
+            skip = string_match(executable_magicless_file_regular_expression, buffers(current)%filename, status) > 0
         end if
 
         if (.not. skip) skip = .not. (insert_it .or. executable_insert)
-        if (.not. skip) skip = point_min() > 1
+        if (.not. skip) skip = point_minimum() > 1
         if (skip) return
         here = point()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call after_save_hook%prepend(executable_chmod_function, local=.true.)
         matched = looking_at("#![ "//achar(9)//"]*\(.*\)$", status)
 
         if (matched) then
             mb1 = match_beginning(1, status)
             me1 = match_end(1, status)
-            call goto_char(mb1)
+            call goto_character(mb1)
             ! If the line ends in a space,
             ! don't offer to change it.
-            call buffer_substring(me1 - 1, me1, current_char, status)
-            ok = current_char /= " "
+            call buffer_substring(me1 - 1, me1, current_character, status)
+            ok = current_character /= " "
 
             if (ok) then
-                call buffer_substring(point(), me1, current_char, status)
-                ok = argument /= current_char .or. len(argument) /= len(current_char)
+                call buffer_substring(point(), me1, current_character, status)
+                ok = argument /= current_character .or. len(argument) /= len(current_character)
             end if
 
             if (ok) then
@@ -240,7 +240,7 @@ contains
                     call set_match_data(saved)
 
                     if (.not. status%ok()) then
-                        call goto_char(here)
+                        call goto_character(here)
                         return
                     end if
                 end if
@@ -255,20 +255,20 @@ contains
             call message(format_message("Magic number changed to `#!")//argument//format_message("'"))
         end if
 
-        call goto_char(here)
+        call goto_character(here)
     end subroutine executable_set_magic
 
     ! `executable_set_magic' as a command.
-    recursive subroutine cmd_executable_set_magic(status)
+    recursive subroutine execute_executable_set_magic(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: name, arg, result
+        character(len=:), allocatable :: name, argument, result
 
         call read_string("Name or file name of interpreter: ", name, status)
         if (.not. status%ok()) return
-        call read_string("Argument for "//name//": ", arg, status)
+        call read_string("Argument for "//name//": ", argument, status)
         if (.not. status%ok()) return
-        call executable_set_magic(name, result, status, arg, executable_query%choice == EXECUTABLE_QUERY_FUNCTION, .true.)
-    end subroutine cmd_executable_set_magic
+        call executable_set_magic(name, result, status, argument, executable_query%choice == EXECUTABLE_QUERY_FUNCTION, .true.)
+    end subroutine execute_executable_set_magic
 
     !> Turn a text file into a self-displaying Un*x command.
     !> The magic number of such a command displays all lines but itself.
@@ -288,18 +288,18 @@ contains
     subroutine executable_make_buffer_file_executable_if_script(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: head
-        integer(int64) :: begv, zv
+        integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion
         integer(int32) :: current_mode, add_mode
         type(status_type) :: st
 
         status = status_type()
         if (current == 0) return
         if (buffers(current)%text%z - 1 < 2) return
-        begv = point_min()
-        zv = point_max()
+        beginning_of_accessible_portion = point_minimum()
+        end_of_accessible_portion = point_maximum()
         call widen()
-        call buffer_substring(point_min(), point_min() + 2, head, st)
-        call narrow_to_region(begv, zv, st)
+        call buffer_substring(point_minimum(), point_minimum() + 2, head, st)
+        call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
         if (.not. allocated(head)) return
         if (head /= "#!") return
 
@@ -323,10 +323,10 @@ contains
 
     !> Give the variables their defaults and register the commands.
     !> Not a port.
-    subroutine init_executable()
+    subroutine initialize_executable()
         type(font_lock_highlight_type) :: h(1)
 
-        if (.not. allocated(executable_magicless_file_regexp)) executable_magicless_file_regexp = &
+        if (.not. allocated(executable_magicless_file_regular_expression)) executable_magicless_file_regular_expression = &
             "/[Mm]akefile$\|/\.\(z?profile\|bash_profile\|z?login\|bash_login\|z?logout\|bash_logout\|.+shrc\|" &
             //"esrc\|rcrc\|[kz]shenv\)$"
         if (.not. allocated(executable_prefix)) executable_prefix = "#!"
@@ -339,7 +339,7 @@ contains
                                                                  highlights=h)
         end if
 
-        commands%executable_set_magic%execute => cmd_executable_set_magic
+        commands%executable_set_magic%execute => execute_executable_set_magic
         commands%executable_self_display%execute => executable_self_display_command
-    end subroutine init_executable
+    end subroutine initialize_executable
 end module executable_mod

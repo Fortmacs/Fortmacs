@@ -29,7 +29,7 @@
 
 !> The coding-system side of Mule: finding the coding system a file asks
 !> for (`set_auto_coding', the `coding:' tag, `auto_codings' and
-!> `auto_coding_regexps'), setting `buffer_file_coding_system' after
+!> `auto_coding_regular_expressions'), setting `buffer_file_coding_system' after
 !> a file is read, choosing a coding system that can encode the text
 !> being written (`select_safe_coding_system', with its *Warning* buffer
 !> and prompt), `prefer_coding_system', and the commands C-x RET f
@@ -63,31 +63,31 @@
 module multilingual_environment_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: PREFIX_NONE, command_of
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_CODING_SYSTEM_ERROR, format_message
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, CODING_SYSTEM_ERROR_CODE, format_message
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xstring, make_list, vtag, V_STRING
     use character_mod, only: downcase_ascii, str_to_multibyte
     use data_mod, only: forward_setting, default_value, set_default
     use utility_functions_mod, only: put
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg
+    use execute_interactively_mod, only: current_prefix_argument
     use buffer_mod, only: buffers, current, buf_bytes, BEGINNING_BYTE, current_buffer, is_buffer_live, set_buffer, &
                           restore_buffer_modified
     use keymap_mod, only: define_key, key_parse, make_sparse_keymap
     use search_mod, only: string_match, match_beginning, match_end, case_fold_search
     use minibuffer_reading_mod, only: completion_list_table
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
-    use coding_mod, only: init_coding, buffer_file_coding_system, last_coding_system_used, &
-                          coding_system_for_read, inhibit_eol_conversion, default_process_coding_system, &
-                          file_coding_systems, is_coding_system, check_coding_system, coding_system_base, &
-                          coding_system_type, coding_system_eol_type, coding_system_subsidiaries, &
-                          coding_system_change_eol_conversion, coding_system_change_text_conversion, &
-                          coding_system_mnemonic, coding_system_doc_string, coding_system_aliases, coding_system_equal, &
-                          coding_system_priority_list, set_coding_system_priority, coding_system_mime_charset, &
-                          coding_system_charset_list, coding_system_list, is_coding_system_prefer_utf_8, &
-                          is_coding_system_ascii_compatible, find_coding_systems_text, check_coding_systems_text, &
-                          coding_system_list_entry_type, unencodable_type, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED, &
-                          is_coding_system_iso_7_bit, is_coding_system_suitable_for_keyboard
+    use coding_mod, only: initialize_coding, buffer_file_coding_system, last_coding_system_used, coding_system_for_read, &
+                          inhibit_end_of_line_conversion, default_process_coding_system, file_coding_systems, is_coding_system, &
+                          check_coding_system, coding_system_base, coding_system_type, coding_system_end_of_line_type, &
+                          coding_system_subsidiaries, coding_system_change_end_of_line_conversion, &
+                          coding_system_change_text_conversion, coding_system_mnemonic, coding_system_doc_string, &
+                          coding_system_aliases, coding_system_equal, coding_system_priority_list, set_coding_system_priority, &
+                          coding_system_mime_charset, coding_system_charset_list, coding_system_list, &
+                          is_coding_system_prefer_utf_8, is_coding_system_ascii_compatible, find_coding_systems_text, &
+                          check_coding_systems_text, coding_system_list_entry_type, unencodable_type, END_OF_LINE_UNIX, &
+                          END_OF_LINE_DOS, END_OF_LINE_MAC, END_OF_LINE_UNDECIDED, is_coding_system_iso_7_bit, &
+                          is_coding_system_suitable_for_keyboard
     use file_input_output_mod, only: set_auto_coding_function, after_insert_file_set_coding, &
                                      select_safe_coding_system_function, is_file_name_match
     use files_mod, only: revert_buffer
@@ -107,9 +107,9 @@ module multilingual_environment_mod
     use data_mod, only: string_setting_type
     use minibuffer_reading_mod, only: completion_ignore_case
     use help_mod, only: substitute_command_keys
-    use character_set_mod, only: set_charset_priority, charset_description, CHARSET_NAME_LEN, current_iso639_language, &
-                                 charsets, find_charset, charset_list, charset_chars, decode_char
-    use help_mod, only: with_output_to_temp_buffer
+    use character_set_mod, only: set_charset_priority, charset_description, CHARSET_NAME_LENGTH, current_iso639_language, &
+                                 charsets, find_charset, charset_list, charset_characters, decode_character
+    use help_mod, only: with_output_to_temporary_buffer
     use buffer_mod, only: header_line_format_type, current_input_method_procedure
     use keyboard_mod, only: ring_bell
     implicit none(type, external)
@@ -117,7 +117,7 @@ module multilingual_environment_mod
 
     public :: universal_coding_system_argument, set_buffer_process_coding_system, set_terminal_coding_system, &
               set_keyboard_coding_system
-    public :: init_mule, find_auto_coding, set_auto_coding, auto_codings_lookup, after_insert_file_set_coding_1, &
+    public :: initialize_mule, find_auto_coding, set_auto_coding, auto_codings_lookup, after_insert_file_set_coding_1, &
               find_new_buffer_file_coding_system, merge_coding_systems, set_buffer_file_coding_system, &
               revert_buffer_with_coding_system, prefer_coding_system, set_default_coding_systems, &
               select_safe_coding_system, describe_coding_system, describe_current_coding_system, read_coding_system, &
@@ -127,7 +127,7 @@ module multilingual_environment_mod
               language_environment_procedure, language_environment_type, language_environments
     public :: set_locale_environment, find_locale_entry, locale_charset_to_coding_system, locale_translate, &
               get_locale_names, set_display_table_and_terminal_coding_system
-    public :: list_character_sets, list_charset_chars, describe_character_set, read_charset
+    public :: list_character_sets, list_charset_characters, describe_character_set, read_charset
     public :: register_input_method, find_input_method, read_input_method_name, activate_input_method, &
               deactivate_input_method, set_input_method, toggle_input_method, activate_transient_input_method, &
               deactivate_transient_input_method, describe_input_method, describe_current_input_method, &
@@ -162,7 +162,7 @@ module multilingual_environment_mod
         !> Whether it has a `documentation' key (a text, or none).
         logical :: has_documentation = .false.
         !> `charset': the charsets it supports.
-        character(len=CHARSET_NAME_LEN), allocatable :: charsets(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: charsets(:)
         !> `sample-text': the string its expression gives.
         character(len=:), allocatable :: sample_text
         !> `coding-system': the coding systems it uses.
@@ -269,7 +269,7 @@ module multilingual_environment_mod
     !> start of a downcased locale name, and the language environment
     !> and coding system it names ("" when absent).
     type, public :: locale_entry_type
-        character(len=40) :: regexp = ""
+        character(len=40) :: regular_expression = ""
         character(len=24) :: language = ""
         character(len=24) :: coding_system = ""
     end type locale_entry_type
@@ -282,201 +282,217 @@ module multilingual_environment_mod
     !> from `locale_preferred_coding_systems'.  Port of mule-cmds.el
     !> locale-language-names.
     type(locale_entry_type), public :: locale_language_names(194) = [ &
-                                       locale_entry_type(regexp="aa_DJ", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="aa", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="af", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="am", language="Ethiopic", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="an", language="Latin-9", coding_system=""), &
-                                       locale_entry_type(regexp="arn", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="ar", language="Arabic", coding_system=""), &
-                                       locale_entry_type(regexp="as", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="az", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="ba", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="be", language="Belarusian", coding_system="cp1251"), &
-                                       locale_entry_type(regexp="bg", language="Bulgarian", coding_system="cp1251"), &
-                                       locale_entry_type(regexp="bn", language="Bengali", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="bo", language="Tibetan", coding_system=""), &
-                                       locale_entry_type(regexp="br", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="bs", language="Latin-2", coding_system=""), &
-                                       locale_entry_type(regexp="byn", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="ca", language="Catalan", coding_system="iso-8859-1"), &
-                                       locale_entry_type(regexp="co", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="cs", language="Czech", coding_system="iso-8859-2"), &
-                                       locale_entry_type(regexp="cy", language="Welsh", coding_system="iso-8859-14"), &
-                                       locale_entry_type(regexp="da", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="de", language="German", coding_system="iso-8859-1"), &
-                                       locale_entry_type(regexp="dv", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="ee", language="Latin-4", coding_system=""), &
-                                       locale_entry_type(regexp="el", language="Greek", coding_system="iso-8859-7"), &
-                                       locale_entry_type(regexp="en_IN", language="English", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="en", language="English", coding_system="iso-8859-1"), &
-                                       locale_entry_type(regexp="eo", language="Esperanto", coding_system=""), &
-                                       locale_entry_type(regexp="es", language="Spanish", coding_system="iso-8859-1"), &
-                                       locale_entry_type(regexp="et", language="Latin-9", coding_system=""), &
-                                       locale_entry_type(regexp="eu", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="fa", language="Persian", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="fil", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="fpo", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="fi", language="Latin-9", coding_system=""), &
-                                       locale_entry_type(regexp="fj", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="fo", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="fr", language="French", coding_system="iso-8859-1"), &
-                                       locale_entry_type(regexp="fy", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="ga", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="gd", language="Latin-9", coding_system=""), &
-                                       locale_entry_type(regexp="gez", language="Ethiopic", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="gla", language="Latin-9", coding_system=""), &
-                                       locale_entry_type(regexp="gl", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="gu", language="Gujarati", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="gv", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="he", language="Hebrew", coding_system="iso-8859-8"), &
-                                       locale_entry_type(regexp="hi", language="Devanagari", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="hni_IN", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="hr", language="Croatian", coding_system="iso-8859-2"), &
-                                       locale_entry_type(regexp="hu", language="Latin-2", coding_system=""), &
-                                       locale_entry_type(regexp="hy", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="id", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="ig", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="ibo", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="is", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="it", language="Italian", coding_system="iso-8859-1"), &
-                                       locale_entry_type(regexp="iw", language="Hebrew", coding_system="iso-8859-8"), &
-                                       locale_entry_type(regexp="ja", language="Japanese", coding_system="euc-jp"), &
-                                       locale_entry_type(regexp="kal", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="ka", language="Georgian", coding_system="georgian-ps"), &
-                                       locale_entry_type(regexp="kk", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="kl", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="km", language="Khmer", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="knk", language="Devanagari", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="kok", language="Devanagari", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="kn", language="Kannada", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="ko", language="Korean", coding_system="euc-kr"), &
-                                       locale_entry_type(regexp="ks", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="kw", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="ky", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="lao", language="Lao", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="la", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="lb", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="lg", language="Latin-6", coding_system=""), &
-                                       locale_entry_type(regexp="lo", language="Lao", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="lt", language="Lithuanian", coding_system="iso-8859-13"), &
-                                       locale_entry_type(regexp="lv", language="Latvian", coding_system="iso-8859-13"), &
-                                       locale_entry_type(regexp="mi", language="Latin-7", coding_system=""), &
-                                       locale_entry_type(regexp="mk", language="Cyrillic-ISO", coding_system="iso-8859-5"), &
-                                       locale_entry_type(regexp="mlt", language="Latin-3", coding_system=""), &
-                                       locale_entry_type(regexp="ml", language="Malayalam", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="mn", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="mri", language="Latin-7", coding_system=""), &
-                                       locale_entry_type(regexp="mr", language="Devanagari", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="ms", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="mt", language="Latin-3", coding_system=""), &
-                                       locale_entry_type(regexp="mym", language="Malayalam", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="my", language="Burmese", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="nb", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="ne", language="Devanagari", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="nl", language="Dutch", coding_system="iso-8859-1"), &
-                                       locale_entry_type(regexp="nn", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="non", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="no", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="nr_ZA", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="nso_ZA", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="oc", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="om_ET", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="om", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="or", language="Oriya", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="pa", language="Punjabi", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="pl", language="Polish", coding_system="iso-8859-2"), &
-                                       locale_entry_type(regexp="ps", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="pas", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="pt_BR", language="Brazilian Portuguese", &
+                                       locale_entry_type(regular_expression="aa_DJ", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="aa", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="af", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="am", language="Ethiopic", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="an", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regular_expression="arn", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="ar", language="Arabic", coding_system=""), &
+                                       locale_entry_type(regular_expression="as", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="az", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="ba", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="be", language="Belarusian", coding_system="cp1251"), &
+                                       locale_entry_type(regular_expression="bg", language="Bulgarian", coding_system="cp1251"), &
+                                       locale_entry_type(regular_expression="bn", language="Bengali", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="bo", language="Tibetan", coding_system=""), &
+                                       locale_entry_type(regular_expression="br", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="bs", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regular_expression="byn", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="ca", language="Catalan", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regular_expression="co", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="cs", language="Czech", coding_system="iso-8859-2"), &
+                                       locale_entry_type(regular_expression="cy", language="Welsh", coding_system="iso-8859-14"), &
+                                       locale_entry_type(regular_expression="da", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="de", language="German", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regular_expression="dv", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="ee", language="Latin-4", coding_system=""), &
+                                       locale_entry_type(regular_expression="el", language="Greek", coding_system="iso-8859-7"), &
+                                       locale_entry_type(regular_expression="en_IN", language="English", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="en", language="English", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regular_expression="eo", language="Esperanto", coding_system=""), &
+                                       locale_entry_type(regular_expression="es", language="Spanish", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regular_expression="et", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regular_expression="eu", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="fa", language="Persian", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="fil", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="fpo", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="fi", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regular_expression="fj", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="fo", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="fr", language="French", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regular_expression="fy", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="ga", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="gd", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regular_expression="gez", language="Ethiopic", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="gla", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regular_expression="gl", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="gu", language="Gujarati", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="gv", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="he", language="Hebrew", coding_system="iso-8859-8"), &
+                                       locale_entry_type(regular_expression="hi", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="hni_IN", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="hr", language="Croatian", &
+                                                         coding_system="iso-8859-2"), &
+                                       locale_entry_type(regular_expression="hu", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regular_expression="hy", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="id", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="ig", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="ibo", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="is", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="it", language="Italian", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regular_expression="iw", language="Hebrew", coding_system="iso-8859-8"), &
+                                       locale_entry_type(regular_expression="ja", language="Japanese", coding_system="euc-jp"), &
+                                       locale_entry_type(regular_expression="kal", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="ka", language="Georgian", &
+                                                         coding_system="georgian-ps"), &
+                                       locale_entry_type(regular_expression="kk", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="kl", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="km", language="Khmer", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="knk", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="kok", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="kn", language="Kannada", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="ko", language="Korean", coding_system="euc-kr"), &
+                                       locale_entry_type(regular_expression="ks", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="kw", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="ky", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="lao", language="Lao", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="la", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="lb", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="lg", language="Latin-6", coding_system=""), &
+                                       locale_entry_type(regular_expression="lo", language="Lao", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="lt", language="Lithuanian", &
+                                                         coding_system="iso-8859-13"), &
+                                       locale_entry_type(regular_expression="lv", language="Latvian", &
+                                                         coding_system="iso-8859-13"), &
+                                       locale_entry_type(regular_expression="mi", language="Latin-7", coding_system=""), &
+                                       locale_entry_type(regular_expression="mk", language="Cyrillic-ISO", &
+                                                         coding_system="iso-8859-5"), &
+                                       locale_entry_type(regular_expression="mlt", language="Latin-3", coding_system=""), &
+                                       locale_entry_type(regular_expression="ml", language="Malayalam", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="mn", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="mri", language="Latin-7", coding_system=""), &
+                                       locale_entry_type(regular_expression="mr", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="ms", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="mt", language="Latin-3", coding_system=""), &
+                                       locale_entry_type(regular_expression="mym", language="Malayalam", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="my", language="Burmese", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="nb", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="ne", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="nl", language="Dutch", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regular_expression="nn", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="non", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="no", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="nr_ZA", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="nso_ZA", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="oc", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="om_ET", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="om", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="or", language="Oriya", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="pa", language="Punjabi", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="pl", language="Polish", coding_system="iso-8859-2"), &
+                                       locale_entry_type(regular_expression="ps", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="pas", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="pt_BR", language="Brazilian Portuguese", &
                                                          coding_system="iso-8859-1"), &
-                                       locale_entry_type(regexp="pt", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="rm", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="ro", language="Romanian", coding_system="iso-8859-2"), &
-                                       locale_entry_type(regexp="ru_RU.koi8r", language="Cyrillic-KOI8", coding_system="koi8-r"), &
-                                       locale_entry_type(regexp="ru_RU", language="Russian", coding_system="iso-8859-5"), &
-                                       locale_entry_type(regexp="ru_UA", language="Russian", coding_system="koi8-u"), &
-                                       locale_entry_type(regexp="rw", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="sa", language="Devanagari", coding_system=""), &
-                                       locale_entry_type(regexp="se", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="sh", language="Latin-2", coding_system=""), &
-                                       locale_entry_type(regexp="si", language="Sinhala", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="sid", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="sk", language="Slovak", coding_system="iso-8859-2"), &
-                                       locale_entry_type(regexp="sl", language="Slovenian", coding_system="iso-8859-2"), &
-                                       locale_entry_type(regexp="so_ET", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="so", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="sq", language="Latin-2", coding_system=""), &
-                                       locale_entry_type(regexp="sr", language="Latin-2", coding_system=""), &
-                                       locale_entry_type(regexp="st", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="sv", language="Swedish", coding_system="iso-8859-1"), &
-                                       locale_entry_type(regexp="sw", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="taj", language="Tajik", coding_system="koi8-t"), &
-                                       locale_entry_type(regexp="ta", language="Tamil", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="te", language="Telugu", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="tg", language="Tajik", coding_system="koi8-t"), &
-                                       locale_entry_type(regexp="th_TH.tis620", language="Thai", coding_system="tis-620"), &
-                                       locale_entry_type(regexp="th_TH.TIS-620", language="Thai", coding_system="tis-620"), &
-                                       locale_entry_type(regexp="th_TH", language="Thai", coding_system="iso-8859-11"), &
-                                       locale_entry_type(regexp="th", language="Thai", coding_system="iso-8859-11"), &
-                                       locale_entry_type(regexp="ti", language="Ethiopic", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="tig_ER", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="tk", language="Latin-5", coding_system=""), &
-                                       locale_entry_type(regexp="tuk", language="Latin-5", coding_system=""), &
-                                       locale_entry_type(regexp="tl", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="tn", language="Latin-9", coding_system=""), &
-                                       locale_entry_type(regexp="tr", language="Turkish", coding_system="iso-8859-9"), &
-                                       locale_entry_type(regexp="tsn", language="Latin-9", coding_system=""), &
-                                       locale_entry_type(regexp="ts", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="tt", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="ug", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="uk", language="Ukrainian", coding_system="koi8-u"), &
-                                       locale_entry_type(regexp="ur", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="uz_UZ@cyrillic", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="uz", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="ve", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="vi", language="Vietnamese", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="wa", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="wo", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="xh", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="yi", language="Windows-1255", coding_system=""), &
-                                       locale_entry_type(regexp="yo", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="zh_HK", language="Chinese-Big5", coding_system=""), &
-                                       locale_entry_type(regexp="zh_TW", language="Chinese-Big5", coding_system=""), &
-                                       locale_entry_type(regexp="zh_CN.GB2312", language="Chinese-GB", coding_system=""), &
-                                       locale_entry_type(regexp="zh_CN.GBK", language="Chinese-GBK", coding_system=""), &
-                                       locale_entry_type(regexp="zh_CN.GB18030", language="Chinese-GB18030", coding_system=""), &
-                                       locale_entry_type(regexp="zh_CN.UTF-8", language="Chinese-GBK", coding_system=""), &
-                                       locale_entry_type(regexp="zh_CN", language="Chinese-GB", coding_system=""), &
-                                       locale_entry_type(regexp="zhh", language="Chinese-Big5", coding_system=""), &
-                                       locale_entry_type(regexp="zhi", language="Chinese-GBK", coding_system=""), &
-                                       locale_entry_type(regexp="zhm", language="Chinese-Big5", coding_system=""), &
-                                       locale_entry_type(regexp="zh", language="Chinese-GB", coding_system=""), &
-                                       locale_entry_type(regexp="zu", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="c$", language="ASCII", coding_system=""), &
-                                       locale_entry_type(regexp="posix$", language="ASCII", coding_system=""), &
-                                       locale_entry_type(regexp="ipa$", language="IPA", coding_system=""), &
-                                       locale_entry_type(regexp="cz", language="Czech", coding_system=""), &
-                                       locale_entry_type(regexp="iw", language="Hebrew", coding_system=""), &
-                                       locale_entry_type(regexp="sp", language="Cyrillic-ISO", coding_system=""), &
-                                       locale_entry_type(regexp="su", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="jp", language="Japanese", coding_system=""), &
-                                       locale_entry_type(regexp="chs", language="Chinese-GBK", coding_system=""), &
-                                       locale_entry_type(regexp="cht", language="Chinese-BIG5", coding_system=""), &
-                                       locale_entry_type(regexp="gbz", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="div", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="wee", language="Latin-2", coding_system=""), &
-                                       locale_entry_type(regexp="wen", language="Latin-2", coding_system=""), &
-                                       locale_entry_type(regexp="ind", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="sme", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="smf", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="smg", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="kdi", language="Kannada", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="mar", language="Devanagari", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="khm", language="Khmer", coding_system="utf-8"), &
-                                       locale_entry_type(regexp="iri", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp="uig", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp="kin", language="UTF-8", coding_system="") &
+                                       locale_entry_type(regular_expression="pt", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="rm", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="ro", language="Romanian", &
+                                                         coding_system="iso-8859-2"), &
+                                       locale_entry_type(regular_expression="ru_RU.koi8r", language="Cyrillic-KOI8", &
+                                                         coding_system="koi8-r"), &
+                                       locale_entry_type(regular_expression="ru_RU", language="Russian", &
+                                                         coding_system="iso-8859-5"), &
+                                       locale_entry_type(regular_expression="ru_UA", language="Russian", coding_system="koi8-u"), &
+                                       locale_entry_type(regular_expression="rw", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="sa", language="Devanagari", coding_system=""), &
+                                       locale_entry_type(regular_expression="se", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="sh", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regular_expression="si", language="Sinhala", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="sid", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="sk", language="Slovak", coding_system="iso-8859-2"), &
+                                       locale_entry_type(regular_expression="sl", language="Slovenian", &
+                                                         coding_system="iso-8859-2"), &
+                                       locale_entry_type(regular_expression="so_ET", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="so", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="sq", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regular_expression="sr", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regular_expression="st", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="sv", language="Swedish", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regular_expression="sw", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="taj", language="Tajik", coding_system="koi8-t"), &
+                                       locale_entry_type(regular_expression="ta", language="Tamil", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="te", language="Telugu", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="tg", language="Tajik", coding_system="koi8-t"), &
+                                       locale_entry_type(regular_expression="th_TH.tis620", language="Thai", &
+                                                         coding_system="tis-620"), &
+                                       locale_entry_type(regular_expression="th_TH.TIS-620", language="Thai", &
+                                                         coding_system="tis-620"), &
+                                       locale_entry_type(regular_expression="th_TH", language="Thai", &
+                                                         coding_system="iso-8859-11"), &
+                                       locale_entry_type(regular_expression="th", language="Thai", coding_system="iso-8859-11"), &
+                                       locale_entry_type(regular_expression="ti", language="Ethiopic", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="tig_ER", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="tk", language="Latin-5", coding_system=""), &
+                                       locale_entry_type(regular_expression="tuk", language="Latin-5", coding_system=""), &
+                                       locale_entry_type(regular_expression="tl", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="tn", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regular_expression="tr", language="Turkish", coding_system="iso-8859-9"), &
+                                       locale_entry_type(regular_expression="tsn", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regular_expression="ts", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="tt", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="ug", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="uk", language="Ukrainian", coding_system="koi8-u"), &
+                                       locale_entry_type(regular_expression="ur", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="uz_UZ@cyrillic", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="uz", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="ve", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="vi", language="Vietnamese", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="wa", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="wo", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="xh", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="yi", language="Windows-1255", coding_system=""), &
+                                       locale_entry_type(regular_expression="yo", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="zh_HK", language="Chinese-Big5", coding_system=""), &
+                                       locale_entry_type(regular_expression="zh_TW", language="Chinese-Big5", coding_system=""), &
+                                       locale_entry_type(regular_expression="zh_CN.GB2312", language="Chinese-GB", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression="zh_CN.GBK", language="Chinese-GBK", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression="zh_CN.GB18030", language="Chinese-GB18030", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression="zh_CN.UTF-8", language="Chinese-GBK", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression="zh_CN", language="Chinese-GB", coding_system=""), &
+                                       locale_entry_type(regular_expression="zhh", language="Chinese-Big5", coding_system=""), &
+                                       locale_entry_type(regular_expression="zhi", language="Chinese-GBK", coding_system=""), &
+                                       locale_entry_type(regular_expression="zhm", language="Chinese-Big5", coding_system=""), &
+                                       locale_entry_type(regular_expression="zh", language="Chinese-GB", coding_system=""), &
+                                       locale_entry_type(regular_expression="zu", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="c$", language="ASCII", coding_system=""), &
+                                       locale_entry_type(regular_expression="posix$", language="ASCII", coding_system=""), &
+                                       locale_entry_type(regular_expression="ipa$", language="IPA", coding_system=""), &
+                                       locale_entry_type(regular_expression="cz", language="Czech", coding_system=""), &
+                                       locale_entry_type(regular_expression="iw", language="Hebrew", coding_system=""), &
+                                       locale_entry_type(regular_expression="sp", language="Cyrillic-ISO", coding_system=""), &
+                                       locale_entry_type(regular_expression="su", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="jp", language="Japanese", coding_system=""), &
+                                       locale_entry_type(regular_expression="chs", language="Chinese-GBK", coding_system=""), &
+                                       locale_entry_type(regular_expression="cht", language="Chinese-BIG5", coding_system=""), &
+                                       locale_entry_type(regular_expression="gbz", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="div", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="wee", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regular_expression="wen", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regular_expression="ind", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="sme", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="smf", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="smg", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="kdi", language="Kannada", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="mar", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="khm", language="Khmer", coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression="iri", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regular_expression="uig", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regular_expression="kin", language="UTF-8", coding_system="") &
                                        ]
 
     !> Table of locale regexps and charset language names.
@@ -486,15 +502,23 @@ module multilingual_environment_mod
     !> `locale_language_names'.  Port of mule-cmds.el
     !> locale-charset-language-names.
     type(locale_entry_type), public :: locale_charset_language_names(9) = [ &
-                                       locale_entry_type(regexp=".*8859[-_]?1\>", language="Latin-1", coding_system=""), &
-                                       locale_entry_type(regexp=".*8859[-_]?2\>", language="Latin-2", coding_system=""), &
-                                       locale_entry_type(regexp=".*8859[-_]?3\>", language="Latin-3", coding_system=""), &
-                                       locale_entry_type(regexp=".*8859[-_]?4\>", language="Latin-4", coding_system=""), &
-                                       locale_entry_type(regexp=".*8859[-_]?9\>", language="Latin-5", coding_system=""), &
-                                       locale_entry_type(regexp=".*8859[-_]?14\>", language="Latin-8", coding_system=""), &
-                                       locale_entry_type(regexp=".*8859[-_]?15\>", language="Latin-9", coding_system=""), &
-                                       locale_entry_type(regexp=".*utf\(?:-?8\)?\>", language="UTF-8", coding_system=""), &
-                                       locale_entry_type(regexp=".*@euro\>", language="Latin-9", coding_system="") &
+                                       locale_entry_type(regular_expression=".*8859[-_]?1\>", language="Latin-1", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?2\>", language="Latin-2", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?3\>", language="Latin-3", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?4\>", language="Latin-4", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?9\>", language="Latin-5", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?14\>", language="Latin-8", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?15\>", language="Latin-9", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression=".*utf\(?:-?8\)?\>", language="UTF-8", &
+                                                         coding_system=""), &
+                                       locale_entry_type(regular_expression=".*@euro\>", language="Latin-9", coding_system="") &
                                        ]
 
     !> Table of locale regexps and preferred coding systems.
@@ -503,33 +527,47 @@ module multilingual_environment_mod
     !> This coding system is used if the locale specifies a specific charset.
     !> Port of mule-cmds.el locale-preferred-coding-systems.
     type(locale_entry_type), public :: locale_preferred_coding_systems(24) = [ &
-                                       locale_entry_type(regexp=".*8859[-_]?1\>", language="", coding_system="iso-8859-1"), &
-                                       locale_entry_type(regexp=".*8859[-_]?2\>", language="", coding_system="iso-8859-2"), &
-                                       locale_entry_type(regexp=".*8859[-_]?3\>", language="", coding_system="iso-8859-3"), &
-                                       locale_entry_type(regexp=".*8859[-_]?4\>", language="", coding_system="iso-8859-4"), &
-                                       locale_entry_type(regexp=".*8859[-_]?9\>", language="", coding_system="iso-8859-9"), &
-                                       locale_entry_type(regexp=".*8859[-_]?14\>", language="", coding_system="iso-8859-14"), &
-                                       locale_entry_type(regexp=".*8859[-_]?15\>", language="", coding_system="iso-8859-15"), &
-                                       locale_entry_type(regexp=".*utf\(?:-?8\)?", language="", coding_system="utf-8"), &
-                                       locale_entry_type(regexp=".*@euro", language="", coding_system="iso-8859-15"), &
-                                       locale_entry_type(regexp="koi8-?r", language="", coding_system="koi8-r"), &
-                                       locale_entry_type(regexp="koi8-?u", language="", coding_system="koi8-u"), &
-                                       locale_entry_type(regexp="tcvn", language="", coding_system="tcvn"), &
-                                       locale_entry_type(regexp="big5[-_]?hkscs", language="", coding_system="big5-hkscs"), &
-                                       locale_entry_type(regexp="big5", language="", coding_system="big5"), &
-                                       locale_entry_type(regexp="euc-?tw", language="", coding_system="euc-tw"), &
-                                       locale_entry_type(regexp="euc-?cn", language="", coding_system="euc-cn"), &
-                                       locale_entry_type(regexp="gb2312", language="", coding_system="gb2312"), &
-                                       locale_entry_type(regexp="gbk", language="", coding_system="gbk"), &
-                                       locale_entry_type(regexp="gb18030", language="", coding_system="gb18030"), &
-                                       locale_entry_type(regexp="ja.*[._]euc", language="", coding_system="japanese-iso-8bit"), &
-                                       locale_entry_type(regexp="ja.*[._]jis7", language="", coding_system="iso-2022-jp"), &
-                                       locale_entry_type(regexp="ja.*[._]pck", language="", coding_system="japanese-shift-jis"), &
-                                       locale_entry_type(regexp="ja.*[._]sjis", language="", coding_system="japanese-shift-jis"), &
-                                       locale_entry_type(regexp="jpn", language="", coding_system="japanese-shift-jis") &
+                                       locale_entry_type(regular_expression=".*8859[-_]?1\>", language="", &
+                                                         coding_system="iso-8859-1"), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?2\>", language="", &
+                                                         coding_system="iso-8859-2"), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?3\>", language="", &
+                                                         coding_system="iso-8859-3"), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?4\>", language="", &
+                                                         coding_system="iso-8859-4"), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?9\>", language="", &
+                                                         coding_system="iso-8859-9"), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?14\>", language="", &
+                                                         coding_system="iso-8859-14"), &
+                                       locale_entry_type(regular_expression=".*8859[-_]?15\>", language="", &
+                                                         coding_system="iso-8859-15"), &
+                                       locale_entry_type(regular_expression=".*utf\(?:-?8\)?", language="", &
+                                                         coding_system="utf-8"), &
+                                       locale_entry_type(regular_expression=".*@euro", language="", coding_system="iso-8859-15"), &
+                                       locale_entry_type(regular_expression="koi8-?r", language="", coding_system="koi8-r"), &
+                                       locale_entry_type(regular_expression="koi8-?u", language="", coding_system="koi8-u"), &
+                                       locale_entry_type(regular_expression="tcvn", language="", coding_system="tcvn"), &
+                                       locale_entry_type(regular_expression="big5[-_]?hkscs", language="", &
+                                                         coding_system="big5-hkscs"), &
+                                       locale_entry_type(regular_expression="big5", language="", coding_system="big5"), &
+                                       locale_entry_type(regular_expression="euc-?tw", language="", coding_system="euc-tw"), &
+                                       locale_entry_type(regular_expression="euc-?cn", language="", coding_system="euc-cn"), &
+                                       locale_entry_type(regular_expression="gb2312", language="", coding_system="gb2312"), &
+                                       locale_entry_type(regular_expression="gbk", language="", coding_system="gbk"), &
+                                       locale_entry_type(regular_expression="gb18030", language="", coding_system="gb18030"), &
+                                       locale_entry_type(regular_expression="ja.*[._]euc", language="", &
+                                                         coding_system="japanese-iso-8bit"), &
+                                       locale_entry_type(regular_expression="ja.*[._]jis7", language="", &
+                                                         coding_system="iso-2022-jp"), &
+                                       locale_entry_type(regular_expression="ja.*[._]pck", language="", &
+                                                         coding_system="japanese-shift-jis"), &
+                                       locale_entry_type(regular_expression="ja.*[._]sjis", language="", &
+                                                         coding_system="japanese-shift-jis"), &
+                                       locale_entry_type(regular_expression="jpn", language="", &
+                                                         coding_system="japanese-shift-jis") &
                                        ]
 
-    ! The charset list_charset_chars shows, for its body in the buffer.
+    ! The charset list_charset_characters shows, for its body in the buffer.
     character(len=:), allocatable :: listed_charset
 
     !> File name for the system's file of locale-name aliases, or "" if none.
@@ -548,14 +586,14 @@ module multilingual_environment_mod
     !> the environment's).
     type(string_setting_type), public :: system_time_locale = string_setting_type(name="system_time_locale")
 
-    !> An entry of `auto_codings' or `auto_coding_regexps'.
+    !> An entry of `auto_codings' or `auto_coding_regular_expressions'.
     type, public :: auto_coding_type
         character(len=:), allocatable :: pattern, coding
     end type auto_coding_type
 
     !> Table of filename patterns vs corresponding coding systems.
-    !> Each element has a REGEXP (`pattern') and a CODING-SYSTEM (`coding').
-    !> A file whose name matches REGEXP is decoded by CODING-SYSTEM on reading.
+    !> Each element has a REGULAR_EXPRESSION (`pattern') and a CODING-SYSTEM (`coding').
+    !> A file whose name matches REGULAR_EXPRESSION is decoded by CODING-SYSTEM on reading.
     !>
     !> The settings in this table take priority over `coding:' tags
     !> in the file (see the function `set_auto_coding')
@@ -564,14 +602,14 @@ module multilingual_environment_mod
     type(auto_coding_type), allocatable, public :: auto_codings(:)
 
     !> Table of patterns vs corresponding coding systems.
-    !> Each element has a REGEXP (`pattern') and a CODING-SYSTEM (`coding').
-    !> A file whose first bytes match REGEXP is decoded by CODING-SYSTEM on reading.
+    !> Each element has a REGULAR_EXPRESSION (`pattern') and a CODING-SYSTEM (`coding').
+    !> A file whose first bytes match REGULAR_EXPRESSION is decoded by CODING-SYSTEM on reading.
     !>
     !> The settings in this table take priority over `coding:' tags
     !> in the file (see the function `set_auto_coding')
     !> and the contents of `file_coding_systems'.  Port of mule.el
     !> auto-coding-regexp-alist.
-    type(auto_coding_type), allocatable, public :: auto_coding_regexps(:)
+    type(auto_coding_type), allocatable, public :: auto_coding_regular_expressions(:)
 
     !> If true, a coding system selected automatically is accepted without
     !> asking (the default coding systems that encode the text are always
@@ -637,15 +675,15 @@ module multilingual_environment_mod
 contains
 
     !> Set up the coding systems and the Mule commands: C-x RET (C-x C-m)
-    !> and C-x \ in CTL_X_MAP, C-h C, C-h L and C-h I in HELP_MAP, and
+    !> and C-x \ in CONTROL_X_MAP, C-h C, C-h L and C-h I in HELP_MAP, and
     !> C-\ in GLOBAL_MAP.  Port of the top-level forms of mule.el, mule-cmds.el
     !> and mule-diag.el (and of bindings.el's C-\ and C-x \).
-    subroutine init_mule(global_map, ctl_x_map, help_map)
-        type(handle_type), intent(in) :: global_map, ctl_x_map, help_map
+    subroutine initialize_mule(global_map, control_x_map, help_map)
+        type(handle_type), intent(in) :: global_map, control_x_map, help_map
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
 
-        call init_coding()
+        call initialize_coding()
         ! buffer.c: buffer-file-coding-system is local when set, and
         ! permanently local.
         call forward_setting(buffer_file_coding_system, local_if_set=.true.)
@@ -673,47 +711,47 @@ contains
             auto_codings(8) = auto_coding_type("/#[^/]+#\'", "utf-8-emacs-unix")
         end if
 
-        if (.not. allocated(auto_coding_regexps)) then
-            allocate (auto_coding_regexps(5))
-            auto_coding_regexps(1) = auto_coding_type("\`BABYL OPTIONS:[ "//TAB//"]*-\*-[ "//TAB// &
-                                                      "]*rmail[ "//TAB//"]*-\*-", "no-conversion")
-            auto_coding_regexps(2) = auto_coding_type("\`"//char(int(z'FE'))//char(int(z'FF')), &
-                                                      "utf-16be-with-signature")
-            auto_coding_regexps(3) = auto_coding_type("\`"//char(int(z'FF'))//char(int(z'FE')), &
-                                                      "utf-16le-with-signature")
-            auto_coding_regexps(4) = auto_coding_type("\`"//char(int(z'EF'))//char(int(z'BB'))//char(int(z'BF')), &
-                                                      "utf-8-with-signature")
+        if (.not. allocated(auto_coding_regular_expressions)) then
+            allocate (auto_coding_regular_expressions(5))
+            auto_coding_regular_expressions(1) = auto_coding_type("\`BABYL OPTIONS:[ "//TAB//"]*-\*-[ "//TAB// &
+                                                                  "]*rmail[ "//TAB//"]*-\*-", "no-conversion")
+            auto_coding_regular_expressions(2) = auto_coding_type("\`"//char(int(z'FE'))//char(int(z'FF')), &
+                                                                  "utf-16be-with-signature")
+            auto_coding_regular_expressions(3) = auto_coding_type("\`"//char(int(z'FF'))//char(int(z'FE')), &
+                                                                  "utf-16le-with-signature")
+            auto_coding_regular_expressions(4) = auto_coding_type("\`"//char(int(z'EF'))//char(int(z'BB'))//char(int(z'BF')), &
+                                                                  "utf-8-with-signature")
             ! Emacs 20-compiled.
-            auto_coding_regexps(5) = auto_coding_type("\`;ELC"//achar(20)//achar(0)//achar(0)//achar(0), &
-                                                      "emacs-mule")
+            auto_coding_regular_expressions(5) = auto_coding_type("\`;ELC"//achar(20)//achar(0)//achar(0)//achar(0), &
+                                                                  "emacs-mule")
         end if
 
-        commands%set_buffer_file_coding_system%execute => cmd_set_buffer_file_coding_system
-        commands%revert_buffer_with_coding_system%execute => cmd_revert_buffer_with_coding_system
-        commands%prefer_coding_system%execute => cmd_prefer_coding_system
-        commands%describe_coding_system%execute => cmd_describe_coding_system
-        commands%describe_current_coding_system%execute => cmd_describe_current_coding_system
-        commands%universal_coding_system_argument%execute => cmd_universal_coding_system_argument
-        commands%set_buffer_process_coding_system%execute => cmd_set_buffer_process_coding_system
+        commands%set_buffer_file_coding_system%execute => execute_set_buffer_file_coding_system
+        commands%revert_buffer_with_coding_system%execute => execute_revert_buffer_with_coding_system
+        commands%prefer_coding_system%execute => execute_prefer_coding_system
+        commands%describe_coding_system%execute => execute_describe_coding_system
+        commands%describe_current_coding_system%execute => execute_describe_current_coding_system
+        commands%universal_coding_system_argument%execute => execute_universal_coding_system_argument
+        commands%set_buffer_process_coding_system%execute => execute_set_buffer_process_coding_system
         prefixed_next_coding_system = ""
         prefixed_last_coding_system = ""
         prefixed_coding_system = ""
         if (.not. allocated(default_terminal_coding_system)) default_terminal_coding_system = ""
         if (.not. allocated(default_keyboard_coding_system)) default_keyboard_coding_system = ""
         if (.not. allocated(keyboard_coding_system_variable)) keyboard_coding_system_variable = "utf-8-unix"
-        commands%set_terminal_coding_system%execute => cmd_set_terminal_coding_system
-        commands%set_keyboard_coding_system%execute => cmd_set_keyboard_coding_system
-        commands%set_language_environment%execute => cmd_set_language_environment
-        commands%set_locale_environment%execute => cmd_set_locale_environment
-        commands%reset_language_environment%execute => cmd_reset_language_environment
-        commands%describe_language_environment%execute => cmd_describe_language_environment
-        commands%list_character_sets%execute => cmd_list_character_sets
-        commands%list_charset_chars%execute => cmd_list_charset_chars
-        commands%describe_character_set%execute => cmd_describe_character_set
-        commands%set_input_method%execute => cmd_set_input_method
-        commands%toggle_input_method%execute => cmd_toggle_input_method
-        commands%activate_transient_input_method%execute => cmd_activate_transient_input_method
-        commands%describe_input_method%execute => cmd_describe_input_method
+        commands%set_terminal_coding_system%execute => execute_set_terminal_coding_system
+        commands%set_keyboard_coding_system%execute => execute_set_keyboard_coding_system
+        commands%set_language_environment%execute => execute_set_language_environment
+        commands%set_locale_environment%execute => execute_set_locale_environment
+        commands%reset_language_environment%execute => execute_reset_language_environment
+        commands%describe_language_environment%execute => execute_describe_language_environment
+        commands%list_character_sets%execute => execute_list_character_sets
+        commands%list_charset_characters%execute => execute_list_charset_characters
+        commands%describe_character_set%execute => execute_describe_character_set
+        commands%set_input_method%execute => execute_set_input_method
+        commands%toggle_input_method%execute => execute_toggle_input_method
+        commands%activate_transient_input_method%execute => execute_activate_transient_input_method
+        commands%describe_input_method%execute => execute_describe_input_method
         if (.not. allocated(input_methods)) allocate (input_methods(0))
         call make_sparse_keymap(mule_keymap)
         call bind(mule_keymap, "f", "set_buffer_file_coding_system")
@@ -726,33 +764,33 @@ contains
         call bind(mule_keymap, "C-\", "set_input_method")
         ! Keep "C-x C-m ..." for mule specific commands.
         call key_parse("C-m", key, st)
-        call define_key(ctl_x_map, key, keymap_value(mule_keymap), st)
+        call define_key(control_x_map, key, keymap_value(mule_keymap), st)
         call bind(help_map, "C", "describe_coding_system")
         call bind(help_map, "L", "describe_language_environment")
         call bind(help_map, "I", "describe_input_method")
         call bind(global_map, "C-\", "toggle_input_method")
-        call bind(ctl_x_map, "\", "activate_transient_input_method")
-    end subroutine init_mule
+        call bind(control_x_map, "\", "activate_transient_input_method")
+    end subroutine initialize_mule
 
     !> MAP as a keymap value, for binding it as a prefix.  Not a port.
     function keymap_value(map) result(v)
-        use value_mod, only: make_keymap_ref, value_type
+        use value_mod, only: make_keymap_reference, value_type
         type(handle_type), intent(in) :: map
         type(value_type) :: v
 
-        v = make_keymap_ref(map)
+        v = make_keymap_reference(map)
     end function keymap_value
 
-    ! Bind KEYS (in `kbd' form) to the command named CMD in MAP.
+    ! Bind KEYS (in `keyboard' form) to the command named COMMAND in MAP.
     ! Not a port.
-    subroutine bind(map, keys, cmd)
+    subroutine bind(map, keys, command)
         type(handle_type), intent(in) :: map
-        character(len=*), intent(in) :: keys, cmd
+        character(len=*), intent(in) :: keys, command
         type(value_type), allocatable :: key(:)
         type(status_type) :: status
 
         call key_parse(keys, key, status)
-        call define_key(map, key, value_type(name=cmd), status)
+        call define_key(map, key, value_type(name=command), status)
     end subroutine bind
 
     ! ------------------------------------------------------------------
@@ -778,10 +816,10 @@ contains
         end do
     end function auto_codings_lookup
 
-    !> Lookup `auto_coding_regexps' for TEXT (bytes, as a unibyte
+    !> Lookup `auto_coding_regular_expressions' for TEXT (bytes, as a unibyte
     !> buffer holds them, unless MULTIBYTE).  Port of
     !> mule.el:auto-coding-regexp-alist-lookup.
-    function auto_coding_regexps_lookup(text, multibyte) result(coding)
+    function auto_coding_regular_expressions_lookup(text, multibyte) result(coding)
         character(len=*), intent(in) :: text
         logical, intent(in) :: multibyte
         character(len=:), allocatable :: coding, subject
@@ -790,7 +828,7 @@ contains
         integer :: k
 
         coding = ""
-        if (.not. allocated(auto_coding_regexps)) return
+        if (.not. allocated(auto_coding_regular_expressions)) return
 
         ! The regexps hold bytes: as raw-byte characters on both sides.
         if (multibyte) then
@@ -802,16 +840,16 @@ contains
         saved = case_fold_search%value
         case_fold_search%value = .true.
 
-        do k = 1, size(auto_coding_regexps)
-            if (string_match(str_to_multibyte(auto_coding_regexps(k)%pattern), subject, st, &
+        do k = 1, size(auto_coding_regular_expressions)
+            if (string_match(str_to_multibyte(auto_coding_regular_expressions(k)%pattern), subject, st, &
                              inhibit_modify=.true.) > 0) then
-                coding = auto_coding_regexps(k)%coding
+                coding = auto_coding_regular_expressions(k)%coding
                 exit
             end if
         end do
 
         case_fold_search%value = saved
-    end function auto_coding_regexps_lookup
+    end function auto_coding_regular_expressions_lookup
 
     !> Find a coding system for a file FILENAME of which TEXT follows point.
     !> These bytes should include at least the first 1k of the file
@@ -822,7 +860,7 @@ contains
     !> The function checks FILENAME against the variable `auto_codings'.
     !> If FILENAME doesn't match any entries in the variable, it checks the
     !> contents of the current buffer following point against
-    !> `auto_coding_regexps'.  If no match is found, it checks for a
+    !> `auto_coding_regular_expressions'.  If no match is found, it checks for a
     !> `coding:' tag in the first one or two lines following point.  If no
     !> `coding:' tag is found, it checks any local variables list in the last
     !> 3K bytes out of the SIZE bytes.
@@ -839,7 +877,7 @@ contains
         character(len=*), intent(in) :: filename, text
         character(len=:), allocatable, intent(out) :: coding, source
         logical, intent(in), optional :: multibyte
-        character(len=:), allocatable :: head, tail, spec
+        character(len=:), allocatable :: head, tail, specification
         integer :: size_, head_end, tail_start, k
         logical :: mb, head_found, tail_found
 
@@ -854,7 +892,7 @@ contains
         end if
 
         ! Try using `auto-coding-regexp-alist'.
-        coding = auto_coding_regexps_lookup(text, mb)
+        coding = auto_coding_regular_expressions_lookup(text, mb)
 
         if (len(coding) > 0) then
             source = "auto-coding-regexp-alist"
@@ -873,8 +911,8 @@ contains
 
         ! At first check the head.
         if (head_found) then
-            spec = auto_mode_region(head)
-            if (len(spec) > 0) coding = coding_tag(spec)
+            specification = auto_mode_region(head)
+            if (len(specification) > 0) coding = coding_tag(specification)
         end if
 
         ! If no coding: tag in the head, check the tail.
@@ -892,20 +930,20 @@ contains
     !> the spaces next to them ("" if none): looked for in the first line,
     !> or the first two when the text starts with "#!" or '\" (exec
     !> interpreter magic).  Port of files.el:set-auto-mode-1 (no
-    !> `inhibit_local_variables_regexps').
-    function auto_mode_region(text) result(spec)
+    !> `inhibit_local_variables_regular_expressions').
+    function auto_mode_region(text) result(specification)
         character(len=*), intent(in) :: text
-        character(len=:), allocatable :: spec, line, rest
-        integer :: nl, i, j, a, b
+        character(len=:), allocatable :: specification, line, rest
+        integer :: newline, i, j, a, b
         logical :: skip
 
-        spec = ""
-        nl = index(text, LF)
+        specification = ""
+        newline = index(text, LF)
 
-        if (nl == 0) then
+        if (newline == 0) then
             line = text
         else
-            line = text(1:nl - 1)
+            line = text(1:newline - 1)
         end if
 
         skip = .false.
@@ -913,10 +951,10 @@ contains
         if (len(text) >= 3) skip = skip .or. text(1:3) == "'\"""
         i = index(line, "-*-")
 
-        if (i == 0 .and. skip .and. nl > 0) then
-            line = text(nl + 1:)
-            nl = index(line, LF)
-            if (nl > 0) line = line(1:nl - 1)
+        if (i == 0 .and. skip .and. newline > 0) then
+            line = text(newline + 1:)
+            newline = index(line, LF)
+            if (newline > 0) line = line(1:newline - 1)
             i = index(line, "-*-")
         end if
 
@@ -928,13 +966,13 @@ contains
         a = verify(rest, " "//TAB)
         if (a == 0) return
         b = verify(rest, " "//TAB, back=.true.)
-        spec = rest(a:b)
+        specification = rest(a:b)
     end function auto_mode_region
 
-    !> The coding system the `coding:' tag of -*- spec SPEC names, or "".
+    !> The coding system the `coding:' tag of -*- spec SPECIFICATION names, or "".
     !> Port of mule.el:find-auto-coding, in part.
-    function coding_tag(spec) result(coding)
-        character(len=*), intent(in) :: spec
+    function coding_tag(specification) result(coding)
+        character(len=*), intent(in) :: specification
         character(len=:), allocatable :: coding
         type(status_type) :: st
         integer(int64) :: b, e
@@ -944,10 +982,10 @@ contains
         saved = case_fold_search%value
         case_fold_search%value = .true.
 
-        if (string_match("\(.*;\)?[ "//TAB//"]*coding:[ "//TAB//"]*\([^ ;]+\)", spec, st) > 0) then
+        if (string_match("\(.*;\)?[ "//TAB//"]*coding:[ "//TAB//"]*\([^ ;]+\)", specification, st) > 0) then
             b = match_beginning(2, st)
             e = match_end(2, st)
-            if (st%ok() .and. b > 0 .and. e >= b) coding = spec(b:e - 1)
+            if (st%ok() .and. b > 0 .and. e >= b) coding = specification(b:e - 1)
         end if
 
         case_fold_search%value = saved
@@ -959,9 +997,9 @@ contains
     !> Port of mule.el:find-auto-coding, in part.
     function local_variables_coding(tail) result(coding)
         character(len=*), intent(in) :: tail
-        character(len=:), allocatable :: coding, prefix, suffix, re_coding, re_end, rest
+        character(len=:), allocatable :: coding, prefix, suffix, regular_expression_coding, regular_expression_end, rest
         type(status_type) :: st
-        integer(int64) :: k, start, pos, endpos
+        integer(int64) :: k, start, position, endpos
         logical :: saved
 
         coding = ""
@@ -979,19 +1017,20 @@ contains
             ! The prefix is what comes before "local variables:" in its
             ! line.  The suffix is what comes after "local variables:"
             ! in its line.
-            prefix = regexp_quote(rest(match_beginning(1, st):match_end(1, st) - 1))
-            suffix = regexp_quote(rest(match_beginning(2, st):match_end(2, st) - 1))
+            prefix = regular_expression_quote(rest(match_beginning(1, st):match_end(1, st) - 1))
+            suffix = regular_expression_quote(rest(match_beginning(2, st):match_end(2, st) - 1))
             ! (forward-char -1): from the \r or \n ending that line.
-            pos = match_end(0, st) - 1
-            re_coding = "["//CR//LF//"]"//prefix//"[ "//TAB//"]*coding[ "//TAB//"]*:[ "//TAB//"]*\([^ "//TAB//CR//LF// &
-                        "]+\)[ "//TAB//"]*"//suffix//"["//CR//LF//"]"
-            re_end = "["//CR//LF//"]"//prefix//"[ "//TAB//"]*End *:[ "//TAB//"]*"//suffix//"["//CR//LF//"]?"
-            rest = rest(pos:)
+            position = match_end(0, st) - 1
+            regular_expression_coding = "["//CR//LF//"]"//prefix//"[ "//TAB//"]*coding[ "//TAB//"]*:[ "//TAB//"]*\([^ "//TAB//CR &
+                                        //LF// &
+                                        "]+\)[ "//TAB//"]*"//suffix//"["//CR//LF//"]"
+            regular_expression_end = "["//CR//LF//"]"//prefix//"[ "//TAB//"]*End *:[ "//TAB//"]*"//suffix//"["//CR//LF//"]?"
+            rest = rest(position:)
             endpos = len(rest, kind=int64) + 1
-            k = string_match(re_end, rest, st)
+            k = string_match(regular_expression_end, rest, st)
             if (k > 0) endpos = match_end(0, st)
             rest = rest(1:endpos - 1)
-            if (string_match(re_coding, rest, st) > 0) coding = rest(match_beginning(1, st):match_end(1, st) - 1)
+            if (string_match(regular_expression_coding, rest, st) > 0) coding = rest(match_beginning(1, st):match_end(1, st) - 1)
         end if
 
         case_fold_search%value = saved
@@ -999,7 +1038,7 @@ contains
 
     !> S with the regexp special characters quoted.  Port of
     !> search.c:Fregexp_quote.
-    function regexp_quote(s) result(q)
+    function regular_expression_quote(s) result(q)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: q
         integer :: i
@@ -1010,7 +1049,7 @@ contains
             if (index("[*.\?+^$", s(i:i)) > 0) q = q//"\"
             q = q//s(i:i)
         end do
-    end function regexp_quote
+    end function regular_expression_quote
 
     !> Return coding system for a file FILENAME whose first bytes HEAD
     !> follow point.
@@ -1105,7 +1144,7 @@ contains
         character(len=*), intent(in) :: coding
         character(len=:), allocatable :: new
         character(len=:), allocatable :: bfcs, local_coding, found_coding, new_coding
-        integer :: local_eol, found_eol, new_eol
+        integer :: local_end_of_line, found_end_of_line, new_end_of_line
         logical :: local
 
         new = ""
@@ -1115,7 +1154,7 @@ contains
         local = buffer_file_coding_system%local_p()
         ! Get information of `buffer-file-coding-system' in LOCAL-EOL and
         ! LOCAL-CODING.
-        local_eol = coding_system_eol_type(bfcs)
+        local_end_of_line = coding_system_end_of_line_type(bfcs)
         local_coding = ""
 
         if (len(bfcs) > 0) then
@@ -1124,31 +1163,32 @@ contains
 
         ! The current buffer has already set full coding-system, we had
         ! better not change it.
-        if (local .and. local_eol /= EOL_UNDECIDED .and. len(local_coding) > 0) return
-        found_eol = coding_system_eol_type(coding)
-        ! If EOL conversions are inhibited, force unix eol-type.
-        if (found_eol == EOL_UNDECIDED .and. inhibit_eol_conversion%value) found_eol = EOL_UNIX
+        if (local .and. local_end_of_line /= END_OF_LINE_UNDECIDED .and. len(local_coding) > 0) return
+        found_end_of_line = coding_system_end_of_line_type(coding)
+        ! If END_OF_LINE conversions are inhibited, force unix eol-type.
+        if (found_end_of_line == END_OF_LINE_UNDECIDED .and. inhibit_end_of_line_conversion%value) found_end_of_line = &
+            END_OF_LINE_UNIX
         found_coding = coding_system_base(coding)
         ! No valid coding information found.
-        if (found_eol == EOL_UNDECIDED .and. found_coding == "undecided") return
+        if (found_end_of_line == END_OF_LINE_UNDECIDED .and. found_coding == "undecided") return
 
         ! The local setting takes precedence over the found one.
         if (local) then
             new_coding = local_coding
             if (len(new_coding) == 0) new_coding = found_coding
-            new_eol = local_eol
-            if (new_eol == EOL_UNDECIDED) new_eol = found_eol
+            new_end_of_line = local_end_of_line
+            if (new_end_of_line == END_OF_LINE_UNDECIDED) new_end_of_line = found_end_of_line
         else
             new_coding = found_coding
             if (len(new_coding) == 0) new_coding = local_coding
-            new_eol = found_eol
-            if (new_eol == EOL_UNDECIDED) new_eol = local_eol
+            new_end_of_line = found_end_of_line
+            if (new_end_of_line == END_OF_LINE_UNDECIDED) new_end_of_line = local_end_of_line
         end if
 
         new = new_coding
 
-        if (new_eol /= EOL_UNDECIDED .and. coding_system_eol_type(new_coding) == EOL_UNDECIDED) then
-            new = coding_system_change_eol_conversion(new_coding, new_eol)
+        if (new_end_of_line /= END_OF_LINE_UNDECIDED .and. coding_system_end_of_line_type(new_coding) == END_OF_LINE_UNDECIDED) then
+            new = coding_system_change_end_of_line_conversion(new_coding, new_end_of_line)
         end if
     end function find_new_buffer_file_coding_system
 
@@ -1158,16 +1198,16 @@ contains
     function merge_coding_systems(first, second) result(cs)
         character(len=*), intent(in) :: first, second
         character(len=:), allocatable :: cs
-        integer :: eol
+        integer :: end_of_line
 
         cs = first
         ! If FIRST doesn't specify text conversion, merge with that of SECOND.
         if (coding_system_base(cs) == "undecided") cs = coding_system_change_text_conversion(cs, second)
         ! If FIRST doesn't specify eol conversion, merge with that of SECOND.
-        eol = coding_system_eol_type(cs)
+        end_of_line = coding_system_end_of_line_type(cs)
 
-        if (eol == EOL_UNDECIDED .and. coding_system_eol_type(second) /= EOL_UNDECIDED) then
-            cs = coding_system_change_eol_conversion(cs, coding_system_eol_type(second))
+        if (end_of_line == END_OF_LINE_UNDECIDED .and. coding_system_end_of_line_type(second) /= END_OF_LINE_UNDECIDED) then
+            cs = coding_system_change_end_of_line_conversion(cs, coding_system_end_of_line_type(second))
         end if
     end function merge_coding_systems
 
@@ -1389,16 +1429,16 @@ contains
         if (.not. nomodify) call restore_buffer_modified(.true.)
     end subroutine set_buffer_file_coding_system
 
-    recursive subroutine cmd_set_buffer_file_coding_system(status)
+    recursive subroutine execute_set_buffer_file_coding_system(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: cs
         logical :: force
 
-        force = current_prefix_arg%kind /= PREFIX_NONE
+        force = current_prefix_argument%kind /= PREFIX_NONE
         call read_buffer_file_coding_system(cs, status)
         if (.not. status%ok()) return
         call set_buffer_file_coding_system(cs, force, .false., .true., status)
-    end subroutine cmd_set_buffer_file_coding_system
+    end subroutine execute_set_buffer_file_coding_system
 
     !> Execute an I/O command using the specified CODING_SYSTEM.  Port of
     !> mule-cmds.el:universal-coding-system-argument (the echo of the
@@ -1414,7 +1454,7 @@ contains
         call prefix_command_preserve_state_hook%prepend(prefixed_command_preserve)
     end subroutine universal_coding_system_argument
 
-    recursive subroutine cmd_universal_coding_system_argument(status)
+    recursive subroutine execute_universal_coding_system_argument(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: default, coding
 
@@ -1431,7 +1471,7 @@ contains
         call read_coding_system(format_prompt("Coding system for following command", default), default, coding, status)
         if (.not. status%ok()) return
         call universal_coding_system_argument(coding, status)
-    end subroutine cmd_universal_coding_system_argument
+    end subroutine execute_universal_coding_system_argument
 
     ! The function of `pre_command_hook' that runs the command with the
     ! coding system of `universal_coding_system_argument'.  Port of
@@ -1452,17 +1492,17 @@ contains
         end if
     end subroutine prefixed_command_pch
 
-    ! The command run in place of CMD: CMD with `coding_system_for_read'
+    ! The command run in place of COMMAND: COMMAND with `coding_system_for_read'
     ! and `coding_system_for_write' bound to the coding system (the
     ! lambda of mule-cmds--prefixed-command-pch).  Port of
     ! international/mule-cmds.el:mule-cmds--prefixed-command-pch, in part.
-    recursive subroutine prefixed_command(cmd, status)
-        type(value_type), intent(in) :: cmd
+    recursive subroutine prefixed_command(command, status)
+        type(value_type), intent(in) :: command
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: saved_read, saved_write
         logical :: had_read, had_write, saved_warning
 
-        this_command => command_of(cmd)
+        this_command => command_of(command)
         had_read = allocated(coding_system_for_read%value)
         if (had_read) saved_read = coding_system_for_read%value
         had_write = allocated(coding_system_for_write%value)
@@ -1471,7 +1511,7 @@ contains
         coding_system_for_read = prefixed_coding_system
         coding_system_for_write = prefixed_coding_system
         coding_system_require_warning = .true.
-        call execute_interactively(cmd, status)
+        call execute_interactively(command, status)
 
         if (had_read) then
             coding_system_for_read = saved_read
@@ -1514,7 +1554,7 @@ contains
         process = get_buffer_process(current_buffer())
 
         if (process%index == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No process")
+            call set_error(status, GENERIC_ERROR_CODE, "No process")
             return
         end if
 
@@ -1533,7 +1573,7 @@ contains
         call set_process_coding_system(process, decoding, encoding, status)
     end subroutine set_buffer_process_coding_system
 
-    recursive subroutine cmd_set_buffer_process_coding_system(status)
+    recursive subroutine execute_set_buffer_process_coding_system(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: decoding, encoding
 
@@ -1542,7 +1582,7 @@ contains
         call read_coding_system("Coding-system for input to the process: ", "", encoding, status)
         if (.not. status%ok()) return
         call set_buffer_process_coding_system(decoding, encoding, status)
-    end subroutine cmd_set_buffer_process_coding_system
+    end subroutine execute_set_buffer_process_coding_system
 
     !> Set coding system of terminal output to CODING_SYSTEM.
     !> All text output to the terminal will be encoded with the specified
@@ -1572,7 +1612,7 @@ contains
         if (refresh) call redraw_frame(selected_frame)
     end subroutine set_terminal_coding_system
 
-    recursive subroutine cmd_set_terminal_coding_system(status)
+    recursive subroutine execute_set_terminal_coding_system(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: default, coding
 
@@ -1581,7 +1621,7 @@ contains
         call read_coding_system(format_prompt("Coding system for terminal display", default), default, coding, status)
         if (.not. status%ok()) return
         call set_terminal_coding_system(coding, status)
-    end subroutine cmd_set_terminal_coding_system
+    end subroutine execute_set_terminal_coding_system
 
     !> Set coding system for keyboard input on the terminal to
     !> CODING_SYSTEM.
@@ -1607,12 +1647,12 @@ contains
         if (len(name) == 0) name = "nil"
 
         if (len(cs) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Unsuitable coding system for keyboard: "//name)
+            call set_error(status, GENERIC_ERROR_CODE, "Unsuitable coding system for keyboard: "//name)
             return
         end if
 
         if (.not. (is_coding_system_suitable_for_keyboard(cs) .or. is_coding_system_ascii_compatible(cs))) then
-            call set_error(status, FM_GENERIC_ERROR, "Unsuitable coding system for keyboard: "//name)
+            call set_error(status, GENERIC_ERROR_CODE, "Unsuitable coding system for keyboard: "//name)
             return
         end if
 
@@ -1624,7 +1664,7 @@ contains
         case ("iso-2022")
             accept_8_bit = .not. is_coding_system_iso_7_bit(cs)
         case default
-            call set_error(status, FM_GENERIC_ERROR, "Unsupported coding system for keyboard: "//name)
+            call set_error(status, GENERIC_ERROR_CODE, "Unsupported coding system for keyboard: "//name)
             return
         end select
 
@@ -1641,13 +1681,13 @@ contains
         end if
 
         ! Avoid end-of-line conversion.
-        cs = coding_system_change_eol_conversion(cs, EOL_UNIX)
+        cs = coding_system_change_end_of_line_conversion(cs, END_OF_LINE_UNIX)
         call set_keyboard_coding_system_internal(cs, status)
         if (.not. status%ok()) return
         keyboard_coding_system_variable = cs
     end subroutine set_keyboard_coding_system
 
-    recursive subroutine cmd_set_keyboard_coding_system(status)
+    recursive subroutine execute_set_keyboard_coding_system(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: default, coding
 
@@ -1656,7 +1696,7 @@ contains
         call read_coding_system(format_prompt("Coding system for keyboard input", default), default, coding, status)
         if (.not. status%ok()) return
         call set_keyboard_coding_system(coding, status)
-    end subroutine cmd_set_keyboard_coding_system
+    end subroutine execute_set_keyboard_coding_system
 
     !> Visit the current buffer's file again using coding system CODING-SYSTEM.
     !> For a list of possible values of CODING-SYSTEM, use \[list_coding_systems].
@@ -1701,16 +1741,16 @@ contains
         end if
     end subroutine revert_buffer_with_coding_system
 
-    recursive subroutine cmd_revert_buffer_with_coding_system(status)
+    recursive subroutine execute_revert_buffer_with_coding_system(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: cs
         logical :: force
 
-        force = current_prefix_arg%kind /= PREFIX_NONE
+        force = current_prefix_argument%kind /= PREFIX_NONE
         call read_coding_system("Coding system for visited file (default nil): ", "", cs, status)
         if (.not. status%ok()) return
         call revert_buffer_with_coding_system(cs, force, status)
-    end subroutine cmd_revert_buffer_with_coding_system
+    end subroutine execute_revert_buffer_with_coding_system
 
     !> Set default value of various coding systems to CODING-SYSTEM.
     !> This sets the following coding systems:
@@ -1739,8 +1779,8 @@ contains
     !>   o coding system of a newly created buffer
     !>   o default coding system for subprocess I/O
     !>
-    !> If CODING-SYSTEM specifies a certain type of EOL conversion, the coding
-    !> systems set by this function will use that type of EOL conversion.
+    !> If CODING-SYSTEM specifies a certain type of END_OF_LINE conversion, the coding
+    !> systems set by this function will use that type of END_OF_LINE conversion.
     !>
     !> A coding system that requires automatic detection of text+encoding
     !> (e.g. undecided, unix) can't be preferred.
@@ -1756,10 +1796,10 @@ contains
         !> Called interactively: say when the base was preferred.
         logical, intent(in), optional :: interactive
         character(len=:), allocatable :: base, cs, t
-        integer :: eol
+        integer :: end_of_line
 
         if (len(coding_system) == 0 .or. .not. is_coding_system(coding_system)) then
-            call set_error(status, FM_GENERIC_ERROR, &
+            call set_error(status, GENERIC_ERROR_CODE, &
                            format_message("Invalid coding system `")//coding_system//format_message("'"))
             return
         end if
@@ -1767,13 +1807,13 @@ contains
         t = coding_system_type(coding_system)
 
         if (t == "raw-text" .or. t == "undecided") then
-            call set_error(status, FM_GENERIC_ERROR, &
+            call set_error(status, GENERIC_ERROR_CODE, &
                            format_message("Can't prefer the coding system `")//coding_system//format_message("'"))
             return
         end if
 
         base = coding_system_base(coding_system)
-        eol = coding_system_eol_type(coding_system)
+        end_of_line = coding_system_end_of_line_type(coding_system)
         call set_coding_system_priority([character(len=len(base)) :: base], status)
         if (.not. status%ok()) return
 
@@ -1783,13 +1823,13 @@ contains
             end if
         end if
 
-        ! If they asked for specific EOL conversion, honor that.
+        ! If they asked for specific END_OF_LINE conversion, honor that.
         cs = base
-        if (eol /= EOL_UNDECIDED) cs = coding_system_change_eol_conversion(base, eol)
+        if (end_of_line /= END_OF_LINE_UNDECIDED) cs = coding_system_change_end_of_line_conversion(base, end_of_line)
         call set_default_coding_systems(cs, status)
     end subroutine prefer_coding_system
 
-    recursive subroutine cmd_prefer_coding_system(status)
+    recursive subroutine execute_prefer_coding_system(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: cs
 
@@ -1801,7 +1841,7 @@ contains
         end do
 
         call prefer_coding_system(cs, status, interactive=.true.)
-    end subroutine cmd_prefer_coding_system
+    end subroutine execute_prefer_coding_system
 
     ! ------------------------------------------------------------------
     ! Choosing a coding system that can encode the text
@@ -1846,7 +1886,7 @@ contains
         type(value_type) :: v
         type(status_type) :: vst
         logical :: no_other_defaults, all, ok
-        integer :: k, nd, eol, n
+        integer :: k, nd, end_of_line, n
         integer(int64) :: tick
 
         coding = ""
@@ -1877,7 +1917,7 @@ contains
                 if (.not. status%ok()) return
 
                 if (.not. ok) then
-                    call set_error(status, FM_GENERIC_ERROR, "Save aborted")
+                    call set_error(status, GENERIC_ERROR_CODE, "Save aborted")
                     return
                 end if
 
@@ -1949,26 +1989,26 @@ contains
         ! Decide the eol-type from the top of the default codings, current
         ! buffer-file-coding-system, or default buffer-file-coding-system.
         if (nd > 0) then
-            eol = coding_system_eol_type(defaults(1)%name)
+            end_of_line = coding_system_end_of_line_type(defaults(1)%name)
 
-            if (eol == EOL_UNDECIDED .and. allocated(buffer_file_coding_system%value)) then
-                eol = coding_system_eol_type(buffer_file_coding_system%value)
+            if (end_of_line == END_OF_LINE_UNDECIDED .and. allocated(buffer_file_coding_system%value)) then
+                end_of_line = coding_system_end_of_line_type(buffer_file_coding_system%value)
             end if
 
-            if (eol == EOL_UNDECIDED) then
+            if (end_of_line == END_OF_LINE_UNDECIDED) then
                 dflt = default_buffer_file_coding_system()
-                if (len(dflt) > 0) eol = coding_system_eol_type(dflt)
+                if (len(dflt) > 0) end_of_line = coding_system_end_of_line_type(dflt)
             end if
 
-            if (eol /= EOL_UNDECIDED) then
+            if (end_of_line /= END_OF_LINE_UNDECIDED) then
                 do k = 1, nd
-                    defaults(k)%name = coding_system_change_eol_conversion(defaults(k)%name, eol)
+                    defaults(k)%name = coding_system_change_end_of_line_conversion(defaults(k)%name, end_of_line)
                 end do
             end if
         end if
 
         call find_coding_systems_text(text, codings, all)
-        tick = buffers(current)%text%chars_modiff
+        tick = buffers(current)%text%characters_modiff
 
         if (all) then
             ! Any coding system is ok.
@@ -2020,15 +2060,15 @@ contains
                     if (.not. status%ok()) return
 
                     if (.not. ok) then
-                        call set_error(status, FM_GENERIC_ERROR, "Save aborted")
+                        call set_error(status, GENERIC_ERROR_CODE, "Save aborted")
                         return
                     end if
                 end if
             end if
         end if
 
-        if (tick /= buffers(current)%text%chars_modiff) then
-            call set_error(status, FM_GENERIC_ERROR, "Canceled because the buffer was modified")
+        if (tick /= buffers(current)%text%characters_modiff) then
+            call set_error(status, GENERIC_ERROR_CODE, "Canceled because the buffer was modified")
             return
         end if
 
@@ -2051,8 +2091,8 @@ contains
                 return
             end if
 
-            eol1 = coding_system_eol_type(coding)
-            eol2 = coding_system_eol_type(auto_cs)
+            eol1 = coding_system_end_of_line_type(coding)
+            eol2 = coding_system_end_of_line_type(auto_cs)
 
             if (coding_system_base(coding) == "undecided") then
                 coding = coding_system_change_text_conversion(coding, auto_cs)
@@ -2060,10 +2100,10 @@ contains
                 auto_cs = coding_system_change_text_conversion(auto_cs, coding)
             end if
 
-            if (eol1 == EOL_UNDECIDED) then
-                if (eol2 /= EOL_UNDECIDED) coding = coding_system_change_eol_conversion(coding, eol2)
-            else if (eol2 == EOL_UNDECIDED) then
-                auto_cs = coding_system_change_eol_conversion(auto_cs, eol1)
+            if (eol1 == END_OF_LINE_UNDECIDED) then
+                if (eol2 /= END_OF_LINE_UNDECIDED) coding = coding_system_change_end_of_line_conversion(coding, eol2)
+            else if (eol2 == END_OF_LINE_UNDECIDED) then
+                auto_cs = coding_system_change_end_of_line_conversion(auto_cs, eol1)
             end if
         end subroutine merge_auto_cs
     end subroutine select_safe_coding_system
@@ -2088,11 +2128,11 @@ contains
 
     !> The text between FROM and TO of the current buffer.  Not a port.
     function region_text(from, to) result(text)
-        use marker_mod, only: char_to_byte
+        use marker_mod, only: character_to_byte
         integer(int64), intent(in) :: from, to
         character(len=:), allocatable :: text
 
-        text = buf_bytes(buffers(current), char_to_byte(from), char_to_byte(to))
+        text = buf_bytes(buffers(current), character_to_byte(from), character_to_byte(to))
     end function region_text
 
     ! Append the coding system NAME to LIST (N used).  Not a port.
@@ -2177,7 +2217,7 @@ contains
                 do j = 1, min(11, size(bad(1)%positions))
                     p = bad(1)%positions(j)
                     write (position_text, '(" (", i0, " .")') p
-                    line = line//trim(position_text)//" "//char_at(p)//")"
+                    line = line//trim(position_text)//" "//character_at(p)//")"
                     firstpos = min(firstpos, p)
                 end do
 
@@ -2195,7 +2235,7 @@ contains
 
             do j = 1, size(bad(1)%positions)
                 if (j <= 10) then
-                    line = line//" "//char_at(bad(1)%positions(j))
+                    line = line//" "//character_at(bad(1)%positions(j))
                 else
                     line = line//" ..."
                     exit
@@ -2230,19 +2270,19 @@ contains
 
     contains
 
-        function char_at(pos) result(s)
-            use marker_mod, only: char_to_byte
+        function character_at(position) result(s)
+            use marker_mod, only: character_to_byte
             use character_mod, only: multibyte_length
-            integer(int64), intent(in) :: pos
+            integer(int64), intent(in) :: position
             character(len=:), allocatable :: s
             integer(int64) :: b
             integer :: n
 
-            b = char_to_byte(pos)
+            b = character_to_byte(position)
             s = buf_bytes(buffers(current), b, b + 1)
             n = multibyte_length(buf_bytes(buffers(current), b, min(b + 5, buffers(current)%text%z_byte)), 1_int64, .false.)
             if (n > 1) s = buf_bytes(buffers(current), b, b + n)
-        end function char_at
+        end function character_at
     end subroutine select_safe_coding_system_interactively
 
     !> The coding system names of LINE, filled as fill-region-as-paragraph
@@ -2290,7 +2330,7 @@ contains
         use buffer_mod, only: get_or_make_buffer
         use insert_delete_mod, only: insert
         use buffer_mod, only: erase_buffer
-        use window_mod, only: temp_buffer_window_show
+        use window_mod, only: temporary_buffer_window_show
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, previous, window
@@ -2303,7 +2343,7 @@ contains
         if (.not. status%ok()) return
         call erase_buffer(status)
         call insert(text, status)
-        call temp_buffer_window_show(buffer, window, status)
+        call temporary_buffer_window_show(buffer, window, status)
         if (is_buffer_live(previous)) call set_buffer(previous, st)
     end subroutine show_warning
 
@@ -2329,7 +2369,7 @@ contains
         character(len=:), allocatable :: s, alias_list
         type(coding_system_list_entry_type), allocatable :: aliases(:)
         character(len=40) :: subs(0:2)
-        integer :: k, eol
+        integer :: k, end_of_line
 
         if (len(coding_system) == 0) then
             s = "nil"//LF
@@ -2353,11 +2393,11 @@ contains
             else if (has_coding_system(coding_system, aliases)) then
                 s = s//" (alias of "//aliases(1)%name//")"
             else
-                eol = coding_system_eol_type(coding_system)
+                end_of_line = coding_system_end_of_line_type(coding_system)
                 call coding_system_subsidiaries(aliases(1)%name, subs)
 
-                if (eol /= EOL_UNDECIDED .and. len_trim(subs(0)) > 0) then
-                    if (trim(subs(eol)) /= coding_system) s = s//" (alias of "//trim(subs(eol))//")"
+                if (end_of_line /= END_OF_LINE_UNDECIDED .and. len_trim(subs(0)) > 0) then
+                    if (trim(subs(end_of_line)) /= coding_system) s = s//" (alias of "//trim(subs(end_of_line))//")"
                 end if
             end if
         end if
@@ -2401,14 +2441,14 @@ contains
 
         s = s//LF//"EOL type: "
 
-        select case (coding_system_eol_type(coding_system))
-        case (EOL_UNDECIDED)
+        select case (coding_system_end_of_line_type(coding_system))
+        case (END_OF_LINE_UNDECIDED)
             call coding_system_subsidiaries(coding_system, subs)
             s = s//"Automatic selection from:"//LF//TAB//"["//trim(subs(0))//" "//trim(subs(1))//" "// &
                 trim(subs(2))//"]"//LF
-        case (EOL_UNIX)
+        case (END_OF_LINE_UNIX)
             s = s//"LF"//LF
-        case (EOL_DOS)
+        case (END_OF_LINE_DOS)
             s = s//"CRLF"//LF
         case default
             s = s//"CR"//LF
@@ -2423,14 +2463,14 @@ contains
         call with_help_window(s, status)
     end subroutine describe_coding_system
 
-    recursive subroutine cmd_describe_coding_system(status)
+    recursive subroutine execute_describe_coding_system(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: cs
 
         call read_coding_system("Describe coding system (default current choices): ", "", cs, status)
         if (.not. status%ok()) return
         call describe_coding_system(cs, status)
-    end subroutine cmd_describe_coding_system
+    end subroutine execute_describe_coding_system
 
     !> Display coding systems currently used, in detail.  Port of
     !> mule-diag.el:describe-current-coding-system (the keyboard and
@@ -2524,60 +2564,60 @@ contains
         function table_row(pattern, codings) result(row)
             character(len=*), intent(in) :: pattern, codings
             character(len=:), allocatable :: row
-            integer :: col
+            integer :: column
 
-            col = current_col()
-            row = indent_to(col, 16)//pattern
-            col = max(col, 16) + len(pattern)
+            column = current_column()
+            row = indent_to(column, 16)//pattern
+            column = max(column, 16) + len(pattern)
 
-            if (col >= 40) then
+            if (column >= 40) then
                 row = row//LF
-                col = 0
+                column = 0
             end if
 
-            row = row//indent_to(col, 40)//codings//LF
+            row = row//indent_to(column, 40)//codings//LF
         end function table_row
 
         !> The column at the end of S.
-        integer function current_col()
-            integer :: nl, i
+        integer function current_column()
+            integer :: newline, i
 
-            nl = index(s, LF, back=.true.)
-            current_col = 0
+            newline = index(s, LF, back=.true.)
+            current_column = 0
 
-            do i = nl + 1, len(s)
+            do i = newline + 1, len(s)
                 if (s(i:i) == TAB) then
-                    current_col = (current_col/8 + 1)*8
+                    current_column = (current_column/8 + 1)*8
                 else
-                    current_col = current_col + 1
+                    current_column = current_column + 1
                 end if
             end do
-        end function current_col
+        end function current_column
 
         !> Tabs and spaces from column FROM to column TO (indent-to with
         !> `indent_tabs_mode' true), or "" if FROM is beyond TO.
-        function indent_to(from, to) result(ws)
+        function indent_to(from, to) result(whitespace)
             integer, intent(in) :: from, to
-            character(len=:), allocatable :: ws
-            integer :: col
+            character(len=:), allocatable :: whitespace
+            integer :: column
 
-            ws = ""
-            col = from
+            whitespace = ""
+            column = from
 
-            do while ((col/8 + 1)*8 <= to)
-                ws = ws//TAB
-                col = (col/8 + 1)*8
+            do while ((column/8 + 1)*8 <= to)
+                whitespace = whitespace//TAB
+                column = (column/8 + 1)*8
             end do
 
-            if (col < to) ws = ws//repeat(" ", to - col)
+            if (column < to) whitespace = whitespace//repeat(" ", to - column)
         end function indent_to
     end subroutine describe_current_coding_system
 
-    recursive subroutine cmd_describe_current_coding_system(status)
+    recursive subroutine execute_describe_current_coding_system(status)
         type(status_type), intent(out) :: status
 
         call describe_current_coding_system(status)
-    end subroutine cmd_describe_current_coding_system
+    end subroutine execute_describe_current_coding_system
 
     ! ------------------------------------------------------------------
     ! Language environments
@@ -2585,7 +2625,7 @@ contains
 
     ! Define the language environments of the language files once.
     ! Not a port.
-    subroutine init_language_environments()
+    subroutine initialize_language_environments()
         use coding_mod, only: define_language_environments
 
         if (allocated(language_environments)) return
@@ -2595,7 +2635,7 @@ contains
         defining_language_environments = .true.
         call define_language_environments()
         defining_language_environments = .false.
-    end subroutine init_language_environments
+    end subroutine initialize_language_environments
 
     !> The index in `language_environments' of the language environment
     !> NAME (case-insensitive, as assoc-string with CASE-FOLD), 0 if there
@@ -2605,7 +2645,7 @@ contains
     integer function find_language_environment(name) result(id)
         character(len=*), intent(in) :: name
 
-        call init_language_environments()
+        call initialize_language_environments()
 
         do id = 1, language_environment_count
             if (downcase_ascii(language_environments(id)%name) == downcase_ascii(name)) return
@@ -2632,7 +2672,7 @@ contains
         type(status_type) :: status
         integer :: id, i
 
-        if (.not. defining_language_environments) call init_language_environments()
+        if (.not. defining_language_environments) call initialize_language_environments()
         id = 0
 
         do i = 1, language_environment_count
@@ -2688,7 +2728,7 @@ contains
         character(len=40), allocatable :: names(:)
         integer :: id, n
 
-        call init_language_environments()
+        call initialize_language_environments()
         allocate (names(language_environment_count))
         n = 0
 
@@ -2813,14 +2853,14 @@ contains
                                                                                 "utf-8")
         ! Put the highest priority to the charset iso-8859-1 to prefer the
         ! registry iso8859-1 over iso8859-2 in font selection.
-        call set_charset_priority([character(len=CHARSET_NAME_LEN) :: "iso-8859-1"], status)
+        call set_charset_priority([character(len=CHARSET_NAME_LENGTH) :: "iso-8859-1"], status)
     end subroutine reset_language_environment
 
-    recursive subroutine cmd_reset_language_environment(status)
+    recursive subroutine execute_reset_language_environment(status)
         type(status_type), intent(out) :: status
 
         call reset_language_environment(status)
-    end subroutine cmd_reset_language_environment
+    end subroutine execute_reset_language_environment
 
     !> Set up multilingual environment for using LANGUAGE_NAME.
     !> This sets the coding system priority and the default input method
@@ -2845,7 +2885,7 @@ contains
         id = find_language_environment(name)
 
         if (id == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Language environment not defined: """//name//"""")
+            call set_error(status, GENERIC_ERROR_CODE, "Language environment not defined: """//name//"""")
             return
         end if
 
@@ -2896,7 +2936,7 @@ contains
         type(value_type) :: v
         character(len=:), allocatable :: default_coding, buffer_default
         type(status_type) :: value_status
-        integer :: eol
+        integer :: end_of_line
 
         status = status_type()
         if (.not. allocated(language_environments(id)%coding_system_order)) return
@@ -2904,10 +2944,10 @@ contains
         default_coding = trim(language_environments(id)%coding_system_order(1))
         buffer_default = default_buffer_file_coding_system()
         if (len(buffer_default) == 0) buffer_default = "unix"
-        eol = coding_system_eol_type(buffer_default)
+        end_of_line = coding_system_end_of_line_type(buffer_default)
 
-        if (any(eol == [EOL_UNIX, EOL_DOS, EOL_MAC])) then
-            default_coding = coding_system_change_eol_conversion(default_coding, eol)
+        if (any(end_of_line == [END_OF_LINE_UNIX, END_OF_LINE_DOS, END_OF_LINE_MAC])) then
+            default_coding = coding_system_change_end_of_line_conversion(default_coding, end_of_line)
         end if
 
         call set_default_coding_systems(default_coding, status)
@@ -2922,7 +2962,7 @@ contains
     subroutine set_language_environment_charset(id, status)
         integer, intent(in) :: id
         type(status_type), intent(out) :: status
-        character(len=CHARSET_NAME_LEN), allocatable :: priority_charsets(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: priority_charsets(:)
         character(len=:), allocatable :: charset_list
         integer :: i, first, last
 
@@ -2949,7 +2989,7 @@ contains
                         last = first + last - 1
                     end if
 
-                    priority_charsets = [character(len=CHARSET_NAME_LEN) :: priority_charsets, charset_list(first:last - 1)]
+                    priority_charsets = [character(len=CHARSET_NAME_LENGTH) :: priority_charsets, charset_list(first:last - 1)]
                     first = last + 1
                 end do
             end do
@@ -2958,14 +2998,14 @@ contains
         if (size(priority_charsets) > 0) call set_charset_priority(priority_charsets, status)
     end subroutine set_language_environment_charset
 
-    recursive subroutine cmd_set_language_environment(status)
+    recursive subroutine execute_set_language_environment(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
         call read_language_name(format_prompt("Set language environment", "English"), "", name, status)
         if (.not. status%ok()) return
         call set_language_environment(name, status)
-    end subroutine cmd_set_language_environment
+    end subroutine execute_set_language_environment
 
     !> Describe how Fortmacs supports language environment LANGUAGE_NAME.
     !> Port of mule-cmds.el:describe-language-environment (the input
@@ -2977,7 +3017,7 @@ contains
         character(len=:), allocatable :: name, text, sample
         integer :: id, i, j
 
-        call init_language_environments()
+        call initialize_language_environments()
         name = language_name
         if (len(name) == 0) name = current_language_environment%value
         id = 0
@@ -2988,7 +3028,7 @@ contains
         end if
 
         if (id == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No documentation for the specified language")
+            call set_error(status, GENERIC_ERROR_CODE, "No documentation for the specified language")
             return
         end if
 
@@ -3054,16 +3094,16 @@ contains
         call with_help_window(text, status)
     end subroutine describe_language_environment
 
-    recursive subroutine cmd_describe_language_environment(status)
+    recursive subroutine execute_describe_language_environment(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
-        call init_language_environments()
+        call initialize_language_environments()
         call read_language_name(format_prompt("Describe language environment", current_language_environment%value), &
                                 current_language_environment%value, name, status, key=LANGUAGE_INFO_DOCUMENTATION)
         if (.not. status%ok()) return
         call describe_language_environment(name, status)
-    end subroutine cmd_describe_language_environment
+    end subroutine execute_describe_language_environment
 
     ! ------------------------------------------------------------------
     ! Locale environments
@@ -3078,7 +3118,8 @@ contains
         type(status_type) :: status
 
         do id = 1, size(entries)
-            if (string_match("\`\(?:"//trim(entries(id)%regexp)//"\)", locale, status, inhibit_modify=.true.) > 0) return
+            if (string_match("\`\(?:"//trim(entries(id)%regular_expression)//"\)", locale, status, &
+                             inhibit_modify=.true.) > 0) return
         end do
 
         id = 0
@@ -3199,7 +3240,7 @@ contains
         if (.not. status%ok()) return
         call set_buffer(buffer, status)
         arguments(1) = value_type(text="-a")
-        call execute_process("locale", exit_status, status, destination=value_type(.true.), args=make_list(arguments))
+        call execute_process("locale", exit_status, status, destination=value_type(.true.), arguments=make_list(arguments))
         text = buffer_string()
         call set_buffer(old_buffer, status)
         call close_buffer(buffer, status)
@@ -3300,10 +3341,10 @@ contains
         character(len=*), parameter :: LOWER_LETTERS = "abcdefghijklmnopqrstuvwxyz"
         character(len=:), allocatable :: locale, language_name, coding_system, keyboard_coding, default_coding
         logical :: exists, found
-        integer :: i, k, language_entry, charset_entry, preferred_entry, eol_type, id
+        integer :: i, k, language_entry, charset_entry, preferred_entry, end_of_line_type, id
 
         status = status_type()
-        call init_language_environments()
+        call initialize_language_environments()
         locale_translation_file_name = ""
 
         do i = 1, size(ALIAS_FILES)
@@ -3344,8 +3385,8 @@ contains
         language_entry = find_locale_entry(locale, locale_language_names)
         charset_entry = find_locale_entry(locale, locale_charset_language_names)
         default_coding = default_buffer_file_coding_system()
-        eol_type = EOL_UNDECIDED
-        if (len(default_coding) > 0) eol_type = coding_system_eol_type(default_coding)
+        end_of_line_type = END_OF_LINE_UNDECIDED
+        if (len(default_coding) > 0) end_of_line_type = coding_system_end_of_line_type(default_coding)
         preferred_entry = find_locale_entry(locale, locale_preferred_coding_systems)
         coding_system = ""
 
@@ -3377,11 +3418,12 @@ contains
             language_name = trim(locale_charset_language_names(charset_entry)%language)
         end if
 
-        ! If a specific EOL conversion was specified in the default
+        ! If a specific END_OF_LINE conversion was specified in the default
         ! buffer-file-coding-system, preserve it in the coding system we
         ! will be using from now on.
-        if (any(eol_type == [EOL_UNIX, EOL_DOS, EOL_MAC]) .and. len(coding_system) > 0) then
-            if (is_coding_system(coding_system)) coding_system = coding_system_change_eol_conversion(coding_system, eol_type)
+        if (any(end_of_line_type == [END_OF_LINE_UNIX, END_OF_LINE_DOS, END_OF_LINE_MAC]) .and. len(coding_system) > 0) then
+            if (is_coding_system(coding_system)) coding_system = coding_system_change_end_of_line_conversion(coding_system, &
+                                                                                                             end_of_line_type)
         end if
 
         if (len(language_name) > 0) then
@@ -3428,7 +3470,7 @@ contains
         end if
     end subroutine set_locale_environment
 
-    recursive subroutine cmd_set_locale_environment(status)
+    recursive subroutine execute_set_locale_environment(status)
         type(status_type), intent(out) :: status
         character(len=80), allocatable :: names(:)
         type(value_type), allocatable :: items(:)
@@ -3445,7 +3487,7 @@ contains
         call completing_read("Set environment for locale: ", completion_list_table(make_list(items)), name, status)
         if (.not. status%ok()) return
         call set_locale_environment(name, status)
-    end subroutine cmd_set_locale_environment
+    end subroutine execute_set_locale_environment
 
     ! ------------------------------------------------------------------
     ! Charsets (mule-diag.el)
@@ -3459,17 +3501,17 @@ contains
     !> in the designation escape sequence for this character set in
     !> ISO-2022-based coding systems.
     !>
-    !> With prefix ARG, the output format gets more cryptic,
+    !> With prefix ARGUMENT, the output format gets more cryptic,
     !> but still shows the full information.
     !>
     !> Port of mule-diag.el:list-character-sets (its column titles and
     !> charset names are not buttons: buttons wait for button.el).
-    subroutine list_character_sets(arg, status)
-        logical, intent(in) :: arg
+    subroutine list_character_sets(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
 
-        if (arg) then
+        if (argument) then
             text = list_character_sets_2()
         else
             text = "Supplementary character sets are shown below."//LF// &
@@ -3481,14 +3523,14 @@ contains
                    list_character_sets_1("name")
         end if
 
-        call with_output_to_temp_buffer("*Character Set List*", text, status)
+        call with_output_to_temporary_buffer("*Character Set List*", text, status)
     end subroutine list_character_sets
 
-    recursive subroutine cmd_list_character_sets(status)
+    recursive subroutine execute_list_character_sets(status)
         type(status_type), intent(out) :: status
 
-        call list_character_sets(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_list_character_sets
+        call list_character_sets(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_list_character_sets
 
     !> The list of character sets sorted by SORT_KEY ("name" or
     !> "iso-spec"), the supplementary ones after the others.
@@ -3496,21 +3538,21 @@ contains
     function list_character_sets_1(sort_key) result(text)
         character(len=*), intent(in) :: sort_key
         character(len=:), allocatable :: text
-        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
-        integer, allocatable :: main_entries(:), supplementary_entries(:), dimensions(:), chars(:), final_chars(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
+        integer, allocatable :: main_entries(:), supplementary_entries(:), dimensions(:), chars(:), final_characters(:)
         type(status_type) :: st
         integer :: i, id
 
         names = charset_list()
-        allocate (dimensions(size(names)), chars(size(names)), final_chars(size(names)))
+        allocate (dimensions(size(names)), chars(size(names)), final_characters(size(names)))
         allocate (main_entries(0), supplementary_entries(0))
 
         ! Pushed onto the lists: the earliest defined first.
         do i = size(names), 1, -1
             id = find_charset(trim(names(i)))
             dimensions(i) = charsets(id)%dimension
-            chars(i) = charset_chars(trim(names(i)), st)
-            final_chars(i) = charsets(id)%iso_final
+            chars(i) = charset_characters(trim(names(i)), st)
+            final_characters(i) = charsets(id)%iso_final
 
             if (charsets(id)%supplementary .and. .not. charsets(id)%internal) then
                 supplementary_entries = [supplementary_entries, i]
@@ -3567,7 +3609,7 @@ contains
                 else if (chars(x) /= chars(y)) then
                     is_before = chars(x) < chars(y)
                 else
-                    is_before = final_chars(x) < final_chars(y)
+                    is_before = final_characters(x) < final_characters(y)
                 end if
             else
                 is_before = llt(trim(names(x)), trim(names(y)))
@@ -3587,10 +3629,10 @@ contains
             write (buffer, "(i0, 1x, i3, 1x)") dimensions(k), chars(k)
             line = line//trim(buffer)//" "
 
-            if (final_chars(k) < 0) then
+            if (final_characters(k) < 0) then
                 line = line//"none"
             else
-                line = line//achar(final_chars(k))
+                line = line//achar(final_characters(k))
             end if
 
             line = line//LF
@@ -3601,7 +3643,7 @@ contains
     ! Port of mule-diag.el:list-character-sets-2.
     function list_character_sets_2() result(text)
         character(len=:), allocatable :: text
-        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
         type(status_type) :: st
         character(len=32) :: buffer
         integer :: i, id
@@ -3620,7 +3662,7 @@ contains
 
         do i = 1, size(names)
             id = find_charset(trim(names(i)))
-            write (buffer, "(i0, ':', i0, ':', i0)") charsets(id)%dimension, charset_chars(trim(names(i)), st), &
+            write (buffer, "(i0, ':', i0, ':', i0)") charsets(id)%dimension, charset_characters(trim(names(i)), st), &
                 charsets(id)%iso_final
             text = text//trim(names(i))//":"//trim(buffer)//":"//charsets(id)%docstring//LF
         end do
@@ -3636,7 +3678,7 @@ contains
         character(len=:), allocatable, intent(out) :: charset
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: default_value, initial_input
-        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
         type(value_type), allocatable :: items(:)
         integer :: i
 
@@ -3652,40 +3694,40 @@ contains
                              default=default_value)
     end subroutine read_charset
 
-    ! The characters of CHARSET with code points ROW*256+MIN_CODE to
-    ! ROW*256+MAX_CODE (ROW is the first byte of a 2-dimensional charset, 0
+    ! The characters of CHARSET with code points ROW*256+MINIMUM_CODE to
+    ! ROW*256+MAXIMUM_CODE (ROW is the first byte of a 2-dimensional charset, 0
     ! for a 1-dimensional one).
     ! Port of mule-diag.el:list-block-of-chars.
-    function list_block_of_chars(charset, row, min_code, max_code) result(text)
+    function list_block_of_characters(charset, row, minimum_code, maximum_code) result(text)
         use keymap_mod, only: single_key_description
-        use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
+        use character_mod, only: character_string, MAXIMUM_MULTIBYTE_LENGTH
         character(len=*), intent(in) :: charset
-        integer, intent(in) :: row, min_code, max_code
+        integer, intent(in) :: row, minimum_code, maximum_code
         character(len=:), allocatable :: text
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
-        character(len=8) :: hex
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: buffer
+        character(len=8) :: hexadecimal
         type(status_type) :: st
         integer :: i, c, nbytes
 
         text = repeat("-", 7 + 4*16)//LF//"     "
 
         do i = 0, 15
-            write (hex, "(z4)") i
-            text = text//hex(1:4)
+            write (hexadecimal, "(z4)") i
+            text = text//hexadecimal(1:4)
         end do
 
-        i = (min_code/16)*16
+        i = (minimum_code/16)*16
 
-        do while (i <= max_code)
+        do while (i <= maximum_code)
             if (mod(i, 16) == 0) then
-                write (hex, "(z6)") (row*256 + i)/16
-                text = text//LF//hex(1:6)//"x"
+                write (hexadecimal, "(z6)") (row*256 + i)/16
+                text = text//LF//hexadecimal(1:6)//"x"
             end if
 
-            if (i < min_code) then
+            if (i < minimum_code) then
                 c = 32
             else
-                c = decode_char(charset, int(row*256 + i, int64), st)
+                c = decode_character(charset, int(row*256 + i, int64), st)
                 ! A gap in the mapping.
                 if (c < 0) c = 32
             end if
@@ -3696,11 +3738,11 @@ contains
             if (c < 32 .or. c == 127) then
                 text = text//single_key_description(value_type(int(c, int64)))
             else if (c >= 128 .and. c < 160) then
-                write (hex, "(z2.2)") c
-                text = text//hex(1:2)//"h"
+                write (hexadecimal, "(z2.2)") c
+                text = text//hexadecimal(1:2)//"h"
             else
                 if (c > int(z'10FFFF')) c = 32
-                call char_string(c, buffer, nbytes, st)
+                call character_string(c, buffer, nbytes, st)
                 text = text//buffer(1:nbytes)
             end if
 
@@ -3708,11 +3750,11 @@ contains
         end do
 
         text = text//LF
-    end function list_block_of_chars
+    end function list_block_of_characters
 
     !> Display a list of characters in character set CHARSET.
     !> Port of mule-diag.el:list-charset-chars.
-    recursive subroutine list_charset_chars(charset, status)
+    recursive subroutine list_charset_characters(charset, status)
         character(len=*), intent(in) :: charset
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
@@ -3721,37 +3763,37 @@ contains
         id = find_charset(charset)
 
         if (id == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid character set: "//charset)
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid character set: "//charset)
             return
         end if
 
         associate (cs => charsets(id))
             if (cs%dimension > 2) then
-                call set_error(status, FM_GENERIC_ERROR, "Can only list 1- and 2-dimensional charsets")
+                call set_error(status, GENERIC_ERROR_CODE, "Can only list 1- and 2-dimensional charsets")
                 return
             end if
 
             text = "Characters in the coded character set "//charset//"."//LF
 
             if (cs%dimension == 1) then
-                text = text//list_block_of_chars(charset, 0, cs%given_code_space(1), cs%given_code_space(2))
+                text = text//list_block_of_characters(charset, 0, cs%given_code_space(1), cs%given_code_space(2))
             else
                 do i = cs%given_code_space(3), cs%given_code_space(4)
-                    text = text//list_block_of_chars(charset, i, cs%given_code_space(1), cs%given_code_space(2))
+                    text = text//list_block_of_characters(charset, i, cs%given_code_space(1), cs%given_code_space(2))
                 end do
             end if
         end associate
 
         listed_charset = charset
-        call with_output_to_temp_buffer("*Character List*", text, status, list_charset_chars_body)
-    end subroutine list_charset_chars
+        call with_output_to_temporary_buffer("*Character List*", text, status, list_charset_characters_body)
+    end subroutine list_charset_characters
 
     ! The rest of list-charset-chars's body, in *Character List*: its coding
     ! system (when the charset is also a coding system), the charset in
     ! the mode line, a tab width of 4 and the `charset' text property.
-    ! Not a port: the body that list_charset_chars gives
-    ! with_output_to_temp_buffer (the rest of upstream's body).
-    recursive subroutine list_charset_chars_body(status)
+    ! Not a port: the body that list_charset_characters gives
+    ! with_output_to_temporary_buffer (the rest of upstream's body).
+    recursive subroutine list_charset_characters_body(status)
         use display_engine_mod, only: tab_width
         type(status_type), intent(out) :: status
         type(header_line_format_type) :: id
@@ -3769,25 +3811,25 @@ contains
         call tab_width%set_local(4_int64)
         ! The `charset' text property upstream puts on the buffer is Deferred
         ! with the other `charset' properties (docs/status/coding_mod.md).
-    end subroutine list_charset_chars_body
+    end subroutine list_charset_characters_body
 
-    recursive subroutine cmd_list_charset_chars(status)
+    recursive subroutine execute_list_charset_characters(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: charset
 
         call read_charset("Character set: ", charset, status)
         if (.not. status%ok()) return
-        call list_charset_chars(charset, status)
-    end subroutine cmd_list_charset_chars
+        call list_charset_characters(charset, status)
+    end subroutine execute_list_charset_characters
 
     !> Display information about built-in character set CHARSET.
     !> Port of mule-diag.el:describe-character-set (`:parents' is never set).
     recursive subroutine describe_character_set(charset, status)
-        use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
+        use character_mod, only: character_string, MAXIMUM_MULTIBYTE_LENGTH
         character(len=*), intent(in) :: charset
         type(status_type), intent(out) :: status
-        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: text, aliases
         character(len=24) :: number
@@ -3796,7 +3838,7 @@ contains
         id = find_charset(charset)
 
         if (id == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid charset: "//charset)
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid charset: "//charset)
             return
         end if
 
@@ -3807,7 +3849,7 @@ contains
 
             do i = 1, cs%dimension
                 if (i > 1) text = text//"x"
-                write (number, "(i0)") charset_chars(charset, st, i)
+                write (number, "(i0)") charset_characters(charset, st, i)
                 text = text//trim(number)
             end do
 
@@ -3837,7 +3879,7 @@ contains
             if (len(cs%unify_map) > 0) text = text//"Unification map file: "//cs%unify_map//LF
 
             if (cs%has_invalid_code) then
-                call char_string(int(cs%invalid_code, int32), buffer, nbytes, st)
+                call character_string(int(cs%invalid_code, int32), buffer, nbytes, st)
                 write (number, "(i0)") cs%invalid_code
                 text = text//"Invalid character: "//buffer(1:nbytes)//" (code "//trim(number)//")"//LF
             end if
@@ -3876,14 +3918,14 @@ contains
         call with_help_window(text, status)
     end subroutine describe_character_set
 
-    recursive subroutine cmd_describe_character_set(status)
+    recursive subroutine execute_describe_character_set(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: charset
 
         call read_charset("Charset: ", charset, status)
         if (.not. status%ok()) return
         call describe_character_set(charset, status)
-    end subroutine cmd_describe_character_set
+    end subroutine execute_describe_character_set
 
     ! ------------------------------------------------------------------
     ! Input methods
@@ -3905,7 +3947,7 @@ contains
     !> The commands `describe_input_method' and `list_input_methods' need
     !> these duplicated values to show some information about input methods
     !> without loading the relevant Quail packages.
-    !> Port of mule-cmds.el:register-input-method (no ARGS: a Quail package is built in, not loaded from a file).
+    !> Port of mule-cmds.el:register-input-method (no ARGUMENTS: a Quail package is built in, not loaded from a file).
     subroutine register_input_method(input_method, language_environment, activate_function, title, description)
         character(len=*), intent(in) :: input_method, language_environment, title, description
         procedure(input_method_activate_procedure) :: activate_function
@@ -3978,7 +4020,7 @@ contains
         end if
 
         if (len(input_method) == 0 .and. inhibit_null) then
-            call set_error(status, FM_GENERIC_ERROR, "No valid input method is specified")
+            call set_error(status, GENERIC_ERROR_CODE, "No valid input method is specified")
         end if
     end subroutine read_input_method_name
 
@@ -4003,12 +4045,12 @@ contains
         id = find_input_method(input_method)
 
         if (id == 0) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("Can't activate input method `"//input_method//"'"))
+            call set_error(status, GENERIC_ERROR_CODE, format_message("Can't activate input method `"//input_method//"'"))
             return
         end if
 
         if (.not. associated(input_methods(id)%activate_function)) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("Can't activate input method `"//input_method//"'"))
+            call set_error(status, GENERIC_ERROR_CODE, format_message("Can't activate input method `"//input_method//"'"))
             return
         end if
 
@@ -4085,7 +4127,7 @@ contains
 
     !> C-x RET C-\: read the input method and set it.
     !> Port of mule-cmds.el:set-input-method (the command reading its argument).
-    recursive subroutine cmd_set_input_method(status)
+    recursive subroutine execute_set_input_method(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: default, input_method
 
@@ -4094,7 +4136,7 @@ contains
                                     input_method, status)
         if (.not. status%ok()) return
         call set_input_method(input_method, status)
-    end subroutine cmd_set_input_method
+    end subroutine execute_set_input_method
 
     !> Enable or disable multilingual text input method for the current buffer.
     !> Only one input method can be enabled at any time in a given buffer.
@@ -4105,22 +4147,22 @@ contains
     !> or the one specified by `default_input_method', or as a last resort
     !> by reading the name of an input method in the minibuffer.
     !>
-    !> With a prefix argument ARG, read an input method name with the minibuffer
+    !> With a prefix argument ARGUMENT, read an input method name with the minibuffer
     !> and enable that one.  The default is the most recent input method specified
     !> (not including the currently active input method, if any).
     !> Port of mule-cmds.el:toggle-input-method (Custom's marking of `default_input_method' as set is Deferred).
-    recursive subroutine toggle_input_method(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine toggle_input_method(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: default, input_method
 
         if (toggle_input_method_active) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("Recursive use of `toggle_input_method'"))
+            call set_error(status, GENERIC_ERROR_CODE, format_message("Recursive use of `toggle_input_method'"))
             return
         end if
 
         ! No associate around the calls: hooks may make buffers.
-        if (allocated(buffers(current)%current_input_method) .and. .not. arg) then
+        if (allocated(buffers(current)%current_input_method) .and. .not. argument) then
             if (allocated(buffers(current)%current_transient_input_method)) then
                 call deactivate_transient_input_method(status)
             else
@@ -4133,7 +4175,7 @@ contains
         default = input_method_prompt_default()
 
         associate (buffer => buffers(current))
-            if (arg .and. len(default) > 0 .and. allocated(buffer%current_input_method)) then
+            if (argument .and. len(default) > 0 .and. allocated(buffer%current_input_method)) then
                 if (buffer%current_input_method == default) then
                     if (allocated(buffer%input_method_history%items)) then
                         if (size(buffer%input_method_history%items) > 1) then
@@ -4146,7 +4188,7 @@ contains
 
         toggle_input_method_active = .true.
 
-        if (arg .or. len(default) == 0) then
+        if (argument .or. len(default) == 0) then
             call read_input_method_name(format_prompt("Input method", default), default, .true., input_method, status)
         else
             input_method = default
@@ -4164,23 +4206,23 @@ contains
 
     !> C-\: toggle the input method, reading it with a prefix argument.
     !> Port of mule-cmds.el:toggle-input-method (the command reading its argument).
-    recursive subroutine cmd_toggle_input_method(status)
+    recursive subroutine execute_toggle_input_method(status)
         type(status_type), intent(out) :: status
 
-        call toggle_input_method(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_toggle_input_method
+        call toggle_input_method(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_toggle_input_method
 
     !> Select and enable a transient input method for the current buffer.
     !> If `default_transient_input_method' was not yet defined, prompt for it.
     !> Port of mule-cmds.el:activate-transient-input-method (turning it off after a chunk waits for Quail).
-    recursive subroutine activate_transient_input_method(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine activate_transient_input_method(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: default, input_method
 
         if (.not. allocated(default_transient_input_method%value)) default_transient_input_method%value = ""
 
-        if (arg .or. len(default_transient_input_method%value) == 0) then
+        if (argument .or. len(default_transient_input_method%value) == 0) then
             default = input_method_prompt_default()
             call read_input_method_name(format_prompt("Transient input method", default), default, .true., &
                                         input_method, status)
@@ -4204,11 +4246,11 @@ contains
     !> C-x \: enable the transient input method, reading it with a prefix
     !> argument.
     !> Port of mule-cmds.el:activate-transient-input-method (the command reading its argument).
-    recursive subroutine cmd_activate_transient_input_method(status)
+    recursive subroutine execute_activate_transient_input_method(status)
         type(status_type), intent(out) :: status
 
-        call activate_transient_input_method(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_activate_transient_input_method
+        call activate_transient_input_method(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_activate_transient_input_method
 
     !> Disable currently active transient input method for the current buffer.
     !> Port of mule-cmds.el:deactivate-transient-input-method.
@@ -4259,21 +4301,21 @@ contains
 
         if (id == 0) then
             ! Not registered: what upstream shows for its missing entry.
-            call with_output_to_temp_buffer("*Help*", "Input method: "//input_method// &
-                                            format_message(" (`' in mode line) for ")//LF//"  "//LF, status)
+            call with_output_to_temporary_buffer("*Help*", "Input method: "//input_method// &
+                                                 format_message(" (`' in mode line) for ")//LF//"  "//LF, status)
         else
             associate (method => input_methods(id))
-                call with_output_to_temp_buffer("*Help*", "Input method: "//input_method//format_message(" (`")// &
-                                                trim(method%title)//format_message("' in mode line) for ")// &
-                                                trim(method%language_environment)//LF//"  "//method%description//LF, &
-                                                status)
+                call with_output_to_temporary_buffer("*Help*", "Input method: "//input_method//format_message(" (`")// &
+                                                     trim(method%title)//format_message("' in mode line) for ")// &
+                                                     trim(method%language_environment)//LF//"  "//method%description//LF, &
+                                                     status)
             end associate
         end if
     end subroutine describe_input_method
 
     !> C-h I: read the input method and describe it.
     !> Port of mule-cmds.el:describe-input-method (the command reading its argument).
-    recursive subroutine cmd_describe_input_method(status)
+    recursive subroutine execute_describe_input_method(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: default, input_method
 
@@ -4283,7 +4325,7 @@ contains
                                     input_method, status)
         if (.not. status%ok()) return
         call describe_input_method(input_method, status)
-    end subroutine cmd_describe_input_method
+    end subroutine execute_describe_input_method
 
     !> Describe the input method currently in use.
     !> This is a subroutine for `describe_input_method'.
@@ -4293,7 +4335,7 @@ contains
         procedure(current_input_method_procedure), pointer :: describe
 
         if (.not. allocated(buffers(current)%current_input_method)) then
-            call set_error(status, FM_GENERIC_ERROR, "No input method is activated now")
+            call set_error(status, GENERIC_ERROR_CODE, "No input method is activated now")
             return
         end if
 

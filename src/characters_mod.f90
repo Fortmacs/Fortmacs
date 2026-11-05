@@ -32,7 +32,7 @@
 !> katakana, l Latin), for the standard category table (category_mod).
 !> The case entries are in case_table_mod (from unicode_case_mod).
 !>
-!> Deferred: entries made through legacy charsets (`map_charset_chars'
+!> Deferred: entries made through legacy charsets (`map_charset_characters'
 !> over GB2312, Big5, JIS X 0208/0212, KS C 5601 and so on, which need
 !> their mapping tables), the other categories, and everything else
 !> characters.el sets up.
@@ -42,7 +42,7 @@ module characters_mod
     use character_set_mod, only: set_charset_attributes
     use, intrinsic :: iso_fortran_env, only: int32
     use error_mod, only: status_type
-    use editing_functions_mod, only: char_to_string
+    use editing_functions_mod, only: character_to_string
     implicit none(type, external)
     private
 
@@ -82,16 +82,16 @@ contains
     subroutine characters_syntax(entry)
         procedure(syntax_entry_procedure) :: entry
         ! CJK parentheses, in more than one charset.
-        integer, parameter :: cjk_parens(*) = [int(z'3008'), int(z'3009'), int(z'300A'), int(z'300B'), &
-                                               int(z'300C'), int(z'300D'), int(z'300E'), int(z'300F'), &
-                                               int(z'3010'), int(z'3011'), int(z'3014'), int(z'3015'), &
-                                               int(z'3016'), int(z'3017'), int(z'3018'), int(z'3019'), &
-                                               int(z'301A'), int(z'301B'), int(z'FE35'), int(z'FE36'), &
-                                               int(z'FE37'), int(z'FE38'), int(z'FE39'), int(z'FE3A'), &
-                                               int(z'FE3B'), int(z'FE3C'), int(z'FE3D'), int(z'FE3E'), &
-                                               int(z'FE3F'), int(z'FE40'), int(z'FE41'), int(z'FE42'), &
-                                               int(z'FE43'), int(z'FE44'), int(z'FF08'), int(z'FF09'), &
-                                               int(z'FF3B'), int(z'FF3D'), int(z'FF5B'), int(z'FF5D')]
+        integer, parameter :: cjk_parentheses(*) = [int(z'3008'), int(z'3009'), int(z'300A'), int(z'300B'), &
+                                                    int(z'300C'), int(z'300D'), int(z'300E'), int(z'300F'), &
+                                                    int(z'3010'), int(z'3011'), int(z'3014'), int(z'3015'), &
+                                                    int(z'3016'), int(z'3017'), int(z'3018'), int(z'3019'), &
+                                                    int(z'301A'), int(z'301B'), int(z'FE35'), int(z'FE36'), &
+                                                    int(z'FE37'), int(z'FE38'), int(z'FE39'), int(z'FE3A'), &
+                                                    int(z'FE3B'), int(z'FE3C'), int(z'FE3D'), int(z'FE3E'), &
+                                                    int(z'FE3F'), int(z'FE40'), int(z'FE41'), int(z'FE42'), &
+                                                    int(z'FE43'), int(z'FE44'), int(z'FF08'), int(z'FF09'), &
+                                                    int(z'FF3B'), int(z'FF3D'), int(z'FF5B'), int(z'FF5D')]
         ! Bracket pairs (the list after "Symbols and digits").
         integer, parameter :: pairs(*) = [int(z'2045'), int(z'2046'), int(z'207D'), int(z'207E'), &
                                           int(z'208D'), int(z'208E'), int(z'2329'), int(z'232A'), &
@@ -135,13 +135,13 @@ contains
         call entry(int(z'FF61'), int(z'FF61'), ".")
         call entry(int(z'FF64'), int(z'FF65'), ".")
         ! (Upstream makes both of these open parentheses.)
-        call char_to_string(int(z'FF62', int32), open_text, st)
-        call char_to_string(int(z'FF63', int32), close_text, st)
+        call character_to_string(int(z'FF62', int32), open_text, st)
+        call character_to_string(int(z'FF63', int32), close_text, st)
         call entry(int(z'FF62'), int(z'FF62'), "("//close_text)
         call entry(int(z'FF63'), int(z'FF63'), "("//open_text)
 
-        do k = 1, size(cjk_parens), 2
-            call pair(cjk_parens(k), cjk_parens(k + 1))
+        do k = 1, size(cjk_parentheses), 2
+            call pair(cjk_parentheses(k), cjk_parentheses(k + 1))
         end do
 
         ! Cyrillic: the numero sign.
@@ -242,8 +242,8 @@ contains
         subroutine pair(open, close)
             integer, intent(in) :: open, close
 
-            call char_to_string(int(open, int32), open_text, st)
-            call char_to_string(int(close, int32), close_text, st)
+            call character_to_string(int(open, int32), open_text, st)
+            call character_to_string(int(close, int32), close_text, st)
             call entry(open, open, "("//close_text)
             call entry(close, close, ")"//open_text)
         end subroutine pair
@@ -257,16 +257,16 @@ contains
     subroutine characters_categories(define, entry)
         procedure(category_define_procedure) :: define
         procedure(category_entry_procedure) :: entry
-        character(len=*), parameter :: nl = new_line("a")
+        character(len=*), parameter :: newline = new_line("a")
         integer :: k
 
         call define("l", "Latin")
-        call define("C", "2-byte han"//nl//"Chinese (Han) characters of 2-byte character sets")
-        call define("H", "2-byte Hiragana"//nl//"Japanese Hiragana characters of 2-byte character sets")
-        call define("K", "2-byte Katakana"//nl//"Japanese Katakana characters of 2-byte character sets")
-        call define("|", "line breakable"//nl//"While filling, we can break a line at this character.")
-        call define(" ", "space for indent"//nl//"This character counts as a space for indentation purposes.")
-        call define("^", "Combining"//nl//"Combining diacritic or mark (Unicode General Category M)")
+        call define("C", "2-byte han"//newline//"Chinese (Han) characters of 2-byte character sets")
+        call define("H", "2-byte Hiragana"//newline//"Japanese Hiragana characters of 2-byte character sets")
+        call define("K", "2-byte Katakana"//newline//"Japanese Katakana characters of 2-byte character sets")
+        call define("|", "line breakable"//newline//"While filling, we can break a line at this character.")
+        call define(" ", "space for indent"//newline//"This character counts as a space for indentation purposes.")
+        call define("^", "Combining"//newline//"Combining diacritic or mark (Unicode General Category M)")
         ! Combining diacritics and marks, and every nonspacing mark.
         call entry(int(z'300'), int(z'362'), "^")
         call entry(int(z'20D0'), int(z'20FF'), "^")

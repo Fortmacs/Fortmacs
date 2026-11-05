@@ -6,8 +6,8 @@
 
 ## Ported
 
-`glyph_type` (character, face id, padding, `type` CHAR_GLYPH/STRETCH_GLYPH, `pixel_width`, `ascent`, `descent`),
-`glyph_row_type` (`x`, `y`, `pixel_width`, `ascent`, `height`, `visible_height`, `continued_p`, `ends_at_zv_p`),
+`glyph_type` (character, face id, padding, `type` CHARACTER_GLYPH/STRETCH_GLYPH, `pixel_width`, `ascent`, `descent`),
+`glyph_row_type` (`x`, `y`, `pixel_width`, `ascent`, `height`, `visible_height`, `continued_p`, `ends_at_end_of_accessible_portion_p`),
 `glyph_matrix_type`,
 `GLYPH_EQUAL_P` (with type and pixel width),
 `face_type` (terminal attributes and colors, the font id),

@@ -10,7 +10,7 @@ the project object: `project_type` (the generics `project-root`, `project-extern
 `project-current` (`get_current_project`, with `project-current-directory-override` and `project-find-functions` as `project_find_functions`, a list of procedures with `%append`),
 `project--find-in-directory`,
 the transient project (`transient_project_type`),
-`project-prompter` (`read_project_dir`, `read_project_name`, `project-read-project`, `project-prompt-project-dir`, `project-prompt-project-name`, `project--dir-history`, `project--name-history`),
+`project-prompter` (`read_project_directory`, `read_project_name`, `project-read-project`, `project-prompt-project-dir`, `project-prompt-project-name`, `project--dir-history`, `project--name-history`),
 `project--files-in-directory`,
 `project--dir-ignores`,
 `project-files-relative-names`,
@@ -89,7 +89,7 @@ the file name at point as the default of the find-file commands (`thing-at-point
 `minibuffer-default-add-completions` in the file prompts;
 remote files (`project--remote-file-names`, `project--within-roots-fallback`);
 `vc-hg-project-list-files` and `vc-default-project-list-files` (the other backends list with `find`);
-`project-regexp-history-variable` (the history is `grep_regexp_history`);
+`project-regexp-history-variable` (the history is `grep_regular_expression_history`);
 the obsolete `project-roots`;
 Not applicable: `project--buffers-completion-table`,
 `project--completion-table-with-category` and `project--file-completion-table` (completion tables are `completion_table_type` with a category),

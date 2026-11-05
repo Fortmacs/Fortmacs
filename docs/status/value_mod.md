@@ -39,14 +39,14 @@ choice settings (`choice_setting_type`: `.true.`/`.false.` and named constants, 
 the history lists (`history_setting_type` with `%items`, `%length` and `%append`, found by name with `find_history` in the settings registry),
 and variables forwarded to Fortran settings (`fill-column`, `tab-width`, `case-fold-search`, `fill-prefix`, `auto-fill-function`, `major-mode`, `mode-name`, `buffer-read-only` and others);
 lread.c string literal syntax (`read_string_literal`: the escapes of the reader, \N{U+X}) for `ls --quoting-style=escape` file names,
-window values (`make_window_ref`, `is_window`),
+window values (`make_window_reference`, `is_window`),
 strings' text property intervals (`string_intervals`, `set_string_intervals`; `equal` ignores them);
 Not applicable: run-time variables (a variable that exists only because a name was set at run time: data.c `set`, `boundp`, `makunbound`, `symbol-value` on names no Fortran object declares, and the data-tests cases on such variables);
 unknown names in set_variable,
 file-local and directory-local variables are ignored ;
 step 42f chunk 4 in utility_functions_mod (and submodule utility_functions_buffer_mod): `string-search`,
 `string-distance` (BYTECOMPARE),
-`string_char_to_byte`/`string_byte_to_char`,
+`string_character_to_byte`/`string_byte_to_character`,
 `substring-no-properties`,
 `string-equal` (`is_string_equal`, names allowed),
 `string-collate-lessp`/`-equalp` (`is_string_collate_less`/`_equal`, the C locale: character-code order, A–Z folded for IGNORE-CASE; bookmark_mod's private copy is gone),
@@ -74,7 +74,7 @@ fns.c `md5`,
 `secure-hash-algorithms`,
 `buffer-hash` (SHA-1 of both sides of the gap),
 `secure_hash`,
-`hexbuf_digest`/`make_digest_string` (`digest_to_hex`),
+`hexbuf_digest`/`make_digest_string` (`digest_to_hexadecimal`),
 in submodule utility_functions_hash_mod over md5_mod … sha3_mod
 
 ## Deferred

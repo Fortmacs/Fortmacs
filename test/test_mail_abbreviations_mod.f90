@@ -30,9 +30,9 @@ module test_mail_abbreviations_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_buffer, close_buffer, is_buffer_live
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, goto_char, point_max
-    use bindings_mod, only: init_bindings
-    use files_mod, only: create_temp_file, delete_file
+    use editing_functions_mod, only: buffer_string, goto_character, point_maximum
+    use bindings_mod, only: initialize_bindings
+    use files_mod, only: create_temporary_file, delete_file
     use file_input_output_mod, only: file_exists
     use abbreviation_mod, only: expand_abbrev
     use send_mail_mod, only: mail, mail_personal_alias_file, set_up_mail_with_from, mail_signature_variable, &
@@ -70,8 +70,8 @@ contains
         character(len=:), allocatable, intent(out) :: file
         type(status_type) :: st
 
-        call init_bindings()
-        call create_temp_file("mailabbrev-test", file, st)
+        call initialize_bindings()
+        call create_temporary_file("mailabbrev-test", file, st)
         call delete_file(file, st)
         mail_personal_alias_file = file
         mail_abbrevs_built = .false.
@@ -133,7 +133,7 @@ contains
         type(status_type) :: st
 
         call set_up(file)
-        call create_temp_file("mailabbrev-source", sourced, st)
+        call create_temporary_file("mailabbrev-source", sourced, st)
         call write_file(sourced, "alias src s@x"//LF)
         call write_file(file, "# my aliases"//LF// &
                         "alias joe joe@x"//LF// &
@@ -205,7 +205,7 @@ contains
         if (.not. allocated(error)) call check(error, index(buffer_string(), "To: joe@x"//LF) == 1, buffer_string())
         if (allocated(error)) return
         ! Not in the text.
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert("joe", st)
         call expand_abbrev(st)
         call check_string(error, buffer_string(), "To: joe@x"//LF//"Subject: "//LF//"--text follows this line--"//LF//"joe")

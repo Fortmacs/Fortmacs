@@ -38,7 +38,7 @@ contains
         type(value_type) :: v
 
         if (present(name)) then
-            v = make_symbol_ref(intern(name))
+            v = make_symbol_reference(intern(name))
         else if (present(text)) then
             allocate (v%a(1))
             v%a(1)%tag = V_STRING

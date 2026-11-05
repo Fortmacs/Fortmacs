@@ -23,7 +23,7 @@
 !> `disable-command`.
 module test_novice_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type
@@ -33,17 +33,18 @@ module test_novice_mod
     use commands_mod, only: commands
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, buffer_string, point_max
+    use editing_functions_mod, only: goto_character, buffer_string, point_maximum
     use simple_mod, only: push_mark
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, command_loop
-    use execute_interactively_mod, only: prefix_arg
-    use bindings_mod, only: init_bindings
-    use novice_mod, only: enable_command, disable_command, disabled_command_function, init_novice
+    use execute_interactively_mod, only: prefix_argument
+    use bindings_mod, only: initialize_bindings
+    use novice_mod, only: enable_command, disable_command, disabled_command_function, initialize_novice
     use help_functions_mod, only: describe_variable_text
     use keyboard_mod, only: disabled_command_function_variable
-    use names_mod, only: user_init_file
-    use file_input_output_mod, only: expand_file_name, create_directory_internal, delete_file_internal, fortmacs_wd, init_fileio
+    use names_mod, only: user_initialization_file
+    use file_input_output_mod, only: expand_file_name, create_directory_internal, delete_file_internal, fortmacs_wd, &
+                                     initialize_fileio
     use files_mod, only: find_file_noselect
     implicit none(type, external)
     private
@@ -68,9 +69,9 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
-        prefix_arg = prefix_arg_type()
+        prefix_argument = prefix_argument_type()
         disabled_command_function_variable%procedure => disabled_command_function
         commands%upcase_region%disabled = .true.
         call get_or_make_buffer("novice-test", h, st)
@@ -86,7 +87,7 @@ contains
         type(status_type) :: st
 
         call push_mark(1_int64, .true., .true.)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
         call command_loop(st)
@@ -139,17 +140,17 @@ contains
 
     subroutine test_enable_disable(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, init_buffer
+        type(handle_type) :: h, initialize_buffer
         type(status_type) :: st
         character(len=:), allocatable :: text, path
         character(len=*), parameter :: LF = achar(10)
 
-        call init_fileio()
+        call initialize_fileio()
         call expand_file_name("build/test-novice", path, st, fortmacs_wd)
         call create_directory_internal(path, st)
         path = path//"/init.f90"
-        user_init_file = path
-        call write_text(user_init_file, "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
+        user_initialization_file = path
+        call write_text(user_initialization_file, "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
                         "    subroutine configure(st)"//LF//"        type(status_type), intent(out) :: st"//LF// &
                         "        commands%upcase_region%disabled = .true."//LF// &
                         "    end subroutine configure"//LF//"end module user_config"//LF)
@@ -161,7 +162,7 @@ contains
         call check(error, buffer_string() == "ABC", buffer_string())
         if (allocated(error)) return
         ! novice.el: the old line is replaced by one at the end.
-        text = read_text(user_init_file)
+        text = read_text(user_initialization_file)
         call check(error, text == "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
                    "    subroutine configure(st)"//LF//"        type(status_type), intent(out) :: st"//LF// &
                    "        commands%upcase_region%disabled = .false."//LF// &
@@ -170,7 +171,7 @@ contains
         call disable_command("upcase_region", st)
         call check(error, disabled("upcase_region"))
         if (allocated(error)) return
-        text = read_text(user_init_file)
+        text = read_text(user_initialization_file)
         call check(error, index(text, "commands%upcase_region%disabled = .true.") > 0 .and. &
                    index(text, ".false.") == 0, text)
         if (allocated(error)) return
@@ -178,11 +179,11 @@ contains
         call check(error,.not. st%ok())
         call discard_input()
         call close_buffer(h, st)
-        call find_file_noselect(user_init_file, init_buffer, st)
-        call close_buffer(init_buffer, st)
-        call delete_file_internal(user_init_file, st)
-        call delete_file_internal(user_init_file//"~", st)
-        deallocate (user_init_file)
+        call find_file_noselect(user_initialization_file, initialize_buffer, st)
+        call close_buffer(initialize_buffer, st)
+        call delete_file_internal(user_initialization_file, st)
+        call delete_file_internal(user_initialization_file//"~", st)
+        deallocate (user_initialization_file)
     end subroutine test_enable_disable
 
     subroutine write_text(file, text)
@@ -219,15 +220,15 @@ contains
         call execute_keys("C-x C-u n")
         call check(error, buffer_string() == "abc", buffer_string())
         if (allocated(error)) return
-        if (allocated(user_init_file)) saved = user_init_file
+        if (allocated(user_initialization_file)) saved = user_initialization_file
         ! (No init file: y enables it for the session.)
-        user_init_file = ""
+        user_initialization_file = ""
         call execute_keys("C-x C-u y")
 
         if (allocated(saved)) then
-            user_init_file = saved
+            user_initialization_file = saved
         else
-            deallocate (user_init_file)
+            deallocate (user_initialization_file)
         end if
 
         call check(error, buffer_string() == "ABC" .and. len_trim(commands%upcase_region%disabled_message) == 0, &
@@ -237,7 +238,7 @@ contains
         call close_buffer(h, st)
     end subroutine test_disabled_message
 
-    !> C-h v shows the standard procedure that init_novice sets as the
+    !> C-h v shows the standard procedure that initialize_novice sets as the
     !> value, with no "Original value" line (upstream: "Its value is
     !> disabled-command-function"); another procedure or .false. shows it.
     subroutine test_describe(error)
@@ -246,7 +247,7 @@ contains
         character(len=:), allocatable :: text
         logical :: found
 
-        call init_novice()
+        call initialize_novice()
         call describe_variable_text("disabled_command_function", text, found)
         call check(error, found .and. index(text, LF//"Its value is disabled_command_function"//LF) > 0 .and. &
                    index(text, "Original value") == 0, text)

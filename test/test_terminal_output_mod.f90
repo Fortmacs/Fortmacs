@@ -30,13 +30,13 @@ module test_terminal_output_mod
     use cursor_motion_mod, only: cmat
     use glyph_matrices_mod, only: glyph_type, face_type, FACE_UNDERLINE_SINGLE
     use keymap_mod, only: lookup_key
-    use value_mod, only: make_keymap_ref, value_type
+    use value_mod, only: make_keymap_reference, value_type
     use keyboard_mod, only: input_decode_map
     use system_dependent_mod, only: open_pty, close_fd, input_available, fortmacs_read, &
                                     set_tty_size
-    use terminal_output_mod, only: delete_tty, encode_terminal_code, init_tty, init_tty_entry, &
+    use terminal_output_mod, only: delete_tty, encode_terminal_code, initialize_tty, initialize_tty_entry, &
                                    tty_clear_end_of_line, tty_clear_frame, tty_clear_to_end, tty_cursor_to, &
-                                   tty_delete_glyphs, tty_ins_del_lines, tty_insert_glyphs, &
+                                   tty_delete_glyphs, tty_ins_delete_lines, tty_insert_glyphs, &
                                    tty_reset_terminal_modes, tty_ring_bell, tty_set_terminal_modes, &
                                    tty_update_end, tty_write_glyphs, is_tty_display_color, tty_display_color_cells, &
                                    tty_type, is_controlling_tty, tty_no_underline
@@ -77,7 +77,7 @@ contains
         type(status_type) :: st
 
         call builtin_xterm(ti)
-        call init_tty_entry(tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_tty_entry(tty, ti, "xterm-256color", -1_int32, st)
     end subroutine xterm
 
     !> tty-display-color-p, tty-display-color-cells, tty-type,
@@ -116,18 +116,18 @@ contains
         type(status_type) :: st
 
         call xterm(tty)
-        call check(error, tty%wcm%cm_rows == 24 .and. tty%wcm%cm_cols == 80, "size")
+        call check(error, tty%wcm%cm_rows == 24 .and. tty%wcm%cm_columns == 80, "size")
         if (allocated(error)) return
         call check(error, tty%wcm%cm_autowrap .and. tty%wcm%cm_magicwrap, "wrap")
         if (allocated(error)) return
-        call check(error, tty%scroll_region_ok .and. tty%line_ins_del_ok .and. &
-                   tty%char_ins_del_ok, "capabilities")
+        call check(error, tty%scroll_region_ok .and. tty%line_ins_delete_ok .and. &
+                   tty%character_ins_delete_ok, "capabilities")
         if (allocated(error)) return
-        call check(error, tty%tn_max_colors, 256)
+        call check(error, tty%tn_maximum_colors, 256)
         if (allocated(error)) return
         call check(error, tty%ts_end_standout_mode, ESC//"[27m")
         if (allocated(error)) return
-        call init_tty(tty, "no-such-terminal", -1_int32, st)
+        call initialize_tty(tty, "no-such-terminal", -1_int32, st)
         call check(error, st%detail, "Terminal type no-such-terminal is not defined")
     end subroutine test_init
 
@@ -244,14 +244,14 @@ contains
         call tty_delete_glyphs(tty, 2)
         call check(error, tty_take_output(tty), ESC//"[2P")
         if (allocated(error)) return
-        call tty_ins_del_lines(tty, 2, 3)
+        call tty_ins_delete_lines(tty, 2, 3)
         call check(error, tty_take_output(tty), achar(13)//ESC//"[3L")
         if (allocated(error)) return
-        call tty_ins_del_lines(tty, 2, -1)
+        call tty_ins_delete_lines(tty, 2, -1)
         call check(error, tty_take_output(tty), ESC//"[1M")
         if (allocated(error)) return
         ! Past the bottom: nothing.
-        call tty_ins_del_lines(tty, 22, 3)
+        call tty_ins_delete_lines(tty, 22, 3)
         call check(error, tty_take_output(tty), "")
     end subroutine test_insert_delete
 
@@ -261,10 +261,10 @@ contains
         type(tty_display_info_type) :: tty
 
         call xterm(tty)
-        deallocate (tty%ts_ins_line, tty%ts_ins_multi_lines, tty%ts_del_line, &
-                    tty%ts_del_multi_lines)
+        deallocate (tty%ts_ins_line, tty%ts_ins_multi_lines, tty%ts_delete_line, &
+                    tty%ts_delete_multi_lines)
         call cmat(tty, 0, 0)
-        call tty_ins_del_lines(tty, 5, -2)
+        call tty_ins_delete_lines(tty, 5, -2)
         call check(error, tty_take_output(tty), ESC//"[6;24r"//ESC//"[24;1H"// &
                    achar(10)//achar(10)//ESC//"[1;24r")
         if (allocated(error)) return
@@ -290,7 +290,7 @@ contains
                    ESC//"[39;49m"//achar(13))
     end subroutine test_modes
 
-    !> init_tty registers the terminal's function keys in input-decode-map.
+    !> initialize_tty registers the terminal's function keys in input-decode-map.
     subroutine test_fkeys(error)
         type(error_type), allocatable, intent(out) :: error
         type(tty_display_info_type) :: tty
@@ -301,7 +301,7 @@ contains
         key(1) = value_type(27_int64)
         key(2) = value_type(int(iachar("O"), int64))
         key(3) = value_type(int(iachar("A"), int64))
-        call lookup_key(make_keymap_ref(input_decode_map), key, v, st)
+        call lookup_key(make_keymap_reference(input_decode_map), key, v, st)
         call check(error, value_equal(v, list(value_type(name="up"))), "ESC O A")
     end subroutine test_fkeys
 
@@ -333,8 +333,8 @@ contains
         if (allocated(error)) return
         call set_tty_size(slave, 100_int32, 30_int32, st)
         call builtin_xterm(ti)
-        call init_tty_entry(tty, ti, "xterm-256color", slave, st)
-        call check(error, st%ok() .and. tty%wcm%cm_cols == 100 .and. tty%wcm%cm_rows == 30, &
+        call initialize_tty_entry(tty, ti, "xterm-256color", slave, st)
+        call check(error, st%ok() .and. tty%wcm%cm_columns == 100 .and. tty%wcm%cm_rows == 30, &
                    "size from the pty")
 
         if (.not. allocated(error)) then

@@ -51,12 +51,12 @@ module test_project_mod
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string
     use search_mod, only: string_match
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                                      create_directory_internal, write_region, expand_file_name, directory_file_name, &
                                      file_name_nondirectory
     use files_mod, only: delete_directory, executable_find, file_relative_name, is_file_equal, abbreviate_file_name
-    use bindings_mod, only: init_bindings
-    use value_mod, only: value_type, make_keymap_ref, command_type
+    use bindings_mod, only: initialize_bindings
+    use value_mod, only: value_type, make_keymap_reference, command_type
     use keymap_mod, only: key_parse, lookup_key, current_global_map
     use execute_interactively_mod, only: command_of
     use commands_mod, only: commands
@@ -70,7 +70,7 @@ module test_project_mod
                            project_list_file, remember_project, forget_project, known_project_roots, &
                            combine_project_directories, subtract_project_directories, project_vc_ignores_of, &
                            is_project_buffer_matching, project_close_buffer_conditions, project_buffers_to_close, &
-                           find_project_regexp
+                           find_project_regular_expression
     use cross_reference_mod, only: xref_fetcher_type, xref_show_parameters_type, xref_show_procedure, xref_item_type, &
                                    xref_show_xrefs_function, xref_search_program, XREF_SEARCH_PROGRAM_GREP
     implicit none(type, external)
@@ -88,7 +88,7 @@ module test_project_mod
     end type trivial_project_type
 
     !> The temporary directory, under the build directory.
-    character(len=*), parameter :: subdir = "build/test-project/"
+    character(len=*), parameter :: subdirectory = "build/test-project/"
 
     !> The project the finder of the own test gives.
     type(transient_project_type) :: found_project
@@ -106,13 +106,13 @@ contains
                     new_unittest("project-ignores-bug-50240", test_ignores_bug_50240), &
                     new_unittest("project-vc-recognizes-git", test_vc_recognizes_git), &
                     new_unittest("project-vc-extra-root-markers-supports-wildcards", test_extra_root_markers_wildcards), &
-                    new_unittest("project-vc-supports-project-in-different-dir", test_project_in_different_dir), &
+                    new_unittest("project-vc-supports-project-in-different-dir", test_project_in_different_directory), &
                     new_unittest("project-vc-supports-files-in-subdirectory", test_files_in_subdirectory), &
                     new_unittest("project-vc-ignores-in-external-directory", test_ignores_in_external_directory), &
                     new_unittest("project-vc-nonexistent-directory-no-error", test_nonexistent_directory), &
                     new_unittest("project-try-vc-uses-cache", test_uses_cache), &
                     new_unittest("project-try-vc-invalidates-cache", test_invalidates_cache), &
-                    new_unittest("project-find-regexp", test_find_regexp), &
+                    new_unittest("project-find-regexp", test_find_regular_expression), &
                     new_unittest("project-current-from-finder", test_current_from_finder), &
                     new_unittest("project-known-projects", test_known_projects), &
                     new_unittest("project-close-buffer-conditions", test_close_buffer_conditions), &
@@ -135,17 +135,17 @@ contains
     end function trivial_root
 
     ! Not a port.
-    function trivial_ignores(self, dir) result(ignores)
+    function trivial_ignores(self, directory) result(ignores)
         class(trivial_project_type), intent(in) :: self
-        character(len=*), intent(in) :: dir
+        character(len=*), intent(in) :: directory
         type(string_type), allocatable :: ignores(:)
 
         ignores = self%ignore_list
     end function trivial_ignores
 
     !> The finder of the own test: `found_project' for any directory.
-    recursive subroutine find_test_project(dir, project, status)
-        character(len=*), intent(in) :: dir
+    recursive subroutine find_test_project(directory, project, status)
+        character(len=*), intent(in) :: directory
         class(project_type), allocatable, intent(out) :: project
         type(status_type), intent(out) :: status
 
@@ -154,28 +154,28 @@ contains
     end subroutine find_test_project
 
     !> The working directory, as a directory name.
-    function wd() result(dir)
-        character(len=:), allocatable :: dir
+    function wd() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = file_name_as_directory(fortmacs_wd)
+        directory = file_name_as_directory(fortmacs_wd)
     end function wd
 
     !> The temporary directory, made empty.
-    function temp_dir() result(dir)
-        character(len=:), allocatable :: dir
+    function temporary_directory() result(directory)
+        character(len=:), allocatable :: directory
         type(status_type) :: st
 
-        dir = wd()//subdir
-        if (is_file_directory(dir)) call delete_directory(dir, st, .true.)
+        directory = wd()//subdirectory
+        if (is_file_directory(directory)) call delete_directory(directory, st, .true.)
         call create_directory_internal(wd()//"build", st)
-        call create_directory_internal(dir, st)
-    end function temp_dir
+        call create_directory_internal(directory, st)
+    end function temporary_directory
 
     !> The project resources directory.
-    function resource_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function resource_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = wd()//"test/project-resources/"
+        directory = wd()//"test/project-resources/"
     end function resource_directory
 
     !> Write TEXT to FILE.
@@ -183,13 +183,13 @@ contains
         character(len=*), intent(in) :: file, text
         type(handle_type) :: old, h
         type(status_type) :: st
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message_text
 
         old = current_buffer()
         call get_or_make_buffer(generate_new_buffer_name(" *project-test*"), h, st)
         call set_buffer(h, st)
         call insert(text, st)
-        call write_region(file, .false., st, message=msg)
+        call write_region(file, .false., st, message=message_text)
         call close_buffer(h, st)
         call set_buffer(old, st)
     end subroutine write_file
@@ -230,8 +230,8 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call get_or_make_buffer(" *project-test-main*", h, st)
         call set_buffer(h, st)
         buffers(current)%directory = wd()
@@ -288,7 +288,7 @@ contains
         type(trivial_project_type) :: project
         type(string_type), allocatable :: files(:)
         type(status_type) :: st
-        character(len=:), allocatable :: dir, path
+        character(len=:), allocatable :: directory, path
 
         call setup()
         call executable_find("find", path)
@@ -298,17 +298,17 @@ contains
             return
         end if
 
-        dir = temp_dir()
-        call write_file(dir//"some-file", "")
-        call write_file(dir//"ignored-file", "")
-        project%directory = file_name_as_directory(dir)
+        directory = temporary_directory()
+        call write_file(directory//"some-file", "")
+        call write_file(directory//"ignored-file", "")
+        project%directory = file_name_as_directory(directory)
         project%ignore_list = strings("./ignored-file")
         call project%list_files(files, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(files), 1)
         if (allocated(error)) return
-        call check(error, file_relative_name(files(1)%text, dir), "some-file")
+        call check(error, file_relative_name(files(1)%text, directory), "some-file")
     end subroutine test_ignores
 
     !> Check that `list_files' does not ignore all files.
@@ -318,7 +318,7 @@ contains
         type(trivial_project_type) :: project
         type(string_type), allocatable :: files(:)
         type(status_type) :: st
-        character(len=:), allocatable :: dir, path, expected
+        character(len=:), allocatable :: directory, path, expected
 
         call setup()
         call executable_find("find", path)
@@ -328,16 +328,16 @@ contains
             return
         end if
 
-        dir = temp_dir()
-        call write_file(dir//"some-file", "")
-        project%directory = file_name_as_directory(dir)
-        project%ignore_list = strings(file_name_nondirectory(directory_file_name(dir)))
+        directory = temporary_directory()
+        call write_file(directory//"some-file", "")
+        project%directory = file_name_as_directory(directory)
+        project%ignore_list = strings(file_name_nondirectory(directory_file_name(directory)))
         call project%list_files(files, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(files), 1)
         if (allocated(error)) return
-        call expand_file_name("some-file", expected, st, dir)
+        call expand_file_name("some-file", expected, st, directory)
         call check(error, files(1)%text, expected)
     end subroutine test_ignores_bug_50240
 
@@ -397,7 +397,7 @@ contains
     !> Check that it picks up the ignores for a project in another
     !> directory (upstream: from its directory-local variables; here the
     !> global `project_vc_ignores').
-    subroutine test_project_in_different_dir(error)
+    subroutine test_project_in_different_directory(error)
         type(error_type), allocatable, intent(out) :: error
         class(project_type), allocatable :: project
         type(string_type), allocatable :: ignores(:), files(:)
@@ -433,7 +433,7 @@ contains
         end if
 
         call teardown()
-    end subroutine test_project_in_different_dir
+    end subroutine test_project_in_different_directory
 
     !> Check that it lists only files from a repo's subdirectory.
     subroutine test_files_in_subdirectory(error)
@@ -461,7 +461,7 @@ contains
         call teardown()
     end subroutine test_files_in_subdirectory
 
-    !> Check that it applies `project_vc_ignores' when DIR is external to
+    !> Check that it applies `project_vc_ignores' when DIRECTORY is external to
     !> the root.
     subroutine test_ignores_in_external_directory(error)
         type(error_type), allocatable, intent(out) :: error
@@ -579,7 +579,7 @@ contains
     end subroutine capture_matches
 
     !> Check the happy path.
-    subroutine test_find_regexp(error)
+    subroutine test_find_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
         procedure(xref_show_procedure), pointer :: saved_show
         type(status_type) :: st
@@ -607,7 +607,7 @@ contains
         xref_show_xrefs_function => capture_matches
         xref_search_program = XREF_SEARCH_PROGRAM_GREP
         if (allocated(fetched_matches)) deallocate (fetched_matches)
-        call find_project_regexp("etc", st)
+        call find_project_regular_expression("etc", st)
         xref_show_xrefs_function => saved_show
         call project_find_functions%clear()
         call project_find_functions%append(try_vc_project)
@@ -622,7 +622,7 @@ contains
         call check(error, file_name_nondirectory(fetched_matches(1)%location%group()), "etc")
         if (allocated(error)) return
         call check(error, fetched_matches(1)%summary, "etc")
-    end subroutine test_find_regexp
+    end subroutine test_find_regular_expression
 
     ! ------------------------------------------------------------------
     ! Own tests
@@ -655,17 +655,17 @@ contains
         type(transient_project_type) :: a, b
         type(string_type), allocatable :: roots(:)
         type(status_type) :: st
-        character(len=:), allocatable :: dir, saved_file
+        character(len=:), allocatable :: directory, saved_file
         type(handle_type) :: old, h
         integer(int64) :: inserted
         character(len=:), allocatable :: text
 
         call setup()
-        dir = temp_dir()
+        directory = temporary_directory()
         saved_file = project_list_file
-        project_list_file = dir//"projects"
-        a%directory = dir//"a/"
-        b%directory = dir//"b/"
+        project_list_file = directory//"projects"
+        a%directory = directory//"a/"
+        b%directory = directory//"b/"
         call create_directory_internal(a%directory, st)
         call create_directory_internal(b%directory, st)
         call remember_project(a, st)
@@ -713,7 +713,7 @@ contains
         type(handle_type) :: plain, internal, old
         type(status_type) :: st
         type(transient_project_type) :: project
-        type(handle_type), allocatable :: bufs(:)
+        type(handle_type), allocatable :: buffer_handles(:)
         integer :: k
         logical :: has_plain, has_internal
 
@@ -731,10 +731,10 @@ contains
         end if
 
         if (.not. allocated(error)) then
-            project%directory = temp_dir()
+            project%directory = temporary_directory()
             buffers(plain%index)%directory = project%directory
             buffers(internal%index)%directory = project%directory
-            bufs = project_buffers_to_close(project, st)
+            buffer_handles = project_buffers_to_close(project, st)
             call check(error, st%ok(), "buffers to close: status")
         end if
 
@@ -742,9 +742,9 @@ contains
             has_plain = .false.
             has_internal = .false.
 
-            do k = 1, size(bufs)
-                if (bufs(k)%index == plain%index) has_plain = .true.
-                if (bufs(k)%index == internal%index) has_internal = .true.
+            do k = 1, size(buffer_handles)
+                if (buffer_handles(k)%index == plain%index) has_plain = .true.
+                if (buffer_handles(k)%index == internal%index) has_internal = .true.
             end do
 
             call check(error, has_plain .and. .not. has_internal, "buffers to close")
@@ -759,37 +759,37 @@ contains
     !> subdirectories; `subtract_project_directories' drops what is inside.
     subroutine test_combine_directories(error)
         type(error_type), allocatable, intent(out) :: error
-        type(string_type), allocatable :: dirs(:), combined(:), outside(:)
+        type(string_type), allocatable :: directories(:), combined(:), outside(:)
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
         call setup()
-        dir = temp_dir()
-        call create_directory_internal(dir//"b", st)
-        call create_directory_internal(dir//"b/c", st)
-        call create_directory_internal(dir//"a", st)
-        allocate (dirs(4))
-        dirs(1)%text = dir//"b/c"
-        dirs(2)%text = dir//"b"
-        dirs(3)%text = dir//"missing"
-        dirs(4)%text = dir//"a"
-        combined = combine_project_directories(dirs, st)
+        directory = temporary_directory()
+        call create_directory_internal(directory//"b", st)
+        call create_directory_internal(directory//"b/c", st)
+        call create_directory_internal(directory//"a", st)
+        allocate (directories(4))
+        directories(1)%text = directory//"b/c"
+        directories(2)%text = directory//"b"
+        directories(3)%text = directory//"missing"
+        directories(4)%text = directory//"a"
+        combined = combine_project_directories(directories, st)
         call check(error, st%ok(), "combine: status")
         if (allocated(error)) return
         call check(error, size(combined), 2)
         if (allocated(error)) return
-        call check(error, combined(1)%text, dir//"a/")
+        call check(error, combined(1)%text, directory//"a/")
         if (allocated(error)) return
-        call check(error, combined(2)%text, dir//"b/")
+        call check(error, combined(2)%text, directory//"b/")
         if (allocated(error)) return
-        outside = subtract_project_directories(combined, strings(dir//"b/"))
+        outside = subtract_project_directories(combined, strings(directory//"b/"))
         call check(error, size(outside), 1)
         if (allocated(error)) return
-        call check(error, outside(1)%text, dir//"a/")
+        call check(error, outside(1)%text, directory//"a/")
         if (allocated(error)) return
         ! A NUL byte in a name is reported, not passed over.
-        dirs(4)%text = dir//"a"//achar(0)
-        combined = combine_project_directories(dirs, st)
+        directories(4)%text = directory//"a"//achar(0)
+        combined = combine_project_directories(directories, st)
         call check(error,.not. st%ok(), "combine: NUL byte")
     end subroutine test_combine_directories
 
@@ -836,7 +836,7 @@ contains
             binding_is = .false.
             call key_parse(keys, events, st)
             if (.not. st%ok()) return
-            call lookup_key(make_keymap_ref(current_global_map()), events, binding, st)
+            call lookup_key(make_keymap_reference(current_global_map()), events, binding, st)
             if (.not. st%ok()) return
             binding_is = associated(command_of(binding), command)
         end function binding_is

@@ -70,7 +70,7 @@ contains
     type(display_action_type) :: saved_action
     type(handle_type) :: log_buffer
     type(status_type) :: st
-    integer(int64) :: opoint, eoh
+    integer(int64) :: original_point, eoh
     logical :: single_line_summary
 
     log_buffer = current_buffer()
@@ -95,15 +95,15 @@ contains
 
     if (size(entries) == 1) then
         if (size(entries(1)%subprograms) < 2) then
-            opoint = point()
+            original_point = point()
             call rfc822_goto_eoh(st)
             eoh = point()
-            call goto_char(opoint)
+            call goto_character(original_point)
 
-            if (opoint < eoh) then
+            if (original_point < eoh) then
                 call beginning_of_line()
                 single_line_summary = looking_at("Summary:", st)
-                call goto_char(opoint)
+                call goto_character(original_point)
             end if
         end if
     end if

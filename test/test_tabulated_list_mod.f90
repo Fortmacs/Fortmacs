@@ -26,16 +26,17 @@
 module test_tabulated_list_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_USER_ERROR
+    use error_mod, only: status_type, format_error, USER_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xstring, vtag, V_STRING
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, close_buffer, get_or_make_buffer, &
                           generate_new_buffer_name
-    use editing_functions_mod, only: buffer_string, point, goto_char, point_min, pos_bol, pos_eol, buffer_substring
+    use editing_functions_mod, only: buffer_string, point, goto_character, point_minimum, position_beginning_of_line, &
+                                     position_end_of_line, buffer_substring
     use editing_commands_mod, only: forward_line
-    use syntax_mod, only: skip_chars_forward
+    use syntax_mod, only: skip_characters_forward
     use text_properties_mod, only: get_text_property
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use tabulated_list_mod, only: tabulated_list_mode, tabulated_list_column_type, tabulated_list_entry_type, &
                                   set_tabulated_list_format, set_tabulated_list_entries, set_tabulated_list_padding, &
                                   tabulated_list_entries, tabulated_list_init_header, tabulated_list_print, &
@@ -73,15 +74,15 @@ contains
         integer :: k
 
         e%id = name
-        allocate (e%cols(5))
-        e%cols(1)%text = name
-        e%cols(2)%text = name
-        e%cols(3)%text = version
-        e%cols(4)%text = status
-        e%cols(5)%text = description
+        allocate (e%columns(5))
+        e%columns(1)%text = name
+        e%columns(2)%text = name
+        e%columns(3)%text = version
+        e%columns(4)%text = status
+        e%columns(5)%text = description
 
         do k = 1, 5
-            e%cols(k)%face = ""
+            e%columns(k)%face = ""
         end do
     end subroutine make_entry
 
@@ -123,7 +124,7 @@ contains
         type(tabulated_list_column_type), allocatable :: format(:)
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         old = current_buffer()
         call get_or_make_buffer(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
@@ -149,7 +150,7 @@ contains
         character(len=:), allocatable :: line
         type(status_type) :: st
 
-        call buffer_substring(pos_bol(), pos_eol() + 1, line, st)
+        call buffer_substring(position_beginning_of_line(), position_end_of_line() + 1, line, st)
     end function line_at_point
 
     !> The entries without the first.
@@ -165,7 +166,7 @@ contains
         type(handle_type) :: old
         type(tabulated_list_entry_type), allocatable :: entries(:)
         type(status_type) :: st
-        character(len=:), allocatable :: pos
+        character(len=:), allocatable :: position
         integer(int64) :: shortage
 
         call with_buffer(old)
@@ -180,10 +181,10 @@ contains
             if (allocated(error)) exit steps
             ! Preserve position.
             shortage = forward_line(3_int64)
-            pos = line_at_point()
+            position = line_at_point()
             call pop_entry()
-            call tabulated_list_print(st, remember_pos=.true.)
-            call check(error, line_at_point(), pos)
+            call tabulated_list_print(st, remember_position=.true.)
+            call check(error, line_at_point(), position)
             if (allocated(error)) exit steps
             call check(error, buffer_string(), &
                        "       4clojure   4clojure   1507      obsolete    Open and evaluate 4clojure.com questions"//LF// &
@@ -193,18 +194,18 @@ contains
             ! Check the UPDATE argument
             call pop_entry()
             entries = tabulated_list_entries()
-            entries(1)%cols(1)%text = "x"
-            entries(1)%cols(2)%text = "x"
-            entries(1)%cols(3)%text = "944"
-            entries(1)%cols(4)%text = "available"
-            entries(1)%cols(5)%text = " XX"
+            entries(1)%columns(1)%text = "x"
+            entries(1)%columns(2)%text = "x"
+            entries(1)%columns(3)%text = "944"
+            entries(1)%columns(4)%text = "available"
+            entries(1)%columns(5)%text = " XX"
             call set_tabulated_list_entries(entries)
-            call tabulated_list_print(st, remember_pos=.true., update=.true.)
+            call tabulated_list_print(st, remember_position=.true., update=.true.)
             call check(error, buffer_string(), &
                        "       x          x          944       available   XX"//LF// &
                        "       mode       mode       1128      installed   A simple mode for editing Actionscript 3 files"//LF)
             if (allocated(error)) exit steps
-            call check(error, line_at_point(), pos)
+            call check(error, line_at_point(), position)
         end block steps
 
         call done(old)
@@ -222,8 +223,8 @@ contains
 
         steps: block
             ! Basic sorting
-            call goto_char(point_min())
-            moved = skip_chars_forward("[:blank:]", st)
+            call goto_character(point_minimum())
+            moved = skip_characters_forward("[:blank:]", st)
             call tabulated_list_sort(st)
             text = buffer_string()
             call check(error, text, &
@@ -232,8 +233,8 @@ contains
                        "       mode       mode       1128      installed   A simple mode for editing Actionscript 3 files"//LF// &
                        "       zzzz-game  zzzz-game  2113      installed   play zzzz in Emacs"//LF)
             if (allocated(error)) exit steps
-            moved = skip_chars_forward("^[:blank:]", st)
-            moved = skip_chars_forward("[:blank:]", st)
+            moved = skip_characters_forward("^[:blank:]", st)
+            moved = skip_characters_forward("[:blank:]", st)
             call get_text_property(point(), value_type(name="tabulated_list_column_name"), v, st)
             call check(error, vtag(v) == V_STRING, "a column name")
             if (allocated(error)) exit steps
@@ -256,13 +257,13 @@ contains
             call check(error, buffer_string(), text)
             if (allocated(error)) exit steps
             ! Check that you can't sort some cols.
-            moved = skip_chars_forward("^[:blank:]", st)
-            moved = skip_chars_forward("[:blank:]", st)
+            moved = skip_characters_forward("^[:blank:]", st)
+            moved = skip_characters_forward("[:blank:]", st)
             call tabulated_list_sort(st)
-            call check(error, st%code == FM_USER_ERROR, "user-error")
+            call check(error, st%code == USER_ERROR_CODE, "user-error")
             if (allocated(error)) exit steps
             call tabulated_list_sort(st, 4)
-            call check(error, st%code == FM_USER_ERROR, "user-error for 4")
+            call check(error, st%code == USER_ERROR_CODE, "user-error for 4")
         end block steps
 
         call done(old)
@@ -290,8 +291,8 @@ contains
                 if (allocated(error)) exit steps
             end associate
 
-            call goto_char(point_min())
-            moved = skip_chars_forward("[:blank:]", st)
+            call goto_character(point_minimum())
+            moved = skip_characters_forward("[:blank:]", st)
             call tabulated_list_sort(st)
 
             associate (segs => buffers(current)%header_line_format%segments)

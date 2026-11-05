@@ -30,14 +30,14 @@ submodule(coding_mod) romanian_mod
 contains
 
     !> Port of the `charset' coding systems of romanian.el.
-    module subroutine init_romanian()
+    module subroutine initialize_romanian()
         call define_charset_coding_system("iso-latin-10", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-16"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "iso-8859-16"], &
                                           mime_charset="iso-8859-16", &
                                           doc="ISO 2022 based 8-bit encoding for Latin-10.")
         call define_coding_system_alias("iso-8859-16", "iso-latin-10")
         call define_coding_system_alias("latin-10", "iso-latin-10")
-    end subroutine init_romanian
+    end subroutine initialize_romanian
 
     !> Port of the language environments of romanian.el.
     module subroutine define_romanian_language_environments()

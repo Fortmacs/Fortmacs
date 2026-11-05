@@ -26,7 +26,7 @@
 !> them before returning.
 module test_easy_minor_mode_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NUMBER
+    use execute_interactively_mod, only: prefix_argument_type, PREFIX_NUMBER
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
@@ -34,13 +34,13 @@ module test_easy_minor_mode_mod
     use buffer_mod, only: get_or_make_buffer, close_buffer, set_buffer, current, auto_fill_function, &
                           transient_mark_mode
     use data_mod, only: symbol_value, value_eq
-    use execute_interactively_mod, only: current_prefix_arg
+    use execute_interactively_mod, only: current_prefix_argument
     use keyboard_mod, only: last_message
     use keymap_mod, only: keymap_set, key_binding, key_parse, is_keymap_live
     use display_engine_mod, only: mode_line_modes, mode_line_text
     use easy_minor_mode_mod, only: minor_mode_type, easy_mmode_pretty_mode_name
     use modes_mod, only: minor_modes
-    use simple_mod, only: turn_on_auto_fill, init_simple_modes, init_simple
+    use simple_mod, only: turn_on_auto_fill, initialize_simple_modes, initialize_simple
     implicit none(type, external)
     private
 
@@ -104,14 +104,14 @@ contains
         call test_mode%disable(st)
         call check(error,.not. test_mode_on() .and. .not. body_state, "disable")
         if (allocated(error)) return
-        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 33_int64)
+        current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, 33_int64)
         call test_mode%command(st)
-        current_prefix_arg = prefix_arg_type()
+        current_prefix_argument = prefix_argument_type()
         call check(error, test_mode_on(), "33 turns it on")
         if (allocated(error)) return
-        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, -33_int64)
+        current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, -33_int64)
         call test_mode%command(st)
-        current_prefix_arg = prefix_arg_type()
+        current_prefix_argument = prefix_argument_type()
         call check(error,.not. test_mode_on(), "-33 turns it off")
         if (allocated(error)) return
         call test_mode%toggle(st)
@@ -156,11 +156,11 @@ contains
         type(value_type), allocatable :: key(:)
 
         call test_lit_mode%define("easy-mmode-test-lit-mode", " Lit", keymap=.true.)
-        call keymap_set(test_lit_mode%map, "C-c l", "forward_char", st)
+        call keymap_set(test_lit_mode%map, "C-c l", "forward_character", st)
         call get_or_make_buffer("easy-mmode-test-A", a, st)
         call get_or_make_buffer("easy-mmode-test-B", b, st)
         call set_buffer(a, st)
-        current_prefix_arg = prefix_arg_type()
+        current_prefix_argument = prefix_argument_type()
         call test_lit_mode%command(st)
         call check(error, test_lit_mode%enabled(), "on in A")
         if (allocated(error)) return
@@ -170,7 +170,7 @@ contains
         if (allocated(error)) return
         call key_parse("C-c l", key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, value_type(name="forward_char")), "minor mode map active")
+        call check(error, value_eq(binding, value_type(name="forward_character")), "minor mode map active")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check(error,.not. test_lit_mode%enabled(), "off in B")
@@ -193,7 +193,7 @@ contains
 
         call get_or_make_buffer("easy-mmode-fill-A", a, st)
         call get_or_make_buffer("easy-mmode-fill-B", b, st)
-        call init_simple()
+        call initialize_simple()
         call set_buffer(a, st)
         call turn_on_auto_fill(st)
         call check(error, associated(auto_fill_function%value), "on in A")
@@ -218,11 +218,11 @@ contains
         type(status_type) :: st
         logical :: saved
 
-        call init_simple_modes()
+        call initialize_simple_modes()
         saved = transient_mark_mode%value
-        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, -1_int64)
+        current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, -1_int64)
         call minor_modes%transient_mark_mode%command(st)
-        current_prefix_arg = prefix_arg_type()
+        current_prefix_argument = prefix_argument_type()
         call check(error,.not. transient_mark_mode%value, "turned off")
         if (allocated(error)) return
         call check(error, last_message, "Transient-Mark mode disabled")

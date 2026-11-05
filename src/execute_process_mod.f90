@@ -61,7 +61,7 @@ module execute_process_mod
     implicit none(type, external)
     private
 
-    public :: execute_process, execute_process_region, get_current_directory, locate_program, init_callproc
+    public :: execute_process, execute_process_region, get_current_directory, locate_program, initialize_callproc
     public :: getenv_internal, setenv_internal, set_initial_environment, make_environment_block
 
     !> File name to load inferior shells from.
@@ -113,7 +113,7 @@ module execute_process_mod
         !> before point.  If DESTINATION is absent, it means discard
         !> output.
         !>
-        !> ARGS, a list of strings, are passed as command arguments to PROGRAM.
+        !> ARGUMENTS, a list of strings, are passed as command arguments to PROGRAM.
         !>
         !> ERROR_FILE, if present, is a file to write the standard error output
         !> to (DESTINATION's (REAL-DESTINATION ERROR-FILE) form; the file is
@@ -133,13 +133,13 @@ module execute_process_mod
         !> The process runs in `default_directory'.  Port of
         !> callproc.c:Fcall_process and execute_process.  (In
         !> execute_process_execute_mod.)
-        module subroutine execute_process(program, result, status, infile, destination, args, error_file, environment)
+        module subroutine execute_process(program, result, status, infile, destination, arguments, error_file, environment)
             implicit none(type, external)
             character(len=*), intent(in) :: program
             type(value_type), intent(out) :: result
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: infile, error_file
-            type(value_type), intent(in), optional :: destination, args
+            type(value_type), intent(in), optional :: destination, arguments
             !> "NAME=VALUE" strings put first in the program's environment, as
             !> binding `process_environment' to a list starting with them does
             !> (a "NAME" without "=" removes the variable).
@@ -151,20 +151,20 @@ module execute_process_mod
         !> expanded (it may start with `~'), which must be accessible.  Port of
         !> callproc.c:get_current_directory (as a directory name, with the
         !> trailing slash).  (In execute_process_execute_mod.)
-        module subroutine get_current_directory(dir, status)
+        module subroutine get_current_directory(directory, status)
             implicit none(type, external)
-            character(len=:), allocatable, intent(out) :: dir
+            character(len=:), allocatable, intent(out) :: directory
             type(status_type), intent(out) :: status
         end subroutine get_current_directory
 
         !> The executable file PROGRAM names: itself if it has a slash (relative
-        !> to `dir'), else the first one in a directory of PATH (an empty entry
-        !> means `dir').  `path' is "" if there is none.  Port of the part of
+        !> to `directory'), else the first one in a directory of PATH (an empty entry
+        !> means `directory').  `path' is "" if there is none.  Port of the part of
         !> lread.c:openp that execute_process uses (`exec_path' is PATH here).
         !> (In execute_process_execute_mod.)
-        module subroutine locate_program(program, dir, path)
+        module subroutine locate_program(program, directory, path)
             implicit none(type, external)
-            character(len=*), intent(in) :: program, dir
+            character(len=*), intent(in) :: program, directory
             character(len=:), allocatable, intent(out) :: path
         end subroutine locate_program
 
@@ -180,7 +180,7 @@ module execute_process_mod
         !> Insert output in DESTINATION before point; t means current buffer;
         !> absent means discard it.  DESTINATION can be a string which
         !> is the name of a buffer.
-        !> ARGS, a list of strings, are passed to PROGRAM at startup as
+        !> ARGUMENTS, a list of strings, are passed to PROGRAM at startup as
         !> command-line arguments.
         !>
         !> ERROR_FILE is as for `execute_process'.
@@ -191,7 +191,7 @@ module execute_process_mod
         !> It waits for PROGRAM to terminate and RESULT is a numeric exit
         !> status or a signal description string.  Port of
         !> callproc.c:Fcall_process_region.  (In execute_process_execute_mod.)
-        module subroutine execute_process_region(program, result, status, start, end, delete, destination, args, &
+        module subroutine execute_process_region(program, result, status, start, end, delete, destination, arguments, &
                                                  error_file)
             implicit none(type, external)
             character(len=*), intent(in) :: program
@@ -200,7 +200,7 @@ module execute_process_mod
             type(status_type), intent(out) :: status
             integer(int64), intent(in), optional :: start, end
             logical, intent(in), optional :: delete
-            type(value_type), intent(in), optional :: destination, args
+            type(value_type), intent(in), optional :: destination, arguments
         end subroutine execute_process_region
     end interface
 
@@ -208,14 +208,14 @@ contains
 
     !> Set `shell_file_name' from SHELL (/bin/sh if unset).  Port of
     !> callproc.c:init_callproc (the part ported).
-    subroutine init_callproc()
+    subroutine initialize_callproc()
         character(len=:), allocatable :: sh
         integer :: stat
 
         call getenv_internal("SHELL", sh, stat)
         if (stat /= GETENV_SET) sh = "/bin/sh"
         shell_file_name = sh
-    end subroutine init_callproc
+    end subroutine initialize_callproc
 
     !> Fill `process_environment' from the editor's environment (the last
     !> variable first, as upstream conses them) and keep a copy of it as
@@ -273,7 +273,7 @@ contains
             end if
         end if
 
-        ! Try to find VAR in Vprocess_environment first.
+        ! Try to find VARIABLE in Vprocess_environment first.
         call getenv_internal_1(variable, value, found, process_environment)
 
         if (found) then
@@ -295,32 +295,32 @@ contains
         if (.not. allocated(value)) value = ""
     end subroutine getenv_internal
 
-    ! Search ENV for VARIABLE: `found' is true if it has an entry, with
+    ! Search ENVIRONMENT for VARIABLE: `found' is true if it has an entry, with
     ! `value' its value, or unallocated for a lone variable name (the
     ! variable is removed).  Port of callproc.c:getenv_internal_1.
-    subroutine getenv_internal_1(variable, value, found, env)
+    subroutine getenv_internal_1(variable, value, found, environment)
         character(len=*), intent(in) :: variable
         character(len=:), allocatable, intent(out) :: value
         logical, intent(out) :: found
-        type(string_type), intent(in) :: env(:)
+        type(string_type), intent(in) :: environment(:)
         integer :: k, n
 
         n = len(variable)
         found = .false.
 
-        do k = 1, size(env)
-            if (len(env(k)%text) < n) cycle
-            if (env(k)%text(1:n) /= variable) cycle
+        do k = 1, size(environment)
+            if (len(environment(k)%text) < n) cycle
+            if (environment(k)%text(1:n) /= variable) cycle
 
-            if (len(env(k)%text) == n) then
+            if (len(environment(k)%text) == n) then
                 ! Lone variable names in Vprocess_environment mean that
                 ! variable should be removed from the environment.
                 found = .true.
                 return
             end if
 
-            if (env(k)%text(n + 1:n + 1) == "=") then
-                value = env(k)%text(n + 2:)
+            if (environment(k)%text(n + 1:n + 1) == "=") then
+                value = environment(k)%text(n + 2:)
                 found = .true.
                 return
             end if
@@ -342,7 +342,7 @@ contains
 
         if (.not. allocated(process_environment)) call set_initial_environment()
 
-        ! Try to find existing entry for VARIABLE in ENV.
+        ! Try to find existing entry for VARIABLE in ENVIRONMENT.
         do k = 1, size(process_environment)
             if (.not. is_entry_for(process_environment(k)%text, variable)) cycle
 
@@ -383,48 +383,48 @@ contains
         end if
     end function is_entry_for
 
-    !> The environment of a new subprocess running in `current_dir' (a
-    !> directory name): PWD set to `current_dir' (without trailing
+    !> The environment of a new subprocess running in `current_directory' (a
+    !> directory name): PWD set to `current_directory' (without trailing
     !> slashes) if PWD is set, DISPLAY from `initial_environment' unless
     !> `process_environment' has it, then `process_environment' (the first
     !> definition of a variable wins; entries that only name a variable
     !> remove it).  `overrides', "NAME=VALUE" or "NAME" entries, are
     !> consulted first, as when `process_environment' is bound to a list
     !> starting with them.  Port of callproc.c:make_environment_block and
-    !> add_env.
-    subroutine make_environment_block(current_dir, block, overrides)
-        character(len=*), intent(in) :: current_dir
+    !> add_environment.
+    subroutine make_environment_block(current_directory, block, overrides)
+        character(len=*), intent(in) :: current_directory
         type(string_type), allocatable, intent(out) :: block(:)
         type(string_type), intent(in), optional :: overrides(:)
         type(string_type), allocatable :: kept(:)
-        type(string_type), allocatable :: env(:)
-        character(len=:), allocatable :: pwd_var, display, value
+        type(string_type), allocatable :: environment(:)
+        character(len=:), allocatable :: pwd_variable, display, value
         logical :: has_display, found
         integer :: i, k, n
 
         if (.not. allocated(process_environment)) call set_initial_environment()
 
         if (present(overrides)) then
-            allocate (env(size(overrides) + size(process_environment)))
+            allocate (environment(size(overrides) + size(process_environment)))
 
             do k = 1, size(overrides)
-                env(k)%text = overrides(k)%text
+                environment(k)%text = overrides(k)%text
             end do
 
-            env(size(overrides) + 1:) = process_environment
+            environment(size(overrides) + 1:) = process_environment
         else
-            env = process_environment
+            environment = process_environment
         end if
 
         ! Strip trailing slashes for PWD, but leave "/" and "//" alone.
-        i = verify(current_dir, "/", back=.true.)
-        if (i < 2) i = min(2, len(current_dir))
-        pwd_var = "PWD="//current_dir(1:i)
+        i = verify(current_directory, "/", back=.true.)
+        if (i < 2) i = min(2, len(current_directory))
+        pwd_variable = "PWD="//current_directory(1:i)
         has_display = .false.
 
-        do k = 1, size(env)
+        do k = 1, size(environment)
             ! DISPLAY is specified in process-environment.
-            if (is_entry_for(env(k)%text, "DISPLAY")) has_display = .true.
+            if (is_entry_for(environment(k)%text, "DISPLAY")) has_display = .true.
         end do
 
         display = ""
@@ -440,21 +440,21 @@ contains
             end if
         end if
 
-        allocate (block(size(env) + 2))
+        allocate (block(size(environment) + 2))
         n = 0
         ! If we have a PWD envvar, pass one down, but with corrected value.
-        call getenv_internal_1("PWD", value, found, env)
+        call getenv_internal_1("PWD", value, found, environment)
 
         if (found .and. allocated(value)) then
             n = 1
-            block(1)%text = pwd_var
+            block(1)%text = pwd_variable
         end if
 
-        if (has_display) call add_env("DISPLAY="//display)
+        if (has_display) call add_environment("DISPLAY="//display)
 
         ! Overrides.
-        do k = 1, size(env)
-            call add_env(env(k)%text)
+        do k = 1, size(environment)
+            call add_environment(environment(k)%text)
         end do
 
         ! Remove variable names without values.
@@ -477,7 +477,7 @@ contains
         ! variable name is kept for now, as a placeholder for a variable
         ! that is not to be included in the environment.  Port of
         ! callproc.c:add_env.
-        subroutine add_env(string)
+        subroutine add_environment(string)
             character(len=*), intent(in) :: string
             integer :: e, j
 
@@ -491,6 +491,6 @@ contains
 
             n = n + 1
             block(n)%text = string
-        end subroutine add_env
+        end subroutine add_environment
     end subroutine make_environment_block
 end module execute_process_mod

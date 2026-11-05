@@ -31,26 +31,26 @@
 !> What is not ported yet is listed in docs/status/fortmacs_tags_mod.md.
 module fortmacs_tags_mod
     use, intrinsic :: iso_fortran_env, only: int64, int32
-    use error_mod, only: status_type, set_error, FM_USER_ERROR, FM_GENERIC_ERROR, FM_FILE_MISSING
+    use error_mod, only: status_type, set_error, USER_ERROR_CODE, GENERIC_ERROR_CODE, FILE_MISSING_CODE
     use handle_mod, only: handle_type, null_handle
     use string_type_mod, only: string_type
     use value_mod, only: value_type, make_list, list, list_elements, vtag, V_STRING, xstring
     use data_mod, only: string_setting_type, history_setting_type, forward_setting, append_locals_clearer, choice_setting_type
-    use hooks_mod, only: hook_type, capf_hook_type
+    use hooks_mod, only: hook_type, completion_at_point_function_hook_type
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, PREFIX_NONE, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, PREFIX_NONE, prefix_numeric_value
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, close_buffer, &
                           get_file_buffer, buffer_file_name, erase_buffer, set_buffer_read_only
     use marker_mod, only: copy_marker_at, marker_position, marker_buffer, destroy_marker
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, line_beginning_position, line_end_position, &
-                                     buffer_substring_no_properties, is_eob, char_after, buffer_size, widen, narrow_to_region, &
-                                     point_marker
-    use editing_commands_mod, only: forward_line, forward_char, beginning_of_line, end_of_line
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, line_beginning_position, &
+                                     line_end_position, buffer_substring_no_properties, is_end_of_buffer, character_after, &
+                                     buffer_size, widen, narrow_to_region, point_marker
+    use editing_commands_mod, only: forward_line, forward_character, beginning_of_line, end_of_line
     use insert_delete_mod, only: insert
     use text_properties_mod, only: put_text_property
-    use search_mod, only: re_search_forward, re_search_backward, search_forward, looking_at, string_match, &
-                          match_beginning, match_end, regexp_quote, case_fold_search, SEARCH_NOERROR
-    use syntax_mod, only: skip_chars_backward, skip_chars_forward
+    use search_mod, only: regular_expression_search_forward, regular_expression_search_backward, search_forward, looking_at, &
+                          string_match, match_beginning, match_end, regular_expression_quote, case_fold_search, SEARCH_NOERROR
+    use syntax_mod, only: skip_characters_backward, skip_characters_forward
     use basic_subprograms_mod, only: find_tag_default, read_y_or_n
     use utility_functions_mod, only: read_yes_or_no
     use simple_mod, only: push_mark
@@ -65,24 +65,25 @@ module fortmacs_tags_mod
     use minibuffer_reading_mod, only: completion_ignore_case, read_string, try_completion, all_completions, is_exact_completion
     use minibuffer_mod, only: completing_read, read_file_name, completion_in_region, completion_at_point_functions
     use minibuffer_reading_tables_mod, only: completion_table_type, completion_list_table, completion_function_table, &
-                                             completion_test_procedure, capf_data_type, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
+                                             completion_test_procedure, completion_at_point_function_data_type, COMPLETE_TRY, &
+                                             COMPLETE_ALL, COMPLETE_TEST
     use replace_mod, only: format_prompt
     use apropos_mod, only: apropos_mode
-    use help_mod, only: substitute_command_keys, with_output_to_temp_buffer
+    use help_mod, only: substitute_command_keys, with_output_to_temporary_buffer
     use display_engine_mod, only: message
     use utility_functions_mod, only: count_characters
-    use coding_mod, only: coding_system_eol_type, buffer_file_coding_system, EOL_DOS
+    use coding_mod, only: coding_system_end_of_line_type, buffer_file_coding_system, END_OF_LINE_DOS
     use cross_reference_mod, only: xref_backend_type, xref_location_type, xref_item_type, make_xref, append_xref_item, &
-                                   xref_backend_functions, xref_apropos_regexp, push_xref_marker_stack, clear_xref_marker_stack, &
-                                   go_back_in_xref_history
+                                   xref_backend_functions, xref_apropos_regular_expression, push_xref_marker_stack, &
+                                   clear_xref_marker_stack, go_back_in_xref_history
     implicit none(type, external)
     private
 
     public :: visit_tags_table, visit_tags_table_buffer, reset_tags_tables, tags_table_mode, tags_table_files, &
               tags_included_tables, tags_completion_table, tags_completion_at_point_function, file_of_tag, &
-              find_tag_noselect, find_tag, find_tag_other_window, find_tag_regexp, list_tags, apropos_tags, &
+              find_tag_noselect, find_tag, find_tag_other_window, find_tag_regular_expression, list_tags, apropos_tags, &
               complete_tag, etags_xref_backend, goto_etags_tag_location, snarf_etags_tag, find_file_of_tag_noselect, &
-              init_etags
+              initialize_etags
 
     !> Values of `tags_case_fold_search' besides .true. (case-insensitive)
     !> and .false. (case-sensitive): the setting of `case_fold_search' (the
@@ -340,7 +341,7 @@ module fortmacs_tags_mod
     type(tags_buffer_type), allocatable :: tags_buffers(:)
     ! The tag orders of an etags table (find-tag-tag-order and
     ! find-tag-regexp-tag-order).
-    type(tag_match_test_type), allocatable :: find_tag_tag_order(:), find_tag_regexp_tag_order(:)
+    type(tag_match_test_type), allocatable :: find_tag_tag_order(:), find_tag_regular_expression_tag_order(:)
     ! The buffer `tags_lazy_completion_table' completes for.
     type(handle_type) :: lazy_buffer
 
@@ -535,7 +536,7 @@ contains
         tags_buffers(k)%has_completion_local = .true.
         tags_buffers(k)%format = FORMAT_NONE
         ! etags-recognize-tags-table.
-        call char_after(c, found, point_min())
+        call character_after(c, found, point_minimum())
 
         if (found .and. c == 12) then
             tags_buffers(k)%format = FORMAT_ETAGS
@@ -571,7 +572,7 @@ contains
 
         select case (current_format())
         case (FORMAT_ETAGS)
-            call char_after(c, found, point_min())
+            call character_after(c, found, point_minimum())
             valid = found .and. c == 12
         case (FORMAT_EMPTY)
             valid = buffer_size() == 0
@@ -599,7 +600,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: saved, expanded
         logical :: had_value, visited, is_local
-        integer(int64) :: opoint
+        integer(int64) :: original_point
         integer :: k
 
         is_local = .false.
@@ -610,13 +611,13 @@ contains
         had_value = allocated(tags_file_name%value)
         saved = current_tags_file_name()
         tags_file_name = file
-        opoint = point()
+        original_point = point()
         call visit_tags_table_buffer(visited, status, VISIT_FIRST, file=file)
         target_buffer = current_buffer()
         call set_buffer(cbuf, st)
 
         if (status%ok() .and. .not. visited) then
-            call set_error(status, FM_FILE_MISSING, "Visiting tags table: No such file or directory, "//file)
+            call set_error(status, FILE_MISSING_CODE, "Visiting tags table: No such file or directory, "//file)
         end if
 
         ! Set FILE to the expanded name.  Do that in the buffer we started
@@ -631,7 +632,7 @@ contains
             call tags_file_name%clear()
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
         if (.not. status%ok()) return
 
         if (is_local) then
@@ -666,7 +667,7 @@ contains
     end subroutine clear_completion_table
 
     ! The command: read the file, then `visit_tags_table'.  Not a port.
-    recursive subroutine cmd_visit_tags_table(status)
+    recursive subroutine execute_visit_tags_table(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: directory, file, default_tag_directory, default_file
         type(status_type) :: st
@@ -678,11 +679,11 @@ contains
         if (.not. found) default_tag_directory = directory
         call expand_file_name("TAGS", default_file, st, default_tag_directory)
         ! default to TAGS from default-directory up to root.
-        call read_file_name(format_prompt("Visit tags table", "TAGS"), file, status, dir=default_tag_directory, &
+        call read_file_name(format_prompt("Visit tags table", "TAGS"), file, status, directory=default_tag_directory, &
                             default_filename=default_file, mustmatch=1)
         if (.not. status%ok()) return
-        call visit_tags_table(file, status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_visit_tags_table
+        call visit_tags_table(file, status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_visit_tags_table
 
     ! Insert the entries ENTRIES into the computed list at index AT,
     ! replacing the placeholder there (REPLACE) or not, and keep the
@@ -1010,7 +1011,7 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         character(len=:), allocatable :: expanded
-        integer :: tables, hit, elt, i
+        integer :: tables, hit, element, i
         logical :: valid
 
         table = ""
@@ -1067,18 +1068,18 @@ contains
         ! Then we return the last one which did in fact appear in
         ! tags-table-list.
         call get_tags_table_list(list)
-        elt = 1
+        element = 1
 
-        do while (elt <= hit)
-            if (is_tags_table_member(tags_table_computed_list(elt)%file, list)) then
+        do while (element <= hit)
+            if (is_tags_table_member(tags_table_computed_list(element)%file, list)) then
                 ! This table appears in the user's list, so it could be the
                 ! one which includes the table we found.
-                table = tags_table_computed_list(elt)%file
+                table = tags_table_computed_list(element)%file
                 found = .true.
             end if
 
-            elt = elt + 1
-            if (is_placeholder(elt)) elt = elt + 1
+            element = element + 1
+            if (is_placeholder(element)) element = element + 1
         end do
     end subroutine tags_table_including
 
@@ -1153,8 +1154,8 @@ contains
         case (VISIT_SAME)
             ! Use the ambient value of tags-file-name.
             if (len(current_tags_file_name()) == 0) then
-                call set_error(status, FM_USER_ERROR, substitute_command_keys("No tags table in use; "// &
-                                                                              "use \[visit_tags_table] to select one"))
+                call set_error(status, USER_ERROR_CODE, substitute_command_keys("No tags table in use; "// &
+                                                                                "use \[visit_tags_table] to select one"))
                 return
             end if
         case (VISIT_NEXT)
@@ -1262,9 +1263,9 @@ contains
             if (current_tags_file_name() == local_tags_file_name) call tags_file_name%clear()
 
             if (file_exists(local_tags_file_name)) then
-                call set_error(status, FM_USER_ERROR, "File "//local_tags_file_name//" is not a valid tags table")
+                call set_error(status, USER_ERROR_CODE, "File "//local_tags_file_name//" is not a valid tags table")
             else
-                call set_error(status, FM_USER_ERROR, "File "//local_tags_file_name//" does not exist")
+                call set_error(status, USER_ERROR_CODE, "File "//local_tags_file_name//" does not exist")
             end if
 
             return
@@ -1418,21 +1419,21 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: section_file, truename, directory
         type(status_type) :: st
-        integer(int64) :: opoint, found
+        integer(int64) :: original_point, found
 
         file = ""
         status = status_type()
         if (current_format() /= FORMAT_ETAGS) return
-        opoint = point()
-        call re_search_backward(FF//LF//"\([^"//LF//"]+\),[0-9]*"//LF, found, status)
+        original_point = point()
+        call regular_expression_search_backward(FF//LF//"\([^"//LF//"]+\),[0-9]*"//LF, found, status)
 
         if (.not. status%ok()) then
-            call goto_char(opoint)
+            call goto_character(original_point)
             return
         end if
 
         call buffer_substring_no_properties(match_beginning(1, st), match_end(1, st), section_file, st)
-        call goto_char(opoint)
+        call goto_character(original_point)
 
         if (relative) then
             file = section_file
@@ -1516,20 +1517,20 @@ contains
         type(string_type), allocatable, intent(out) :: files(:)
         type(string_type) :: entry
         type(status_type) :: st
-        integer(int64) :: beginning, found, opoint, moved
+        integer(int64) :: beginning, found, original_point, moved
         logical :: is_include
 
         allocate (files(0))
         if (current_format() /= FORMAT_ETAGS) return
-        opoint = point()
-        call goto_char(point_min())
+        original_point = point()
+        call goto_character(point_minimum())
 
         do
             call search_forward(FF//LF, found, st, noerror=SEARCH_NOERROR)
             if (found == 0 .or. .not. st%ok()) exit
             beginning = point()
             call end_of_line()
-            moved = skip_chars_backward("^,", st, beginning)
+            moved = skip_characters_backward("^,", st, beginning)
             is_include = looking_at("include$", st)
 
             if (is_include .eqv. included) then
@@ -1538,7 +1539,7 @@ contains
             end if
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine scan_table_files
 
     !> Build the completion table on demand for a buffer's tags tables:
@@ -1665,18 +1666,18 @@ contains
         type(string_type), allocatable, intent(out) :: table(:)
         type(string_type) :: entry
         type(status_type) :: st
-        integer(int64) :: opoint, found, b0, e0, moved
+        integer(int64) :: original_point, found, b0, e0, moved
 
         allocate (table(0))
         if (current_format() /= FORMAT_ETAGS) return
-        opoint = point()
-        call goto_char(point_min())
+        original_point = point()
+        call goto_character(point_minimum())
 
         ! This regexp matches an explicit tag name or the place where it
         ! would start.
         do
-            call re_search_forward("["//FF//TB//LF//CR//"()=,; ]?"//DEL//"\(?:\([^"//LF//SOH//"]+\)"//SOH//"\)?", &
-                                   found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("["//FF//TB//LF//CR//"()=,; ]?"//DEL//"\(?:\([^"//LF//SOH//"]+\)"//SOH//"\)?", &
+                                                   found, st, noerror=SEARCH_NOERROR)
             if (found == 0 .or. .not. st%ok()) exit
             b0 = match_beginning(0, st)
             e0 = match_end(0, st)
@@ -1687,16 +1688,16 @@ contains
             else
                 ! No explicit tag name.  Backtrack a little, and look for
                 ! the implicit one.
-                call goto_char(b0)
-                moved = skip_chars_backward("^"//FF//TB//LF//CR//"()=,; ", st)
+                call goto_character(b0)
+                moved = skip_characters_backward("^"//FF//TB//LF//CR//"()=,; ", st)
                 call buffer_substring_no_properties(point(), b0, entry%text, st)
-                call goto_char(e0)
+                call goto_character(e0)
             end if
 
             table = [table, entry]
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine etags_tags_completion_table
 
     ! The lazy completion table: complete over the tags completion table of
@@ -1714,7 +1715,7 @@ contains
         type(completion_table_type) :: table
         type(handle_type) :: old
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
         logical :: visited
         integer :: i
 
@@ -1722,11 +1723,11 @@ contains
         old = current_buffer()
         call set_buffer(lazy_buffer, status)
         if (.not. status%ok()) return
-        opoint = point()
+        original_point = point()
         ! If we need to ask for the tag table, allow that.
         call visit_tags_table_buffer(visited, status)
         call set_buffer(lazy_buffer, st)
-        call goto_char(opoint)
+        call goto_character(original_point)
         if (status%ok()) call tags_completion_table(lazy_buffer, names, status)
         call set_buffer(old, st)
         if (.not. status%ok()) return
@@ -1763,10 +1764,10 @@ contains
     !> If no tags table is loaded, do nothing.  Port of
     !> etags.el:tags-completion-at-point-function.
     recursive subroutine tags_completion_at_point_function(data, status)
-        type(capf_data_type), intent(out) :: data
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
-        integer(int64) :: opoint, found, beginning
+        integer(int64) :: original_point, found, beginning
         logical :: has, saved_ignore
 
         status = status_type()
@@ -1776,9 +1777,9 @@ contains
         call find_default_tag(pattern, has)
         completion_ignore_case = saved_ignore
         if (.not. has) return
-        opoint = point()
+        original_point = point()
         ! Avoid end-of-buffer error.
-        call goto_char(min(point_max(), point() + len(pattern) - 1))
+        call goto_character(min(point_maximum(), point() + len(pattern) - 1))
         ! The find-tag function might be overly optimistic.
         call search_backward_noerror(pattern, found)
 
@@ -1791,7 +1792,7 @@ contains
             data%exclusive = .false.
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine tags_completion_at_point_function
 
     ! search-backward STRING with NOERROR: FOUND is the position (0 for
@@ -1833,7 +1834,7 @@ contains
             if (has) then
                 tag = default
             else
-                call set_error(status, FM_USER_ERROR, "There is no default tag")
+                call set_error(status, USER_ERROR_CODE, "There is no default tag")
             end if
         end if
     end subroutine read_tag
@@ -1876,9 +1877,9 @@ contains
         next = FIND_TAG_NEXT_NO
         tagname = ""
 
-        if (current_prefix_arg%kind /= PREFIX_NONE .and. allocated(last_tag)) then
+        if (current_prefix_argument%kind /= PREFIX_NONE .and. allocated(last_tag)) then
             next = FIND_TAG_NEXT_YES
-            if (prefix_numeric_value(current_prefix_arg) < 0) next = FIND_TAG_NEXT_POP_BACK
+            if (prefix_numeric_value(current_prefix_argument) < 0) next = FIND_TAG_NEXT_POP_BACK
         else if (no_default) then
             call read_string(prompt, tagname, status)
         else
@@ -1898,7 +1899,7 @@ contains
     !> prefix arg that is a negative number or just \[negative_argument]),
     !> pop back to the previous tag gone to.
     !>
-    !> If REGEXP is true, treat TAGNAME as a regexp.
+    !> If REGULAR_EXPRESSION is true, treat TAGNAME as a regexp.
     !>
     !> A marker representing the point when this command is invoked is
     !> pushed onto a ring and may be popped back to with \[pop_tag_mark].
@@ -1906,23 +1907,23 @@ contains
     !>
     !> See documentation of variable `tags_file_name'.  Port of
     !> etags.el:find-tag-noselect.
-    recursive subroutine find_tag_noselect(tagname, buffer, status, next, regexp)
+    recursive subroutine find_tag_noselect(tagname, buffer, status, next, regular_expression)
         character(len=*), intent(in) :: tagname
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: next
-        logical, intent(in), optional :: regexp
+        logical, intent(in), optional :: regular_expression
         type(handle_type) :: marker, mbuf, found_buffer
         type(status_type) :: st
         character(len=:), allocatable :: pattern
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: n
-        logical :: is_regexp, visited, has_last, continuing
+        logical :: is_regular_expression, visited, has_last, continuing
 
         n = FIND_TAG_NEXT_NO
         if (present(next)) n = next
-        is_regexp = .false.
-        if (present(regexp)) is_regexp = regexp
+        is_regular_expression = .false.
+        if (present(regular_expression)) is_regular_expression = regular_expression
         buffer = null_handle()
         status = status_type()
         call find_tag_history%append(tagname, keep_all=.true.)
@@ -1932,7 +1933,7 @@ contains
             if (.not. allocated(tags_location_ring)) allocate (tags_location_ring(0))
 
             if (size(tags_location_ring) == 0) then
-                call set_error(status, FM_USER_ERROR, "No previous tag locations")
+                call set_error(status, USER_ERROR_CODE, "No previous tag locations")
                 return
             end if
 
@@ -1942,14 +1943,14 @@ contains
 
             if (mbuf%index == 0) then
                 call destroy_marker(marker, st)
-                call set_error(status, FM_GENERIC_ERROR, "The marked buffer has been deleted")
+                call set_error(status, GENERIC_ERROR_CODE, "The marked buffer has been deleted")
                 return
             end if
 
             ! Move to the saved location.
             call set_buffer(mbuf, st)
-            call marker_position(marker, pos, st)
-            call goto_char(pos)
+            call marker_position(marker, position, st)
+            call goto_character(position)
             ! Kill that marker so it doesn't slow down editing.
             call destroy_marker(marker, st)
             ! Run the user's hook.  Do we really want to do this for pop?
@@ -1978,8 +1979,8 @@ contains
         if (.not. status%ok()) return
 
         ! find-tag-in-order does the real work.
-        if (is_regexp) then
-            call find_tag_in_order(pattern, .true., find_tag_regexp_tag_order, .true., "matching",.not. continuing, &
+        if (is_regular_expression) then
+            call find_tag_in_order(pattern, .true., find_tag_regular_expression_tag_order, .true., "matching",.not. continuing, &
                                    found_buffer, status)
         else
             call find_tag_in_order(pattern, .false., find_tag_tag_order, .false., "containing",.not. continuing, &
@@ -2003,7 +2004,7 @@ contains
     end subroutine find_tag_noselect
 
     ! The command of `find_tag_noselect'.  Not a port.
-    recursive subroutine cmd_find_tag_noselect(status)
+    recursive subroutine execute_find_tag_noselect(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: tagname
         type(handle_type) :: buffer
@@ -2011,7 +2012,7 @@ contains
 
         call read_find_tag_arguments("Find tag", .false., tagname, next, status)
         if (status%ok()) call find_tag_noselect(tagname, buffer, status, next)
-    end subroutine cmd_find_tag_noselect
+    end subroutine execute_find_tag_noselect
 
     !> Find tag (in current tags table) whose name contains TAGNAME.
     !> Select the buffer containing the tag's definition, and move point
@@ -2025,7 +2026,7 @@ contains
     !> prefix arg that is a negative number or just \[negative_argument]),
     !> pop back to the previous tag gone to.
     !>
-    !> If REGEXP is true, treat TAGNAME as a regexp.
+    !> If REGULAR_EXPRESSION is true, treat TAGNAME as a regexp.
     !>
     !> A marker representing the point when this command is invoked is
     !> pushed onto a ring and may be popped back to with \[pop_tag_mark].
@@ -2033,33 +2034,33 @@ contains
     !>
     !> See documentation of variable `tags_file_name'.  Port of
     !> etags.el:find-tag.
-    recursive subroutine find_tag(tagname, status, next, regexp)
+    recursive subroutine find_tag(tagname, status, next, regular_expression)
         character(len=*), intent(in) :: tagname
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: next
-        logical, intent(in), optional :: regexp
+        logical, intent(in), optional :: regular_expression
         type(handle_type) :: target_buffer
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call find_tag_noselect(tagname, target_buffer, status, next, regexp)
+        call find_tag_noselect(tagname, target_buffer, status, next, regular_expression)
         if (.not. status%ok()) return
         call set_buffer(target_buffer, st)
-        pos = point()
+        position = point()
         call pop_to_buffer(target_buffer, status, actions=[DISPLAY_ACTION_SAME_WINDOW])
         if (.not. status%ok()) return
-        call goto_char(pos)
+        call goto_character(position)
     end subroutine find_tag
 
     ! The command of `find_tag'.  Not a port.
-    recursive subroutine cmd_find_tag(status)
+    recursive subroutine execute_find_tag(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: tagname
         integer :: next
 
         call read_find_tag_arguments("Find tag", .false., tagname, next, status)
         if (status%ok()) call find_tag(tagname, status, next)
-    end subroutine cmd_find_tag
+    end subroutine execute_find_tag
 
     !> Find tag (in current tags table) whose name contains TAGNAME.
     !> Select the buffer containing the tag's definition in another window,
@@ -2073,7 +2074,7 @@ contains
     !> prefix arg that is a negative number or just \[negative_argument]),
     !> pop back to the previous tag gone to.
     !>
-    !> If REGEXP is true, treat TAGNAME as a regexp.
+    !> If REGULAR_EXPRESSION is true, treat TAGNAME as a regexp.
     !>
     !> A marker representing the point when this command is invoked is
     !> pushed onto a ring and may be popped back to with \[pop_tag_mark].
@@ -2081,16 +2082,16 @@ contains
     !>
     !> See documentation of variable `tags_file_name'.  Port of
     !> etags.el:find-tag-other-window.
-    recursive subroutine find_tag_other_window(tagname, status, next, regexp)
+    recursive subroutine find_tag_other_window(tagname, status, next, regular_expression)
         character(len=*), intent(in) :: tagname
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: next
-        logical, intent(in), optional :: regexp
+        logical, intent(in), optional :: regular_expression
         type(handle_type) :: tagbuf
         type(status_type) :: st
         integer(int64) :: tagpoint
 
-        call find_tag_noselect(tagname, tagbuf, status, next, regexp)
+        call find_tag_noselect(tagname, tagbuf, status, next, regular_expression)
         if (.not. status%ok()) return
         call set_buffer(tagbuf, st)
         tagpoint = point()
@@ -2098,20 +2099,20 @@ contains
         if (.not. status%ok()) return
         ! We have to set this new window's point; it might already have been
         ! displaying a different portion of tagbuf.
-        call goto_char(tagpoint)
+        call goto_character(tagpoint)
     end subroutine find_tag_other_window
 
     ! The command of `find_tag_other_window'.  Not a port.
-    recursive subroutine cmd_find_tag_other_window(status)
+    recursive subroutine execute_find_tag_other_window(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: tagname
         integer :: next
 
         call read_find_tag_arguments("Find tag other window", .false., tagname, next, status)
         if (status%ok()) call find_tag_other_window(tagname, status, next)
-    end subroutine cmd_find_tag_other_window
+    end subroutine execute_find_tag_other_window
 
-    !> Find tag (in current tags table) whose name matches REGEXP.
+    !> Find tag (in current tags table) whose name matches REGULAR_EXPRESSION.
     !> Select the buffer containing the tag's definition and move point
     !> there.
     !>
@@ -2130,8 +2131,8 @@ contains
     !>
     !> See documentation of variable `tags_file_name'.  Port of
     !> etags.el:find-tag-regexp.
-    recursive subroutine find_tag_regexp(regexp, status, next, other_window)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine find_tag_regular_expression(regular_expression, status, next, other_window)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: next
         logical, intent(in), optional :: other_window
@@ -2143,21 +2144,21 @@ contains
         ! We go through find-tag-other-window to do all the display hair
         ! there.
         if (other) then
-            call find_tag_other_window(regexp, status, next, .true.)
+            call find_tag_other_window(regular_expression, status, next, .true.)
         else
-            call find_tag(regexp, status, next, .true.)
+            call find_tag(regular_expression, status, next, .true.)
         end if
-    end subroutine find_tag_regexp
+    end subroutine find_tag_regular_expression
 
-    ! The command of `find_tag_regexp'.  Not a port.
-    recursive subroutine cmd_find_tag_regexp(status)
+    ! The command of `find_tag_regular_expression'.  Not a port.
+    recursive subroutine execute_find_tag_regular_expression(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer :: next
 
-        call read_find_tag_arguments("Find tag regexp", .true., regexp, next, status)
-        if (status%ok()) call find_tag_regexp(regexp, status, next)
-    end subroutine cmd_find_tag_regexp
+        call read_find_tag_arguments("Find tag regexp", .true., regular_expression, next, status)
+        if (status%ok()) call find_tag_regular_expression(regular_expression, status, next)
+    end subroutine execute_find_tag_regular_expression
 
     ! Whether TEST is one of the file name qualifiers.  Not a port.
     logical function is_file_name_test(test)
@@ -2168,11 +2169,11 @@ contains
                             associated(test%test, is_tag_partial_file_name_match)
     end function is_file_name_test
 
-    ! Search forward from point for PATTERN, a regexp if REGEXP: FOUND is
+    ! Search forward from point for PATTERN, a regexp if REGULAR_EXPRESSION: FOUND is
     ! the position (0 for none).  Not a port.
-    subroutine search_tag(pattern, regexp, found)
+    subroutine search_tag(pattern, regular_expression, found)
         character(len=*), intent(in) :: pattern
-        logical, intent(in) :: regexp
+        logical, intent(in) :: regular_expression
         integer(int64), intent(out) :: found
         type(status_type) :: st
 
@@ -2180,8 +2181,8 @@ contains
         ! The empty format searches nothing (upstream's `ignore').
         if (current_format() /= FORMAT_ETAGS) return
 
-        if (regexp) then
-            call re_search_forward(pattern, found, st, noerror=SEARCH_NOERROR)
+        if (regular_expression) then
+            call regular_expression_search_forward(pattern, found, st, noerror=SEARCH_NOERROR)
         else
             call search_forward(pattern, found, st, noerror=SEARCH_NOERROR)
         end if
@@ -2189,11 +2190,11 @@ contains
         if (.not. st%ok()) found = 0
     end subroutine search_tag
 
-    ! Whether a marker in MARKERS is at POS of the current buffer.
+    ! Whether a marker in MARKERS is at POSITION of the current buffer.
     ! Not a port.
-    logical function has_marker_at(markers, pos)
+    logical function has_marker_at(markers, position)
         type(handle_type), intent(in) :: markers(:)
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(handle_type) :: b, cb
         type(status_type) :: st
         integer(int64) :: p
@@ -2206,7 +2207,7 @@ contains
             call marker_buffer(markers(i), b, st)
             call marker_position(markers(i), p, st)
 
-            if (b%index == cb%index .and. b%generation == cb%generation .and. p == pos) then
+            if (b%index == cb%index .and. b%generation == cb%generation .and. p == position) then
                 has_marker_at = .true.
                 return
             end if
@@ -2214,7 +2215,7 @@ contains
     end function has_marker_at
 
     !> Internal tag-finding function.
-    !> PATTERN is a string to search for (a regexp if REGEXP), and to give
+    !> PATTERN is a string to search for (a regexp if REGULAR_EXPRESSION), and to give
     !> to any member of the qualifier array ORDER.  NEXT_LINE_AFTER_FAILURE
     !> is true if after a failed match, point should be moved to the next
     !> line.  MATCHING is a string, an English `-ing' word, to be used in
@@ -2222,10 +2223,10 @@ contains
     !> otherwise the saved state continues a previous search.  BUFFER is
     !> the buffer where the tag was found.  Port of
     !> etags.el:find-tag-in-order.
-    recursive subroutine find_tag_in_order(pattern, regexp, order, next_line_after_failure, matching, first_search, &
+    recursive subroutine find_tag_in_order(pattern, regular_expression, order, next_line_after_failure, matching, first_search, &
                                            buffer, status)
         character(len=*), intent(in) :: pattern, matching
-        logical, intent(in) :: regexp, next_line_after_failure, first_search
+        logical, intent(in) :: regular_expression, next_line_after_failure, first_search
         type(tag_match_test_type), intent(in) :: order(:)
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
@@ -2272,13 +2273,13 @@ contains
             end if
 
             ! Start at beginning of tags file.
-            if (first_search .and. first_table) call goto_char(point_min())
+            if (first_search .and. first_table) call goto_character(point_minimum())
             first_table = .false.
 
             ! Iterate over the list of ordering tests.
             do k = 1, size(order)
                 do
-                    call search_tag(pattern, regexp, found)
+                    call search_tag(pattern, regular_expression, found)
                     if (found == 0) exit
                     ! Naive match found.  Qualify the match.
                     qualified = order(k)%test(pattern)
@@ -2299,7 +2300,7 @@ contains
                 end do
 
                 ! Try the next flavor of match.
-                call goto_char(point_min())
+                call goto_character(point_minimum())
             end do
         end do tables
 
@@ -2315,12 +2316,12 @@ contains
             call clear_matched()
             case_fold_search = saved_fold
             call set_buffer(tags_buffer, st)
-            call goto_char(tags_point)
+            call goto_character(tags_point)
 
             if (first_search) then
-                call set_error(status, FM_USER_ERROR, "No tags "//matching//" "//pattern)
+                call set_error(status, USER_ERROR_CODE, "No tags "//matching//" "//pattern)
             else
-                call set_error(status, FM_USER_ERROR, "No more tags "//matching//" "//pattern)
+                call set_error(status, USER_ERROR_CODE, "No more tags "//matching//" "//pattern)
             end if
 
             return
@@ -2338,7 +2339,7 @@ contains
             found = point()
             shortage = forward_line(1_int64)
             call file_of_tag(.false., relative, status)
-            call goto_char(found)
+            call goto_character(found)
         else
             call file_of_tag(.false., relative, status)
         end if
@@ -2408,7 +2409,7 @@ contains
         end if
 
         if (the_buffer%index == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "File "//file//" not found")
+            call set_error(status, GENERIC_ERROR_CODE, "File "//file//" not found")
             return
         end if
 
@@ -2427,15 +2428,15 @@ contains
         logical, intent(in) :: use_explicit
         type(tag_info_type), intent(out) :: tag_info
         type(status_type) :: st
-        integer(int64) :: opoint, explicit_start, found, beginning, shortage, moved
+        integer(int64) :: original_point, explicit_start, found, beginning, shortage, moved
         character(len=:), allocatable :: digits
         logical :: file_line
         integer :: ios
 
-        opoint = point()
+        original_point = point()
         shortage = forward_line(-1_int64)
         file_line = looking_at(FF//LF, st)
-        call goto_char(opoint)
+        call goto_character(original_point)
 
         if (file_line) then
             ! The match was for a source file name, not any tag within a
@@ -2460,7 +2461,7 @@ contains
 
             if (looking_at("[0-9]", st)) then
                 beginning = point()
-                moved = skip_chars_forward("0-9", st)
+                moved = skip_characters_forward("0-9", st)
                 call buffer_substring_no_properties(beginning, point(), digits, st)
                 read (digits, *, iostat=ios) tag_info%line
                 if (ios /= 0) tag_info%line = 0
@@ -2470,7 +2471,7 @@ contains
 
             if (looking_at("[0-9]", st)) then
                 beginning = point()
-                moved = skip_chars_forward("0-9", st)
+                moved = skip_characters_forward("0-9", st)
                 call buffer_substring_no_properties(beginning, point(), digits, st)
                 read (digits, *, iostat=ios) tag_info%position
                 tag_info%has_position = ios == 0
@@ -2497,7 +2498,7 @@ contains
         type(tag_info_type), intent(in) :: tag_info
         type(status_type), intent(out) :: status
         type(status_type) :: st
-        character(len=:), allocatable :: pat, file
+        character(len=:), allocatable :: pattern, file
         integer(int64) :: startpos, offset, found, shortage
         logical :: is_found, has_start
 
@@ -2506,12 +2507,12 @@ contains
         if (tag_info%exact) then
             ! Direct file tag.
             if (tag_info%line /= 0) then
-                call goto_char(point_min())
+                call goto_character(point_minimum())
                 shortage = forward_line(tag_info%line - 1)
             else if (tag_info%has_position) then
-                call goto_char(max(point_min(), min(tag_info%position, point_max())))
+                call goto_character(max(point_minimum(), min(tag_info%position, point_maximum())))
             else
-                call set_error(status, FM_GENERIC_ERROR, "etags.el: BUG: bogus direct file tag")
+                call set_error(status, GENERIC_ERROR_CODE, "etags.el: BUG: bogus direct file tag")
                 return
             end if
         else
@@ -2520,7 +2521,7 @@ contains
             ! since just going around the loop once probably
             ! costs about as much as searching 2000 chars.
             offset = 1000
-            pat = "^"//regexp_quote(tag_info%text)
+            pattern = "^"//regular_expression_quote(tag_info%text)
             has_start = tag_info%has_position
 
             ! The character position in the tags table is 0-origin and
@@ -2530,7 +2531,7 @@ contains
                 startpos = tag_info%position + 1
 
                 if (tag_info%line /= 0 .and. allocated(buffer_file_coding_system%value)) then
-                    if (coding_system_eol_type(buffer_file_coding_system%value) == EOL_DOS) then
+                    if (coding_system_end_of_line_type(buffer_file_coding_system%value) == END_OF_LINE_DOS) then
                         ! Act as if CRs were elided from all preceding lines.
                         ! Although this doesn't always give exactly the
                         ! correct position, it does typically improve the
@@ -2540,35 +2541,36 @@ contains
                 end if
             else if (tag_info%line /= 0) then
                 ! If no char pos was given, try the given line number.
-                call goto_char(point_min())
+                call goto_character(point_minimum())
                 shortage = forward_line(tag_info%line - 1)
                 startpos = point()
             else
-                startpos = point_min()
+                startpos = point_minimum()
             end if
 
             ! First see if the tag is right at the specified location.
-            call goto_char(max(point_min(), min(startpos, point_max())))
-            is_found = looking_at(pat, st)
+            call goto_character(max(point_minimum(), min(startpos, point_maximum())))
+            is_found = looking_at(pattern, st)
 
             do while (.not. is_found)
-                call goto_char(max(point_min(), startpos - offset))
-                if (point() == point_min()) exit
-                call re_search_forward(pat, found, st, bound=min(point_max(), startpos + offset), noerror=SEARCH_NOERROR)
+                call goto_character(max(point_minimum(), startpos - offset))
+                if (point() == point_minimum()) exit
+                call regular_expression_search_forward(pattern, found, st, bound=min(point_maximum(), startpos + offset), &
+                                                       noerror=SEARCH_NOERROR)
                 is_found = found /= 0
                 ! expand search window
                 offset = 3*offset
             end do
 
             if (.not. is_found) then
-                call re_search_forward(pat, found, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(pattern, found, st, noerror=SEARCH_NOERROR)
                 is_found = found /= 0
             end if
 
             if (.not. is_found) then
                 file = ""
                 if (allocated(buffers(current)%filename)) file = buffers(current)%filename
-                call set_error(status, FM_USER_ERROR, "Rerun etags: `"//pat//"' not found in "//file)
+                call set_error(status, USER_ERROR_CODE, "Rerun etags: `"//pattern//"' not found in "//file)
                 return
             end if
         end if
@@ -2587,25 +2589,25 @@ contains
         logical, intent(out) :: found
         type(tag_info_type) :: tag_info
         type(status_type) :: st
-        integer(int64) :: at, shortage, opoint
+        integer(int64) :: at, shortage, original_point
 
         found = .false.
         if (current_format() /= FORMAT_ETAGS) return
-        call goto_char(point_min())
-        call re_search_forward(FF//LF//"\("//file//"\),", at, st, noerror=SEARCH_NOERROR)
+        call goto_character(point_minimum())
+        call regular_expression_search_forward(FF//LF//"\("//file//"\),", at, st, noerror=SEARCH_NOERROR)
         if (at == 0 .or. .not. st%ok()) return
         shortage = forward_line(1_int64)
         ! Exuberant ctags add a line starting with the DEL character; skip
         ! past it.
         if (looking_at(DEL, st)) shortage = forward_line(1_int64)
 
-        do while (.not. is_eob())
+        do while (.not. is_end_of_buffer())
             if (looking_at(FF, st)) exit
             ! We used to use explicit tags when available, but the current
             ! goto-func can only handle implicit tags.
-            opoint = point()
+            original_point = point()
             call snarf_etags_tag(.false., tag_info)
-            call goto_char(opoint)
+            call goto_character(original_point)
             ranges = [ranges, count_characters(text) + 1]
             text = text//tag_info%text
             ranges = [ranges, count_characters(text) + 1]
@@ -2632,7 +2634,7 @@ contains
         type(tag_info_type) :: tag_info
         type(status_type) :: st
         character(len=:), allocatable :: file_label, file
-        integer(int64) :: found, opoint, shortage
+        integer(int64) :: found, original_point, shortage
 
         if (tags_apropos_verbose) then
             text = text//substitute_command_keys("Tags in file `")
@@ -2644,15 +2646,15 @@ contains
             text = text//substitute_command_keys("':"//LF//LF)
         end if
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward(string, found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(string, found, st, noerror=SEARCH_NOERROR)
             if (found == 0 .or. .not. st%ok()) exit
             call beginning_of_line()
-            opoint = point()
+            original_point = point()
             call snarf_etags_tag(.false., tag_info)
-            call goto_char(opoint)
+            call goto_character(original_point)
 
             if (.not. tag_info%exact) then
                 call file_of_tag(.true., file_label, st)
@@ -2668,7 +2670,7 @@ contains
             else
                 shortage = forward_line(1_int64)
                 call file_of_tag(.true., file_label, st)
-                call goto_char(opoint)
+                call goto_character(original_point)
                 ranges = [ranges, count_characters(text) + 1]
                 text = text//"- "//file_label
                 ranges = [ranges, count_characters(text) + 1]
@@ -2688,20 +2690,20 @@ contains
     ! etc/ETAGS.EBNF.
     ! ------------------------------------------------------------------
 
-    ! Whether REGEXP matches at POS (false outside the buffer), point kept.
+    ! Whether REGULAR_EXPRESSION matches at POSITION (false outside the buffer), point kept.
     ! Not a port.
-    logical function is_looking_at_position(pos, regexp) result(matched)
-        integer(int64), intent(in) :: pos
-        character(len=*), intent(in) :: regexp
+    logical function is_looking_at_position(position, regular_expression) result(matched)
+        integer(int64), intent(in) :: position
+        character(len=*), intent(in) :: regular_expression
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
 
         matched = .false.
-        if (pos < point_min() .or. pos > point_max()) return
-        opoint = point()
-        call goto_char(pos)
-        matched = looking_at(regexp, st)
-        call goto_char(opoint)
+        if (position < point_minimum() .or. position > point_maximum()) return
+        original_point = point()
+        call goto_character(position)
+        matched = looking_at(regular_expression, st)
+        call goto_character(original_point)
     end function is_looking_at_position
 
     !> Whether TAG matches complete file name.
@@ -2736,17 +2738,17 @@ contains
 
         ! The match is really exact if there is an explicit tag name.
         match = .false.
-        call char_after(c, found, point())
+        call character_after(c, found, point())
 
         if (found .and. c == 1) then
-            call char_after(c, found, point() - len(tag) - 1)
+            call character_after(c, found, point() - len(tag) - 1)
             match = found .and. c == 127
         end if
 
         if (match) return
         ! We are not on the explicit tag name, but perhaps it follows.
         ! The optional "/x" part is for Ada tags.
-        match = looking_at("[^"//DEL//LF//"]*"//DEL//regexp_quote(tag)//"\(/[fpsbtk]\)?"//SOH, st)
+        match = looking_at("[^"//DEL//LF//"]*"//DEL//regular_expression_quote(tag)//"\(/[fpsbtk]\)?"//SOH, st)
     end function is_tag_exact_match
 
     !> Whether current tag line has an implicit name.
@@ -2810,22 +2812,23 @@ contains
         match = looking_at(".*"//DEL, st)
     end function is_tag_any_match
 
-    !> Whether current tag line matches REGEXP.  Port of
+    !> Whether current tag line matches REGULAR_EXPRESSION.  Port of
     !> etags.el:tag-re-match-p.
-    logical function is_tag_regexp_match(regexp) result(match)
-        character(len=*), intent(in) :: regexp
+    logical function is_tag_regular_expression_match(regular_expression) result(match)
+        character(len=*), intent(in) :: regular_expression
         type(status_type) :: st
-        integer(int64) :: opoint, bol, found
+        integer(int64) :: original_point, line_beginning, found
 
-        opoint = point()
+        original_point = point()
         call beginning_of_line()
-        bol = point()
+        line_beginning = point()
         call search_forward(DEL, found, st, bound=line_end_position(), noerror=SEARCH_NOERROR)
         match = found /= 0
-        if (match) call re_search_backward(regexp, found, st, bound=bol, noerror=SEARCH_NOERROR)
+        if (match) call regular_expression_search_backward(regular_expression, found, st, bound=line_beginning, &
+                                                           noerror=SEARCH_NOERROR)
         if (match) match = found /= 0
-        call goto_char(opoint)
-    end function is_tag_regexp_match
+        call goto_character(original_point)
+    end function is_tag_regular_expression_match
 
     ! ------------------------------------------------------------------
     ! Listing and completing
@@ -2907,7 +2910,7 @@ contains
         type(status_type) :: st
         integer :: i
 
-        call with_output_to_temp_buffer("*Tags List*", text, status)
+        call with_output_to_temporary_buffer("*Tags List*", text, status)
         if (.not. status%ok()) return
         old = current_buffer()
         call get_or_make_buffer("*Tags List*", buffer, st)
@@ -2946,14 +2949,14 @@ contains
         integer(int64), allocatable :: ranges(:), highlights(:)
         type(handle_type) :: cbuf
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
         logical :: visited, gotany, found
         integer :: cont
 
         status = status_type()
 
         if (len(file) == 0) then
-            call set_error(status, FM_USER_ERROR, "You must specify a file name")
+            call set_error(status, USER_ERROR_CODE, "You must specify a file name")
             return
         end if
 
@@ -2964,7 +2967,7 @@ contains
         highlights = [highlights, count_characters(text) + 1]
         text = text//substitute_command_keys("':"//LF//LF)
         cbuf = current_buffer()
-        opoint = point()
+        original_point = point()
         gotany = .false.
         cont = VISIT_FIRST
 
@@ -2977,11 +2980,11 @@ contains
         end do
 
         call set_buffer(cbuf, st)
-        call goto_char(opoint)
+        call goto_character(original_point)
         if (.not. status%ok()) return
 
         if (.not. gotany) then
-            call set_error(status, FM_USER_ERROR, "File "//file//" not in current tags tables")
+            call set_error(status, USER_ERROR_CODE, "File "//file//" not in current tags tables")
             return
         end if
 
@@ -2989,7 +2992,7 @@ contains
     end subroutine list_tags
 
     ! The command: read the file, then `list_tags'.  Not a port.
-    recursive subroutine cmd_list_tags(status)
+    recursive subroutine execute_list_tags(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file, default
 
@@ -3005,19 +3008,19 @@ contains
         end if
 
         if (status%ok()) call list_tags(file, status)
-    end subroutine cmd_list_tags
+    end subroutine execute_list_tags
 
-    !> Display list of all tags in tags table REGEXP matches.  Port of
+    !> Display list of all tags in tags table REGULAR_EXPRESSION matches.  Port of
     !> etags.el:tags-apropos (the tags are not buttons: button.el is not
     !> ported; `tags_apropos_additional_actions' is not ported).
-    recursive subroutine apropos_tags(regexp, status)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine apropos_tags(regular_expression, status)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         integer(int64), allocatable :: ranges(:), highlights(:)
         type(handle_type) :: cbuf
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
         logical :: visited
         integer :: cont
 
@@ -3025,34 +3028,34 @@ contains
         allocate (ranges(0))
         text = substitute_command_keys("Click mouse-2 to follow tags."//LF//LF//"Tags matching regexp `")
         highlights = [count_characters(text) + 1]
-        text = text//regexp
+        text = text//regular_expression
         highlights = [highlights, count_characters(text) + 1]
         text = text//substitute_command_keys("':"//LF//LF)
         cbuf = current_buffer()
-        opoint = point()
+        original_point = point()
         cont = VISIT_FIRST
 
         do
             call visit_tags_table_buffer(visited, status, cont, cbuf=cbuf)
             if (.not. status%ok() .or. .not. visited) exit
             cont = VISIT_NEXT
-            call etags_apropos_tags(regexp, text, ranges, highlights)
+            call etags_apropos_tags(regular_expression, text, ranges, highlights)
         end do
 
         call set_buffer(cbuf, st)
-        call goto_char(opoint)
+        call goto_character(original_point)
         if (.not. status%ok()) return
         call show_tags_list(text, ranges, highlights, status)
     end subroutine apropos_tags
 
     ! The command: read the regexp, then `apropos_tags'.  Not a port.
-    recursive subroutine cmd_apropos_tags(status)
+    recursive subroutine execute_apropos_tags(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
 
-        call read_string("Tags apropos (regexp): ", regexp, status)
-        if (status%ok()) call apropos_tags(regexp, status)
-    end subroutine cmd_apropos_tags
+        call read_string("Tags apropos (regexp): ", regular_expression, status)
+        if (status%ok()) call apropos_tags(regular_expression, status)
+    end subroutine execute_apropos_tags
 
     !> Perform tags completion on the text around point.
     !> Completes to the set of names listed in the current tags table.
@@ -3060,14 +3063,14 @@ contains
     !> for \[find_tag] (which see).  Port of etags.el:complete-tag.
     recursive subroutine complete_tag(status)
         type(status_type), intent(out) :: status
-        type(capf_data_type) :: data
+        type(completion_at_point_function_data_type) :: data
         logical :: saved_ignore, done
 
         status = status_type()
 
         if (.not. has_tags_tables()) then
-            call set_error(status, FM_USER_ERROR, substitute_command_keys("No tags table loaded; "// &
-                                                                          "try \[visit_tags_table]"))
+            call set_error(status, USER_ERROR_CODE, substitute_command_keys("No tags table loaded; "// &
+                                                                            "try \[visit_tags_table]"))
             return
         end if
 
@@ -3075,7 +3078,7 @@ contains
         if (.not. status%ok()) return
 
         if (.not. data%found) then
-            call set_error(status, FM_USER_ERROR, "Nothing to complete")
+            call set_error(status, USER_ERROR_CODE, "Nothing to complete")
             return
         end if
 
@@ -3173,16 +3176,16 @@ contains
         character(len=*), intent(in) :: pattern
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
 
-        call xref_apropos_regexp(pattern, regexp, status)
+        call xref_apropos_regular_expression(pattern, regular_expression, status)
 
         if (.not. status%ok()) then
             allocate (items(0))
             return
         end if
 
-        call find_etags_xref_definitions(regexp, .true., items, status)
+        call find_etags_xref_definitions(regular_expression, .true., items, status)
     end subroutine etags_backend_apropos
 
     ! The existing file that FILE (an expanded file name) names: a
@@ -3194,15 +3197,15 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. file_exists(file)) call set_error(status, FM_FILE_MISSING, "Cannot locate file in TAGS, "//file)
+        if (.not. file_exists(file)) call set_error(status, FILE_MISSING_CODE, "Cannot locate file in TAGS, "//file)
     end subroutine ensure_etags_file
 
-    ! The definitions of PATTERN (a regexp if REGEXP) in all the tags
+    ! The definitions of PATTERN (a regexp if REGULAR_EXPRESSION) in all the tags
     ! tables: the emulation of `find_tag_in_order' that gives all matches.
     ! Port of etags.el:etags--xref-find-definitions.
-    recursive subroutine find_etags_xref_definitions(pattern, regexp, items, status)
+    recursive subroutine find_etags_xref_definitions(pattern, regular_expression, items, status)
         character(len=*), intent(in) :: pattern
-        logical, intent(in) :: regexp
+        logical, intent(in) :: regular_expression
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         type(tag_match_test_type), allocatable :: order(:)
@@ -3214,20 +3217,20 @@ contains
         type(handle_type) :: cbuf
         type(status_type) :: st
         character(len=:), allocatable :: file, relative
-        integer(int64) :: found, opoint
+        integer(int64) :: found, original_point
         logical :: visited, saved_fold, seen
         integer :: k, i, cont
 
         allocate (items(0), marks(0))
         status = status_type()
         cbuf = current_buffer()
-        opoint = point()
+        original_point = point()
         saved_fold = case_fold_search%value
         case_fold_search = is_find_tag_completion_ignore_case()
         cont = VISIT_FIRST
 
-        if (regexp) then
-            order = find_tag_regexp_tag_order
+        if (regular_expression) then
+            order = find_tag_regular_expression_tag_order
         else
             order = etags_find_xref_definitions_tag_order
         end if
@@ -3238,10 +3241,10 @@ contains
             cont = VISIT_NEXT
 
             do k = 1, size(order)
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 do
-                    call search_tag(pattern, regexp, found)
+                    call search_tag(pattern, regular_expression, found)
                     if (found == 0 .or. size(marks) >= ETAGS_XREF_LIMIT) exit
                     if (.not. order(k)%test(pattern)) cycle
                     call beginning_of_line()
@@ -3280,7 +3283,7 @@ contains
 
         case_fold_search = saved_fold
         call set_buffer(cbuf, st)
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine find_etags_xref_definitions
 
     !> A marker at the tag, in the buffer visiting its file.  Port of
@@ -3291,21 +3294,21 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, old
         type(status_type) :: st
-        integer(int64) :: opoint, begv, zv
+        integer(int64) :: original_point, beginning_of_accessible_portion, end_of_accessible_portion
 
         marker = null_handle()
         old = current_buffer()
         call find_file_noselect(this%file, buffer, status)
         if (.not. status%ok()) return
         call set_buffer(buffer, st)
-        opoint = point()
-        begv = point_min()
-        zv = point_max()
+        original_point = point()
+        beginning_of_accessible_portion = point_minimum()
+        end_of_accessible_portion = point_maximum()
         call widen()
         call goto_etags_tag_location(this%tag_info, status)
         if (status%ok()) call point_marker(marker)
-        call narrow_to_region(begv, zv, st)
-        call goto_char(opoint)
+        call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
+        call goto_character(original_point)
         call set_buffer(old, st)
     end subroutine xref_etags_location_marker
 
@@ -3335,10 +3338,10 @@ contains
     !> completion to `completion_at_point_functions'.  Port of etags.el's
     !> top-level forms and of xref.el's (add-hook 'xref-backend-functions
     !> #'etags--xref-backend t).
-    subroutine init_etags()
+    subroutine initialize_etags()
         if (associated(major_modes%tags_table_mode%execute)) return
         if (.not. allocated(tags_tag_face)) tags_tag_face = "default"
-        allocate (find_tag_tag_order(8), find_tag_regexp_tag_order(1))
+        allocate (find_tag_tag_order(8), find_tag_regular_expression_tag_order(1))
         find_tag_tag_order(1)%test => is_tag_exact_file_name_match
         find_tag_tag_order(2)%test => is_tag_file_name_match
         find_tag_tag_order(3)%test => is_tag_exact_match
@@ -3347,7 +3350,7 @@ contains
         find_tag_tag_order(6)%test => is_tag_word_match
         find_tag_tag_order(7)%test => is_tag_partial_file_name_match
         find_tag_tag_order(8)%test => is_tag_any_match
-        find_tag_regexp_tag_order(1)%test => is_tag_regexp_match
+        find_tag_regular_expression_tag_order(1)%test => is_tag_regular_expression_match
 
         if (.not. allocated(etags_find_xref_definitions_tag_order)) then
             allocate (etags_find_xref_definitions_tag_order(2))
@@ -3365,16 +3368,16 @@ contains
         call xref_backend_functions%append(etags_xref_backend)
         call completion_at_point_functions%append(tags_completion_at_point_function)
         commands%tags_table_mode%execute => tags_table_mode
-        commands%visit_tags_table%execute => cmd_visit_tags_table
+        commands%visit_tags_table%execute => execute_visit_tags_table
         commands%reset_tags_tables%execute => reset_tags_tables
-        commands%find_tag_noselect%execute => cmd_find_tag_noselect
-        commands%find_tag%execute => cmd_find_tag
-        commands%find_tag_other_window%execute => cmd_find_tag_other_window
-        commands%find_tag_regexp%execute => cmd_find_tag_regexp
+        commands%find_tag_noselect%execute => execute_find_tag_noselect
+        commands%find_tag%execute => execute_find_tag
+        commands%find_tag_other_window%execute => execute_find_tag_other_window
+        commands%find_tag_regular_expression%execute => execute_find_tag_regular_expression
         commands%pop_tag_mark%execute => go_back_in_xref_history
-        commands%list_tags%execute => cmd_list_tags
-        commands%apropos_tags%execute => cmd_apropos_tags
+        commands%list_tags%execute => execute_list_tags
+        commands%apropos_tags%execute => execute_apropos_tags
         commands%complete_tag%execute => complete_tag
         call append_locals_clearer(clear_tags_locals)
-    end subroutine init_etags
+    end subroutine initialize_etags
 end module fortmacs_tags_mod

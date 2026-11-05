@@ -41,30 +41,30 @@
 !> `charset-map-path' (the maps are not read from files) are Deferred.
 module character_set_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_OK, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, &
-                         FM_ARGS_OUT_OF_RANGE
-    use character_mod, only: MAX_CHAR, MAX_UNICODE_CHAR, MAX_5_BYTE_CHAR, string_char_and_length
+    use error_mod, only: status_type, set_error, OK_CODE, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, &
+                         ARGUMENTS_OUT_OF_RANGE_CODE
+    use character_mod, only: MAXIMUM_CHARACTER, MAXIMUM_UNICODE_CHARACTER, MAXIMUM_5_BYTE_CHARACTER, string_character_and_length
     use character_set_maps_mod, only: charset_map_entries
     use buffer_mod, only: buffers, current, buf_bytes
-    use marker_mod, only: char_to_byte
+    use marker_mod, only: character_to_byte
     implicit none(type, external)
     private
 
     public :: is_charset, define_charset, define_charset_alias, set_charset_attributes, charset_attributes
-    public :: decode_char, encode_char, make_char, split_char, char_charset
+    public :: decode_character, encode_character, make_character, split_character, character_charset
     public :: charset_after, iso_charset, charset_priority_list, charset_priority_highest
     public :: set_charset_priority, sort_charsets, charset_id_internal, charset_list
-    public :: map_charset_chars, unify_charset, get_unused_iso_final_char, declare_equiv_charset
+    public :: map_charset_characters, unify_charset, get_unused_iso_final_character, declare_equiv_charset
     public :: find_charset_region, find_charset_string
-    public :: charset_dimension, charset_chars, charset_iso_final_char, charset_description
+    public :: charset_dimension, charset_characters, charset_iso_final_character, charset_description
     public :: charset_short_name, charset_long_name
-    public :: charset_range_procedure, charset_attributes_type, init_charset
-    public :: charset_type, charsets, find_charset, check_charset, decode_char_id, char_charset_id
-    public :: encode_char_id, find_iso_charset, iso_2022_charset_order
+    public :: charset_range_procedure, charset_attributes_type, initialize_charset
+    public :: charset_type, charsets, find_charset, check_charset, decode_character_id, character_charset_id
+    public :: encode_character_id, find_iso_charset, iso_2022_charset_order
     public :: emacs_mule_charset_order, emacs_mule_charsets, emacs_mule_bytes
 
     !> The longest charset name the arrays of names hold.
-    integer, parameter, public :: CHARSET_NAME_LEN = 32
+    integer, parameter, public :: CHARSET_NAME_LENGTH = 32
 
     !> How a charset maps code points to characters (enum charset_method):
     !> by an offset, by a map, as a subset of another charset or as a
@@ -88,9 +88,9 @@ module character_set_mod
         character(len=:), allocatable :: preferred_coding_system
         integer :: dimension = 1
         integer :: code_space(8) = 0
-        integer(int64) :: min_code = 0, max_code = 0, invalid_code = 0
+        integer(int64) :: minimum_code = 0, maximum_code = 0, invalid_code = 0
         !> -1 when the charset has none.
-        integer :: iso_final_char = -1, iso_revision_number = -1, emacs_mule_id = -1
+        integer :: iso_final_character = -1, iso_revision_number = -1, emacs_mule_id = -1
         logical :: ascii_compatible = .false., supplementary = .false.
         integer :: code_offset = 0
         !> CHARSET_METHOD_OFFSET, _MAP, _SUBSET or _SUPERSET.
@@ -114,17 +114,17 @@ module character_set_mod
         !> Whether charset.c defines it (its attributes have no
         !> `:supplementary-p' or `:iso-revision-number').
         logical :: internal = .false.
-        logical :: code_linear = .true., iso_chars_96 = .false.
+        logical :: code_linear = .true., iso_characters_96 = .false.
         integer :: code_space_mask(0:255) = 0
-        integer(int64) :: min_code = 0, max_code = 0, char_index_offset = 0, invalid_code = 0
+        integer(int64) :: minimum_code = 0, maximum_code = 0, character_index_offset = 0, invalid_code = 0
         logical :: compact_codes = .true.
         integer :: iso_final = -1, iso_revision = -1, emacs_mule_id = -1
         logical :: ascii_compatible = .false., supplementary = .false., unified = .false.
         integer :: method = CHARSET_METHOD_OFFSET
-        integer :: code_offset = 0, min_char = 0, max_char = 0
+        integer :: code_offset = 0, minimum_character = 0, maximum_character = 0
         integer :: fast_map(0:189) = 0
         integer :: subset_parent = 0
-        integer(int64) :: subset_min = 0, subset_max = 0, subset_offset = 0
+        integer(int64) :: subset_minimum = 0, subset_maximum = 0, subset_offset = 0
         integer, allocatable :: superset_ids(:), superset_offsets(:)
         ! The decoder (code index to character) and the encoder (sorted
         ! characters with their code points) of a map charset; the
@@ -132,10 +132,10 @@ module character_set_mod
         ! (sorted Unicode characters with their code index) of a unified
         ! charset.  Loaded on first use.
         logical :: decoder_loaded = .false., encoder_loaded = .false., map_missing = .false.
-        integer, allocatable :: decoder(:), encoder_chars(:)
+        integer, allocatable :: decoder(:), encoder_characters(:)
         integer(int64), allocatable :: encoder_codes(:)
         logical :: unifier_loaded = .false., deunifier_loaded = .false.
-        integer, allocatable :: unifier(:), deunifier_chars(:), deunifier_index(:)
+        integer, allocatable :: unifier(:), deunifier_characters(:), deunifier_index(:)
     end type charset_type
 
     type :: alias_type
@@ -144,7 +144,7 @@ module character_set_mod
     end type alias_type
 
     abstract interface
-        !> Called by map_charset_chars with a range of characters.
+        !> Called by map_charset_characters with a range of characters.
         subroutine charset_range_procedure(from, to)
             import :: int32
             implicit none(type, external)
@@ -160,7 +160,7 @@ module character_set_mod
 
     !> `charset-list': the names of the charsets and their aliases, the
     !> latest first (held in the order of definition).
-    character(len=CHARSET_NAME_LEN), allocatable :: defined_names(:)
+    character(len=CHARSET_NAME_LENGTH), allocatable :: defined_names(:)
     integer :: defined_name_count = 0
 
     ! Vcharset_ordered_list (ids) and Vcharset_non_preferred_head (the
@@ -176,7 +176,7 @@ module character_set_mod
     !> id in priority order.
     integer, allocatable, protected :: emacs_mule_charset_order(:)
 
-    ! iso_charset_table[dimension][chars_96][final] (0 for none).
+    ! iso_charset_table[dimension][characters_96][final] (0 for none).
     integer :: iso_charset_table(1:3, 0:1, 0:127) = 0
     !> emacs_mule_charset: the id of the charset of each emacs-mule id (0
     !> for none).
@@ -226,7 +226,7 @@ contains
     !> Define the charsets charset.c defines (ascii, iso-8859-1, unicode,
     !> emacs, eight-bit) and then those of mule-conf.el.  Port of
     !> charset.c:syms_of_charset with mule-conf.el.
-    recursive subroutine init_charset()
+    recursive subroutine initialize_charset()
         type(status_type) :: status
 
         if (initialized) return
@@ -244,32 +244,32 @@ contains
         charset_iso_8859_1 = define_charset_internal("iso-8859-1", 1, [0, 255, 0, 0, 0, 0, 0, 0], 0_int64, &
                                                      255_int64, -1, -1, -1, .true., .false., 0)
         charset_unicode = define_charset_internal("unicode", 3, [0, 255, 0, 255, 0, 16, 0, 0], 0_int64, &
-                                                  int(MAX_UNICODE_CHAR, int64), -1, 0, -1, .true., .false., 0)
+                                                  int(MAXIMUM_UNICODE_CHARACTER, int64), -1, 0, -1, .true., .false., 0)
         charset_emacs = define_charset_internal("emacs", 3, [0, 255, 0, 255, 0, 63, 0, 0], 0_int64, &
-                                                int(MAX_5_BYTE_CHAR, int64), -1, 0, -1, .true., .true., 0)
+                                                int(MAXIMUM_5_BYTE_CHARACTER, int64), -1, 0, -1, .true., .true., 0)
         charset_eight_bit = define_charset_internal("eight-bit", 1, [128, 255, 0, 0, 0, 0, 0, 0], 128_int64, &
-                                                    255_int64, -1, 0, -1, .false., .true., MAX_5_BYTE_CHAR + 1)
+                                                    255_int64, -1, 0, -1, .false., .true., MAXIMUM_5_BYTE_CHARACTER + 1)
         charset_unibyte = charset_iso_8859_1
         call define_standard_charsets()
         ! mule-cmds.el: reset-language-environment, then the English
         ! language environment's charset.
-        call set_charset_priority([character(len=CHARSET_NAME_LEN) :: "iso-8859-1"], status)
-        call set_charset_priority([character(len=CHARSET_NAME_LEN) :: "ascii"], status)
-    end subroutine init_charset
+        call set_charset_priority([character(len=CHARSET_NAME_LENGTH) :: "iso-8859-1"], status)
+        call set_charset_priority([character(len=CHARSET_NAME_LENGTH) :: "ascii"], status)
+    end subroutine initialize_charset
 
     ! Define one of charset.c's own charsets.  Port of
     ! charset.c:define_charset_internal.
-    integer function define_charset_internal(name, dimension, code_space, min_code, max_code, iso_final, &
+    integer function define_charset_internal(name, dimension, code_space, minimum_code, maximum_code, iso_final, &
                                              iso_revision, emacs_mule_id, ascii_compatible, supplementary, &
                                              code_offset) result(id)
         character(len=*), intent(in) :: name
         integer, intent(in) :: dimension, code_space(8), iso_final, iso_revision, emacs_mule_id, code_offset
-        integer(int64), intent(in) :: min_code, max_code
+        integer(int64), intent(in) :: minimum_code, maximum_code
         logical, intent(in) :: ascii_compatible, supplementary
         type(status_type) :: status
 
-        call define_charset(name, "", status, code_space=code_space, dimension=dimension, min_code=min_code, &
-                            max_code=max_code, iso_final_char=iso_final, iso_revision_number=iso_revision, &
+        call define_charset(name, "", status, code_space=code_space, dimension=dimension, minimum_code=minimum_code, &
+                            maximum_code=maximum_code, iso_final_character=iso_final, iso_revision_number=iso_revision, &
                             emacs_mule_id=emacs_mule_id, ascii_compatible=ascii_compatible, &
                             supplementary=supplementary, code_offset=code_offset)
         id = find_id(name)
@@ -282,32 +282,32 @@ contains
 
     !> Define NAME as a charset documented by DOCSTRING.  CODE_SPACE gives
     !> the minimum and maximum byte of each dimension; one of CODE_OFFSET,
-    !> MAP, SUBSET_PARENT (with SUBSET_MIN_CODE, SUBSET_MAX_CODE and
+    !> MAP, SUBSET_PARENT (with SUBSET_MINIMUM_CODE, SUBSET_MAXIMUM_CODE and
     !> SUBSET_OFFSET) or SUPERSET (the parent charsets, with
     !> SUPERSET_OFFSETS) says how its code points map to characters.  The
     !> other arguments are the attributes of the same names; a -1
-    !> ISO_FINAL_CHAR, ISO_REVISION_NUMBER or EMACS_MULE_ID means none.
+    !> ISO_FINAL_CHARACTER, ISO_REVISION_NUMBER or EMACS_MULE_ID means none.
     !> Port of mule.el:define-charset and charset.c:Fdefine_charset_internal.
-    subroutine define_charset(name, docstring, status, code_space, dimension, min_code, max_code, &
-                              iso_final_char, iso_revision_number, emacs_mule_id, ascii_compatible, &
+    subroutine define_charset(name, docstring, status, code_space, dimension, minimum_code, maximum_code, &
+                              iso_final_character, iso_revision_number, emacs_mule_id, ascii_compatible, &
                               supplementary, invalid_code, code_offset, map, subset_parent, &
-                              subset_min_code, subset_max_code, subset_offset, superset, superset_offsets, &
+                              subset_minimum_code, subset_maximum_code, subset_offset, superset, superset_offsets, &
                               unify_map, short_name, long_name)
         character(len=*), intent(in) :: name, docstring
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: code_space(:), dimension, iso_final_char, iso_revision_number
-        integer, intent(in), optional :: emacs_mule_id, code_offset, subset_min_code, subset_max_code
+        integer, intent(in), optional :: code_space(:), dimension, iso_final_character, iso_revision_number
+        integer, intent(in), optional :: emacs_mule_id, code_offset, subset_minimum_code, subset_maximum_code
         integer, intent(in), optional :: subset_offset, superset_offsets(:)
-        integer(int64), intent(in), optional :: min_code, max_code, invalid_code
+        integer(int64), intent(in), optional :: minimum_code, maximum_code, invalid_code
         logical, intent(in), optional :: ascii_compatible, supplementary
         character(len=*), intent(in), optional :: map, subset_parent, superset(:), unify_map
         character(len=*), intent(in), optional :: short_name, long_name
         type(charset_type) :: cs
-        integer :: i, j, id, dim, char_count, min_byte, max_byte, parent
+        integer :: i, j, id, dim, character_count, minimum_byte, maximum_byte, parent
         logical :: new_definition, ok
         character(len=12) :: buffer
 
-        call init_charset()
+        call initialize_charset()
         ! mule.el:define-charset: the code space (8 bytes, from the
         ! dimension when omitted) and the names.
         cs%given_code_space = 0
@@ -343,26 +343,26 @@ contains
         cs%unify_map = ""
         cs%preferred_coding_system = ""
         if (present(unify_map)) cs%unify_map = unify_map
-        char_count = 1
+        character_count = 1
         dim = 0
 
         do i = 0, 3
-            min_byte = cs%given_code_space(2*i + 1)
-            max_byte = cs%given_code_space(2*i + 2)
+            minimum_byte = cs%given_code_space(2*i + 1)
+            maximum_byte = cs%given_code_space(2*i + 2)
 
-            if (min_byte < 0 .or. min_byte > 255 .or. max_byte < min_byte .or. max_byte > 255) then
-                write (buffer, "(i0)") max_byte
-                call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(buffer))
+            if (minimum_byte < 0 .or. minimum_byte > 255 .or. maximum_byte < minimum_byte .or. maximum_byte > 255) then
+                write (buffer, "(i0)") maximum_byte
+                call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, trim(buffer))
                 return
             end if
 
-            cs%code_space(i*4) = min_byte
-            cs%code_space(i*4 + 1) = max_byte
-            cs%code_space(i*4 + 2) = max_byte - min_byte + 1
-            if (max_byte > 0) dim = i + 1
+            cs%code_space(i*4) = minimum_byte
+            cs%code_space(i*4 + 1) = maximum_byte
+            cs%code_space(i*4 + 2) = maximum_byte - minimum_byte + 1
+            if (maximum_byte > 0) dim = i + 1
             if (i == 3) exit
-            char_count = char_count*int(cs%code_space(i*4 + 2))
-            cs%code_space(i*4 + 3) = char_count
+            character_count = character_count*int(cs%code_space(i*4 + 2))
+            cs%code_space(i*4 + 3) = character_count
         end do
 
         cs%dimension = dim
@@ -387,58 +387,58 @@ contains
             end do
         end if
 
-        cs%iso_chars_96 = cs%code_space(2) == 96
-        cs%min_code = ior(ior(cs%code_space(0), ishft(cs%code_space(4), 8)), &
-                          ior(ishft(cs%code_space(8), 16), ishft(cs%code_space(12), 24)))
-        cs%max_code = ior(ior(cs%code_space(1), ishft(cs%code_space(5), 8)), &
-                          ior(ishft(cs%code_space(9), 16), ishft(cs%code_space(13), 24)))
-        cs%char_index_offset = 0
+        cs%iso_characters_96 = cs%code_space(2) == 96
+        cs%minimum_code = ior(ior(cs%code_space(0), ishft(cs%code_space(4), 8)), &
+                              ior(ishft(cs%code_space(8), 16), ishft(cs%code_space(12), 24)))
+        cs%maximum_code = ior(ior(cs%code_space(1), ishft(cs%code_space(5), 8)), &
+                              ior(ishft(cs%code_space(9), 16), ishft(cs%code_space(13), 24)))
+        cs%character_index_offset = 0
 
-        if (present(min_code)) then
-            if (min_code < cs%min_code .or. min_code > cs%max_code) then
-                call out_of_range(status, cs%min_code, cs%max_code, min_code)
+        if (present(minimum_code)) then
+            if (minimum_code < cs%minimum_code .or. minimum_code > cs%maximum_code) then
+                call out_of_range(status, cs%minimum_code, cs%maximum_code, minimum_code)
                 return
             end if
 
-            cs%char_index_offset = code_point_to_index(cs, min_code)
-            cs%min_code = min_code
+            cs%character_index_offset = code_point_to_index(cs, minimum_code)
+            cs%minimum_code = minimum_code
         end if
 
-        if (present(max_code)) then
-            if (max_code < cs%min_code .or. max_code > cs%max_code) then
-                call out_of_range(status, cs%min_code, cs%max_code, max_code)
+        if (present(maximum_code)) then
+            if (maximum_code < cs%minimum_code .or. maximum_code > cs%maximum_code) then
+                call out_of_range(status, cs%minimum_code, cs%maximum_code, maximum_code)
                 return
             end if
 
-            cs%max_code = max_code
+            cs%maximum_code = maximum_code
         end if
 
-        cs%compact_codes = cs%max_code < 65536
+        cs%compact_codes = cs%maximum_code < 65536
         cs%has_invalid_code = present(invalid_code)
         cs%has_code_offset = present(code_offset)
 
         if (present(invalid_code)) then
             cs%invalid_code = invalid_code
-        else if (cs%min_code > 0) then
+        else if (cs%minimum_code > 0) then
             cs%invalid_code = 0
-        else if (cs%max_code < 4294967295_int64) then
-            cs%invalid_code = cs%max_code + 1
+        else if (cs%maximum_code < 4294967295_int64) then
+            cs%invalid_code = cs%maximum_code + 1
         else
-            call set_error(status, FM_GENERIC_ERROR, "Attribute :invalid-code must be specified")
+            call set_error(status, GENERIC_ERROR_CODE, "Attribute :invalid-code must be specified")
             return
         end if
 
         cs%iso_final = -1
 
-        if (present(iso_final_char)) then
-            if (iso_final_char >= 0) then
-                if (iso_final_char < iachar("0") .or. iso_final_char > 127) then
-                    write (buffer, "(i0)") iso_final_char
-                    call set_error(status, FM_GENERIC_ERROR, "Invalid iso-final-char: "//trim(buffer))
+        if (present(iso_final_character)) then
+            if (iso_final_character >= 0) then
+                if (iso_final_character < iachar("0") .or. iso_final_character > 127) then
+                    write (buffer, "(i0)") iso_final_character
+                    call set_error(status, GENERIC_ERROR_CODE, "Invalid iso-final-char: "//trim(buffer))
                     return
                 end if
 
-                cs%iso_final = iso_final_char
+                cs%iso_final = iso_final_character
             end if
         end if
 
@@ -450,7 +450,7 @@ contains
             if (emacs_mule_id >= 0) then
                 if ((emacs_mule_id > 0 .and. emacs_mule_id <= 128) .or. emacs_mule_id >= 256) then
                     write (buffer, "(i0)") emacs_mule_id
-                    call set_error(status, FM_GENERIC_ERROR, "Invalid emacs-mule-id: "//trim(buffer))
+                    call set_error(status, GENERIC_ERROR_CODE, "Invalid emacs-mule-id: "//trim(buffer))
                     return
                 end if
 
@@ -466,31 +466,31 @@ contains
         if (present(code_offset)) then
             cs%method = CHARSET_METHOD_OFFSET
             cs%code_offset = code_offset
-            i = int(code_point_to_index(cs, cs%max_code))
+            i = int(code_point_to_index(cs, cs%maximum_code))
 
-            if (MAX_CHAR - cs%code_offset < i) then
-                call set_error(status, FM_GENERIC_ERROR, "Unsupported max char")
+            if (MAXIMUM_CHARACTER - cs%code_offset < i) then
+                call set_error(status, GENERIC_ERROR_CODE, "Unsupported max char")
                 return
             end if
 
-            cs%max_char = i + cs%code_offset
-            i = int(code_point_to_index(cs, cs%min_code))
-            cs%min_char = i + cs%code_offset
-            i = ishft(ishft(cs%min_char, -7), 7)
+            cs%maximum_character = i + cs%code_offset
+            i = int(code_point_to_index(cs, cs%minimum_code))
+            cs%minimum_character = i + cs%code_offset
+            i = ishft(ishft(cs%minimum_character, -7), 7)
 
-            do while (i < 65536 .and. i <= cs%max_char)
+            do while (i < 65536 .and. i <= cs%maximum_character)
                 call fast_map_set(i, cs%fast_map)
                 i = i + 128
             end do
 
             i = ishft(ishft(i, -12), 12)
 
-            do while (i <= cs%max_char)
+            do while (i <= cs%maximum_character)
                 call fast_map_set(i, cs%fast_map)
                 i = i + 4096
             end do
 
-            if (cs%code_offset == 0 .and. cs%max_char >= 128) cs%ascii_compatible = .true.
+            if (cs%code_offset == 0 .and. cs%maximum_character >= 128) cs%ascii_compatible = .true.
         else if (present(map)) then
             cs%map = map
             cs%method = CHARSET_METHOD_MAP
@@ -498,47 +498,47 @@ contains
             parent = find_id(subset_parent)
 
             if (parent == 0) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected charset name, got "//subset_parent)
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected charset name, got "//subset_parent)
                 return
             end if
 
             cs%method = CHARSET_METHOD_SUBSET
             cs%subset_parent = parent
-            cs%subset_min = 0
-            cs%subset_max = 0
+            cs%subset_minimum = 0
+            cs%subset_maximum = 0
             cs%subset_offset = 0
-            if (present(subset_min_code)) cs%subset_min = subset_min_code
-            if (present(subset_max_code)) cs%subset_max = subset_max_code
+            if (present(subset_minimum_code)) cs%subset_minimum = subset_minimum_code
+            if (present(subset_maximum_code)) cs%subset_maximum = subset_maximum_code
             if (present(subset_offset)) cs%subset_offset = subset_offset
             ! Here, we just copy the parent's fast_map.  It's not accurate,
             ! but at least it works for quickly detecting which character
             ! DOESN'T belong to this charset.
             cs%fast_map = charsets(parent)%fast_map
-            cs%min_char = charsets(parent)%min_char
-            cs%max_char = charsets(parent)%max_char
+            cs%minimum_character = charsets(parent)%minimum_character
+            cs%maximum_character = charsets(parent)%maximum_character
         else if (present(superset)) then
             cs%method = CHARSET_METHOD_SUPERSET
             allocate (cs%superset_ids(size(superset)), cs%superset_offsets(size(superset)))
             cs%superset_offsets = 0
             if (present(superset_offsets)) cs%superset_offsets = superset_offsets
-            cs%min_char = MAX_CHAR
-            cs%max_char = 0
+            cs%minimum_character = MAXIMUM_CHARACTER
+            cs%maximum_character = 0
 
             do i = 1, size(superset)
                 parent = find_id(trim(superset(i)))
 
                 if (parent == 0) then
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected charset name, got "//trim(superset(i)))
+                    call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected charset name, got "//trim(superset(i)))
                     return
                 end if
 
                 cs%superset_ids(i) = parent
-                cs%min_char = min(cs%min_char, charsets(parent)%min_char)
-                cs%max_char = max(cs%max_char, charsets(parent)%max_char)
+                cs%minimum_character = min(cs%minimum_character, charsets(parent)%minimum_character)
+                cs%maximum_character = max(cs%maximum_character, charsets(parent)%maximum_character)
                 cs%fast_map = ior(cs%fast_map, charsets(parent)%fast_map)
             end do
         else
-            call set_error(status, FM_GENERIC_ERROR, "None of :code-offset, :map, :parents are specified")
+            call set_error(status, GENERIC_ERROR_CODE, "None of :code-offset, :map, :parents are specified")
             return
         end if
 
@@ -561,12 +561,12 @@ contains
 
             if (.not. ok) then
                 charsets(id)%map_missing = .true.
-                call set_error(status, FM_OK)
+                call set_error(status, OK_CODE)
             end if
         end if
 
         if (cs%iso_final >= 0) then
-            i = merge(1, 0, cs%iso_chars_96)
+            i = merge(1, 0, cs%iso_characters_96)
             iso_charset_table(cs%dimension, i, cs%iso_final) = id
             if (new_definition) iso_2022_charset_order = [iso_2022_charset_order, id]
 
@@ -635,7 +635,7 @@ contains
     ! charset.c:Fdefine_charset_internal (Vcharset_list).
     subroutine append_defined_name(name)
         character(len=*), intent(in) :: name
-        character(len=CHARSET_NAME_LEN), allocatable :: grown(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: grown(:)
 
         if (defined_name_count == size(defined_names)) then
             allocate (grown(2*defined_name_count))
@@ -671,7 +671,7 @@ contains
         write (sa, "(i0)") a
         write (sb, "(i0)") b
         write (sc, "(i0)") c
-        call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(sa)//", "//trim(sb)//", "//trim(sc))
+        call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, trim(sa)//", "//trim(sb)//", "//trim(sc))
     end subroutine out_of_range
 
     !> Make ALIAS another name of CHARSET.  Port of
@@ -682,11 +682,11 @@ contains
         type(alias_type), allocatable :: grown(:)
         integer :: id, i
 
-        call init_charset()
+        call initialize_charset()
         id = find_id(charset)
 
         if (id == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected charset name, got "//charset)
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected charset name, got "//charset)
             return
         end if
 
@@ -723,7 +723,7 @@ contains
         character(len=*), intent(in), optional :: docstring, short_name, long_name, preferred_coding_system
         integer :: id
 
-        call init_charset()
+        call initialize_charset()
         id = find_id(charset)
         if (id == 0) return
         if (present(docstring)) charsets(id)%docstring = docstring
@@ -761,9 +761,9 @@ contains
         character(len=*), intent(in) :: charset
         type(status_type), intent(inout) :: status
 
-        call init_charset()
+        call initialize_charset()
         id = find_id(charset)
-        if (id == 0) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected charset name, got "//charset)
+        if (id == 0) call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected charset name, got "//charset)
     end function check_charset
 
     !> True if NAME is a charset or an alias of one.  Port of
@@ -771,16 +771,16 @@ contains
     logical function is_charset(name)
         character(len=*), intent(in) :: name
 
-        call init_charset()
+        call initialize_charset()
         is_charset = find_id(name) /= 0
     end function is_charset
 
     !> `charset-list': the charsets and their aliases, the latest first.
     !> Port of charset.c:Vcharset_list (the variable `charset-list').
     function charset_list() result(names)
-        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
 
-        call init_charset()
+        call initialize_charset()
         names = defined_names(defined_name_count:1:-1)
     end function charset_list
 
@@ -801,7 +801,7 @@ contains
         logical, intent(out) :: found
         integer :: id
 
-        call init_charset()
+        call initialize_charset()
         id = find_id(charset)
         found = id /= 0
         if (.not. found) return
@@ -816,10 +816,10 @@ contains
             attributes%preferred_coding_system = cs%preferred_coding_system
             attributes%dimension = cs%dimension
             attributes%code_space = cs%given_code_space
-            attributes%min_code = cs%min_code
-            attributes%max_code = cs%max_code
+            attributes%minimum_code = cs%minimum_code
+            attributes%maximum_code = cs%maximum_code
             attributes%invalid_code = cs%invalid_code
-            attributes%iso_final_char = cs%iso_final
+            attributes%iso_final_character = cs%iso_final
             attributes%iso_revision_number = cs%iso_revision
             attributes%emacs_mule_id = cs%emacs_mule_id
             attributes%ascii_compatible = cs%ascii_compatible
@@ -843,31 +843,31 @@ contains
     !> The number of characters per dimension of CHARSET; for a charset of
     !> more than one dimension, DIMENSION (from 1, default 1) picks one.
     !> Port of mule.el:charset-chars.
-    integer function charset_chars(charset, status, dimension)
+    integer function charset_characters(charset, status, dimension)
         character(len=*), intent(in) :: charset
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: dimension
         integer :: id, d
 
-        charset_chars = 0
+        charset_characters = 0
         id = check_charset(charset, status)
         if (id == 0) return
         d = 1
         if (present(dimension)) d = dimension
-        charset_chars = charsets(id)%given_code_space(2*d) - charsets(id)%given_code_space(2*d - 1) + 1
-    end function charset_chars
+        charset_characters = charsets(id)%given_code_space(2*d) - charsets(id)%given_code_space(2*d - 1) + 1
+    end function charset_characters
 
     !> The final character of CHARSET in ISO-2022, -1 if it has none.
     !> Port of mule.el:charset-iso-final-char.
-    integer function charset_iso_final_char(charset, status)
+    integer function charset_iso_final_character(charset, status)
         character(len=*), intent(in) :: charset
         type(status_type), intent(out) :: status
         integer :: id
 
-        charset_iso_final_char = -1
+        charset_iso_final_character = -1
         id = check_charset(charset, status)
-        if (id /= 0) charset_iso_final_char = charsets(id)%iso_final
-    end function charset_iso_final_char
+        if (id /= 0) charset_iso_final_character = charsets(id)%iso_final
+    end function charset_iso_final_character
 
     !> The docstring of CHARSET.  Port of mule.el:charset-description.
     function charset_description(charset) result(text)
@@ -875,7 +875,7 @@ contains
         character(len=:), allocatable :: text
         integer :: id
 
-        call init_charset()
+        call initialize_charset()
         id = find_id(charset)
         text = ""
         if (id /= 0) text = charsets(id)%docstring
@@ -887,7 +887,7 @@ contains
         character(len=:), allocatable :: text
         integer :: id
 
-        call init_charset()
+        call initialize_charset()
         id = find_id(charset)
         text = ""
         if (id /= 0) text = charsets(id)%short_name
@@ -900,7 +900,7 @@ contains
         character(len=:), allocatable :: text
         integer :: id
 
-        call init_charset()
+        call initialize_charset()
         id = find_id(charset)
         text = ""
         if (id /= 0) text = charsets(id)%long_name
@@ -939,13 +939,13 @@ contains
 
     ! The index of code point CODE in CS, -1 if it is outside the code
     ! space.  Port of charset.c:CODE_POINT_TO_INDEX.
-    integer(int64) function code_point_to_index(cs, code) result(char_index)
+    integer(int64) function code_point_to_index(cs, code) result(character_index)
         type(charset_type), intent(in) :: cs
         integer(int64), intent(in) :: code
         integer :: b0, b1, b2, b3
 
         if (cs%code_linear) then
-            char_index = code - cs%min_code
+            character_index = code - cs%minimum_code
             return
         end if
 
@@ -953,28 +953,28 @@ contains
         b1 = int(iand(ishft(code, -8), 255_int64))
         b2 = int(iand(ishft(code, -16), 255_int64))
         b3 = int(iand(ishft(code, -24), 255_int64))
-        char_index = -1
+        character_index = -1
         if (iand(cs%code_space_mask(b3), 8) == 0) return
         if (iand(cs%code_space_mask(b2), 4) == 0) return
         if (iand(cs%code_space_mask(b1), 2) == 0) return
         if (iand(cs%code_space_mask(b0), 1) == 0) return
-        char_index = (b3 - cs%code_space(12))*cs%code_space(11) + (b2 - cs%code_space(8))*cs%code_space(7) &
-                     + (b1 - cs%code_space(4))*cs%code_space(3) + (b0 - cs%code_space(0)) - cs%char_index_offset
+        character_index = (b3 - cs%code_space(12))*cs%code_space(11) + (b2 - cs%code_space(8))*cs%code_space(7) &
+            + (b1 - cs%code_space(4))*cs%code_space(3) + (b0 - cs%code_space(0)) - cs%character_index_offset
     end function code_point_to_index
 
-    ! The code point of index CHAR_INDEX in CS.  Port of
+    ! The code point of index CHARACTER_INDEX in CS.  Port of
     ! charset.c:INDEX_TO_CODE_POINT.
-    integer(int64) function index_to_code_point(cs, char_index) result(code)
+    integer(int64) function index_to_code_point(cs, character_index) result(code)
         type(charset_type), intent(in) :: cs
-        integer(int64), intent(in) :: char_index
+        integer(int64), intent(in) :: character_index
         integer(int64) :: space_index
 
         if (cs%code_linear) then
-            code = char_index + cs%min_code
+            code = character_index + cs%minimum_code
             return
         end if
 
-        space_index = char_index + cs%char_index_offset
+        space_index = character_index + cs%character_index_offset
         code = ior(ior(cs%code_space(0) + mod(space_index, cs%code_space(2)), &
                        ishft(cs%code_space(4) + mod(space_index/cs%code_space(3), cs%code_space(6)), 8)), &
                    ior(ishft(cs%code_space(8) + mod(space_index/cs%code_space(7), cs%code_space(10)), 16), &
@@ -994,8 +994,8 @@ contains
         integer(int32), allocatable :: chars(:)
         character(len=:), allocatable :: map
         integer(int64) :: from_index, to_index, n, k, code
-        integer :: i, from_c, to_c, min_char, max_char, nonascii_min_char, c
-        integer, allocatable :: entry_chars(:)
+        integer :: i, from_c, to_c, minimum_character, maximum_character, nonascii_minimum_character, c
+        integer, allocatable :: entry_characters(:)
         integer(int64), allocatable :: entry_codes(:)
         integer :: entry_count
         logical :: found
@@ -1011,7 +1011,7 @@ contains
             ok = found
 
             if (.not. found) then
-                call set_error(status, FM_GENERIC_ERROR, "Charset map "//map//" is not ported yet")
+                call set_error(status, GENERIC_ERROR_CODE, "Charset map "//map//" is not ported yet")
                 return
             end if
 
@@ -1019,26 +1019,26 @@ contains
 
             if (part == LOAD_CHARSET_DECODER) then
                 if (cs%method == CHARSET_METHOD_MAP) then
-                    n = code_point_to_index(cs, cs%max_code) + 1
+                    n = code_point_to_index(cs, cs%maximum_code) + 1
                     if (allocated(cs%decoder)) deallocate (cs%decoder)
                     allocate (cs%decoder(0:n - 1))
                     cs%decoder = -1
                     cs%decoder_loaded = .true.
                 else
-                    n = code_point_to_index(cs, cs%max_code) + 1
+                    n = code_point_to_index(cs, cs%maximum_code) + 1
                     if (allocated(cs%unifier)) deallocate (cs%unifier)
                     allocate (cs%unifier(0:n - 1))
                     cs%unifier = -1
                     cs%unifier_loaded = .true.
                 end if
             else if (part == LOAD_CHARSET_ENCODER) then
-                allocate (entry_chars(256), entry_codes(256))
+                allocate (entry_characters(256), entry_codes(256))
                 entry_count = 0
             end if
 
-            min_char = chars(1)
-            max_char = chars(1)
-            nonascii_min_char = MAX_CHAR
+            minimum_character = chars(1)
+            maximum_character = chars(1)
+            nonascii_minimum_character = MAXIMUM_CHARACTER
 
             do i = 1, size(from)
                 from_c = chars(i)
@@ -1054,10 +1054,10 @@ contains
 
                 if (from_index < 0 .or. to_index < 0) cycle
 
-                if (to_c > max_char) then
-                    max_char = to_c
-                else if (from_c < min_char) then
-                    min_char = from_c
+                if (to_c > maximum_character) then
+                    maximum_character = to_c
+                else if (from_c < minimum_character) then
+                    minimum_character = from_c
                 end if
 
                 select case (part)
@@ -1086,9 +1086,9 @@ contains
                 case default
                     if (cs%ascii_compatible) then
                         if (from_c >= 128) then
-                            if (from_c < nonascii_min_char) nonascii_min_char = from_c
+                            if (from_c < nonascii_minimum_character) nonascii_minimum_character = from_c
                         else if (to_c >= 128) then
-                            nonascii_min_char = 128
+                            nonascii_minimum_character = 128
                         end if
                     end if
 
@@ -1101,21 +1101,21 @@ contains
             select case (part)
             case (LOAD_CHARSET_RANGE)
                 if (cs%ascii_compatible) then
-                    cs%min_char = nonascii_min_char
+                    cs%minimum_character = nonascii_minimum_character
                 else
-                    cs%min_char = min_char
+                    cs%minimum_character = minimum_character
                 end if
 
-                cs%max_char = max_char
+                cs%maximum_character = maximum_character
             case (LOAD_CHARSET_ENCODER)
                 call sort_entries()
 
                 if (cs%method == CHARSET_METHOD_MAP) then
-                    cs%encoder_chars = entry_chars(1:entry_count)
+                    cs%encoder_characters = entry_characters(1:entry_count)
                     cs%encoder_codes = entry_codes(1:entry_count)
                     cs%encoder_loaded = .true.
                 else
-                    cs%deunifier_chars = entry_chars(1:entry_count)
+                    cs%deunifier_characters = entry_characters(1:entry_count)
                     cs%deunifier_index = int(entry_codes(1:entry_count))
                     cs%deunifier_loaded = .true.
                 end if
@@ -1133,16 +1133,16 @@ contains
             integer, allocatable :: gc(:)
             integer(int64), allocatable :: gk(:)
 
-            if (entry_count == size(entry_chars)) then
+            if (entry_count == size(entry_characters)) then
                 allocate (gc(2*entry_count), gk(2*entry_count))
-                gc(1:entry_count) = entry_chars(1:entry_count)
+                gc(1:entry_count) = entry_characters(1:entry_count)
                 gk(1:entry_count) = entry_codes(1:entry_count)
-                call move_alloc(gc, entry_chars)
+                call move_alloc(gc, entry_characters)
                 call move_alloc(gk, entry_codes)
             end if
 
             entry_count = entry_count + 1
-            entry_chars(entry_count) = c
+            entry_characters(entry_count) = c
             entry_codes(entry_count) = code
         end subroutine append_entry
 
@@ -1152,11 +1152,11 @@ contains
         ! charset.c:load_charset_map sets a character's code only when it
         ! has none.
         subroutine sort_entries()
-            integer, allocatable :: merged_chars(:)
+            integer, allocatable :: merged_characters(:)
             integer(int64), allocatable :: merged_codes(:)
             integer :: width, low, middle, high, left, right, out, kept
 
-            allocate (merged_chars(entry_count), merged_codes(entry_count))
+            allocate (merged_characters(entry_count), merged_codes(entry_count))
             width = 1
 
             do while (width < entry_count)
@@ -1171,19 +1171,19 @@ contains
 
                     do out = low, high - 1
                         if (right >= high) then
-                            merged_chars(out) = entry_chars(left)
+                            merged_characters(out) = entry_characters(left)
                             merged_codes(out) = entry_codes(left)
                             left = left + 1
                         else if (left >= middle) then
-                            merged_chars(out) = entry_chars(right)
+                            merged_characters(out) = entry_characters(right)
                             merged_codes(out) = entry_codes(right)
                             right = right + 1
-                        else if (entry_chars(left) <= entry_chars(right)) then
-                            merged_chars(out) = entry_chars(left)
+                        else if (entry_characters(left) <= entry_characters(right)) then
+                            merged_characters(out) = entry_characters(left)
                             merged_codes(out) = entry_codes(left)
                             left = left + 1
                         else
-                            merged_chars(out) = entry_chars(right)
+                            merged_characters(out) = entry_characters(right)
                             merged_codes(out) = entry_codes(right)
                             right = right + 1
                         end if
@@ -1192,7 +1192,7 @@ contains
                     low = high
                 end do
 
-                entry_chars(1:entry_count) = merged_chars(1:entry_count)
+                entry_characters(1:entry_count) = merged_characters(1:entry_count)
                 entry_codes(1:entry_count) = merged_codes(1:entry_count)
                 width = 2*width
             end do
@@ -1201,11 +1201,11 @@ contains
 
             do out = 1, entry_count
                 if (kept > 0) then
-                    if (entry_chars(kept) == entry_chars(out)) cycle
+                    if (entry_characters(kept) == entry_characters(out)) cycle
                 end if
 
                 kept = kept + 1
-                entry_chars(kept) = entry_chars(out)
+                entry_characters(kept) = entry_characters(out)
                 entry_codes(kept) = entry_codes(out)
             end do
 
@@ -1215,31 +1215,31 @@ contains
 
     ! The position of C in the sorted array CHARS, 0 if absent.
     ! Not a port.
-    integer function lookup(chars, c) result(pos)
+    integer function lookup(chars, c) result(position)
         integer, intent(in) :: chars(:), c
-        integer :: lo, hi, mid
+        integer :: lo, hi, middle
 
         lo = 1
         hi = size(chars)
-        pos = 0
+        position = 0
 
         do while (lo <= hi)
-            mid = (lo + hi)/2
+            middle = (lo + hi)/2
 
-            if (chars(mid) == c) then
-                pos = mid
+            if (chars(middle) == c) then
+                position = middle
                 return
-            else if (chars(mid) < c) then
-                lo = mid + 1
+            else if (chars(middle) < c) then
+                lo = middle + 1
             else
-                hi = mid - 1
+                hi = middle - 1
             end if
         end do
     end function lookup
 
     !> The character of CODE in charset ID, -1 if none.  Port of
     !> charset.h:DECODE_CHAR.
-    recursive integer function decode_char_id(id, code, status) result(c)
+    recursive integer function decode_character_id(id, code, status) result(c)
         integer, intent(in) :: id
         integer(int64), intent(in) :: code
         type(status_type), intent(inout) :: status
@@ -1247,46 +1247,46 @@ contains
         associate (cs => charsets(id))
             if (code >= 0 .and. code < 128 .and. cs%ascii_compatible) then
                 c = int(code)
-            else if (code < cs%min_code .or. code > cs%max_code) then
+            else if (code < cs%minimum_code .or. code > cs%maximum_code) then
                 c = -1
             else if (.not. cs%unified .and. cs%method == CHARSET_METHOD_OFFSET .and. cs%code_linear) then
-                c = int(code - cs%min_code) + cs%code_offset
+                c = int(code - cs%minimum_code) + cs%code_offset
             else
-                c = decode_char_full(id, code, status)
+                c = decode_character_full(id, code, status)
             end if
         end associate
-    end function decode_char_id
+    end function decode_character_id
 
     ! Port of charset.c:decode_char.
-    recursive integer function decode_char_full(id, code, status) result(c)
+    recursive integer function decode_character_full(id, code, status) result(c)
         integer, intent(in) :: id
         integer(int64), intent(in) :: code
         type(status_type), intent(inout) :: status
-        integer(int64) :: this_code, char_index
+        integer(int64) :: this_code, character_index
         integer :: i, parent
         logical :: ok
 
         c = -1
-        if (code < charsets(id)%min_code .or. code > charsets(id)%max_code) return
+        if (code < charsets(id)%minimum_code .or. code > charsets(id)%maximum_code) return
 
         select case (charsets(id)%method)
         case (CHARSET_METHOD_SUBSET)
             parent = charsets(id)%subset_parent
             this_code = code - charsets(id)%subset_offset
 
-            if (this_code >= charsets(id)%subset_min .and. this_code <= charsets(id)%subset_max) then
-                c = decode_char_id(parent, this_code, status)
+            if (this_code >= charsets(id)%subset_minimum .and. this_code <= charsets(id)%subset_maximum) then
+                c = decode_character_id(parent, this_code, status)
             end if
         case (CHARSET_METHOD_SUPERSET)
             do i = 1, size(charsets(id)%superset_ids)
                 this_code = code - charsets(id)%superset_offsets(i)
-                c = decode_char_id(charsets(id)%superset_ids(i), this_code, status)
-                if (status%code /= FM_OK) return
+                c = decode_character_id(charsets(id)%superset_ids(i), this_code, status)
+                if (status%code /= OK_CODE) return
                 if (c >= 0) exit
             end do
         case default
-            char_index = code_point_to_index(charsets(id), code)
-            if (char_index < 0) return
+            character_index = code_point_to_index(charsets(id), code)
+            if (character_index < 0) return
 
             if (charsets(id)%method == CHARSET_METHOD_MAP) then
                 if (.not. charsets(id)%decoder_loaded) then
@@ -1294,21 +1294,21 @@ contains
                     if (.not. ok) return
                 end if
 
-                c = charsets(id)%decoder(char_index)
+                c = charsets(id)%decoder(character_index)
             else
-                c = int(char_index) + charsets(id)%code_offset
+                c = int(character_index) + charsets(id)%code_offset
 
-                if (charsets(id)%unified .and. MAX_UNICODE_CHAR < c .and. c <= MAX_5_BYTE_CHAR) then
+                if (charsets(id)%unified .and. MAXIMUM_UNICODE_CHARACTER < c .and. c <= MAXIMUM_5_BYTE_CHARACTER) then
                     ! Unify C with a Unicode character if possible.
-                    c = maybe_unify_char(c, status)
+                    c = maybe_unify_character(c, status)
                 end if
             end if
         end select
-    end function decode_char_full
+    end function decode_character_full
 
     ! The Unicode character unified with C (above the Unicode range), or
     ! C.  Port of charset.c:maybe_unify_char.
-    integer function maybe_unify_char(c, status) result(u)
+    integer function maybe_unify_character(c, status) result(u)
         integer, intent(in) :: c
         type(status_type), intent(inout) :: status
         integer :: i, id
@@ -1318,7 +1318,8 @@ contains
         id = 0
 
         do i = unified_charset_count, 1, -1
-            if (charsets(unified_charsets(i))%min_char <= c .and. c <= charsets(unified_charsets(i))%max_char) then
+            if (charsets(unified_charsets(i))%minimum_character <= c .and. c <= charsets(unified_charsets(i))%maximum_character) &
+                then
                 id = unified_charsets(i)
                 exit
             end if
@@ -1334,33 +1335,33 @@ contains
         if (charsets(id)%unifier(c - charsets(id)%code_offset) >= 0) then
             u = charsets(id)%unifier(c - charsets(id)%code_offset)
         end if
-    end function maybe_unify_char
+    end function maybe_unify_character
 
     !> The code point of C in charset ID, its invalid code if none.  Port of
     !> charset.h:ENCODE_CHAR.
-    recursive integer(int64) function encode_char_id(id, c, status) result(code)
+    recursive integer(int64) function encode_character_id(id, c, status) result(code)
         integer, intent(in) :: id, c
         type(status_type), intent(inout) :: status
-        integer :: pos
+        integer :: position
         logical :: ok
 
         associate (cs => charsets(id))
             if (c < 128 .and. cs%ascii_compatible) then
                 code = c
             else if (cs%unified .or. cs%method == CHARSET_METHOD_SUBSET .or. cs%method == CHARSET_METHOD_SUPERSET) then
-                code = encode_char_full(id, c, status)
+                code = encode_character_full(id, c, status)
             else if (cs%map_missing) then
                 ! The maps that are not built in map their codes to Unicode
                 ! characters only.
-                if (c <= MAX_UNICODE_CHAR) call load_charset(id, LOAD_CHARSET_ENCODER, ok, status)
+                if (c <= MAXIMUM_UNICODE_CHARACTER) call load_charset(id, LOAD_CHARSET_ENCODER, ok, status)
                 code = cs%invalid_code
-            else if (c < cs%min_char .or. c > cs%max_char) then
+            else if (c < cs%minimum_character .or. c > cs%maximum_character) then
                 code = cs%invalid_code
             else if (cs%method == CHARSET_METHOD_OFFSET) then
                 if (cs%code_linear) then
-                    code = int(c - cs%code_offset, int64) + cs%min_code
+                    code = int(c - cs%code_offset, int64) + cs%minimum_code
                 else
-                    code = encode_char_full(id, c, status)
+                    code = encode_character_full(id, c, status)
                 end if
             else if (cs%compact_codes) then
                 if (.not. cs%encoder_loaded) then
@@ -1372,31 +1373,31 @@ contains
                     end if
                 end if
 
-                pos = lookup(cs%encoder_chars, c)
+                position = lookup(cs%encoder_characters, c)
 
-                if (pos == 0) then
+                if (position == 0) then
                     code = cs%invalid_code
                 else
-                    code = cs%encoder_codes(pos)
+                    code = cs%encoder_codes(position)
                 end if
             else
-                code = encode_char_full(id, c, status)
+                code = encode_character_full(id, c, status)
             end if
         end associate
-    end function encode_char_id
+    end function encode_character_id
 
     ! Port of charset.c:encode_char.
-    recursive integer(int64) function encode_char_full(id, ch, status) result(code)
+    recursive integer(int64) function encode_character_full(id, ch, status) result(code)
         integer, intent(in) :: id, ch
         type(status_type), intent(inout) :: status
         integer(int64) :: code_index
-        integer :: c, i, pos, this_id
+        integer :: c, i, position, this_id
         logical :: ok
 
         c = ch
 
         ! The deunifier holds Unicode characters only.
-        if (charsets(id)%unified .and. c <= MAX_UNICODE_CHAR) then
+        if (charsets(id)%unified .and. c <= MAXIMUM_UNICODE_CHARACTER) then
             code_index = -1
 
             if (.not. charsets(id)%deunifier_loaded) then
@@ -1408,18 +1409,18 @@ contains
                 end if
             end if
 
-            pos = lookup(charsets(id)%deunifier_chars, c)
-            if (pos > 0) code_index = charsets(id)%deunifier_index(pos)
+            position = lookup(charsets(id)%deunifier_characters, c)
+            if (position > 0) code_index = charsets(id)%deunifier_index(position)
             if (code_index >= 0) c = charsets(id)%code_offset + int(code_index)
         end if
 
         select case (charsets(id)%method)
         case (CHARSET_METHOD_SUBSET)
             this_id = charsets(id)%subset_parent
-            code = encode_char_id(this_id, c, status)
+            code = encode_character_id(this_id, c, status)
 
-            if (code == charsets(this_id)%invalid_code .or. code < charsets(id)%subset_min &
-                .or. code > charsets(id)%subset_max) then
+            if (code == charsets(this_id)%invalid_code .or. code < charsets(id)%subset_minimum &
+                .or. code > charsets(id)%subset_maximum) then
                 code = charsets(id)%invalid_code
                 return
             end if
@@ -1429,8 +1430,8 @@ contains
         case (CHARSET_METHOD_SUPERSET)
             do i = 1, size(charsets(id)%superset_ids)
                 this_id = charsets(id)%superset_ids(i)
-                code = encode_char_id(this_id, c, status)
-                if (status%code /= FM_OK) return
+                code = encode_character_id(this_id, c, status)
+                if (status%code /= OK_CODE) return
 
                 if (code /= charsets(this_id)%invalid_code) then
                     code = code + charsets(id)%superset_offsets(i)
@@ -1443,8 +1444,8 @@ contains
         case default
         end select
 
-        if (.not. is_in_fast_map(c, charsets(id)%fast_map) .or. c < charsets(id)%min_char &
-            .or. c > charsets(id)%max_char) then
+        if (.not. is_in_fast_map(c, charsets(id)%fast_map) .or. c < charsets(id)%minimum_character &
+            .or. c > charsets(id)%maximum_character) then
             code = charsets(id)%invalid_code
             return
         end if
@@ -1459,23 +1460,23 @@ contains
                 end if
             end if
 
-            pos = lookup(charsets(id)%encoder_chars, c)
+            position = lookup(charsets(id)%encoder_characters, c)
 
-            if (pos == 0) then
+            if (position == 0) then
                 code = charsets(id)%invalid_code
                 return
             end if
 
-            code = charsets(id)%encoder_codes(pos)
+            code = charsets(id)%encoder_codes(position)
             if (.not. charsets(id)%compact_codes) code = index_to_code_point(charsets(id), code)
         else
             code = index_to_code_point(charsets(id), int(c - charsets(id)%code_offset, int64))
         end if
-    end function encode_char_full
+    end function encode_character_full
 
     !> The character of CODE (a code point) in CHARSET, -1 if CODE is not
     !> valid in it.  Port of charset.c:Fdecode_char.
-    integer function decode_char(charset, code, status) result(c)
+    integer function decode_character(charset, code, status) result(c)
         character(len=*), intent(in) :: charset
         integer(int64), intent(in) :: code
         type(status_type), intent(out) :: status
@@ -1484,12 +1485,12 @@ contains
         c = -1
         id = check_charset(charset, status)
         if (id == 0) return
-        c = decode_char_id(id, code, status)
-    end function decode_char
+        c = decode_character_id(id, code, status)
+    end function decode_character
 
     !> The code point of character C in CHARSET, -1 if CHARSET does not
     !> support C.  Port of charset.c:Fencode_char.
-    integer(int64) function encode_char(c, charset, status) result(code)
+    integer(int64) function encode_character(c, charset, status) result(code)
         integer, intent(in) :: c
         character(len=*), intent(in) :: charset
         type(status_type), intent(out) :: status
@@ -1499,19 +1500,19 @@ contains
         id = check_charset(charset, status)
         if (id == 0) return
 
-        if (c < 0 .or. c > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+        if (c < 0 .or. c > MAXIMUM_CHARACTER) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
-        code = encode_char_id(id, c, status)
+        code = encode_character_id(id, c, status)
         if (code == charsets(id)%invalid_code) code = -1
-    end function encode_char
+    end function encode_character
 
     !> The character of CHARSET whose position codes are CODE1 to CODE4
     !> (the minimum code of each dimension for those omitted, -1 for
     !> omitted).  Port of charset.c:Fmake_char.
-    integer function make_char(charset, status, code1, code2, code3, code4) result(c)
+    integer function make_character(charset, status, code1, code2, code3, code4) result(c)
         character(len=*), intent(in) :: charset
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: code1, code2, code3, code4
@@ -1529,7 +1530,7 @@ contains
 
         do i = 1, 4
             if (codes(i) >= 256) then
-                call set_error(status, FM_ARGS_OUT_OF_RANGE, "255")
+                call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, "255")
                 return
             end if
         end do
@@ -1541,7 +1542,7 @@ contains
                 if (cs%ascii_compatible) then
                     code = 0
                 else
-                    code = cs%min_code
+                    code = cs%minimum_code
                 end if
             else
                 code = codes(1)
@@ -1580,15 +1581,15 @@ contains
             if (cs%iso_final >= 0) code = iand(code, int(z'7F7F7F7F', int64))
         end associate
 
-        c = decode_char_id(id, code, status)
-        if (status%code /= FM_OK) return
-        if (c < 0) call set_error(status, FM_GENERIC_ERROR, "Invalid code(s)")
-    end function make_char
+        c = decode_character_id(id, code, status)
+        if (status%code /= OK_CODE) return
+        if (c < 0) call set_error(status, GENERIC_ERROR_CODE, "Invalid code(s)")
+    end function make_character
 
     !> The charset of highest priority that contains C (the ids of LIST
     !> when given, else Vcharset_ordered_list), with its code point in
     !> CODE; 0 when C is in none of LIST.  Port of charset.c:char_charset.
-    integer function char_charset_id(c, code, status, list) result(id)
+    integer function character_charset_id(c, code, status, list) result(id)
         integer, intent(in) :: c
         integer(int64), intent(out) :: code
         type(status_type), intent(inout) :: status
@@ -1608,31 +1609,31 @@ contains
                 id = charset_order(i)
             end if
 
-            code = encode_char_id(id, c, status)
-            if (status%code /= FM_OK) return
+            code = encode_character_id(id, c, status)
+            if (status%code /= OK_CODE) return
             if (code /= charsets(id)%invalid_code) return
 
-            if (.not. present(list) .and. c <= MAX_UNICODE_CHAR .and. i + 1 == non_preferred_head) then
+            if (.not. present(list) .and. c <= MAXIMUM_UNICODE_CHARACTER .and. i + 1 == non_preferred_head) then
                 id = charset_unicode
-                code = encode_char_id(id, c, status)
+                code = encode_character_id(id, c, status)
                 return
             end if
         end do
 
         if (present(list)) then
             id = 0
-        else if (c <= MAX_5_BYTE_CHAR) then
+        else if (c <= MAXIMUM_5_BYTE_CHARACTER) then
             id = charset_emacs
         else
             id = charset_eight_bit
         end if
 
-        if (id /= 0) code = encode_char_id(id, c, status)
-    end function char_charset_id
+        if (id /= 0) code = encode_character_id(id, c, status)
+    end function character_charset_id
 
     ! The charset of C, ascii for ASCII characters, with its code point
     ! in CODE.  Port of charset.h:CHAR_CHARSET.
-    integer function char_charset_internal(c, code, status) result(id)
+    integer function character_charset_internal(c, code, status) result(id)
         integer, intent(in) :: c
         integer(int64), intent(out) :: code
         type(status_type), intent(inout) :: status
@@ -1641,15 +1642,15 @@ contains
             id = charset_ascii
             code = c
         else
-            id = char_charset_id(c, code, status)
+            id = character_charset_id(c, code, status)
         end if
-    end function char_charset_internal
+    end function character_charset_internal
 
     !> The charset of highest priority that contains C (`ascii' for ASCII
     !> characters); with RESTRICTION, the first of those charsets that
     !> contains C ("" for none).  Port of charset.c:Fchar_charset (a coding
     !> system as RESTRICTION waits for the charset coding systems).
-    function char_charset(c, status, restriction) result(name)
+    function character_charset(c, status, restriction) result(name)
         integer, intent(in) :: c
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: restriction(:)
@@ -1657,11 +1658,11 @@ contains
         integer(int64) :: code
         integer :: i, id
 
-        call init_charset()
+        call initialize_charset()
         name = ""
 
-        if (c < 0 .or. c > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+        if (c < 0 .or. c > MAXIMUM_CHARACTER) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
@@ -1670,25 +1671,25 @@ contains
                 id = check_charset(trim(restriction(i)), status)
                 if (id == 0) return
 
-                if (encode_char_id(id, c, status) /= charsets(id)%invalid_code) then
+                if (encode_character_id(id, c, status) /= charsets(id)%invalid_code) then
                     name = trim(restriction(i))
                     return
                 end if
 
-                if (status%code /= FM_OK) return
+                if (status%code /= OK_CODE) return
             end do
 
             return
         end if
 
-        id = char_charset_internal(c, code, status)
+        id = character_charset_internal(c, code, status)
         if (id /= 0) name = charsets(id)%name
-    end function char_charset
+    end function character_charset
 
     !> The charset of C by the current priority of charsets, with the
     !> position code of each of its dimensions in CODES.  Port of
     !> charset.c:Fsplit_char.
-    subroutine split_char(c, charset, codes, status)
+    subroutine split_character(c, charset, codes, status)
         integer, intent(in) :: c
         character(len=:), allocatable, intent(out) :: charset
         integer, allocatable, intent(out) :: codes(:)
@@ -1696,17 +1697,17 @@ contains
         integer(int64) :: code
         integer :: id, d
 
-        call init_charset()
+        call initialize_charset()
         charset = ""
         allocate (codes(0))
 
-        if (c < 0 .or. c > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+        if (c < 0 .or. c > MAXIMUM_CHARACTER) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
-        id = char_charset_internal(c, code, status)
-        if (id == 0 .or. status%code /= FM_OK) return
+        id = character_charset_internal(c, code, status)
+        if (id == 0 .or. status%code /= OK_CODE) return
         charset = charsets(id)%name
         deallocate (codes)
         allocate (codes(charsets(id)%dimension))
@@ -1715,59 +1716,59 @@ contains
             codes(d) = int(iand(code, 255_int64))
             code = ishft(code, -8)
         end do
-    end subroutine split_char
+    end subroutine split_character
 
-    !> Return charset of a character in the current buffer at position POS.
-    !> If POS is omitted, it defaults to the current point.
-    !> If POS is out of range, the value is "".  Port of
+    !> Return charset of a character in the current buffer at position POSITION.
+    !> If POSITION is omitted, it defaults to the current point.
+    !> If POSITION is out of range, the value is "".  Port of
     !> charset.c:Fcharset_after.
-    function charset_after(pos) result(name)
-        integer(int64), intent(in), optional :: pos
+    function charset_after(position_value) result(name)
+        integer(int64), intent(in), optional :: position_value
         character(len=:), allocatable :: name
         character(len=:), allocatable :: bytes
         type(status_type) :: status
         integer(int64) :: code, position
         integer :: c, length, id
 
-        call init_charset()
+        call initialize_charset()
         name = ""
 
         associate (b => buffers(current))
-            position = b%pt
-            if (present(pos)) position = pos
-            if (position < b%begv .or. position >= b%zv) return
-            bytes = buf_bytes(b, char_to_byte(position), char_to_byte(position + 1))
+            position = b%point
+            if (present(position_value)) position = position_value
+            if (position < b%beginning_of_accessible_portion .or. position >= b%end_of_accessible_portion) return
+            bytes = buf_bytes(b, character_to_byte(position), character_to_byte(position + 1))
         end associate
 
         if (.not. buffers(current)%multibyte) then
             c = iachar(bytes(1:1))
         else
-            call string_char_and_length(bytes, 1_int64, c, length)
+            call string_character_and_length(bytes, 1_int64, c, length)
         end if
 
-        id = char_charset_internal(c, code, status)
+        id = character_charset_internal(c, code, status)
         if (id /= 0) name = charsets(id)%name
     end function charset_after
 
-    !> The charset of ISO's DIMENSION, CHARS (94 or 96) and FINAL_CHAR (""
+    !> The charset of ISO's DIMENSION, CHARS (94 or 96) and FINAL_CHARACTER (""
     !> for none).  Port of charset.c:Fiso_charset.
-    function iso_charset(dimension, chars, final_char, status) result(name)
-        integer, intent(in) :: dimension, chars, final_char
+    function iso_charset(dimension, chars, final_character, status) result(name)
+        integer, intent(in) :: dimension, chars, final_character
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
         integer :: id
 
-        call init_charset()
+        call initialize_charset()
         name = ""
-        if (.not. is_valid_iso_charset_parameter(dimension, chars, final_char, status)) return
-        id = iso_charset_table(dimension, merge(1, 0, chars == 96), final_char)
+        if (.not. is_valid_iso_charset_parameter(dimension, chars, final_character, status)) return
+        id = iso_charset_table(dimension, merge(1, 0, chars == 96), final_character)
         if (id /= 0) name = charsets(id)%name
     end function iso_charset
 
-    ! Check DIMENSION, CHARS and FINAL_CHAR; true if they are valid.
+    ! Check DIMENSION, CHARS and FINAL_CHARACTER; true if they are valid.
     ! Port of charset.c:check_iso_charset_parameter.
-    logical function is_valid_iso_charset_parameter(dimension, chars, final_char, status) result(ok)
-        integer, intent(in) :: dimension, chars, final_char
+    logical function is_valid_iso_charset_parameter(dimension, chars, final_character, status) result(ok)
+        integer, intent(in) :: dimension, chars, final_character
         type(status_type), intent(inout) :: status
         character(len=12) :: buffer
 
@@ -1775,19 +1776,19 @@ contains
 
         if (dimension < 1 .or. dimension > 3) then
             write (buffer, "(i0)") dimension
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, "1, 3, "//trim(buffer))
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, "1, 3, "//trim(buffer))
             return
         end if
 
         if (chars /= 94 .and. chars /= 96) then
             write (buffer, "(i0)") chars
-            call set_error(status, FM_GENERIC_ERROR, "Invalid CHARS: "//trim(buffer))
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid CHARS: "//trim(buffer))
             return
         end if
 
-        if (final_char < iachar("0") .or. final_char > 127) then
-            write (buffer, "(i0)") final_char
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, "48, 127, "//trim(buffer))
+        if (final_character < iachar("0") .or. final_character > 127) then
+            write (buffer, "(i0)") final_character
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, "48, 127, "//trim(buffer))
             return
         end if
 
@@ -1796,35 +1797,35 @@ contains
 
     !> An unused final character for an ISO charset of DIMENSION and CHARS
     !> (-1 if none is left).  Port of charset.c:Fget_unused_iso_final_char.
-    integer function get_unused_iso_final_char(dimension, chars, status) result(final_char)
+    integer function get_unused_iso_final_character(dimension, chars, status) result(final_character)
         integer, intent(in) :: dimension, chars
         type(status_type), intent(out) :: status
         integer :: c
 
-        call init_charset()
-        final_char = -1
+        call initialize_charset()
+        final_character = -1
         if (.not. is_valid_iso_charset_parameter(dimension, chars, iachar("0"), status)) return
 
         do c = iachar("0"), iachar("?")
             if (iso_charset_table(dimension, merge(1, 0, chars == 96), c) == 0) then
-                final_char = c
+                final_character = c
                 return
             end if
         end do
-    end function get_unused_iso_final_char
+    end function get_unused_iso_final_character
 
-    !> Make CHARSET the charset of ISO's DIMENSION, CHARS and FINAL_CHAR.
+    !> Make CHARSET the charset of ISO's DIMENSION, CHARS and FINAL_CHARACTER.
     !> Port of charset.c:Fdeclare_equiv_charset.
-    subroutine declare_equiv_charset(dimension, chars, final_char, charset, status)
-        integer, intent(in) :: dimension, chars, final_char
+    subroutine declare_equiv_charset(dimension, chars, final_character, charset, status)
+        integer, intent(in) :: dimension, chars, final_character
         character(len=*), intent(in) :: charset
         type(status_type), intent(out) :: status
         integer :: id
 
         id = check_charset(charset, status)
         if (id == 0) return
-        if (.not. is_valid_iso_charset_parameter(dimension, chars, final_char, status)) return
-        iso_charset_table(dimension, merge(1, 0, chars == 96), final_char) = id
+        if (.not. is_valid_iso_charset_parameter(dimension, chars, final_character, status)) return
+        iso_charset_table(dimension, merge(1, 0, chars == 96), final_character) = id
     end subroutine declare_equiv_charset
 
     !> The id of charset or alias NAME, 0 if there is none (the ids count
@@ -1833,30 +1834,30 @@ contains
     integer function find_charset(name) result(id)
         character(len=*), intent(in) :: name
 
-        call init_charset()
+        call initialize_charset()
         id = find_id(name)
     end function find_charset
 
-    !> The id of the charset of ISO's DIMENSION, 96 characters if CHARS_96
-    !> (94 otherwise) and FINAL_CHAR, 0 if there is none.  Port of
+    !> The id of the charset of ISO's DIMENSION, 96 characters if CHARACTERS_96
+    !> (94 otherwise) and FINAL_CHARACTER, 0 if there is none.  Port of
     !> charset.h:ISO_CHARSET_TABLE.
-    integer function find_iso_charset(dimension, chars_96, final_char) result(id)
-        integer, intent(in) :: dimension, final_char
-        logical, intent(in) :: chars_96
+    integer function find_iso_charset(dimension, characters_96, final_character) result(id)
+        integer, intent(in) :: dimension, final_character
+        logical, intent(in) :: characters_96
 
-        call init_charset()
+        call initialize_charset()
         id = 0
-        if (dimension < 1 .or. dimension > 3 .or. final_char < 0 .or. final_char > 127) return
-        id = iso_charset_table(dimension, merge(1, 0, chars_96), final_char)
+        if (dimension < 1 .or. dimension > 3 .or. final_character < 0 .or. final_character > 127) return
+        id = iso_charset_table(dimension, merge(1, 0, characters_96), final_character)
     end function find_iso_charset
 
     !> The charsets ordered by priority.  Port of
     !> charset.c:Fcharset_priority_list.
     function charset_priority_list() result(names)
-        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
         integer :: i
 
-        call init_charset()
+        call initialize_charset()
         allocate (names(charset_order_count))
 
         do i = 1, charset_order_count
@@ -1869,7 +1870,7 @@ contains
     function charset_priority_highest() result(name)
         character(len=:), allocatable :: name
 
-        call init_charset()
+        call initialize_charset()
         name = charsets(charset_order(1))%name
     end function charset_priority_highest
 
@@ -1881,7 +1882,7 @@ contains
         integer, allocatable :: head(:), rest(:), iso_2022_order(:), emacs_mule_order(:)
         integer :: i, id, head_count
 
-        call init_charset()
+        call initialize_charset()
         allocate (head(size(names)))
         head_count = 0
         rest = charset_order(1:charset_order_count)
@@ -1915,7 +1916,7 @@ contains
 
             if (charset_unibyte < 0) then
                 if (charsets(id)%dimension == 1 .and. charsets(id)%ascii_compatible &
-                    .and. charsets(id)%max_char >= 128) charset_unibyte = id
+                    .and. charsets(id)%maximum_character >= 128) charset_unibyte = id
             end if
         end do
 
@@ -1928,9 +1929,9 @@ contains
     function sort_charsets(names, status) result(sorted)
         character(len=*), intent(in) :: names(:)
         type(status_type), intent(out) :: status
-        character(len=CHARSET_NAME_LEN), allocatable :: sorted(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: sorted(:)
         integer, allocatable :: rank(:)
-        character(len=CHARSET_NAME_LEN) :: t
+        character(len=CHARSET_NAME_LENGTH) :: t
         integer :: i, j, id, r
 
         allocate (sorted(size(names)), rank(size(names)))
@@ -1986,7 +1987,7 @@ contains
 
             if (.not. undo) then
                 if (cs%method /= CHARSET_METHOD_OFFSET .or. cs%code_offset < 1114112) then
-                    call set_error(status, FM_GENERIC_ERROR, "Can't unify charset: "//charset)
+                    call set_error(status, GENERIC_ERROR_CODE, "Can't unify charset: "//charset)
                     return
                 end if
 
@@ -2018,8 +2019,8 @@ contains
     !> Call ACTION with each range of characters of CHARSET whose code
     !> points are between FROM_CODE and TO_CODE (the whole charset when
     !> omitted).  Port of charset.c:Fmap_charset_chars and
-    !> map_charset_chars.
-    subroutine map_charset_chars(action, charset, status, from_code, to_code)
+    !> map_charset_characters.
+    subroutine map_charset_characters(action, charset, status, from_code, to_code)
         procedure(charset_range_procedure) :: action
         character(len=*), intent(in) :: charset
         type(status_type), intent(out) :: status
@@ -2029,25 +2030,25 @@ contains
 
         id = check_charset(charset, status)
         if (id == 0) return
-        from = charsets(id)%min_code
+        from = charsets(id)%minimum_code
 
         if (present(from_code)) then
-            if (from_code >= 0) from = max(from_code, charsets(id)%min_code)
+            if (from_code >= 0) from = max(from_code, charsets(id)%minimum_code)
         end if
 
-        to = charsets(id)%max_code
+        to = charsets(id)%maximum_code
 
         if (present(to_code)) then
-            if (to_code >= 0) to = min(to_code, charsets(id)%max_code)
+            if (to_code >= 0) to = min(to_code, charsets(id)%maximum_code)
         end if
 
-        call map_charset_chars_id(action, id, from, to, status)
-    end subroutine map_charset_chars
+        call map_charset_characters_id(action, id, from, to, status)
+    end subroutine map_charset_characters
 
     ! Call ACTION with each range of characters of charset ID whose code
     ! points are between FROM_CODE and TO_CODE.  Port of
     ! charset.c:map_charset_chars.
-    recursive subroutine map_charset_chars_id(action, id, from_code, to_code, status)
+    recursive subroutine map_charset_characters_id(action, id, from_code, to_code, status)
         procedure(charset_range_procedure) :: action
         integer, intent(in) :: id
         integer(int64), intent(in) :: from_code, to_code
@@ -2058,7 +2059,7 @@ contains
 
         from = from_code
         to = to_code
-        partial = from > charsets(id)%min_code .or. to < charsets(id)%max_code
+        partial = from > charsets(id)%minimum_code .or. to < charsets(id)%maximum_code
 
         select case (charsets(id)%method)
         case (CHARSET_METHOD_OFFSET)
@@ -2068,7 +2069,7 @@ contains
                     if (.not. ok) return
                 end if
 
-                call map_table(charsets(id)%deunifier_chars)
+                call map_table(charsets(id)%deunifier_characters)
             end if
 
             call action(int(code_point_to_index(charsets(id), from)) + charsets(id)%code_offset, &
@@ -2079,24 +2080,24 @@ contains
                 if (.not. ok) return
             end if
 
-            call map_table(charsets(id)%encoder_chars)
+            call map_table(charsets(id)%encoder_characters)
         case (CHARSET_METHOD_SUBSET)
             parent = charsets(id)%subset_parent
             offset = int(charsets(id)%subset_offset)
             from = from - offset
-            if (from < charsets(id)%subset_min) from = charsets(id)%subset_min
+            if (from < charsets(id)%subset_minimum) from = charsets(id)%subset_minimum
             to = to - offset
-            if (to > charsets(id)%subset_max) to = charsets(id)%subset_max
-            call map_charset_chars_id(action, parent, from, to, status)
+            if (to > charsets(id)%subset_maximum) to = charsets(id)%subset_maximum
+            call map_charset_characters_id(action, parent, from, to, status)
         case default
             do i = 1, size(charsets(id)%superset_ids)
                 parent = charsets(id)%superset_ids(i)
                 offset = charsets(id)%superset_offsets(i)
                 this_from = max(0_int64, from - offset)
                 this_to = max(0_int64, to - offset)
-                if (this_from < charsets(parent)%min_code) this_from = charsets(parent)%min_code
-                if (this_to > charsets(parent)%max_code) this_to = charsets(parent)%max_code
-                call map_charset_chars_id(action, parent, this_from, this_to, status)
+                if (this_from < charsets(parent)%minimum_code) this_from = charsets(parent)%minimum_code
+                if (this_to > charsets(parent)%maximum_code) this_to = charsets(parent)%maximum_code
+                call map_charset_characters_id(action, parent, this_from, this_to, status)
             end do
         end select
 
@@ -2118,7 +2119,7 @@ contains
                 in_range = .true.
 
                 if (partial) then
-                    code = encode_char_id(id, chars(k), status)
+                    code = encode_character_id(id, chars(k), status)
                     in_range = code >= from .and. code <= to
                 end if
 
@@ -2135,7 +2136,7 @@ contains
 
             if (start >= 0) call action(start, previous)
         end subroutine map_table
-    end subroutine map_charset_chars_id
+    end subroutine map_charset_characters_id
 
     !> The charsets of the characters between BEGINNING and END in the current
     !> buffer, in the order of their definition (only `ascii' and
@@ -2144,22 +2145,22 @@ contains
     function find_charset_region(beginning, end, status) result(names)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
-        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
         logical, allocatable :: seen(:)
         integer(int64) :: from, to, stop
         character(len=:), allocatable :: text
         character(len=48) :: range_text
 
-        call init_charset()
+        call initialize_charset()
         allocate (names(0), seen(charset_count))
         seen = .false.
         from = min(beginning, end)
         to = max(beginning, end)
 
         associate (b => buffers(current))
-            if (from < b%begv .or. to > b%zv) then
+            if (from < b%beginning_of_accessible_portion .or. to > b%end_of_accessible_portion) then
                 write (range_text, '(i0, ", ", i0)') beginning, end
-                call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(range_text))
+                call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, trim(range_text))
                 return
             end if
 
@@ -2167,7 +2168,7 @@ contains
             if (from < b%text%gpt .and. b%text%gpt < to) stop = b%text%gpt
 
             do
-                text = buf_bytes(b, char_to_byte(from), char_to_byte(stop))
+                text = buf_bytes(b, character_to_byte(from), character_to_byte(stop))
                 call find_charsets_in_text(text, stop - from, b%multibyte, seen)
 
                 if (stop < to) then
@@ -2189,13 +2190,13 @@ contains
     function find_charset_string(string, multibyte) result(names)
         character(len=*), intent(in) :: string
         logical, intent(in), optional :: multibyte
-        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
         logical, allocatable :: seen(:)
         logical :: mb
-        integer(int64) :: char_count, p
+        integer(int64) :: character_count, p
         integer :: c, length
 
-        call init_charset()
+        call initialize_charset()
         allocate (seen(charset_count))
         seen = .false.
         mb = .false.
@@ -2205,34 +2206,34 @@ contains
         end do
 
         if (present(multibyte)) mb = multibyte
-        char_count = len(string, kind=int64)
+        character_count = len(string, kind=int64)
 
         if (mb) then
-            char_count = 0
+            character_count = 0
             p = 1
 
             do while (p <= len(string, kind=int64))
-                call string_char_and_length(string, p, c, length)
+                call string_character_and_length(string, p, c, length)
                 p = p + length
-                char_count = char_count + 1
+                character_count = character_count + 1
             end do
         end if
 
-        call find_charsets_in_text(string, char_count, mb, seen)
+        call find_charsets_in_text(string, character_count, mb, seen)
         names = seen_names(seen)
     end function find_charset_string
 
     ! Port of charset.c:find_charsets_in_text.
-    subroutine find_charsets_in_text(text, char_count, multibyte, seen)
+    subroutine find_charsets_in_text(text, character_count, multibyte, seen)
         character(len=*), intent(in) :: text
-        integer(int64), intent(in) :: char_count
+        integer(int64), intent(in) :: character_count
         logical, intent(in) :: multibyte
         logical, intent(inout) :: seen(:)
         type(status_type) :: status
         integer(int64) :: p, code
         integer :: c, length, id
 
-        if (char_count == len(text, kind=int64)) then
+        if (character_count == len(text, kind=int64)) then
             if (multibyte) then
                 seen(charset_ascii) = .true.
             else
@@ -2251,9 +2252,9 @@ contains
         p = 1
 
         do while (p <= len(text, kind=int64))
-            call string_char_and_length(text, p, c, length)
+            call string_character_and_length(text, p, c, length)
             p = p + length
-            id = char_charset_internal(c, code, status)
+            id = character_charset_internal(c, code, status)
             if (id /= 0) seen(id) = .true.
         end do
     end subroutine find_charsets_in_text
@@ -2262,7 +2263,7 @@ contains
     ! definition.  Not a port.
     function seen_names(seen) result(names)
         logical, intent(in) :: seen(:)
-        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
         integer :: i, n
 
         allocate (names(count(seen)))

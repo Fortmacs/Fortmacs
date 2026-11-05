@@ -26,32 +26,32 @@
 !> and dir2.
 module test_info_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list, xstring, symbols, xsymbol, vtag, V_NULL, V_NAME, V_STRING
-    use text_properties_mod, only: get_text_property, get_char_property
+    use text_properties_mod, only: get_text_property, get_character_property
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, close_buffer, get_buffer, header_line_format_type
-    use editing_functions_mod, only: buffer_string, point, point_min, point_max, goto_char, line_beginning_position
+    use editing_functions_mod, only: buffer_string, point, point_minimum, point_maximum, goto_character, line_beginning_position
     use search_mod, only: search_forward, SEARCH_NOERROR
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, file_exists, &
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio, file_name_as_directory, file_exists, &
                                      file_name_directory, file_name_nondirectory
-    use files_mod, only: create_temp_file, delete_file
+    use files_mod, only: create_temporary_file, delete_file
     use execute_process_mod, only: execute_process
     use simple_mod, only: current_clipboard_entry
     use window_mod, only: window_configuration_type, current_window_configuration, set_window_configuration
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use info_mod, only: info_url_for_node, info_find_node, info_goto_node, info_current_file, info_current_node, &
-                        info_current_subfile, info_next, info_prev, info_up, info_history_back, info_history_forward, &
+                        info_current_subfile, info_next, info_previous, info_up, info_history_back, info_history_forward, &
                         info_menu, info_nth_menu_item, info_follow_reference, info_forward_node, info_backward_node, &
                         info_top_node, info_final_node, info_directory, info_index_node, info_index_nodes, &
-                        info_copy_current_node_name, info_directories, info_next_reference, info_prev_reference, &
+                        info_copy_current_node_name, info_directories, info_next_reference, info_previous_reference, &
                         info_follow_nearest_node, info_extract_pointer, info_build_node_completions, info_toc, &
                         info_history, info_search, info_search_backward, info_index, info_index_next, &
                         info_virtual_index, info_history_variable, info_history_entry_type
-    use incremental_search_mod, only: isearch_mode, isearch_process_search_string, isearch_repeat_forward, isearch_delete_char, &
-                                      isearch_done, isearch_success, isearch_error
+    use incremental_search_mod, only: isearch_mode, isearch_process_search_string, isearch_repeat_forward, &
+                                      isearch_delete_character, isearch_done, isearch_success, isearch_error
     implicit none(type, external)
     private
 
@@ -66,7 +66,7 @@ contains
         testsuite = [ &
                     new_unittest("test-info-urls", test_info_urls), &
                     new_unittest("info-find-node", test_find_node), &
-                    new_unittest("info-next-prev-up", test_next_prev_up), &
+                    new_unittest("info-next-prev-up", test_next_previous_up), &
                     new_unittest("info-history", test_history), &
                     new_unittest("info-menu", test_menu), &
                     new_unittest("info-follow-reference", test_follow_reference), &
@@ -97,16 +97,16 @@ contains
     ! ------------------------------------------------------------------
 
     !> The directory of the resources, or its subdirectory SUB.
-    function resource_dir(sub) result(dir)
+    function resource_directory(sub) result(directory)
         character(len=*), intent(in), optional :: sub
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         type(status_type) :: st
 
-        call init_fileio()
-        call expand_file_name("test/info-resources", dir, st, fortmacs_wd)
-        dir = file_name_as_directory(dir)
-        if (present(sub)) dir = file_name_as_directory(dir//sub)
-    end function resource_dir
+        call initialize_fileio()
+        call expand_file_name("test/info-resources", directory, st, fortmacs_wd)
+        directory = file_name_as_directory(directory)
+        if (present(sub)) directory = file_name_as_directory(directory//sub)
+    end function resource_directory
 
     !> Check that FILE is the resource file NAME.
     subroutine check_file(error, file, name)
@@ -114,46 +114,46 @@ contains
         character(len=*), intent(in) :: file, name
         character(len=:), allocatable :: expected
 
-        expected = resource_dir()
+        expected = resource_directory()
         expected = expected//name
         call check(error, file, expected)
     end subroutine check_file
 
     !> Search Info files in the resource directory only.
     subroutine use_resources()
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
-        call init_bindings()
-        dir = resource_dir()
-        call set_directories([dir])
+        call initialize_bindings()
+        directory = resource_directory()
+        call set_directories([directory])
     end subroutine use_resources
 
-    !> Set `info_directories' to DIRS.
-    subroutine set_directories(dirs)
-        character(len=*), intent(in) :: dirs(:)
+    !> Set `info_directories' to DIRECTORIES.
+    subroutine set_directories(directories)
+        character(len=*), intent(in) :: directories(:)
         integer :: k
 
         if (allocated(info_directories)) deallocate (info_directories)
-        allocate (character(len=len(dirs)) :: info_directories(size(dirs)))
+        allocate (character(len=len(directories)) :: info_directories(size(directories)))
 
-        do k = 1, size(dirs)
-            info_directories(k) = dirs(k)
+        do k = 1, size(directories)
+            info_directories(k) = directories(k)
         end do
     end subroutine set_directories
 
     !> Visit node NODE of FILE in a fresh *info* buffer, saving the window
-    !> configuration in CONFIG and the buffer current before in OLD.
-    subroutine visit(file, node, old, config, error)
+    !> configuration in CONFIGURATION and the buffer current before in OLD.
+    subroutine visit(file, node, old, configuration, error)
         character(len=*), intent(in) :: file, node
         type(handle_type), intent(out) :: old
-        type(window_configuration_type), intent(out) :: config
+        type(window_configuration_type), intent(out) :: configuration
         type(error_type), allocatable, intent(inout) :: error
         type(handle_type) :: info_buffer
         type(status_type) :: st
 
         call use_resources()
         old = current_buffer()
-        call current_window_configuration(config)
+        call current_window_configuration(configuration)
         info_buffer = get_buffer("*info*")
         if (info_buffer%index /= 0) call close_buffer(info_buffer, st)
         call info_find_node(file, node, st)
@@ -161,13 +161,13 @@ contains
     end subroutine visit
 
     !> The end of a test: kill *info* and go back to OLD.
-    subroutine done(old, config)
+    subroutine done(old, configuration)
         type(handle_type), intent(in) :: old
-        type(window_configuration_type), intent(in) :: config
+        type(window_configuration_type), intent(in) :: configuration
         type(handle_type) :: info_buffer
         type(status_type) :: st
 
-        call set_window_configuration(config)
+        call set_window_configuration(configuration)
         info_buffer = get_buffer("*info*")
         if (info_buffer%index /= 0) call close_buffer(info_buffer, st)
         call set_buffer(old, st)
@@ -200,7 +200,7 @@ contains
         integer(int64) :: b, e, i
 
         all = buffer_string()
-        b = line_beginning_position(1_int64) - point_min() + 1
+        b = line_beginning_position(1_int64) - point_minimum() + 1
         e = b
 
         do i = b, len(all)
@@ -250,11 +250,11 @@ contains
     subroutine test_find_node(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(header_line_format_type) :: id
         character(len=:), allocatable :: file
 
-        call visit("test", "Top", old, config, error)
+        call visit("test", "Top", old, configuration, error)
         if (.not. allocated(error)) call check(error, node(), "Top")
 
         if (.not. allocated(error)) then
@@ -268,7 +268,7 @@ contains
         ! The buffer is narrowed to the node, point after its header line.
         if (.not. allocated(error)) call check(error, index(buffer_string(), "Node: First Chapter") == 0, &
                                                "narrowed to the node")
-        if (.not. allocated(error)) call check(error, line_beginning_position(1_int64) /= point_min(), &
+        if (.not. allocated(error)) call check(error, line_beginning_position(1_int64) /= point_minimum(), &
                                                "point below the header line")
 
         ! The mode line shows the manual and the node.
@@ -279,21 +279,21 @@ contains
 
         if (.not. allocated(error)) call check(error, id%segments(2)%text, " (test) ")
         if (.not. allocated(error)) call check(error, id%segments(3)%text, "Top")
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_find_node
 
-    subroutine test_next_prev_up(error)
+    subroutine test_next_previous_up(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "Top", old, config, error)
+        call visit("test", "Top", old, configuration, error)
         call info_next(st)
         call check_node(error, "First Chapter", st)
         call info_next(st)
         call check_node(error, "Second Chapter", st)
-        call info_prev(st)
+        call info_previous(st)
         call check_node(error, "First Chapter", st)
         call info_up(st)
         call check_node(error, "Top", st)
@@ -312,16 +312,16 @@ contains
         end if
 
         if (.not. allocated(error)) call check(error, format_error(st), "Node has no Next")
-        call done(old, config)
-    end subroutine test_next_prev_up
+        call done(old, configuration)
+    end subroutine test_next_previous_up
 
     subroutine test_history(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "Top", old, config, error)
+        call visit("test", "Top", old, configuration, error)
         call info_goto_node("Second Chapter", st)
         call check_node(error, "Second Chapter", st)
         call info_history_back(st)
@@ -346,16 +346,16 @@ contains
             call check(error, format_error(st), "This is the first Info node you looked at")
         end if
 
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_history
 
     subroutine test_menu(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "Top", old, config, error)
+        call visit("test", "Top", old, configuration, error)
         call info_menu("Second", st)
         call check_node(error, "Second Chapter", st)
         call info_top_node(st)
@@ -374,16 +374,16 @@ contains
             call check(error, format_error(st), "No such item in menu")
         end if
 
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_menu
 
     subroutine test_follow_reference(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "Second Chapter", old, config, error)
+        call visit("test", "Second Chapter", old, configuration, error)
         ! The reference's node name spans two lines.
         call info_follow_reference("the first", st)
         call check_node(error, "First Chapter", st)
@@ -395,29 +395,29 @@ contains
             call check(error, format_error(st), "No cross-reference named nowhere")
         end if
 
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_follow_reference
 
     subroutine test_anchor(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "an anchor", old, config, error)
+        call visit("test", "an anchor", old, configuration, error)
         call check_node(error, "Section One", st)
         if (.not. allocated(error)) call check(error, current_line(), "An anchor is here.")
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_anchor
 
     subroutine test_split_file(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         character(len=:), allocatable :: subfile
 
-        call visit("split", "Second Chapter", old, config, error)
+        call visit("split", "Second Chapter", old, configuration, error)
         call check_node(error, "Second Chapter", st)
 
         if (.not. allocated(error)) then
@@ -435,16 +435,16 @@ contains
         call info_goto_node("(test)Index", st)
         call check_node(error, "Index", st)
         if (.not. allocated(error)) call check_file(error, info_current_file(), "test")
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_split_file
 
     subroutine test_forward_backward_node(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "Top", old, config, error)
+        call visit("test", "Top", old, configuration, error)
         call info_forward_node(st)
         call check_node(error, "First Chapter", st)
         call info_forward_node(st)
@@ -459,28 +459,28 @@ contains
         call check_node(error, "Section One", st)
         call info_backward_node(st)
         call check_node(error, "First Chapter", st)
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_forward_backward_node
 
     subroutine test_final_node(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "First Chapter", old, config, error)
+        call visit("test", "First Chapter", old, configuration, error)
         call info_final_node(st)
         call check_node(error, "Index", st)
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_final_node
 
     subroutine test_index_node(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "Index", old, config, error)
+        call visit("test", "Index", old, configuration, error)
         if (.not. allocated(error)) call check(error, info_index_node(), "Index has the index cookie")
         call info_goto_node("Top", st)
         if (.not. allocated(error)) call check(error,.not. info_index_node(), "Top is not an index")
@@ -490,76 +490,76 @@ contains
         call info_menu("section", st)
         call check_node(error, "Section One", st)
         if (.not. allocated(error)) call check(error, current_line(), "Some text.")
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_index_node
 
     subroutine test_references(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "Top", old, config, error)
-        call goto_char(point_min())
+        call visit("test", "Top", old, configuration, error)
+        call goto_character(point_minimum())
         call info_next_reference(st)
         if (.not. allocated(error)) call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, index(current_line(), "*note Second Chapter::") > 0, &
                                                "on the cross reference")
         call info_next_reference(st)
         if (.not. allocated(error)) call check(error, current_line(), "* First Chapter::       The first chapter.")
-        call info_prev_reference(st)
+        call info_previous_reference(st)
         if (.not. allocated(error)) call check(error, index(current_line(), "*note Second Chapter::") > 0, &
                                                "back on the cross reference")
         ! RET on the reference follows it.
         call info_follow_nearest_node(st)
         call check_node(error, "Second Chapter", st)
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_references
 
     subroutine test_copy_current_node_name(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: kill
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "First Chapter", old, config, error)
+        call visit("test", "First Chapter", old, configuration, error)
         call info_copy_current_node_name(st)
         call current_clipboard_entry(0_int64, kill, st)
         if (.not. allocated(error)) call check(error, kill, "(test) First Chapter")
         call info_copy_current_node_name(st, 0_int64)
         call current_clipboard_entry(0_int64, kill, st)
         if (.not. allocated(error)) call check(error, kill, "(info ""(test) First Chapter"")")
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_copy_current_node_name
 
     subroutine test_node_completions(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         character(len=:), allocatable :: value
 
-        call visit("test", "Top", old, config, error)
+        call visit("test", "Top", old, configuration, error)
         call info_extract_pointer("next", value, st)
         if (.not. allocated(error)) call check(error, value, "First Chapter")
         call info_extract_pointer("prev", value, st, noerror=.true.)
         if (.not. allocated(error)) call check(error,.not. allocated(value), "no Prev")
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_node_completions
 
     subroutine test_directory(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         character(len=:), allocatable :: text, dir0, dir1, dir2
         integer :: n
 
-        call visit("test", "Top", old, config, error)
-        dir1 = resource_dir("dir1")
-        dir2 = resource_dir("dir2")
-        dir0 = resource_dir()
+        call visit("test", "Top", old, configuration, error)
+        dir1 = resource_directory("dir1")
+        dir2 = resource_directory("dir2")
+        dir0 = resource_directory()
         call set_directories([character(len=len(dir1)) :: dir1, dir2, dir0])
         call info_directory(st)
         call check_node(error, "Top", st)
@@ -586,7 +586,7 @@ contains
         end if
 
         if (.not. allocated(error)) call check_file(error, info_current_file(), "split")
-        call done(old, config)
+        call done(old, configuration)
         call use_resources()
 
     contains
@@ -611,21 +611,21 @@ contains
     subroutine test_compressed_file(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old, info_buffer
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         type(value_type) :: result
-        character(len=:), allocatable :: temp, zipped, command
+        character(len=:), allocatable :: temporary, zipped, command
 
-        call create_temp_file("info-test", temp, st)
+        call create_temporary_file("info-test", temporary, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         ! (The empty temporary file itself would be read as the Info file,
         ! with the empty suffix.)
-        call delete_file(temp, st)
-        zipped = temp//".info.gz"
-        command = resource_dir()
+        call delete_file(temporary, st)
+        zipped = temporary//".info.gz"
+        command = resource_directory()
         command = "gzip -c "//command//"test.info > "//zipped
-        call execute_process("sh", result, st, args=list(value_type(text="-c"), value_type(text=command)))
+        call execute_process("sh", result, st, arguments=list(value_type(text="-c"), value_type(text=command)))
 
         if (.not. file_exists(zipped)) then
             ! (No gzip: nothing to test.)
@@ -633,33 +633,33 @@ contains
         end if
 
         call use_resources()
-        command = file_name_directory(temp)
+        command = file_name_directory(temporary)
         call set_directories([command])
         old = current_buffer()
-        call current_window_configuration(config)
+        call current_window_configuration(configuration)
         info_buffer = get_buffer("*info*")
         if (info_buffer%index /= 0) call close_buffer(info_buffer, st)
-        call info_find_node(file_name_nondirectory(temp), "Second Chapter", st)
+        call info_find_node(file_name_nondirectory(temporary), "Second Chapter", st)
         call check_node(error, "Second Chapter", st)
-        call done(old, config)
+        call done(old, configuration)
         call delete_file(zipped, st)
         call use_resources()
     end subroutine test_compressed_file
 
-    !> The text property PROP at the first occurrence of TEXT in the node
+    !> The text property PROPERTY at the first occurrence of TEXT in the node
     !> (FOUND false if TEXT is absent).
-    subroutine property_at(text, prop, val, found)
-        character(len=*), intent(in) :: text, prop
-        type(value_type), intent(out) :: val
+    subroutine property_at(text, property, value, found)
+        character(len=*), intent(in) :: text, property
+        type(value_type), intent(out) :: value
         logical, intent(out) :: found
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call goto_char(point_min())
-        call search_forward(text, pos, st, noerror=SEARCH_NOERROR)
-        found = pos > 0
+        call goto_character(point_minimum())
+        call search_forward(text, position, st, noerror=SEARCH_NOERROR)
+        found = position > 0
         if (.not. found) return
-        call get_text_property(pos - len(text), value_type(name=prop), val, st)
+        call get_text_property(position - len(text), value_type(name=property), value, st)
     end subroutine property_at
 
     !> The name of the symbol V, "" if V is not a symbol.
@@ -674,12 +674,12 @@ contains
     subroutine test_fontify_node(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
-        type(value_type) :: val
+        type(value_type) :: value
         logical :: found
 
-        call visit("test", "Top", old, config, error)
+        call visit("test", "Top", old, configuration, error)
         ! The header line shows the node's pointers.
         if (.not. allocated(error)) call check(error, allocated(buffers(current)%header_line_format%segments), &
                                                "a header line")
@@ -687,79 +687,79 @@ contains
 
         ! "See *note" shows as "See" ("*note" displays as nothing).
         if (.not. allocated(error)) then
-            call property_at("*note Second", "display", val, found)
-            call check(error, found .and. vtag(val) == V_STRING, "a display string on *note")
+            call property_at("*note Second", "display", value, found)
+            call check(error, found .and. vtag(value) == V_STRING, "a display string on *note")
         end if
 
-        if (.not. allocated(error)) call check(error, xstring(val), "")
+        if (.not. allocated(error)) call check(error, xstring(value), "")
         ! "*Note" at the start of a sentence shows as "See".
         call info_goto_node("First Chapter", st)
 
         if (.not. allocated(error)) then
-            call property_at("*Note Section", "display", val, found)
-            call check(error, found .and. vtag(val) == V_STRING, "a display string on *Note")
+            call property_at("*Note Section", "display", value, found)
+            call check(error, found .and. vtag(value) == V_STRING, "a display string on *Note")
         end if
 
-        if (.not. allocated(error)) call check(error, xstring(val), "See ")
+        if (.not. allocated(error)) call check(error, xstring(value), "See ")
         call info_goto_node("Top", st)
 
         ! The reference is a link (visited if an earlier test went there,
         ! `info_history_nodes' being global).
         if (.not. allocated(error)) then
-            call property_at("Second Chapter:: for", "font_lock_face", val, found)
-            call check(error, symbol_text(val) == "info_xref" .or. symbol_text(val) == "info_xref_visited", &
-                       "a link: "//symbol_text(val))
+            call property_at("Second Chapter:: for", "font_lock_face", value, found)
+            call check(error, symbol_text(value) == "info_xref" .or. symbol_text(value) == "info_xref_visited", &
+                       "a link: "//symbol_text(value))
         end if
 
         ! The third menu item's star is highlighted.
         if (.not. allocated(error)) then
-            call property_at("* Index::", "font_lock_face", val, found)
-            call check(error, symbol_text(val), "info_menu_star")
+            call property_at("* Index::", "font_lock_face", value, found)
+            call check(error, symbol_text(value), "info_menu_star")
         end if
 
         ! The menu header.
         if (.not. allocated(error)) then
-            call property_at("* Menu:", "font_lock_face", val, found)
-            call check(error, symbol_text(val), "info_menu_header")
+            call property_at("* Menu:", "font_lock_face", value, found)
+            call check(error, symbol_text(value), "info_menu_header")
         end if
 
         ! An index node's line numbers are hidden.
         call info_goto_node("Index", st)
 
         if (.not. allocated(error)) then
-            call property_at(" (line 6)", "invisible", val, found)
-            call check(error, found .and. allocated(val%a), "the line number hidden")
+            call property_at(" (line 6)", "invisible", value, found)
+            call check(error, found .and. allocated(value%a), "the line number hidden")
         end if
 
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_fontify_node
 
     subroutine test_breadcrumbs(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
-        type(value_type) :: val
+        type(window_configuration_type) :: configuration
+        type(value_type) :: value
 
-        call visit("test", "Section One", old, config, error)
+        call visit("test", "Section One", old, configuration, error)
 
         ! The first line is replaced by the breadcrumbs.
         if (.not. allocated(error)) then
-            val = get_char_property(point_min(), value_type(name="display"))
-            call check(error, vtag(val) == V_STRING, "breadcrumbs on the first line")
+            value = get_character_property(point_minimum(), value_type(name="display"))
+            call check(error, vtag(value) == V_STRING, "breadcrumbs on the first line")
         end if
 
-        if (.not. allocated(error)) call check(error, xstring(val), "(test)Top > First Chapter > Section One"//achar(10))
-        call done(old, config)
+        if (.not. allocated(error)) call check(error, xstring(value), "(test)Top > First Chapter > Section One"//achar(10))
+        call done(old, configuration)
     end subroutine test_breadcrumbs
 
     subroutine test_toc(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         character(len=:), allocatable :: text
 
-        call visit("test", "First Chapter", old, config, error)
+        call visit("test", "First Chapter", old, configuration, error)
         call info_toc(st)
         call check_node(error, "*TOC*", st)
 
@@ -773,17 +773,17 @@ contains
         ! Point is on the node left.
         if (.not. allocated(error)) call check(error, index(current_line(), "First Chapter") > 0, &
                                                "point on First Chapter")
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_toc
 
     subroutine test_history_node(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         character(len=:), allocatable :: text
 
-        call visit("test", "First Chapter", old, config, error)
+        call visit("test", "First Chapter", old, configuration, error)
         call info_goto_node("Second Chapter", st)
         call info_history(st)
         call check_node(error, "Top", st)
@@ -794,16 +794,16 @@ contains
             call check(error, index(text, "* Second Chapter: (") > 0, "Second Chapter listed:"//text)
         end if
 
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_history_node
 
     subroutine test_search(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "Top", old, config, error)
+        call visit("test", "Top", old, configuration, error)
         ! A match in another node selects it.
         call info_search("Some text", st)
         call check_node(error, "Section One", st)
@@ -818,30 +818,30 @@ contains
         end if
 
         call check_node(error, "Top", status_type())
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_search
 
     subroutine test_search_split(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("split", "Top", old, config, error)
+        call visit("split", "Top", old, configuration, error)
         ! The match is in the other subfile.
         call info_search("Second chapter text", st)
         call check_node(error, "Second Chapter", st)
         if (.not. allocated(error)) call check(error, info_current_subfile(), "split.info-2")
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_search_split
 
     subroutine test_index(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call visit("test", "Top", old, config, error)
+        call visit("test", "Top", old, configuration, error)
         call info_index("section", st)
         call check_node(error, "Section One", st)
         if (.not. allocated(error)) call check(error, current_line(), "Some text.")
@@ -862,17 +862,17 @@ contains
         ! An empty topic goes to the index.
         call info_index("", st)
         call check_node(error, "Index", st)
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_index
 
     subroutine test_virtual_index(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         character(len=:), allocatable :: text
 
-        call visit("test", "Top", old, config, error)
+        call visit("test", "Top", old, configuration, error)
         call info_virtual_index("e", st)
         call check_node(error, "*Index for ‘e’*", st)
 
@@ -882,17 +882,17 @@ contains
         end if
 
         if (.not. allocated(error)) call check(error, index(text, "* section [Index]:") > 0, "the second entry")
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_virtual_index
 
     subroutine test_isearch(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(info_history_entry_type), allocatable :: history(:)
         integer :: h0
 
-        call visit("test", "Top", old, config, error)
+        call visit("test", "Top", old, configuration, error)
         call info_history_variable(history)
         h0 = size(history)
         call isearch_mode(.true.)
@@ -905,7 +905,7 @@ contains
 
         ! C-s goes on through the other nodes.
         if (.not. allocated(error)) then
-            call isearch_repeat_forward(prefix_arg_type())
+            call isearch_repeat_forward(prefix_argument_type())
             call check(error, isearch_success, "found in another node")
         end if
 
@@ -913,12 +913,12 @@ contains
 
         ! DEL goes back to the initial node with the state it restores.
         if (.not. allocated(error)) then
-            call isearch_delete_char()
+            call isearch_delete_character()
             call check_node(error, "Top", status_type())
         end if
 
         if (.not. allocated(error)) then
-            call isearch_repeat_forward(prefix_arg_type())
+            call isearch_repeat_forward(prefix_argument_type())
             call check_node(error, "Section One", status_type())
         end if
 
@@ -930,6 +930,6 @@ contains
             call check(error, size(history), h0 + 1)
         end if
 
-        call done(old, config)
+        call done(old, configuration)
     end subroutine test_isearch
 end module test_info_mod

@@ -23,7 +23,7 @@
 !>
 !> Functions that return no value upstream take a `found' logical.  Changing
 !> properties counts as a modification (buffer modified, read-only text
-!> checked, change hooks run) as upstream.  `get_char_property' and the
+!> checked, change hooks run) as upstream.  `get_character_property' and the
 !> char-property-change functions look at overlays too.  Strings keep
 !> their properties as value_mod's string intervals: the `string_'
 !> functions and `propertize' work on them (0-based positions, as
@@ -37,19 +37,19 @@
 module text_properties_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use value_mod, only: vtag, V_NULL, V_NAME, V_STRING, V_ARRAY, value_type
-    use error_mod, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
-                         FM_GENERIC_ERROR, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY, FM_WRONG_TYPE_ARGUMENT, &
-                         FM_WRONG_NUMBER_OF_ARGUMENTS
-    use value_mod, only: list, list_elements, list_length, make_list, make_symbol_ref, value_type, xstring, &
+    use error_mod, only: status_type, set_error, ARGUMENTS_OUT_OF_RANGE_CODE, &
+                         GENERIC_ERROR_CODE, TEXT_READ_ONLY_CODE, BUFFER_READ_ONLY_CODE, WRONG_TYPE_ARGUMENT_CODE, &
+                         WRONG_NUMBER_OF_ARGUMENTS_CODE
+    use value_mod, only: list, list_elements, list_length, make_list, make_symbol_reference, value_type, xstring, &
                          string_intervals, set_string_intervals, symbols, xsymbol
-    use character_mod, only: multibyte_chars_in_text
+    use character_mod, only: multibyte_characters_in_text
     use names_mod, only: intern
     use data_mod, only: value_eq, logical_setting_type
-    use buffer_mod, only: buffers, current, BEGINNING, inhibit_read_only, temp_set_point_both, set_buffer_internal
+    use buffer_mod, only: buffers, current, BEGINNING, inhibit_read_only, temporary_set_point_both, set_buffer_internal
     use marker_mod, only: buf_charpos_to_bytepos
     use handle_mod, only: handle_type, null_handle
     use hooks_mod, only: execute_property_function
-    use interval_tree_mod, only: overlays_at, overlay_get_prop, next_overlay_change, previous_overlay_change, overlays_in, &
+    use interval_tree_mod, only: overlays_at, overlay_get_property, next_overlay_change, previous_overlay_change, overlays_in, &
                                 overlay_start, overlay_end, overlay_advance, overlay_priority, compare_overlays, buffer_has_overlays
     use intervals_mod, only: create_root_interval, find_interval, interval_end, intervals_equal, &
                              plist_get_eq, split_interval_left, split_interval_right, textget, tmem, default_nonsticky
@@ -63,15 +63,15 @@ module text_properties_mod
               previous_single_property_change, text_property_any, &
               text_property_not_all, verify_interval_modification, add_face_text_property, &
               report_interval_modification
-    public :: text_property_stickiness, next_single_char_property_change, &
-              previous_single_char_property_change, get_char_property, get_char_property_and_overlay, &
-              next_char_property_change, previous_char_property_change, text_prop_means_invisible, &
-              get_pos_property, get_property_and_range
+    public :: text_property_stickiness, next_single_character_property_change, &
+              previous_single_character_property_change, get_character_property, get_character_property_and_overlay, &
+              next_character_property_change, previous_character_property_change, text_property_means_invisible, &
+              get_position_property, get_property_and_range
     public :: string_text_properties_at, string_get_text_property, string_add_text_properties, &
               string_put_text_property, propertize, string_next_single_property_change, propertized_substring, &
               propertized_concat
     public :: text_property_list, add_text_properties_from_list, extend_property_ranges, copy_text_properties, &
-              temp_set_point, set_point, set_point_both, move_if_not_intangible
+              temporary_set_point, set_point, set_point_both, move_if_not_intangible
 
     !> True means don't run any of the hooks that respond to buffer changes.
     !> This affects `before_change_functions' and `after_change_functions',
@@ -139,7 +139,7 @@ contains
         character(len=*), intent(in) :: name
         type(value_type) :: v
 
-        v = make_symbol_ref(intern(name))
+        v = make_symbol_reference(intern(name))
     end function qsym
 
     ! Not a port.
@@ -150,7 +150,7 @@ contains
 
         write (sa, "(i0)") a
         write (sb, "(i0)") b
-        call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(sa)//", "//trim(sb))
+        call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, trim(sa)//", "//trim(sb))
     end subroutine range_error
 
     !> Order and check a range of the current buffer.  `nonempty' is false
@@ -166,12 +166,13 @@ contains
         e = max(start, end)
         nonempty = .false.
 
-        if (.not. (buffers(current)%begv <= s .and. e <= buffers(current)%zv)) then
+        if (.not. (buffers(current)%beginning_of_accessible_portion <= s .and. e <= buffers(current)%end_of_accessible_portion)) &
+            then
             call range_error(status, start, end)
             return
         end if
 
-        nonempty = s /= e .and. buffers(current)%begv /= buffers(current)%zv
+        nonempty = s /= e .and. buffers(current)%beginning_of_accessible_portion /= buffers(current)%end_of_accessible_portion
     end subroutine validate_range
 
     !> Give the current buffer intervals if it has none.
@@ -184,37 +185,37 @@ contains
 
     !> No properties stay none; an even-length array of names, each followed by its value, is kept; an odd-length one is an
     !> error; anything else X becomes X with an unallocated value.  Port of textprop.c:validate_plist.
-    subroutine validate_plist(props, plist, status)
-        type(value_type), intent(in) :: props
+    subroutine validate_plist(properties, plist, status)
+        type(value_type), intent(in) :: properties
         type(value_type), intent(out) :: plist
         type(status_type), intent(out) :: status
-        type(value_type) :: nil_v
+        type(value_type) :: false_v
 
-        if (.not. allocated(props%a)) return
+        if (.not. allocated(properties%a)) return
 
-        if (vtag(props) == V_ARRAY) then
-            if (mod(list_length(props), 2_int64) /= 0) then
-                call set_error(status, FM_GENERIC_ERROR, "Odd length text properties")
+        if (vtag(properties) == V_ARRAY) then
+            if (mod(list_length(properties), 2_int64) /= 0) then
+                call set_error(status, GENERIC_ERROR_CODE, "Odd length text properties")
                 return
             end if
 
-            plist = props
+            plist = properties
         else
-            plist = list(props, nil_v)
+            plist = list(properties, false_v)
         end if
     end subroutine validate_plist
 
     !> True if `x' is eq to an element of list `set'.  Not a port.
     logical function memq_p(x, set)
         type(value_type), intent(in) :: x, set
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         integer(int64) :: k
 
         memq_p = .false.
-        call list_elements(set, elems)
+        call list_elements(set, elements)
 
-        do k = 1, size(elems, kind=int64)
-            if (value_eq(elems(k), x)) then
+        do k = 1, size(elements, kind=int64)
+            if (value_eq(elements(k), x)) then
                 memq_p = .true.
                 return
             end if
@@ -227,9 +228,9 @@ contains
         type(value_type), intent(in) :: propval
 
         if (vtag(propval) == V_STRING) then
-            call set_error(status, FM_TEXT_READ_ONLY, xstring(propval))
+            call set_error(status, TEXT_READ_ONLY_CODE, xstring(propval))
         else
-            call set_error(status, FM_TEXT_READ_ONLY)
+            call set_error(status, TEXT_READ_ONLY_CODE)
         end if
     end subroutine text_read_only
 
@@ -241,18 +242,18 @@ contains
     logical function has_all_properties(plist, k)
         type(value_type), intent(in) :: plist
         integer(int64), intent(in) :: k
-        type(value_type), allocatable :: elems(:)
-        type(value_type) :: val
+        type(value_type), allocatable :: elements(:)
+        type(value_type) :: value
         logical :: found
         integer(int64) :: j
 
         has_all_properties = .false.
-        call list_elements(plist, elems)
+        call list_elements(plist, elements)
 
-        do j = 1, size(elems, kind=int64) - 1, 2
-            call plist_get_eq(buffers(current)%text%intervals%runs(k)%plist, elems(j), val, found)
+        do j = 1, size(elements, kind=int64) - 1, 2
+            call plist_get_eq(buffers(current)%text%intervals%runs(k)%plist, elements(j), value, found)
             if (.not. found) return
-            if (.not. value_eq(val, elems(j + 1))) return
+            if (.not. value_eq(value, elements(j + 1))) return
         end do
 
         has_all_properties = .true.
@@ -265,16 +266,16 @@ contains
     logical function has_some_properties(names, step, k)
         type(value_type), intent(in) :: names
         integer(int64), intent(in) :: step, k
-        type(value_type), allocatable :: elems(:)
-        type(value_type) :: val
+        type(value_type), allocatable :: elements(:)
+        type(value_type) :: value
         logical :: found
         integer(int64) :: j
 
         has_some_properties = .false.
-        call list_elements(names, elems)
+        call list_elements(names, elements)
 
-        do j = 1, size(elems, kind=int64), step
-            call plist_get_eq(buffers(current)%text%intervals%runs(k)%plist, elems(j), val, found)
+        do j = 1, size(elements, kind=int64), step
+            call plist_get_eq(buffers(current)%text%intervals%runs(k)%plist, elements(j), value, found)
 
             if (found) then
                 has_some_properties = .true.
@@ -330,19 +331,19 @@ contains
         type(value_type), intent(in) :: names
         integer(int64), intent(in) :: step, k
         logical, intent(out) :: changed
-        type(value_type), allocatable :: syms(:), old(:), kept(:)
+        type(value_type), allocatable :: symbols(:), old(:), kept(:)
         integer(int64) :: j, m, n
 
         changed = .false.
-        call list_elements(names, syms)
+        call list_elements(names, symbols)
 
-        do j = 1, size(syms, kind=int64), step
+        do j = 1, size(symbols, kind=int64), step
             call list_elements(buffers(current)%text%intervals%runs(k)%plist, old)
             allocate (kept(size(old)))
             n = 0
 
             do m = 1, size(old, kind=int64) - 1, 2
-                if (value_eq(old(m), syms(j))) then
+                if (value_eq(old(m), symbols(j))) then
                     changed = .true.
                 else
                     kept(n + 1) = old(m)
@@ -360,18 +361,18 @@ contains
     ! Queries
     ! ------------------------------------------------------------------
 
-    !> Index of the interval at `pos', or 0 if there is none (no intervals,
-    !> empty accessible region, or `pos' at the end of the text).
+    !> Index of the interval at `position', or 0 if there is none (no intervals,
+    !> empty accessible region, or `position' at the end of the text).
     !> Not a port.
-    integer(int64) function interval_at(pos)
-        integer(int64), intent(in) :: pos
+    integer(int64) function interval_at(position)
+        integer(int64), intent(in) :: position
 
         interval_at = 0
 
         associate (b => buffers(current), iv => buffers(current)%text%intervals)
-            if (iv%n == 0 .or. b%begv == b%zv) return
-            interval_at = find_interval(iv, pos)
-            if (pos == interval_end(iv, interval_at)) interval_at = 0
+            if (iv%n == 0 .or. b%beginning_of_accessible_portion == b%end_of_accessible_portion) return
+            interval_at = find_interval(iv, position)
+            if (position == interval_end(iv, interval_at)) interval_at = 0
         end associate
     end function interval_at
 
@@ -383,7 +384,8 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: k
 
-        if (.not. (buffers(current)%begv <= position .and. position <= buffers(current)%zv)) then
+        if (.not. (buffers(current)%beginning_of_accessible_portion <= position .and. position <= buffers( &
+                   current)%end_of_accessible_portion)) then
             call range_error(status, position, position)
             return
         end if
@@ -392,36 +394,36 @@ contains
         if (k > 0) plist = buffers(current)%text%intervals%runs(k)%plist
     end subroutine text_properties_at
 
-    !> Value of `prop' on the character after `position' (via `category'
+    !> Value of `property' on the character after `position' (via `category'
     !> too).  Port of textprop.c:Fget_text_property.
-    subroutine get_text_property(position, prop, val, status)
+    subroutine get_text_property(position, property, value, status)
         integer(int64), intent(in) :: position
-        type(value_type), intent(in) :: prop
-        type(value_type), intent(out) :: val
+        type(value_type), intent(in) :: property
+        type(value_type), intent(out) :: value
         type(status_type), intent(out) :: status
         type(value_type) :: plist
 
         call text_properties_at(position, plist, status)
-        if (status%ok()) val = textget(plist, prop)
+        if (status%ok()) value = textget(plist, property)
     end subroutine get_text_property
 
     ! ------------------------------------------------------------------
     ! Changing properties
     ! ------------------------------------------------------------------
 
-    !> Whether interval K, which was at PREV_POS with PREV_LEN characters
-    !> among PREV_N intervals in a buffer of PREV_Z, is still as it was:
+    !> Whether interval K, which was at PREVIOUS_POSITION with PREVIOUS_LENGTH characters
+    !> among PREVIOUS_N intervals in a buffer of PREVIOUS_Z, is still as it was:
     !> a before-change function may have changed the intervals behind our
     !> back (the check after modify_text_properties in textprop.c).
     !> Port of the interval check of textprop.c:add_text_properties_1.
-    logical function interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z) result(same)
-        integer(int64), intent(in) :: k, prev_n, prev_pos, prev_len, prev_z
+    logical function interval_unchanged(k, previous_n, previous_position, previous_length, previous_z) result(same)
+        integer(int64), intent(in) :: k, previous_n, previous_position, previous_length, previous_z
 
         same = .false.
 
         associate (iv => buffers(current)%text%intervals)
-            if (iv%n /= prev_n .or. buffers(current)%text%z /= prev_z) return
-            same = iv%runs(k)%position == prev_pos .and. iv%runs(k)%length == prev_len
+            if (iv%n /= previous_n .or. buffers(current)%text%z /= previous_z) return
+            same = iv%runs(k)%position == previous_position .and. iv%runs(k)%length == previous_length
         end associate
     end function interval_unchanged
 
@@ -434,7 +436,7 @@ contains
         logical, intent(out) :: changed
         type(status_type), intent(out) :: status
         type(value_type) :: plist
-        integer(int64) :: s, e, len, k, got, r, prev_n, prev_pos, prev_len, prev_z
+        integer(int64) :: s, e, len, k, got, r, previous_n, previous_position, previous_length, previous_z
         logical :: nonempty, any_change, first_time, done
 
         changed = .false.
@@ -473,20 +475,20 @@ contains
                 end if
 
                 if (.not. done) then
-                    prev_n = iv%n
-                    prev_pos = iv%runs(k)%position
-                    prev_len = iv%runs(k)%length
+                    previous_n = iv%n
+                    previous_position = iv%runs(k)%position
+                    previous_length = iv%runs(k)%length
                 end if
             end associate
 
             if (done) return
             if (.not. first_time) exit
-            prev_z = buffers(current)%text%z
+            previous_z = buffers(current)%text%z
             call modify_text_properties(s, e, status)
             if (.not. status%ok()) return
             ! If the intervals changed behind our back, start over.
             first_time = .false.
-            if (interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z)) exit
+            if (interval_unchanged(k, previous_n, previous_position, previous_length, previous_z)) exit
         end do
 
         changed = .true.
@@ -515,15 +517,15 @@ contains
         call signal_text_properties_change(s, e, status)
     end subroutine add_text_properties
 
-    !> Set property `prop' to `val' on the text from `start' to `end'.
+    !> Set property `property' to `value' on the text from `start' to `end'.
     !> Port of textprop.c:Fput_text_property.
-    recursive subroutine put_text_property(start, end, prop, val, status)
+    recursive subroutine put_text_property(start, end, property, value, status)
         integer(int64), intent(in) :: start, end
-        type(value_type), intent(in) :: prop, val
+        type(value_type), intent(in) :: property, value
         type(status_type), intent(out) :: status
         logical :: changed
 
-        call add_text_properties(start, end, list(prop, val), changed, status)
+        call add_text_properties(start, end, list(property, value), changed, status)
     end subroutine put_text_property
 
     !> Combine FACE with any existing faces from START to END.  FACE is
@@ -536,8 +538,8 @@ contains
         type(value_type), intent(in) :: face
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: append
-        type(value_type), allocatable :: prev_items(:), all(:)
-        type(value_type) :: prev, prop
+        type(value_type), allocatable :: previous_items(:), all(:)
+        type(value_type) :: previous, property
         integer(int64) :: s, e, next
         logical :: found, app
         integer :: n
@@ -545,42 +547,42 @@ contains
         status = status_type()
         app = .false.
         if (present(append)) app = append
-        prop = make_symbol_ref(intern("face"))
+        property = make_symbol_reference(intern("face"))
         s = min(start, end)
         e = max(start, end)
 
         do while (s < e)
-            call next_single_property_change(s, prop, next, found, status, e)
+            call next_single_property_change(s, property, next, found, status, e)
             if (.not. status%ok()) return
             if (.not. found) next = e
-            call get_text_property(s, prop, prev, status)
+            call get_text_property(s, property, previous, status)
             if (.not. status%ok()) return
 
-            if (.not. allocated(prev%a)) then
-                call put_text_property(s, next, prop, face, status)
-            else if (vtag(prev) == V_ARRAY .and. .not. keyword_list(prev)) then
+            if (.not. allocated(previous%a)) then
+                call put_text_property(s, next, property, face, status)
+            else if (vtag(previous) == V_ARRAY .and. .not. keyword_list(previous)) then
                 ! The previous value is a list, so prepend (or append) the
                 ! new value to this list.
-                call list_elements(prev, prev_items)
-                n = size(prev_items)
+                call list_elements(previous, previous_items)
+                n = size(previous_items)
                 allocate (all(n + 1))
 
                 if (app) then
-                    all(:n) = prev_items
+                    all(:n) = previous_items
                     all(n + 1) = face
                 else
                     all(1) = face
-                    all(2:) = prev_items
+                    all(2:) = previous_items
                 end if
 
-                call put_text_property(s, next, prop, make_list(all), status)
+                call put_text_property(s, next, property, make_list(all), status)
                 deallocate (all)
             else if (app) then
                 ! The previous value is a single value, so make it into a
                 ! list.
-                call put_text_property(s, next, prop, list(prev, face), status)
+                call put_text_property(s, next, property, list(previous, face), status)
             else
-                call put_text_property(s, next, prop, list(face, prev), status)
+                call put_text_property(s, next, property, list(face, previous), status)
             end if
 
             if (.not. status%ok()) return
@@ -592,14 +594,14 @@ contains
         !> Whether V is an anonymous face (a list starting with a keyword).
         logical function keyword_list(v)
             type(value_type), intent(in) :: v
-            type(value_type), allocatable :: elts(:)
+            type(value_type), allocatable :: elements(:)
             character(len=:), allocatable :: name
 
             keyword_list = .false.
-            call list_elements(v, elts)
-            if (size(elts) == 0) return
-            if ((vtag(elts(1)) /= V_NAME .and. vtag(elts(1)) /= V_NULL)) return
-            name = symbols(xsymbol(elts(1)))%name
+            call list_elements(v, elements)
+            if (size(elements) == 0) return
+            if ((vtag(elements(1)) /= V_NAME .and. vtag(elements(1)) /= V_NULL)) return
+            name = symbols(xsymbol(elements(1)))%name
             if (len(name) > 0) keyword_list = name(1:1) == ":"
         end function keyword_list
     end subroutine add_face_text_property
@@ -615,7 +617,7 @@ contains
         logical, intent(out) :: changed
         type(status_type), intent(out) :: status
         type(value_type) :: plist
-        integer(int64) :: s, e, k, r, prev_n, prev_pos, prev_len, prev_z
+        integer(int64) :: s, e, k, r, previous_n, previous_position, previous_length, previous_z
         logical :: nonempty, first_time
 
         changed = .false.
@@ -633,17 +635,17 @@ contains
 
             associate (iv => buffers(current)%text%intervals)
                 k = find_interval(iv, s)
-                prev_n = iv%n
-                prev_pos = iv%runs(k)%position
-                prev_len = iv%runs(k)%length
+                previous_n = iv%n
+                previous_position = iv%runs(k)%position
+                previous_length = iv%runs(k)%length
             end associate
 
-            prev_z = buffers(current)%text%z
+            previous_z = buffers(current)%text%z
             call modify_text_properties(s, e, status)
             if (.not. status%ok()) return
             ! If the intervals changed behind our back, start over.
             first_time = .false.
-            if (interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z)) exit
+            if (interval_unchanged(k, previous_n, previous_position, previous_length, previous_z)) exit
         end do
 
         changed = .true.
@@ -702,7 +704,7 @@ contains
         type(value_type), intent(in) :: names
         logical, intent(out) :: changed
         type(status_type), intent(out) :: status
-        integer(int64) :: s, e, len, k, got, r, prev_n, prev_pos, prev_len, prev_z
+        integer(int64) :: s, e, len, k, got, r, previous_n, previous_position, previous_length, previous_z
         logical :: nonempty, any_change, first_time, done
 
         changed = .false.
@@ -739,20 +741,20 @@ contains
                 end if
 
                 if (.not. done) then
-                    prev_n = iv%n
-                    prev_pos = iv%runs(k)%position
-                    prev_len = iv%runs(k)%length
+                    previous_n = iv%n
+                    previous_position = iv%runs(k)%position
+                    previous_length = iv%runs(k)%length
                 end if
             end associate
 
             if (done) return
             if (.not. first_time) exit
-            prev_z = buffers(current)%text%z
+            previous_z = buffers(current)%text%z
             call modify_text_properties(s, e, status)
             if (.not. status%ok()) return
             ! If the intervals changed behind our back, start over.
             first_time = .false.
-            if (interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z)) exit
+            if (interval_unchanged(k, previous_n, previous_position, previous_length, previous_z)) exit
         end do
 
         changed = .true.
@@ -789,7 +791,8 @@ contains
         integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
 
-        if (.not. (buffers(current)%begv <= position .and. position <= buffers(current)%zv)) then
+        if (.not. (buffers(current)%beginning_of_accessible_portion <= position .and. position <= buffers( &
+                   current)%end_of_accessible_portion)) then
             call range_error(status, position, position)
         end if
     end subroutine check_position
@@ -818,27 +821,27 @@ contains
         call next_change(position, result, found, status, limit=limit)
     end subroutine next_property_change
 
-    !> Like `next_property_change', for the single property `prop'.
+    !> Like `next_property_change', for the single property `property'.
     !> Port of textprop.c:Fnext_single_property_change.
-    subroutine next_single_property_change(position, prop, result, found, status, limit)
+    subroutine next_single_property_change(position, property, result, found, status, limit)
         integer(int64), intent(in) :: position
-        type(value_type), intent(in) :: prop
+        type(value_type), intent(in) :: property
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: limit
 
-        call next_change(position, result, found, status, prop, limit)
+        call next_change(position, result, found, status, property, limit)
     end subroutine next_single_property_change
 
     ! Port of textprop.c:Fnext_property_change and
     ! textprop.c:Fnext_single_property_change (their shared body).
-    subroutine next_change(position, result, found, status, prop, limit)
+    subroutine next_change(position, result, found, status, property, limit)
         integer(int64), intent(in) :: position
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
-        type(value_type), intent(in), optional :: prop
+        type(value_type), intent(in), optional :: property
         integer(int64), intent(in), optional :: limit
         integer(int64) :: k, next, bound
         type(value_type) :: here
@@ -850,7 +853,7 @@ contains
         if (k == 0) return
 
         associate (iv => buffers(current)%text%intervals)
-            if (present(prop)) here = textget(iv%runs(k)%plist, prop)
+            if (present(property)) here = textget(iv%runs(k)%plist, property)
             next = k + 1
 
             do while (next <= iv%n)
@@ -858,8 +861,8 @@ contains
                     if (iv%runs(next)%position >= limit) exit
                 end if
 
-                if (present(prop)) then
-                    if (.not. value_eq(here, textget(iv%runs(next)%plist, prop))) exit
+                if (present(property)) then
+                    if (.not. value_eq(here, textget(iv%runs(next)%plist, property))) exit
                 else
                     if (.not. intervals_equal(iv%runs(k)%plist, iv%runs(next)%plist)) exit
                 end if
@@ -867,7 +870,7 @@ contains
                 next = next + 1
             end do
 
-            bound = buffers(current)%zv
+            bound = buffers(current)%end_of_accessible_portion
             if (present(limit)) bound = limit
             if (next > iv%n) return
             if (iv%runs(next)%position >= bound) return
@@ -888,29 +891,29 @@ contains
         call previous_change(position, result, found, status, limit=limit)
     end subroutine previous_property_change
 
-    !> Like `previous_property_change', for the single property `prop'.
+    !> Like `previous_property_change', for the single property `property'.
     !> Port of textprop.c:Fprevious_single_property_change.
-    subroutine previous_single_property_change(position, prop, result, found, status, limit)
+    subroutine previous_single_property_change(position, property, result, found, status, limit)
         integer(int64), intent(in) :: position
-        type(value_type), intent(in) :: prop
+        type(value_type), intent(in) :: property
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: limit
 
-        call previous_change(position, result, found, status, prop, limit)
+        call previous_change(position, result, found, status, property, limit)
     end subroutine previous_single_property_change
 
     ! Port of textprop.c:Fprevious_property_change and
     ! textprop.c:Fprevious_single_property_change (their shared body).
-    subroutine previous_change(position, result, found, status, prop, limit)
+    subroutine previous_change(position, result, found, status, property, limit)
         integer(int64), intent(in) :: position
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
-        type(value_type), intent(in), optional :: prop
+        type(value_type), intent(in), optional :: property
         integer(int64), intent(in), optional :: limit
-        integer(int64) :: k, prev, bound
+        integer(int64) :: k, previous, bound
         type(value_type) :: here
 
         call give_limit(result, found, limit)
@@ -918,66 +921,66 @@ contains
         if (.not. status%ok()) return
 
         associate (b => buffers(current), iv => buffers(current)%text%intervals)
-            if (iv%n == 0 .or. b%begv == b%zv) return
+            if (iv%n == 0 .or. b%beginning_of_accessible_portion == b%end_of_accessible_portion) return
             ! Start with the interval containing the char before POSITION.
             k = find_interval(iv, position)
             if (iv%runs(k)%position == position) k = k - 1
             if (k < 1) return
-            if (present(prop)) here = textget(iv%runs(k)%plist, prop)
-            prev = k - 1
+            if (present(property)) here = textget(iv%runs(k)%plist, property)
+            previous = k - 1
 
-            do while (prev >= 1)
+            do while (previous >= 1)
                 if (present(limit)) then
-                    if (interval_end(iv, prev) <= limit) exit
+                    if (interval_end(iv, previous) <= limit) exit
                 end if
 
-                if (present(prop)) then
-                    if (.not. value_eq(here, textget(iv%runs(prev)%plist, prop))) exit
+                if (present(property)) then
+                    if (.not. value_eq(here, textget(iv%runs(previous)%plist, property))) exit
                 else
-                    if (.not. intervals_equal(iv%runs(prev)%plist, iv%runs(k)%plist)) exit
+                    if (.not. intervals_equal(iv%runs(previous)%plist, iv%runs(k)%plist)) exit
                 end if
 
-                prev = prev - 1
+                previous = previous - 1
             end do
 
-            bound = b%begv
+            bound = b%beginning_of_accessible_portion
             if (present(limit)) bound = limit
-            if (prev < 1) return
-            if (interval_end(iv, prev) <= bound) return
-            result = interval_end(iv, prev)
+            if (previous < 1) return
+            if (interval_end(iv, previous) <= bound) return
+            result = interval_end(iv, previous)
             found = .true.
         end associate
     end subroutine previous_change
 
-    !> First position in `start'..`end' whose `prop' is eq to `value';
+    !> First position in `start'..`end' whose `property' is eq to `value';
     !> `found' .false. means none.  Port of textprop.c:Ftext_property_any.
-    subroutine text_property_any(start, end, prop, value, result, found, status)
+    subroutine text_property_any(start, end, property, value, result, found, status)
         integer(int64), intent(in) :: start, end
-        type(value_type), intent(in) :: prop, value
+        type(value_type), intent(in) :: property, value
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
 
-        call property_scan(start, end, prop, value, .true., result, found, status)
+        call property_scan(start, end, property, value, .true., result, found, status)
     end subroutine text_property_any
 
-    !> First position in `start'..`end' whose `prop' is not eq to `value'.
+    !> First position in `start'..`end' whose `property' is not eq to `value'.
     !> Port of textprop.c:Ftext_property_not_all.
-    subroutine text_property_not_all(start, end, prop, value, result, found, status)
+    subroutine text_property_not_all(start, end, property, value, result, found, status)
         integer(int64), intent(in) :: start, end
-        type(value_type), intent(in) :: prop, value
+        type(value_type), intent(in) :: property, value
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
 
-        call property_scan(start, end, prop, value, .false., result, found, status)
+        call property_scan(start, end, property, value, .false., result, found, status)
     end subroutine text_property_not_all
 
     ! Port of textprop.c:Ftext_property_any and
     ! textprop.c:Ftext_property_not_all (their shared body).
-    subroutine property_scan(start, end, prop, value, want_eq, result, found, status)
+    subroutine property_scan(start, end, property, value, want_eq, result, found, status)
         integer(int64), intent(in) :: start, end
-        type(value_type), intent(in) :: prop, value
+        type(value_type), intent(in) :: property, value
         logical, intent(in) :: want_eq
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
@@ -991,7 +994,7 @@ contains
         if (.not. status%ok()) return
 
         if (.not. nonempty .or. buffers(current)%text%intervals%n == 0) then
-            ! No intervals: every character has PROP nil.
+            ! No intervals: every character has PROPERTY nil.
             if (nonempty .and. (.not. allocated(value%a) .eqv. want_eq)) then
                 result = s
                 found = .true.
@@ -1006,7 +1009,7 @@ contains
             do while (k <= iv%n)
                 if (iv%runs(k)%position >= e) exit
 
-                if (value_eq(textget(iv%runs(k)%plist, prop), value) .eqv. want_eq) then
+                if (value_eq(textget(iv%runs(k)%plist, property), value) .eqv. want_eq) then
                     result = max(iv%runs(k)%position, s)
                     found = .true.
                     return
@@ -1017,42 +1020,42 @@ contains
         end associate
     end subroutine property_scan
 
-    !> Whether `prop' at `pos' would be inherited by text inserted there:
+    !> Whether `property' at `position' would be inherited by text inserted there:
     !> -1 from the character before (rear-sticky), 1 from the one after
     !> (front-sticky), 0 from neither.  Port of
     !> textprop.c:text_property_stickiness (current buffer).
-    integer function text_property_stickiness(prop, pos) result(stickiness)
-        type(value_type), intent(in) :: prop
-        integer(int64), intent(in) :: pos
-        type(value_type) :: rear_non_sticky, front_sticky, prev_value
+    integer function text_property_stickiness(property, position) result(stickiness)
+        type(value_type), intent(in) :: property
+        integer(int64), intent(in) :: position
+        type(value_type) :: rear_non_sticky, front_sticky, previous_value
         type(status_type) :: status
         logical :: ignore_previous_character, is_rear_sticky, is_front_sticky
 
         is_rear_sticky = .true.
         is_front_sticky = .false.
-        ignore_previous_character = pos <= buffers(current)%begv
+        ignore_previous_character = position <= buffers(current)%beginning_of_accessible_portion
 
         ! text-property-default-nonsticky: its standard value makes
         ! syntax-table and display (textprop.c), composition (composite.c)
         ! and fill-space (fill.el) rear-nonsticky.
-        if (ignore_previous_character .or. default_nonsticky(prop)) then
+        if (ignore_previous_character .or. default_nonsticky(property)) then
             is_rear_sticky = .false.
         else
-            call get_text_property(pos - 1, qsym("rear_nonsticky"), rear_non_sticky, status)
+            call get_text_property(position - 1, qsym("rear_nonsticky"), rear_non_sticky, status)
 
             if (vtag(rear_non_sticky) == V_ARRAY) then
-                if (memq_p(prop, rear_non_sticky)) is_rear_sticky = .false.
+                if (memq_p(property, rear_non_sticky)) is_rear_sticky = .false.
             else if (allocated(rear_non_sticky%a)) then
                 is_rear_sticky = .false.
             end if
         end if
 
-        call get_text_property(pos, qsym("front_sticky"), front_sticky, status)
+        call get_text_property(position, qsym("front_sticky"), front_sticky, status)
 
         if (value_eq(front_sticky, qsym("t"))) then
             is_front_sticky = .true.
         else if (vtag(front_sticky) == V_ARRAY) then
-            if (memq_p(prop, front_sticky)) is_front_sticky = .true.
+            if (memq_p(property, front_sticky)) is_front_sticky = .true.
         end if
 
         if (is_rear_sticky .and. .not. is_front_sticky) then
@@ -1068,39 +1071,39 @@ contains
             if (ignore_previous_character) then
                 stickiness = 1
             else
-                call get_text_property(pos - 1, prop, prev_value, status)
-                if (.not. allocated(prev_value%a)) stickiness = 1
+                call get_text_property(position - 1, property, previous_value, status)
+                if (.not. allocated(previous_value%a)) stickiness = 1
             end if
         end if
     end function text_property_stickiness
 
     !> How PROPVAL, a value of the `invisible' property, makes text
     !> invisible in the current buffer: 0 not at all, 1 hidden, 2 hidden
-    !> and replaced by an ellipsis (`buffer_invisibility_spec' .true.: any
+    !> and replaced by an ellipsis (`buffer_invisibility_specification' .true.: any
     !> value hides text).  Port of xdisp.c:invisible_prop with
-    !> TEXT_PROP_MEANS_INVISIBLE.
-    integer function text_prop_means_invisible(propval) result(invis)
+    !> TEXT_PROPERTY_MEANS_INVISIBLE.
+    integer function text_property_means_invisible(propval) result(invis)
         type(value_type), intent(in) :: propval
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
         invis = 0
         if (current == 0) return
 
-        if (buffers(current)%invisibility_spec_t) then
+        if (buffers(current)%invisibility_specification_t) then
             if (allocated(propval%a)) invis = 1
             return
         end if
 
-        if (.not. allocated(buffers(current)%invisibility_spec)) return
+        if (.not. allocated(buffers(current)%invisibility_specification)) return
         invis = match(propval)
         if (invis /= 0) return
 
         if (vtag(propval) == V_ARRAY) then
-            call list_elements(propval, elts)
+            call list_elements(propval, elements)
 
-            do k = 1, size(elts)
-                invis = match(elts(k))
+            do k = 1, size(elements)
+                invis = match(elements(k))
                 if (invis /= 0) return
             end do
         end if
@@ -1113,30 +1116,30 @@ contains
 
             m = 0
 
-            associate (spec => buffers(current)%invisibility_spec)
-                do j = 1, size(spec)
-                    if (.not. value_eq(v, spec(j)%atom)) cycle
+            associate (specification => buffers(current)%invisibility_specification)
+                do j = 1, size(specification)
+                    if (.not. value_eq(v, specification(j)%atom)) cycle
                     m = 1
-                    if (spec(j)%cons .and. spec(j)%ellipsis) m = 2
+                    if (specification(j)%cons .and. specification(j)%ellipsis) m = 2
                     return
                 end do
             end associate
         end function match
-    end function text_prop_means_invisible
+    end function text_property_means_invisible
 
-    !> Return the value of POSITION's property PROP, in the current buffer.
-    !> Almost identical to `get_char_property' except for the following
-    !> difference: Whereas `get_char_property' returns the property of the
+    !> Return the value of POSITION's property PROPERTY, in the current buffer.
+    !> Almost identical to `get_character_property' except for the following
+    !> difference: Whereas `get_character_property' returns the property of the
     !> char at (i.e. right after) POSITION, this pays attention to
     !> properties's stickiness and overlays's advancement settings, in
     !> order to find the property of POSITION itself, i.e. the property
     !> that a char would inherit if it were inserted at POSITION.  Port of
     !> editfns.c:Fget_pos_property (no `window' properties).
-    function get_pos_property(position, prop) result(val)
+    function get_position_property(position, property) result(value)
         integer(int64), intent(in) :: position
-        type(value_type), intent(in) :: prop
-        type(value_type) :: val
-        type(handle_type), allocatable :: vec(:)
+        type(value_type), intent(in) :: property
+        type(value_type) :: value
+        type(handle_type), allocatable :: vector(:)
         type(handle_type) :: best
         type(value_type) :: tem
         type(status_type) :: status
@@ -1144,238 +1147,241 @@ contains
         logical :: fa, ra
         integer :: k
 
-        val = value_type()
+        value = value_type()
         if (current == 0) return
-        ! First check if there's an overlay at POS.
+        ! First check if there's an overlay at POSITION.
         best = null_handle()
-        call overlays_in(max(position - 1, 1_int64), position + 1, vec)
+        call overlays_in(max(position - 1, 1_int64), position + 1, vector)
 
-        do k = 1, size(vec)
-            tem = overlay_get_prop(vec(k), prop)
+        do k = 1, size(vector)
+            tem = overlay_get_property(vector(k), property)
             if (.not. allocated(tem%a)) cycle
-            b = overlay_start(vec(k))
-            e = overlay_end(vec(k))
-            call overlay_advance(vec(k), fa, ra)
+            b = overlay_start(vector(k))
+            e = overlay_end(vector(k))
+            call overlay_advance(vector(k), fa, ra)
             ! Check the overlay is indeed active at point.
             if ((b == position .and. fa) .or. (e == position .and. .not. ra) .or. b > position .or. e < position) cycle
 
             if (best%index /= 0) then
                 call overlay_priority(best, p1, s1)
-                call overlay_priority(vec(k), p2, s2)
+                call overlay_priority(vector(k), p2, s2)
                 if (compare_overlays(p1, s1, overlay_start(best), overlay_end(best), int(best%index, int64), &
-                                     p2, s2, b, e, int(vec(k)%index, int64)) >= 0) cycle
+                                     p2, s2, b, e, int(vector(k)%index, int64)) >= 0) cycle
             end if
 
-            best = vec(k)
-            val = tem
+            best = vector(k)
+            value = tem
         end do
 
         if (best%index /= 0) return
 
         ! Now check the text properties.
-        select case (text_property_stickiness(prop, position))
+        select case (text_property_stickiness(property, position))
         case (1:)
-            call get_text_property(position, prop, val, status)
+            call get_text_property(position, property, value, status)
         case (:-1)
-            if (position > buffers(current)%begv) call get_text_property(position - 1, prop, val, status)
+            if (position > buffers(current)%beginning_of_accessible_portion) call get_text_property(position - 1, property, value, &
+                                                                                                    status)
         case default
-            val = value_type()
+            value = value_type()
         end select
 
-        if (.not. status%ok()) val = value_type()
-    end function get_pos_property
+        if (.not. status%ok()) value = value_type()
+    end function get_position_property
 
-    !> The value VAL of text property PROP at POS and the range [BEGINNING, END)
-    !> of the text around POS where it has that value (`eq').  Port of
+    !> The value VALUE of text property PROPERTY at POSITION and the range [BEGINNING, END)
+    !> of the text around POSITION where it has that value (`eq').  Port of
     !> intervals.c:get_property_and_range for the current buffer.
-    subroutine get_property_and_range(pos, prop, val, beginning, end)
-        integer(int64), intent(in) :: pos
-        type(value_type), intent(in) :: prop
-        type(value_type), intent(out) :: val
+    subroutine get_property_and_range(position, property, value, beginning, end)
+        integer(int64), intent(in) :: position
+        type(value_type), intent(in) :: property
+        type(value_type), intent(out) :: value
         integer(int64), intent(out) :: beginning, end
         type(status_type) :: status
         logical :: found
 
-        call get_text_property(pos, prop, val, status)
-        call previous_single_property_change(pos + 1, prop, beginning, found, status, buffers(current)%begv)
-        if (.not. found) beginning = buffers(current)%begv
-        call next_single_property_change(pos, prop, end, found, status, buffers(current)%zv)
-        if (.not. found) end = buffers(current)%zv
+        call get_text_property(position, property, value, status)
+        call previous_single_property_change(position + 1, property, beginning, found, status, &
+                                             buffers(current)%beginning_of_accessible_portion)
+        if (.not. found) beginning = buffers(current)%beginning_of_accessible_portion
+        call next_single_property_change(position, property, end, found, status, buffers(current)%end_of_accessible_portion)
+        if (.not. found) end = buffers(current)%end_of_accessible_portion
     end subroutine get_property_and_range
 
-    !> Return the value of POSITION's property PROP, in the current
+    !> Return the value of POSITION's property PROPERTY, in the current
     !> buffer.  Both overlay properties and text properties are checked:
-    !> of the overlays containing POSITION with a PROP property, the one
+    !> of the overlays containing POSITION with a PROPERTY property, the one
     !> with the highest priority gives the value, else the text property
     !> does.  Port of textprop.c:Fget_char_property (OBJECT the current
     !> buffer; no `window' properties).
-    function get_char_property(position, prop) result(val)
+    function get_character_property(position, property) result(value)
         integer(int64), intent(in) :: position
-        type(value_type), intent(in) :: prop
-        type(value_type) :: val
+        type(value_type), intent(in) :: property
+        type(value_type) :: value
         type(handle_type) :: overlay
 
-        call get_char_property_and_overlay(position, prop, val, overlay)
-    end function get_char_property
+        call get_character_property_and_overlay(position, property, value, overlay)
+    end function get_character_property
 
-    !> Like `get_char_property', but with extra info on where the value
+    !> Like `get_character_property', but with extra info on where the value
     !> came from: OVERLAY is the overlay it came from, the null handle if
     !> it is a text property (or none).  Port of textprop.c:Fget_char_property_and_overlay
-    !> (OBJECT the current buffer; its VALUE and OVERLAY as VAL and OVERLAY) and
+    !> (OBJECT the current buffer; its VALUE and OVERLAY as VALUE and OVERLAY) and
     !> textprop.c:get_char_property_and_overlay for the current buffer.
-    subroutine get_char_property_and_overlay(position, prop, val, overlay)
+    subroutine get_character_property_and_overlay(position, property, value, overlay)
         integer(int64), intent(in) :: position
-        type(value_type), intent(in) :: prop
-        type(value_type), intent(out) :: val
+        type(value_type), intent(in) :: property
+        type(value_type), intent(out) :: value
         type(handle_type), intent(out) :: overlay
-        type(handle_type), allocatable :: vec(:)
+        type(handle_type), allocatable :: vector(:)
         type(status_type) :: status
         integer :: k
 
         overlay = null_handle()
-        val = value_type()
+        value = value_type()
         if (current == 0) return
         ! The overlays containing POSITION, highest priority first.
-        call overlays_at(position, vec, sorted=.true.)
+        call overlays_at(position, vector, sorted=.true.)
 
-        do k = 1, size(vec)
-            val = overlay_get_prop(vec(k), prop)
+        do k = 1, size(vector)
+            value = overlay_get_property(vector(k), property)
 
-            if (allocated(val%a)) then
-                overlay = vec(k)
+            if (allocated(value%a)) then
+                overlay = vector(k)
                 return
             end if
         end do
 
-        call get_text_property(position, prop, val, status)
-        if (.not. status%ok()) val = value_type()
-    end subroutine get_char_property_and_overlay
+        call get_text_property(position, property, value, status)
+        if (.not. status%ok()) value = value_type()
+    end subroutine get_character_property_and_overlay
 
     !> Return the position of next text property or overlay change.
     !> This scans characters forward in the current buffer from POSITION
     !> till it finds a change in some text property, or the beginning or
     !> end of an overlay, and returns the position of that.  If none is
-    !> found, and LIMIT is absent, the function returns `point_max'.
+    !> found, and LIMIT is absent, the function returns `point_maximum'.
     !> If the optional second argument LIMIT is present, don't search past
     !> position LIMIT; return LIMIT if nothing is found before LIMIT.
-    !> LIMIT is a no-op if it is greater than `point_max'.  Port of
+    !> LIMIT is a no-op if it is greater than `point_maximum'.  Port of
     !> textprop.c:Fnext_char_property_change.
-    integer(int64) function next_char_property_change(position, limit) result(next)
+    integer(int64) function next_character_property_change(position, limit) result(next)
         integer(int64), intent(in) :: position
         integer(int64), intent(in), optional :: limit
-        integer(int64) :: temp
+        integer(int64) :: temporary
         type(status_type) :: status
         logical :: found
 
-        temp = next_overlay_change(position)
-        if (present(limit)) temp = min(temp, limit)
-        call next_property_change(position, next, found, status, temp)
-        if (.not. found .or. .not. status%ok()) next = temp
-    end function next_char_property_change
+        temporary = next_overlay_change(position)
+        if (present(limit)) temporary = min(temporary, limit)
+        call next_property_change(position, next, found, status, temporary)
+        if (.not. found .or. .not. status%ok()) next = temporary
+    end function next_character_property_change
 
     !> Return the position of previous text property or overlay change.
     !> Scans characters backward in the current buffer from POSITION till
     !> it finds a change in some text property, or the beginning or end of
     !> an overlay, and returns the position of that.  If none is found, and
-    !> LIMIT is absent, the function returns `point_min'.  If the optional
+    !> LIMIT is absent, the function returns `point_minimum'.  If the optional
     !> second argument LIMIT is present, don't search back past position
     !> LIMIT; return LIMIT if nothing is found before LIMIT.  LIMIT is a
-    !> no-op if it is less than `point_min'.  Port of
+    !> no-op if it is less than `point_minimum'.  Port of
     !> textprop.c:Fprevious_char_property_change.
-    integer(int64) function previous_char_property_change(position, limit) result(prev)
+    integer(int64) function previous_character_property_change(position, limit) result(previous)
         integer(int64), intent(in) :: position
         integer(int64), intent(in), optional :: limit
-        integer(int64) :: temp
+        integer(int64) :: temporary
         type(status_type) :: status
         logical :: found
 
-        temp = previous_overlay_change(position)
-        if (present(limit)) temp = max(temp, limit)
-        call previous_property_change(position, prev, found, status, temp)
-        if (.not. found .or. .not. status%ok()) prev = temp
-    end function previous_char_property_change
+        temporary = previous_overlay_change(position)
+        if (present(limit)) temporary = max(temporary, limit)
+        call previous_property_change(position, previous, found, status, temporary)
+        if (.not. found .or. .not. status%ok()) previous = temporary
+    end function previous_character_property_change
 
     !> Return the position of next text property or overlay change for a
     !> specific property.  Scans characters forward from POSITION till it
-    !> finds a change in the PROP property, then returns the position of
+    !> finds a change in the PROPERTY property, then returns the position of
     !> the change.  The property values are compared with `eq'.  If the
     !> property is constant all the way to the end of the buffer, return
     !> the last valid position in the buffer, or LIMIT if present and not
     !> past it.  Port of textprop.c:Fnext_single_char_property_change for
     !> the current buffer.
-    integer(int64) function next_single_char_property_change(position, prop, limit) result(next)
+    integer(int64) function next_single_character_property_change(position, property, limit) result(next)
         integer(int64), intent(in) :: position
-        type(value_type), intent(in) :: prop
+        type(value_type), intent(in) :: property
         integer(int64), intent(in), optional :: limit
         type(value_type) :: initial_value, value
-        integer(int64) :: lim
+        integer(int64) :: limit_position
 
-        lim = buffers(current)%zv
-        if (present(limit)) lim = limit
+        limit_position = buffers(current)%end_of_accessible_portion
+        if (present(limit)) limit_position = limit
 
-        if (position >= lim) then
-            next = lim
-            if (next > buffers(current)%zv) next = buffers(current)%zv
+        if (position >= limit_position) then
+            next = limit_position
+            if (next > buffers(current)%end_of_accessible_portion) next = buffers(current)%end_of_accessible_portion
             return
         end if
 
-        initial_value = get_char_property(position, prop)
+        initial_value = get_character_property(position, property)
         next = position
 
         do
-            next = next_char_property_change(next, lim)
+            next = next_character_property_change(next, limit_position)
 
-            if (next >= lim) then
-                next = lim
+            if (next >= limit_position) then
+                next = limit_position
                 exit
             end if
 
-            value = get_char_property(next, prop)
+            value = get_character_property(next, property)
             if (.not. value_eq(value, initial_value)) exit
-            if (next >= buffers(current)%zv) exit
+            if (next >= buffers(current)%end_of_accessible_portion) exit
         end do
-    end function next_single_char_property_change
+    end function next_single_character_property_change
 
     !> Return the position of previous text property or overlay change
     !> for a specific property.  Scans characters backward from POSITION
-    !> till it finds a change in the PROP property, then returns the
+    !> till it finds a change in the PROPERTY property, then returns the
     !> position of the change.  The property values are compared with
     !> `eq'.  If the property is constant all the way to the start of the
     !> buffer, return the first valid position in the buffer, or LIMIT if
     !> present and not before it.  Port of
     !> textprop.c:Fprevious_single_char_property_change for the current
     !> buffer.
-    integer(int64) function previous_single_char_property_change(position, prop, limit) result(prev)
+    integer(int64) function previous_single_character_property_change(position, property, limit) result(previous)
         integer(int64), intent(in) :: position
-        type(value_type), intent(in) :: prop
+        type(value_type), intent(in) :: property
         integer(int64), intent(in), optional :: limit
         type(value_type) :: initial_value, value
-        integer(int64) :: lim
+        integer(int64) :: limit_position
 
-        lim = buffers(current)%begv
-        if (present(limit)) lim = limit
+        limit_position = buffers(current)%beginning_of_accessible_portion
+        if (present(limit)) limit_position = limit
 
-        if (position <= lim) then
-            prev = lim
-            if (prev < buffers(current)%begv) prev = buffers(current)%begv
+        if (position <= limit_position) then
+            previous = limit_position
+            if (previous < buffers(current)%beginning_of_accessible_portion) previous = buffers( &
+                                                                                        current)%beginning_of_accessible_portion
             return
         end if
 
-        initial_value = get_char_property(position - 1, prop)
-        prev = position
+        initial_value = get_character_property(position - 1, property)
+        previous = position
 
         do
-            prev = previous_char_property_change(prev, lim)
+            previous = previous_character_property_change(previous, limit_position)
 
-            if (prev <= lim) then
-                prev = lim
+            if (previous <= limit_position) then
+                previous = limit_position
                 exit
             end if
 
-            value = get_char_property(prev - 1, prop)
+            value = get_character_property(previous - 1, property)
             if (.not. value_eq(value, initial_value)) exit
         end do
-    end function previous_single_char_property_change
+    end function previous_single_character_property_change
 
     ! ------------------------------------------------------------------
     ! Read-only text
@@ -1387,15 +1393,15 @@ contains
         type(value_type), intent(in) :: list
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
-        type(value_type), allocatable :: fns(:)
+        type(value_type), allocatable :: functions(:)
         integer :: k
 
         status = status_type()
         if (.not. allocated(list%a)) return
-        call list_elements(list, fns)
+        call list_elements(list, functions)
 
-        do k = 1, size(fns)
-            call execute_property_function(fns(k), start, end, status)
+        do k = 1, size(functions)
+            call execute_property_function(functions(k), start, end, status)
             if (.not. status%ok()) return
         end do
     end subroutine execute_mod_hooks
@@ -1414,11 +1420,11 @@ contains
     recursive subroutine verify_interval_modification(start_in, end_in, status)
         integer(int64), intent(in) :: start_in, end_in
         type(status_type), intent(out) :: status
-        type(value_type) :: inhibit, read_only, after, before, tem, val, mod_hooks, prev_mod_hooks
+        type(value_type) :: inhibit, read_only, after, before, tem, value, mod_hooks, previous_mod_hooks
         type(value_type), allocatable :: hooks(:), grown(:)
-        integer(int64) :: start, end, k, prev, p
+        integer(int64) :: start, end, k, previous, p
         integer :: nhooks, j
-        logical :: buffer_read_only, implied, express, has_after, has_prev, found
+        logical :: buffer_read_only, implied, express, has_after, has_previous, found
 
         status = status_type()
         interval_insert_behind_hooks = value_type()
@@ -1431,51 +1437,51 @@ contains
         ! For an insert operation, check the two chars around the position.
         if (start == end) then
             associate (b => buffers(current), iv => buffers(current)%text%intervals)
-                ! I: interval after START; PREV: interval before it.
+                ! I: interval after START; PREVIOUS: interval before it.
                 k = find_interval(iv, start)
-                has_prev = .false.
-                prev = 0
+                has_previous = .false.
+                previous = 0
 
-                if (start /= b%begv) then
+                if (start /= b%beginning_of_accessible_portion) then
                     if (iv%runs(k)%position == start) then
-                        prev = k - 1
+                        previous = k - 1
                     else
-                        prev = k
+                        previous = k
                     end if
 
-                    has_prev = prev >= 1
+                    has_previous = previous >= 1
                 end if
 
-                has_after = start /= b%zv
+                has_after = start /= b%end_of_accessible_portion
 
                 ! If inhibit_read_only is set and is not a list, we can skip
                 ! the read_only checks.
                 if (.not. allocated(inhibit%a) .or. vtag(inhibit) == V_ARRAY) then
-                    if (.not. (has_after .and. has_prev .and. k == prev)) then
+                    if (.not. (has_after .and. has_previous .and. k == previous)) then
                         if (has_after) then
                             after = textget(iv%runs(k)%plist, qsym("read_only"))
 
                             if (allocated(after%a) .and. .not. memq_p(after, inhibit)) then
                                 tem = textget(iv%runs(k)%plist, qsym("front_sticky"))
-                                call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), val, found)
+                                call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), value, found)
 
                                 if (tmem(qsym("read_only"), tem) .or. &
-                                    (.not. allocated(val%a) .and. tmem(qsym("category"), tem))) then
+                                    (.not. allocated(value%a) .and. tmem(qsym("category"), tem))) then
                                     call text_read_only(status, after)
                                     return
                                 end if
                             end if
                         end if
 
-                        if (has_prev) then
-                            before = textget(iv%runs(prev)%plist, qsym("read_only"))
+                        if (has_previous) then
+                            before = textget(iv%runs(previous)%plist, qsym("read_only"))
 
                             if (allocated(before%a) .and. .not. memq_p(before, inhibit)) then
-                                tem = textget(iv%runs(prev)%plist, qsym("rear_nonsticky"))
-                                call plist_get_eq(iv%runs(prev)%plist, qsym("read_only"), val, found)
+                                tem = textget(iv%runs(previous)%plist, qsym("rear_nonsticky"))
+                                call plist_get_eq(iv%runs(previous)%plist, qsym("read_only"), value, found)
 
                                 if (.not. tmem(qsym("read_only"), tem) .and. &
-                                    (allocated(val%a) .or. .not. tmem(qsym("category"), tem))) then
+                                    (allocated(value%a) .or. .not. tmem(qsym("category"), tem))) then
                                     call text_read_only(status, before)
                                     return
                                 end if
@@ -1487,11 +1493,11 @@ contains
                         after = textget(iv%runs(k)%plist, qsym("read_only"))
 
                         if (allocated(after%a) .and. .not. memq_p(after, inhibit)) then
-                            call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), val, found)
+                            call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), value, found)
                             tem = textget(iv%runs(k)%plist, qsym("front_sticky"))
 
                             if (tmem(qsym("read_only"), tem) .or. &
-                                (.not. allocated(val%a) .and. tmem(qsym("category"), tem))) then
+                                (.not. allocated(value%a) .and. tmem(qsym("category"), tem))) then
                                 call text_read_only(status, after)
                                 return
                             end if
@@ -1499,7 +1505,7 @@ contains
                             tem = textget(iv%runs(k)%plist, qsym("rear_nonsticky"))
 
                             if (.not. tmem(qsym("read_only"), tem) .and. &
-                                (allocated(val%a) .or. .not. tmem(qsym("category"), tem))) then
+                                (allocated(value%a) .or. .not. tmem(qsym("category"), tem))) then
                                 call text_read_only(status, after)
                                 return
                             end if
@@ -1508,7 +1514,7 @@ contains
                 end if
 
                 ! Run both insert hooks (just once if they're the same).
-                if (has_prev) interval_insert_behind_hooks = textget(iv%runs(prev)%plist, qsym("insert_behind_hooks"))
+                if (has_previous) interval_insert_behind_hooks = textget(iv%runs(previous)%plist, qsym("insert_behind_hooks"))
                 if (has_after) interval_insert_in_front_hooks = textget(iv%runs(k)%plist, qsym("insert_in_front_hooks"))
             end associate
         else
@@ -1539,14 +1545,14 @@ contains
                     else if (.not. express .and. buffer_read_only) then
                         ! If this interval is only implicitly read only and
                         ! the buffer is read only as a whole, signal an error.
-                        call set_error(status, FM_BUFFER_READ_ONLY, b%name)
+                        call set_error(status, BUFFER_READ_ONLY_CODE, b%name)
                         return
                     end if
 
                     if (.not. inhibit_modification_hooks%value) then
                         mod_hooks = textget(iv%runs(k)%plist, qsym("modification_hooks"))
 
-                        if (allocated(mod_hooks%a) .and. .not. value_eq(mod_hooks, prev_mod_hooks)) then
+                        if (allocated(mod_hooks%a) .and. .not. value_eq(mod_hooks, previous_mod_hooks)) then
                             if (nhooks == size(hooks)) then
                                 allocate (grown(2*nhooks))
 
@@ -1559,7 +1565,7 @@ contains
 
                             nhooks = nhooks + 1
                             hooks(nhooks) = mod_hooks
-                            prev_mod_hooks = mod_hooks
+                            previous_mod_hooks = mod_hooks
                         end if
                     end if
 
@@ -1575,7 +1581,7 @@ contains
                 ! with an `inhibit_read_only' property does not enclose the
                 ! entire change under consideration, signal error.
                 if (p < end .and. buffer_read_only) then
-                    call set_error(status, FM_BUFFER_READ_ONLY, b%name)
+                    call set_error(status, BUFFER_READ_ONLY_CODE, b%name)
                     return
                 end if
             end associate
@@ -1639,15 +1645,15 @@ contains
         end do
     end function string_text_properties_at
 
-    !> Value of PROP on the character at POSITION (0-based) of STRING (via
+    !> Value of PROPERTY on the character at POSITION (0-based) of STRING (via
     !> `category' too).  Port of textprop.c:Fget_text_property with a
     !> string OBJECT.
-    function string_get_text_property(position, prop, string) result(val)
+    function string_get_text_property(position, property, string) result(value)
         integer(int64), intent(in) :: position
-        type(value_type), intent(in) :: prop, string
-        type(value_type) :: val
+        type(value_type), intent(in) :: property, string
+        type(value_type) :: value
 
-        val = textget(string_text_properties_at(position, string), prop)
+        value = textget(string_text_properties_at(position, string), property)
     end function string_get_text_property
 
     !> Add the properties of PROPERTIES (text properties) to the characters START
@@ -1668,7 +1674,7 @@ contains
         logical :: piece_changed
 
         changed = .false.
-        call string_chars(string, nchars, status)
+        call string_characters(string, nchars, status)
         if (.not. status%ok()) return
         s = min(start, end)
         e = max(start, end)
@@ -1704,14 +1710,14 @@ contains
 
     !> Set one property of the characters START to END (0-based) of
     !> STRING.  Port of textprop.c:Fput_text_property with a string OBJECT.
-    subroutine string_put_text_property(start, end, prop, val, string, status)
+    subroutine string_put_text_property(start, end, property, value, string, status)
         integer(int64), intent(in) :: start, end
-        type(value_type), intent(in) :: prop, val
+        type(value_type), intent(in) :: property, value
         type(value_type), intent(inout) :: string
         type(status_type), intent(out) :: status
         logical :: changed
 
-        call string_add_text_properties(start, end, list(prop, val), string, changed, status)
+        call string_add_text_properties(start, end, list(property, value), string, changed, status)
     end subroutine string_put_text_property
 
     !> Return a copy of STRING with text properties added.
@@ -1739,10 +1745,10 @@ contains
         ! Number of arguments must be odd.
         if (mod(list_length(properties), 2_int64) /= 0) then
             write (text, '("propertize, ", i0)') list_length(properties) + 1
-            call set_error(st, FM_WRONG_NUMBER_OF_ARGUMENTS, trim(text))
+            call set_error(st, WRONG_NUMBER_OF_ARGUMENTS_CODE, trim(text))
         else
             ! First argument must be a string.
-            call string_chars(v, nchars, st)
+            call string_characters(v, nchars, st)
             if (st%ok()) call string_add_text_properties(0_int64, nchars, properties, v, changed, st)
         end if
 
@@ -1751,7 +1757,7 @@ contains
 
     !> The characters of STRING (a `wrong_type_argument' error condition occurs if it is not a string).
     !> Port of textprop.c:CHECK_STRING_OR_BUFFER (the string case).
-    subroutine string_chars(string, nchars, status)
+    subroutine string_characters(string, nchars, status)
         type(value_type), intent(in) :: string
         integer(int64), intent(out) :: nchars
         type(status_type), intent(out) :: status
@@ -1760,13 +1766,13 @@ contains
         nchars = 0
 
         if (vtag(string) /= V_STRING) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected character(len=*)")
             return
         end if
 
-        call multibyte_chars_in_text(xstring(string), nchars, st)
+        call multibyte_characters_in_text(xstring(string), nchars, st)
         if (.not. st%ok()) nchars = len(xstring(string), kind=int64)
-    end subroutine string_chars
+    end subroutine string_characters
 
     !> Add the text properties NEW to PLIST, replacing values of properties it
     !> has (textprop.c:add_properties on text properties).
@@ -1869,13 +1875,13 @@ contains
         call set_string_intervals(string, starts(1:n), ends(1:n), plists(1:n))
     end subroutine set_merged_intervals
 
-    !> The position (0-based) after POSITION of STRING where property PROP
+    !> The position (0-based) after POSITION of STRING where property PROPERTY
     !> changes; FOUND is false if it does not change before the end.
     !> Port of textprop.c:Fnext_single_property_change with a string
     !> OBJECT (no LIMIT).
-    subroutine string_next_single_property_change(position, prop, string, result, found)
+    subroutine string_next_single_property_change(position, property, string, result, found)
         integer(int64), intent(in) :: position
-        type(value_type), intent(in) :: prop, string
+        type(value_type), intent(in) :: property, string
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
         integer(int64), allocatable :: starts(:), ends(:)
@@ -1887,11 +1893,11 @@ contains
 
         result = 0
         found = .false.
-        call string_chars(string, nchars, st)
+        call string_characters(string, nchars, st)
         if (.not. st%ok()) return
         call string_intervals(string, starts, ends, plists)
-        here = string_get_text_property(position, prop, string)
-        ! The next interval boundary where PROP's value differs.
+        here = string_get_text_property(position, property, string)
+        ! The next interval boundary where PROPERTY's value differs.
         p = position
 
         do
@@ -1903,7 +1909,7 @@ contains
             end do
 
             if (result >= nchars) return
-            if (.not. value_eq(string_get_text_property(result, prop, string), here)) exit
+            if (.not. value_eq(string_get_text_property(result, property, string), here)) exit
             p = result
         end do
 
@@ -1923,8 +1929,8 @@ contains
         integer(int64) :: first, last
 
         text = xstring(string)
-        first = char_byte(text, from)
-        last = char_byte(text, to)
+        first = character_byte(text, from)
+        last = character_byte(text, to)
         v = value_type(text=text(first:last - 1))
         call string_intervals(string, starts, ends, plists)
         starts = min(max(starts, from), to) - from
@@ -1944,7 +1950,7 @@ contains
         integer :: k
 
         v = value_type(text=xstring(string1)//xstring(string2))
-        call string_chars(string1, n1, st)
+        call string_characters(string1, n1, st)
         call string_intervals(string1, s1, e1, p1)
         call string_intervals(string2, s2, e2, p2)
         if (size(p1) + size(p2) == 0) return
@@ -1968,7 +1974,7 @@ contains
 
     !> The byte (1-based) where character N (0-based) of TEXT starts; one
     !> past the end for N at or past its end.  Not a port.
-    pure integer(int64) function char_byte(text, n) result(byte)
+    pure integer(int64) function character_byte(text, n) result(byte)
         character(len=*), intent(in) :: text
         integer(int64), intent(in) :: n
         integer(int64) :: count
@@ -1987,7 +1993,7 @@ contains
                 count = count + 1
             end if
         end do
-    end function char_byte
+    end function character_byte
 
     ! ------------------------------------------------------------------
     ! Copying properties between objects
@@ -1995,16 +2001,16 @@ contains
 
     !> Return the text properties of buffer slot B between START and END,
     !> as elements S, E and PLIST, last first: S and E are positions and PLIST
-    !> holds the properties of the text between them.  If PROP is present,
+    !> holds the properties of the text between them.  If PROPERTY is present,
     !> report only on that property.  None if the text has no properties
     !> there.  Port of textprop.c:text_property_list (OBJECT a buffer).
-    subroutine text_property_list(b, start, end, ranges, status, prop)
+    subroutine text_property_list(b, start, end, ranges, status, property)
         integer(int64), intent(in) :: b, start, end
         type(text_property_range_type), allocatable, intent(out) :: ranges(:)
         type(status_type), intent(out) :: status
-        type(value_type), intent(in), optional :: prop
+        type(value_type), intent(in), optional :: property
         type(text_property_range_type) :: range
-        type(value_type) :: plist, val
+        type(value_type) :: plist, value
         integer(int64) :: s, e, k, iend
         logical :: found
 
@@ -2012,7 +2018,7 @@ contains
         s = min(start, end)
         e = max(start, end)
 
-        if (.not. (buffers(b)%begv <= s .and. e <= buffers(b)%zv)) then
+        if (.not. (buffers(b)%beginning_of_accessible_portion <= s .and. e <= buffers(b)%end_of_accessible_portion)) then
             call range_error(status, start, end)
             return
         end if
@@ -2026,10 +2032,10 @@ contains
                 iend = min(interval_end(iv, k), e)
                 plist = iv%runs(k)%plist
 
-                if (present(prop)) then
-                    call plist_get_eq(plist, prop, val, found)
+                if (present(property)) then
+                    call plist_get_eq(plist, property, value, found)
                     plist = value_type()
-                    if (found) plist = list(prop, val)
+                    if (found) plist = list(property, value)
                 end if
 
                 if (allocated(plist%a)) then
@@ -2102,42 +2108,43 @@ contains
         end do
     end subroutine extend_property_ranges
 
-    !> Add properties from START to END of buffer slot SRC, starting at POS
-    !> in buffer slot DEST.  Optional PROP causes only that property to be
-    !> copied.  Properties are copied to DEST as if by
+    !> Add properties from START to END of buffer slot SOURCE, starting at POSITION
+    !> in buffer slot DESTINATION.  Optional PROPERTY causes only that property to be
+    !> copied.  Properties are copied to DESTINATION as if by
     !> `add_text_properties'.  MODIFIED tells whether any property value
-    !> actually changed.  Port of textprop.c:copy_text_properties (SRC and
-    !> DEST buffers).
-    recursive subroutine copy_text_properties(start, end, src, pos, dest, modified, status, prop)
-        integer(int64), intent(in) :: start, end, src, pos, dest
+    !> actually changed.  Port of textprop.c:copy_text_properties (SOURCE and
+    !> DESTINATION buffers).
+    recursive subroutine copy_text_properties(start, end, source, position, destination, modified, status, property)
+        integer(int64), intent(in) :: start, end, source, position, destination
         logical, intent(out) :: modified
         type(status_type), intent(out) :: status
-        type(value_type), intent(in), optional :: prop
+        type(value_type), intent(in), optional :: property
         type(text_property_range_type), allocatable :: stuff(:)
-        integer(int64) :: s, e, dest_end, oldb
+        integer(int64) :: s, e, destination_end, oldb
         logical :: changed
         integer :: k
 
         modified = .false.
-        call text_property_list(src, start, end, stuff, status, prop)
+        call text_property_list(source, start, end, stuff, status, property)
         if (.not. status%ok()) return
         if (size(stuff) == 0) return
         s = min(start, end)
         e = max(start, end)
-        dest_end = pos + (e - s)
+        destination_end = position + (e - s)
 
-        if (.not. (buffers(dest)%begv <= pos .and. dest_end <= buffers(dest)%zv)) then
-            call range_error(status, pos, dest_end)
+        if (.not. (buffers(destination)%beginning_of_accessible_portion <= position .and. destination_end <= buffers( &
+                   destination)%end_of_accessible_portion)) then
+            call range_error(status, position, destination_end)
             return
         end if
 
-        ! The changes were collected first in case SRC and DEST are the
+        ! The changes were collected first in case SOURCE and DESTINATION are the
         ! same buffer.
         oldb = current
-        call set_buffer_internal(dest)
+        call set_buffer_internal(destination)
 
         do k = 1, size(stuff)
-            call add_text_properties(stuff(k)%start - s + pos, stuff(k)%end - s + pos, stuff(k)%plist, changed, status)
+            call add_text_properties(stuff(k)%start - s + position, stuff(k)%end - s + position, stuff(k)%plist, changed, status)
             if (.not. status%ok()) exit
             if (changed) modified = .true.
         end do
@@ -2149,62 +2156,62 @@ contains
     ! Moving point (intervals.c)
     ! ------------------------------------------------------------------
 
-    !> Set point in buffer B "temporarily" to CHARPOS, without checking
+    !> Set point in buffer B "temporarily" to CHARACTER_POSITION, without checking
     !> any text properties.  Port of intervals.c:temp_set_point.
-    subroutine temp_set_point(b, charpos)
-        integer(int64), intent(in) :: b, charpos
+    subroutine temporary_set_point(b, character_position)
+        integer(int64), intent(in) :: b, character_position
 
-        call temp_set_point_both(buffers(b), charpos, buf_charpos_to_bytepos(b, charpos))
-    end subroutine temp_set_point
+        call temporary_set_point_both(buffers(b), character_position, buf_charpos_to_bytepos(b, character_position))
+    end subroutine temporary_set_point
 
-    !> Set point to CHARPOS.  If the target position is before an
+    !> Set point to CHARACTER_POSITION.  If the target position is before an
     !> intangible character, move to an ok place.  Port of
     !> intervals.c:set_point.
-    recursive subroutine set_point(charpos, status)
-        integer(int64), intent(in) :: charpos
+    recursive subroutine set_point(character_position, status)
+        integer(int64), intent(in) :: character_position
         type(status_type), intent(out) :: status
 
-        call set_point_both(charpos, buf_charpos_to_bytepos(current, charpos), status)
+        call set_point_both(character_position, buf_charpos_to_bytepos(current, character_position), status)
     end subroutine set_point
 
-    !> If there's an invisible character at position POS + TEST_OFFS in the
+    !> If there's an invisible character at position POSITION + TEST_OFFS in the
     !> current buffer, and the invisible property has a `stickiness' such
-    !> that inserting a character at position POS would inherit the
-    !> property it, return POS + ADJ, otherwise return POS.  If
+    !> that inserting a character at position POSITION would inherit the
+    !> property it, return POSITION + ADJ, otherwise return POSITION.  If
     !> TEST_INTANG, intangibility is required as well as invisibility.
     !> TEST_OFFS should be either 0 or -1, and ADJ should be either 1 or
     !> -1.  Note that `stickiness' is determined by overlay marker
     !> insertion types, if the invisible property comes from an overlay.
     !> Port of intervals.c:adjust_for_invis_intang.
-    integer(int64) function adjust_for_invis_intang(pos, test_offs, adj, test_intang) result(res)
-        integer(int64), intent(in) :: pos, test_offs, adj
+    integer(int64) function adjust_for_invis_intang(position, test_offs, adj, test_intang) result(res)
+        integer(int64), intent(in) :: position, test_offs, adj
         logical, intent(in) :: test_intang
         type(value_type) :: invis_propval
         type(handle_type) :: invis_overlay
-        integer(int64) :: test_pos
+        integer(int64) :: test_position
         logical :: fa, ra, sticks
 
-        res = pos
-        ! POS + ADJ would be beyond the buffer bounds, so do no adjustment.
-        if (adj < 0 .and. pos + adj < buffers(current)%begv) return
-        if (adj > 0 .and. pos + adj > buffers(current)%zv) return
-        test_pos = pos + test_offs
-        call get_char_property_and_overlay(test_pos, qsym("invisible"), invis_propval, invis_overlay)
+        res = position
+        ! POSITION + ADJ would be beyond the buffer bounds, so do no adjustment.
+        if (adj < 0 .and. position + adj < buffers(current)%beginning_of_accessible_portion) return
+        if (adj > 0 .and. position + adj > buffers(current)%end_of_accessible_portion) return
+        test_position = position + test_offs
+        call get_character_property_and_overlay(test_position, qsym("invisible"), invis_propval, invis_overlay)
 
         if (test_intang) then
-            if (vtag(get_char_property(test_pos, qsym("intangible"))) == V_NULL) return
+            if (vtag(get_character_property(test_position, qsym("intangible"))) == V_NULL) return
         end if
 
-        if (text_prop_means_invisible(invis_propval) == 0) return
+        if (text_property_means_invisible(invis_propval) == 0) return
 
         ! This next test is true if the invisible property has a stickiness
-        ! such that an insertion at POS would inherit it.
+        ! such that an insertion at POSITION would inherit it.
         if (invis_overlay%index == 0) then
             ! Invisible property is from a text-property.
             if (test_offs == 0) then
-                sticks = text_property_stickiness(qsym("invisible"), pos) == 1
+                sticks = text_property_stickiness(qsym("invisible"), position) == 1
             else
-                sticks = text_property_stickiness(qsym("invisible"), pos) == -1
+                sticks = text_property_stickiness(qsym("invisible"), position) == -1
             end if
         else
             ! Invisible property is from an overlay.
@@ -2217,55 +2224,56 @@ contains
             end if
         end if
 
-        if (sticks) res = pos + adj
+        if (sticks) res = position + adj
     end function adjust_for_invis_intang
 
-    !> Set point to CHARPOS, which corresponds to byte position BYTEPOS.
+    !> Set point to CHARACTER_POSITION, which corresponds to byte position BYTE_POSITION.
     !> If the target position is before an intangible character, move to
     !> an ok place (unless `inhibit_point_motion_hooks'), and run the
     !> `point_left' and `point_entered' properties' functions with the old
     !> and new point.  Port of intervals.c:set_point_both
     !> (`point_before_scroll' is not ported).
-    recursive subroutine set_point_both(charpos_in, bytepos_in, status)
-        integer(int64), intent(in) :: charpos_in, bytepos_in
+    recursive subroutine set_point_both(character_position_in, byte_position_in, status)
+        integer(int64), intent(in) :: character_position_in, byte_position_in
         type(status_type), intent(out) :: status
-        integer(int64) :: charpos, bytepos, old_position, original_position, buffer_point, pos
+        integer(int64) :: character_position, byte_position, old_position, original_position, buffer_point, position
         integer(int64) :: to, from, toprev, fromprev
         type(value_type) :: intangible_propval, leave_after, leave_before, enter_after, enter_before
         logical :: backwards, have_overlays, inhibit
 
         status = status_type()
-        charpos = charpos_in
-        bytepos = bytepos_in
-        old_position = buffers(current)%pt
+        character_position = character_position_in
+        byte_position = byte_position_in
+        old_position = buffers(current)%point
         ! This ensures that we move forward past intangible text when the
         ! initial position is the same as the destination.
-        backwards = charpos < old_position
-        if (charpos == buffers(current)%pt) return
+        backwards = character_position < old_position
+        if (character_position == buffers(current)%point) return
         have_overlays = buffer_has_overlays()
 
         ! If we have no text properties and overlays, then we can do it
         ! quickly.
         if (buffers(current)%text%intervals%n == 0 .and. .not. have_overlays) then
-            call temp_set_point_both(buffers(current), charpos, bytepos)
+            call temporary_set_point_both(buffers(current), character_position, byte_position)
             return
         end if
 
-        ! Set TO to the interval containing the char after CHARPOS, and
-        ! TOPREV to the interval containing the char before CHARPOS.  Either
+        ! Set TO to the interval containing the char after CHARACTER_POSITION, and
+        ! TOPREV to the interval containing the char before CHARACTER_POSITION.  Either
         ! one may be null (0).  They may be equal.
-        call find_to(charpos, to, toprev)
-        buffer_point = buffers(current)%pt
-        if (buffer_point == buffers(current)%zv) buffer_point = buffers(current)%zv - 1
-        ! Set FROM to the interval containing the char after PT, and
-        ! FROMPREV to the interval containing the char before PT.
+        call find_to(character_position, to, toprev)
+        buffer_point = buffers(current)%point
+        if (buffer_point == buffers(current)%end_of_accessible_portion) buffer_point = buffers(current)%end_of_accessible_portion &
+                                                                                       - 1
+        ! Set FROM to the interval containing the char after POINT, and
+        ! FROMPREV to the interval containing the char before POINT.
         from = interval_at(buffer_point)
 
-        if (buffer_point == buffers(current)%begv) then
+        if (buffer_point == buffers(current)%beginning_of_accessible_portion) then
             fromprev = 0
-        else if (starts_at(from, buffers(current)%pt)) then
+        else if (starts_at(from, buffers(current)%point)) then
             fromprev = from - 1
-        else if (buffer_point /= buffers(current)%pt) then
+        else if (buffer_point /= buffers(current)%point) then
             fromprev = from
             from = 0
         else
@@ -2274,11 +2282,11 @@ contains
 
         ! Moving within an interval.
         if (to == from .and. toprev == fromprev .and. is_interval_visible(to) .and. .not. have_overlays) then
-            call temp_set_point_both(buffers(current), charpos, bytepos)
+            call temporary_set_point_both(buffers(current), character_position, byte_position)
             return
         end if
 
-        original_position = charpos
+        original_position = character_position
         inhibit = inhibit_point_motion_hooks%value
 
         ! If the new position is between two intangible characters with the
@@ -2286,62 +2294,63 @@ contains
         ! change in that property.  Intangibility never stops us from
         ! positioning at the beginning or end of the buffer.
         if (.not. inhibit .and. ((to /= 0 .and. toprev /= 0) .or. have_overlays) .and. &
-            charpos /= buffers(current)%begv .and. charpos /= buffers(current)%zv) then
+            character_position /= buffers(current)%beginning_of_accessible_portion .and. character_position /= buffers( &
+            current)%end_of_accessible_portion) then
             if (backwards) then
                 ! If the preceding character is both intangible and
                 ! invisible, and the invisible property is `rear-sticky',
                 ! perturb it so that the search starts one character
                 ! earlier.
-                charpos = adjust_for_invis_intang(charpos, -1_int64, -1_int64, .true.)
-                pos = charpos
+                character_position = adjust_for_invis_intang(character_position, -1_int64, -1_int64, .true.)
+                position = character_position
                 ! If following char is intangible, skip back over all chars
                 ! with matching intangible property.
-                intangible_propval = get_char_property(pos, qsym("intangible"))
+                intangible_propval = get_character_property(position, qsym("intangible"))
 
                 if (allocated(intangible_propval%a)) then
-                    do while (pos > buffers(current)%begv)
-                        if (.not. value_eq(get_char_property(pos - 1, qsym("intangible")), intangible_propval)) exit
-                        pos = previous_char_property_change(pos)
+                    do while (position > buffers(current)%beginning_of_accessible_portion)
+                        if (.not. value_eq(get_character_property(position - 1, qsym("intangible")), intangible_propval)) exit
+                        position = previous_character_property_change(position)
                     end do
 
-                    charpos = adjust_for_invis_intang(pos, 0_int64, -1_int64, .false.)
+                    character_position = adjust_for_invis_intang(position, 0_int64, -1_int64, .false.)
                 end if
             else
                 ! If the following character is both intangible and
                 ! invisible, and the invisible property is `front-sticky',
                 ! perturb it so that the search starts one character later.
-                charpos = adjust_for_invis_intang(charpos, 0_int64, 1_int64, .true.)
-                pos = charpos
+                character_position = adjust_for_invis_intang(character_position, 0_int64, 1_int64, .true.)
+                position = character_position
                 ! If preceding char is intangible, skip forward over all
                 ! chars with matching intangible property.
-                intangible_propval = get_char_property(charpos - 1, qsym("intangible"))
+                intangible_propval = get_character_property(character_position - 1, qsym("intangible"))
 
                 if (allocated(intangible_propval%a)) then
-                    do while (pos < buffers(current)%zv)
-                        if (.not. value_eq(get_char_property(pos, qsym("intangible")), intangible_propval)) exit
-                        pos = next_char_property_change(pos)
+                    do while (position < buffers(current)%end_of_accessible_portion)
+                        if (.not. value_eq(get_character_property(position, qsym("intangible")), intangible_propval)) exit
+                        position = next_character_property_change(position)
                     end do
 
-                    charpos = adjust_for_invis_intang(pos, -1_int64, 1_int64, .false.)
+                    character_position = adjust_for_invis_intang(position, -1_int64, 1_int64, .false.)
                 end if
             end if
 
-            bytepos = buf_charpos_to_bytepos(current, charpos)
+            byte_position = buf_charpos_to_bytepos(current, character_position)
         end if
 
-        if (charpos /= original_position) call find_to(charpos, to, toprev)
+        if (character_position /= original_position) call find_to(character_position, to, toprev)
         ! Here TO is the interval after the stopping point and TOPREV is
         ! the interval before the stopping point.
-        call temp_set_point_both(buffers(current), charpos, bytepos)
+        call temporary_set_point_both(buffers(current), character_position, byte_position)
         ! We run point-left and point-entered hooks here, if the two
         ! intervals are not equivalent.  These hooks take (old_point,
         ! new_point) as arguments.
         if (inhibit) return
         if (intervals_same(from, to) .and. intervals_same(fromprev, toprev)) return
-        leave_before = run_prop(fromprev, "point_left")
-        leave_after = run_prop(from, "point_left")
-        enter_before = run_prop(toprev, "point_entered")
-        enter_after = run_prop(to, "point_entered")
+        leave_before = run_property(fromprev, "point_left")
+        leave_after = run_property(from, "point_left")
+        enter_before = run_property(toprev, "point_entered")
+        enter_after = run_property(to, "point_entered")
         call execute_point_hook(leave_before, enter_before)
         if (.not. status%ok()) return
         call execute_point_hook(leave_after, enter_after)
@@ -2381,7 +2390,7 @@ contains
 
             t = interval_at(p)
 
-            if (p == buffers(current)%begv) then
+            if (p == buffers(current)%beginning_of_accessible_portion) then
                 tprev = 0
             else if (t /= 0) then
                 tprev = t
@@ -2412,7 +2421,7 @@ contains
             end if
         end function intervals_same
 
-        function run_prop(k, name) result(v)
+        function run_property(k, name) result(v)
             integer(int64), intent(in) :: k
             character(len=*), intent(in) :: name
             type(value_type) :: v
@@ -2420,13 +2429,13 @@ contains
             v = value_type()
             if (k == 0) return
             v = textget(buffers(current)%text%intervals%runs(k)%plist, qsym(name))
-        end function run_prop
+        end function run_property
 
         recursive subroutine execute_point_hook(fn, other)
             type(value_type), intent(in) :: fn, other
 
             if (value_eq(fn, other) .or. .not. allocated(fn%a)) return
-            call execute_property_function(fn, old_position, charpos, status)
+            call execute_property_function(fn, old_position, character_position, status)
         end subroutine execute_point_hook
     end subroutine set_point_both
 
@@ -2437,48 +2446,48 @@ contains
         integer(int64), intent(in) :: position_in
         type(status_type), intent(out) :: status
         type(value_type) :: intangible_propval
-        integer(int64) :: position, pos
+        integer(int64) :: position, position_value
 
         status = status_type()
         position = position_in
-        pos = position
+        position_value = position
 
         if (inhibit_point_motion_hooks%value) then
             ! If intangible is inhibited, always move point to POSITION.
             continue
-        else if (buffers(current)%pt < position .and. pos < buffers(current)%zv) then
+        else if (buffers(current)%point < position .and. position_value < buffers(current)%end_of_accessible_portion) then
             ! We want to move forward, so check the text before POSITION.
-            intangible_propval = get_char_property(pos, qsym("intangible"))
+            intangible_propval = get_character_property(position_value, qsym("intangible"))
 
             ! If following char is intangible, skip back over all chars
             ! with matching intangible property.
             if (allocated(intangible_propval%a)) then
-                do while (pos > buffers(current)%begv)
-                    if (.not. value_eq(get_char_property(pos - 1, qsym("intangible")), intangible_propval)) exit
-                    pos = previous_char_property_change(pos)
+                do while (position_value > buffers(current)%beginning_of_accessible_portion)
+                    if (.not. value_eq(get_character_property(position_value - 1, qsym("intangible")), intangible_propval)) exit
+                    position_value = previous_character_property_change(position_value)
                 end do
             end if
-        else if (pos > buffers(current)%begv) then
+        else if (position_value > buffers(current)%beginning_of_accessible_portion) then
             ! We want to move backward, so check the text after POSITION.
-            intangible_propval = get_char_property(pos - 1, qsym("intangible"))
+            intangible_propval = get_character_property(position_value - 1, qsym("intangible"))
 
             ! If following char is intangible, skip forward over all chars
             ! with matching intangible property.
             if (allocated(intangible_propval%a)) then
-                do while (pos < buffers(current)%zv)
-                    if (.not. value_eq(get_char_property(pos, qsym("intangible")), intangible_propval)) exit
-                    pos = next_char_property_change(pos)
+                do while (position_value < buffers(current)%end_of_accessible_portion)
+                    if (.not. value_eq(get_character_property(position_value, qsym("intangible")), intangible_propval)) exit
+                    position_value = next_character_property_change(position_value)
                 end do
             end if
-        else if (position < buffers(current)%begv) then
-            position = buffers(current)%begv
-        else if (position > buffers(current)%zv) then
-            position = buffers(current)%zv
+        else if (position < buffers(current)%beginning_of_accessible_portion) then
+            position = buffers(current)%beginning_of_accessible_portion
+        else if (position > buffers(current)%end_of_accessible_portion) then
+            position = buffers(current)%end_of_accessible_portion
         end if
 
-        ! If the whole stretch between PT and POSITION isn't intangible,
+        ! If the whole stretch between POINT and POSITION isn't intangible,
         ! try moving to POSITION (which means we actually move farther if
         ! POSITION is inside of intangible text).
-        if (pos /= buffers(current)%pt) call set_point(position, status)
+        if (position_value /= buffers(current)%point) call set_point(position, status)
     end subroutine move_if_not_intangible
 end module text_properties_mod

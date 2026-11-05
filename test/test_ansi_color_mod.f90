@@ -29,11 +29,11 @@ module test_ansi_color_mod
     use utility_functions_mod, only: value_equal
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, point_max, buffer_string
-    use text_properties_mod, only: get_char_property
+    use editing_functions_mod, only: point, point_minimum, point_maximum, buffer_string
+    use text_properties_mod, only: get_character_property
     use interval_tree_mod, only: overlays_at
-    use bindings_mod, only: init_bindings
-    use faces_mod, only: face_spec_recalc_all
+    use bindings_mod, only: initialize_bindings
+    use faces_mod, only: face_specification_recalc_all
     use ansi_color_mod, only: ansi_color_apply_on_region, ansi_color_filter_region, ansi_color_filter_apply, &
                               ansi_color_apply, ansi_color_bold_is_bright, reset_ansi_color_context, &
                               ansi_color_apply_face_function, ansi_color_apply_text_property_face, &
@@ -76,9 +76,9 @@ contains
         type(case_type), allocatable, intent(out) :: cases(:)
         type(value_type) :: yellow, bright_yellow, custom_color
 
-        call init_bindings()
+        call initialize_bindings()
         ! The faces' attributes on the frame, as when the frame is made.
-        call face_spec_recalc_all()
+        call face_specification_recalc_all()
         yellow = value_type(text="yellow3")
         bright_yellow = value_type(text="yellow2")
         custom_color = value_type(text="#87FFFF")
@@ -88,17 +88,18 @@ contains
         call set(3, ESC//"[43mHello World"//ESC//"[0m", "Hello World", list(value_type(name=":background"), yellow))
         call set(4, ESC//"[93mHello World"//ESC//"[0m", "Hello World", list(value_type(name=":foreground"), bright_yellow))
         call set(5, ESC//"[103mHello World"//ESC//"[0m", "Hello World", list(value_type(name=":background"), bright_yellow))
-        call set(6, ESC//"[1;33mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), bold_fg(bright_yellow))
-        call set(7, ESC//"[33;1mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), bold_fg(bright_yellow))
-        call set(8, ESC//"[1m"//ESC//"[33mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), &
-                 bold_fg(bright_yellow))
-        call set(9, ESC//"[33m"//ESC//"[1mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), &
-                 bold_fg(bright_yellow))
+        call set(6, ESC//"[1;33mHello World"//ESC//"[0m", "Hello World", bold_foreground(yellow), bold_foreground(bright_yellow))
+        call set(7, ESC//"[33;1mHello World"//ESC//"[0m", "Hello World", bold_foreground(yellow), bold_foreground(bright_yellow))
+        call set(8, ESC//"[1m"//ESC//"[33mHello World"//ESC//"[0m", "Hello World", bold_foreground(yellow), &
+                 bold_foreground(bright_yellow))
+        call set(9, ESC//"[33m"//ESC//"[1mHello World"//ESC//"[0m", "Hello World", bold_foreground(yellow), &
+                 bold_foreground(bright_yellow))
         call set(10, ESC//"[1m"//ESC//"[3m"//ESC//"[5mbold italics blink"//ESC//"[0m", "bold italics blink", &
                  list(value_type(name="ansi_color_bold"), value_type(name="ansi_color_italic"), &
                       value_type(name="ansi_color_slow_blink")))
         call set(11, ESC//"[10munrecognized"//ESC//"[0m", "unrecognized", value_type())
-        call set(12, ESC//"[38;5;3;1mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), bold_fg(bright_yellow))
+        call set(12, ESC//"[38;5;3;1mHello World"//ESC//"[0m", "Hello World", bold_foreground(yellow), &
+                 bold_foreground(bright_yellow))
         call set(13, ESC//"[48;5;123;1mHello World"//ESC//"[0m", "Hello World", &
                  list(value_type(name="ansi_color_bold"), list(value_type(name=":background"), custom_color)))
         call set(14, ESC//"[48;2;135;255;255;1mHello World"//ESC//"[0m", "Hello World", &
@@ -122,38 +123,38 @@ contains
             end if
         end subroutine set
 
-        function bold_fg(color) result(v)
+        function bold_foreground(color) result(v)
             type(value_type), intent(in) :: color
             type(value_type) :: v
 
             v = list(value_type(name="ansi_color_bold"), list(value_type(name=":foreground"), color))
-        end function bold_fg
+        end function bold_foreground
     end subroutine strings
 
     ! A fresh temporary buffer, the current one before in OLD.
-    subroutine temp_buffer(old, b)
+    subroutine temporary_buffer(old, b)
         type(handle_type), intent(out) :: old, b
         type(status_type) :: st
 
         old = current_buffer()
         call get_or_make_buffer(" ansi-color test", b, st)
         call set_buffer(b, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
-    subroutine end_temp_buffer(old, b)
+    subroutine end_temporary_buffer(old, b)
         type(handle_type), intent(in) :: old, b
         type(status_type) :: st
 
         call set_buffer(old, st)
         call close_buffer(b, st)
-    end subroutine end_temp_buffer
+    end subroutine end_temporary_buffer
 
     ! Whether there are overlays at the start of the buffer.
     logical function overlays_at_start()
-        type(handle_type), allocatable :: vec(:)
+        type(handle_type), allocatable :: vector(:)
 
-        call overlays_at(point_min(), vec)
-        overlays_at_start = size(vec) > 0
+        call overlays_at(point_minimum(), vector)
+        overlays_at_start = size(vector) > 0
     end function overlays_at_start
 
     !> Port of ansi-color-tests.el ansi-color-apply-on-region-test.
@@ -167,13 +168,13 @@ contains
         call strings(cases)
 
         do k = 1, size(cases)
-            call temp_buffer(old, b)
+            call temporary_buffer(old, b)
             call insert(cases(k)%input, st)
-            call ansi_color_apply_on_region(point_min(), point_max())
+            call ansi_color_apply_on_region(point_minimum(), point_maximum())
             call check(error, buffer_string(), cases(k)%text)
 
             if (.not. allocated(error)) then
-                call check(error, value_equal(get_char_property(point_min(), value_type(name="face")), cases(k)%face), &
+                call check(error, value_equal(get_character_property(point_minimum(), value_type(name="face")), cases(k)%face), &
                            "face of: "//cases(k)%text)
             end if
 
@@ -181,7 +182,7 @@ contains
                 call check(error, overlays_at_start(), "an overlay")
             end if
 
-            call end_temp_buffer(old, b)
+            call end_temporary_buffer(old, b)
             if (allocated(error)) return
         end do
     end subroutine test_apply_on_region
@@ -202,18 +203,18 @@ contains
         do k = 1, size(cases)
             face = cases(k)%face
             if (cases(k)%has_bright) face = cases(k)%bright_face
-            call temp_buffer(old, b)
+            call temporary_buffer(old, b)
             call insert(cases(k)%input, st)
-            call ansi_color_apply_on_region(point_min(), point_max())
+            call ansi_color_apply_on_region(point_minimum(), point_maximum())
             call check(error, buffer_string(), cases(k)%text)
 
             if (.not. allocated(error)) then
-                call check(error, value_equal(get_char_property(point_min(), value_type(name="face")), face), &
+                call check(error, value_equal(get_character_property(point_minimum(), value_type(name="face")), face), &
                            "face of: "//cases(k)%text)
             end if
 
             if (.not. allocated(error) .and. allocated(face%a)) call check(error, overlays_at_start(), "an overlay")
-            call end_temp_buffer(old, b)
+            call end_temporary_buffer(old, b)
             if (allocated(error)) exit
         end do
 
@@ -231,11 +232,11 @@ contains
         call strings(cases)
 
         do k = 1, size(cases)
-            call temp_buffer(old, b)
+            call temporary_buffer(old, b)
             call insert(cases(k)%input, st)
-            call ansi_color_apply_on_region(point_min(), point_max(), .true.)
+            call ansi_color_apply_on_region(point_minimum(), point_maximum(), .true.)
             call check(error, buffer_string(), cases(k)%input)
-            call end_temp_buffer(old, b)
+            call end_temporary_buffer(old, b)
             if (allocated(error)) return
         end do
     end subroutine test_preserving
@@ -244,85 +245,85 @@ contains
     !> (the texts; the properties are compared through the buffer's).
     subroutine test_incomplete(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: strs(9) = [character(len=19) :: ESC//"[", "2;31m Hello World ", ESC, &
+        character(len=*), parameter :: strings(9) = [character(len=19) :: ESC//"[", "2;31m Hello World ", ESC, &
                                                              "[108;5;12", "3m", "Greetings", ESC//"[0m"//ESC//"[35;6m", "Hello", ""]
         integer, parameter :: lens(9) = [2, 18, 1, 9, 2, 9, 11, 5, 0]
         character(len=:), allocatable :: complete_string, filtered_string, joined
         type(value_type) :: propertized
         type(handle_type) :: old, b
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
         integer :: k
 
-        call init_bindings()
+        call initialize_bindings()
         complete_string = ""
 
         do k = 1, 8
-            complete_string = complete_string//strs(k) (1:lens(k))
+            complete_string = complete_string//strings(k) (1:lens(k))
         end do
 
         filtered_string = " Hello World Greetings"//"Hello"
         ! Tests for `ansi_color_filter_apply'
-        call temp_buffer(old, b)
+        call temporary_buffer(old, b)
         call check(error, ansi_color_filter_apply(complete_string), filtered_string)
-        call end_temp_buffer(old, b)
+        call end_temporary_buffer(old, b)
         if (allocated(error)) return
-        call temp_buffer(old, b)
+        call temporary_buffer(old, b)
         joined = ""
 
         do k = 1, 8
-            joined = joined//ansi_color_filter_apply(strs(k) (1:lens(k)))
+            joined = joined//ansi_color_filter_apply(strings(k) (1:lens(k)))
         end do
 
         call check(error, joined, filtered_string)
-        call end_temp_buffer(old, b)
+        call end_temporary_buffer(old, b)
         if (allocated(error)) return
         ! Tests for `ansi_color_filter_region'
-        call temp_buffer(old, b)
+        call temporary_buffer(old, b)
         call insert(complete_string, st)
-        call ansi_color_filter_region(point_min(), point_max())
+        call ansi_color_filter_region(point_minimum(), point_maximum())
         call check(error, buffer_string(), filtered_string)
-        call end_temp_buffer(old, b)
+        call end_temporary_buffer(old, b)
         if (allocated(error)) return
-        call temp_buffer(old, b)
+        call temporary_buffer(old, b)
 
         do k = 1, 8
-            opoint = point()
-            call insert(strs(k) (1:lens(k)), st)
-            call ansi_color_filter_region(opoint, point())
+            original_point = point()
+            call insert(strings(k) (1:lens(k)), st)
+            call ansi_color_filter_region(original_point, point())
         end do
 
         call check(error, buffer_string(), filtered_string)
-        call end_temp_buffer(old, b)
+        call end_temporary_buffer(old, b)
         if (allocated(error)) return
         ! Test for `ansi_color_apply'
-        call temp_buffer(old, b)
+        call temporary_buffer(old, b)
         propertized = ansi_color_apply(value_type(text=complete_string))
         call check(error, xstring(propertized), filtered_string)
-        call end_temp_buffer(old, b)
+        call end_temporary_buffer(old, b)
         if (allocated(error)) return
         ! Tests for `ansi_color_apply_on_region' (with text properties)
-        call temp_buffer(old, b)
+        call temporary_buffer(old, b)
         call ansi_color_apply_face_function%set_local(ansi_color_apply_text_property_face)
 
         do k = 1, 8
-            opoint = point()
-            call insert(strs(k) (1:lens(k)), st)
-            call ansi_color_apply_on_region(opoint, point())
+            original_point = point()
+            call insert(strings(k) (1:lens(k)), st)
+            call ansi_color_apply_on_region(original_point, point())
         end do
 
         call check(error, buffer_string(), filtered_string)
-        call end_temp_buffer(old, b)
+        call end_temporary_buffer(old, b)
         if (allocated(error)) return
         ! \e not followed by '[' and invalid ANSI escape sequences
-        call temp_buffer(old, b)
+        call temporary_buffer(old, b)
         call check(error, ansi_color_filter_apply(ESC), "")
         if (.not. allocated(error)) call check(error, ansi_color_filter_apply(ESC//"[33m test "//ESC//"[0m"), ESC//" test ")
-        call end_temp_buffer(old, b)
+        call end_temporary_buffer(old, b)
         if (allocated(error)) return
-        call temp_buffer(old, b)
+        call temporary_buffer(old, b)
         call check(error, ansi_color_filter_apply(ESC//" a "//ESC//ESC//"["//ESC//"["), ESC//" a "//ESC//ESC//"[")
-        call end_temp_buffer(old, b)
+        call end_temporary_buffer(old, b)
         call reset_ansi_color_context()
     end subroutine test_incomplete
 
@@ -332,15 +333,15 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old, b
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
 
         allocate (seen(0))
-        call temp_buffer(old, b)
+        call temporary_buffer(old, b)
         call ansi_color_apply_face_function%set_local(record_face)
-        opoint = point()
+        original_point = point()
         call insert(ESC//"[1;31mbold red"//ESC//"[0m plain", st)
-        call ansi_color_apply_on_region(opoint, point())
-        call end_temp_buffer(old, b)
+        call ansi_color_apply_on_region(original_point, point())
+        call end_temporary_buffer(old, b)
         call check(error, size(seen) >= 2, "two stretches")
         if (allocated(error)) return
         call check(error, size(seen(1)%faces) == 1, "one named face")

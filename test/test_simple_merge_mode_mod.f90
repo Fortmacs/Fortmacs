@@ -34,26 +34,25 @@ module test_simple_merge_mode_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, &
                           get_buffer, is_buffer_live, generate_new_buffer_name, restore_buffer_modified
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, point, point_min, point_max, goto_char, buffer_substring
-    use search_mod, only: re_search_forward, match_beginning, match_end, SEARCH_NOERROR
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
+    use editing_functions_mod, only: buffer_string, point, point_minimum, point_maximum, goto_character, buffer_substring
+    use search_mod, only: regular_expression_search_forward, match_beginning, match_end, SEARCH_NOERROR
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
                                      create_directory_internal, write_region
     use files_mod, only: delete_directory, find_file_noselect, executable_find, save_buffer
     use execute_process_mod, only: execute_process
-    use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop, last_message
+    use keyboard_mod, only: discard_input, keyboard_store_bytes, command_loop, last_message
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
     use paragraphs_mod, only: paragraph_separate
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use version_control_hooks_mod, only: vc_clear_context, vc_handled_backends, vc_backend_named, vc_state, vc_file_clearprops, &
                                          VC_CONFLICT
-    use version_control_mod, only: vc_create_repo
+    use version_control_mod, only: vc_create_repository
     use simple_merge_mode_mod, only: match_smerge_conflict, next_smerge_conflict, previous_smerge_conflict, keep_smerge_upper, &
-                                     keep_smerge_lower, &
-                                     keep_smerge_base, keep_smerge_all, keep_smerge_current, delete_smerge_current, &
-                                     combine_smerge_with_next, swap_smerge, start_smerge_session, resolve_smerge, &
-                                     diff_smerge_upper_lower, smerge_conflict_style, smerge_repeat_map, smerge_parsep_regexp, &
-                                     smerge_auto_leave, SMERGE_CONFLICT_STYLE_DIFF3_A
+                                     keep_smerge_lower, keep_smerge_base, keep_smerge_all, keep_smerge_current, &
+                                     delete_smerge_current, combine_smerge_with_next, swap_smerge, start_smerge_session, &
+                                     resolve_smerge, diff_smerge_upper_lower, smerge_conflict_style, smerge_repeat_map, &
+                                     smerge_parsep_regular_expression, smerge_auto_leave, SMERGE_CONFLICT_STYLE_DIFF3_A
     implicit none(type, external)
     private
 
@@ -62,7 +61,7 @@ module test_simple_merge_mode_mod
     character, parameter :: LF = achar(10)
 
     !> The test directory, under the build directory.
-    character(len=*), parameter :: subdir = "build/test-smerge/"
+    character(len=*), parameter :: subdirectory = "build/test-smerge/"
 
     !> A two-way conflict between two lines.
     character(len=*), parameter :: two_way = "a"//LF//"<<<<<<< mine"//LF//"UUU"//LF//"======="//LF//"LLL"//LF// &
@@ -85,7 +84,7 @@ contains
                     new_unittest("not-in-conflict", test_not_in_conflict), &
                     new_unittest("keep-upper-lower-base", test_keep), &
                     new_unittest("keep-all", test_keep_all), &
-                    new_unittest("next-prev", test_next_prev), &
+                    new_unittest("next-prev", test_next_previous), &
                     new_unittest("auto-leave", test_auto_leave), &
                     new_unittest("combine-with-next", test_combine), &
                     new_unittest("swap", test_swap), &
@@ -107,27 +106,27 @@ contains
 
     !> A fresh buffer holding TEXT, current, with point at the first
     !> occurrence of AT (point-min if absent).
-    subroutine temp_buffer(h, text, at)
+    subroutine temporary_buffer(h, text, at)
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: text
         character(len=*), intent(in), optional :: at
         type(status_type) :: st
         integer(int64) :: found
 
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call discard_input()
         call get_or_make_buffer(generate_new_buffer_name(" *smerge-test*"), h, st)
         call set_buffer(h, st)
         buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         call insert(text, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (present(at)) then
-            call re_search_forward(at, found, st, noerror=SEARCH_NOERROR)
-            if (found /= 0) call goto_char(match_beginning(0, st))
+            call regular_expression_search_forward(at, found, st, noerror=SEARCH_NOERROR)
+            if (found /= 0) call goto_character(match_beginning(0, st))
         end if
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> Close buffer H.
     subroutine done(h)
@@ -169,9 +168,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h, "<<<<<<< one"//LF//"======="//LF//"LLL"//LF//">>>>>>> end"//LF)
+        call temporary_buffer(h, "<<<<<<< one"//LF//"======="//LF//"LLL"//LF//">>>>>>> end"//LF)
         ! (insert "<<<<<<< one\n") (save-excursion (insert ...))
-        call goto_char(point_min() + len("<<<<<<< one"//LF))
+        call goto_character(point_minimum() + len("<<<<<<< one"//LF))
         call minor_modes%smerge_mode%enable(st)
         call keep_smerge_current(st)
 
@@ -190,7 +189,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h, two_way, "UUU")
+        call temporary_buffer(h, two_way, "UUU")
         call match_smerge_conflict(st)
 
         body: block
@@ -214,7 +213,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h, three_way, "LLL")
+        call temporary_buffer(h, three_way, "LLL")
         call match_smerge_conflict(st)
 
         body: block
@@ -238,7 +237,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h, two_way)
+        call temporary_buffer(h, two_way)
         call match_smerge_conflict(st)
         call check(error, format_error(st), "Point not in conflict region")
         call done(h)
@@ -251,23 +250,23 @@ contains
         type(status_type) :: st
 
         smerge_auto_leave = .true.
-        call temp_buffer(h, three_way, "UUU")
+        call temporary_buffer(h, three_way, "UUU")
         call keep_smerge_upper(st)
         call check(error, buffer_string(), "a"//LF//"UUU"//LF//"z"//LF)
         call done(h)
         if (allocated(error)) return
-        call temp_buffer(h, three_way, "UUU")
+        call temporary_buffer(h, three_way, "UUU")
         call keep_smerge_lower(st)
         call check(error, buffer_string(), "a"//LF//"LLL"//LF//"z"//LF)
         call done(h)
         if (allocated(error)) return
-        call temp_buffer(h, three_way, "UUU")
+        call temporary_buffer(h, three_way, "UUU")
         call keep_smerge_base(st)
         call check(error, buffer_string(), "a"//LF//"BBB"//LF//"z"//LF)
         call done(h)
         if (allocated(error)) return
         ! No base in a two-way conflict.
-        call temp_buffer(h, two_way, "UUU")
+        call temporary_buffer(h, two_way, "UUU")
         call keep_smerge_base(st)
         call check(error, format_error(st), "No `base'")
         call done(h)
@@ -279,25 +278,25 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h, three_way, "UUU")
+        call temporary_buffer(h, three_way, "UUU")
         call keep_smerge_all(st)
         call check(error, buffer_string(), "a"//LF//"UUU"//LF//"BBB"//LF//"LLL"//LF//"z"//LF)
         call done(h)
         if (allocated(error)) return
-        call temp_buffer(h, two_way, "UUU")
+        call temporary_buffer(h, two_way, "UUU")
         call keep_smerge_all(st)
         call check(error, buffer_string(), "a"//LF//"UUU"//LF//"LLL"//LF//"z"//LF)
         call done(h)
     end subroutine test_keep_all
 
     !> n and p between two conflicts.
-    subroutine test_next_prev(error)
+    subroutine test_next_previous(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: second
 
-        call temp_buffer(h, two_way//two_way)
+        call temporary_buffer(h, two_way//two_way)
         second = len(two_way) + 3
 
         body: block
@@ -309,7 +308,7 @@ contains
             if (allocated(error)) exit body
             ! At the last conflict: to its end (point-max).
             call next_smerge_conflict(st)
-            call check(error, point(), point_max())
+            call check(error, point(), point_maximum())
             if (allocated(error)) exit body
             call next_smerge_conflict(st)
             call check(error, format_error(st), "No next conflict")
@@ -325,7 +324,7 @@ contains
         end block body
 
         call done(h)
-    end subroutine test_next_prev
+    end subroutine test_next_previous
 
     !> Smerge mode is turned off once the last conflict is resolved.
     subroutine test_auto_leave(error)
@@ -334,7 +333,7 @@ contains
         type(status_type) :: st
 
         smerge_auto_leave = .true.
-        call temp_buffer(h, two_way//two_way, "UUU")
+        call temporary_buffer(h, two_way//two_way, "UUU")
         call minor_modes%smerge_mode%enable(st)
 
         body: block
@@ -357,7 +356,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h, two_way//two_way, "UUU")
+        call temporary_buffer(h, two_way//two_way, "UUU")
         call combine_smerge_with_next(st)
 
         body: block
@@ -376,7 +375,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h, two_way, "UUU")
+        call temporary_buffer(h, two_way, "UUU")
         call swap_smerge(st)
         call check(error, buffer_string(), "a"//LF//"<<<<<<< mine"//LF//"LLL"//LF//"======="//LF//"UUU"//LF// &
                    ">>>>>>> theirs"//LF//"z"//LF)
@@ -389,7 +388,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h, two_way, "UUU")
+        call temporary_buffer(h, two_way, "UUU")
         call delete_smerge_current(st)
         call check(error, buffer_string(), "a"//LF//"LLL"//LF//"z"//LF)
         call done(h)
@@ -401,11 +400,11 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h, two_way, "UUU")
+        call temporary_buffer(h, two_way, "UUU")
         call show_alone()
         call set_buffer(h, st)
         call minor_modes%smerge_mode%enable(st)
-        call kbd_store_bytes(achar(3)//"^u")
+        call keyboard_store_bytes(achar(3)//"^u")
         call command_loop(st)
 
         body: block
@@ -423,7 +422,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h, two_way)
+        call temporary_buffer(h, two_way)
         call start_smerge_session(st)
 
         body: block
@@ -435,7 +434,7 @@ contains
         call done(h)
         if (allocated(error)) return
         smerge_auto_leave = .true.
-        call temp_buffer(h, "no conflict"//LF)
+        call temporary_buffer(h, "no conflict"//LF)
         call start_smerge_session(st)
         call check(error,.not. minor_modes%smerge_mode%enabled(), "off")
         call done(h)
@@ -447,14 +446,14 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h, two_way)
+        call temporary_buffer(h, two_way)
         call minor_modes%smerge_mode%enable(st)
 
         body: block
-            call check(error, index(paragraph_separate%value, smerge_parsep_regexp) == 1, "added")
+            call check(error, index(paragraph_separate%value, smerge_parsep_regular_expression) == 1, "added")
             if (allocated(error)) exit body
             call minor_modes%smerge_mode%disable(st)
-            call check(error, index(paragraph_separate%value, smerge_parsep_regexp) == 0, "removed")
+            call check(error, index(paragraph_separate%value, smerge_parsep_regular_expression) == 0, "removed")
         end block body
 
         call done(h)
@@ -468,7 +467,7 @@ contains
         character(len=:), allocatable :: text
 
         if (.not. has_program("diff", error)) return
-        call temp_buffer(h, two_way, "UUU")
+        call temporary_buffer(h, two_way, "UUU")
         call diff_smerge_upper_lower(st)
         d = get_buffer("*vc-diff*")
 
@@ -495,8 +494,8 @@ contains
         type(status_type) :: st
 
         if (.not. has_program("diff", error)) return
-        call temp_buffer(h, "<<<<<<< mine"//LF//"x  y"//LF//"||||||| base"//LF//"x y"//LF//"======="//LF//"x z"//LF// &
-                         ">>>>>>> theirs"//LF, "x  y")
+        call temporary_buffer(h, "<<<<<<< mine"//LF//"x  y"//LF//"||||||| base"//LF//"x y"//LF//"======="//LF//"x z"//LF// &
+                              ">>>>>>> theirs"//LF, "x  y")
         call resolve_smerge(st)
 
         body: block
@@ -517,8 +516,8 @@ contains
 
         if (.not. has_program("diff", error)) return
         if (.not. has_program("patch", error)) return
-        call temp_buffer(h, "<<<<<<< mine"//LF//"X"//LF//"y"//LF//"z"//LF//"||||||| base"//LF//"x"//LF//"y"//LF//"z"//LF// &
-                         "======="//LF//"x"//LF//"y"//LF//"Z"//LF//">>>>>>> theirs"//LF, "X")
+        call temporary_buffer(h, "<<<<<<< mine"//LF//"X"//LF//"y"//LF//"z"//LF//"||||||| base"//LF//"x"//LF//"y"//LF//"z"//LF// &
+                              "======="//LF//"x"//LF//"y"//LF//"Z"//LF//">>>>>>> theirs"//LF, "X")
         call resolve_smerge(st)
 
         body: block
@@ -537,8 +536,8 @@ contains
         type(status_type) :: st
 
         if (.not. has_program("diff", error)) return
-        call temp_buffer(h, "<<<<<<< mine"//LF//"a"//LF//"b"//LF//"c"//LF//"======="//LF//"a"//LF//"B"//LF//"c"//LF// &
-                         ">>>>>>> theirs"//LF, "b")
+        call temporary_buffer(h, "<<<<<<< mine"//LF//"a"//LF//"b"//LF//"c"//LF//"======="//LF//"a"//LF//"B"//LF//"c"//LF// &
+                              ">>>>>>> theirs"//LF, "b")
         call resolve_smerge(st)
 
         body: block
@@ -560,16 +559,16 @@ contains
         character(len=:), allocatable :: file
 
         if (.not. has_program("git", error)) return
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call vc_clear_context()
         vc_handled_backends = [character(len=8) :: "Git"]
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call create_directory_internal(file_name_as_directory(fortmacs_wd)//"build", st)
         call create_directory_internal(tdir(), st)
-        call temp_buffer(h, "")
+        call temporary_buffer(h, "")
         buffers(current)%directory = tdir()
-        call vc_create_repo(vc_backend_named("Git"), st)
+        call vc_create_repository(vc_backend_named("Git"), st)
         file = tdir()//"f.txt"
         call write_file(file, "one"//LF)
         call git("add", "f.txt")
@@ -618,10 +617,10 @@ contains
     end subroutine test_vc_git_conflict
 
     !> The test repository directory.
-    function tdir() result(dir)
-        character(len=:), allocatable :: dir
+    function tdir() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdirectory)
     end function tdir
 
     !> Write TEXT to FILE (write-region ... 'nomessage).
@@ -629,33 +628,33 @@ contains
         character(len=*), intent(in) :: file, text
         type(handle_type) :: old, h
         type(status_type) :: st
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message_text
 
         old = current_buffer()
         call get_or_make_buffer(generate_new_buffer_name(" *smerge-file*"), h, st)
         call set_buffer(h, st)
         call insert(text, st)
-        call write_region(file, .false., st, message=msg)
+        call write_region(file, .false., st, message=message_text)
         call close_buffer(h, st)
         call set_buffer(old, st)
     end subroutine write_file
 
-    !> Run git with ARGS in the test directory; a failure is reported on
+    !> Run git with ARGUMENTS in the test directory; a failure is reported on
     !> standard error (a merge with conflicts fails on purpose).
     subroutine git(a1, a2, a3, a4)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4
-        type(value_type) :: args(8)
+        type(value_type) :: arguments(8)
         type(value_type) :: result
         type(handle_type) :: old, h
         type(status_type) :: st
         integer :: n
 
-        args(1) = value_type(text="-c")
-        args(2) = value_type(text="user.name=t")
-        args(3) = value_type(text="-c")
-        args(4) = value_type(text="user.email=t@t")
-        args(5) = value_type(text=a1)
+        arguments(1) = value_type(text="-c")
+        arguments(2) = value_type(text="user.name=t")
+        arguments(3) = value_type(text="-c")
+        arguments(4) = value_type(text="user.email=t@t")
+        arguments(5) = value_type(text=a1)
         n = 5
         if (present(a2)) call append(a2)
         if (present(a3)) call append(a3)
@@ -664,7 +663,7 @@ contains
         call get_or_make_buffer(generate_new_buffer_name(" *smerge-git*"), h, st)
         call set_buffer(h, st)
         buffers(current)%directory = tdir()
-        call execute_process("git", result, st, destination=value_type(.true.), args=make_list(args(1:n)))
+        call execute_process("git", result, st, destination=value_type(.true.), arguments=make_list(arguments(1:n)))
 
         if (.not. st%ok()) then
             write (error_unit, "(a)") "git "//a1//": "//format_error(st)
@@ -681,7 +680,7 @@ contains
             character(len=*), intent(in) :: a
 
             n = n + 1
-            args(n) = value_type(text=a)
+            arguments(n) = value_type(text=a)
         end subroutine append
     end subroutine git
 end module test_simple_merge_mode_mod

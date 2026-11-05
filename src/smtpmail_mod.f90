@@ -31,10 +31,10 @@
 !>
 !> `send_mail_with_smtp' talks to the server over a TCP connection
 !> (src/sys/system_socket_mod): the greeting, EHLO (or HELO), AUTH with the
-!> mechanisms of `smtpmail_auth_supported', MAIL FROM, RCPT TO, DATA and
+!> mechanisms of `smtpmail_authentication_supported', MAIL FROM, RCPT TO, DATA and
 !> QUIT, keeping the dialogue in the buffer "*trace of SMTP session to
 !> HOST*".  With `smtpmail_queue_mail' true, mail is stored in
-!> `smtpmail_queue_dir' instead and sent later with
+!> `smtpmail_queue_directory' instead and sent later with
 !> \[send_queued_mail_with_smtp].  The variables of a queued message are
 !> kept beside it in Fortran namelist syntax.
 !>
@@ -42,22 +42,22 @@
 module smtpmail_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_FILE_ERROR, FM_ARGS_OUT_OF_RANGE
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, FILE_ERROR_CODE, ARGUMENTS_OUT_OF_RANGE_CODE
     use handle_mod, only: handle_type
     use data_mod, only: choice_setting_type
     use string_type_mod, only: string_type, append_string, prepend_string
     use character_mod, only: downcase_ascii
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, erase_buffer, &
                           close_buffer, generate_new_buffer_name
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_eob, buffer_substring_no_properties, &
-                                     buffer_string, delete_region, narrow_to_region, widen, insert_buffer_substring, &
-                                     line_beginning_position, line_end_position, preceding_char, system_name, user_full_name, &
-                                     user_login_name
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_end_of_buffer, &
+                                     buffer_substring_no_properties, buffer_string, delete_region, narrow_to_region, widen, &
+                                     insert_buffer_substring, line_beginning_position, line_end_position, preceding_character, &
+                                     system_name, user_full_name, user_login_name
     use insert_delete_mod, only: insert
     use editing_commands_mod, only: forward_line, end_of_line
-    use syntax_mod, only: skip_chars_forward
-    use search_mod, only: re_search_forward, looking_at, match_beginning, match_end, replace_match, string_match, &
-                          case_fold_search, string_index_to_offset, regexp_quote, SEARCH_NOERROR, SEARCH_MOVE
+    use syntax_mod, only: skip_characters_forward
+    use search_mod, only: regular_expression_search_forward, looking_at, match_beginning, match_end, replace_match, string_match, &
+                          case_fold_search, string_index_to_offset, regular_expression_quote, SEARCH_NOERROR, SEARCH_MOVE
     use basic_subprograms_mod, only: match_string, read_number, progress_reporter_type, make_progress_reporter, &
                                      progress_reporter_update, progress_reporter_done
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker, set_marker
@@ -68,10 +68,10 @@ module smtpmail_mod
     use display_engine_mod, only: message
     use minibuffer_reading_mod, only: read_string
     use replace_mod, only: format_prompt
-    use auth_source_mod, only: read_passwd
+    use authentication_source_mod, only: read_password
     use coding_mod, only: buffer_file_coding_system, coding_system_mime_charset, coding_system_for_write, &
-                          coding_system_for_read, coding_system_change_eol_conversion, encode_coding_string, &
-                          decode_coding_string, EOL_UNIX
+                          coding_system_for_read, coding_system_change_end_of_line_conversion, encode_coding_string, &
+                          decode_coding_string, END_OF_LINE_UNIX
     use time_functions_mod, only: format_time_string
     use utility_functions_mod, only: base64_encode_string, base64_decode_string, md5, secure_hash, random, SECURE_HASH_MD5
     use simple_mod, only: count_lines
@@ -83,13 +83,13 @@ module smtpmail_mod
     use send_mail_mod, only: mail_interactive, mail_specify_envelope_from, get_mail_envelope_from, mail_from_style, &
                              mail_send_nonascii, sendmail_coding_system, mail_header_separator, &
                              undelimit_mail_sendmail_header, do_mail_fcc, select_message_coding_system, &
-                             MAIL_FROM_STYLE_SIMPLE, MAIL_FROM_STYLE_PARENS, MAIL_FROM_STYLE_ANGLES, MAIL_SEND_NONASCII_MIME
+                             MAIL_FROM_STYLE_SIMPLE, MAIL_FROM_STYLE_PARENTHESES, MAIL_FROM_STYLE_ANGLES, MAIL_SEND_NONASCII_MIME
     use system_dependent_mod, only: close_fd, input_available, inputs_available, fortmacs_read, fortmacs_strerror
     use system_socket_mod, only: fortmacs_connect, fortmacs_send
     implicit none(type, external)
     private
 
-    public :: send_mail_with_smtp, send_queued_mail_with_smtp, init_smtpmail
+    public :: send_mail_with_smtp, send_queued_mail_with_smtp, initialize_smtpmail
 
     !> The setting `smtpmail_smtp_service': a port number (R6-39:
     !> `smtpmail_smtp_service%port = 587'; negative when none is set) or a
@@ -106,13 +106,13 @@ module smtpmail_mod
     end type smtpmail_smtp_service_choice_setting_type
 
     !> Specify default SMTP server.
-    !> This only has effect if you specify it before `init_smtpmail' runs.
+    !> This only has effect if you specify it before `initialize_smtpmail' runs.
     !> Port of smtpmail.el smtpmail-default-smtp-server (unallocated for
     !> none).
     character(len=:), allocatable, public :: smtpmail_default_smtp_server
 
     !> The name of the host running SMTP server.  Port of smtpmail.el
-    !> smtpmail-smtp-server (unallocated for none; `init_smtpmail' sets
+    !> smtpmail-smtp-server (unallocated for none; `initialize_smtpmail' sets
     !> it from the environment variable SMTPSERVER, else
     !> `smtpmail_default_smtp_server').
     character(len=:), allocatable, public :: smtpmail_smtp_server
@@ -164,7 +164,7 @@ module smtpmail_mod
     character(len=:), allocatable, public :: smtpmail_code_conv_from
 
     !> True means mail is queued; otherwise it is sent immediately.
-    !> If queued, it is stored in the directory `smtpmail_queue_dir' and
+    !> If queued, it is stored in the directory `smtpmail_queue_directory' and
     !> sent with `send_queued_mail_with_smtp'.  Also see
     !> `smtpmail_store_queue_variables'.  Port of smtpmail.el
     !> smtpmail-queue-mail.
@@ -172,9 +172,9 @@ module smtpmail_mod
 
     !> Directory where smtpmail_mod.f90 stores queued mail.
     !> This directory should not be writable by other users.  Port of
-    !> smtpmail.el smtpmail-queue-dir (set by `init_smtpmail' unless
+    !> smtpmail.el smtpmail-queue-dir (set by `initialize_smtpmail' unless
     !> already set).
-    character(len=:), allocatable, public :: smtpmail_queue_dir
+    character(len=:), allocatable, public :: smtpmail_queue_directory
 
     !> If set, print warnings about unknown SMTP extensions.
     !> This is mainly useful for development purposes, to learn about
@@ -183,8 +183,8 @@ module smtpmail_mod
     logical, public :: smtpmail_warn_about_unknown_extensions = .false.
 
     !> File name of queued mail index.
-    !> This is relative to `smtpmail_queue_dir'.  Port of smtpmail.el
-    !> smtpmail-queue-index-file (set by `init_smtpmail' unless already
+    !> This is relative to `smtpmail_queue_directory'.  Port of smtpmail.el
+    !> smtpmail-queue-index-file (set by `initialize_smtpmail' unless already
     !> set).
     character(len=:), allocatable, public :: smtpmail_queue_index_file
 
@@ -210,8 +210,8 @@ module smtpmail_mod
     !> List of supported SMTP AUTH mechanisms.
     !> The list is in preference order: "cram-md5", "plain", "login" and
     !> "xoauth2" are known.  Port of smtpmail.el smtpmail-auth-supported
-    !> (set by `init_smtpmail' unless already set).
-    character(len=:), allocatable, public :: smtpmail_auth_supported(:)
+    !> (set by `initialize_smtpmail' unless already set).
+    character(len=:), allocatable, public :: smtpmail_authentication_supported(:)
 
     !> Value to use for envelope-from address for mail from ambient buffer.
     !> Port of smtpmail.el smtpmail-mail-address (unallocated for none).
@@ -227,7 +227,7 @@ module smtpmail_mod
 
     !> The counter of Message-Id fields, randomly started (message.el
     !> message-unique-id-char; negative until first used).
-    integer(int64) :: message_unique_id_char = -1
+    integer(int64) :: message_unique_id_character = -1
 
     !> The suffix of the file that keeps the variables of a queued
     !> message beside it (upstream's ".el": the Lisp file is a namelist
@@ -273,15 +273,15 @@ contains
     ! Small helpers
     ! ------------------------------------------------------------------
 
-    ! Search forward for REGEXP up to BOUND; FOUND tells whether it
+    ! Search forward for REGULAR_EXPRESSION up to BOUND; FOUND tells whether it
     ! matched (with MOVE, a failed search moves to BOUND).  Not a port.
-    recursive subroutine search_regexp(regexp, found, status, bound, move)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine search_regular_expression(regular_expression, found, status, bound, move)
+        character(len=*), intent(in) :: regular_expression
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound
         logical, intent(in), optional :: move
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: noerror
 
         noerror = SEARCH_NOERROR
@@ -290,17 +290,17 @@ contains
             if (move) noerror = SEARCH_MOVE
         end if
 
-        call re_search_forward(regexp, pos, status, bound, noerror)
-        found = pos /= 0
-    end subroutine search_regexp
+        call regular_expression_search_forward(regular_expression, position, status, bound, noerror)
+        found = position /= 0
+    end subroutine search_regular_expression
 
     ! The position of marker M.  Not a port.
-    integer(int64) function marker_pos(m) result(pos)
+    integer(int64) function marked_position(m) result(position)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
-        call marker_position(m, pos, st)
-    end function marker_pos
+        call marker_position(m, position, st)
+    end function marked_position
 
     ! A new buffer named after NAME, made current's neighbor (as
     ! generate-new-buffer).  Not a port.
@@ -323,39 +323,39 @@ contains
     end function string_part
 
     ! Narrow the current buffer to its header (message-narrow-to-headers),
-    ! remembering the restriction in BEGV and ZV for `restore_restriction'.
+    ! remembering the restriction in BEGINNING_OF_ACCESSIBLE_PORTION and END_OF_ACCESSIBLE_PORTION for `restore_restriction'.
     ! Port of message.el:message-narrow-to-headers.
-    recursive subroutine narrow_to_headers(begv, zv, status)
-        integer(int64), intent(out) :: begv, zv
+    recursive subroutine narrow_to_headers(beginning_of_accessible_portion, end_of_accessible_portion, status)
+        integer(int64), intent(out) :: beginning_of_accessible_portion, end_of_accessible_portion
         type(status_type), intent(out) :: status
         integer(int64) :: e
         logical :: found
 
-        begv = point_min()
-        zv = point_max()
+        beginning_of_accessible_portion = point_minimum()
+        end_of_accessible_portion = point_maximum()
         call widen()
-        call goto_char(point_min())
-        call search_regexp("^"//regexp_quote(mail_header_separator)//LF, found, status)
+        call goto_character(point_minimum())
+        call search_regular_expression("^"//regular_expression_quote(mail_header_separator)//LF, found, status)
         if (.not. status%ok()) return
 
         if (found) then
             e = match_beginning(0, status)
         else
-            e = point_max()
+            e = point_maximum()
         end if
 
-        call narrow_to_region(point_min(), e, status)
-        call goto_char(point_min())
+        call narrow_to_region(point_minimum(), e, status)
+        call goto_character(point_minimum())
     end subroutine narrow_to_headers
 
-    ! Put back the restriction BEGV to ZV (the end of save-restriction).
+    ! Put back the restriction BEGINNING_OF_ACCESSIBLE_PORTION to END_OF_ACCESSIBLE_PORTION (the end of save-restriction).
     ! Not a port.
-    recursive subroutine restore_restriction(begv, zv)
-        integer(int64), intent(in) :: begv, zv
+    recursive subroutine restore_restriction(beginning_of_accessible_portion, end_of_accessible_portion)
+        integer(int64), intent(in) :: beginning_of_accessible_portion, end_of_accessible_portion
         type(status_type) :: st
 
         call widen()
-        call narrow_to_region(begv, zv, st)
+        call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
     end subroutine restore_restriction
 
     ! ------------------------------------------------------------------
@@ -363,7 +363,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Send the current mail buffer through the SMTP server
-    !> `smtpmail_smtp_server', or queue it in `smtpmail_queue_dir' when
+    !> `smtpmail_smtp_server', or queue it in `smtpmail_queue_directory' when
     !> `smtpmail_queue_mail' is true.  This is a suitable value for
     !> `send_mail_function'.  Port of smtpmail.el:smtpmail-send-it
     !> (expanding mail aliases, RFC 2047 encoding of the header and
@@ -375,7 +375,7 @@ contains
         character(len=:), allocatable :: saved_address, saved_conv, saved_sendmail_coding, conv, failure, charset, message_id, &
                                          sanitized
         logical :: had_address, had_conv, had_sendmail_coding, saved_fold, found, failed
-        integer(int64) :: begv, zv, moved
+        integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion, moved
         type(status_type) :: st
 
         status = status_type()
@@ -385,13 +385,13 @@ contains
         ! local binding in the mail buffer will take effect.
         had_address = allocated(smtpmail_mail_address)
         if (had_address) saved_address = smtpmail_mail_address
-        call narrow_to_headers(begv, zv, status)
+        call narrow_to_headers(beginning_of_accessible_portion, end_of_accessible_portion, status)
 
         if (status%ok()) then
             ! Only look at the headers when fetching the
             ! envelope address.
             call get_mail_address(.false., status)
-            call restore_restriction(begv, zv)
+            call restore_restriction(beginning_of_accessible_portion, end_of_accessible_portion)
         end if
 
         if (.not. status%ok()) then
@@ -455,55 +455,55 @@ contains
             if (len(conv) > 0) call buffer_file_coding_system%set_local(conv)
             call insert_buffer_substring(mailbuf, status)
             if (.not. status%ok()) exit body
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             ! require one newline at the end.
-            if (preceding_char() /= 10) call insert(LF, status)
+            if (preceding_character() /= 10) call insert(LF, status)
             if (.not. status%ok()) exit body
             ! Change header-delimiter to be what sendmail expects.
             call undelimit_mail_sendmail_header(status)
             if (.not. status%ok()) exit body
             call copy_marker_at(point(), delimline, .false., status)
             if (.not. status%ok()) exit body
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             ! ignore any blank lines in the header
             do
-                call search_regexp(LF//LF//LF//"*", found, status, marker_pos(delimline))
+                call search_regular_expression(LF//LF//LF//"*", found, status, marked_position(delimline))
                 if (.not. status%ok()) exit body
                 if (.not. found) exit
-                if (point() >= marker_pos(delimline)) exit
+                if (point() >= marked_position(delimline)) exit
                 call replace_match(LF, status)
                 if (.not. status%ok()) exit body
             end do
 
             case_fold_search%value = .true.
             ! Don't send out a blank subject line
-            call goto_char(point_min())
-            call search_regexp("^Subject:\([ "//TAB//"]*"//LF//"\)+\b", found, status, marker_pos(delimline))
+            call goto_character(point_minimum())
+            call search_regular_expression("^Subject:\([ "//TAB//"]*"//LF//"\)+\b", found, status, marked_position(delimline))
             if (.not. status%ok()) exit body
 
             if (found) then
                 call replace_match("", status)
             else
                 ! This one matches a Subject just before the header delimiter.
-                call search_regexp("^Subject:\([ "//TAB//"]*"//LF//"\)+", found, status, marker_pos(delimline))
+                call search_regular_expression("^Subject:\([ "//TAB//"]*"//LF//"\)+", found, status, marked_position(delimline))
 
                 if (status%ok() .and. found) then
-                    if (match_end(0, st) == marker_pos(delimline)) call replace_match("", status)
+                    if (match_end(0, st) == marked_position(delimline)) call replace_match("", status)
                 end if
             end if
 
             if (.not. status%ok()) exit body
             ! Put the "From:" field in unless for some odd reason
             ! they put one in themselves.
-            call goto_char(point_min())
-            call search_regexp("^From:", found, status, marker_pos(delimline))
+            call goto_character(point_minimum())
+            call search_regular_expression("^From:", found, status, marked_position(delimline))
             if (.not. status%ok()) exit body
             if (.not. found) call insert_from_field(status)
             if (.not. status%ok()) exit body
             ! Insert a `Message-Id:' field if there isn't one yet.
-            call goto_char(point_min())
-            call search_regexp("^Message-Id:", found, status, marker_pos(delimline))
+            call goto_character(point_minimum())
+            call search_regular_expression("^Message-Id:", found, status, marked_position(delimline))
             if (.not. status%ok()) exit body
 
             if (.not. found) then
@@ -513,26 +513,26 @@ contains
 
             if (.not. status%ok()) exit body
             ! Insert a `Date:' field if there isn't one yet.
-            call goto_char(point_min())
-            call search_regexp("^Date:", found, status, marker_pos(delimline))
+            call goto_character(point_minimum())
+            call search_regular_expression("^Date:", found, status, marked_position(delimline))
             if (.not. status%ok()) exit body
             if (.not. found) call insert("Date: "//format_time_string("%a, %d %b %Y %T %z")//LF, status)
             if (.not. status%ok()) exit body
             ! Possibly add a MIME header for the current coding system
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             if (mail_send_nonascii%choice == MAIL_SEND_NONASCII_MIME) then
-                call search_regexp("^MIME-version:", found, status, marker_pos(delimline))
+                call search_regular_expression("^MIME-version:", found, status, marked_position(delimline))
                 if (.not. status%ok()) exit body
 
                 if (.not. found) then
-                    moved = skip_chars_forward(achar(0)//"-"//achar(127), status)
+                    moved = skip_characters_forward(achar(0)//"-"//achar(127), status)
 
-                    if (point() /= point_max() .and. len(conv) > 0) then
+                    if (point() /= point_maximum() .and. len(conv) > 0) then
                         charset = coding_system_mime_charset(conv)
 
                         if (len(charset) > 0) then
-                            call goto_char(marker_pos(delimline))
+                            call goto_character(marked_position(delimline))
                             call insert("MIME-version: 1.0"//LF//"Content-type: text/plain; charset="//charset// &
                                         LF//"Content-Transfer-Encoding: 8bit"//LF, status)
                             if (.not. status%ok()) exit body
@@ -542,8 +542,8 @@ contains
             end if
 
             ! Find and handle any Fcc fields.
-            call goto_char(point_min())
-            call search_regexp("^Fcc:", found, status, marker_pos(delimline))
+            call goto_character(point_minimum())
+            call search_regular_expression("^Fcc:", found, status, marked_position(delimline))
             if (.not. status%ok()) exit body
 
             if (found) then
@@ -562,7 +562,7 @@ contains
 
             case_fold_search%value = .false.
             ! Get recipients' addresses
-            call deduce_recipients(tembuf, point_min(), marker_pos(delimline), smtpmail_recipient_addresses, status)
+            call deduce_recipients(tembuf, point_minimum(), marked_position(delimline), smtpmail_recipient_addresses, status)
             if (.not. status%ok()) exit body
             call delete_bcc(delimline, status)
             if (.not. status%ok()) exit body
@@ -575,11 +575,11 @@ contains
 
                     if (failed) then
                         call sanitize_error_message(failure, sanitized)
-                        call set_error(status, FM_GENERIC_ERROR, "Sending failed: "//sanitized)
+                        call set_error(status, GENERIC_ERROR_CODE, "Sending failed: "//sanitized)
                         exit body
                     end if
                 else
-                    call set_error(status, FM_GENERIC_ERROR, "Sending failed; no recipients")
+                    call set_error(status, GENERIC_ERROR_CODE, "Sending failed; no recipients")
                     exit body
                 end if
             else
@@ -694,21 +694,21 @@ contains
         case (MAIL_FROM_STYLE_ANGLES)
             call insert("From: "//fullname, status)
             if (.not. status%ok()) return
-            fullname_start = point_min() + 6
+            fullname_start = point_minimum() + 6
             call copy_marker_at(point(), fullname_end, .false., status)
             if (.not. status%ok()) return
-            call goto_char(fullname_start)
+            call goto_character(fullname_start)
             ! Look for a character that cannot appear unquoted
             ! according to RFC 822 or its successors.
-            call search_regexp("[^- !#-'*+/-9=?A-Z^-~]", found, status, marker_pos(fullname_end), move=.true.)
+            call search_regular_expression("[^- !#-'*+/-9=?A-Z^-~]", found, status, marked_position(fullname_end), move=.true.)
 
             if (status%ok() .and. found) then
                 ! Quote fullname, escaping specials.
-                call goto_char(fullname_start)
+                call goto_character(fullname_start)
                 call insert('"', status)
 
                 do while (status%ok())
-                    call search_regexp("[""\]", found, status, marker_pos(fullname_end), move=.true.)
+                    call search_regular_expression("[""\]", found, status, marked_position(fullname_end), move=.true.)
                     if (.not. (status%ok() .and. found)) exit
                     call replace_match("\\\&", status, fixedcase=.true.)
                 end do
@@ -718,7 +718,7 @@ contains
 
             call destroy_marker(fullname_end, st)
             if (status%ok()) call insert(" <"//login//">"//LF, status)
-        case (MAIL_FROM_STYLE_PARENS)
+        case (MAIL_FROM_STYLE_PARENTHESES)
             call insert("From: "//login//" (", status)
             if (.not. status%ok()) return
             fullname_start = point()
@@ -726,31 +726,31 @@ contains
             if (.not. status%ok()) return
             call copy_marker_at(point(), fullname_end, .false., status)
             if (.not. status%ok()) return
-            call goto_char(fullname_start)
+            call goto_character(fullname_start)
 
             ! RFC 822 and its successors say \ and
             ! nonmatching parentheses must be
             ! escaped in comments.
             ! Escape every instance of ()\ ...
             do while (status%ok())
-                call search_regexp("[()\]", found, status, marker_pos(fullname_end), move=.true.)
+                call search_regular_expression("[()\]", found, status, marked_position(fullname_end), move=.true.)
                 if (.not. (status%ok() .and. found)) exit
                 call replace_match("\\\&", status, fixedcase=.true.)
             end do
 
             ! ... then undo escaping of matching parentheses,
             ! including matching nested parentheses.
-            call goto_char(fullname_start)
+            call goto_character(fullname_start)
 
             do while (status%ok())
-                call search_regexp("\(\=\|[^\]\(\\\\\)*\)\\(\(\([^\]\|\\\\\)*\)\\)", found, status, &
-                                   marker_pos(fullname_end), move=.true.)
+                call search_regular_expression("\(\=\|[^\]\(\\\\\)*\)\\(\(\([^\]\|\\\\\)*\)\\)", found, status, &
+                                               marked_position(fullname_end), move=.true.)
                 if (.not. (status%ok() .and. found)) exit
                 call replace_match("\1(\3)", status, fixedcase=.true.)
-                call goto_char(fullname_start)
+                call goto_character(fullname_start)
             end do
 
-            call goto_char(marker_pos(fullname_end))
+            call goto_character(marked_position(fullname_end))
             call destroy_marker(fullname_end, st)
             if (status%ok()) call insert(")"//LF, status)
         case (MAIL_FROM_STYLE_SIMPLE)
@@ -773,7 +773,7 @@ contains
         if (had_coding) saved = coding_system_for_write%value
 
         if (len(conv) > 0) then
-            coding_system_for_write = coding_system_change_eol_conversion(conv, EOL_UNIX)
+            coding_system_for_write = coding_system_change_end_of_line_conversion(conv, END_OF_LINE_UNIX)
         else
             call coding_system_for_write%clear()
         end if
@@ -788,7 +788,7 @@ contains
     end subroutine fcc_with_coding
 
     ! Store the message of TEMBUF (the current buffer) in
-    ! `smtpmail_queue_dir': a file named after the time and
+    ! `smtpmail_queue_directory': a file named after the time and
     ! `smtpmail_queue_counter', written with CONV and Unix line ends, a
     ! namelist file beside it with the recipients (and the server
     ! settings with `smtpmail_store_queue_variables'), and its name added
@@ -800,20 +800,20 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file_data, file_variables, coding, index_file
         character(len=40) :: name
-        type(handle_type) :: buffer_data, temp
+        type(handle_type) :: buffer_data, temporary
         type(namelist_group_type) :: group
         type(status_type) :: st
 
         smtpmail_queue_counter = smtpmail_queue_counter + 1
         write (name, "(a, '_', i0)") format_time_string("%Y-%m-%d_%H:%M:%S"), smtpmail_queue_counter
-        call expand_file_name(trim(name), file_data, status, smtpmail_queue_dir)
+        call expand_file_name(trim(name), file_data, status, smtpmail_queue_directory)
         if (.not. status%ok()) return
         file_variables = file_data//QUEUE_VARIABLES_SUFFIX
         call generate_new_buffer(file_name_nondirectory(file_data), buffer_data, status)
         if (.not. status%ok()) return
 
-        if (.not. file_exists(smtpmail_queue_dir)) then
-            call create_directory(smtpmail_queue_dir, status, parents=.true.)
+        if (.not. file_exists(smtpmail_queue_directory)) then
+            call create_directory(smtpmail_queue_directory, status, parents=.true.)
 
             if (.not. status%ok()) then
                 call close_buffer(buffer_data, st)
@@ -832,16 +832,16 @@ contains
             ! with Unix EOLs.
             coding = "undecided"
             if (len(conv) > 0) coding = conv
-            coding = coding_system_change_eol_conversion(coding, EOL_UNIX)
+            coding = coding_system_change_end_of_line_conversion(coding, END_OF_LINE_UNIX)
             call buffer_file_coding_system%set_local(coding)
             call insert_buffer_substring(tembuf, status)
             if (.not. status%ok()) exit body
             call write_file(file_data, .false., status)
             if (.not. status%ok()) exit body
             call queue_variables(group)
-            call generate_new_buffer(" *temp*", temp, status)
+            call generate_new_buffer(" *temp*", temporary, status)
             if (.not. status%ok()) exit body
-            call set_buffer(temp, status)
+            call set_buffer(temporary, status)
 
             if (status%ok()) then
                 call insert(namelist_text(group), status)
@@ -851,11 +851,11 @@ contains
             if (status%ok()) then
                 call erase_buffer(status)
                 if (status%ok()) call insert(file_data//LF, status)
-                call expand_file_name(smtpmail_queue_index_file, index_file, st, smtpmail_queue_dir)
+                call expand_file_name(smtpmail_queue_index_file, index_file, st, smtpmail_queue_directory)
                 if (status%ok()) call write_with_coding(index_file, coding, .true., status)
             end if
 
-            call close_buffer(temp, st)
+            call close_buffer(temporary, st)
         end block body
 
         call close_buffer(buffer_data, st)
@@ -957,12 +957,12 @@ contains
         type(string_type), allocatable :: saved_recipients(:)
         logical :: had_server, had_user, had_address, failed
         type(smtpmail_smtp_service_choice_setting_type) :: saved_service
-        integer(int64) :: inserted, begv, zv
+        integer(int64) :: inserted, beginning_of_accessible_portion, end_of_accessible_portion
         type(status_type) :: st
 
         status = status_type()
         old = current_buffer()
-        call expand_file_name(smtpmail_queue_index_file, qfile, status, smtpmail_queue_dir)
+        call expand_file_name(smtpmail_queue_index_file, qfile, status, smtpmail_queue_directory)
         if (.not. status%ok()) return
         ! The stored variables get temporary values.
         if (allocated(smtpmail_recipient_addresses)) call move_alloc(smtpmail_recipient_addresses, saved_recipients)
@@ -984,9 +984,9 @@ contains
         end if
 
         if (status%ok()) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
-            do while (.not. is_eob())
+            do while (.not. is_end_of_buffer())
                 call buffer_substring_no_properties(point(), line_end_position(), file_data, status)
                 if (.not. status%ok()) exit
                 file_variables = file_data//QUEUE_VARIABLES_SUFFIX
@@ -1004,9 +1004,9 @@ contains
                 if (status%ok() .and. mail_specify_envelope_from) then
                     ! Only look at the headers when fetching the
                     ! envelope address.
-                    call narrow_to_headers(begv, zv, status)
+                    call narrow_to_headers(beginning_of_accessible_portion, end_of_accessible_portion, status)
                     if (status%ok()) call get_mail_envelope_from(envelope_from, status)
-                    call restore_restriction(begv, zv)
+                    call restore_restriction(beginning_of_accessible_portion, end_of_accessible_portion)
                 end if
 
                 if (status%ok()) then
@@ -1025,13 +1025,13 @@ contains
 
                 if (status%ok()) then
                     if (size(smtpmail_recipient_addresses) == 0) then
-                        call set_error(status, FM_GENERIC_ERROR, "Sending failed; no recipients")
+                        call set_error(status, GENERIC_ERROR_CODE, "Sending failed; no recipients")
                     else
                         call send_via_smtp(smtpmail_recipient_addresses, data_buffer, failed, failure, status)
 
                         if (status%ok() .and. failed) then
                             call sanitize_error_message(failure, sanitized)
-                            call set_error(status, FM_GENERIC_ERROR, "Sending failed: "//sanitized)
+                            call set_error(status, GENERIC_ERROR_CODE, "Sending failed: "//sanitized)
                         end if
                     end if
                 end if
@@ -1048,7 +1048,7 @@ contains
         end if
 
         if (status%ok()) then
-            call write_region(qfile, .false., status, point_min(), point_max(), message=message_text)
+            call write_region(qfile, .false., status, point_minimum(), point_maximum(), message=message_text)
             if (status%ok()) call message(message_text)
         end if
 
@@ -1107,7 +1107,7 @@ contains
     recursive subroutine read_queue_variables(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
-        type(handle_type) :: temp, old
+        type(handle_type) :: temporary, old
         type(namelist_group_type), allocatable :: groups(:)
         character(len=:), allocatable :: text, saved
         logical :: had_coding
@@ -1116,9 +1116,9 @@ contains
         type(status_type) :: st
 
         old = current_buffer()
-        call generate_new_buffer(" *temp*", temp, status)
+        call generate_new_buffer(" *temp*", temporary, status)
         if (.not. status%ok()) return
-        call set_buffer(temp, status)
+        call set_buffer(temporary, status)
 
         if (status%ok()) then
             had_coding = allocated(coding_system_for_read%value)
@@ -1134,19 +1134,19 @@ contains
         end if
 
         if (status%ok()) text = buffer_string()
-        call close_buffer(temp, st)
+        call close_buffer(temporary, st)
         if (is_buffer_live(old)) call set_buffer(old, st)
         if (.not. status%ok()) return
         call read_namelist(text, groups, status)
         if (.not. status%ok()) return
 
         if (size(groups) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Unexpected code in """//file//"""")
+            call set_error(status, GENERIC_ERROR_CODE, "Unexpected code in """//file//"""")
             return
         end if
 
         if (groups(1)%name /= "smtpmail") then
-            call set_error(status, FM_GENERIC_ERROR, "Unexpected code in """//file//""": &"//groups(1)%name)
+            call set_error(status, GENERIC_ERROR_CODE, "Unexpected code in """//file//""": &"//groups(1)%name)
             return
         end if
 
@@ -1283,13 +1283,13 @@ contains
         type(smtp_stream_type) :: process
         type(smtp_response_type) :: result
         type(handle_type) :: process_buffer, old
-        type(string_type), allocatable :: extensions(:), auth_mechanisms(:)
+        type(string_type), allocatable :: extensions(:), authentication_mechanisms(:)
         character(len=:), allocatable :: host, envelope_from, greeting, capabilities, size_part
         character(len=24) :: number
         character(len=100) :: retry_message
         logical :: ask, has_greeting, has_capabilities, authenticated, retried
         integer :: attempts, code, n
-        integer(int64) :: begv, zv, estimate
+        integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion, estimate
         type(status_type) :: st
 
         failed = .false.
@@ -1307,20 +1307,20 @@ contains
         if (present(ask_for_password)) ask = ask_for_password
 
         if (.not. allocated(smtpmail_smtp_server)) then
-            call set_error(status, FM_GENERIC_ERROR, "`smtpmail_smtp_server' not defined")
+            call set_error(status, GENERIC_ERROR_CODE, "`smtpmail_smtp_server' not defined")
             return
         end if
 
         host = smtpmail_smtp_server
         ! `smtpmail_mail_address' should be set to the appropriate
         ! buffer-local value by the caller, but in case not:
-        call narrow_to_headers(begv, zv, status)
+        call narrow_to_headers(beginning_of_accessible_portion, end_of_accessible_portion, status)
 
         if (status%ok()) then
             ! Only look at the headers when fetching the
             ! envelope address.
             call envelope_address(envelope_from, status)
-            call restore_restriction(begv, zv)
+            call restore_restriction(beginning_of_accessible_portion, end_of_accessible_portion)
         end if
 
         if (.not. status%ok()) return
@@ -1365,7 +1365,7 @@ contains
 
             call set_buffer(process_buffer, status)
             if (.not. status%ok()) exit done
-            process%read_point = point_min()
+            process%read_point = point_minimum()
             code = 0
             if (has_capabilities) code = smtp_response_code(capabilities)
 
@@ -1380,8 +1380,8 @@ contains
                 if (.not. status%ok()) exit done
             end if
 
-            call get_auth_extension(extensions, auth_mechanisms)
-            call authenticate(process, auth_mechanisms, host, ask, authenticated, failed, failure, status)
+            call get_authentication_extension(extensions, authentication_mechanisms)
+            call authenticate(process, authentication_mechanisms, host, ask, authenticated, failed, failure, status)
             if (failed .or. .not. status%ok()) exit done
 
             if (has_extension(extensions, "onex") .or. has_extension(extensions, "xone")) then
@@ -1410,7 +1410,7 @@ contains
                 ! size estimate:
                 ! Add one byte for each change-of-line
                 ! because of CR-LF representation:
-                estimate = (point_max() - point_min()) + count_lines(point_min(), point_max())
+                estimate = (point_maximum() - point_minimum()) + count_lines(point_minimum(), point_maximum())
                 write (number, "(i0)") estimate
                 size_part = " SIZE="//trim(number)
                 call set_buffer(process_buffer, status)
@@ -1583,7 +1583,7 @@ contains
             if (len(line) == 0) cycle
 
             if (len(line) < 4) then
-                call set_error(status, FM_ARGS_OUT_OF_RANGE, """"//line//""", 4")
+                call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, """"//line//""", 4")
                 return
             end if
 
@@ -1639,7 +1639,7 @@ contains
     ! The mechanisms of the last AUTH extension with parameters in
     ! EXTENSIONS (the value of upstream's auth extension).
     ! Not a port.
-    subroutine get_auth_extension(extensions, mechanisms)
+    subroutine get_authentication_extension(extensions, mechanisms)
         type(string_type), intent(in) :: extensions(:)
         type(string_type), allocatable, intent(out) :: mechanisms(:)
         character(len=:), allocatable :: rest
@@ -1665,9 +1665,9 @@ contains
 
             exit
         end do
-    end subroutine get_auth_extension
+    end subroutine get_authentication_extension
 
-    ! Authenticate with the first mechanism of `smtpmail_auth_supported'
+    ! Authenticate with the first mechanism of `smtpmail_authentication_supported'
     ! the server offers (SERVER_MECHANISMS) that works.  No source of
     ! credentials is ported (auth-source.el): with ASK, the user name
     ! (`smtpmail_smtp_user' when set) and the password are read as the
@@ -1693,11 +1693,11 @@ contains
         status = status_type()
         allocate (mechanisms(0))
 
-        if (allocated(smtpmail_auth_supported)) then
-            do k = 1, size(smtpmail_auth_supported)
+        if (allocated(smtpmail_authentication_supported)) then
+            do k = 1, size(smtpmail_authentication_supported)
                 do j = 1, size(server_mechanisms)
-                    if (server_mechanisms(j)%text == trim(smtpmail_auth_supported(k))) then
-                        call append_string(mechanisms, trim(smtpmail_auth_supported(k)))
+                    if (server_mechanisms(j)%text == trim(smtpmail_authentication_supported(k))) then
+                        call append_string(mechanisms, trim(smtpmail_authentication_supported(k)))
                         exit
                     end if
                 end do
@@ -1714,7 +1714,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call read_passwd("SMTP password for "//user//"@"//host//": ", password, status)
+        call read_password("SMTP password for "//user//"@"//host//": ", password, status)
         if (.not. status%ok()) return
         if (size(mechanisms) == 0) return
         failed = .true.
@@ -1727,7 +1727,7 @@ contains
     end subroutine authenticate
 
     ! Perform authentication of type MECHANISM for USER with PASSWORD.
-    ! MECHANISM should be one of the values in `smtpmail_auth_supported'.
+    ! MECHANISM should be one of the values in `smtpmail_authentication_supported'.
     ! Port of smtpmail.el:smtpmail-try-auth-method (its methods for
     ! cram-md5, login, plain and xoauth2).
     recursive subroutine authenticate_with(process, mechanism, user, password, authenticated, failed, failure, status)
@@ -1821,7 +1821,7 @@ contains
                 authenticated = .true.
             end if
         else
-            call set_error(status, FM_GENERIC_ERROR, "Mechanism "//mechanism//" not implemented")
+            call set_error(status, GENERIC_ERROR_CODE, "Mechanism "//mechanism//" not implemented")
         end if
     end subroutine authenticate_with
 
@@ -1979,7 +1979,7 @@ contains
             end if
         end do
 
-        if (.not. allocated(smtpmail_smtp_server)) call set_error(status, FM_GENERIC_ERROR, "Couldn't contact an SMTP server")
+        if (.not. allocated(smtpmail_smtp_server)) call set_error(status, GENERIC_ERROR_CODE, "Couldn't contact an SMTP server")
     end subroutine read_smtp_server
 
     ! ------------------------------------------------------------------
@@ -2012,7 +2012,7 @@ contains
         call fortmacs_connect(host, service, fd, err, lookup_error)
 
         if (len(lookup_error) > 0) then
-            call set_error(status, FM_GENERIC_ERROR, host//"/"//service//" "//lookup_error)
+            call set_error(status, GENERIC_ERROR_CODE, host//"/"//service//" "//lookup_error)
             return
         end if
 
@@ -2020,7 +2020,7 @@ contains
             ! The error data shows a service name as a string.
             shown = service
             if (verify(service, "0123456789") /= 0) shown = """"//service//""""
-            call set_error(status, FM_FILE_ERROR, "make client process failed: "//fortmacs_strerror(err)//", :name, "// &
+            call set_error(status, FILE_ERROR_CODE, "make client process failed: "//fortmacs_strerror(err)//", :name, "// &
                            STREAM_NAME//", :buffer, #<buffer "//buffers(buffer%index)%name//">, :host, "//host// &
                            ", :service, "//shown//", :coding, .false.")
             return
@@ -2032,14 +2032,14 @@ contains
         process%buffer = buffer
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
-        call copy_marker_at(point_max(), process%mark, .false., status)
+        call copy_marker_at(point_maximum(), process%mark, .false., status)
         if (.not. status%ok()) return
         start = point()
         call get_stream_response(process, start, greeting, has_greeting, status)
         if (.not. status%ok()) return
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
-        start = point_max()
+        start = point_maximum()
         call send_to_stream(process, "EHLO "//smtpmail_fqdn()//CRLF, status)
         if (.not. status%ok()) return
         call get_stream_response(process, start, capabilities, has_capabilities, status)
@@ -2055,18 +2055,18 @@ contains
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: has_text
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint
+        integer(int64) :: original_point
         logical :: found
 
         has_text = .false.
         call set_buffer(process%buffer, status)
         if (.not. status%ok()) return
-        opoint = point()
+        original_point = point()
 
         do
-            call goto_char(start)
+            call goto_character(start)
             if (.not. process%open) exit
-            call search_regexp(END_OF_COMMAND, found, status)
+            call search_regular_expression(END_OF_COMMAND, found, status)
             if (.not. status%ok()) return
             if (found) exit
             call accept_output(process, 50_int32, status)
@@ -2081,7 +2081,7 @@ contains
             has_text = status%ok()
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine get_stream_response
 
     ! Wait up to TIMEOUT_MS milliseconds (negative: until something comes)
@@ -2114,37 +2114,37 @@ contains
         if (.not. status%ok()) return
         call set_buffer(process%buffer, status)
         if (.not. status%ok()) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert(text, status)
         if (.not. status%ok()) return
         call set_marker(process%mark, point(), status, process%buffer)
     end subroutine accept_output
 
-    ! Insert "Process smtpmail MSG" at the process mark of PROCESS, as
+    ! Insert "Process smtpmail MESSAGE" at the process mark of PROCESS, as
     ! the default sentinel does.  Port of
     ! process.c:internal_default_process_sentinel, for this connection.
-    recursive subroutine insert_sentinel_message(process, msg)
+    recursive subroutine insert_sentinel_message(process, message)
         type(smtp_stream_type), intent(inout) :: process
-        character(len=*), intent(in) :: msg
+        character(len=*), intent(in) :: message
         type(handle_type) :: old
-        integer(int64) :: opoint, before, after
+        integer(int64) :: original_point, before, after
         type(status_type) :: st
 
         if (.not. is_buffer_live(process%buffer)) return
         old = current_buffer()
         call set_buffer(process%buffer, st)
         if (.not. st%ok()) return
-        opoint = point()
-        call goto_char(marker_pos(process%mark))
+        original_point = point()
+        call goto_character(marked_position(process%mark))
         before = point()
-        call insert(LF//"Process "//STREAM_NAME//" "//msg, st)
+        call insert(LF//"Process "//STREAM_NAME//" "//message, st)
         after = point()
         call set_marker(process%mark, after, st, process%buffer)
 
-        if (opoint >= before) then
-            call goto_char(opoint + (after - before))
+        if (original_point >= before) then
+            call goto_character(original_point + (after - before))
         else
-            call goto_char(opoint)
+            call goto_character(original_point)
         end if
 
         if (is_buffer_live(old)) call set_buffer(old, st)
@@ -2159,7 +2159,7 @@ contains
         character(len=:), allocatable :: bytes
 
         if (.not. process%open) then
-            call set_error(status, FM_GENERIC_ERROR, "Process "//STREAM_NAME//" not running")
+            call set_error(status, GENERIC_ERROR_CODE, "Process "//STREAM_NAME//" not running")
             return
         end if
 
@@ -2178,7 +2178,7 @@ contains
         status = status_type()
 
         if (.not. process%open) then
-            call set_error(status, FM_GENERIC_ERROR, "Process "//STREAM_NAME//" not running")
+            call set_error(status, GENERIC_ERROR_CODE, "Process "//STREAM_NAME//" not running")
             return
         end if
 
@@ -2187,7 +2187,7 @@ contains
         if (err /= 0) then
             process%open = .false.
             call insert_sentinel_message(process, "connection broken by remote peer"//LF)
-            call set_error(status, FM_GENERIC_ERROR, "process "//STREAM_NAME//" no longer connected to pipe; closed it")
+            call set_error(status, GENERIC_ERROR_CODE, "process "//STREAM_NAME//" no longer connected to pipe; closed it")
         end if
     end subroutine send_bytes
 
@@ -2214,7 +2214,7 @@ contains
         type(smtp_response_type), intent(out) :: response
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text, line
-        integer(int64) :: found, match_end_pos, begin, e
+        integer(int64) :: found, match_end_position, begin, e
         logical :: continue_response, is_first, matched
         integer :: ios
 
@@ -2227,7 +2227,7 @@ contains
         if (.not. status%ok()) return
 
         do while (continue_response)
-            call goto_char(process%read_point)
+            call goto_character(process%read_point)
 
             do
                 call search_forward_crlf(found, status)
@@ -2245,11 +2245,11 @@ contains
                 if (.not. status%ok()) return
                 call set_buffer(process%buffer, status)
                 if (.not. status%ok()) return
-                call goto_char(process%read_point)
+                call goto_character(process%read_point)
             end do
 
-            match_end_pos = point()
-            call buffer_substring_no_properties(process%read_point, match_end_pos - 2, line, status)
+            match_end_position = point()
+            call buffer_substring_no_properties(process%read_point, match_end_position - 2, line, status)
             if (.not. status%ok()) return
 
             if (is_first) then
@@ -2260,7 +2260,7 @@ contains
                 text = text//LF//line
             end if
 
-            call goto_char(process%read_point)
+            call goto_character(process%read_point)
             matched = looking_at("[0-9]+ ", status)
             if (.not. status%ok()) return
 
@@ -2268,7 +2268,7 @@ contains
                 begin = match_beginning(0, status)
                 e = match_end(0, status)
                 if (smtpmail_debug_info) call message(line)
-                process%read_point = match_end_pos
+                process%read_point = match_end_position
                 ! ignore lines that start with "0"
                 matched = looking_at("0[0-9]+ ", status)
                 if (.not. status%ok()) return
@@ -2286,17 +2286,17 @@ contains
 
                 if (matched) then
                     if (smtpmail_debug_info) call message(line)
-                    process%read_point = match_end_pos
+                    process%read_point = match_end_position
                     continue_response = .true.
                 else
-                    process%read_point = match_end_pos
+                    process%read_point = match_end_position
                     continue_response = .false.
                     response%code = 0
                 end if
             end if
         end do
 
-        process%read_point = match_end_pos
+        process%read_point = match_end_position
         response%text = text
     end subroutine receive_response
 
@@ -2322,7 +2322,7 @@ contains
 
         call set_buffer(process%buffer, status)
         if (.not. status%ok()) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         m = string_match("\`AUTH [A-Z]+ ", command, st)
 
         if (m > 0) then
@@ -2375,7 +2375,7 @@ contains
 
         call set_buffer(process%buffer, status)
         if (.not. status%ok()) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         encoded = .false.
 
         if (multibyte .and. allocated(smtpmail_code_conv_from)) then
@@ -2433,8 +2433,8 @@ contains
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
         multibyte = buffers(current)%multibyte
-        call make_progress_reporter(pr, "Sending email ", point_min(), point_max())
-        call goto_char(point_min())
+        call make_progress_reporter(pr, "Sending email ", point_minimum(), point_maximum())
+        call goto_character(point_minimum())
 
         do while (data_continue)
             call set_buffer(buffer, status)
@@ -2443,7 +2443,7 @@ contains
             call buffer_substring_no_properties(line_beginning_position(), line_end_position(), sending_data, status)
             if (.not. status%ok()) return
             call end_of_line(2_int64)
-            data_continue = .not. is_eob()
+            data_continue = .not. is_end_of_buffer()
             call send_data_line(process, sending_data, multibyte, status)
             if (.not. status%ok()) return
         end do
@@ -2468,8 +2468,8 @@ contains
         integer(int64), intent(in) :: header_start, header_end
         type(string_type), allocatable, intent(out) :: recipients(:)
         type(status_type), intent(out) :: status
-        type(handle_type) :: temp, old
-        character(len=:), allocatable :: simple_address_list, addr_regexp, part
+        type(handle_type) :: temporary, old
+        character(len=:), allocatable :: simple_address_list, addr_regular_expression, part
         integer(int64) :: this_line, moved
         logical :: found, continued, saved_fold
         type(status_type) :: st
@@ -2478,9 +2478,9 @@ contains
         allocate (recipients(0))
         old = current_buffer()
         saved_fold = case_fold_search%value
-        call generate_new_buffer(" *temp*", temp, status)
+        call generate_new_buffer(" *temp*", temporary, status)
         if (.not. status%ok()) return
-        call set_buffer(temp, status)
+        call set_buffer(temporary, status)
 
         body: block
             if (.not. status%ok()) exit body
@@ -2488,21 +2488,21 @@ contains
             simple_address_list = ""
             call insert_buffer_substring(text_buffer, status, header_start, header_end)
             if (.not. status%ok()) exit body
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             ! RESENT-* fields should stop processing of regular fields.
-            call search_regexp("^Resent-\(To\|Cc\|Bcc\):", found, status, min(header_end, point_max()))
+            call search_regular_expression("^Resent-\(To\|Cc\|Bcc\):", found, status, min(header_end, point_maximum()))
             if (.not. status%ok()) exit body
 
             if (found) then
-                addr_regexp = "^Resent-\(To\|Cc\|Bcc\):"
+                addr_regular_expression = "^Resent-\(To\|Cc\|Bcc\):"
             else
-                addr_regexp = "^\(To:\|Cc:\|Bcc:\)"
+                addr_regular_expression = "^\(To:\|Cc:\|Bcc:\)"
             end if
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             do
-                call search_regexp(addr_regexp, found, status, min(header_end, point_max()))
+                call search_regular_expression(addr_regular_expression, found, status, min(header_end, point_maximum()))
                 if (.not. status%ok()) exit body
                 if (.not. found) exit
                 this_line = match_beginning(0, st)
@@ -2534,30 +2534,30 @@ contains
 
             call insert(part, status)
             if (.not. status%ok()) exit body
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             ! tidiness in case hook is not robust when it looks at this
             do
-                call search_regexp("[ "//TAB//"]+", found, status, min(header_end, point_max()))
+                call search_regular_expression("[ "//TAB//"]+", found, status, min(header_end, point_maximum()))
                 if (.not. status%ok()) exit body
                 if (.not. found) exit
                 call replace_match(" ", status)
                 if (.not. status%ok()) exit body
             end do
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             do
-                call search_regexp(" \([^ ]+\) ", found, status, point_max())
+                call search_regular_expression(" \([^ ]+\) ", found, status, point_maximum())
                 if (.not. status%ok()) exit body
                 if (.not. found) exit
-                call goto_char(point() - 1)
+                call goto_character(point() - 1)
                 call prepend_string(recipients, match_string(1))
             end do
         end block body
 
         case_fold_search%value = saved_fold
-        call close_buffer(temp, st)
+        call close_buffer(temporary, st)
         if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine deduce_recipients
 
@@ -2570,18 +2570,18 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: b, moved
         logical :: found, saved_fold, continued
-        type(handle_type) :: opoint
+        type(handle_type) :: original_point
         type(status_type) :: st
 
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
-        call copy_marker_at(point(), opoint, .false., status)
+        call copy_marker_at(point(), original_point, .false., status)
         if (.not. status%ok()) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         ! iterate over all Bcc: lines
         do
-            call search_regexp("^\(RESENT-\)?Bcc:", found, status, marker_pos(header_end))
+            call search_regular_expression("^\(RESENT-\)?Bcc:", found, status, marked_position(header_end))
             if (.not. status%ok()) exit
             if (.not. found) exit
             b = match_beginning(0, status)
@@ -2593,7 +2593,7 @@ contains
             do
                 continued = looking_at("^[ "//TAB//"].*"//LF, status)
                 if (.not. status%ok()) exit
-                if (.not. (continued .and. point() < marker_pos(header_end))) exit
+                if (.not. (continued .and. point() < marked_position(header_end))) exit
                 call replace_match("", status)
                 if (.not. status%ok()) exit
             end do
@@ -2602,8 +2602,8 @@ contains
         end do
 
         case_fold_search%value = saved_fold
-        call goto_char(marker_pos(opoint))
-        call destroy_marker(opoint, st)
+        call goto_character(marked_position(original_point))
+        call destroy_marker(original_point, st)
     end subroutine delete_bcc
 
     ! A unique Message-Id field value for the message in the current
@@ -2638,10 +2638,10 @@ contains
         type(time_type) :: now
 
         ! 2^16 * 25 just fits into 4 digits i base 36.
-        if (message_unique_id_char < 0) then
-            message_unique_id_char = random(BASE)
+        if (message_unique_id_character < 0) then
+            message_unique_id_character = random(BASE)
         else
-            message_unique_id_char = mod(message_unique_id_char + 1, BASE)
+            message_unique_id_character = mod(message_unique_id_character + 1, BASE)
         end if
 
         now = current_time()
@@ -2650,14 +2650,14 @@ contains
         ! to this newsreader, other newsreaders might otherwise generate
         ! the same ID via another algorithm.
         id = number_base36(int(user_uid(), int64), -1)//number_base36(ishft(tm, -16) + &
-                                                                      ishft(mod(message_unique_id_char, 25_int64), 16), 4)// &
-             number_base36(iand(tm, int(z'ffff', int64)) + ishft(message_unique_id_char/25, 16), 4)//".fsf"
+                                                                      ishft(mod(message_unique_id_character, 25_int64), 16), 4)// &
+             number_base36(iand(tm, int(z'ffff', int64)) + ishft(message_unique_id_character/25, 16), 4)//".fsf"
     end subroutine make_message_unique_id
 
-    ! NUM in LEN digits of base 36 (as many as needed when LEN is
+    ! NUMBER in LEN digits of base 36 (as many as needed when LEN is
     ! negative), digit 0 being "z".  Port of message.el:message-number-base36.
-    recursive function number_base36(num, length) result(digits)
-        integer(int64), intent(in) :: num
+    recursive function number_base36(number, length) result(digits)
+        integer(int64), intent(in) :: number
         integer, intent(in) :: length
         character(len=:), allocatable :: digits
         character(len=*), parameter :: ALPHABET = "zyxwvutsrqponmlkjihgfedcba9876543210"
@@ -2665,7 +2665,7 @@ contains
         integer(int64) :: k
 
         if (length < 0) then
-            stop_here = num <= 0
+            stop_here = number <= 0
         else
             stop_here = length == 0
         end if
@@ -2673,8 +2673,8 @@ contains
         if (stop_here) then
             digits = ""
         else
-            k = mod(num, 36_int64) + 1
-            digits = number_base36(num/36, length - 1)//ALPHABET(k:k)
+            k = mod(number, 36_int64) + 1
+            digits = number_base36(number/36, length - 1)//ALPHABET(k:k)
         end if
     end function number_base36
 
@@ -2768,9 +2768,9 @@ contains
 
     !> Set the defaults of smtpmail's options that are computed
     !> (`smtpmail_smtp_server' from the environment variable SMTPSERVER,
-    !> `smtpmail_queue_dir', `smtpmail_queue_index_file',
-    !> `smtpmail_auth_supported') and define its command.  Not a port.
-    subroutine init_smtpmail()
+    !> `smtpmail_queue_directory', `smtpmail_queue_index_file',
+    !> `smtpmail_authentication_supported') and define its command.  Not a port.
+    subroutine initialize_smtpmail()
         character(len=:), allocatable :: value
         logical :: found
 
@@ -2784,12 +2784,13 @@ contains
             end if
         end if
 
-        if (.not. allocated(smtpmail_queue_dir)) smtpmail_queue_dir = "~/Mail/queued-mail/"
+        if (.not. allocated(smtpmail_queue_directory)) smtpmail_queue_directory = "~/Mail/queued-mail/"
         if (.not. allocated(smtpmail_queue_index_file)) smtpmail_queue_index_file = "index"
-        if (.not. allocated(smtpmail_auth_supported)) smtpmail_auth_supported = [character(len=8) :: "cram-md5", "plain", "login"]
+        if (.not. allocated(smtpmail_authentication_supported)) smtpmail_authentication_supported = [character( &
+                                                                                             len=8) :: "cram-md5", "plain", "login"]
         if (.not. allocated(smtpmail_recipient_addresses)) allocate (smtpmail_recipient_addresses(0))
         commands%send_queued_mail_with_smtp%execute => send_queued_mail_with_smtp
-    end subroutine init_smtpmail
+    end subroutine initialize_smtpmail
 
     ! ------------------------------------------------------------------
     ! The setting smtpmail_smtp_service

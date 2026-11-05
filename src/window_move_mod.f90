@@ -32,9 +32,9 @@
 !> docs/status/window_move_mod.md.
 module window_move_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, USER_ERROR_CODE
     use handle_mod, only: handle_type
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
     use commands_mod, only: commands
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
@@ -53,16 +53,16 @@ module window_move_mod
     public :: windmove_find_other_window, windmove_do_window_select, select_window_left, select_window_up, select_window_right, &
               select_window_down, windmove_mode, windmove_default_keybindings, &
               windmove_delete_in_direction, delete_window_left, delete_window_up, delete_window_right, &
-              delete_window_down, windmove_delete_default_keybindings, init_windmove
+              delete_window_down, windmove_delete_default_keybindings, initialize_windmove
     public :: windmove_create_window_procedure
 
     abstract interface
         !> A function `windmove_do_window_select' calls to make a window when
         !> there is none in DIRECTION as seen from WINDOW (see
-        !> `windmove_create_window%procedure'): ARG is the numeric prefix
+        !> `windmove_create_window%procedure'): ARGUMENT is the numeric prefix
         !> argument (absent for none).  It returns in NEW the window to select, or sets
         !> NO_SELECT to select none.
-        subroutine windmove_create_window_procedure(direction, window, new, no_select, status, arg)
+        subroutine windmove_create_window_procedure(direction, window, new, no_select, status, argument)
             import :: handle_type, int64, status_type
             implicit none(type, external)
             integer, intent(in) :: direction
@@ -70,7 +70,7 @@ module window_move_mod
             type(handle_type), intent(out) :: new
             logical, intent(out) :: no_select
             type(status_type), intent(out) :: status
-            integer(int64), intent(in), optional :: arg
+            integer(int64), intent(in), optional :: argument
         end subroutine windmove_create_window_procedure
     end interface
 
@@ -97,7 +97,7 @@ module window_move_mod
     !> This variable may also be a function to be called in this circumstance
     !> by `windmove_do_window_select': point `windmove_create_window%procedure'
     !> at it.  The function should accept then as argument the DIRECTION
-    !> targeted, a numeric prefix ARG and a WINDOW corresponding to the
+    !> targeted, a numeric prefix ARGUMENT and a WINDOW corresponding to the
     !> currently selected window.  It should also return a valid window
     !> that `windmove_do_window_select' will select, or NO_SELECT to
     !> ignore that final selection.
@@ -160,38 +160,38 @@ contains
 
     !> Return the window object in direction DIRECTION as seen from WINDOW.
     !> WINDOW must be a live window and defaults to the selected one.
-    !> Optional ARG, if negative, means to use the right or bottom edge of
+    !> Optional ARGUMENT, if negative, means to use the right or bottom edge of
     !> WINDOW as reference position, instead of `window_point'; if positive,
     !> use the left or top edge of WINDOW as reference point.  Port of
     !> windmove.el:windmove-find-other-window.
-    function windmove_find_other_window(direction, arg, window) result(other)
+    function windmove_find_other_window(direction, argument, window) result(other)
         integer, intent(in) :: direction
-        integer(int64), intent(in), optional :: arg
+        integer(int64), intent(in), optional :: argument
         type(handle_type), intent(in), optional :: window
         type(handle_type) :: other
 
-        other = window_in_direction(direction, window, arg, windmove_wrap_around, MINIBUF_YES)
+        other = window_in_direction(direction, window, argument, windmove_wrap_around, MINIBUF_YES)
     end function windmove_find_other_window
 
     !> Move to the window at direction DIRECTION as seen from WINDOW.
-    !> DIRECTION, ARG, and WINDOW are handled as by `windmove_find_other_window'.
+    !> DIRECTION, ARGUMENT, and WINDOW are handled as by `windmove_find_other_window'.
     !> If no window is at direction DIRECTION, an error condition occurs.
     !> If `windmove_create_window%procedure' is set, call that function with
-    !> DIRECTION, ARG and WINDOW.  If `windmove_create_window' is true, try
+    !> DIRECTION, ARGUMENT and WINDOW.  If `windmove_create_window' is true, try
     !> to create a new window in direction DIRECTION instead.  Port of
     !> windmove.el:windmove-do-window-select (repeating a command to
     !> override `no_other_window' is Deferred with window parameters).
-    subroutine windmove_do_window_select(direction, status, arg, window)
+    subroutine windmove_do_window_select(direction, status, argument, window)
         integer, intent(in) :: direction
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
+        integer(int64), intent(in), optional :: argument
         type(handle_type), intent(in), optional :: window
         type(handle_type) :: other_window, w
         logical :: no_select
 
         status = status_type()
         no_select = .false.
-        other_window = windmove_find_other_window(direction, arg, window)
+        other_window = windmove_find_other_window(direction, argument, window)
 
         ! Create window if needed.
         if ((windmove_create_window%value .or. associated(windmove_create_window%procedure)) .and. &
@@ -203,7 +203,7 @@ contains
             end if
 
             if (associated(windmove_create_window%procedure)) then
-                call windmove_create_window%procedure(direction, w, other_window, no_select, status, arg)
+                call windmove_create_window%procedure(direction, w, other_window, no_select, status, argument)
             else
                 call split_window(w, 0, .false., direction == DIRECTION_LEFT .or. direction == DIRECTION_RIGHT, &
                                   other_window, status, &
@@ -216,32 +216,32 @@ contains
         if (no_select) return
 
         if (other_window%index == 0) then
-            call set_error(status, FM_USER_ERROR, "No window "//direction_name(direction)//" from selected window")
+            call set_error(status, USER_ERROR_CODE, "No window "//direction_name(direction)//" from selected window")
         else if (is_inactive_minibuffer_window(other_window)) then
-            call set_error(status, FM_USER_ERROR, "Minibuffer is inactive")
+            call set_error(status, USER_ERROR_CODE, "Minibuffer is inactive")
         else
             call select_window(other_window, status)
         end if
     end subroutine windmove_do_window_select
 
-    !> The numeric value of the prefix argument, as ARG for the windmove
+    !> The numeric value of the prefix argument, as ARGUMENT for the windmove
     !> commands: present only if there is one.  Not a port.
     subroutine do_window_select_with_prefix(direction, status)
         integer, intent(in) :: direction
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             call windmove_do_window_select(direction, status)
         else
-            call windmove_do_window_select(direction, status, prefix_numeric_value(current_prefix_arg))
+            call windmove_do_window_select(direction, status, prefix_numeric_value(current_prefix_argument))
         end if
     end subroutine do_window_select_with_prefix
 
     !> Select the window to the left of the current one.
     !> With no prefix argument, or with prefix argument equal to zero,
     !> "left" is relative to the position of point in the window; otherwise
-    !> it is relative to the top edge (for positive ARG) or the bottom edge
-    !> (for negative ARG) of the current window.
+    !> it is relative to the top edge (for positive ARGUMENT) or the bottom edge
+    !> (for negative ARGUMENT) of the current window.
     !> If no window is at the desired location, an error condition occurs
     !> unless `windmove_create_window' is true and a new window is created.
     !> Port of windmove.el:windmove-left.
@@ -254,8 +254,8 @@ contains
     !> Select the window above the current one.
     !> With no prefix argument, or with prefix argument equal to zero, "up"
     !> is relative to the position of point in the window; otherwise it is
-    !> relative to the left edge (for positive ARG) or the right edge (for
-    !> negative ARG) of the current window.
+    !> relative to the left edge (for positive ARGUMENT) or the right edge (for
+    !> negative ARGUMENT) of the current window.
     !> If no window is at the desired location, an error condition occurs
     !> unless `windmove_create_window' is true and a new window is created.
     !> Port of windmove.el:windmove-up.
@@ -268,8 +268,8 @@ contains
     !> Select the window to the right of the current one.
     !> With no prefix argument, or with prefix argument equal to zero,
     !> "right" is relative to the position of point in the window;
-    !> otherwise it is relative to the top edge (for positive ARG) or the
-    !> bottom edge (for negative ARG) of the current window.
+    !> otherwise it is relative to the top edge (for positive ARGUMENT) or the
+    !> bottom edge (for negative ARGUMENT) of the current window.
     !> If no window is at the desired location, an error condition occurs
     !> unless `windmove_create_window' is true and a new window is created.
     !> Port of windmove.el:windmove-right.
@@ -282,8 +282,8 @@ contains
     !> Select the window below the current one.
     !> With no prefix argument, or with prefix argument equal to zero,
     !> "down" is relative to the position of point in the window; otherwise
-    !> it is relative to the left edge (for positive ARG) or the right edge
-    !> (for negative ARG) of the current window.
+    !> it is relative to the left edge (for positive ARGUMENT) or the right edge
+    !> (for negative ARGUMENT) of the current window.
     !> If no window is at the desired location, an error condition occurs
     !> unless `windmove_create_window' is true and a new window is created.
     !> Port of windmove.el:windmove-down.
@@ -383,7 +383,7 @@ contains
     end subroutine windmove_default_keybindings
 
     !> Delete the window at direction DIRECTION.
-    !> If prefix ARG is C-u, also kill the buffer in that window.
+    !> If prefix ARGUMENT is C-u, also kill the buffer in that window.
     !> With M-0 prefix, delete the selected window and
     !> select the window at direction DIRECTION.
     !> When `windmove_wrap_around' is true, takes the window
@@ -396,27 +396,27 @@ contains
 
         status = status_type()
 
-        ! ARG is the raw prefix argument: only a number is a SIGN.
-        if (current_prefix_arg%kind == PREFIX_NUMBER) then
-            other_window = window_in_direction(direction, sign=current_prefix_arg%value, wrap=windmove_wrap_around, &
+        ! ARGUMENT is the raw prefix argument: only a number is a SIGN.
+        if (current_prefix_argument%kind == PREFIX_NUMBER) then
+            other_window = window_in_direction(direction, sign=current_prefix_argument%value, wrap=windmove_wrap_around, &
                                                minibuf=MINIBUF_NO)
         else
             other_window = window_in_direction(direction, wrap=windmove_wrap_around, minibuf=MINIBUF_NO)
         end if
 
         if (other_window%index == 0) then
-            call set_error(status, FM_USER_ERROR, "No window "//direction_name(direction)//" from selected window")
+            call set_error(status, USER_ERROR_CODE, "No window "//direction_name(direction)//" from selected window")
             return
         end if
 
-        if (current_prefix_arg%kind == PREFIX_RAW .and. current_prefix_arg%value == 4) then
+        if (current_prefix_argument%kind == PREFIX_RAW .and. current_prefix_argument%value == 4) then
             ! (A copy: closing the buffer changes the window's.)
             buffer = windows(other_window%index)%buffer
             call close_buffer(buffer, status)
             if (.not. status%ok()) return
         end if
 
-        if (.not. (current_prefix_arg%kind == PREFIX_NUMBER .and. current_prefix_arg%value == 0)) then
+        if (.not. (current_prefix_argument%kind == PREFIX_NUMBER .and. current_prefix_argument%value == 0)) then
             call delete_window(other_window, status)
         else
             selected = selected_frame%selected_window
@@ -427,7 +427,7 @@ contains
     end subroutine windmove_delete_in_direction
 
     !> Delete the window to the left of the current one.
-    !> If prefix ARG is C-u, delete the selected window and
+    !> If prefix ARGUMENT is C-u, delete the selected window and
     !> select the window that was to the left of the current one.  Port of
     !> windmove.el:windmove-delete-left.
     recursive subroutine delete_window_left(status)
@@ -437,7 +437,7 @@ contains
     end subroutine delete_window_left
 
     !> Delete the window above the current one.
-    !> If prefix ARG is C-u, delete the selected window and
+    !> If prefix ARGUMENT is C-u, delete the selected window and
     !> select the window that was above the current one.  Port of
     !> windmove.el:windmove-delete-up.
     recursive subroutine delete_window_up(status)
@@ -447,7 +447,7 @@ contains
     end subroutine delete_window_up
 
     !> Delete the window to the right of the current one.
-    !> If prefix ARG is C-u, delete the selected window and
+    !> If prefix ARGUMENT is C-u, delete the selected window and
     !> select the window that was to the right of the current one.  Port of
     !> windmove.el:windmove-delete-right.
     recursive subroutine delete_window_right(status)
@@ -457,7 +457,7 @@ contains
     end subroutine delete_window_right
 
     !> Delete the window below the current one.
-    !> If prefix ARG is C-u, delete the selected window and
+    !> If prefix ARGUMENT is C-u, delete the selected window and
     !> select the window that was below the current one.  Port of
     !> windmove.el:windmove-delete-down.
     recursive subroutine delete_window_down(status)
@@ -496,21 +496,21 @@ contains
         call install_windmove_defaults(key_prefix, with, DELETE_COMMANDS, ARROW_KEYS, status)
     end subroutine windmove_delete_default_keybindings
 
-    recursive subroutine cmd_windmove_default_keybindings(status)
+    recursive subroutine execute_windmove_default_keybindings(status)
         type(status_type), intent(out) :: status
 
         call windmove_default_keybindings(status)
-    end subroutine cmd_windmove_default_keybindings
+    end subroutine execute_windmove_default_keybindings
 
-    recursive subroutine cmd_windmove_delete_default_keybindings(status)
+    recursive subroutine execute_windmove_delete_default_keybindings(status)
         type(status_type), intent(out) :: status
 
         call windmove_delete_default_keybindings(status)
-    end subroutine cmd_windmove_delete_default_keybindings
+    end subroutine execute_windmove_delete_default_keybindings
 
     !> Define Windmove mode (on, its :init-value) and the commands.
     !> Not a port.
-    subroutine init_windmove()
+    subroutine initialize_windmove()
         call minor_modes%windmove_mode%define("windmove_mode", global=.true., hook=windmove_mode_hook, keymap=.true.)
         windmove_mode_map = minor_modes%windmove_mode%map
         call minor_modes%windmove_mode%set_state(.true.)
@@ -519,13 +519,13 @@ contains
         commands%select_window_up%execute => select_window_up
         commands%select_window_right%execute => select_window_right
         commands%select_window_down%execute => select_window_down
-        commands%windmove_default_keybindings%execute => cmd_windmove_default_keybindings
+        commands%windmove_default_keybindings%execute => execute_windmove_default_keybindings
         commands%delete_window_left%execute => delete_window_left
         commands%delete_window_up%execute => delete_window_up
         commands%delete_window_right%execute => delete_window_right
         commands%delete_window_down%execute => delete_window_down
-        commands%windmove_delete_default_keybindings%execute => cmd_windmove_delete_default_keybindings
-    end subroutine init_windmove
+        commands%windmove_delete_default_keybindings%execute => execute_windmove_delete_default_keybindings
+    end subroutine initialize_windmove
 
     !> Forget the procedure of `windmove_create_window', as any assignment
     !> to it does.  Not a port.

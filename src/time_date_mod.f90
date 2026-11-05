@@ -38,22 +38,22 @@ module time_date_mod
                           SECONDS_TO_STRING_EXPANDED = 2
 
     ! seconds-to-string: the units of the plain format, (LIMIT UNIT
-    ! SECS); the last has no limit.
+    ! SECONDS); the last has no limit.
     real(real64), parameter :: PLAIN_LIMITS(5) = [1.0_real64, 100.0_real64, 6000.0_real64, &
                                                   108000.0_real64, 34560000.0_real64]
     character(len=2), parameter :: PLAIN_UNITS(6) = ["ms", "s ", "m ", "h ", "d ", "y "]
-    integer, parameter :: PLAIN_UNIT_LEN(6) = [2, 1, 1, 1, 1, 1]
-    real(real64), parameter :: PLAIN_SECS(6) = [0.001_real64, 1.0_real64, 60.0_real64, 3600.0_real64, &
-                                                86400.0_real64, 365.25_real64*24*3600]
+    integer, parameter :: PLAIN_UNIT_LENGTH(6) = [2, 1, 1, 1, 1, 1]
+    real(real64), parameter :: PLAIN_SECONDS(6) = [0.001_real64, 1.0_real64, 60.0_real64, 3600.0_real64, &
+                                                   86400.0_real64, 365.25_real64*24*3600]
 
-    ! seconds-to-string-readable: (ABBREV-UNIT UNIT UNIT-PLURAL SECS).
+    ! seconds-to-string-readable: (ABBREV-UNIT UNIT UNIT-PLURAL SECONDS).
     character(len=1), parameter :: READABLE_ABBREV(7) = ["Y", "M", "w", "d", "h", "m", "s"]
     character(len=6), parameter :: READABLE_UNIT(7) = ["year  ", "month ", "week  ", "day   ", "hour  ", "minute", &
                                                        "second"]
     character(len=7), parameter :: READABLE_PLURAL(7) = ["years  ", "months ", "weeks  ", "days   ", "hours  ", &
                                                          "minutes", "seconds"]
-    integer(int64), parameter :: READABLE_SECS(7) = [31556952_int64, 2629746_int64, 604800_int64, 86400_int64, &
-                                                     3600_int64, 60_int64, 1_int64]
+    integer(int64), parameter :: READABLE_SECONDS(7) = [31556952_int64, 2629746_int64, 604800_int64, 86400_int64, &
+                                                        3600_int64, 60_int64, 1_int64]
 
 contains
 
@@ -79,7 +79,7 @@ contains
         character(len=:), allocatable :: s
         integer :: how, digits, here, here_pre, k
         logical :: abbreviate, expanded, isfloatp, has_pre
-        real(real64) :: round_to, cnt, cnt_pre, cnt_val
+        real(real64) :: round_to, count, count_pre, count_value
         character(len=:), allocatable :: padding
         character(len=64) :: buffer
         character(len=16) :: format
@@ -131,51 +131,51 @@ contains
 
             here = 1
 
-            do while (here < size(READABLE_SECS))
-                if (delay/real(READABLE_SECS(here), real64) >= 1) exit
+            do while (here < size(READABLE_SECONDS))
+                if (delay/real(READABLE_SECONDS(here), real64) >= 1) exit
                 here = here + 1
             end do
 
             has_pre = .false.
             here_pre = 0
-            cnt_pre = 0
+            count_pre = 0
 
-            if (expanded .and. here < size(READABLE_SECS)) then
+            if (expanded .and. here < size(READABLE_SECONDS)) then
                 here_pre = here
                 here = here + 1
-                cnt_pre = floor(delay/real(READABLE_SECS(here_pre), real64))
-                cnt = lisp_round((delay - cnt_pre*real(READABLE_SECS(here_pre), real64)) &
-                                 /real(READABLE_SECS(here), real64), round_to)
+                count_pre = floor(delay/real(READABLE_SECONDS(here_pre), real64))
+                count = lisp_round((delay - count_pre*real(READABLE_SECONDS(here_pre), real64)) &
+                                   /real(READABLE_SECONDS(here), real64), round_to)
 
-                if (cnt > 0) then
+                if (count > 0) then
                     has_pre = .true.
                 else
-                    cnt = cnt_pre
+                    count = count_pre
                     here = here_pre
                 end if
             end if
 
-            if (.not. has_pre) cnt = lisp_round(delay/real(READABLE_SECS(here), real64), round_to)
-            cnt_val = cnt*round_to
-            isfloatp = digits > 0 .and. cnt_val - floor(cnt_val) > 0
+            if (.not. has_pre) count = lisp_round(delay/real(READABLE_SECONDS(here), real64), round_to)
+            count_value = count*round_to
+            isfloatp = digits > 0 .and. count_value - floor(count_value) > 0
             s = ""
 
             if (has_pre) then
-                write (buffer, "(i0)") int(cnt_pre, int64)
-                s = trim(buffer)//padding//unit_name(cnt_pre, here_pre, abbreviate, .false.)//" "
+                write (buffer, "(i0)") int(count_pre, int64)
+                s = trim(buffer)//padding//unit_name(count_pre, here_pre, abbreviate, .false.)//" "
             end if
 
             if (isfloatp) then
                 write (format, '("(f0.", i0, ")")') digits
-                write (buffer, format) cnt_val
+                write (buffer, format) count_value
                 buffer = adjustl(buffer)
                 if (buffer(1:1) == ".") buffer = "0"//buffer(1:len(buffer) - 1)
             else
-                write (buffer, "(i0)") floor(cnt_val, int64)
+                write (buffer, "(i0)") floor(count_value, int64)
             end if
 
             ! Float formats are always plural.
-            s = s//trim(buffer)//padding//unit_name(cnt_val, here, abbreviate, isfloatp)
+            s = s//trim(buffer)//padding//unit_name(count_value, here, abbreviate, isfloatp)
         else if (.not. (delay > 0)) then
             s = "0s"
         else
@@ -186,23 +186,23 @@ contains
                 k = k + 1
             end do
 
-            write (buffer, "(f0.2)") delay/PLAIN_SECS(k)
+            write (buffer, "(f0.2)") delay/PLAIN_SECONDS(k)
             buffer = adjustl(buffer)
             if (buffer(1:1) == ".") buffer = "0"//buffer(1:len(buffer) - 1)
-            s = trim(buffer)//PLAIN_UNITS(k) (1:PLAIN_UNIT_LEN(k))
+            s = trim(buffer)//PLAIN_UNITS(k) (1:PLAIN_UNIT_LENGTH(k))
         end if
     end function seconds_to_string
 
-    ! The unit HERE for VAL: abbreviated, singular or PLURAL.  Not a port.
-    function unit_name(val, here, abbrev, plural) result(name)
-        real(real64), intent(in) :: val
+    ! The unit HERE for VALUE: abbreviated, singular or PLURAL.  Not a port.
+    function unit_name(value, here, abbrev, plural) result(name)
+        real(real64), intent(in) :: value
         integer, intent(in) :: here
         logical, intent(in) :: abbrev, plural
         character(len=:), allocatable :: name
 
         if (abbrev) then
             name = trim(READABLE_ABBREV(here))
-        else if (.not. plural .and. floor(val) <= 1) then
+        else if (.not. plural .and. floor(value) <= 1) then
             name = trim(READABLE_UNIT(here))
         else
             name = trim(READABLE_PLURAL(here))

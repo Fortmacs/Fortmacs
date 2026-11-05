@@ -26,7 +26,7 @@
 module test_process_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_ARGS_OUT_OF_RANGE
+    use error_mod, only: status_type, format_error, ARGUMENTS_OUT_OF_RANGE_CODE
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use editing_functions_mod, only: buffer_string
@@ -165,12 +165,12 @@ contains
     end subroutine drain
 
     !> The arguments `sh -c SCRIPT'.
-    subroutine sh_args(script, args)
+    subroutine sh_arguments(script, arguments)
         character(len=*), intent(in) :: script
-        type(string_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: arguments(:)
 
-        call append_string(args, "-c", script)
-    end subroutine sh_args
+        call append_string(arguments, "-c", script)
+    end subroutine sh_arguments
 
     !> Upstream's process-test-wait-for-sentinel on `bash -c "exit 20"`
     !> (sh here), waiting with accept-process-output.
@@ -191,12 +191,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         logical, intent(in) :: sit
         type(handle_type) :: process
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
 
         call reset_records()
-        call sh_args("exit 20", args)
-        call start_process("test", null_handle(), "sh", process, st, args)
+        call sh_arguments("exit 20", arguments)
+        call start_process("test", null_handle(), "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call set_process_sentinel(process, st, record_sentinel)
@@ -339,14 +339,14 @@ contains
     subroutine test_default_filter(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
 
         call get_or_make_buffer("*process-test*", buffer, st)
         call set_buffer(buffer, st)
         call erase_buffer(st)
-        call sh_args("echo one; echo two", args)
-        call start_process("printer", buffer, "sh", process, st, args)
+        call sh_arguments("echo one; echo two", arguments)
+        call start_process("printer", buffer, "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call drain(process)
@@ -362,14 +362,14 @@ contains
     subroutine test_exit_abnormally(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
 
         call get_or_make_buffer("*process-test*", buffer, st)
         call set_buffer(buffer, st)
         call erase_buffer(st)
-        call sh_args("exit 3", args)
-        call start_process("failing", buffer, "sh", process, st, args)
+        call sh_arguments("exit 3", arguments)
+        call start_process("failing", buffer, "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call drain(process)
@@ -382,12 +382,12 @@ contains
     subroutine test_kill(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
 
         call reset_records()
-        call sh_args("sleep 100", args)
-        call start_process("sleeper", null_handle(), "sh", process, st, args)
+        call sh_arguments("sleep 100", arguments)
+        call start_process("sleeper", null_handle(), "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call set_process_sentinel(process, st, record_sentinel)
@@ -407,12 +407,12 @@ contains
     subroutine test_delete(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
 
         call reset_records()
-        call sh_args("sleep 100", args)
-        call start_process("doomed", null_handle(), "sh", process, st, args)
+        call sh_arguments("sleep 100", arguments)
+        call start_process("doomed", null_handle(), "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call set_process_sentinel(process, st, record_sentinel)
@@ -433,7 +433,7 @@ contains
     subroutine test_main_thread(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
         logical :: ready
 
@@ -441,8 +441,8 @@ contains
         call set_buffer(buffer, st)
         call erase_buffer(st)
         call reset_records()
-        call sh_args("printf hello", args)
-        call start_process("hello", buffer, "sh", process, st, args)
+        call sh_arguments("printf hello", arguments)
+        call start_process("hello", buffer, "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         ! Wait until a worker has reported something, without taking it.
@@ -468,12 +468,12 @@ contains
     subroutine test_utf8_split(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
 
         call reset_records()
-        call sh_args("printf '\303'; sleep 1; printf '\251'", args)
-        call start_process("split", null_handle(), "sh", process, st, args)
+        call sh_arguments("printf '\303'; sleep 1; printf '\251'", arguments)
+        call start_process("split", null_handle(), "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call set_process_filter(process, st, record_filter)
@@ -517,12 +517,12 @@ contains
     subroutine test_unique_names(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: p1, p2
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
 
-        call sh_args("sleep 100", args)
-        call start_process("twin", null_handle(), "sh", p1, st, args)
-        call start_process("twin", null_handle(), "sh", p2, st, args)
+        call sh_arguments("sleep 100", arguments)
+        call start_process("twin", null_handle(), "sh", p1, st, arguments)
+        call start_process("twin", null_handle(), "sh", p2, st, arguments)
         call check(error, process_name(p1), "twin")
         if (.not. allocated(error)) call check(error, process_name(p2), "twin<1>")
         call destroy_process(p1, st)
@@ -538,16 +538,16 @@ contains
     subroutine test_close_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer, other
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
         type(signal_disposition_type) :: old_hup
 
         call get_or_make_buffer("*process-test*", buffer, st)
         call set_buffer(buffer, st)
         call reset_records()
-        call sh_args("sleep 100", args)
+        call sh_arguments("sleep 100", arguments)
         call default_signal(SIGHUP, old_hup)
-        call start_process("hup", buffer, "sh", process, st, args)
+        call start_process("hup", buffer, "sh", process, st, arguments)
         call restore_signal(SIGHUP, old_hup)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -585,16 +585,16 @@ contains
     subroutine test_workers_beside_main(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
         integer(int64) :: start
         integer :: k
         logical :: ready
 
-        call sh_args("exit 0", args)
+        call sh_arguments("exit 0", arguments)
 
         do k = 1, 100
-            call start_process("short", null_handle(), "sh", process, st, args)
+            call start_process("short", null_handle(), "sh", process, st, arguments)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) return
             call system_clock(start)
@@ -613,20 +613,20 @@ contains
     !> the process at point.
     subroutine test_list_processes(error)
         use buffer_mod, only: get_buffer, current_buffer
-        use editing_functions_mod, only: goto_char, point_min
+        use editing_functions_mod, only: goto_character, point_minimum
         use search_mod, only: search_forward, SEARCH_NOERROR
-        use bindings_mod, only: init_bindings
+        use bindings_mod, only: initialize_bindings
         use simple_mod, only: list_processes, process_menu_delete_process
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, b, old
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
         character(len=:), allocatable :: text
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call init_bindings()
-        call sh_args("sleep 30", args)
-        call start_process("fm-listed", null_handle(), "sh", process, st, args)
+        call initialize_bindings()
+        call sh_arguments("sleep 30", arguments)
+        call start_process("fm-listed", null_handle(), "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call list_processes(st)
@@ -646,8 +646,8 @@ contains
                    index(text, "sh -c sleep 30") > 0, "the listing: "//text)
 
         if (.not. allocated(error)) then
-            call goto_char(point_min())
-            call search_forward("fm-listed", pos, st, noerror=SEARCH_NOERROR)
+            call goto_character(point_minimum())
+            call search_forward("fm-listed", position, st, noerror=SEARCH_NOERROR)
             call process_menu_delete_process(st)
             call check(error, st%ok(), format_error(st))
         end if
@@ -692,7 +692,7 @@ contains
 
         if (.not. allocated(error)) then
             call set_process_window_size(process, 70000_int64, 40_int64, told, st)
-            call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "out of range: "//format_error(st))
+            call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE, "out of range: "//format_error(st))
         end if
 
         call destroy_process(process, st)

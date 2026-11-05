@@ -34,47 +34,48 @@ module fill_mod
     use utility_functions_mod, only: count_characters
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: format_message, status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use data_mod, only: value_eq, symbol_name, logical_setting_type, append_locals_clearer, choice_setting_type
     use buffer_mod, only: buffers, current, fill_column, FILL_COLUMN_NONE, transient_mark_mode, barf_if_buffer_read_only, &
                           is_buffer_modified, restore_buffer_modified, current_buffer, buffer_serial_live
-    use character_mod, only: string_char_and_length
-    use category_mod, only: char_has_category
-    use character_script_mod, only: char_script, script_names
+    use character_mod, only: string_character_and_length
+    use category_mod, only: character_has_category
+    use character_script_mod, only: character_script, script_names
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, buffer_substring, &
-                                     delete_region, char_after, char_before, line_beginning_position, line_end_position, &
-                                     subst_char_in_region, region_beginning, region_end, narrow_to_region, widen, &
-                                     point_marker, char_to_string
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_beginning_of_buffer, &
+                                     is_end_of_buffer, is_beginning_of_line, is_end_of_line, buffer_substring, delete_region, &
+                                     character_after, character_before, line_beginning_position, line_end_position, &
+                                     substitute_character_in_region, region_beginning, region_end, narrow_to_region, widen, &
+                                     point_marker, character_to_string
     use insert_delete_mod, only: insert, insert_before_markers
-    use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line, forward_char, delete_char
+    use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line, forward_character, delete_character
     use text_properties_mod, only: get_text_property, put_text_property, text_property_not_all
-    use syntax_mod, only: skip_chars_forward, skip_chars_backward, skip_syntax_backward, char_syntax
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, search_forward, search_backward, &
-                          match_beginning, match_end, replace_match, regexp_quote, string_match, SEARCH_NOERROR, &
-                          SEARCH_MOVE
+    use syntax_mod, only: skip_characters_forward, skip_characters_backward, skip_syntax_backward, character_syntax
+    use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, search_forward, &
+                          search_backward, match_beginning, match_end, replace_match, regular_expression_quote, string_match, &
+                          SEARCH_NOERROR, SEARCH_MOVE
     use basic_subprograms_mod, only: match_string
     use display_engine_mod, only: message, glyph_columns
     use indent_mod, only: current_column, move_to_column, indent_to, current_indentation, indent_line_to, &
                           current_left_margin, move_to_left_margin, indent_according_to_mode, beginning_of_line_text
     use paragraphs_mod, only: paragraph_start, sentence_end_double_space, sentence_end_without_period, &
-                              sentence_end_without_space, sentence_end_regexp, forward_paragraph, &
-                              init_paragraph_variables
+                              sentence_end_without_space, sentence_end_regular_expression, forward_paragraph, &
+                              initialize_paragraph_variables
     use simple_mod, only: fill_prefix, is_use_region, mark
     use minibuffer_reading_mod, only: is_minibuffer, minibuffer_prompt_end
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     implicit none(type, external)
     private
 
     public :: prefix_at_point
     public :: set_fill_prefix, current_fill_column, canonically_space_region, fill_common_string_prefix, &
               fill_context_prefix, is_fill_single_word_nobreak, is_fill_french_nobreak, is_fill_polish_nobreak, &
-              is_fill_single_char_nobreak, is_fill_nobreak, fill_delete_prefix, fill_delete_newlines, &
+              is_fill_single_character_nobreak, is_fill_nobreak, fill_delete_prefix, fill_delete_newlines, &
               fill_move_to_break_point, fill_newline, fill_indent_to_left_margin, fill_region_as_paragraph, &
               fill_paragraph, fill_region, unfill_paragraph, current_justification, justify_current_line, &
-              unjustify_current_line, unjustify_region, string_width, init_fill, fill_comment_paragraph
+              unjustify_current_line, unjustify_region, string_width, initialize_fill, fill_comment_paragraph
     public :: fill_nobreak_test_procedure, fill_paragraph_procedure
 
     !> Justification styles: the values of `default_justification' (and
@@ -107,12 +108,12 @@ module fill_mod
     !> standard indentation for the whole paragraph.
     !>
     !> If the paragraph has just one line, the indentation is taken from that
-    !> line, but in that case `adaptive_fill_first_line_regexp' also plays
+    !> line, but in that case `adaptive_fill_first_line_regular_expression' also plays
     !> a role.  Port of fill.el adaptive-fill-regexp (unallocated when unset).
-    character(len=:), allocatable, public :: adaptive_fill_regexp
+    character(len=:), allocatable, public :: adaptive_fill_regular_expression
 
     !> Regexp specifying whether to set fill prefix from a one-line paragraph.
-    !> When a paragraph has just one line, then after `adaptive_fill_regexp'
+    !> When a paragraph has just one line, then after `adaptive_fill_regular_expression'
     !> finds the prefix at the beginning of the line, if it doesn't
     !> match this regexp, it is replaced with whitespace.
     !>
@@ -121,7 +122,7 @@ module fill_mod
     !> However, we never use a prefix from a one-line paragraph
     !> if it would act as a paragraph-starter on the second line.  Port of
     !> fill.el adaptive-fill-first-line-regexp.
-    character(len=:), allocatable, public :: adaptive_fill_first_line_regexp
+    character(len=:), allocatable, public :: adaptive_fill_first_line_regular_expression
 
     !> Whether or not filling should try to use the major mode's indentation.
     !> Port of fill.el fill-indent-according-to-mode.
@@ -276,16 +277,17 @@ module fill_mod
 contains
 
     ! Not a port.
-    subroutine init_fill_variables()
-        if (.not. allocated(adaptive_fill_regexp)) then
-            adaptive_fill_regexp = "[-"//char(226)//char(128)//char(147)//"!|#%;>*"//char(194)//char(183)// &
-                                   char(226)//char(128)//char(162)//char(226)//char(128)//char(163)// &
-                                   char(226)//char(129)//char(131)//char(226)//char(151)//char(166)//" "//TAB//"]*"
+    subroutine initialize_fill_variables()
+        if (.not. allocated(adaptive_fill_regular_expression)) then
+            adaptive_fill_regular_expression = "[-"//char(226)//char(128)//char(147)//"!|#%;>*"//char(194)//char(183)// &
+                                               char(226)//char(128)//char(162)//char(226)//char(128)//char(163)// &
+                                               char(226)//char(129)//char(131)//char(226)//char(151)//char(166)//" "//TAB//"]*"
         end if
 
-        if (.not. allocated(adaptive_fill_first_line_regexp)) adaptive_fill_first_line_regexp = "\`[ "//TAB//"]*\'"
-        call init_paragraph_variables()
-    end subroutine init_fill_variables
+        if (.not. allocated(adaptive_fill_first_line_regular_expression)) adaptive_fill_first_line_regular_expression = "\`[ " &
+                                                                                                                       //TAB//"]*\'"
+        call initialize_paragraph_variables()
+    end subroutine initialize_fill_variables
 
     !> Number of columns STRING occupies on display.  Port of
     !> character.c:Fstring_width (no display properties).
@@ -298,7 +300,7 @@ contains
         i = 1
 
         do while (i <= len(string, kind=int64))
-            call string_char_and_length(string, i, c, clen)
+            call string_character_and_length(string, i, c, clen)
             i = i + clen
             width = width + glyph_columns(c, int(width))
         end do
@@ -309,21 +311,21 @@ contains
     !> reinserts the fill prefix in each resulting line.
     !> With a prefix argument, cancel the fill prefix.  Port of
     !> fill.el:set-fill-prefix.
-    subroutine set_fill_prefix(arg)
-        logical, intent(in) :: arg
-        integer(int64) :: left_margin_pos, opoint
+    subroutine set_fill_prefix(argument)
+        logical, intent(in) :: argument
+        integer(int64) :: left_margin_position, original_point
         type(status_type) :: st
 
         if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
 
-        if (.not. arg) then
-            opoint = point()
+        if (.not. argument) then
+            original_point = point()
             call move_to_left_margin(st)
-            left_margin_pos = point()
-            call goto_char(opoint)
+            left_margin_position = point()
+            call goto_character(original_point)
 
-            if (opoint > left_margin_pos) then
-                call buffer_substring(left_margin_pos, opoint, fill_prefix%value, st)
+            if (original_point > left_margin_position) then
+                call buffer_substring(left_margin_position, original_point, fill_prefix%value, st)
 
                 if (allocated(fill_prefix%value)) then
                     if (len(fill_prefix%value) == 0) deallocate (fill_prefix%value)
@@ -347,7 +349,7 @@ contains
     !> number equals or exceeds the local fill-column - right-margin difference.
     !> Port of fill.el:current-fill-column.
     integer(int64) function current_fill_column() result(fc)
-        integer(int64) :: here, here_col, eol, fill_col, change, col, opoint
+        integer(int64) :: here, here_column, line_end, fill_column_value, change, column, original_point
         type(value_type) :: margin
         type(status_type) :: st
         logical :: found
@@ -359,29 +361,29 @@ contains
             return
         end if
 
-        opoint = point()
+        original_point = point()
         here = line_beginning_position()
-        here_col = 0
+        here_column = 0
         call end_of_line()
-        eol = point()
+        line_end = point()
 
         ! Look separately at each region of line with a different
         ! right-margin.
         do
             call get_text_property(here, value_type(name="right_margin"), margin, st)
-            fill_col = fill_column%value
-            if (vtag(margin) == V_INTEGER) fill_col = fill_column%value - xfixnum(margin)
-            call text_property_not_all(here, eol, value_type(name="right_margin"), margin, change, found, st)
+            fill_column_value = fill_column%value
+            if (vtag(margin) == V_INTEGER) fill_column_value = fill_column%value - xfixnum(margin)
+            call text_property_not_all(here, line_end, value_type(name="right_margin"), margin, change, found, st)
             if (.not. found) exit
-            call goto_char(change - 1)
-            col = current_column()
-            if (col >= fill_col) exit
+            call goto_character(change - 1)
+            column = current_column()
+            if (column >= fill_column_value) exit
             here = change
-            here_col = col
+            here_column = column
         end do
 
-        fc = max(here_col, fill_col)
-        call goto_char(opoint)
+        fc = max(here_column, fill_column_value)
+        call goto_character(original_point)
     end function current_fill_column
 
     !> Remove extra spaces between words in region.
@@ -395,27 +397,28 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: end_marker
         type(status_type) :: st
-        character(len=:), allocatable :: end_spc_regexp
-        integer(int64) :: opoint, endpos, pos, from, me0, me1, mb0, keep, moved
+        character(len=:), allocatable :: end_spc_regular_expression
+        integer(int64) :: original_point, endpos, position, from, me0, me1, mb0, keep, moved
         integer(int32) :: c
         logical :: found
 
         status = status_type()
         call copy_marker_at(end, end_marker, .true., st)
-        end_spc_regexp = "\("//sentence_end_regexp()//"\) *\|  +"
-        opoint = point()
-        call goto_char(beginning)
+        end_spc_regular_expression = "\("//sentence_end_regular_expression()//"\) *\|  +"
+        original_point = point()
+        call goto_character(beginning)
         ! Nuke tabs; they get screwed up in a fill.
         ! This is quick, but loses when a tab follows the end of a sentence.
         ! Actually, it is difficult to tell that from "Mr.\tSmith".
         ! Blame the typist.
-        call subst_char_in_region(beginning, end, 9, 32, status)
+        call substitute_character_in_region(beginning, end, 9, 32, status)
 
         do while (status%ok())
             call marker_position(end_marker, endpos, st)
             if (point() >= endpos) exit
-            call re_search_forward(end_spc_regexp, pos, status, bound=endpos, noerror=SEARCH_NOERROR)
-            if (.not. status%ok() .or. pos == 0) exit
+            call regular_expression_search_forward(end_spc_regular_expression, position, status, bound=endpos, &
+                                                   noerror=SEARCH_NOERROR)
+            if (.not. status%ok() .or. position == 0) exit
             me0 = match_end(0, st)
             me1 = match_end(1, st)
             mb0 = match_beginning(0, st)
@@ -430,17 +433,17 @@ contains
                 ! means nothing should be removed, or it means it's the
                 ! "old-style" sentence-end which matches all it can.  Keep only
                 ! 2 spaces.
-                call goto_char(me0)
-                moved = skip_chars_backward(" ", st)
+                call goto_character(me0)
+                moved = skip_characters_backward(" ", st)
                 from = min(me0, merge(2_int64, 1_int64, sentence_end_double_space%value) + point())
-                call goto_char(me0)
+                call goto_character(me0)
             else
                 ! It's not an end of sentence.  Determine number of spaces
                 ! to leave.
-                call goto_char(me0)
-                call goto_char(mb0)
-                moved = skip_chars_backward(" ]})""'", st)
-                call char_before(c, found)
+                call goto_character(me0)
+                call goto_character(mb0)
+                moved = skip_characters_backward(" ]})""'", st)
+                call character_before(c, found)
                 keep = 1
                 if (.not. found) c = 0
 
@@ -448,7 +451,7 @@ contains
                                                            c == iachar("!"))) then
                     keep = 2
                 else if (sentence_end_double_space%value .and. sentence_end_without_period .and. found) then
-                    if (char_syntax(int(c)) == "w") keep = 2
+                    if (character_syntax(int(c)) == "w") keep = 2
                 end if
 
                 if (keep /= 2) then
@@ -460,13 +463,13 @@ contains
                 end if
 
                 from = mb0 + keep
-                call goto_char(me0)
+                call goto_character(me0)
             end if
 
             call delete_region(from, me0, status)
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
         call destroy_marker(end_marker, st)
     end subroutine canonically_space_region
 
@@ -486,8 +489,8 @@ contains
         n = 0
 
         do while (p1 <= len(s1, kind=int64) .and. p2 <= len(s2, kind=int64))
-            call string_char_and_length(s1, p1, c1, l1)
-            call string_char_and_length(s2, p2, c2, l2)
+            call string_character_and_length(s1, p1, c1, l1)
+            call string_character_and_length(s2, p2, c2, l2)
             if (c1 /= c2) exit
             p1 = p1 + l1
             p2 = p2 + l2
@@ -515,8 +518,8 @@ contains
         if (associated(fn)) call fn(string, found)
 
         if (.not. found) then
-            if (.not. allocated(adaptive_fill_regexp)) return
-            if (.not. looking_at(adaptive_fill_regexp, st)) return
+            if (.not. allocated(adaptive_fill_regular_expression)) return
+            if (.not. looking_at(adaptive_fill_regular_expression, st)) return
             string = match_string(0)
             found = .true.
         end if
@@ -529,29 +532,29 @@ contains
     end subroutine fill_match_adaptive_prefix
 
     !> Compute a fill prefix from the text between FROM and TO.
-    !> This uses the variables `adaptive_fill_regexp' and `adaptive_fill_function'
-    !> and `adaptive_fill_first_line_regexp'.  `paragraph_start' also plays a role;
+    !> This uses the variables `adaptive_fill_regular_expression' and `adaptive_fill_function'
+    !> and `adaptive_fill_first_line_regular_expression'.  `paragraph_start' also plays a role;
     !> we reject a prefix based on a one-line paragraph if that prefix would
     !> act as a paragraph-separator.  `found' is .false. for none.  Port of
     !> fill.el:fill-context-prefix.
-    subroutine fill_context_prefix(from, to, prefix, found, first_line_regexp)
+    subroutine fill_context_prefix(from, to, prefix, found, first_line_regular_expression)
         integer(int64), intent(in) :: from, to
         character(len=:), allocatable, intent(out) :: prefix
         logical, intent(out) :: found
-        character(len=*), intent(in), optional :: first_line_regexp
-        character(len=:), allocatable :: first_line_prefix, second_line_prefix, regexp, tmp, result, flr
+        character(len=*), intent(in), optional :: first_line_regular_expression
+        character(len=:), allocatable :: first_line_prefix, second_line_prefix, regular_expression, temporary, result, flr
         logical :: has_first, has_second, matched
-        integer(int64) :: opoint, shortage, index
+        integer(int64) :: original_point, shortage, index
         type(status_type) :: st
 
-        call init_fill_variables()
+        call initialize_fill_variables()
         prefix = ""
         found = .false.
-        flr = adaptive_fill_first_line_regexp
-        if (present(first_line_regexp)) flr = first_line_regexp
-        opoint = point()
-        call goto_char(from)
-        if (is_eol()) shortage = forward_line(1_int64)
+        flr = adaptive_fill_first_line_regular_expression
+        if (present(first_line_regular_expression)) flr = first_line_regular_expression
+        original_point = point()
+        call goto_character(from)
+        if (is_end_of_line()) shortage = forward_line(1_int64)
         ! Move to the second line unless there is just one.
         call move_to_left_margin(st)
         call fill_match_adaptive_prefix(first_line_prefix, has_first)
@@ -568,17 +571,17 @@ contains
                 if (.not. has_first) first_line_prefix = ""
                 ! If the non-whitespace chars match the first line, just use
                 ! it (this subsumes the 2 checks used previously).
-                tmp = second_line_prefix
-                regexp = "\`"
+                temporary = second_line_prefix
+                regular_expression = "\`"
 
                 do
-                    index = string_match("\`[ "//TAB//"]*\([^ "//TAB//"]+\)", tmp, st)
+                    index = string_match("\`[ "//TAB//"]*\([^ "//TAB//"]+\)", temporary, st)
                     if (index == 0 .or. .not. st%ok()) exit
-                    regexp = regexp//".*"//regexp_quote(match_string(1, tmp))
-                    tmp = tmp(match_end(0, st):)
+                    regular_expression = regular_expression//".*"//regular_expression_quote(match_string(1, temporary))
+                    temporary = temporary(match_end(0, st):)
                 end do
 
-                if (string_match(regexp, first_line_prefix, st) > 0) then
+                if (string_match(regular_expression, first_line_prefix, st) > 0) then
                     prefix = second_line_prefix
                     found = .true.
                 else
@@ -606,27 +609,27 @@ contains
             end if
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine fill_context_prefix
 
     !> Don't break a line after the first or before the last word of a sentence.
     !> Port of fill.el:fill-single-word-nobreak-p.
     logical function is_fill_single_word_nobreak() result(nobreak)
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
 
-        nobreak = looking_at("[ "//TAB//"]*\sw+\(?:"//sentence_end_regexp()//"\)[ "//TAB//"]*$", st)
+        nobreak = looking_at("[ "//TAB//"]*\sw+\(?:"//sentence_end_regular_expression()//"\)[ "//TAB//"]*$", st)
         if (nobreak) return
-        opoint = point()
-        moved = skip_chars_backward(" "//TAB, st)
+        original_point = point()
+        moved = skip_characters_backward(" "//TAB, st)
 
         if (skip_syntax_backward("w") /= 0) then
-            if (skip_chars_backward(" "//TAB, st) /= 0) then
-                if (skip_chars_backward(".?!:", st) /= 0) nobreak = looking_at(sentence_end_regexp(), st)
+            if (skip_characters_backward(" "//TAB, st) /= 0) then
+                if (skip_characters_backward(".?!:", st) /= 0) nobreak = looking_at(sentence_end_regular_expression(), st)
             end if
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end function is_fill_single_word_nobreak
 
     !> Return false if French style allows breaking the line at point.
@@ -637,33 +640,33 @@ contains
     !> places.  Port of fill.el:fill-french-nobreak-p.
     logical function is_fill_french_nobreak() result(nobreak)
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
         integer(int32) :: c, d
         logical :: found, found2
 
         nobreak = looking_at("[ "//TAB//"]*[])}"//char(194)//char(187)//"?!;:-]", st)
         if (nobreak) return
-        opoint = point()
-        moved = skip_chars_backward(" "//TAB, st)
+        original_point = point()
+        moved = skip_characters_backward(" "//TAB, st)
 
-        if (.not. is_bol()) then
-            call goto_char(point() - 1)
+        if (.not. is_beginning_of_line()) then
+            call goto_character(point() - 1)
             nobreak = looking_at("[([{"//char(194)//char(171)//"]", st)
 
             if (.not. nobreak) then
                 ! Don't cut right after a single-letter word.
-                call char_before(c, found)
-                call char_after(d, found2)
-                if (found .and. found2) nobreak = (c == 9 .or. c == 32) .and. char_syntax(int(d)) == "w"
+                call character_before(c, found)
+                call character_after(d, found2)
+                if (found .and. found2) nobreak = (c == 9 .or. c == 32) .and. character_syntax(int(d)) == "w"
             end if
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end function is_fill_french_nobreak
 
     !> Return false if Polish style allows breaking the line at point.
     !> This function may be used in the `fill_nobreak_functions' hook.
-    !> It is almost the same as `is_fill_single_char_nobreak', with the
+    !> It is almost the same as `is_fill_single_character_nobreak', with the
     !> exception that it does not require the one-letter word to be
     !> preceded by a space.  This blocks line-breaking in cases like
     !> "(a jednak)".  Port of fill.el:fill-polish-nobreak-p.
@@ -676,28 +679,28 @@ contains
     !> to prevent the breaking of a line just after a one-letter word,
     !> which is an error according to some typographical conventions.
     !> Port of fill.el:fill-single-char-nobreak-p.
-    logical function is_fill_single_char_nobreak() result(nobreak)
+    logical function is_fill_single_character_nobreak() result(nobreak)
         nobreak = two_back_looking_at("[[:space:]][[:alpha:]]")
-    end function is_fill_single_char_nobreak
+    end function is_fill_single_character_nobreak
 
     ! (save-excursion (skip-chars-backward " \t") (backward-char 2)
-    !                 (looking-at REGEXP)); at the start of the buffer
+    !                 (looking-at REGULAR_EXPRESSION)); at the start of the buffer
     ! backward-char signals an error, which counts as nil.  Not a port.
-    logical function two_back_looking_at(regexp) result(matched)
-        character(len=*), intent(in) :: regexp
+    logical function two_back_looking_at(regular_expression) result(matched)
+        character(len=*), intent(in) :: regular_expression
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
 
         matched = .false.
-        opoint = point()
-        moved = skip_chars_backward(" "//TAB, st)
+        original_point = point()
+        moved = skip_characters_backward(" "//TAB, st)
 
-        if (point() - 2 >= point_min()) then
-            call goto_char(point() - 2)
-            matched = looking_at(regexp, st)
+        if (point() - 2 >= point_minimum()) then
+            call goto_character(point() - 2)
+            matched = looking_at(regular_expression, st)
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end function two_back_looking_at
 
     !> Return false if breaking the line at point is allowed.
@@ -705,14 +708,14 @@ contains
     !> and `fill_nobreak_invisible'.  Port of fill.el:fill-nobreak-p.
     logical function is_fill_nobreak() result(nobreak)
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
         integer(int32) :: c
         logical :: found
         integer :: k
 
         nobreak = .false.
-        if (is_bol()) return
-        opoint = point()
+        if (is_beginning_of_line()) return
+        original_point = point()
 
         ! Don't break after a period followed by just one space.  Move back
         ! to the previous place to break.  The reason is that if a period
@@ -720,28 +723,28 @@ contains
         ! sentence.  If we now know it does not end a sentence, avoid
         ! putting it at the end of the line.
         if (sentence_end_double_space%value) then
-            moved = skip_chars_backward(" ", st)
-            call char_before(c, found)
+            moved = skip_characters_backward(" ", st)
+            call character_before(c, found)
             ! There's something more after the space.
             if (found .and. c == iachar(".")) nobreak = looking_at(" [^ "//LF//"]", st)
-            call goto_char(opoint)
+            call goto_character(original_point)
             if (nobreak) return
         end if
 
         ! Don't split a line if the rest would look like a new paragraph.
-        moved = skip_chars_forward(" "//TAB, st)
+        moved = skip_characters_forward(" "//TAB, st)
         ! If this break point is at the end of the line, which can occur
         ! for auto-fill, don't consider the newline which follows as a
         ! reason to return t.
-        if (.not. is_eol()) nobreak = looking_at(paragraph_start%value, st)
-        call goto_char(opoint)
+        if (.not. is_end_of_line()) nobreak = looking_at(paragraph_start%value, st)
+        call goto_character(original_point)
         if (nobreak) return
 
         if (allocated(fill_nobreak_functions)) then
             do k = 1, size(fill_nobreak_functions)
                 if (.not. associated(fill_nobreak_functions(k)%fn)) cycle
                 nobreak = fill_nobreak_functions(k)%fn()
-                call goto_char(opoint)
+                call goto_character(original_point)
                 if (nobreak) return
             end do
         end if
@@ -751,7 +754,7 @@ contains
     !> The first line may not even have a fill prefix.
     !> Point is moved to just past the fill prefix on the first line.
     !> Port of fill.el:fill-delete-prefix.
-    integer(int64) function fill_delete_prefix(from, to, prefix, has_prefix) result(pos)
+    integer(int64) function fill_delete_prefix(from, to, prefix, has_prefix) result(position)
         integer(int64), intent(in) :: from, to
         character(len=*), intent(in) :: prefix
         logical, intent(in) :: has_prefix
@@ -765,14 +768,14 @@ contains
         if (has_prefix) blank = string_match("\`[ "//TAB//"]*\'", prefix, st) > 0
 
         if (has_prefix .and. .not. blank) then
-            fpre = "[ "//TAB//"]*\("//spaces_to_lax(regexp_quote(prefix))//"\)?[ "//TAB//"]*"
+            fpre = "[ "//TAB//"]*\("//spaces_to_lax(regular_expression_quote(prefix))//"\)?[ "//TAB//"]*"
         else
             fpre = "[ "//TAB//"]*"
         end if
 
         ! TO is a marker upstream.
         call copy_marker_at(to, to_marker, .true., st)
-        call goto_char(from)
+        call goto_character(from)
         shortage = forward_line(1_int64)
 
         do
@@ -788,9 +791,9 @@ contains
         end do
 
         call destroy_marker(to_marker, st)
-        call goto_char(from)
-        if (looking_at(fpre, st)) call goto_char(match_end(0, st))
-        pos = point()
+        call goto_character(from)
+        if (looking_at(fpre, st)) call goto_character(match_end(0, st))
+        position = point()
     end function fill_delete_prefix
 
     ! (replace-regexp-in-string "[ \t]+" "[ \t]*" STRING) Not a port.
@@ -822,11 +825,11 @@ contains
 
         nospace_between_words = c >= int(z'FF01') .and. c <= int(z'FFE6')
         if (nospace_between_words) return
-        script = char_script(int(c))
+        script = character_script(int(c))
         if (script <= 0) return
 
         select case (trim(script_names(script)))
-        case ("han", "kana", "bopomofo", "cjk_misc")
+        case ("han", "kana", "bopomofo", "cjk_miscellaneous")
             nospace_between_words = .true.
         case default
             nospace_between_words = .false.
@@ -845,45 +848,46 @@ contains
         logical, intent(in) :: nosqueeze
         integer(int64), intent(in) :: squeeze_after
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: eol_double_space_regexp, se, text
+        character(len=:), allocatable :: end_of_line_double_space_regular_expression, se, text
         type(value_type) :: fill_space
         type(status_type) :: st
         type(handle_type) :: to_marker
-        integer(int64) :: pos, mb, endpos, moved
-        integer(int32) :: prev, next, c
+        integer(int64) :: position, mb, endpos, moved
+        integer(int32) :: previous, next, c
         logical :: found, found2, join
         integer :: at
 
         status = status_type()
         ! TO moves with the text we insert and delete.
         call copy_marker_at(to, to_marker, .false., st)
-        call goto_char(from)
+        call goto_character(from)
         ! Make sure sentences ending at end of line get an extra space.
         ! loses on split abbrevs ("Mr.\nSmith")
-        se = sentence_end_regexp()
+        se = sentence_end_regular_expression()
 
         if (.not. colon_double_space) then
-            eol_double_space_regexp = se//"$"
+            end_of_line_double_space_regular_expression = se//"$"
         else if (string_match("\[[^][]*\(\.\)[^][]*\]", se, st) > 0) then
             ! Try to add the : inside the `sentence_end' regexp.
             at = int(match_beginning(1, st))
-            eol_double_space_regexp = se(1:at - 1)//".:"//se(at + 1:)//"$"
+            end_of_line_double_space_regular_expression = se(1:at - 1)//".:"//se(at + 1:)//"$"
         else
             ! Can't find the right spot to insert the colon.
-            eol_double_space_regexp = "[.?!:][])}""']*$"
+            end_of_line_double_space_regular_expression = "[.?!:][])}""']*$"
         end if
 
         do
             call marker_position(to_marker, endpos, st)
-            call re_search_forward(eol_double_space_regexp, pos, status, bound=endpos, noerror=SEARCH_NOERROR)
-            if (.not. status%ok() .or. pos == 0) exit
+            call regular_expression_search_forward(end_of_line_double_space_regular_expression, position, status, bound=endpos, &
+                                                   noerror=SEARCH_NOERROR)
+            if (.not. status%ok() .or. position == 0) exit
             if (point() >= endpos) cycle
-            call char_before(c, found)
+            call character_before(c, found)
             if (c == 9 .or. c == 32) cycle
-            call char_after(c, found, match_beginning(0, st))
+            call character_after(c, found, match_beginning(0, st))
 
             if (allocated(sentence_end_without_space) .and. found) then
-                call char_to_string(c, text, st)
+                call character_to_string(c, text, st)
                 if (index(sentence_end_without_space, text) > 0) cycle
             end if
 
@@ -892,7 +896,7 @@ contains
         end do
 
         if (.not. status%ok()) return
-        call goto_char(from)
+        call goto_character(from)
 
         ! Delete unnecessary newlines surrounded by words.  The character
         ! category `|' means that we can break a line at the character.
@@ -903,8 +907,8 @@ contains
         ! preceding a newline has the value .true. in that table.
         do
             call marker_position(to_marker, endpos, st)
-            call search_forward(LF, pos, status, bound=endpos, noerror=SEARCH_NOERROR)
-            if (.not. status%ok() .or. pos == 0) exit
+            call search_forward(LF, position, status, bound=endpos, noerror=SEARCH_NOERROR)
+            if (.not. status%ok() .or. position == 0) exit
             mb = match_beginning(0, st)
             call get_text_property(mb, value_type(name="fill_space"), fill_space, st)
 
@@ -912,28 +916,28 @@ contains
                 call replace_match(xstring(fill_space), status, literal=.true.)
                 if (.not. status%ok()) exit
             else
-                call char_before(prev, found, mb)
-                call char_after(next, found2)
+                call character_before(previous, found, mb)
+                call character_after(next, found2)
 
                 if (found .and. found2) then
                     if (fill_separate_heterogeneous_words_with_space) then
-                        join = char_has_category(int(next), "|") .and. char_has_category(int(prev), "|")
+                        join = character_has_category(int(next), "|") .and. character_has_category(int(previous), "|")
                     else
-                        join = char_has_category(int(next), "|") .or. char_has_category(int(prev), "|")
+                        join = character_has_category(int(next), "|") .or. character_has_category(int(previous), "|")
                     end if
 
-                    if (join) join = nospace_between_words(next) .or. nospace_between_words(prev)
-                    if (join) call delete_char(-1_int64, status)
+                    if (join) join = nospace_between_words(next) .or. nospace_between_words(previous)
+                    if (join) call delete_character(-1_int64, status)
                 end if
             end if
         end do
 
         if (.not. status%ok()) return
         call marker_position(to_marker, endpos, st)
-        call goto_char(from)
-        moved = skip_chars_forward(" "//TAB, st)
+        call goto_character(from)
+        moved = skip_characters_forward(" "//TAB, st)
         ! Then change all newlines to spaces.
-        call subst_char_in_region(from, endpos, 10, 32, status)
+        call substitute_character_in_region(from, endpos, 10, 32, status)
         if (.not. status%ok()) return
 
         if (.not. nosqueeze .or. justify == DEFAULT_JUSTIFICATION_FULL) then
@@ -947,12 +951,12 @@ contains
             ! Remove trailing whitespace.  Maybe canonically-space-region
             ! should do that.
             call marker_position(to_marker, endpos, st)
-            call goto_char(endpos)
-            moved = skip_chars_backward(" "//TAB, st)
+            call goto_character(endpos)
+            moved = skip_characters_backward(" "//TAB, st)
             call delete_region(point(), endpos, status)
         end if
 
-        call goto_char(from)
+        call goto_character(from)
         call destroy_marker(to_marker, st)
     end subroutine fill_delete_newlines
 
@@ -962,11 +966,11 @@ contains
     subroutine fill_move_to_break_point(linebeg)
         integer(int64), intent(in) :: linebeg
         type(status_type) :: st
-        integer(int64) :: pos, moved, to, brk
+        integer(int64) :: position, moved, to, brk
         logical :: first, found
 
         ! If the fill column is before linebeg, move to linebeg.
-        if (linebeg > point()) call goto_char(linebeg)
+        if (linebeg > point()) call goto_character(linebeg)
 
         ! Move back to the point where we can break the line at.  We break
         ! the line between word or after/before the character which has
@@ -974,19 +978,19 @@ contains
         ! character, or \c| following a character.  If not found, place
         ! the point at linebeg.
         do
-            call re_search_backward("[ "//TAB//"]\|\c|.\|.\c|", pos, st, bound=linebeg, noerror=SEARCH_MOVE)
-            if (pos == 0) exit
+            call regular_expression_search_backward("[ "//TAB//"]\|\c|.\|.\c|", position, st, bound=linebeg, noerror=SEARCH_MOVE)
+            if (position == 0) exit
             ! In case of space, we place the point at next to the point
             ! where the break occurs actually, because we don't want to
             ! change the following logic of original Emacs.  In case of
             ! \c|, the point is at the place where the break occurs.
-            call goto_char(point() + 1)
+            call goto_character(point() + 1)
             if (.not. is_fill_nobreak()) exit
-            moved = skip_chars_backward(" "//TAB, st, linebeg)
+            moved = skip_characters_backward(" "//TAB, st, linebeg)
         end do
 
         ! Move back over the single space between the words.
-        moved = skip_chars_backward(" "//TAB, st)
+        moved = skip_characters_backward(" "//TAB, st)
 
         ! If the left margin and fill prefix by themselves pass the
         ! fill-column. or if they are zero but we have no room for even one
@@ -997,7 +1001,7 @@ contains
             ! don't stop at a period followed by one space.
             to = line_end_position()
             first = .true.
-            call goto_char(linebeg)
+            call goto_character(linebeg)
 
             do while (point() < to)
                 if (.not. first) then
@@ -1006,22 +1010,22 @@ contains
 
                 ! Find a breakable point while ignoring the following
                 ! spaces.
-                moved = skip_chars_forward(" "//TAB, st)
+                moved = skip_characters_forward(" "//TAB, st)
 
                 if (looking_at("\c|", st)) then
-                    call goto_char(point() + 1)
+                    call goto_character(point() + 1)
                 else
-                    pos = point()
-                    moved = skip_chars_forward("^ "//LF//TAB, st)
+                    position = point()
+                    moved = skip_characters_forward("^ "//LF//TAB, st)
                     brk = point()
-                    call goto_char(pos)
-                    call re_search_forward("\c|", pos, st, bound=brk, noerror=SEARCH_NOERROR)
-                    found = pos > 0
+                    call goto_character(position)
+                    call regular_expression_search_forward("\c|", position, st, bound=brk, noerror=SEARCH_NOERROR)
+                    found = position > 0
 
                     if (found) then
-                        call goto_char(point() - 1)
+                        call goto_character(point() - 1)
                     else
-                        call goto_char(brk)
+                        call goto_character(brk)
                     end if
                 end if
 
@@ -1042,15 +1046,15 @@ contains
         integer(int32) :: c
         logical :: found, mark_space
 
-        moved = skip_chars_backward(" "//TAB, status)
+        moved = skip_characters_backward(" "//TAB, status)
         call insert(LF, status)
         if (.not. status%ok()) return
 
         if (looking_at("\( ["//TAB//" ]*\)\(\c|\)?", st)) then
             me2 = match_end(2, st)
-            call char_before(c, found, point() - 1)
+            call character_before(c, found, point() - 1)
             mark_space = me2 > 0
-            if (found) mark_space = mark_space .or. char_has_category(int(c), "|")
+            if (found) mark_space = mark_space .or. character_has_category(int(c), "|")
             ! When refilling later on, this newline would normally not be
             ! replaced by a space, so we need to mark it specially to
             ! re-install the space when we unfill.
@@ -1122,12 +1126,12 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: prefix
         logical :: has_prefix, oneleft, squeeze_none
-        integer(int64) :: from, to, from_plus_indent, moved, linebeg, shortage, sq, col, opos
+        integer(int64) :: from, to, from_plus_indent, moved, linebeg, shortage, sq, column, opos
         integer(int32) :: c
         logical :: found, cut
         integer :: how
 
-        call init_fill_variables()
+        call initialize_fill_variables()
         status = status_type()
         if (present(has_used)) has_used = .false.
         if (present(used)) used = ""
@@ -1138,11 +1142,11 @@ contains
         sq = 0
         if (present(squeeze_after)) sq = squeeze_after
         ! Make sure "to" is the endpoint.
-        call goto_char(min(from_in, to_in))
+        call goto_character(min(from_in, to_in))
         to = max(from_in, to_in)
         from = min(from_in, to_in)
         ! Ignore blank lines at beginning of region.
-        moved = skip_chars_forward(" "//TAB//LF, st)
+        moved = skip_characters_forward(" "//TAB//LF, st)
         from_plus_indent = point()
         call beginning_of_line()
         ! We used to round up to whole line, but that prevents us from
@@ -1153,24 +1157,24 @@ contains
         from = max(point(), from)
         ! Delete all but one soft newline at end of region.  And leave TO
         ! before that one.
-        call goto_char(to)
+        call goto_character(to)
         oneleft = .false.
 
         do while (point() > from)
-            call char_before(c, found)
+            call character_before(c, found)
             if (.not. found .or. c /= 10) exit
 
             if (oneleft) then
-                call delete_char(-1_int64, status)
+                call delete_character(-1_int64, status)
                 if (.not. status%ok()) return
             else
-                call goto_char(point() - 1)
+                call goto_character(point() - 1)
                 oneleft = .true.
             end if
         end do
 
         call copy_marker_at(point(), to_marker, .true., st)
-        call goto_char(from_plus_indent)
+        call goto_character(from_plus_indent)
         call marker_position(to_marker, to, st)
 
         if (.not. (to > point())) then
@@ -1197,18 +1201,18 @@ contains
         end if
 
         if (.not. has_prefix) prefix = ""
-        call goto_char(from)
+        call goto_character(from)
         call beginning_of_line()
 
         if (how == DEFAULT_JUSTIFICATION_NONE) then
             ! filling disabled: just check indentation
-            call goto_char(from)
+            call goto_character(from)
 
             do
                 call marker_position(to_marker, to, st)
                 if (point() >= to) exit
 
-                if (.not. is_eol()) then
+                if (.not. is_end_of_line()) then
                     if (current_indentation() < current_left_margin()) call fill_indent_to_left_margin(status)
                 end if
 
@@ -1232,13 +1236,13 @@ contains
             call fill_delete_newlines(from, to, how, squeeze_none, sq, status)
             if (.not. status%ok()) return
             ! This is the actual filling loop.
-            call goto_char(from)
+            call goto_character(from)
 
             do
                 call marker_position(to_marker, to, st)
                 if (point() >= to) exit
                 linebeg = point()
-                call move_to_column(current_fill_column(), col)
+                call move_to_column(current_fill_column(), column)
                 cut = .false.
 
                 if (point() < to .and. linebeg < to) then
@@ -1246,11 +1250,11 @@ contains
                     ! immediately following space, if any.  However, note
                     ! that `move_to_column' may overshoot if there are wide
                     ! characters (Bug#3234).
-                    if (.not. (current_column() > current_fill_column())) call goto_char(point() + 1)
+                    if (.not. (current_column() > current_fill_column())) call goto_character(point() + 1)
                     call fill_move_to_break_point(linebeg)
                     ! Check again to see if we got to the end of the
                     ! paragraph.
-                    moved = skip_chars_forward(" "//TAB, st)
+                    moved = skip_characters_forward(" "//TAB, st)
                     call marker_position(to_marker, to, st)
                     cut = point() < to
                 end if
@@ -1267,13 +1271,13 @@ contains
                         shortage = forward_line(-1_int64)
                         call justify_current_line(status, how, .false., .true.)
                         call marker_position(opos_marker, opos, st)
-                        call goto_char(opos)
+                        call goto_character(opos)
                         call destroy_marker(opos_marker, st)
                         if (.not. status%ok()) return
                     end if
                 else
                     call marker_position(to_marker, to, st)
-                    call goto_char(to)
+                    call goto_character(to)
                     ! Justify this last line, if desired.
                     call justify_current_line(status, how, .true., .true.)
                     if (.not. status%ok()) return
@@ -1284,8 +1288,8 @@ contains
 
         ! Leave point after final newline.
         call marker_position(to_marker, to, st)
-        call goto_char(to)
-        if (.not. is_eob()) call goto_char(point() + 1)
+        call goto_character(to)
+        if (.not. is_end_of_buffer()) call goto_character(point() + 1)
         call destroy_marker(to_marker, st)
         ! Return the fill-prefix we used
         if (present(used)) used = prefix
@@ -1343,9 +1347,9 @@ contains
         integer(int64) :: savedb, savedz
         type(status_type) :: st
 
-        savedb = buffers(current)%begv
-        savedz = buffers(current)%text%z - buffers(current)%zv
-        call narrow_to_region(minibuffer_prompt_end(), point_max(), st)
+        savedb = buffers(current)%beginning_of_accessible_portion
+        savedz = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
+        call narrow_to_region(minibuffer_prompt_end(), point_maximum(), st)
         call fill_paragraph(status, justify, used=used)
         call widen()
         call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
@@ -1359,10 +1363,10 @@ contains
         integer(int64) :: savedb, savedz
         type(status_type) :: st
 
-        savedb = buffers(current)%begv
-        savedz = buffers(current)%text%z - buffers(current)%zv
+        savedb = buffers(current)%beginning_of_accessible_portion
+        savedz = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
         call widen()
-        call buffer_substring(point_min(), point_max(), text, st)
+        call buffer_substring(point_minimum(), point_maximum(), text, st)
         call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
     end function whole_buffer_text
 
@@ -1379,10 +1383,10 @@ contains
         integer :: how
         procedure(fill_paragraph_procedure), pointer :: fn
         logical :: done, in_minibuffer, saved_handle
-        character(len=:), allocatable :: paragraph_start_orig, skip
+        character(len=:), allocatable :: paragraph_start_original, skip
         integer(int64) :: shortage
 
-        call init_fill_variables()
+        call initialize_fill_variables()
         status = status_type()
         how = DEFAULT_JUSTIFICATION_CURRENT
         if (present(justify)) how = justify
@@ -1406,7 +1410,7 @@ contains
         if (.not. in_fill_paragraph_function) then
             fn => fill_paragraph_function%current()
             in_minibuffer = .false.
-            if (.not. associated(fn) .and. is_minibuffer()) in_minibuffer = point_min() == 1
+            if (.not. associated(fn) .and. is_minibuffer()) in_minibuffer = point_minimum() == 1
 
             if (associated(fn) .or. in_minibuffer) then
                 ! If fill-paragraph-function is set, it probably takes care
@@ -1455,18 +1459,18 @@ contains
         ! 4. If it all fails, default to the good ol' text paragraph
         ! filling.
         before = point()
-        call init_paragraph_variables()
-        paragraph_start_orig = paragraph_start%value
+        call initialize_paragraph_variables()
+        paragraph_start_original = paragraph_start%value
         skip = ""
         if (fill_paragraph_handle_comment) skip = fill_comment_start_skip()
         ! Try to prevent code sections and comment sections from being
         ! filled together.
-        if (len(skip) > 0) paragraph_start%value = paragraph_start_orig//"\|[ "//TAB//"]*\(?:"//skip//"\)"
+        if (len(skip) > 0) paragraph_start%value = paragraph_start_original//"\|[ "//TAB//"]*\(?:"//skip//"\)"
         ! To make sure the return value of forward-paragraph is
         ! meaningful, we have to start from the beginning of line,
         ! otherwise skipping past the last few chars of a
         ! paragraph-separator would count as a paragraph (and not skipping
-        ! any chars at EOB would not count as a paragraph even if it is).
+        ! any chars at END_OF_BUFFER would not count as a paragraph even if it is).
         call save_point(saved)
         call move_to_left_margin(st)
 
@@ -1482,8 +1486,8 @@ contains
             ! on a non-comment line, skip such comment lines, so they
             ! are not filled together (bug#80449).
             if (len(skip) > 0 .and. beginning < before) then
-                call goto_char(beginning)
-                if (looking_at(paragraph_start_orig, st)) call goto_char(match_end(0, st) + 1)
+                call goto_character(beginning)
+                if (looking_at(paragraph_start_original, st)) call goto_character(match_end(0, st) + 1)
 
                 if (looking_at(skip, st)) then
                     shortage = forward_line(1_int64)
@@ -1491,11 +1495,11 @@ contains
                 end if
             end if
 
-            call goto_char(before)
+            call goto_character(before)
             call fill_region_as_paragraph(beginning, end, status, how, used=pfx)
         end if
 
-        paragraph_start%value = paragraph_start_orig
+        paragraph_start%value = paragraph_start_original
         call restore_point(saved)
         if (present(used)) used = pfx
     end subroutine fill_paragraph_1
@@ -1503,41 +1507,41 @@ contains
     !> Join lines of this paragraph and fix up whitespace at joins.
     !> Interactively, if the region is active, join lines of each paragraph in
     !> the region.  A numeric prefix argument means join the lines of the
-    !> following ARG paragraphs.  In this case an active region is ignored.
+    !> following ARGUMENT paragraphs.  In this case an active region is ignored.
     !>
     !> With an active region and no prefix argument this is roughly the same as
     !> `delete_indentation' with that active region, except that this command
     !> only joins lines within paragraphs, preserving the paragraphs
     !> themselves.
     !>
-    !> When called from Fortran, ARG is the number of following paragraphs to join
-    !> lines within, or if ARG is 0, optional arguments BEGINNING and END present
+    !> When called from Fortran, ARGUMENT is the number of following paragraphs to join
+    !> lines within, or if ARGUMENT is 0, optional arguments BEGINNING and END present
     !> means to join the lines of each paragraph in the region delimited by BEGINNING
-    !> and END.  Port of fill.el:unfill-paragraph (ARG 0 for no prefix).
-    recursive subroutine unfill_paragraph(arg, status, beginning, end)
-        integer(int64), intent(in) :: arg
+    !> and END.  Port of fill.el:unfill-paragraph (ARGUMENT 0 for no prefix).
+    recursive subroutine unfill_paragraph(argument, status, beginning, end)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: beginning, end
-        integer(int64) :: b, e, opoint, left, saved
+        integer(int64) :: b, e, original_point, left, saved
 
         status = status_type()
 
-        if (present(beginning) .and. present(end) .and. arg == 0) then
+        if (present(beginning) .and. present(end) .and. argument == 0) then
             b = beginning
             e = end
         else
-            if (arg == 0) then
-                call set_error(status, FM_USER_ERROR, format_message("Invalid numeric argument to `unfill_paragraph'"))
+            if (argument == 0) then
+                call set_error(status, USER_ERROR_CODE, format_message("Invalid numeric argument to `unfill_paragraph'"))
                 return
             end if
 
-            opoint = point()
+            original_point = point()
             left = forward_paragraph(1_int64)
             left = forward_paragraph(-1_int64)
             b = point()
-            left = forward_paragraph(arg)
+            left = forward_paragraph(argument)
             e = point()
-            call goto_char(opoint)
+            call goto_character(original_point)
         end if
 
         saved = fill_column%value
@@ -1572,10 +1576,10 @@ contains
         integer, intent(in), optional :: justify
         logical, intent(in), optional :: nosqueeze, to_eop
         character(len=:), allocatable, intent(out), optional :: used
-        type(handle_type) :: start_point, max_marker
+        type(handle_type) :: start_point, maximum_marker
         type(status_type) :: st
         character(len=:), allocatable :: pfx
-        integer(int64) :: maxpos, beginning, initial, end, left, moved, pos
+        integer(int64) :: maxpos, beginning, initial, end, left, moved, position
         integer :: how
         logical :: sq
 
@@ -1586,41 +1590,41 @@ contains
         if (present(nosqueeze)) sq = nosqueeze
         pfx = ""
         call point_marker(start_point)
-        call goto_char(max(from, to))
+        call goto_character(max(from, to))
 
         if (present(to_eop)) then
             if (to_eop) then
-                moved = skip_chars_backward(LF, st)
+                moved = skip_characters_backward(LF, st)
                 left = forward_paragraph(1_int64)
             end if
         end if
 
-        call copy_marker_at(point(), max_marker, .true., st)
+        call copy_marker_at(point(), maximum_marker, .true., st)
         beginning = min(from, to)
-        call goto_char(beginning)
+        call goto_character(beginning)
         call beginning_of_line()
 
         do
-            call marker_position(max_marker, maxpos, st)
+            call marker_position(maximum_marker, maxpos, st)
             if (point() >= maxpos) exit
             initial = point()
             left = forward_paragraph(1_int64)
             end = min(maxpos, point())
             left = forward_paragraph(-1_int64)
-            if (point() < beginning) call goto_char(beginning)
+            if (point() < beginning) call goto_character(beginning)
 
             if (point() >= initial .and. point() < end) then
                 call fill_region_as_paragraph(point(), end, status, how, sq, used=pfx)
                 if (.not. status%ok()) exit
             else
-                call goto_char(end)
+                call goto_character(end)
             end if
         end do
 
-        call marker_position(start_point, pos, st)
-        call goto_char(pos)
+        call marker_position(start_point, position, st)
+        call goto_character(position)
         call destroy_marker(start_point, st)
-        call destroy_marker(max_marker, st)
+        call destroy_marker(maximum_marker, st)
         if (present(used)) used = pfx
     end subroutine fill_region
 
@@ -1633,15 +1637,15 @@ contains
         type(value_type) :: v
         type(status_type) :: st
         character(len=:), allocatable :: name
-        integer(int64) :: opoint, moved, pos
+        integer(int64) :: original_point, moved, position
 
-        opoint = point()
+        original_point = point()
         ! Make sure we're looking at paragraph body.
-        moved = skip_chars_forward(" "//TAB, st)
-        pos = point()
-        if (is_eob() .and. .not. is_bob()) pos = pos - 1
-        call goto_char(opoint)
-        call get_text_property(pos, value_type(name="justification"), v, st)
+        moved = skip_characters_forward(" "//TAB, st)
+        position = point()
+        if (is_end_of_buffer() .and. .not. is_beginning_of_buffer()) position = position - 1
+        call goto_character(original_point)
+        call get_text_property(position, value_type(name="justification"), v, st)
         j = default_justification%choice
 
         if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL) .and. allocated(v%a)) then
@@ -1679,10 +1683,10 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: how_in
         logical, intent(in), optional :: eop, nosqueeze
-        type(handle_type) :: pos_marker
+        type(handle_type) :: position_marker
         type(status_type) :: st
         integer(int64) :: fc, fp_end, beginning, end, indent, endcol, ncols, nspaces, current_fracspace, count, moved, &
-                          pos, col, savedb, savedz, n
+                          position, column, savedb, savedz, n
         integer :: how
         logical :: is_eop, no_squeeze
 
@@ -1696,37 +1700,37 @@ contains
         if (present(nosqueeze)) no_squeeze = nosqueeze
         ! No action required for these.
         if (how == DEFAULT_JUSTIFICATION_NONE .or. how == DEFAULT_JUSTIFICATION_LEFT) return
-        call init_fill_variables()
+        call initialize_fill_variables()
         fc = current_fill_column()
-        call point_marker(pos_marker)
+        call point_marker(position_marker)
         call end_of_line()
-        moved = skip_chars_backward(" "//TAB, st)
+        moved = skip_characters_backward(" "//TAB, st)
 
         ! Quick exit if it appears to be properly justified already or
         ! there is no text.
-        if (is_bol() .or. ((how == DEFAULT_JUSTIFICATION_FULL &
-                            .or. how == DEFAULT_JUSTIFICATION_RIGHT) .and. current_column() == fc)) then
+        if (is_beginning_of_line() .or. ((how == DEFAULT_JUSTIFICATION_FULL &
+                                          .or. how == DEFAULT_JUSTIFICATION_RIGHT) .and. current_column() == fc)) then
             call finish()
             return
         end if
 
         end = point()
         call beginning_of_line()
-        moved = skip_chars_forward(" "//TAB, st)
+        moved = skip_characters_forward(" "//TAB, st)
 
         ! Skip over fill-prefix.
         if (prefix_at_point()) then
-            call goto_char(point() + count_characters(fill_prefix%value))
-        else if (adaptive_fill_mode%value .and. allocated(adaptive_fill_regexp)) then
-            if (looking_at(adaptive_fill_regexp, st)) call goto_char(match_end(0, st))
+            call goto_character(point() + count_characters(fill_prefix%value))
+        else if (adaptive_fill_mode%value .and. allocated(adaptive_fill_regular_expression)) then
+            if (looking_at(adaptive_fill_regular_expression, st)) call goto_character(match_end(0, st))
         end if
 
         fp_end = point()
-        moved = skip_chars_forward(" "//TAB, st)
+        moved = skip_characters_forward(" "//TAB, st)
         ! This is beginning of the line's text.
         indent = current_column()
         beginning = point()
-        call goto_char(end)
+        call goto_character(end)
         endcol = current_column()
 
         select case (how)
@@ -1735,18 +1739,18 @@ contains
 
             if (ncols < 0) then
                 ! Need to remove some indentation
-                call goto_char(fp_end)
-                if (current_column() < indent + ncols) call move_to_column(indent + ncols, col, .true., st)
-                pos = point()
-                call move_to_column(indent, col)
-                call delete_region(pos, point(), status)
+                call goto_character(fp_end)
+                if (current_column() < indent + ncols) call move_to_column(indent + ncols, column, .true., st)
+                position = point()
+                call move_to_column(indent, column)
+                call delete_region(position, point(), status)
             else
                 ! Need to add some
-                call goto_char(beginning)
-                col = indent_to(indent + ncols, status)
+                call goto_character(beginning)
+                column = indent_to(indent + ncols, status)
                 ! If point was at beginning of text, keep it there.
-                call marker_position(pos_marker, pos, st)
-                if (beginning == pos) call set_pos(point())
+                call marker_position(position_marker, position, st)
+                if (beginning == position) call set_position(point())
             end if
         case (DEFAULT_JUSTIFICATION_CENTER)
             ! Figure out how much indentation is needed
@@ -1754,36 +1758,36 @@ contains
 
             if (ncols < indent) then
                 ! Have too much indentation - remove some
-                call goto_char(fp_end)
-                if (current_column() < ncols) call move_to_column(ncols, col, .true., st)
-                pos = point()
-                call move_to_column(indent, col)
-                call delete_region(pos, point(), status)
+                call goto_character(fp_end)
+                if (current_column() < ncols) call move_to_column(ncols, column, .true., st)
+                position = point()
+                call move_to_column(indent, column)
+                call delete_region(position, point(), status)
             else
                 ! Have too little - add some
-                call goto_char(beginning)
-                col = indent_to(ncols, status)
+                call goto_character(beginning)
+                column = indent_to(ncols, status)
                 ! If point was at beginning of text, keep it there.
-                call marker_position(pos_marker, pos, st)
-                if (beginning == pos) call set_pos(point())
+                call marker_position(position_marker, position, st)
+                if (beginning == position) call set_position(point())
             end if
         case default
             ! Insert extra spaces between words to justify line
             ! (save-restriction: the end of the restriction keeps its
             ! distance from the end of the buffer).
-            savedb = buffers(current)%begv
-            savedz = buffers(current)%text%z - buffers(current)%zv
+            savedb = buffers(current)%beginning_of_accessible_portion
+            savedz = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
             call narrow_to_region(beginning, end, st)
             if (.not. no_squeeze) call canonically_space_region(beginning, end, status)
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             ! count word spaces in line
             nspaces = 0
 
             do
-                call search_backward(" ", pos, st, noerror=SEARCH_NOERROR)
-                if (pos == 0) exit
+                call search_backward(" ", position, st, noerror=SEARCH_NOERROR)
+                if (position == 0) exit
                 nspaces = nspaces + 1
-                moved = skip_chars_backward(" ", st)
+                moved = skip_characters_backward(" ", st)
             end do
 
             ncols = fc - endcol
@@ -1794,10 +1798,10 @@ contains
                 count = nspaces
 
                 do while (count > 0)
-                    moved = skip_chars_forward(" ", st)
+                    moved = skip_characters_forward(" ", st)
                     n = current_fracspace/nspaces
                     if (n > 0) call insert(repeat(" ", int(n)), status)
-                    call search_forward(" ", pos, st, noerror=SEARCH_NOERROR)
+                    call search_forward(" ", position, st, noerror=SEARCH_NOERROR)
                     count = count - 1
                     current_fracspace = mod(current_fracspace, nspaces) + ncols
                 end do
@@ -1814,17 +1818,17 @@ contains
         subroutine finish()
             integer(int64) :: p
 
-            call marker_position(pos_marker, p, st)
-            call goto_char(p)
-            call destroy_marker(pos_marker, st)
+            call marker_position(position_marker, p, st)
+            call goto_character(p)
+            call destroy_marker(position_marker, st)
         end subroutine finish
 
-        subroutine set_pos(p)
+        subroutine set_position(p)
             integer(int64), intent(in) :: p
 
-            call destroy_marker(pos_marker, st)
-            call copy_marker_at(p, pos_marker, .false., st)
-        end subroutine set_pos
+            call destroy_marker(position_marker, st)
+            call copy_marker_at(p, position_marker, .false., st)
+        end subroutine set_position
     end subroutine justify_current_line
 
     !> Whether point is before a non-empty `fill-prefix`.  Not a port.
@@ -1835,7 +1839,7 @@ contains
         at = .false.
         if (.not. allocated(fill_prefix%value)) return
         if (len(fill_prefix%value) == 0) return
-        call buffer_substring(point(), min(point_max(), point() + count_characters(fill_prefix%value)), text, st)
+        call buffer_substring(point(), min(point_maximum(), point() + count_characters(fill_prefix%value)), text, st)
         at = text == fill_prefix%value .and. len(text) == len(fill_prefix%value)
     end function prefix_at_point
 
@@ -1861,9 +1865,9 @@ contains
             call save_point(saved)
             call move_to_left_margin(st, force=.true.)
             ! Position ourselves after any fill-prefix.
-            if (prefix_at_point()) call goto_char(point() + count_characters(fill_prefix%value))
+            if (prefix_at_point()) call goto_character(point() + count_characters(fill_prefix%value))
             from = point()
-            moved = skip_chars_forward(" "//TAB, st)
+            moved = skip_characters_forward(" "//TAB, st)
             call delete_region(from, point(), status)
             call restore_point(saved)
         case default
@@ -1886,17 +1890,17 @@ contains
 
         status = status_type()
         call save_point(saved)
-        savedb = buffers(current)%begv
-        savedz = buffers(current)%text%z - buffers(current)%zv
-        if (present(end)) call narrow_to_region(point_min(), end, st)
+        savedb = buffers(current)%beginning_of_accessible_portion
+        savedz = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
+        if (present(end)) call narrow_to_region(point_minimum(), end, st)
 
         if (present(begin)) then
-            call goto_char(begin)
+            call goto_character(begin)
         else
-            call goto_char(point_min())
+            call goto_character(point_minimum())
         end if
 
-        do while (.not. is_eob())
+        do while (.not. is_end_of_buffer())
             call unjustify_current_line(status)
             if (.not. status%ok()) exit
             shortage = forward_line(1_int64)
@@ -1920,10 +1924,10 @@ contains
     subroutine restore_point(saved)
         type(handle_type), intent(inout) :: saved
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call marker_position(saved, pos, st)
-        call goto_char(pos)
+        call marker_position(saved, position, st)
+        call goto_character(position)
         call destroy_marker(saved, st)
     end subroutine restore_point
 
@@ -1934,17 +1938,17 @@ contains
     ! Not a port.
     integer function prefix_justify() result(how)
         how = DEFAULT_JUSTIFICATION_CURRENT
-        if (current_prefix_arg%kind /= PREFIX_NONE) how = DEFAULT_JUSTIFICATION_FULL
+        if (current_prefix_argument%kind /= PREFIX_NONE) how = DEFAULT_JUSTIFICATION_FULL
     end function prefix_justify
 
-    recursive subroutine cmd_fill_paragraph(status)
+    recursive subroutine execute_fill_paragraph(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
         if (status%ok()) call fill_paragraph(status, prefix_justify(), .true.)
-    end subroutine cmd_fill_paragraph
+    end subroutine execute_fill_paragraph
 
-    recursive subroutine cmd_fill_region(status)
+    recursive subroutine execute_fill_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
@@ -1954,7 +1958,7 @@ contains
         if (.not. status%ok()) return
         call region_end(e, status)
         call fill_region(b, e, status, prefix_justify())
-    end subroutine cmd_fill_region
+    end subroutine execute_fill_region
 
     !> Fill the region as if it were a single paragraph.
     !> The implementation is `fill_region_as_paragraph_default'.
@@ -1976,7 +1980,7 @@ contains
     !> fill.el:fill-region-as-paragraph (the command;
     !> `fill_region_as_paragraph_function' is not ported, so it is always
     !> `fill_region_as_paragraph_default').
-    recursive subroutine cmd_fill_region_as_paragraph(status)
+    recursive subroutine execute_fill_region_as_paragraph(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
@@ -1986,34 +1990,34 @@ contains
         if (.not. status%ok()) return
         call region_end(e, status)
         call fill_region_as_paragraph(b, e, status, prefix_justify())
-    end subroutine cmd_fill_region_as_paragraph
+    end subroutine execute_fill_region_as_paragraph
 
-    recursive subroutine cmd_unfill_paragraph(status)
+    recursive subroutine execute_unfill_paragraph(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
-        if (current_prefix_arg%kind == PREFIX_NONE .and. is_use_region()) then
+        if (current_prefix_argument%kind == PREFIX_NONE .and. is_use_region()) then
             call region_beginning(b, status)
             call region_end(e, status)
             call unfill_paragraph(0_int64, status, b, e)
         else
-            call unfill_paragraph(prefix_numeric_value(current_prefix_arg), status)
+            call unfill_paragraph(prefix_numeric_value(current_prefix_argument), status)
         end if
-    end subroutine cmd_unfill_paragraph
+    end subroutine execute_unfill_paragraph
 
-    subroutine cmd_set_fill_prefix(status)
+    subroutine execute_set_fill_prefix(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call set_fill_prefix(current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_set_fill_prefix
+        call set_fill_prefix(current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_set_fill_prefix
 
-    subroutine cmd_justify_current_line(status)
+    subroutine execute_justify_current_line(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
         if (status%ok()) call justify_current_line(status)
-    end subroutine cmd_justify_current_line
+    end subroutine execute_justify_current_line
 
     !> Give the variables their defaults and register the commands.
     !> Not a port.
@@ -2135,14 +2139,14 @@ contains
 
     !> Set up fill.el's variables and commands.  Not a port: upstream
     !> defines them where fill.el is loaded.
-    subroutine init_fill()
-        call init_fill_variables()
+    subroutine initialize_fill()
+        call initialize_fill_variables()
         call append_locals_clearer(clear_fill_locals)
-        commands%fill_paragraph%execute => cmd_fill_paragraph
-        commands%fill_region%execute => cmd_fill_region
-        commands%fill_region_as_paragraph%execute => cmd_fill_region_as_paragraph
-        commands%unfill_paragraph%execute => cmd_unfill_paragraph
-        commands%set_fill_prefix%execute => cmd_set_fill_prefix
-        commands%justify_current_line%execute => cmd_justify_current_line
-    end subroutine init_fill
+        commands%fill_paragraph%execute => execute_fill_paragraph
+        commands%fill_region%execute => execute_fill_region
+        commands%fill_region_as_paragraph%execute => execute_fill_region_as_paragraph
+        commands%unfill_paragraph%execute => execute_unfill_paragraph
+        commands%set_fill_prefix%execute => execute_set_fill_prefix
+        commands%justify_current_line%execute => execute_justify_current_line
+    end subroutine initialize_fill
 end module fill_mod

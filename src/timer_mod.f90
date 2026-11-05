@@ -47,7 +47,7 @@
 !> current-time is the wall clock.
 module timer_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, format_error, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, slot_table_type, null_handle
     use value_mod, only: command_procedure
     use buffer_mod, only: current, set_buffer_internal, is_buffer_live, buffer_handle, deactivate_mark_variable
@@ -65,7 +65,7 @@ module timer_mod
     !> or because the system's time changes.  If such an occurrence makes it
     !> appear that many invocations are overdue, this variable controls
     !> how many will really happen.  Port of timer.el timer-max-repeats.
-    integer, public :: timer_max_repeats = 10
+    integer, public :: timer_maximum_repeats = 10
 
     !> keyboard.c:timers_run, the number of timers run so far (the command
     !> loop redisplays when it changes while waiting).
@@ -130,11 +130,11 @@ contains
         clock_rate = max(clock_rate, 1_int64)
     end function clock_rate
 
-    !> SECS seconds in clock counts.  Not a port.
-    integer(int64) function counts(secs)
-        real(real64), intent(in) :: secs
+    !> SECONDS seconds in clock counts.  Not a port.
+    integer(int64) function counts(seconds)
+        real(real64), intent(in) :: seconds
 
-        counts = nint(secs*real(clock_rate(), real64), int64)
+        counts = nint(seconds*real(clock_rate(), real64), int64)
     end function counts
 
     ! ------------------------------------------------------------------
@@ -182,12 +182,12 @@ contains
 
     !> A `wrong_type_argument' error condition occurs unless TIMER is a timer.  Port of
     !> timer.el:timer--check.
-    subroutine timer_check_arg(timer, status)
+    subroutine timer_check_argument(timer, status)
         type(handle_type), intent(in) :: timer
         type(status_type), intent(out) :: status
 
-        if (.not. is_timer(timer)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(timer_type)")
-    end subroutine timer_check_arg
+        if (.not. is_timer(timer)) call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(timer_type)")
+    end subroutine timer_check_argument
 
     !> Whether TIMER is inactive (triggered): not waiting to be run.
     !> Not a port.
@@ -224,7 +224,7 @@ contains
         type(status_type), intent(out) :: status
         real(real64), intent(in), optional :: delta
 
-        call timer_check_arg(timer, status)
+        call timer_check_argument(timer, status)
         if (.not. status%ok()) return
 
         associate (t => timers(timer%index))
@@ -242,53 +242,53 @@ contains
         end associate
     end subroutine timer_set_time
 
-    !> Set the trigger idle time of TIMER to SECS.
-    !> SECS may be an integer, floating point number, or a value in
+    !> Set the trigger idle time of TIMER to SECONDS.
+    !> SECONDS may be an integer, floating point number, or a value in
     !> the internal time format returned by, e.g., `current_idle_time'.
     !> If optional third argument REPEAT is true, make the timer
     !> fire each time Fortmacs is idle for that many seconds.  Port of
-    !> timer.el:timer-set-idle-time (SECS is a number of seconds).
-    subroutine timer_set_idle_time(timer, secs, status, repeat)
+    !> timer.el:timer-set-idle-time (SECONDS is a number of seconds).
+    subroutine timer_set_idle_time(timer, seconds, status, repeat)
         type(handle_type), intent(in) :: timer
-        real(real64), intent(in) :: secs
+        real(real64), intent(in) :: seconds
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: repeat
 
-        call timer_check_arg(timer, status)
+        call timer_check_argument(timer, status)
         if (.not. status%ok()) return
 
         associate (t => timers(timer%index))
-            t%time = counts(secs)
+            t%time = counts(seconds)
             t%time_set = .true.
             t%repeat = .false.
             if (present(repeat)) t%repeat = repeat
         end associate
     end subroutine timer_set_idle_time
 
-    !> Increment the time set in TIMER by SECS seconds.
+    !> Increment the time set in TIMER by SECONDS seconds.
     !>
     !> Optionally also increment it by USECS microseconds, and PSECS
     !> picoseconds.  If USECS or PSECS are omitted, they are treated as
     !> zero.
     !>
-    !> SECS may be a fraction.  Port of timer.el:timer-inc-time (no USECS
-    !> or PSECS: SECS is a real number).
-    subroutine timer_inc_time(timer, secs)
+    !> SECONDS may be a fraction.  Port of timer.el:timer-inc-time (no USECS
+    !> or PSECS: SECONDS is a real number).
+    subroutine timer_inc_time(timer, seconds)
         type(handle_type), intent(in) :: timer
-        real(real64), intent(in) :: secs
+        real(real64), intent(in) :: seconds
 
         if (.not. is_timer(timer)) return
-        timers(timer%index)%time = timers(timer%index)%time + counts(secs)
+        timers(timer%index)%time = timers(timer%index)%time + counts(seconds)
     end subroutine timer_inc_time
 
-    !> Make TIMER call FUNCTION with optional ARGS when triggering.  Port of
-    !> timer.el:timer-set-function (no ARGS).
+    !> Make TIMER call FUNCTION with optional ARGUMENTS when triggering.  Port of
+    !> timer.el:timer-set-function (no ARGUMENTS).
     subroutine timer_set_function(timer, function, status)
         type(handle_type), intent(in) :: timer
         procedure(command_procedure) :: function
         type(status_type), intent(out) :: status
 
-        call timer_check_arg(timer, status)
+        call timer_check_argument(timer, status)
         if (.not. status%ok()) return
         timers(timer%index)%fn => function
     end subroutine timer_set_function
@@ -315,12 +315,12 @@ contains
         status = status_type()
 
         if (.not. is_timer(timer)) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid or uninitialized timer")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid or uninitialized timer")
             return
         end if
 
         if (.not. timers(timer%index)%time_set .or. .not. associated(timers(timer%index)%fn)) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid or uninitialized timer")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid or uninitialized timer")
             return
         end if
 
@@ -333,7 +333,7 @@ contains
         if (.not. allocated(list)) allocate (list(0))
 
         if (position_in(list, timer) > 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Timer already activated")
+            call set_error(status, GENERIC_ERROR_CODE, "Timer already activated")
         else
             ! Skip all timers to trigger before the new one.
             n = size(list)
@@ -519,7 +519,7 @@ contains
                     repeats = real(now() - timers(timer%index)%time, real64)/real(clock_rate(), real64) &
                               /timers(timer%index)%repeat_delay
 
-                    if (repeats > timer_max_repeats) then
+                    if (repeats > timer_maximum_repeats) then
                         call timer_inc_time(timer, timers(timer%index)%repeat_delay*repeats)
                     end if
                 end if
@@ -557,7 +557,7 @@ contains
     !>
     !> This function returns a timer object which you can use in
     !> `cancel_timer'.  Port of timer.el:run-at-time (TIME is a number;
-    !> strings, encoded times and t are not ported; no ARGS).
+    !> strings, encoded times and t are not ported; no ARGUMENTS).
     subroutine execute_at_time(timer, time, function, status, repeat)
         type(handle_type), intent(out) :: timer
         real(real64), intent(in) :: time
@@ -571,7 +571,7 @@ contains
         if (present(repeat)) then
             if (repeat < 0) then
                 write (buffer, "(g0)") repeat
-                call set_error(status, FM_GENERIC_ERROR, "Invalid repetition interval: "//trim(adjustl(buffer)))
+                call set_error(status, GENERIC_ERROR_CODE, "Invalid repetition interval: "//trim(adjustl(buffer)))
                 return
             end if
         end if
@@ -582,49 +582,49 @@ contains
         if (status%ok()) call timer_activate(timer, status)
     end subroutine execute_at_time
 
-    !> Perform an action after a delay of SECS seconds.
+    !> Perform an action after a delay of SECONDS seconds.
     !> Repeat the action every REPEAT seconds, if REPEAT is present.
-    !> SECS and REPEAT may be integers or floating point numbers.
+    !> SECONDS and REPEAT may be integers or floating point numbers.
     !> REPEAT, if present, must be a non-negative number.
     !> The action is to call FUNCTION.
     !>
     !> This function returns a timer object which you can use in
-    !> `cancel_timer'.  Port of timer.el:run-with-timer (no ARGS).
-    subroutine execute_with_timer(timer, secs, function, status, repeat)
+    !> `cancel_timer'.  Port of timer.el:run-with-timer (no ARGUMENTS).
+    subroutine execute_with_timer(timer, seconds, function, status, repeat)
         type(handle_type), intent(out) :: timer
-        real(real64), intent(in) :: secs
+        real(real64), intent(in) :: seconds
         procedure(command_procedure) :: function
         type(status_type), intent(out) :: status
         real(real64), intent(in), optional :: repeat
 
-        call execute_at_time(timer, secs, function, status, repeat)
+        call execute_at_time(timer, seconds, function, status, repeat)
     end subroutine execute_with_timer
 
-    !> Perform an action the next time Fortmacs is idle for SECS seconds.
+    !> Perform an action the next time Fortmacs is idle for SECONDS seconds.
     !> The action is to call FUNCTION.
-    !> SECS may be an integer, a floating point number, or the internal
+    !> SECONDS may be an integer, a floating point number, or the internal
     !> time format returned by, e.g., `current_idle_time'.
-    !> If Fortmacs is currently idle, and has been idle for N seconds (N < SECS),
-    !> then it will call FUNCTION in SECS - N seconds from now.  Using
-    !> SECS <= N is not recommended if this function is invoked from an idle
+    !> If Fortmacs is currently idle, and has been idle for N seconds (N < SECONDS),
+    !> then it will call FUNCTION in SECONDS - N seconds from now.  Using
+    !> SECONDS <= N is not recommended if this function is invoked from an idle
     !> timer, because FUNCTION will then be called immediately.
     !>
     !> If REPEAT is true, do the action each time Fortmacs has been idle for
-    !> exactly SECS seconds (that is, only once for each time Fortmacs becomes idle).
+    !> exactly SECONDS seconds (that is, only once for each time Fortmacs becomes idle).
     !>
     !> This function returns a timer object which you can use in
-    !> `cancel_timer'.  Port of timer.el:run-with-idle-timer (no ARGS;
+    !> `cancel_timer'.  Port of timer.el:run-with-idle-timer (no ARGUMENTS;
     !> not a command).
-    subroutine execute_with_idle_timer(timer, secs, repeat, function, status)
+    subroutine execute_with_idle_timer(timer, seconds, repeat, function, status)
         type(handle_type), intent(out) :: timer
-        real(real64), intent(in) :: secs
+        real(real64), intent(in) :: seconds
         logical, intent(in) :: repeat
         procedure(command_procedure) :: function
         type(status_type), intent(out) :: status
 
         call timer_create(timer)
         call timer_set_function(timer, function, status)
-        if (status%ok()) call timer_set_idle_time(timer, secs, status, repeat)
+        if (status%ok()) call timer_set_idle_time(timer, seconds, status, repeat)
         if (status%ok()) call timer_activate_when_idle(timer, status, .true.)
     end subroutine execute_with_idle_timer
 
@@ -670,16 +670,16 @@ contains
         idleness_start = last_idleness_start
     end subroutine timer_resume_idle
 
-    !> Return the current length of Fortmacs idleness in seconds in SECS,
+    !> Return the current length of Fortmacs idleness in seconds in SECONDS,
     !> with IDLE_P .false. when Fortmacs is not idle.  Port of
     !> keyboard.c:Fcurrent_idle_time.
-    subroutine current_idle_time(idle_p, secs)
+    subroutine current_idle_time(idle_p, seconds)
         logical, intent(out) :: idle_p
-        real(real64), intent(out) :: secs
+        real(real64), intent(out) :: seconds
 
         idle_p = idle
-        secs = 0
-        if (idle) secs = real(now() - idleness_start, real64)/real(clock_rate(), real64)
+        seconds = 0
+        if (idle) seconds = real(now() - idleness_start, real64)/real(clock_rate(), real64)
     end subroutine current_idle_time
 
     !> Whether TIMER is a valid, untriggered timer (keyboard.c:decode_timer

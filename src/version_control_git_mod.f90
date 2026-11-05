@@ -48,30 +48,31 @@
 module version_control_git_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use data_mod, only: choice_setting_type
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, xfixnum, vtag, V_INTEGER
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, &
                           generate_new_buffer_name, erase_buffer, is_buffer_live
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, is_bol, is_bob, pos_eol, &
-                                     buffer_substring
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_string, is_beginning_of_line, &
+                                     is_beginning_of_buffer, position_end_of_line, buffer_substring
     use editing_commands_mod, only: forward_line
-    use search_mod, only: string_match, re_search_forward, looking_at, SEARCH_NOERROR
+    use search_mod, only: string_match, regular_expression_search_forward, looking_at, SEARCH_NOERROR
     use basic_subprograms_mod, only: match_string, version, operator(<=)
     use file_input_output_mod, only: expand_file_name, is_file_directory, is_directory_name, file_exists
     use files_mod, only: file_relative_name, executable_find, revert_buffer_in_progress
     use execute_process_mod, only: execute_process
-    use version_control_hooks_mod, only: vc_backends, vc_switches_type, register_vc_backend, vc_find_root, &
-                                         vc_state, vc_mode_line_state, vc_working_revision, vc_file_get_git_symbolic_ref, &
-                                         vc_file_set_git_symbolic_ref, vc_display_status, vc_use_short_revision, &
-                                        VC_DISPLAY_STATUS_NO_BACKEND, VC_SWITCHES_NONE, VC_SWITCHES_UNSPECIFIED, VC_SWITCHES_LIST, &
-                                         VC_UP_TO_DATE, VC_EDITED, &
-                                         VC_ADDED, VC_REMOVED, VC_CONFLICT, VC_MISSING, VC_IGNORED, VC_UNREGISTERED, &
-                                      VC_MODEL_IMPLICIT, VC_STATE_UNKNOWN, vc_state_name, vc_dir_entry_type, vc_dir_fileinfo_type, &
-                                         vc_dir_update_procedure, vc_file_name_change_type, VC_REVISION_GRANULARITY_REPOSITORY
-    use version_control_dispatcher_mod, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT, &
+    use version_control_hooks_mod, only: vc_backends, vc_switches_type, register_vc_backend, vc_find_root, vc_state, &
+                                         vc_mode_line_state, vc_working_revision, vc_file_get_git_symbolic_reference, &
+                                         vc_file_set_git_symbolic_reference, vc_display_status, vc_use_short_revision, &
+                                         VC_DISPLAY_STATUS_NO_BACKEND, VC_SWITCHES_NONE, VC_SWITCHES_UNSPECIFIED, &
+                                         VC_SWITCHES_LIST, VC_UP_TO_DATE, VC_EDITED, VC_ADDED, VC_REMOVED, VC_CONFLICT, &
+                                         VC_MISSING, VC_IGNORED, VC_UNREGISTERED, VC_MODEL_IMPLICIT, VC_STATE_UNKNOWN, &
+                                         vc_state_name, vc_directory_entry_type, vc_directory_fileinfo_type, &
+                                         vc_directory_update_procedure, vc_file_name_change_type, &
+                                         VC_REVISION_GRANULARITY_REPOSITORY
+    use version_control_dispatcher_mod, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DESTINATION_CURRENT, &
                                               VC_OKSTATUS_ANY, vc_resynch_buffer, VC_NOQUERY_YES
-    use time_functions_mod, only: time_type, decoded_time_type, encode_time, real, DECODED_TIME_DST_NO
+    use time_functions_mod, only: time_type, decoded_time_type, encode_time, real, DECODED_TIME_DAYLIGHT_SAVING_TIME_NO
     use version_control_hooks_mod, only: vc_resolve_conflicts
     use version_control_mod, only: message_vc_unresolved_conflicts
     use files_mod, only: after_save_hook
@@ -84,17 +85,17 @@ module version_control_git_mod
     use commands_mod, only: commands
     use keymap_mod, only: keymap_set
     use modes_mod, only: major_modes
-    use faces_mod, only: named_face_type, display_when, face_attrs
+    use faces_mod, only: named_face_type, display_when, face_attributes
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use log_edit_mod, only: log_edit_toggle_header, log_edit_extract_headers, log_edit_font_lock_keywords, &
-                            log_edit_header_type, init_log_edit, LOG_EDIT_HEADER_FN
+                            log_edit_header_type, initialize_log_edit, LOG_EDIT_HEADER_FN
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
-    public :: init_vc_git, vc_git_registered, vc_git_state, vc_git_working_revision, vc_git_mode_line_string, &
+    public :: initialize_vc_git, vc_git_registered, vc_git_state, vc_git_working_revision, vc_git_mode_line_string, &
               vc_git_root, vc_git_command, vc_git_previous_revision, vc_git_revision_table, vc_git_symbolic_commit, &
               vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version, vc_git_find_file_hook, &
               vc_git_conflicted_files, get_vc_git_commands_in_progress
@@ -183,14 +184,14 @@ module version_control_git_mod
     !> regular expression matching the resulting Git log output, and the
     !> highlights of its match for the Log View buffer.
     type, public :: vc_git_root_log_format_type
-        character(len=:), allocatable :: format, regexp
+        character(len=:), allocatable :: format, regular_expression
         type(font_lock_highlight_type), allocatable :: highlights(:)
     end type vc_git_root_log_format_type
 
     !> Git log format for `vc_print_root_log'.
-    !> This should be a FORMAT, a REGEXP and KEYWORDS, where FORMAT is a
+    !> This should be a FORMAT, a REGULAR_EXPRESSION and KEYWORDS, where FORMAT is a
     !> format string (which is passed to "git log" via the argument
-    !> "--pretty=tformat:FORMAT"), REGEXP is a regular expression
+    !> "--pretty=tformat:FORMAT"), REGULAR_EXPRESSION is a regular expression
     !> matching the resulting Git log output, and KEYWORDS is a list of
     !> `font_lock_keywords' for highlighting the Log View buffer.  Port of
     !> vc-git.el vc-git-root-log-format.
@@ -202,27 +203,27 @@ module version_control_git_mod
     !> The keymap of `vc_git_log_view_mode'.
     type(handle_type), public :: vc_git_log_view_mode_map
 
-    ! The stages of `vc_git_dir_status_files'.
+    ! The stages of `vc_git_directory_status_files'.
     integer, parameter :: STAGE_DONE = 0, STAGE_UPDATE_INDEX = 1, STAGE_LS_FILES_ADDED = 2, &
                           STAGE_LS_FILES_UP_TO_DATE = 3, STAGE_LS_FILES_CONFLICT = 4, STAGE_LS_FILES_MISSING = 5, &
                           STAGE_LS_FILES_UNKNOWN = 6, STAGE_LS_FILES_IGNORED = 7, STAGE_DIFF_INDEX = 8
 
-    ! The state of a `dir_status_files' computation: its stage, the files
+    ! The state of a `directory_status_files' computation: its stage, the files
     ! still to be processed, the update function and its VC-Dir buffer,
     ! and the entries computed so far.  Port of vc-git.el
     ! vc-git-dir-status-state.
-    type :: dir_status_state_type
+    type :: directory_status_state_type
         logical :: live = .false.
         integer :: stage = 0
         type(string_type), allocatable :: files(:)
-        procedure(vc_dir_update_procedure), pointer, nopass :: update_function => null()
+        procedure(vc_directory_update_procedure), pointer, nopass :: update_function => null()
         type(handle_type) :: buffer
-        type(vc_dir_entry_type), allocatable :: hash(:)
+        type(vc_directory_entry_type), allocatable :: hash(:)
         integer :: n = 0
-    end type dir_status_state_type
+    end type directory_status_state_type
 
-    ! The computations of `vc_git_dir_status_files' in progress.
-    type(dir_status_state_type), allocatable :: dir_states(:)
+    ! The computations of `vc_git_directory_status_files' in progress.
+    type(directory_status_state_type), allocatable :: directory_states(:)
 
     !> True to treat pathspecs in commands literally.
     !> Good example of file name that needs this: "test[56].xx".  Port of
@@ -239,31 +240,31 @@ module version_control_git_mod
     !> print the summary line in width-constrained contexts.  However,
     !> many commit summaries will need to exceed this length.
     !>
-    !> See also `vc_git_log_edit_summary_max_len'.  Port of vc-git.el
+    !> See also `vc_git_log_edit_summary_maximum_length'.  Port of vc-git.el
     !> vc-git-log-edit-summary-target-len (negative for none).
-    integer, public :: vc_git_log_edit_summary_target_len = -1
+    integer, public :: vc_git_log_edit_summary_target_length = -1
 
     !> Maximum length for Git commit summary lines.
     !> If a number, characters in summary lines beyond this length are
-    !> displayed in the `vc_git_log_edit_summary_max_warning' face.
+    !> displayed in the `vc_git_log_edit_summary_maximum_warning' face.
     !> A negative value means no highlighting.
     !>
     !> It is good practice to avoid writing summary lines longer than
     !> this because otherwise the summary line will be truncated in many
     !> contexts in which Git commands display summary lines.
     !>
-    !> See also `vc_git_log_edit_summary_target_len'.  Port of vc-git.el
+    !> See also `vc_git_log_edit_summary_target_length'.  Port of vc-git.el
     !> vc-git-log-edit-summary-max-len.
-    integer, public :: vc_git_log_edit_summary_max_len = 68
+    integer, public :: vc_git_log_edit_summary_maximum_length = 68
 
     !> Face for Git commit summary lines beyond the target length.
-    !> See `vc_git_log_edit_summary_target_len'.  Port of vc-git.el
+    !> See `vc_git_log_edit_summary_target_length'.  Port of vc-git.el
     !> vc-git-log-edit-summary-target-warning.
     type(named_face_type), target, public :: vc_git_log_edit_summary_target_warning
     !> Face for Git commit summary lines beyond the maximum length.
-    !> See `vc_git_log_edit_summary_max_len'.  Port of vc-git.el
+    !> See `vc_git_log_edit_summary_maximum_length'.  Port of vc-git.el
     !> vc-git-log-edit-summary-max-warning.
-    type(named_face_type), target, public :: vc_git_log_edit_summary_max_warning
+    type(named_face_type), target, public :: vc_git_log_edit_summary_maximum_warning
 
     !> Hook run by `vc_git_log_edit_mode'.
     type(hook_type), target, public :: vc_git_log_edit_mode_hook = hook_type(name="vc_git_log_edit_mode_hook")
@@ -288,9 +289,9 @@ module version_control_git_mod
         character(len=:), allocatable :: upstream, push
     end type vc_git_branch_remotes_type
 
-    !> Value of `compilation_error_regexps' in *vc-git* buffers.  Port of
+    !> Value of `compilation_error_regular_expressions' in *vc-git* buffers.  Port of
     !> vc-git.el vc-git-error-regexp-alist.
-    type(compilation_rule_type), allocatable, public :: vc_git_error_regexps(:)
+    type(compilation_rule_type), allocatable, public :: vc_git_error_regular_expressions(:)
 
 contains
 
@@ -324,21 +325,21 @@ contains
 
     !> Return env vars for the `process_environment' of Git processes.
     !> Port of vc-git.el:vc-git--env-vars.
-    subroutine env_vars(subcommand, env)
+    subroutine git_environment_variables(subcommand, environment)
         character(len=*), intent(in) :: subcommand
-        type(string_type), allocatable, intent(out) :: env(:)
+        type(string_type), allocatable, intent(out) :: environment(:)
 
-        allocate (env(0))
-        call append_string(env, "GIT_DIR")
-        if (vc_git_use_literal_pathspecs) call append_string(env, "GIT_LITERAL_PATHSPECS=1")
+        allocate (environment(0))
+        call append_string(environment, "GIT_DIR")
+        if (vc_git_use_literal_pathspecs) call append_string(environment, "GIT_LITERAL_PATHSPECS=1")
         ! Avoid optional repository locking during background operations
         ! (bug#21559, bug#80903).  Skipping these locks is always safe and
         ! can only lead to subsequent commands running more slowly.
-        if (revert_buffer_in_progress .or. subcommand == "status") call append_string(env, "GIT_OPTIONAL_LOCKS=0")
-    end subroutine env_vars
+        if (revert_buffer_in_progress .or. subcommand == "status") call append_string(environment, "GIT_OPTIONAL_LOCKS=0")
+    end subroutine git_environment_variables
 
     !> The flags of `git' before SUBCOMMAND: --no-pager, and for older Git
-    !> --no-optional-locks as `env_vars' sets GIT_OPTIONAL_LOCKS.  Port of
+    !> --no-optional-locks as `git_environment_variables' sets GIT_OPTIONAL_LOCKS.  Port of
     !> vc-git.el:vc-git--no-optional-locks.
     subroutine leading_flags(subcommand, flags)
         character(len=*), intent(in) :: subcommand
@@ -362,7 +363,7 @@ contains
         logical, intent(in), optional :: current
         integer, intent(out), optional :: exit_status
         type(handle_type), intent(out), optional :: process
-        type(string_type), allocatable :: env(:), all(:), fl(:)
+        type(string_type), allocatable :: environment_variables(:), all(:), fl(:)
         type(handle_type) :: buffer_handle
         character(len=:), allocatable :: saved, root, subcommand
         logical :: rootdir, found, cur_buf
@@ -374,7 +375,7 @@ contains
             if (allocated(flags(1)%text)) subcommand = flags(1)%text
         end if
 
-        call env_vars(subcommand, env)
+        call git_environment_variables(subcommand, environment_variables)
         call leading_flags(subcommand, all)
         call append_all(all, flags)
         rootdir = .false.
@@ -411,8 +412,8 @@ contains
         if (present(current)) cur_buf = current
 
         if (cur_buf) then
-            call vc_do_command(VC_DEST_CURRENT, okstatus, vc_git_program, fl, all, status, exit_status=exit_status, &
-                               process=process, environment=env)
+            call vc_do_command(VC_DESTINATION_CURRENT, okstatus, vc_git_program, fl, all, status, exit_status=exit_status, &
+                               process=process, environment=environment_variables)
         else
             if (present(buffer)) then
                 buffer_handle = buffer
@@ -421,134 +422,134 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            call vc_do_command(VC_DEST_CURRENT, okstatus, vc_git_program, fl, all, status, buffer=buffer_handle, &
-                               exit_status=exit_status, process=process, environment=env)
+            call vc_do_command(VC_DESTINATION_CURRENT, okstatus, vc_git_program, fl, all, status, buffer=buffer_handle, &
+                               exit_status=exit_status, process=process, environment=environment_variables)
         end if
 
         call set_buffer_directory(saved)
     end subroutine vc_git_command
 
     !> The current buffer's `default_directory'.  Not a port.
-    function buffer_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function buffer_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = "./"
+        directory = "./"
         if (current == 0) return
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
     end function buffer_directory
 
     ! Not a port.
-    subroutine set_buffer_directory(dir)
-        character(len=*), intent(in) :: dir
+    subroutine set_buffer_directory(directory)
+        character(len=*), intent(in) :: directory
 
         if (current == 0) return
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
     end subroutine set_buffer_directory
 
-    !> Execute `git COMMAND ARGS...' with the output (without standard error)
+    !> Execute `git COMMAND ARGUMENTS...' with the output (without standard error)
     !> in the current buffer when TO_BUFFER, else discarded; CODE is the
     !> exit status (-1 if cut by a signal).  Port of
     !> vc-git.el:vc-git--call.
-    subroutine vc_git_execute(to_buffer, command, args, code, status)
+    subroutine vc_git_execute(to_buffer, command, arguments, code, status)
         logical, intent(in) :: to_buffer
         character(len=*), intent(in) :: command
-        type(string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: arguments(:)
         integer, intent(out) :: code
         type(status_type), intent(out) :: status
-        type(string_type), allocatable :: env(:), all(:)
+        type(string_type), allocatable :: environment_variables(:), all(:)
         type(value_type), allocatable :: argv(:), envv(:)
         type(value_type) :: result
         integer :: k
 
         code = -1
-        call env_vars(command, env)
+        call git_environment_variables(command, environment_variables)
         call leading_flags(command, all)
         call append_string(all, command)
-        call append_all(all, args)
-        allocate (argv(size(all)), envv(size(env)))
+        call append_all(all, arguments)
+        allocate (argv(size(all)), envv(size(environment_variables)))
 
         do k = 1, size(all)
             argv(k) = value_type(text=all(k)%text)
         end do
 
-        do k = 1, size(env)
-            envv(k) = value_type(text=env(k)%text)
+        do k = 1, size(environment_variables)
+            envv(k) = value_type(text=environment_variables(k)%text)
         end do
 
         if (to_buffer) then
-            call execute_process(vc_git_program, result, status, destination=value_type(.true.), args=make_list(argv), &
+            call execute_process(vc_git_program, result, status, destination=value_type(.true.), arguments=make_list(argv), &
                                  error_file="/dev/null", environment=make_list(envv))
         else
-            call execute_process(vc_git_program, result, status, args=make_list(argv), environment=make_list(envv))
+            call execute_process(vc_git_program, result, status, arguments=make_list(argv), environment=make_list(envv))
         end if
 
         if (.not. status%ok()) return
         if (vtag(result) == V_INTEGER) code = int(xfixnum(result))
     end subroutine vc_git_execute
 
-    !> Run `git COMMAND ARGS...' and insert standard output in current buffer.
+    !> Run `git COMMAND ARGUMENTS...' and insert standard output in current buffer.
     !> Return whether the process exited with status zero.  Port of
     !> vc-git.el:vc-git--out-ok.
-    logical function vc_git_out_ok(command, args) result(ok)
+    logical function vc_git_out_ok(command, arguments) result(ok)
         character(len=*), intent(in) :: command
-        type(string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: arguments(:)
         type(status_type) :: st
         integer :: code
 
-        call vc_git_execute(.true., command, args, code, st)
+        call vc_git_execute(.true., command, arguments, code, st)
         ok = st%ok() .and. code == 0
     end function vc_git_out_ok
 
     !> Make a temporary buffer current (with-temp-buffer); OLD is the
     !> buffer to go back to.  Not a port.
-    subroutine temp_begin(old, tmp)
-        type(handle_type), intent(out) :: old, tmp
+    subroutine temporary_begin(old, temporary)
+        type(handle_type), intent(out) :: old, temporary
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
         old = current_buffer()
-        dir = buffer_directory()
-        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, st)
-        call set_buffer(tmp, st)
-        call set_buffer_directory(dir)
-    end subroutine temp_begin
+        directory = buffer_directory()
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, st)
+        call set_buffer(temporary, st)
+        call set_buffer_directory(directory)
+    end subroutine temporary_begin
 
-    !> Kill the temporary buffer TMP and make OLD current again.  Not a port.
-    subroutine temp_end(old, tmp)
-        type(handle_type), intent(in) :: old, tmp
+    !> Kill the temporary buffer TEMPORARY and make OLD current again.  Not a port.
+    subroutine temporary_end(old, temporary)
+        type(handle_type), intent(in) :: old, temporary
         type(status_type) :: st
 
-        call close_buffer(tmp, st)
+        call close_buffer(temporary, st)
         call set_buffer(old, st)
-    end subroutine temp_end
+    end subroutine temporary_end
 
     !> Execute a git command on FILE and return its output as string (OK false
     !> on failure).  FILE can be absent.  Port of
     !> vc-git.el:vc-git--run-command-string.
-    subroutine vc_git_execute_command_string(args, string, ok, file)
-        type(string_type), intent(in) :: args(:)
+    subroutine vc_git_execute_command_string(arguments, string, ok, file)
+        type(string_type), intent(in) :: arguments(:)
         character(len=:), allocatable, intent(out) :: string
         logical, intent(out) :: ok
         character(len=*), intent(in), optional :: file
         type(string_type), allocatable :: rest(:)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         integer :: k
 
         allocate (rest(0))
 
-        do k = 2, size(args)
-            call append_string(rest, args(k)%text)
+        do k = 2, size(arguments)
+            call append_string(rest, arguments(k)%text)
         end do
 
         if (present(file)) call append_string(rest, file_relative_name(file))
-        call temp_begin(old, tmp)
-        ok = vc_git_out_ok(args(1)%text, rest)
+        call temporary_begin(old, temporary)
+        ok = vc_git_out_ok(arguments(1)%text, rest)
         string = buffer_string()
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
         if (.not. ok) string = ""
     end subroutine vc_git_execute_command_string
 
-    !> The strings ARGS as a list (a helper for the short lists of git
+    !> The strings ARGUMENTS as a list (a helper for the short lists of git
     !> arguments).  Not a port.
     function strings(a1, a2, a3, a4, a5, a6, a7) result(list)
         character(len=*), intent(in) :: a1
@@ -623,13 +624,13 @@ contains
     !> Check whether FILE is registered with git.  Port of
     !> vc-git.el:vc-git-registered.
     logical function vc_git_registered(file) result(registered)
-        character(len=:), allocatable :: dir, path, name, string
-        type(handle_type) :: old, tmp
+        character(len=:), allocatable :: directory, path, name, string
+        type(handle_type) :: old, temporary
         logical :: found, ok
         character(len=*), intent(in) :: file
 
         registered = .false.
-        call vc_git_root(file, dir, found)
+        call vc_git_root(file, directory, found)
         if (.not. found) return
         ! If git(1) isn't installed then the `with-demoted-errors'
         ! below will mean we get an error message echoed about that
@@ -642,14 +643,14 @@ contains
         ! Do not use the `file-name-directory' here: git-ls-files
         ! sometimes fails to return the correct status for relative
         ! path specs.
-        name = file_relative_name(file, dir)
-        call temp_begin(old, tmp)
-        call set_buffer_directory(dir)
+        name = file_relative_name(file, directory)
+        call temporary_begin(old, temporary)
+        call set_buffer_directory(directory)
         ok = vc_git_out_ok("ls-files", strings("-c", "-z", "--", name))
         ! If result is empty, use ls-tree to check for deleted file.
-        if (point_min() == point_max()) ok = vc_git_out_ok("ls-tree", strings("--name-only", "-z", "HEAD", "--", name))
+        if (point_minimum() == point_maximum()) ok = vc_git_out_ok("ls-tree", strings("--name-only", "-z", "HEAD", "--", name))
         string = buffer_string()
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
         if (len(string) > len(name)) registered = string(1:len(name) + 1) == name//NUL
     end function vc_git_registered
 
@@ -708,7 +709,7 @@ contains
     !> Git-specific version of `vc_state'.  Port of vc-git.el:vc-git-state.
     integer function vc_git_state(file) result(state)
         character(len=*), intent(in) :: file
-        type(string_type), allocatable :: args(:), codes(:)
+        type(string_type), allocatable :: arguments(:), codes(:)
         character(len=:), allocatable :: status
         logical :: ok
         integer :: b, e
@@ -719,13 +720,13 @@ contains
         ! corresponding upstream branch, and the file was modified
         ! upstream.  We'd need to check against the upstream tracking
         ! branch for that (an extra process call or two).
-        args = strings("status", "--porcelain", "-z", "--untracked-files")
+        arguments = strings("status", "--porcelain", "-z", "--untracked-files")
         ! Just to be explicit, it's the default anyway.
         ! Invalid version syntax, an error condition upstream, counts as
         ! a lower version.
-        if (version("1.7.6.3") <= version(vc_git_program_version())) call append_string(args, "--ignored")
-        call append_string(args, "--")
-        call vc_git_execute_command_string(args, status, ok, file)
+        if (version("1.7.6.3") <= version(vc_git_program_version())) call append_string(arguments, "--ignored")
+        call append_string(arguments, "--")
+        call vc_git_execute_command_string(arguments, status, ok, file)
 
         if (.not. ok) then
             ! If status is nil, there was an error calling git, likely because
@@ -758,13 +759,13 @@ contains
 
     !> Git-specific version of `vc_working_revision'.  Port of
     !> vc-git.el:vc-git-working-revision.
-    subroutine vc_git_working_revision(file, rev, found)
+    subroutine vc_git_working_revision(file, revision, found)
         character(len=*), intent(in) :: file
-        character(len=:), allocatable, intent(out) :: rev
+        character(len=:), allocatable, intent(out) :: revision
         logical, intent(out) :: found
 
         if (len(file) < 0) return
-        call vc_git_rev_parse("HEAD", rev, found)
+        call vc_git_revision_parse("HEAD", revision, found)
     end subroutine vc_git_working_revision
 
     !> The working revision's symbolic name: HEAD.  Port of vc-git.el
@@ -778,29 +779,29 @@ contains
     !> The branch HEAD refers to (FOUND false when detached), cached in
     !> FILE's `vc-git-symbolic-ref'.  Port of
     !> vc-git.el:vc-git--symbolic-ref.
-    subroutine vc_git_symbolic_ref(file, ref, found)
+    subroutine vc_git_symbolic_reference(file, reference, found)
         character(len=*), intent(in) :: file
-        character(len=:), allocatable, intent(out) :: ref
+        character(len=:), allocatable, intent(out) :: reference
         logical, intent(out) :: found
         character(len=:), allocatable :: string
         type(status_type) :: st
 
-        call vc_file_get_git_symbolic_ref(file, ref, found)
+        call vc_file_get_git_symbolic_reference(file, reference, found)
         if (found) return
         call vc_git_execute_command_string(strings("symbolic-ref", "HEAD"), string, found)
 
         if (found) then
             if (string_match("^\(refs/heads/\)?\(.+\)$", string, st) > 0) then
-                ref = match_string(2, string)
+                reference = match_string(2, string)
             else
-                ref = string
+                reference = string
             end if
 
-            call vc_file_set_git_symbolic_ref(file, ref)
+            call vc_file_set_git_symbolic_reference(file, reference)
         else
-            call vc_file_set_git_symbolic_ref(file)
+            call vc_file_set_git_symbolic_reference(file)
         end if
-    end subroutine vc_git_symbolic_ref
+    end subroutine vc_git_symbolic_reference
 
     !> Return a string for `vc_mode_line' to put in the mode line for FILE.
     !> Port of vc-git.el:vc-git-mode-line-string.
@@ -808,23 +809,23 @@ contains
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: s
         logical, intent(out) :: found
-        character(len=:), allocatable :: echo, face, indicator, rev, disp_rev, locker
-        logical :: has_rev, has_ref
+        character(len=:), allocatable :: echo, face, indicator, revision, disp_revision, locker
+        logical :: has_revision, has_reference
         integer :: state
 
         state = vc_state(file, locker=locker)
         call vc_mode_line_state(state, echo, face, indicator, locker)
-        call vc_working_revision(file, rev, has_rev, git_backend_index())
-        call vc_git_symbolic_ref(file, disp_rev, has_ref)
+        call vc_working_revision(file, revision, has_revision, git_backend_index())
+        call vc_git_symbolic_reference(file, disp_revision, has_reference)
 
-        if (.not. has_ref) then
-            disp_rev = ""
-            if (has_rev) disp_rev = rev(1:min(7, len(rev)))
+        if (.not. has_reference) then
+            disp_revision = ""
+            if (has_revision) disp_revision = revision(1:min(7, len(revision)))
         end if
 
         s = ""
         if (vc_display_status%choice /= VC_DISPLAY_STATUS_NO_BACKEND) s = "Git"
-        s = s//indicator//disp_rev
+        s = s//indicator//disp_revision
         found = .true.
     end subroutine vc_git_mode_line_string
 
@@ -859,12 +860,12 @@ contains
     ! ------------------------------------------------------------------
 
     !> Create a new Git repository.  Port of vc-git.el:vc-git-create-repo.
-    recursive subroutine vc_git_create_repo(status)
+    recursive subroutine vc_git_create_repository(status)
         type(status_type), intent(out) :: status
         type(string_type) :: none(0)
 
         call vc_git_command(0, none, strings("init"), status)
-    end subroutine vc_git_create_repo
+    end subroutine vc_git_create_repository
 
     !> Register FILES into the git version-control system.  Port of
     !> vc-git.el:vc-git-register.
@@ -903,10 +904,10 @@ contains
         call vc_git_command(0, strings(file), strings("rm", "-f", "--cached", "--"), status)
     end subroutine vc_git_unregister
 
-    !> Get revision REV of FILE into BUFFER.  Port of
+    !> Get revision REVISION of FILE into BUFFER.  Port of
     !> vc-git.el:vc-git-find-revision.
-    recursive subroutine vc_git_find_revision(file, rev, buffer, status)
-        character(len=*), intent(in) :: file, rev
+    recursive subroutine vc_git_find_revision(file, revision, buffer, status)
+        character(len=*), intent(in) :: file, revision
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: fn, fullname, root, r
@@ -924,7 +925,7 @@ contains
             fullname = fn(1:len(fn) - 1)
         end if
 
-        r = rev
+        r = revision
         if (len(r) == 0) r = "HEAD"
         call vc_git_command(0, none, strings("cat-file", "--filters", r//":"//fullname), status, buffer=buffer)
     end subroutine vc_git_find_revision
@@ -943,15 +944,15 @@ contains
         found = .true.
     end subroutine vc_git_find_ignore_file
 
-    !> Check out REV (HEAD if absent) of FILE.  Port of
+    !> Check out REVISION (HEAD if absent) of FILE.  Port of
     !> vc-git.el:vc-git-checkout.
-    recursive subroutine vc_git_checkout(file, status, rev)
+    recursive subroutine vc_git_checkout(file, status, revision)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: rev
+        character(len=*), intent(in), optional :: revision
 
-        if (present(rev)) then
-            call vc_git_command(0, strings(file), strings("checkout", rev), status)
+        if (present(revision)) then
+            call vc_git_command(0, strings(file), strings("checkout", revision), status)
         else
             call vc_git_command(0, strings(file), strings("checkout", "HEAD"), status)
         end if
@@ -1055,7 +1056,7 @@ contains
         end if
 
         if (vc_git_diff_switches%kind == VC_SWITCHES_UNSPECIFIED) then
-            call set_error(status, FM_GENERIC_ERROR, "vc_git_diff with git difftool is not ported yet")
+            call set_error(status, GENERIC_ERROR_CODE, "vc_git_diff with git difftool is not ported yet")
             return
         end if
 
@@ -1085,32 +1086,32 @@ contains
         type(string_type), intent(in) :: files(:)
         type(string_type), allocatable, intent(out) :: table(:)
         type(string_type) :: none(0)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer(int64) :: found
 
         ! What about `files'?!?  --Stef
         if (size(files) < 0) return
         allocate (table(0))
         call append_string(table, "HEAD")
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("for-each-ref", "--format=%(refname)"), st, current=.true.)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (vc_git_revision_complete_only_branches) then
-            regexp = "^refs/\(heads\|remotes\)/\(.*\)$"
+            regular_expression = "^refs/\(heads\|remotes\)/\(.*\)$"
         else
-            regexp = "^refs/\(heads\|tags\|remotes\)/\(.*\)$"
+            regular_expression = "^refs/\(heads\|tags\|remotes\)/\(.*\)$"
         end if
 
         do
-            call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(regular_expression, found, st, noerror=SEARCH_NOERROR)
             if (found == 0) exit
             call append_string(table, match_in_buffer(2))
         end do
 
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine vc_git_revision_table
 
     !> The text of group N of the last buffer match.  Not a port.
@@ -1135,92 +1136,92 @@ contains
 
     !> Git-specific version of `vc_previous_revision'.  Port of
     !> vc-git.el:vc-git-previous-revision.
-    subroutine vc_git_previous_revision(file, rev, prev, found)
-        character(len=*), intent(in) :: file, rev
-        character(len=:), allocatable, intent(out) :: prev
+    subroutine vc_git_previous_revision(file, revision, previous, found)
+        character(len=*), intent(in) :: file, revision
+        character(len=:), allocatable, intent(out) :: previous
         logical, intent(out) :: found
-        character(len=:), allocatable :: file_name, sym, carets
-        type(handle_type) :: old, tmp
+        character(len=:), allocatable :: file_name, symbol, carets
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         integer(int64) :: shortage, p
         logical :: ok
         integer :: n
         character(len=16) :: text
 
-        prev = ""
+        previous = ""
         found = .false.
 
-        if (string_match("\`HEAD\(\^*\)\'", rev, st) > 0) then
-            carets = match_string(1, rev)
+        if (string_match("\`HEAD\(\^*\)\'", revision, st) > 0) then
+            carets = match_string(1, revision)
             write (text, '("HEAD~", i0)') 1 + len(carets)
-            prev = trim(text)
+            previous = trim(text)
             found = .true.
-        else if (string_match("\`HEAD~\([0-9]+\)\'", rev, st) > 0) then
-            carets = match_string(1, rev)
+        else if (string_match("\`HEAD~\([0-9]+\)\'", revision, st) > 0) then
+            carets = match_string(1, revision)
             read (carets, *) n
             write (text, '("HEAD~", i0)') 1 + n
-            prev = trim(text)
+            previous = trim(text)
             found = .true.
         else if (len(file) > 0) then
             file_name = file_relative_name(file)
-            call temp_begin(old, tmp)
-            ok = vc_git_out_ok("rev-list", strings(maybe_abbrev(), "-2", rev, "--", file_name))
+            call temporary_begin(old, temporary)
+            ok = vc_git_out_ok("rev-list", strings(maybe_abbrev(), "-2", revision, "--", file_name))
 
             if (ok) then
-                call goto_char(point_max())
-                ok = is_bol()
+                call goto_character(point_maximum())
+                ok = is_beginning_of_line()
             end if
 
             if (ok) then
                 shortage = forward_line(-1_int64)
-                ok = shortage == 0 .and. .not. is_bob()
+                ok = shortage == 0 .and. .not. is_beginning_of_buffer()
             end if
 
             if (ok) then
                 p = point()
-                call buffer_substring(p, point_max() - 1, prev, st)
+                call buffer_substring(p, point_maximum() - 1, previous, st)
                 found = st%ok()
             end if
 
-            call temp_end(old, tmp)
+            call temporary_end(old, temporary)
 
             if (found) then
-                call vc_git_symbolic_commit(prev, sym, ok)
-                if (ok) prev = sym
+                call vc_git_symbolic_commit(previous, symbol, ok)
+                if (ok) previous = symbol
             end if
         else
             ! We used to use "^" here, but that fails on MS-Windows if git
             ! is invoked via a batch file, in which case cmd.exe strips
             ! the "^" because it is a special character for cmd which
             ! process-file does not (and cannot) quote.
-            call vc_git_rev_parse(rev//"~1", prev, found)
+            call vc_git_revision_parse(revision//"~1", previous, found)
         end if
     end subroutine vc_git_previous_revision
 
-    !> The revision REV names (FOUND false if none).  Port of
+    !> The revision REVISION names (FOUND false if none).  Port of
     !> vc-git.el:vc-git--rev-parse.
-    subroutine vc_git_rev_parse(rev, out, found)
-        character(len=*), intent(in) :: rev
+    subroutine vc_git_revision_parse(revision, out, found)
+        character(len=*), intent(in) :: revision
         character(len=:), allocatable, intent(out) :: out
         logical, intent(out) :: found
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
 
         out = ""
-        allocate (args(0))
-        if (vc_use_short_revision) call append_string(args, "--short")
-        call append_string(args, rev)
-        call temp_begin(old, tmp)
-        found = vc_git_out_ok("rev-parse", args)
+        allocate (arguments(0))
+        if (vc_use_short_revision) call append_string(arguments, "--short")
+        call append_string(arguments, revision)
+        call temporary_begin(old, temporary)
+        found = vc_git_out_ok("rev-parse", arguments)
 
         if (found) then
-            call goto_char(point_min())
-            call buffer_substring(point(), pos_eol(), out, st)
+            call goto_character(point_minimum())
+            call buffer_substring(point(), position_end_of_line(), out, st)
         end if
 
-        call temp_end(old, tmp)
-    end subroutine vc_git_rev_parse
+        call temporary_end(old, temporary)
+    end subroutine vc_git_revision_parse
 
     !> Translate revision string of COMMIT to a symbolic form.
     !> If FORCE is true, the result is allowed to include revision
@@ -1228,34 +1229,34 @@ contains
     !> currently pointed to by the master branch), otherwise such revision
     !> specifications are rejected, and FOUND is false.  Port of
     !> vc-git.el:vc-git-symbolic-commit.
-    subroutine vc_git_symbolic_commit(commit, sym, found, force)
+    subroutine vc_git_symbolic_commit(commit, symbol, found, force)
         character(len=*), intent(in) :: commit
-        character(len=:), allocatable, intent(out) :: sym
+        character(len=:), allocatable, intent(out) :: symbol
         logical, intent(out) :: found
         logical, intent(in), optional :: force
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         integer(int64) :: shortage
         logical :: f
 
-        sym = ""
+        symbol = ""
         f = .false.
         if (present(force)) f = force
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         found = vc_git_out_ok("name-rev", strings("--no-undefined", "--name-only", commit))
 
         if (found) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             if (.not. f) found = .not. looking_at("^.*[~^].*$", st)
         end if
 
         if (found) then
             shortage = forward_line(2_int64)
-            found = shortage == 1 .and. is_bol()
+            found = shortage == 1 .and. is_beginning_of_line()
         end if
 
-        if (found) call buffer_substring(point_min(), point_max() - 1, sym, st)
-        call temp_end(old, tmp)
+        if (found) call buffer_substring(point_minimum(), point_maximum() - 1, symbol, st)
+        call temporary_end(old, temporary)
     end subroutine vc_git_symbolic_commit
 
     ! ------------------------------------------------------------------
@@ -1285,30 +1286,30 @@ contains
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regex
+        character(len=:), allocatable :: regular_expression
         character(len=64) :: text
-        integer(int64) :: pos
+        integer(int64) :: position
 
         found = .false.
-        call re_search_forward("^Summary: ", pos, status, bound=limit, noerror=SEARCH_NOERROR)
-        if (pos == 0 .or. .not. status%ok()) return
+        call regular_expression_search_forward("^Summary: ", position, status, bound=limit, noerror=SEARCH_NOERROR)
+        if (position == 0 .or. .not. status%ok()) return
 
-        if (vc_git_log_edit_summary_max_len >= 0 .and. vc_git_log_edit_summary_target_len >= 0) then
-            write (text, '(".\{,", i0, "\}\(.\{,", i0, "\}\)\(.*\)")') vc_git_log_edit_summary_target_len, &
-                vc_git_log_edit_summary_max_len - vc_git_log_edit_summary_target_len
-            regex = trim(text)
-        else if (vc_git_log_edit_summary_max_len >= 0) then
-            write (text, '(".\{,", i0, "\}\(?2:.*\)")') vc_git_log_edit_summary_max_len
-            regex = trim(text)
-        else if (vc_git_log_edit_summary_target_len >= 0) then
-            write (text, '(".\{,", i0, "\}\(.*\)")') vc_git_log_edit_summary_target_len
-            regex = trim(text)
+        if (vc_git_log_edit_summary_maximum_length >= 0 .and. vc_git_log_edit_summary_target_length >= 0) then
+            write (text, '(".\{,", i0, "\}\(.\{,", i0, "\}\)\(.*\)")') vc_git_log_edit_summary_target_length, &
+                vc_git_log_edit_summary_maximum_length - vc_git_log_edit_summary_target_length
+            regular_expression = trim(text)
+        else if (vc_git_log_edit_summary_maximum_length >= 0) then
+            write (text, '(".\{,", i0, "\}\(?2:.*\)")') vc_git_log_edit_summary_maximum_length
+            regular_expression = trim(text)
+        else if (vc_git_log_edit_summary_target_length >= 0) then
+            write (text, '(".\{,", i0, "\}\(.*\)")') vc_git_log_edit_summary_target_length
+            regular_expression = trim(text)
         else
             return
         end if
 
-        call re_search_forward(regex, pos, status, bound=limit, noerror=SEARCH_NOERROR)
-        found = pos /= 0
+        call regular_expression_search_forward(regular_expression, position, status, bound=limit, noerror=SEARCH_NOERROR)
+        found = position /= 0
     end subroutine log_edit_summary_check
 
     !> Major mode for editing Git log messages.
@@ -1327,7 +1328,7 @@ contains
         call log_edit_font_lock_keywords(keywords)
         h(1) = font_lock_highlight(1, face="vc_git_log_edit_summary_target_warning", override=FONT_LOCK_OVERRIDE_PREPEND, &
                                    laxmatch=.true.)
-        h(2) = font_lock_highlight(2, face="vc_git_log_edit_summary_max_warning", override=FONT_LOCK_OVERRIDE_PREPEND, &
+        h(2) = font_lock_highlight(2, face="vc_git_log_edit_summary_maximum_warning", override=FONT_LOCK_OVERRIDE_PREPEND, &
                                    laxmatch=.true.)
         allocate (more(1))
         more(1) = font_lock_keyword(highlights=h, matcher=log_edit_summary_check)
@@ -1344,14 +1345,14 @@ contains
         f => vc_git_log_edit_summary_target_warning
         call f%define("vc_git_log_edit_summary_target_warning", &
                       "Face for Git commit summary lines beyond the target length."//LF// &
-                      "See `vc_git_log_edit_summary_target_len'.")
-        call f%spec_entry(display_when(), face_attrs(inherit="warning"))
-        f => vc_git_log_edit_summary_max_warning
-        call f%define("vc_git_log_edit_summary_max_warning", &
+                      "See `vc_git_log_edit_summary_target_length'.")
+        call f%specification_entry(display_when(), face_attributes(inherit="warning"))
+        f => vc_git_log_edit_summary_maximum_warning
+        call f%define("vc_git_log_edit_summary_maximum_warning", &
                       "Face for Git commit summary lines beyond the maximum length."//LF// &
-                      "See `vc_git_log_edit_summary_max_len'.")
-        call f%spec_entry(display_when(), face_attrs(inherit="error"))
-        if (.not. associated(major_modes%log_edit_mode%execute)) call init_log_edit()
+                      "See `vc_git_log_edit_summary_maximum_length'.")
+        call f%specification_entry(display_when(), face_attributes(inherit="error"))
+        if (.not. associated(major_modes%log_edit_mode%execute)) call initialize_log_edit()
         call major_modes%vc_git_log_edit_mode%define("vc_git_log_edit_mode", "Log-Edit/git", vc_git_log_edit_mode, &
                                                      vc_git_log_edit_mode_hook, parent=major_modes%log_edit_mode)
         vc_git_log_edit_mode_map = major_modes%vc_git_log_edit_mode%map
@@ -1364,47 +1365,47 @@ contains
 
     ! (boolean-arg-fn "--amend") and friends: the argument if the header's
     ! value is "yes".  Not a port.
-    subroutine amend_arg(value, args)
+    subroutine amend_argument(value, arguments)
         character(len=*), intent(in) :: value
-        type(string_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: arguments(:)
 
-        call boolean_arg(value, "--amend", args)
-    end subroutine amend_arg
+        call boolean_argument(value, "--amend", arguments)
+    end subroutine amend_argument
 
     ! Not a port.
-    subroutine no_verify_arg(value, args)
+    subroutine no_verify_argument(value, arguments)
         character(len=*), intent(in) :: value
-        type(string_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: arguments(:)
 
-        call boolean_arg(value, "--no-verify", args)
-    end subroutine no_verify_arg
+        call boolean_argument(value, "--no-verify", arguments)
+    end subroutine no_verify_argument
 
     ! Not a port.
-    subroutine signoff_arg(value, args)
+    subroutine signoff_argument(value, arguments)
         character(len=*), intent(in) :: value
-        type(string_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: arguments(:)
 
-        call boolean_arg(value, "--signoff", args)
-    end subroutine signoff_arg
+        call boolean_argument(value, "--signoff", arguments)
+    end subroutine signoff_argument
 
     ! Not a port.
-    subroutine boolean_arg(value, argument, args)
+    subroutine boolean_argument(value, argument, arguments)
         character(len=*), intent(in) :: value, argument
-        type(string_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: arguments(:)
 
         if (value == "yes") then
-            call append_string(args, argument)
+            call append_string(arguments, argument)
         else
-            allocate (args(0))
+            allocate (arguments(0))
         end if
-    end subroutine boolean_arg
+    end subroutine boolean_argument
 
-    ! Port of vc-git.el:vc-git--log-edit-extract-headers: MSG and the
-    ! command line arguments ARGS.
-    recursive subroutine log_edit_extract_headers_git(comment, msg, args, status)
+    ! Port of vc-git.el:vc-git--log-edit-extract-headers: MESSAGE and the
+    ! command line arguments ARGUMENTS.
+    recursive subroutine log_edit_extract_headers_git(comment, message, arguments, status)
         character(len=*), intent(in) :: comment
-        character(len=:), allocatable, intent(out) :: msg
-        type(string_type), allocatable, intent(out) :: args(:)
+        character(len=:), allocatable, intent(out) :: message
+        type(string_type), allocatable, intent(out) :: arguments(:)
         type(status_type), intent(out) :: status
         type(log_edit_header_type) :: headers(5)
 
@@ -1414,25 +1415,25 @@ contains
         headers(2)%cmdarg = "--date"
         headers(3)%name = "Amend"
         headers(3)%kind = LOG_EDIT_HEADER_FN
-        headers(3)%fn => amend_arg
+        headers(3)%fn => amend_argument
         headers(4)%name = "No-Verify"
         headers(4)%kind = LOG_EDIT_HEADER_FN
-        headers(4)%fn => no_verify_arg
+        headers(4)%fn => no_verify_argument
         headers(5)%name = "Sign-Off"
         headers(5)%kind = LOG_EDIT_HEADER_FN
-        headers(5)%fn => signoff_arg
-        call log_edit_extract_headers(headers, comment, msg, args, status)
+        headers(5)%fn => signoff_argument
+        call log_edit_extract_headers(headers, comment, message, arguments, status)
     end subroutine log_edit_extract_headers_git
 
     !> Git-specific version of `vc_backend_checkin'.
-    !> REV is ignored.  Port of vc-git.el:vc-git-checkin.
-    recursive subroutine vc_git_checkin(files, comment, status, rev)
+    !> REVISION is ignored.  Port of vc-git.el:vc-git-checkin.
+    recursive subroutine vc_git_checkin(files, comment, status, revision)
         type(string_type), intent(in) :: files(:)
         character(len=*), intent(in) :: comment
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: rev
+        character(len=*), intent(in), optional :: revision
 
-        if (present(rev)) continue
+        if (present(revision)) continue
         call vc_git_checkin_1(comment, files, status)
     end subroutine vc_git_checkin
 
@@ -1448,7 +1449,7 @@ contains
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: extracted(:)
         type(string_type), allocatable :: flags(:), fl(:)
-        character(len=:), allocatable :: file1, root, saved, msg
+        character(len=:), allocatable :: file1, root, saved, message
         logical :: found, only
         integer :: k
 
@@ -1463,7 +1464,7 @@ contains
         call vc_git_root(file1, root, found)
 
         if (.not. found) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid call to `vc_git_checkin'")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid call to `vc_git_checkin'")
             return
         end if
 
@@ -1474,13 +1475,13 @@ contains
         call expand_file_name(file1, root, status)
         if (.not. status%ok()) return
         call set_buffer_directory(root)
-        call log_edit_extract_headers_git(comment, msg, extracted, status)
+        call log_edit_extract_headers_git(comment, message, extracted, status)
 
         if (status%ok()) then
             allocate (flags(0))
             call append_string(flags, "commit")
             call append_string(flags, "-m")
-            call append_string(flags, msg)
+            call append_string(flags, message)
 
             do k = 1, size(extracted)
                 call append_string(flags, extracted(k)%text)
@@ -1607,13 +1608,14 @@ contains
         use version_control_mod, only: vc_log_view_type, vc_shortlog, VC_LOG_VIEW_LOG_UNINTEGRATED, VC_LOG_VIEW_LONG, &
                                        VC_LOG_VIEW_LOG_SEARCH, VC_LOG_VIEW_WITH_DIFF, VC_LOG_VIEW_SHORT, VC_LOG_VIEW_LOG_OUTGOING, &
                                        VC_LOG_VIEW_LOG_INCOMING, VC_LOG_VIEW_MERGEBASE
-        use log_view_mod, only: set_log_view_file_regexp, set_log_view_message_regexp, set_log_view_per_file_logs, &
-                                set_log_view_expanded_log_entry_function, set_log_view_font_lock_keywords
+        use log_view_mod, only: set_log_view_file_regular_expression, set_log_view_message_regular_expression, &
+                                set_log_view_per_file_logs, set_log_view_expanded_log_entry_function, &
+                                set_log_view_font_lock_keywords
         type(status_type), intent(out) :: status
         type(font_lock_keyword_type), allocatable :: keywords(:)
         character(len=*), parameter :: TAB = achar(9)
         character(len=*), parameter :: EMAIL = "[A-Za-z0-9_.+-]+@[A-Za-z0-9_.-]+"
-        character(len=:), allocatable :: message_regexp
+        character(len=:), allocatable :: message_regular_expression
         logical :: saved, short, expand
         integer :: view
 
@@ -1622,7 +1624,7 @@ contains
         if (.not. status%ok()) return
         view = vc_log_view_type()
         ! Don't have file markers, so use impossible regexp.
-        call set_log_view_file_regexp("\`a\`")
+        call set_log_view_file_regular_expression("\`a\`")
         call set_log_view_per_file_logs(.false.)
 
         if (view == VC_LOG_VIEW_LOG_UNINTEGRATED) then
@@ -1632,12 +1634,12 @@ contains
         end if
 
         if (short) then
-            message_regexp = vc_git_root_log_format%regexp
+            message_regular_expression = vc_git_root_log_format%regular_expression
         else
-            message_regexp = "^commit +\([0-9a-z]+\)"
+            message_regular_expression = "^commit +\([0-9a-z]+\)"
         end if
 
-        call set_log_view_message_regexp(message_regexp)
+        call set_log_view_message_regular_expression(message_regular_expression)
 
         ! Allow expanding short log entries.
         if (view == VC_LOG_VIEW_LOG_UNINTEGRATED) then
@@ -1652,10 +1654,10 @@ contains
 
         if (short) then
             allocate (keywords(1))
-            keywords(1) = font_lock_keyword(vc_git_root_log_format%regexp, highlights=vc_git_root_log_format%highlights)
+            keywords(1) = font_lock_keyword(vc_git_root_log_format%regular_expression, highlights=vc_git_root_log_format%highlights)
         else
             allocate (keywords(8))
-            keywords(1) = font_lock_keyword(message_regexp, face="change_log_acknowledgment", subexp=1)
+            keywords(1) = font_lock_keyword(message_regular_expression, face="change_log_acknowledgment", subexp=1)
             ! Handle the case:
             ! user: foo@bar
             keywords(2) = font_lock_keyword("^\(?:Author\|Commit\):[ "//TAB//"]+\("//EMAIL//"\)", &
@@ -1702,11 +1704,11 @@ contains
         use editing_commands_mod, only: beginning_of_line
         character(len=*), intent(in) :: revision
         logical, intent(out), optional :: found
-        integer(int64) :: pos, count
+        integer(int64) :: position, count
         type(status_type) :: st
 
-        pos = 0
-        call goto_char(point_min())
+        position = 0
+        call goto_character(point_minimum())
 
         if (len(revision) > 0) then
             count = 0
@@ -1718,13 +1720,13 @@ contains
             end if
 
             if (count > 0) then
-                call search_forward(LF//"commit "//revision, pos, st, noerror=SEARCH_NOERROR, count=count)
+                call search_forward(LF//"commit "//revision, position, st, noerror=SEARCH_NOERROR, count=count)
             else
-                call search_forward(LF//"commit "//revision, pos, st, noerror=SEARCH_NOERROR)
+                call search_forward(LF//"commit "//revision, position, st, noerror=SEARCH_NOERROR)
             end if
         end if
 
-        if (present(found)) found = pos > 0
+        if (present(found)) found = position > 0
         call beginning_of_line()
     end subroutine show_vc_git_log_entry
 
@@ -1733,30 +1735,30 @@ contains
     recursive subroutine vc_git_expanded_log_entry(revision, text, found)
         use search_mod, only: replace_match
         use editing_commands_mod, only: forward_line
-        use editing_functions_mod, only: is_eob, buffer_string
+        use editing_functions_mod, only: is_end_of_buffer, buffer_string
         character(len=*), intent(in) :: revision
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
         type(string_type), allocatable :: flags(:)
         type(string_type) :: none(0)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
-        integer(int64) :: pos, shortage
+        integer(int64) :: position, shortage
 
         found = .false.
         text = ""
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         flags = strings("log", revision, "-1", "--no-color")
         call append_switches(flags, vc_git_log_switches)
         call append_string(flags, "--")
         call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, none, flags, st, current=.true.)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        if (.not. is_eob()) then
+        if (.not. is_end_of_buffer()) then
             ! Indent the expanded log entry.
             do
-                call re_search_forward("^  ", pos, st, noerror=SEARCH_NOERROR)
-                if (pos == 0) exit
+                call regular_expression_search_forward("^  ", position, st, noerror=SEARCH_NOERROR)
+                if (position == 0) exit
                 call replace_match("", st)
                 shortage = forward_line(1_int64)
             end do
@@ -1765,17 +1767,17 @@ contains
             found = .true.
         end if
 
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine vc_git_expanded_log_entry
 
     ! Define Git's Log View mode.  Not a port.
     subroutine define_log_view_mode()
-        use log_view_mod, only: init_log_view
-        use add_log_mod, only: init_add_log
+        use log_view_mod, only: initialize_log_view
+        use add_log_mod, only: initialize_add_log
 
         ! (require 'add-log): we need the faces of add-log.
-        if (.not. associated(major_modes%change_log_mode%execute)) call init_add_log()
-        if (.not. associated(major_modes%log_view_mode%execute)) call init_log_view()
+        if (.not. associated(major_modes%change_log_mode%execute)) call initialize_add_log()
+        if (.not. associated(major_modes%log_view_mode%execute)) call initialize_log_view()
         call major_modes%vc_git_log_view_mode%define("vc_git_log_view_mode", "Git-Log-View", vc_git_log_view_mode, &
                                                      vc_git_log_view_mode_hook, parent=major_modes%log_view_mode)
         vc_git_log_view_mode_map = major_modes%vc_git_log_view_mode%map
@@ -1783,20 +1785,20 @@ contains
     end subroutine define_log_view_mode
 
     ! The default `vc_git_root_log_format'.  Not a port.
-    subroutine init_root_log_format()
+    subroutine initialize_root_log_format()
         if (allocated(vc_git_root_log_format%format)) return
         vc_git_root_log_format%format = "%d%h..: %an %ad %s"
         ! The first shy group matches the characters drawn by --graph.
         ! We use numbered groups because `log-view-message-re' wants the
         ! revision number to be group 1.
-        vc_git_root_log_format%regexp = "^\(?:[*/\| ]+ \)?\(?2: ([^)]+)\)?\(?1:[0-9a-z]+\)\.\.: " &
-                                        //"\(?3:.*?\)[ "//achar(9)//"]+\(?4:[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\)"
+        vc_git_root_log_format%regular_expression = "^\(?:[*/\| ]+ \)?\(?2: ([^)]+)\)?\(?1:[0-9a-z]+\)\.\.: " &
+                                                    //"\(?3:.*?\)[ "//achar(9)//"]+\(?4:[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\)"
         allocate (vc_git_root_log_format%highlights(4))
         vc_git_root_log_format%highlights(1) = font_lock_highlight(1, face="log_view_message")
         vc_git_root_log_format%highlights(2) = font_lock_highlight(2, face="change_log_list", laxmatch=.true.)
         vc_git_root_log_format%highlights(3) = font_lock_highlight(3, face="change_log_name")
         vc_git_root_log_format%highlights(4) = font_lock_highlight(4, face="change_log_date")
-    end subroutine init_root_log_format
+    end subroutine initialize_root_log_format
 
     ! ------------------------------------------------------------------
     ! VC-Dir
@@ -1836,14 +1838,14 @@ contains
 
     !> Return a string describing the file type based on its permissions,
     !> and its face.  Port of vc-git.el:vc-git-file-type-as-string.
-    subroutine vc_git_file_type_as_string(old_perm, new_perm, string, face)
-        integer, intent(in) :: old_perm, new_perm
+    subroutine vc_git_file_type_as_string(old_permission, new_permission, string, face)
+        integer, intent(in) :: old_permission, new_permission
         character(len=:), allocatable, intent(out) :: string, face
         character(len=12) :: buffer
         integer :: old_type, new_type
 
-        old_type = ishft(old_perm, -9)
-        new_type = ishft(new_perm, -9)
+        old_type = ishft(old_permission, -9)
+        new_type = ishft(new_permission, -9)
         string = ""
 
         select case (new_type)
@@ -1906,7 +1908,7 @@ contains
     function vc_git_rename_as_string(state, extra) result(string)
         use version_control_hooks_mod, only: VC_RENAME_NONE, VC_RENAME_COPY
         integer, intent(in) :: state
-        type(vc_dir_entry_type), intent(in) :: extra
+        type(vc_directory_entry_type), intent(in) :: extra
         character(len=:), allocatable :: string
 
         string = ""
@@ -1920,19 +1922,19 @@ contains
             string = "   (renamed to "
         end if
 
-        string = string//vc_git_escape_file_name(extra%orig_name)//")"
+        string = string//vc_git_escape_file_name(extra%original_name)//")"
     end function vc_git_rename_as_string
 
     !> Format a permission change as string.  Port of
     !> vc-git.el:vc-git-permissions-as-string.
-    function vc_git_permissions_as_string(old_perm, new_perm, has) result(string)
-        integer, intent(in) :: old_perm, new_perm
+    function vc_git_permissions_as_string(old_permission, new_permission, has) result(string)
+        integer, intent(in) :: old_permission, new_permission
         logical, intent(in) :: has
         character(len=:), allocatable :: string
 
-        if (.not. has .or. iand(73, ieor(old_perm, new_perm)) == 0) then
+        if (.not. has .or. iand(73, ieor(old_permission, new_permission)) == 0) then
             string = "  "
-        else if (iand(73, old_perm) == 0) then
+        else if (iand(73, old_permission) == 0) then
             string = "+x"
         else
             string = "-x"
@@ -1942,13 +1944,13 @@ contains
     !> Pretty-printer for the vc-dir-fileinfo structure.  Port of
     !> vc-git.el:vc-git-dir-printer (without the mouse maps and help
     !> echoes).
-    recursive subroutine vc_git_dir_printer(info)
+    recursive subroutine vc_git_directory_printer(info)
         use version_control_directory_mod, only: insert_with_face
-        type(vc_dir_fileinfo_type), intent(in) :: info
+        type(vc_directory_fileinfo_type), intent(in) :: info
         character(len=:), allocatable :: display_state, face, type_string, type_face
         character(len=12) :: padded
         logical :: isdir
-        integer :: state, old_perm, new_perm
+        integer :: state, old_permission, new_permission
 
         isdir = allocated(info%directory)
         state = info%entry%state
@@ -1961,32 +1963,32 @@ contains
             display_state = vc_state_name(state)
         end if
 
-        old_perm = 0
-        new_perm = 0
+        old_permission = 0
+        new_permission = 0
 
         if (info%entry%has_extra) then
-            old_perm = info%entry%old_perm
-            new_perm = info%entry%new_perm
+            old_permission = info%entry%old_permission
+            new_permission = info%entry%new_permission
         end if
 
         call insert_with_face("  ", "")
 
         if (info%marked) then
-            call insert_with_face("*", "vc_dir_mark_indicator")
+            call insert_with_face("*", "vc_directory_mark_indicator")
         else
-            call insert_with_face(" ", "vc_dir_mark_indicator")
+            call insert_with_face(" ", "vc_directory_mark_indicator")
         end if
 
         call insert_with_face("  ", "")
 
         if (display_state == "up-to-date") then
-            face = "vc_dir_status_up_to_date"
+            face = "vc_directory_status_up_to_date"
         else if (display_state == "missing" .or. display_state == "conflict" .or. display_state == "committing") then
-            face = "vc_dir_status_warning"
+            face = "vc_directory_status_warning"
         else if (display_state == "ignored") then
-            face = "vc_dir_status_ignored"
+            face = "vc_directory_status_ignored"
         else
-            face = "vc_dir_status_edited"
+            face = "vc_directory_status_edited"
         end if
 
         if (len(display_state) >= 12) then
@@ -1997,16 +1999,17 @@ contains
         end if
 
         call insert_with_face("  ", "")
-        call insert_with_face(vc_git_permissions_as_string(old_perm, new_perm, info%entry%has_extra), "vc_dir_header")
+        call insert_with_face(vc_git_permissions_as_string(old_permission, new_permission, info%entry%has_extra), &
+                              "vc_directory_header")
         call insert_with_face("    ", "")
 
         if (isdir) then
-            call insert_with_face(vc_git_escape_file_name(info%entry%name), "vc_dir_directory")
+            call insert_with_face(vc_git_escape_file_name(info%entry%name), "vc_directory_directory")
         else
-            call insert_with_face(vc_git_escape_file_name(info%entry%name), "vc_dir_file")
+            call insert_with_face(vc_git_escape_file_name(info%entry%name), "vc_directory_file")
         end if
 
-        call vc_git_file_type_as_string(old_perm, new_perm, type_string, type_face)
+        call vc_git_file_type_as_string(old_permission, new_permission, type_string, type_face)
         call insert_with_face(type_string, type_face)
 
         if (isdir) then
@@ -2014,19 +2017,19 @@ contains
         else
             call insert_with_face(vc_git_rename_as_string(state, info%entry), "font_lock_comment_face")
         end if
-    end subroutine vc_git_dir_printer
+    end subroutine vc_git_directory_printer
 
     ! Update FILENAME of the computation K to FILE_STATE, with FILE_INFO.
     ! Port of vc-git.el:vc-git-dir-status-update-file.
-    subroutine dir_status_update_file(k, filename, file_state, file_info)
+    subroutine directory_status_update_file(k, filename, file_state, file_info)
         integer, intent(in) :: k
         character(len=*), intent(in) :: filename
         integer, intent(in) :: file_state
-        type(vc_dir_entry_type), intent(in) :: file_info
-        type(vc_dir_entry_type), allocatable :: grown(:)
+        type(vc_directory_entry_type), intent(in) :: file_info
+        type(vc_directory_entry_type), allocatable :: grown(:)
         integer :: j, i
 
-        associate (s => dir_states(k))
+        associate (s => directory_states(k))
             do j = 1, s%n
                 if (s%hash(j)%name == filename) exit
             end do
@@ -2057,23 +2060,23 @@ contains
                 s%files = pack(s%files, [(s%files(i)%text /= filename, i=1, size(s%files))])
             end if
         end associate
-    end subroutine dir_status_update_file
+    end subroutine directory_status_update_file
 
     ! (vc-git-create-extra-fileinfo OLD-PERM NEW-PERM RENAME-STATE ORIG-NAME).
     ! Not a port.
-    function extra_fileinfo(old_perm, new_perm, rename_state, orig_name) result(info)
+    function extra_fileinfo(old_permission, new_permission, rename_state, original_name) result(info)
         use version_control_hooks_mod, only: VC_RENAME_NONE
-        integer, intent(in) :: old_perm, new_perm
+        integer, intent(in) :: old_permission, new_permission
         integer, intent(in), optional :: rename_state
-        character(len=*), intent(in), optional :: orig_name
-        type(vc_dir_entry_type) :: info
+        character(len=*), intent(in), optional :: original_name
+        type(vc_directory_entry_type) :: info
 
         info%has_extra = .true.
-        info%old_perm = old_perm
-        info%new_perm = new_perm
+        info%old_permission = old_permission
+        info%new_permission = new_permission
         info%rename_state = VC_RENAME_NONE
         if (present(rename_state)) info%rename_state = rename_state
-        if (present(orig_name)) info%orig_name = orig_name
+        if (present(original_name)) info%original_name = original_name
     end function extra_fileinfo
 
     ! (string-to-number S 8).  Not a port.
@@ -2087,31 +2090,31 @@ contains
 
     !> Process sentinel for the various dir-status stages.  Port of
     !> vc-git.el:vc-git-after-dir-status-stage.
-    recursive subroutine vc_git_after_dir_status_stage(action, status)
+    recursive subroutine vc_git_after_directory_status_stage(action, status)
         use version_control_dispatcher_mod, only: vc_action_type
         use version_control_hooks_mod, only: VC_RENAME_COPY, VC_RENAME_RENAME
         type(vc_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: files(:)
-        type(vc_dir_entry_type), allocatable :: result(:)
+        type(vc_directory_entry_type), allocatable :: result(:)
         type(handle_type) :: old
         character(len=:), allocatable :: name, state, new_name
         integer(int64) :: found
         type(status_type) :: st
-        integer :: k, next_stage, perm, old_perm, new_perm, j, s
+        integer :: k, next_stage, permission, old_permission, new_permission, j, s
         logical :: had_files
 
         status = status_type()
         k = action%n
 
         if (.not. is_buffer_live(action%buffer)) then
-            dir_states(k)%live = .false.
+            directory_states(k)%live = .false.
             return
         end if
 
         old = current_buffer()
         call set_buffer(action%buffer, st)
-        files = dir_states(k)%files
+        files = directory_states(k)%files
         had_files = size(files) > 0
         next_stage = STAGE_DONE
         ! First stage is always update-index.
@@ -2121,9 +2124,9 @@ contains
         !     After ls-files-missing, if FILES     nil, ls-files-conflict.
         ! Then always ls-files-unknown.
         ! Finally, if FILES is not empty, ls-files-ignored.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        select case (dir_states(k)%stage)
+        select case (directory_states(k)%stage)
         case (STAGE_UPDATE_INDEX)
             if (is_vc_git_empty_db()) then
                 next_stage = STAGE_LS_FILES_ADDED
@@ -2134,33 +2137,35 @@ contains
             next_stage = STAGE_LS_FILES_UNKNOWN
 
             do
-                call re_search_forward("\([0-7]\{6\}\) [0-9a-f]\{40\} 0"//achar(9)//"\([^"//NUL//"]+\)"//NUL, found, &
-                                       st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("\([0-7]\{6\}\) [0-9a-f]\{40\} 0"//achar(9)//"\([^"//NUL//"]+\)"//NUL, &
+                                                       found, &
+                                                       st, noerror=SEARCH_NOERROR)
                 if (found == 0) exit
-                new_perm = octal(match_in_buffer(1))
+                new_permission = octal(match_in_buffer(1))
                 name = match_in_buffer(2)
-                call dir_status_update_file(k, name, VC_ADDED, extra_fileinfo(0, new_perm))
+                call directory_status_update_file(k, name, VC_ADDED, extra_fileinfo(0, new_permission))
             end do
         case (STAGE_LS_FILES_UP_TO_DATE)
             next_stage = STAGE_LS_FILES_UNKNOWN
 
             do
-                call re_search_forward("\([0-7]\{6\}\) [0-9a-f]\{40\} \([0-3]\)"//achar(9)//"\([^"//NUL//"]+\)"//NUL, &
-                                       found, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("\([0-7]\{6\}\) [0-9a-f]\{40\} \([0-3]\)"//achar(9)//"\([^"//NUL//"]+\)" &
+                                                       //NUL, &
+                                                       found, st, noerror=SEARCH_NOERROR)
                 if (found == 0) exit
-                perm = octal(match_in_buffer(1))
+                permission = octal(match_in_buffer(1))
                 state = match_in_buffer(2)
                 name = match_in_buffer(3)
 
                 if (state == "0") then
                     if (.not. in_hash(k, name)) then
                         ! `diff-index' stage has not produced a more precise info.
-                        call dir_status_update_file(k, name, VC_UP_TO_DATE, extra_fileinfo(perm, perm))
+                        call directory_status_update_file(k, name, VC_UP_TO_DATE, extra_fileinfo(permission, permission))
                     end if
                 else
                     ! `diff-index' assigns `edited' status to conflicted
                     ! files, so we can't do the above in both cases.
-                    call dir_status_update_file(k, name, VC_CONFLICT, extra_fileinfo(perm, perm))
+                    call directory_status_update_file(k, name, VC_CONFLICT, extra_fileinfo(permission, permission))
                 end if
             end do
         case (STAGE_LS_FILES_CONFLICT)
@@ -2168,12 +2173,13 @@ contains
 
             ! It's enough to look for "3" to notice a conflict.
             do
-                call re_search_forward("\([0-7]\{6\}\) [0-9a-f]\{40\} 3"//achar(9)//"\([^"//NUL//"]+\)"//NUL, found, &
-                                       st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("\([0-7]\{6\}\) [0-9a-f]\{40\} 3"//achar(9)//"\([^"//NUL//"]+\)"//NUL, &
+                                                       found, &
+                                                       st, noerror=SEARCH_NOERROR)
                 if (found == 0) exit
-                perm = octal(match_in_buffer(1))
+                permission = octal(match_in_buffer(1))
                 name = match_in_buffer(2)
-                call dir_status_update_file(k, name, VC_CONFLICT, extra_fileinfo(perm, perm))
+                call directory_status_update_file(k, name, VC_CONFLICT, extra_fileinfo(permission, permission))
             end do
         case (STAGE_LS_FILES_MISSING)
             if (had_files) then
@@ -2202,13 +2208,13 @@ contains
             next_stage = STAGE_LS_FILES_MISSING
 
             do
-                call re_search_forward(":\([0-7]\{6\}\) \([0-7]\{6\}\) [0-9a-f]\{40\} [0-9a-f]\{40\} " &
-                                       //"\(\([ADMUT]\)"//NUL//"\([^"//NUL//"]+\)\|\([CR]\)[0-9]*"//NUL//"\([^" &
-                                       //NUL//"]+\)"//NUL//"\([^"//NUL//"]+\)\)"//NUL, found, st, &
-                                       noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(":\([0-7]\{6\}\) \([0-7]\{6\}\) [0-9a-f]\{40\} [0-9a-f]\{40\} " &
+                                                       //"\(\([ADMUT]\)"//NUL//"\([^"//NUL//"]+\)\|\([CR]\)[0-9]*"//NUL//"\([^" &
+                                                       //NUL//"]+\)"//NUL//"\([^"//NUL//"]+\)\)"//NUL, found, st, &
+                                                       noerror=SEARCH_NOERROR)
                 if (found == 0) exit
-                old_perm = octal(match_in_buffer(1))
-                new_perm = octal(match_in_buffer(2))
+                old_permission = octal(match_in_buffer(1))
+                new_permission = octal(match_in_buffer(2))
                 state = match_in_buffer(4)
                 if (len(state) == 0) state = match_in_buffer(6)
                 name = match_in_buffer(5)
@@ -2218,12 +2224,12 @@ contains
                 if (len(new_name) > 0) then
                     ! Copy or rename.
                     if (state(1:1) == "C") then
-                        call dir_status_update_file(k, new_name, VC_ADDED, &
-                                                    extra_fileinfo(old_perm, new_perm, VC_RENAME_COPY, name))
+                        call directory_status_update_file(k, new_name, VC_ADDED, &
+                                                          extra_fileinfo(old_permission, new_permission, VC_RENAME_COPY, name))
                     else
-                        call dir_status_update_file(k, name, VC_REMOVED, extra_fileinfo(0, 0, VC_RENAME_RENAME, new_name))
-                        call dir_status_update_file(k, new_name, VC_ADDED, &
-                                                    extra_fileinfo(old_perm, new_perm, VC_RENAME_RENAME, name))
+                        call directory_status_update_file(k, name, VC_REMOVED, extra_fileinfo(0, 0, VC_RENAME_RENAME, new_name))
+                        call directory_status_update_file(k, new_name, VC_ADDED, &
+                                                          extra_fileinfo(old_permission, new_permission, VC_RENAME_RENAME, name))
                     end if
                 else
                     select case (state(1:1))
@@ -2237,33 +2243,33 @@ contains
                         s = VC_EDITED
                     end select
 
-                    call dir_status_update_file(k, name, s, extra_fileinfo(old_perm, new_perm))
+                    call directory_status_update_file(k, name, s, extra_fileinfo(old_permission, new_permission))
                 end if
             end do
         end select
 
         ! If we had files but now we don't, it's time to stop.
         if (had_files) then
-            if (size(dir_states(k)%files) == 0) next_stage = STAGE_DONE
+            if (size(directory_states(k)%files) == 0) next_stage = STAGE_DONE
         end if
 
-        dir_states(k)%stage = next_stage
-        dir_states(k)%files = files
+        directory_states(k)%stage = next_stage
+        directory_states(k)%files = files
 
         if (next_stage /= STAGE_DONE) then
-            call vc_git_dir_status_goto_stage(k, status)
+            call vc_git_directory_status_goto_stage(k, status)
             call set_buffer(old, st)
         else
             ! (maphash (lambda (key value) (push (cons key value) result)))
-            allocate (result(dir_states(k)%n))
+            allocate (result(directory_states(k)%n))
 
-            do j = 1, dir_states(k)%n
-                result(dir_states(k)%n + 1 - j) = dir_states(k)%hash(j)
+            do j = 1, directory_states(k)%n
+                result(directory_states(k)%n + 1 - j) = directory_states(k)%hash(j)
             end do
 
-            dir_states(k)%live = .false.
+            directory_states(k)%live = .false.
             call set_buffer(old, st)
-            call dir_states(k)%update_function(result, dir_states(k)%buffer, .false.)
+            call directory_states(k)%update_function(result, directory_states(k)%buffer, .false.)
         end if
 
     contains
@@ -2273,9 +2279,9 @@ contains
             integer, intent(in) :: state
 
             do
-                call re_search_forward("\([^"//NUL//"]*?\)"//NUL, found, st, noerror=SEARCH_NOERROR, count=1_int64)
+                call regular_expression_search_forward("\([^"//NUL//"]*?\)"//NUL, found, st, noerror=SEARCH_NOERROR, count=1_int64)
                 if (found == 0) exit
-                call dir_status_update_file(k, match_in_buffer(1), state, extra_fileinfo(0, 0))
+                call directory_status_update_file(k, match_in_buffer(1), state, extra_fileinfo(0, 0))
             end do
         end subroutine nul_separated
 
@@ -2286,19 +2292,19 @@ contains
 
             in_hash = .false.
 
-            do j = 1, dir_states(k)%n
-                if (dir_states(k)%hash(j)%name == name) then
+            do j = 1, directory_states(k)%n
+                if (directory_states(k)%hash(j)%name == name) then
                     in_hash = .true.
                     return
                 end if
             end do
         end function in_hash
-    end subroutine vc_git_after_dir_status_stage
+    end subroutine vc_git_after_directory_status_stage
 
     ! Run the command of the current stage of the computation K in the
-    ! current buffer, then `vc_git_after_dir_status_stage'.  Port of
+    ! current buffer, then `vc_git_after_directory_status_stage'.  Port of
     ! vc-git.el:vc-git-dir-status-goto-stage.
-    recursive subroutine vc_git_dir_status_goto_stage(k, status)
+    recursive subroutine vc_git_directory_status_goto_stage(k, status)
         use version_control_dispatcher_mod, only: vc_action_type, vc_exec_after
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
@@ -2309,11 +2315,11 @@ contains
         integer :: allowed_exit
 
         ! TODO: Look into reimplementing this using `git status --porcelain=v2'.
-        files = dir_states(k)%files
+        files = directory_states(k)%files
         allowed_exit = 1
         call erase_buffer(st)
 
-        select case (dir_states(k)%stage)
+        select case (directory_states(k)%stage)
         case (STAGE_UPDATE_INDEX)
             if (size(files) > 0) then
                 call vc_git_command(VC_OKSTATUS_ASYNC, files, strings("add", "--refresh", "--"), status, &
@@ -2349,44 +2355,44 @@ contains
 
         if (.not. status%ok()) return
         ! (vc-run-delayed-success ALLOWED-EXIT ...)
-        action%execute => vc_git_after_dir_status_stage
+        action%execute => vc_git_after_directory_status_stage
         action%n = k
         action%buffer = current_buffer()
         action%okstatus = allowed_exit
         call vc_exec_after(action, status)
-    end subroutine vc_git_dir_status_goto_stage
+    end subroutine vc_git_directory_status_goto_stage
 
-    !> Return a list of (FILE STATE EXTRA) entries for DIR.  Port of
+    !> Return a list of (FILE STATE EXTRA) entries for DIRECTORY.  Port of
     !> vc-git.el:vc-git-dir-status-files.
-    recursive subroutine vc_git_dir_status_files(dir, files, update, buffer, status)
-        character(len=*), intent(in) :: dir
+    recursive subroutine vc_git_directory_status_files(directory, files, update, buffer, status)
+        character(len=*), intent(in) :: directory
         type(string_type), intent(in) :: files(:)
-        procedure(vc_dir_update_procedure) :: update
+        procedure(vc_directory_update_procedure) :: update
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
-        type(dir_status_state_type) :: state
+        type(directory_status_state_type) :: state
         integer :: k
 
         ! Further things that would have to be fixed later:
         ! - how to handle unregistered directories
         ! - how to support vc-dir on a subdir of the project tree
-        if (len(dir) < 0) return
-        if (.not. allocated(dir_states)) allocate (dir_states(0))
+        if (len(directory) < 0) return
+        if (.not. allocated(directory_states)) allocate (directory_states(0))
 
-        do k = 1, size(dir_states)
-            if (.not. dir_states(k)%live) exit
+        do k = 1, size(directory_states)
+            if (.not. directory_states(k)%live) exit
         end do
 
-        if (k > size(dir_states)) dir_states = [dir_states, state]
-        dir_states(k)%live = .true.
-        dir_states(k)%stage = STAGE_UPDATE_INDEX
-        dir_states(k)%files = files
-        dir_states(k)%update_function => update
-        dir_states(k)%buffer = buffer
-        dir_states(k)%n = 0
-        if (allocated(dir_states(k)%hash)) deallocate (dir_states(k)%hash)
-        call vc_git_dir_status_goto_stage(k, status)
-    end subroutine vc_git_dir_status_files
+        if (k > size(directory_states)) directory_states = [directory_states, state]
+        directory_states(k)%live = .true.
+        directory_states(k)%stage = STAGE_UPDATE_INDEX
+        directory_states(k)%files = files
+        directory_states(k)%update_function => update
+        directory_states(k)%buffer = buffer
+        directory_states(k)%n = 0
+        if (allocated(directory_states(k)%hash)) deallocate (directory_states(k)%hash)
+        call vc_git_directory_status_goto_stage(k, status)
+    end subroutine vc_git_directory_status_files
 
     !> Return the name of the current branch (FOUND false if HEAD is
     !> detached).  Port of vc-git.el:vc-git-working-branch.
@@ -2397,17 +2403,17 @@ contains
         call vc_git_out_match(strings("symbolic-ref", "HEAD"), "^\(refs/heads/\)?\(.+\)$", 2, branch, found)
     end subroutine vc_git_working_branch
 
-    !> Run `git ARGS...' and return match for group number GROUP of REGEXP.
+    !> Run `git ARGUMENTS...' and return match for group number GROUP of REGULAR_EXPRESSION.
     !> FOUND is false if the output does not match.  The exit status is
     !> ignored.  Port of vc-git.el:vc-git--out-match.
-    subroutine vc_git_out_match(args, regexp, group, match, found)
-        type(string_type), intent(in) :: args(:)
-        character(len=*), intent(in) :: regexp
+    subroutine vc_git_out_match(arguments, regular_expression, group, match, found)
+        type(string_type), intent(in) :: arguments(:)
+        character(len=*), intent(in) :: regular_expression
         integer, intent(in) :: group
         character(len=:), allocatable, intent(out) :: match
         logical, intent(out) :: found
         type(string_type), allocatable :: rest(:)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         character(len=:), allocatable :: out
         type(status_type) :: st
         logical :: ok
@@ -2415,48 +2421,48 @@ contains
 
         allocate (rest(0))
 
-        do k = 2, size(args)
-            call append_string(rest, args(k)%text)
+        do k = 2, size(arguments)
+            call append_string(rest, arguments(k)%text)
         end do
 
-        call temp_begin(old, tmp)
-        ok = vc_git_out_ok(args(1)%text, rest)
+        call temporary_begin(old, temporary)
+        ok = vc_git_out_ok(arguments(1)%text, rest)
         out = buffer_string()
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
         match = ""
-        found = string_match(regexp, out, st) > 0
+        found = string_match(regular_expression, out, st) > 0
         if (found) match = match_string(group, out)
     end subroutine vc_git_out_match
 
     !> The URL of the remote REMOTE_NAME ("origin" by default) of the
-    !> repository of FILE_OR_DIR.  Port of vc-git.el:vc-git-repository-url.
-    subroutine vc_git_repository_url(file_or_dir, url, remote_name)
-        character(len=*), intent(in) :: file_or_dir
+    !> repository of FILE_OR_DIRECTORY.  Port of vc-git.el:vc-git-repository-url.
+    subroutine vc_git_repository_url(file_or_directory, url, remote_name)
+        character(len=*), intent(in) :: file_or_directory
         character(len=:), allocatable, intent(out) :: url
         character(len=*), intent(in), optional :: remote_name
         type(string_type) :: none(0)
-        type(handle_type) :: old, tmp
-        character(len=:), allocatable :: root, opt_name, saved
+        type(handle_type) :: old, temporary
+        character(len=:), allocatable :: root, option_name, saved
         type(status_type) :: st
         logical :: found
 
-        call vc_git_root(file_or_dir, root, found)
-        call temp_begin(old, tmp)
+        call vc_git_root(file_or_directory, root, found)
+        call temporary_begin(old, temporary)
         saved = buffer_directory()
         if (found) call set_buffer_directory(root)
         ! The "get-url" subcommand of "git remote" was new in git 2.7.0;
         ! "git config" also works in older versions.  -- rgr, 15-Aug-23.
-        opt_name = "remote.origin.url"
-        if (present(remote_name)) opt_name = "remote."//remote_name//".url"
-        call vc_git_command(0, none, strings("config", "--get", opt_name), st, current=.true.)
+        option_name = "remote.origin.url"
+        if (present(remote_name)) option_name = "remote."//remote_name//".url"
+        call vc_git_command(0, none, strings("config", "--get", option_name), st, current=.true.)
         url = buffer_string()
         if (len(url) > 0) url = url(1:len(url) - 1)
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine vc_git_repository_url
 
     ! Return headers for branch-related information.  Port of
     ! vc-git.el:vc-git-dir--branch-headers.
-    subroutine vc_git_dir_branch_headers(parts)
+    subroutine vc_git_directory_branch_headers(parts)
         type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
         character(len=:), allocatable :: branch, branch_merge, branch_remote, tracking, remote_url
         logical :: found, has_merge, has_remote
@@ -2494,11 +2500,11 @@ contains
             character(len=11) :: padded
 
             padded = key
-            call append_part(parts, padded//": ", "vc_dir_header")
-            call append_part(parts, value, "vc_dir_header_value")
+            call append_part(parts, padded//": ", "vc_directory_header")
+            call append_part(parts, value, "vc_directory_header_value")
             call append_part(parts, LF, "")
         end subroutine fmt
-    end subroutine vc_git_dir_branch_headers
+    end subroutine vc_git_directory_branch_headers
 
     ! Append TEXT with FACE to PARTS.  Not a port.
     subroutine append_part(parts, text, face)
@@ -2540,19 +2546,19 @@ contains
 
     !> The Git commands in progress in this worktree.  Port of
     !> vc-git.el:vc-git--cmds-in-progress.
-    function get_vc_git_commands_in_progress() result(cmds)
-        type(vc_git_commands_in_progress_type) :: cmds
+    function get_vc_git_commands_in_progress() result(commands)
+        type(vc_git_commands_in_progress_type) :: commands
         character(len=:), allocatable :: gitdir
 
         gitdir = vc_git_git_path()
         ! See contrib/completion/git-prompt.sh in git.git.
-        cmds%revert = file_exists(in_gitdir("REVERT_HEAD"))
-        cmds%cherry_pick = file_exists(in_gitdir("CHERRY_PICK_HEAD"))
-        cmds%rebase = is_file_directory(in_gitdir("rebase-merge"))
-        if (.not. cmds%rebase) cmds%rebase = file_exists(in_gitdir("rebase-apply/rebasing"))
-        cmds%am = file_exists(in_gitdir("rebase-apply/applying"))
-        cmds%merge = file_exists(in_gitdir("MERGE_HEAD"))
-        cmds%bisect = file_exists(in_gitdir("BISECT_START"))
+        commands%revert = file_exists(in_gitdir("REVERT_HEAD"))
+        commands%cherry_pick = file_exists(in_gitdir("CHERRY_PICK_HEAD"))
+        commands%rebase = is_file_directory(in_gitdir("rebase-merge"))
+        if (.not. commands%rebase) commands%rebase = file_exists(in_gitdir("rebase-apply/rebasing"))
+        commands%am = file_exists(in_gitdir("rebase-apply/applying"))
+        commands%merge = file_exists(in_gitdir("MERGE_HEAD"))
+        commands%bisect = file_exists(in_gitdir("BISECT_START"))
 
     contains
 
@@ -2568,45 +2574,45 @@ contains
 
     ! Return headers for Git commands in progress in this worktree.  Port of
     ! vc-git.el:vc-git-dir--in-progress-headers.
-    subroutine vc_git_dir_in_progress_headers(parts)
+    subroutine vc_git_directory_in_progress_headers(parts)
         type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
-        type(vc_git_commands_in_progress_type) :: cmds
+        type(vc_git_commands_in_progress_type) :: commands
 
-        cmds = get_vc_git_commands_in_progress()
+        commands = get_vc_git_commands_in_progress()
 
         ! For now just a heading, key bindings can be added
         ! later for various bisect actions.
-        if (cmds%bisect) then
-            call append_part(parts, "Bisect     : in progress", "vc_dir_status_warning")
+        if (commands%bisect) then
+            call append_part(parts, "Bisect     : in progress", "vc_directory_status_warning")
             call append_part(parts, LF, "")
         end if
 
-        if (cmds%rebase) then
-            call append_part(parts, "Rebase     : in progress", "vc_dir_status_warning")
+        if (commands%rebase) then
+            call append_part(parts, "Rebase     : in progress", "vc_directory_status_warning")
             call append_part(parts, LF, "")
         end if
-    end subroutine vc_git_dir_in_progress_headers
+    end subroutine vc_git_directory_in_progress_headers
 
     !> The Git headers of a VC-Dir buffer: the branch, its tracking branch
     !> and remote, and the commands in progress.  Port of
     !> vc-git.el:vc-git-dir-extra-headers (the stash headers are deferred:
     !> they need button.el).
-    recursive subroutine vc_git_dir_extra_headers(dir, parts)
-        character(len=*), intent(in) :: dir
+    recursive subroutine vc_git_directory_extra_headers(directory, parts)
+        character(len=*), intent(in) :: directory
         type(ewoc_part_type), allocatable, intent(out) :: parts(:)
         character(len=:), allocatable :: saved
 
         allocate (parts(0))
         saved = buffer_directory()
-        call set_buffer_directory(dir)
+        call set_buffer_directory(directory)
         ! Each helper returns a list of headers.  Each header must be a
         ! propertized string with no final newline.
-        call vc_git_dir_branch_headers(parts)
-        call vc_git_dir_in_progress_headers(parts)
+        call vc_git_directory_branch_headers(parts)
+        call vc_git_directory_in_progress_headers(parts)
         call set_buffer_directory(saved)
         ! (string-join ... "\n"): no newline after the last header.
         if (size(parts) > 0) parts = parts(1:size(parts) - 1)
-    end subroutine vc_git_dir_extra_headers
+    end subroutine vc_git_directory_extra_headers
 
     ! ------------------------------------------------------------------
     ! Conflicts
@@ -2667,7 +2673,7 @@ contains
     !> vc-git.el:vc-git-resolve-when-done.
     recursive subroutine resolve_vc_git_when_done(status)
         type(status_type), intent(out) :: status
-        type(vc_git_commands_in_progress_type) :: cmds
+        type(vc_git_commands_in_progress_type) :: commands
         type(string_type), allocatable :: none(:), conflicted(:)
         character(len=:), allocatable :: file, root
         integer(int64) :: here, found
@@ -2678,8 +2684,8 @@ contains
         if (.not. allocated(buffers(current)%filename)) return
         file = buffers(current)%filename
         here = point()
-        call goto_char(point_min())
-        call re_search_forward("^<<<<<<< ", found, status, noerror=SEARCH_NOERROR)
+        call goto_character(point_minimum())
+        call regular_expression_search_forward("^<<<<<<< ", found, status, noerror=SEARCH_NOERROR)
 
         resolve: block
             if (.not. status%ok()) exit resolve
@@ -2694,9 +2700,10 @@ contains
             ! cherry-pick, for example, it would effectively abort
             ! the cherry-pick, losing the user's progress.
             if (vc_git_resolve_conflicts%choice == VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE) then
-                cmds = get_vc_git_commands_in_progress()
+                commands = get_vc_git_commands_in_progress()
 
-                if (.not. (cmds%merge .or. cmds%rebase .or. cmds%am .or. cmds%revert .or. cmds%cherry_pick)) then
+                if (.not. (commands%merge .or. commands%rebase .or. commands%am .or. commands%revert .or. commands%cherry_pick)) &
+                    then
                     call vc_git_root(file, root, has_root)
                     if (.not. has_root) root = ""
                     call vc_git_conflicted_files(root, conflicted)
@@ -2715,7 +2722,7 @@ contains
             call after_save_hook%remove(resolve_vc_git_when_done, local=.true.)
         end block resolve
 
-        call goto_char(here)
+        call goto_character(here)
     end subroutine resolve_vc_git_when_done
 
     !> Activate `smerge_mode' if there is a conflict.  Port of
@@ -2730,9 +2737,9 @@ contains
         file = buffers(current)%filename
         if (vc_state(file, git_backend) /= VC_CONFLICT) return
         here = point()
-        call goto_char(point_min())
-        call re_search_forward("^<<<<<<< ", found, st, noerror=SEARCH_NOERROR)
-        call goto_char(here)
+        call goto_character(point_minimum())
+        call regular_expression_search_forward("^<<<<<<< ", found, st, noerror=SEARCH_NOERROR)
+        call goto_character(here)
         if (found == 0) return
         call start_smerge_session(st)
 
@@ -2746,13 +2753,13 @@ contains
 
     ! Annotate (vc-annotate.el's backend functions)
     ! ------------------------------------------------------------------
-    !> Start `git blame' of revision REV of FILE, its output in BUFFER.
+    !> Start `git blame' of revision REVISION of FILE, its output in BUFFER.
     !> Port of vc-git.el:vc-git-annotate-command (the output is decoded as
     !> UTF-8: vc-git--asciify-coding-system is not needed).
-    recursive subroutine vc_git_annotate_command(file, buffer, rev, status)
+    recursive subroutine vc_git_annotate_command(file, buffer, revision, status)
         character(len=*), intent(in) :: file
         type(handle_type), intent(in) :: buffer
-        character(len=*), intent(in) :: rev
+        character(len=*), intent(in) :: revision
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: flags(:), switches(:)
         type(string_type) :: none(0)
@@ -2762,7 +2769,7 @@ contains
         flags = strings("blame", "--date=short")
         call vc_switches(git_backend_index(), "annotate", switches)
         call append_all(flags, switches)
-        call append_all(flags, strings(rev, "--", name))
+        call append_all(flags, strings(revision, "--", name))
         call vc_git_command(VC_OKSTATUS_ASYNC, none, flags, status, buffer=buffer)
     end subroutine vc_git_annotate_command
 
@@ -2776,15 +2783,15 @@ contains
         type(time_type) :: encoded
         type(status_type) :: st
         character(len=:), allocatable :: date, time, zone
-        integer(int64) :: pos
+        integer(int64) :: position
         logical :: has_time
 
         days = 0
         found = .false.
-        call re_search_forward("^[0-9a-f^]+[^()]+(.*?\([0-9]+-[0-9]+-[0-9]+\)" &
-                               //"\(?: \([0-9]+:[0-9]+:[0-9]+\) \([-+0-9]+\)\)? +[0-9]+) ", pos, st, &
-                               noerror=SEARCH_NOERROR)
-        if (.not. st%ok() .or. pos == 0) return
+        call regular_expression_search_forward("^[0-9a-f^]+[^()]+(.*?\([0-9]+-[0-9]+-[0-9]+\)" &
+                                               //"\(?: \([0-9]+:[0-9]+:[0-9]+\) \([-+0-9]+\)\)? +[0-9]+) ", position, st, &
+                                               noerror=SEARCH_NOERROR)
+        if (.not. st%ok() .or. position == 0) return
         date = match_string(1)
         time = match_string(2, matched=has_time)
         zone = match_string(3)
@@ -2858,7 +2865,7 @@ contains
         if (len(digits) == 4) read (digits(3:4), *) minutes
         decoded%zone = 3600*hours + 60*minutes
         if (zone(1:1) == "-") decoded%zone = -decoded%zone
-        decoded%dst = DECODED_TIME_DST_NO
+        decoded%daylight_saving_time = DECODED_TIME_DAYLIGHT_SAVING_TIME_NO
         found = decoded%hour <= 24 .and. decoded%minute <= 59 .and. seconds <= 60
     end subroutine parse_annotate_time
 
@@ -2872,12 +2879,12 @@ contains
         logical, intent(out) :: found
         character(len=:), allocatable :: file_name, root
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
         logical :: has_file, has_root
 
         revision = ""
         file = ""
-        opoint = point()
+        original_point = point()
         call beginning_of_line()
         found = looking_at("\^?\([0-9a-f]+\) \(\([^(]+\) \)?", st)
 
@@ -2894,52 +2901,52 @@ contains
             end if
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine extract_vc_git_annotate_revision_at_line
 
     !> Git-specific version of `vc_next_revision'.  Port of
     !> vc-git.el:vc-git-next-revision.
-    subroutine vc_git_next_revision(file, rev, next, found)
+    subroutine vc_git_next_revision(file, revision, next, found)
         use search_mod, only: search_forward
-        character(len=*), intent(in) :: file, rev
+        character(len=*), intent(in) :: file, revision
         character(len=:), allocatable, intent(out) :: next
         logical, intent(out) :: found
-        character(len=:), allocatable :: saved_dir, root, file_name, current_rev, sym
-        type(handle_type) :: old, tmp
+        character(len=:), allocatable :: saved_directory, root, file_name, current_revision, symbol
+        type(handle_type) :: old, temporary
         type(status_type) :: st
-        integer(int64) :: shortage, p, pos
+        integer(int64) :: shortage, p, position
         logical :: ok
 
         next = ""
         found = .false.
-        saved_dir = buffer_directory()
+        saved_directory = buffer_directory()
         call vc_git_root(file, root, ok)
         if (ok) call set_buffer_directory(root)
         file_name = file_relative_name(file)
-        call temp_begin(old, tmp)
-        ok = vc_git_out_ok("rev-list", strings(maybe_abbrev(), "-1", rev, "--", file_name))
+        call temporary_begin(old, temporary)
+        ok = vc_git_out_ok("rev-list", strings(maybe_abbrev(), "-1", revision, "--", file_name))
 
         if (ok) then
-            call goto_char(point_max())
-            ok = is_bol()
+            call goto_character(point_maximum())
+            ok = is_beginning_of_line()
         end if
 
         if (ok) then
             shortage = forward_line(-1_int64)
-            ok = shortage == 0 .and. is_bob()
+            ok = shortage == 0 .and. is_beginning_of_buffer()
         end if
 
-        if (ok) call buffer_substring(point(), point_max() - 1, current_rev, st)
-        call temp_end(old, tmp)
+        if (ok) call buffer_substring(point(), point_maximum() - 1, current_revision, st)
+        call temporary_end(old, temporary)
 
         if (ok) then
-            call temp_begin(old, tmp)
+            call temporary_begin(old, temporary)
             ok = vc_git_out_ok("rev-list", strings(maybe_abbrev(), "HEAD", "--", file_name))
 
             if (ok) then
-                call goto_char(point_min())
-                call search_forward(current_rev, pos, st, noerror=SEARCH_NOERROR)
-                ok = pos > 0
+                call goto_character(point_minimum())
+                call search_forward(current_revision, position, st, noerror=SEARCH_NOERROR)
+                ok = position > 0
             end if
 
             if (ok) then
@@ -2954,50 +2961,50 @@ contains
                 found = st%ok()
             end if
 
-            call temp_end(old, tmp)
+            call temporary_end(old, temporary)
         end if
 
-        call set_buffer_directory(saved_dir)
+        call set_buffer_directory(saved_directory)
 
         if (found) then
-            call vc_git_symbolic_commit(next, sym, ok)
-            if (ok) next = sym
+            call vc_git_symbolic_commit(next, symbol, ok)
+            if (ok) next = symbol
         end if
     end subroutine vc_git_next_revision
 
-    !> The files that revision REV added, deleted, copied or renamed, with
+    !> The files that revision REVISION added, deleted, copied or renamed, with
     !> their names before and after it (none when
     !> `vc_git_print_log_follow' is true).  Port of
     !> vc-git.el:vc-git-file-name-changes.
-    recursive subroutine vc_git_file_name_changes(rev, changes)
-        character(len=*), intent(in) :: rev
+    recursive subroutine vc_git_file_name_changes(revision, changes)
+        character(len=*), intent(in) :: revision
         type(vc_file_name_change_type), allocatable, intent(out) :: changes(:)
         type(string_type) :: none(0)
         type(vc_file_name_change_type) :: change
         type(string_type), allocatable :: flags(:), switches(:)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         character(len=:), allocatable :: root, kind, name
-        integer(int64) :: pos
+        integer(int64) :: position
         logical :: has_root
 
         allocate (changes(0))
         call vc_git_root(buffer_directory(), root, has_root)
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
 
         if (.not. vc_git_print_log_follow) then
-            flags = strings("diff", "--name-status", "--diff-filter=ADCR", rev//"^", rev)
+            flags = strings("diff", "--name-status", "--diff-filter=ADCR", revision//"^", revision)
             call vc_switches(git_backend_index(), "file_name_changes", switches)
             call append_all(flags, switches)
             call vc_git_command(VC_OKSTATUS_ANY, none, flags, st, current=.true.)
         end if
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward("^\([ADCR]\)[0-9]*"//TAB//"\([^"//LF//TAB//"]+\)\(?:"//TAB//"\([^"//LF//TAB &
-                                   //"]+\)\)?", pos, st, noerror=SEARCH_NOERROR)
-            if (.not. st%ok() .or. pos == 0) exit
+            call regular_expression_search_forward("^\([ADCR]\)[0-9]*"//TAB//"\([^"//LF//TAB//"]+\)\(?:"//TAB//"\([^"//LF//TAB &
+                                                   //"]+\)\)?", position, st, noerror=SEARCH_NOERROR)
+            if (.not. st%ok() .or. position == 0) exit
             kind = match_string(1)
             change = vc_file_name_change_type()
 
@@ -3016,7 +3023,7 @@ contains
             changes = [changes, change]
         end do
 
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
 
     contains
 
@@ -3052,20 +3059,20 @@ contains
         trimmed = string(1:n)
     end function trim_right
 
-    !> Run `git ARGS...' and return standard output as a string.
+    !> Run `git ARGUMENTS...' and return standard output as a string.
     !> The exit status is ignored.  Port of vc-git.el:vc-git--out-str.
-    function out_string(args) result(string)
-        type(string_type), intent(in) :: args(:)
+    function out_string(arguments) result(string)
+        type(string_type), intent(in) :: arguments(:)
         character(len=:), allocatable :: string
         type(string_type), allocatable :: rest(:)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         logical :: ok
 
-        rest = args(2:)
-        call temp_begin(old, tmp)
-        ok = vc_git_out_ok(args(1)%text, rest)
+        rest = arguments(2:)
+        call temporary_begin(old, temporary)
+        ok = vc_git_out_ok(arguments(1)%text, rest)
         string = buffer_string()
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end function out_string
 
     !> Return the existing branches, as a list of strings.
@@ -3073,19 +3080,19 @@ contains
     !> when there is none).  Port of vc-git.el:vc-git-branches.
     subroutine vc_git_branches(branches)
         type(string_type), allocatable, intent(out) :: branches(:)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         integer(int64) :: shortage
         integer :: code
 
         allocate (branches(1))
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         ! 'git branch' is a porcelain command whose output could change in
         ! the future.
         call vc_git_execute(.true., "for-each-ref", strings("--format=%(HEAD) %(refname:short)", "refs/heads/"), code, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        do while (point() < point_max())
+        do while (point() < point_maximum())
             if (looking_at("^\([ *]\) \(.+\)$", st)) then
                 if (match_in_buffer(1) == "*") then
                     branches(1)%text = match_in_buffer(2)
@@ -3097,7 +3104,7 @@ contains
             shortage = forward_line(1_int64)
         end do
 
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine vc_git_branches
 
     !> Return the configured remote branches for BRANCH.
@@ -3134,22 +3141,22 @@ contains
         remotes%push = push//"/"//name
     end subroutine vc_git_branch_remotes
 
-    !> Read the start point of a new branch in DIR (the root of the
+    !> Read the start point of a new branch in DIRECTORY (the root of the
     !> current repository if absent), defaulting to the current branch.
     !> Port of vc-git.el:vc-git--read-start-point.
-    recursive subroutine vc_git_read_start_point(start, status, dir)
+    recursive subroutine vc_git_read_start_point(start, status, directory)
         use version_control_mod, only: vc_read_revision
         character(len=:), allocatable, intent(out) :: start
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: dir
+        character(len=*), intent(in), optional :: directory
         type(string_type), allocatable :: branches(:), files(:)
         character(len=:), allocatable :: root
         logical :: found
 
         call vc_git_branches(branches)
 
-        if (present(dir)) then
-            call append_string(files, dir)
+        if (present(directory)) then
+            call append_string(files, directory)
         else
             call vc_git_root(buffer_directory(), root, found)
             call append_string(files, root)
@@ -3163,13 +3170,13 @@ contains
         end if
     end subroutine vc_git_read_start_point
 
-    !> In DIR, make a tag called NAME, or with IS_BRANCH a branch called NAME
+    !> In DIRECTORY, make a tag called NAME, or with IS_BRANCH a branch called NAME
     !> (asking for its start point) that is then checked out.  Port of
     !> vc-git.el:vc-git-create-tag.
-    recursive subroutine vc_git_create_tag(dir, name, is_branch, status)
+    recursive subroutine vc_git_create_tag(directory, name, is_branch, status)
         use basic_subprograms_mod, only: read_y_or_n
-        use error_mod, only: FM_USER_ERROR
-        character(len=*), intent(in) :: dir, name
+        use error_mod, only: USER_ERROR_CODE
+        character(len=*), intent(in) :: directory, name
         logical, intent(in) :: is_branch
         type(status_type), intent(out) :: status
         type(string_type) :: none(0)
@@ -3179,11 +3186,11 @@ contains
         integer :: code
 
         saved = buffer_directory()
-        call set_buffer_directory(dir)
+        call set_buffer_directory(directory)
         start_point = ""
 
         if (is_branch) then
-            call vc_git_read_start_point(start_point, status, dir)
+            call vc_git_read_start_point(start_point, status, directory)
 
             if (.not. status%ok()) then
                 call set_buffer_directory(saved)
@@ -3198,9 +3205,9 @@ contains
 
             if (status%ok() .and. .not. proceed) then
                 if (is_branch) then
-                    call set_error(status, FM_USER_ERROR, "Can't create branch with modified files")
+                    call set_error(status, USER_ERROR_CODE, "Can't create branch with modified files")
                 else
-                    call set_error(status, FM_USER_ERROR, "Can't create tag with modified files")
+                    call set_error(status, USER_ERROR_CODE, "Can't create tag with modified files")
                 end if
             end if
         end if
@@ -3218,10 +3225,10 @@ contains
         call set_buffer_directory(saved)
     end subroutine vc_git_create_tag
 
-    !> In DIR, check out the tag or branch NAME.  Port of
+    !> In DIRECTORY, check out the tag or branch NAME.  Port of
     !> vc-git.el:vc-git-retrieve-tag.
-    recursive subroutine vc_git_retrieve_tag(dir, name, update, status)
-        character(len=*), intent(in) :: dir, name
+    recursive subroutine vc_git_retrieve_tag(directory, name, update, status)
+        character(len=*), intent(in) :: directory, name
         logical, intent(in) :: update
         type(status_type), intent(out) :: status
         type(string_type) :: none(0)
@@ -3229,26 +3236,26 @@ contains
 
         if (update .and. .false.) return
         saved = buffer_directory()
-        call set_buffer_directory(dir)
+        call set_buffer_directory(directory)
         call vc_git_command(0, none, strings("checkout", name), status)
         call set_buffer_directory(saved)
     end subroutine vc_git_retrieve_tag
 
     !> Run COMMAND (a string; either push or pull) on the current Git branch.
-    !> If PROMPT is true, prompt for the Git command to run.  EXTRA_ARGS
+    !> If PROMPT is true, prompt for the Git command to run.  EXTRA_ARGUMENTS
     !> follow COMMAND.  PROCESS is the asynchronous process.  Port of
     !> vc-git.el:vc-git--pushpull.
-    recursive subroutine vc_git_pushpull(command, prompt, extra_args, status, process)
+    recursive subroutine vc_git_pushpull(command, prompt, extra_arguments, status, process)
         use file_input_output_mod, only: expand_file_name
         use process_mod, only: set_process_query_on_exit_flag, set_process_filter
         use buffer_mod, only: get_buffer
         use version_control_dispatcher_mod, only: vc_do_async_command, vc_exec_after, vc_action_type, vc_set_async_update
         character(len=*), intent(in) :: command
         logical, intent(in) :: prompt
-        type(string_type), intent(in) :: extra_args(:)
+        type(string_type), intent(in) :: extra_arguments(:)
         type(status_type), intent(out) :: status
         type(handle_type), intent(out) :: process
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(vc_action_type) :: action
         type(handle_type) :: buffer, old
         type(status_type) :: st
@@ -3260,7 +3267,7 @@ contains
         call vc_git_root(buffer_directory(), root, found)
 
         if (.not. found) then
-            call set_error(status, FM_GENERIC_ERROR, "Not in a Git repository: "//buffer_directory())
+            call set_error(status, GENERIC_ERROR_CODE, "Not in a Git repository: "//buffer_directory())
             return
         end if
 
@@ -3269,9 +3276,9 @@ contains
         buffer_name = "*vc-git : "//full_root//"*"
         git_program = vc_git_program
         ! TODO if pushing, prompt if no default push location - cf bzr.
-        args = strings(command)
-        call append_all(args, extra_args)
-        call vc_do_async_command(buffer_name, root, git_program, args, status, process, prompt, "vc_git_history")
+        arguments = strings(command)
+        call append_all(arguments, extra_arguments)
+        call vc_do_async_command(buffer_name, root, git_program, arguments, status, process, prompt, "vc_git_history")
         if (.not. status%ok()) return
         call set_process_query_on_exit_flag(process, .true., st)
         ! "git pull" includes progress output that uses ^M to move point
@@ -3281,12 +3288,12 @@ contains
         ! The command, edited when prompting: COMMAND and EXTRA-ARGS.
         compile_command = git_program//" "
 
-        do k = 1, size(args)
+        do k = 1, size(arguments)
             if (k > 1) compile_command = compile_command//" "
-            if (allocated(args(k)%text)) compile_command = compile_command//args(k)%text
+            if (allocated(arguments(k)%text)) compile_command = compile_command//arguments(k)%text
         end do
 
-        if (size(args) == 1) compile_command = compile_command//" "
+        if (size(arguments) == 1) compile_command = compile_command//" "
         buffer = get_buffer(buffer_name)
         old = current_buffer()
         call set_buffer(buffer, st)
@@ -3339,7 +3346,7 @@ contains
 
         status = status_type()
         if (.not. is_buffer_live(action%buffer)) return
-        call vc_compilation_mode(status, vc_git_error_regexps)
+        call vc_compilation_mode(status, vc_git_error_regular_expressions)
         if (.not. status%ok()) return
         call compile_command%set_local(action%s1)
         call compilation_directory%set_local(action%s2)
@@ -3395,9 +3402,9 @@ contains
         type(status_type), intent(out) :: status
         type(vc_git_branch_remotes_type) :: remotes
         type(string_type) :: none(0)
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
-        character(len=:), allocatable :: rev, parsed
+        character(len=:), allocatable :: revision_name, parsed
         logical :: known
 
         status = status_type()
@@ -3405,38 +3412,38 @@ contains
         found = .false.
 
         if (len(upstream_location) > 0) then
-            rev = upstream_location
+            revision_name = upstream_location
         else
             call vc_git_branch_remotes(remotes)
 
             if (allocated(remotes%push)) then
-                rev = remotes%push
+                revision_name = remotes%push
             else if (allocated(remotes%upstream)) then
-                rev = remotes%upstream
+                revision_name = remotes%upstream
             else
                 return
             end if
         end if
 
-        call vc_git_rev_parse(rev, parsed, known)
+        call vc_git_revision_parse(revision_name, parsed, known)
 
         if (refresh .or. .not. known) then
             ! Extract remote from "remote/branch".
-            if (index(rev, "/") > 0) then
-                call vc_git_command(0, none, strings("fetch", rev(1:index(rev, "/") - 1)), status)
+            if (index(revision_name, "/") > 0) then
+                call vc_git_command(0, none, strings("fetch", revision_name(1:index(revision_name, "/") - 1)), status)
             else
-                call vc_git_command(0, none, strings("fetch", rev), status)
+                call vc_git_command(0, none, strings("fetch", revision_name), status)
             end if
 
             if (.not. status%ok()) return
         end if
 
         ! In order to give none if no such branch.
-        call temp_begin(old, tmp)
-        call vc_git_command(0, none, strings("log", "--max-count=1", "--pretty=format:%H", rev), st, current=.true.)
+        call temporary_begin(old, temporary)
+        call vc_git_command(0, none, strings("log", "--max-count=1", "--pretty=format:%H", revision_name), st, current=.true.)
         found = st%ok()
         if (found) revision = buffer_string()
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end subroutine vc_git_incoming_revision
 
     !> The common ancestor BASE of REV1 and REV2 ("" for HEAD).  Port of
@@ -3461,17 +3468,17 @@ contains
         if (ok) then
             base = trim_right(out)
         else
-            call set_error(status, FM_GENERIC_ERROR, "No common ancestor for merge base")
+            call set_error(status, GENERIC_ERROR_CODE, "No common ancestor for merge base")
         end if
     end subroutine vc_git_mergebase
 
     !> Make the Git backend known to VC.  Not a port.
-    subroutine init_vc_git()
+    subroutine initialize_vc_git()
         integer :: k
 
         if (.not. allocated(vc_git_program)) vc_git_program = "git"
         call define_log_edit_mode()
-        call init_root_log_format()
+        call initialize_root_log_format()
         call define_log_view_mode()
         call register_vc_backend("Git", k)
         git_backend = k
@@ -3502,14 +3509,14 @@ contains
             b%previous_revision => vc_git_previous_revision
             b%revision_completion_table => vc_git_revision_table
             b%mark_resolved => vc_git_mark_resolved
-            b%create_repo => vc_git_create_repo
+            b%create_repository => vc_git_create_repository
             b%diff_switches => vc_git_diff_switches
             b%print_log => vc_git_print_log
             b%log_view_mode => vc_git_log_view_mode
             b%show_log_entry => show_vc_git_log_entry
-            b%dir_status_files => vc_git_dir_status_files
-            b%dir_extra_headers => vc_git_dir_extra_headers
-            b%dir_printer => vc_git_dir_printer
+            b%directory_status_files => vc_git_directory_status_files
+            b%directory_extra_headers => vc_git_directory_extra_headers
+            b%directory_printer => vc_git_directory_printer
             b%find_file_hook => vc_git_find_file_hook
             b%annotate_command => vc_git_annotate_command
             b%annotate_time => vc_git_annotate_time
@@ -3527,12 +3534,12 @@ contains
             b%mergebase => vc_git_mergebase
         end associate
 
-        if (.not. allocated(vc_git_error_regexps)) then
-            allocate (vc_git_error_regexps(1))
-            vc_git_error_regexps(1)%name = "vc_git"
-            vc_git_error_regexps(1)%regexp = "^ \(.+\)\> *|"
-            vc_git_error_regexps(1)%file = 1
-            vc_git_error_regexps(1)%type = 0
+        if (.not. allocated(vc_git_error_regular_expressions)) then
+            allocate (vc_git_error_regular_expressions(1))
+            vc_git_error_regular_expressions(1)%name = "vc_git"
+            vc_git_error_regular_expressions(1)%regular_expression = "^ \(.+\)\> *|"
+            vc_git_error_regular_expressions(1)%file = 1
+            vc_git_error_regular_expressions(1)%type = 0
         end if
-    end subroutine init_vc_git
+    end subroutine initialize_vc_git
 end module version_control_git_mod

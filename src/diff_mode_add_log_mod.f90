@@ -23,7 +23,7 @@
 !> The names of the subprograms a diff changes
 !> (`diff_add_log_current_subprograms', `diff_current_subprogram') and
 !> ChangeLog entries for every hunk (\[add_diff_change_log_entries_other_window]):
-!> a submodule because it uses version_control_mod (`vc_root_dir'), which uses
+!> a submodule because it uses version_control_mod (`vc_root_directory'), which uses
 !> diff_mode_mod.
 submodule(diff_mode_mod) diff_mode_add_log_mod
     use add_log_mod, only: add_log_current_subprogram, change_log_default_name, add_change_log_entry
@@ -33,7 +33,7 @@ submodule(diff_mode_mod) diff_mode_add_log_mod
     use basic_subprograms_mod, only: delay_mode_hooks_begin, delay_mode_hooks_end
     use expression_motion_mod, only: end_of_subprogram
     use files_mod, only: file_relative_name
-    use version_control_mod, only: vc_root_dir
+    use version_control_mod, only: vc_root_directory
     use display_engine_mod, only: message
     implicit none(type, external)
 
@@ -52,37 +52,37 @@ contains
 
     module procedure diff_add_log_current_subprograms
     type(follower_type) :: same, removed, added
-    type(diff_source_location_type) :: loc
+    type(diff_source_location_type) :: location
     type(string_type), allocatable :: names(:)
     type(string_type), allocatable :: mismatches(:)
     type(handle_type) :: diff_buffer, other_buffer
     character(len=:), allocatable :: filename, root, def, joined
     type(status_type) :: st
-    integer(int64) :: opoint, found, hunk_end, shortage, same_lines, added_lines, removed_lines
-    integer(int32) :: patch_char
-    logical :: has_file, has_root, has_char
+    integer(int64) :: original_point, found, hunk_end, shortage, same_lines, added_lines, removed_lines
+    integer(int32) :: patch_character
+    logical :: has_file, has_root, has_character
     integer :: k
 
     status = status_type()
     allocate (entries(0), mismatches(0))
     diff_buffer = current_buffer()
-    opoint = point()
-    call goto_char(point_min())
+    original_point = point()
+    call goto_character(point_minimum())
 
     ! Might need to skip over file headers between diff
     ! hunks (e.g., "diff --git ..." etc).
     do
-        call re_search_forward(diff_hunk_header_regexp, found, status, noerror=SEARCH_NOERROR)
+        call regular_expression_search_forward(diff_hunk_header_regular_expression, found, status, noerror=SEARCH_NOERROR)
         if (.not. status%ok() .or. found <= 0) exit
         found = point()
         hunk_end = diff_end_of_hunk()
-        call goto_char(found)
+        call goto_character(found)
         call diff_find_file_name(filename, has_file, status)
         if (.not. status%ok()) exit
         if (.not. has_file) filename = ""
 
         if (diff_add_log_use_relative_names) then
-            call vc_root_dir(root, has_root, st)
+            call vc_root_directory(root, has_root, st)
             if (st%ok() .and. has_root) filename = file_relative_name(filename, root)
         end if
 
@@ -97,7 +97,7 @@ contains
             has_file = names(1)%text /= "/dev/null" .or. len(names(1)%text) /= len("/dev/null")
         end if
 
-        call diff_find_source_location(loc, status, has_file)
+        call diff_find_source_location(location, status, has_file)
         if (.not. status%ok()) exit
         same_lines = 0
         added_lines = 0
@@ -107,9 +107,9 @@ contains
         ! If APPLIED, we have NEW-TEXT in BUFFER, so we
         ! need to a buffer with OLD-TEXT to follow
         ! -lines.
-        removed = follower_type(other=loc%switched)
-        added = follower_type(other=.not. loc%switched)
-        if (.not. loc%found .or. loc%line_offset /= 0) call append_mismatch(filename)
+        removed = follower_type(other=location%switched)
+        added = follower_type(other=.not. location%switched)
+        if (.not. location%found .or. location%line_offset /= 0) call append_mismatch(filename)
         ! Some modes always return nil for `add-log-current-defun',
         ! make sure at least the filename is included.
         k = entry_index(filename)
@@ -117,10 +117,10 @@ contains
         do
             shortage = forward_line(1_int64)
             if (point() >= hunk_end) exit
-            call char_after(patch_char, has_char)
-            if (.not. has_char) patch_char = 0
+            call character_after(patch_character, has_character)
+            if (.not. has_character) patch_character = 0
 
-            select case (patch_char)
+            select case (patch_character)
             case (iachar("+"))
                 added_lines = added_lines + 1
             case (iachar("-"))
@@ -135,14 +135,14 @@ contains
             call check_end(added)
             call check_end(removed)
 
-            if (patch_char == iachar(" ")) then
+            if (patch_character == iachar(" ")) then
                 ! Just updating context subprogram.
                 call check_subprogram(same, def)
                 if (allocated(def)) deallocate (def)
             else if (allocated(same%name)) then
                 ! + or - in existing subprogram.
                 def = same%name
-            else if (patch_char == iachar("+")) then
+            else if (patch_character == iachar("+")) then
                 ! Check added or removed subprogram.
                 call check_subprogram(added, def)
             else
@@ -159,7 +159,7 @@ contains
     end do
 
     call set_buffer(diff_buffer, st)
-    call goto_char(opoint)
+    call goto_character(original_point)
     if (.not. status%ok()) return
 
     if (size(mismatches) > 0) then
@@ -229,10 +229,10 @@ contains
         logical :: saved
 
         if (.not. follower%other) then
-            call set_buffer(loc%buffer, st)
-            call goto_char(loc%beginning)
+            call set_buffer(location%buffer, st)
+            call goto_character(location%beginning)
 
-            if (loc%switched) then
+            if (location%switched) then
                 n = same_lines - 1 + added_lines
             else
                 n = same_lines - 1 + removed_lines
@@ -249,17 +249,17 @@ contains
             if (.not. st%ok()) return
             call set_buffer(other_buffer, st)
 
-            if (loc%switched) then
-                call insert(loc%src%text, st)
+            if (location%switched) then
+                call insert(location%source%text, st)
             else
-                call insert(loc%dst%text, st)
+                call insert(location%destination%text, st)
             end if
 
             mode => null()
 
-            if (is_buffer_live(loc%buffer)) then
-                if (allocated(buffers(loc%buffer%index)%major_mode)) then
-                    mode => major_mode_named(buffers(loc%buffer%index)%major_mode)
+            if (is_buffer_live(location%buffer)) then
+                if (allocated(buffers(location%buffer%index)%major_mode)) then
+                    mode => major_mode_named(buffers(location%buffer%index)%major_mode)
                 end if
             end if
 
@@ -270,9 +270,9 @@ contains
             end if
         end if
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        if (loc%switched) then
+        if (location%switched) then
             n = same_lines - 1 + removed_lines
         else
             n = same_lines - 1 + added_lines
@@ -317,7 +317,7 @@ contains
                 follower%end = hunk_end
             end if
 
-            call goto_char(saved)
+            call goto_character(saved)
             follower%name = name
         end if
 
@@ -326,11 +326,11 @@ contains
     end procedure diff_add_log_current_subprograms
 
     module procedure diff_current_subprogram
-    type(diff_source_location_type) :: loc
-    type(handle_type) :: diff_buffer, temp
+    type(diff_source_location_type) :: location
+    type(handle_type) :: diff_buffer, temporary
     type(major_mode_type), pointer :: mode
     type(status_type) :: st
-    integer(int64) :: opoint, found, shortage
+    integer(int64) :: original_point, found, shortage
     integer(int32) :: c
     logical :: has_c, done
 
@@ -339,20 +339,20 @@ contains
     ! directory and hence have a different ChangeLog file.
     call change_log_default_name%clear_local()
     diff_buffer = current_buffer()
-    opoint = point()
+    original_point = point()
 
-    if (looking_at(diff_hunk_header_regexp, st)) then
+    if (looking_at(diff_hunk_header_regular_expression, st)) then
         shortage = forward_line(1_int64)
-        call re_search_forward("^[^ ]", found, st, noerror=SEARCH_NOERROR)
+        call regular_expression_search_forward("^[^ ]", found, st, noerror=SEARCH_NOERROR)
     end if
 
     ! Use `noprompt' since this is used in which-function-mode
     ! and such.
-    call diff_find_source_location(loc, st, noprompt=.true.)
+    call diff_find_source_location(location, st, noprompt=.true.)
 
-    if (st%ok() .and. is_buffer_live(loc%buffer)) then
+    if (st%ok() .and. is_buffer_live(location%buffer)) then
         call beginning_of_line()
-        call char_after(c, has_c)
+        call character_after(c, has_c)
         done = .false.
 
         if (has_c .and. (c == iachar("<") .or. c == iachar("-"))) then
@@ -361,45 +361,45 @@ contains
             ! not help since the function is now removed.  Instead,
             ! try to figure out the function name just from the
             ! code-fragment.
-            call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, st)
-            if (st%ok()) call set_buffer(temp, st)
+            call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, st)
+            if (st%ok()) call set_buffer(temporary, st)
 
             if (st%ok()) then
-                if (loc%switched) then
-                    call insert(loc%dst%text, st)
+                if (location%switched) then
+                    call insert(location%destination%text, st)
                 else
-                    call insert(loc%src%text, st)
+                    call insert(location%source%text, st)
                 end if
 
                 mode => null()
 
-                if (allocated(buffers(loc%buffer%index)%major_mode)) then
-                    mode => major_mode_named(buffers(loc%buffer%index)%major_mode)
+                if (allocated(buffers(location%buffer%index)%major_mode)) then
+                    mode => major_mode_named(buffers(location%buffer%index)%major_mode)
                 end if
 
                 if (associated(mode)) call mode%execute(st)
 
-                if (loc%switched) then
-                    call goto_char(point_min() + loc%dst%offset)
+                if (location%switched) then
+                    call goto_character(point_minimum() + location%destination%offset)
                 else
-                    call goto_char(point_min() + loc%src%offset)
+                    call goto_character(point_minimum() + location%source%offset)
                 end if
 
                 call add_log_current_subprogram(name)
                 done = allocated(name)
-                call close_buffer(temp, st)
+                call close_buffer(temporary, st)
             end if
         end if
 
         if (.not. done) then
-            call set_buffer(loc%buffer, st)
-            call goto_char(loc%beginning + loc%src%offset)
+            call set_buffer(location%buffer, st)
+            call goto_character(location%beginning + location%source%offset)
             call add_log_current_subprogram(name)
         end if
     end if
 
     call set_buffer(diff_buffer, st)
-    call goto_char(opoint)
+    call goto_character(original_point)
     end procedure diff_current_subprogram
 
     module procedure get_diff_buffer_file_name
@@ -416,15 +416,15 @@ contains
     module procedure add_diff_change_log_entries_other_window
     type(handle_type) :: diff_buffer
     type(status_type) :: st, entry_status
-    integer(int64) :: opoint, found
+    integer(int64) :: original_point, found
 
     ! XXX: Currently add-change-log-entry-other-window is only called
     ! once per hunk.  Some hunks have multiple changes, it would be
     ! good to call it for each change.
     status = status_type()
     diff_buffer = current_buffer()
-    opoint = point()
-    call goto_char(point_min())
+    original_point = point()
+    call goto_character(point_minimum())
 
     ! Call add-change-log-entry-other-window for each hunk in
     ! the diff buffer.
@@ -436,19 +436,19 @@ contains
         ! that case.  If the hunk is a context hunk with an empty first
         ! half, recognize the "--- NNN,MMM ----" line and skip to the next
         ! non-context line.
-        call re_search_forward(achar(10)//"[!+<>-]\(-- [0-9]+\(,[0-9]+\)? ----"//achar(10)//"\( .*"//achar(10)// &
-                               "\)*[+]\)?", found, st, noerror=SEARCH_NOERROR)
+        call regular_expression_search_forward(achar(10)//"[!+<>-]\(-- [0-9]+\(,[0-9]+\)? ----"//achar(10)//"\( .*"//achar(10)// &
+                                               "\)*[+]\)?", found, st, noerror=SEARCH_NOERROR)
         if (.not. st%ok() .or. found <= 0) exit
         found = point()
         ! FIXME: this pops up windows of all the buffers.
         call add_change_log_entry(entry_status, other_window=.true., put_new_entry_on_new_line=.true.)
         call set_buffer(diff_buffer, st)
-        call goto_char(found)
+        call goto_character(found)
         ! When there's no more hunks, diff-hunk-next signals an error.
         if (.not. entry_status%ok()) exit
     end do
 
     call set_buffer(diff_buffer, st)
-    call goto_char(opoint)
+    call goto_character(original_point)
     end procedure add_diff_change_log_entries_other_window
 end submodule diff_mode_add_log_mod

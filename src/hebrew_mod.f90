@@ -37,25 +37,25 @@ submodule(coding_mod) hebrew_mod
 contains
 
     !> Port of the `charset' coding systems of hebrew.el.
-    module subroutine init_hebrew()
+    module subroutine initialize_hebrew()
         call define_charset_coding_system("hebrew-iso-8bit", iachar("8"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-8"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "iso-8859-8"], &
                                           mime_charset="iso-8859-8", &
                                           doc="ISO 2022 based 8-bit encoding for Hebrew (MIME:ISO-8859-8).")
         call define_coding_system_alias("iso-8859-8", "hebrew-iso-8bit")
         call define_coding_system_alias("iso-8859-8-e", "hebrew-iso-8bit")
         call define_coding_system_alias("iso-8859-8-i", "hebrew-iso-8bit")
         call define_charset_coding_system("windows-1255", iachar("h"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1255"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "windows-1255"], &
                                           mime_charset="windows-1255", &
                                           doc="windows-1255 (Hebrew) encoding (MIME: WINDOWS-1255)")
         call define_coding_system_alias("cp1255", "windows-1255")
         call define_charset_coding_system("cp862", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp862"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "cp862"], &
                                           mime_charset="cp862", &
                                           doc="DOS codepage 862 (Hebrew)")
         call define_coding_system_alias("ibm862", "cp862")
-    end subroutine init_hebrew
+    end subroutine initialize_hebrew
 
     !> Port of the language environments of hebrew.el.
     module subroutine define_hebrew_language_environments()

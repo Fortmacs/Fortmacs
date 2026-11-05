@@ -42,14 +42,14 @@ module test_minibuffer_mod
                                       completion_ignore_case
     use minibuffer_mod, only: completion_try_completion, completion_all_completions, try_result_type, TRY_STRING, &
                               TRY_NONE, completion_styles, internal_complete_buffer, completion_at_point_functions
-    use minibuffer_reading_tables_mod, only: capf_data_type
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type
     use test_support_mod, only: show_alone
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, command_loop
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use buffer_mod, only: set_buffer, buffers, current
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, point, goto_char
+    use editing_functions_mod, only: buffer_string, point, goto_character
     use modes_mod, only: minor_modes
     use window_mod, only: get_buffer_window, is_window_live
     use buffer_mod, only: get_buffer
@@ -85,7 +85,7 @@ contains
                     new_unittest("default-styles-pcm", test_default_styles), &
                     new_unittest("buffer-category-substring", test_buffer_category), &
                     new_unittest("completion-at-point", test_completion_at_point), &
-                    new_unittest("completion-at-point-non-exclusive", test_capf_non_exclusive) &
+                    new_unittest("completion-at-point-non-exclusive", test_completion_at_point_function_non_exclusive) &
                     ]
     end subroutine collect_minibuffer_mod
 
@@ -93,16 +93,16 @@ contains
     function table_of(names) result(table)
         character(len=*), intent(in) :: names(:)
         type(completion_table_type) :: table
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
-        allocate (elts(size(names)))
+        allocate (elements(size(names)))
 
         do k = 1, size(names)
-            elts(k) = value_type(text=trim(names(k)))
+            elements(k) = value_type(text=trim(names(k)))
         end do
 
-        table = completion_list_table(make_list(elts))
+        table = completion_list_table(make_list(elements))
     end function table_of
 
     !> STYLE's try-completion of STRING with point at POINT over NAMES.
@@ -135,7 +135,7 @@ contains
         character(len=:), allocatable, intent(out) :: first
         character(len=24), allocatable :: saved(:)
         type(value_type) :: all
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer(int64) :: base_size
 
         call completion_all_defaults()
@@ -143,10 +143,10 @@ contains
         completion_styles = [character(len=24) :: style]
         call completion_all_completions(string, table_of(names), point, all, base_size)
         completion_styles = saved
-        call list_elements(all, elts)
-        n = size(elts)
+        call list_elements(all, elements)
+        n = size(elements)
         first = ""
-        if (n > 0) first = xstring(elts(1))
+        if (n > 0) first = xstring(elements(1))
     end subroutine style_all
 
     !> Make sure `completion_styles' has its default.
@@ -405,8 +405,8 @@ contains
 
     !> A completion-at-point function completing the letters and digits
     !> before point from foo1, foo2 and bar.
-    recursive subroutine test_capf(data, status)
-        type(capf_data_type), intent(out) :: data
+    recursive subroutine test_completion_at_point_function(data, status)
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         integer(int64) :: start
@@ -424,18 +424,18 @@ contains
         data%start = start
         data%end = point()
         data%table = table_of([character(len=4) :: "foo1", "foo2", "bar"])
-    end subroutine test_capf
+    end subroutine test_completion_at_point_function
 
     !> A non-exclusive completion-at-point function offering zzz.
-    recursive subroutine test_capf_zzz(data, status)
-        type(capf_data_type), intent(out) :: data
+    recursive subroutine test_completion_at_point_function_zzz(data, status)
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call test_capf(data, status)
+        call test_completion_at_point_function(data, status)
         data%table = table_of([character(len=3) :: "zzz"])
         data%exclusive = .false.
-    end subroutine test_capf_zzz
+    end subroutine test_completion_at_point_function_zzz
 
     subroutine type_keys(keys)
         character(len=*), intent(in) :: keys
@@ -446,18 +446,18 @@ contains
         call unread_command_events(evs)
     end subroutine type_keys
 
-    subroutine capf_buffer(buffer, text)
+    subroutine completion_at_point_function_buffer(buffer, text)
         type(handle_type), intent(out) :: buffer
         character(len=*), intent(in) :: text
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("capf-test", buffer, st)
         call set_buffer(buffer, st)
         call show_alone()
         call insert(text, st)
-    end subroutine capf_buffer
+    end subroutine completion_at_point_function_buffer
 
     !> C-M-i completes the text before point, then shows *Completions*
     !> in completion-in-region-mode, which ends once point leaves the
@@ -467,8 +467,8 @@ contains
         type(handle_type) :: buffer, comp
         type(status_type) :: st
 
-        call capf_buffer(buffer, "x fo")
-        call completion_at_point_functions%prepend(test_capf, local=.true.)
+        call completion_at_point_function_buffer(buffer, "x fo")
+        call completion_at_point_functions%prepend(test_completion_at_point_function, local=.true.)
         call type_keys("C-M-i")
         call command_loop(st)
         call check(error, buffer_string() == "x foo", buffer_string())
@@ -493,14 +493,14 @@ contains
 
     !> A non-exclusive function whose table does not match lets the next
     !> one complete.
-    subroutine test_capf_non_exclusive(error)
+    subroutine test_completion_at_point_function_non_exclusive(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call capf_buffer(buffer, "x b")
-        call completion_at_point_functions%prepend(test_capf, local=.true.)
-        call completion_at_point_functions%prepend(test_capf_zzz, local=.true.)
+        call completion_at_point_function_buffer(buffer, "x b")
+        call completion_at_point_functions%prepend(test_completion_at_point_function, local=.true.)
+        call completion_at_point_functions%prepend(test_completion_at_point_function_zzz, local=.true.)
         call type_keys("C-M-i")
         call command_loop(st)
         call check(error, buffer_string() == "x bar", buffer_string())
@@ -521,5 +521,5 @@ contains
 
             call erase_buffer(st2)
         end subroutine erase_all
-    end subroutine test_capf_non_exclusive
+    end subroutine test_completion_at_point_function_non_exclusive
 end module test_minibuffer_mod

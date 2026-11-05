@@ -23,7 +23,7 @@
 !> `vc_ensure_vc_buffer' for VC-Dir and Log View buffers: a submodule
 !> because version_control_directory_mod and log_view_mod use version_control_mod.
 submodule(version_control_mod) version_control_deduce_mod
-    use version_control_directory_mod, only: vc_dir_backend, vc_dir_deduce_fileset, vc_dir_current_file
+    use version_control_directory_mod, only: vc_directory_backend, vc_directory_deduce_fileset, vc_directory_current_file
     use log_view_mod, only: log_view_vc_backend, log_view_vc_fileset
     use derived_mod, only: mode_p => is_derived_mode
     use buffer_mod, only: set_buffer
@@ -36,22 +36,22 @@ contains
     module procedure mode_backend
     b = 0
 
-    if (mode_p("vc_dir_mode")) then
-        b = vc_dir_backend()
+    if (mode_p("vc_directory_mode")) then
+        b = vc_directory_backend()
     else if (mode_p("log_view_mode")) then
         b = log_view_vc_backend()
     else if (mode_p("log_edit_mode")) then
         b = log_edit_vc_backend()
     end if
 
-    handled = mode_p("vc_dir_mode") .or. mode_p("log_view_mode") .or. mode_p("log_edit_mode")
+    handled = mode_p("vc_directory_mode") .or. mode_p("log_view_mode") .or. mode_p("log_edit_mode")
     end procedure mode_backend
 
-    module procedure vc_dir_fileset
+    module procedure vc_directory_fileset
     status = status_type()
-    handled = mode_p("vc_dir_mode")
-    if (handled) call vc_dir_deduce_fileset(fs, status, state_model_only_files)
-    end procedure vc_dir_fileset
+    handled = mode_p("vc_directory_mode")
+    if (handled) call vc_directory_deduce_fileset(fs, status, state_model_only_files)
+    end procedure vc_directory_fileset
 
     module procedure log_view_fileset
     logical :: has
@@ -65,18 +65,18 @@ contains
     call log_view_vc_fileset(fs%files, has)
     end procedure log_view_fileset
 
-    module procedure vc_dir_ensure_buffer
+    module procedure vc_directory_ensure_buffer
     character(len=:), allocatable :: file
     type(handle_type) :: buffer
     type(status_type) :: st
 
     status = status_type()
-    handled = mode_p("vc_dir_mode")
+    handled = mode_p("vc_directory_mode")
     if (.not. handled) return
-    call vc_dir_current_file(file, status)
+    call vc_directory_current_file(file, status)
     if (.not. status%ok()) return
     call find_file_noselect(file, buffer, status)
     if (.not. status%ok()) return
     call set_buffer(buffer, st)
-    end procedure vc_dir_ensure_buffer
+    end procedure vc_directory_ensure_buffer
 end submodule version_control_deduce_mod

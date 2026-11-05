@@ -56,7 +56,7 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of Latin-1", &
                             long_name="RHP of ISO/IEC 8859/1 (Latin-1): ISO-IR-100", &
-                            iso_final_char=iachar("A"), &
+                            iso_final_character=iachar("A"), &
                             emacs_mule_id=129, &
                             code_offset=160)
         call define_charset("control-1", &
@@ -93,9 +93,9 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/2", &
                             long_name="RHP of ISO/IEC 8859/2 (Latin-2)", &
-                            iso_final_char=iachar("B"), &
+                            iso_final_character=iachar("B"), &
                             emacs_mule_id=130, &
-                            subset_parent="iso-8859-2", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            subset_parent="iso-8859-2", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-3", &
                             "ISO/IEC 8859/3", status, &
                             code_space=[0, 255], &
@@ -108,9 +108,9 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/3", &
                             long_name="RHP of ISO/IEC 8859/3 (Latin-3)", &
-                            iso_final_char=iachar("C"), &
+                            iso_final_character=iachar("C"), &
                             emacs_mule_id=131, &
-                            subset_parent="iso-8859-3", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            subset_parent="iso-8859-3", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-4", &
                             "ISO/IEC 8859/4", status, &
                             code_space=[0, 255], &
@@ -123,9 +123,9 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/4", &
                             long_name="RHP of ISO/IEC 8859/4 (Latin-4)", &
-                            iso_final_char=iachar("D"), &
+                            iso_final_character=iachar("D"), &
                             emacs_mule_id=132, &
-                            subset_parent="iso-8859-4", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            subset_parent="iso-8859-4", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-5", &
                             "ISO/IEC 8859/5", status, &
                             code_space=[0, 255], &
@@ -139,9 +139,9 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/5", &
                             long_name="RHP of ISO/IEC 8859/5 (Latin/Cyrillic)", &
-                            iso_final_char=iachar("L"), &
+                            iso_final_character=iachar("L"), &
                             emacs_mule_id=140, &
-                            subset_parent="iso-8859-5", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            subset_parent="iso-8859-5", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-6", &
                             "ISO/IEC 8859/6", status, &
                             code_space=[0, 255], &
@@ -154,9 +154,9 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/6", &
                             long_name="RHP of ISO/IEC 8859/6 (Latin/Arabic)", &
-                            iso_final_char=iachar("G"), &
+                            iso_final_character=iachar("G"), &
                             emacs_mule_id=135, &
-                            subset_parent="iso-8859-6", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            subset_parent="iso-8859-6", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-7", &
                             "ISO/IEC 8859/7", status, &
                             code_space=[0, 255], &
@@ -169,9 +169,9 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/7", &
                             long_name="RHP of ISO/IEC 8859/7 (Latin/Greek)", &
-                            iso_final_char=iachar("F"), &
+                            iso_final_character=iachar("F"), &
                             emacs_mule_id=134, &
-                            subset_parent="iso-8859-7", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            subset_parent="iso-8859-7", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-8", &
                             "ISO/IEC 8859/8", status, &
                             code_space=[0, 255], &
@@ -184,9 +184,9 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/8", &
                             long_name="RHP of ISO/IEC 8859/8 (Latin/Hebrew)", &
-                            iso_final_char=iachar("H"), &
+                            iso_final_character=iachar("H"), &
                             emacs_mule_id=136, &
-                            subset_parent="iso-8859-8", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            subset_parent="iso-8859-8", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-9", &
                             "ISO/IEC 8859/9", status, &
                             code_space=[0, 255], &
@@ -199,9 +199,9 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/9", &
                             long_name="RHP of ISO/IEC 8859/9 (Latin-5)", &
-                            iso_final_char=iachar("M"), &
+                            iso_final_character=iachar("M"), &
                             emacs_mule_id=141, &
-                            subset_parent="iso-8859-9", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            subset_parent="iso-8859-9", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-10", &
                             "ISO/IEC 8859/10", status, &
                             code_space=[0, 255], &
@@ -214,8 +214,8 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/10", &
                             long_name="RHP of ISO/IEC 8859/10 (Latin-6)", &
-                            iso_final_char=iachar("V"), &
-                            subset_parent="iso-8859-10", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            iso_final_character=iachar("V"), &
+                            subset_parent="iso-8859-10", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-11", &
                             "ISO/IEC 8859/11", status, &
                             code_space=[0, 255], &
@@ -228,8 +228,8 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/11", &
                             long_name="RHP of ISO/IEC 8859/11 (Latin/Thai)", &
-                            iso_final_char=iachar("T"), &
-                            subset_parent="iso-8859-11", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            iso_final_character=iachar("T"), &
+                            subset_parent="iso-8859-11", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-13", &
                             "ISO/IEC 8859/13", status, &
                             code_space=[0, 255], &
@@ -242,8 +242,8 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/13", &
                             long_name="RHP of ISO/IEC 8859/13 (Latin-7)", &
-                            iso_final_char=iachar("Y"), &
-                            subset_parent="iso-8859-13", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            iso_final_character=iachar("Y"), &
+                            subset_parent="iso-8859-13", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-14", &
                             "ISO/IEC 8859/14", status, &
                             code_space=[0, 255], &
@@ -256,9 +256,9 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/14", &
                             long_name="RHP of ISO/IEC 8859/14 (Latin-8)", &
-                            iso_final_char=iachar("_"), &
+                            iso_final_character=iachar("_"), &
                             emacs_mule_id=143, &
-                            subset_parent="iso-8859-14", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            subset_parent="iso-8859-14", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-15", &
                             "ISO/IEC 8859/15", status, &
                             code_space=[0, 255], &
@@ -271,9 +271,9 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/15", &
                             long_name="RHP of ISO/IEC 8859/15 (Latin-9)", &
-                            iso_final_char=iachar("b"), &
+                            iso_final_character=iachar("b"), &
                             emacs_mule_id=142, &
-                            subset_parent="iso-8859-15", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            subset_parent="iso-8859-15", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("iso-8859-16", &
                             "ISO/IEC 8859/16", status, &
                             code_space=[0, 255], &
@@ -286,14 +286,14 @@ contains
                             code_space=[32, 127], &
                             short_name="RHP of ISO/IEC 8859/16", &
                             long_name="RHP of ISO/IEC 8859/16 (Latin-10)", &
-                            iso_final_char=iachar("f"), &
-                            subset_parent="iso-8859-16", subset_min_code=160, subset_max_code=255, subset_offset=-128)
+                            iso_final_character=iachar("f"), &
+                            subset_parent="iso-8859-16", subset_minimum_code=160, subset_maximum_code=255, subset_offset=-128)
         call define_charset("thai-tis620", &
                             "MULE charset for TIS620.2533", status, &
                             code_space=[32, 127], &
                             short_name="TIS620.2533", &
                             long_name="TIS620.2533", &
-                            iso_final_char=iachar("T"), &
+                            iso_final_character=iachar("T"), &
                             emacs_mule_id=133, &
                             code_offset=3584)
         call define_charset("tis620-2533", &
@@ -303,7 +303,7 @@ contains
                             short_name="TIS620.2533", &
                             long_name="TIS620.2533", &
                             ascii_compatible=.true., &
-                            superset=[character(len=CHARSET_NAME_LEN) :: "ascii", "thai-tis620"], &
+                            superset=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "thai-tis620"], &
                             superset_offsets=[0, 128])
         call define_charset("jisx0201", &
                             "JISX0201", status, &
@@ -316,25 +316,25 @@ contains
                             code_space=[33, 126], &
                             short_name="JISX0201 Roman", &
                             long_name="Japanese Roman (JISX0201.1976)", &
-                            iso_final_char=iachar("J"), &
+                            iso_final_character=iachar("J"), &
                             emacs_mule_id=138, &
                             supplementary=.true., &
-                            subset_parent="jisx0201", subset_min_code=33, subset_max_code=126, subset_offset=0)
+                            subset_parent="jisx0201", subset_minimum_code=33, subset_maximum_code=126, subset_offset=0)
         call define_charset("katakana-jisx0201", &
                             "Katakana Part of JISX0201.1976", status, &
                             code_space=[33, 126], &
                             short_name="JISX0201 Katakana", &
                             long_name="Japanese Katakana (JISX0201.1976)", &
-                            iso_final_char=iachar("I"), &
+                            iso_final_character=iachar("I"), &
                             emacs_mule_id=137, &
                             supplementary=.true., &
-                            subset_parent="jisx0201", subset_min_code=161, subset_max_code=254, subset_offset=-128)
+                            subset_parent="jisx0201", subset_minimum_code=161, subset_maximum_code=254, subset_offset=-128)
         call define_charset("chinese-gb2312", &
                             "GB2312 Chinese simplified: ISO-IR-58", status, &
                             code_space=[33, 126, 33, 126], &
                             short_name="GB2312", &
                             long_name="GB2312: ISO-IR-58", &
-                            iso_final_char=iachar("A"), &
+                            iso_final_character=iachar("A"), &
                             emacs_mule_id=145, &
                             code_offset=1114112, &
                             unify_map="GB2312")
@@ -352,7 +352,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="CNS11643-1", &
                             long_name="CNS11643-1 (Chinese traditional): ISO-IR-171", &
-                            iso_final_char=iachar("G"), &
+                            iso_final_character=iachar("G"), &
                             emacs_mule_id=149, &
                             code_offset=1130496, &
                             unify_map="CNS-1")
@@ -361,7 +361,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="CNS11643-2", &
                             long_name="CNS11643-2 (Chinese traditional): ISO-IR-172", &
-                            iso_final_char=iachar("H"), &
+                            iso_final_character=iachar("H"), &
                             emacs_mule_id=150, &
                             code_offset=1146880, &
                             unify_map="CNS-2")
@@ -370,7 +370,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="CNS11643-3", &
                             long_name="CNS11643-3 (Chinese traditional): ISO-IR-183", &
-                            iso_final_char=iachar("I"), &
+                            iso_final_character=iachar("I"), &
                             emacs_mule_id=246, &
                             code_offset=1163264, &
                             unify_map="CNS-3")
@@ -379,7 +379,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="CNS11643-4", &
                             long_name="CNS11643-4 (Chinese traditional): ISO-IR-184", &
-                            iso_final_char=iachar("J"), &
+                            iso_final_character=iachar("J"), &
                             emacs_mule_id=247, &
                             code_offset=1179648, &
                             unify_map="CNS-4")
@@ -388,7 +388,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="CNS11643-5", &
                             long_name="CNS11643-5 (Chinese traditional): ISO-IR-185", &
-                            iso_final_char=iachar("K"), &
+                            iso_final_character=iachar("K"), &
                             emacs_mule_id=248, &
                             code_offset=1196032, &
                             unify_map="CNS-5")
@@ -397,7 +397,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="CNS11643-6", &
                             long_name="CNS11643-6 (Chinese traditional): ISO-IR-186", &
-                            iso_final_char=iachar("L"), &
+                            iso_final_character=iachar("L"), &
                             emacs_mule_id=249, &
                             code_offset=1212416, &
                             unify_map="CNS-6")
@@ -406,7 +406,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="CNS11643-7", &
                             long_name="CNS11643-7 (Chinese traditional): ISO-IR-187", &
-                            iso_final_char=iachar("M"), &
+                            iso_final_character=iachar("M"), &
                             emacs_mule_id=250, &
                             code_offset=1228800, &
                             unify_map="CNS-7")
@@ -423,7 +423,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="Big5 (Level-1)", &
                             long_name="Big5 (Level-1) A141-C67F", &
-                            iso_final_char=iachar("0"), &
+                            iso_final_character=iachar("0"), &
                             emacs_mule_id=152, &
                             supplementary=.true., &
                             code_offset=1265664, &
@@ -434,7 +434,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="Big5 (Level-2)", &
                             long_name="Big5 (Level-2) C940-FEFE", &
-                            iso_final_char=iachar("1"), &
+                            iso_final_character=iachar("1"), &
                             emacs_mule_id=153, &
                             supplementary=.true., &
                             code_offset=1275904, &
@@ -444,7 +444,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="JISX0208", &
                             long_name="JISX0208.1983/1990 (Japanese): ISO-IR-87", &
-                            iso_final_char=iachar("B"), &
+                            iso_final_character=iachar("B"), &
                             emacs_mule_id=146, &
                             code_offset=1310720, &
                             unify_map="JISX0208")
@@ -454,7 +454,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="JISX0208.1978", &
                             long_name="JISX0208.1978 (JISC6226.1978): ISO-IR-42", &
-                            iso_final_char=iachar("@"), &
+                            iso_final_character=iachar("@"), &
                             emacs_mule_id=144, &
                             code_offset=1327104, &
                             unify_map="JISC6226")
@@ -463,7 +463,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="JISX0212", &
                             long_name="JISX0212 (Japanese): ISO-IR-159", &
-                            iso_final_char=iachar("D"), &
+                            iso_final_character=iachar("D"), &
                             emacs_mule_id=148, &
                             code_offset=1343488, &
                             unify_map="JISX0212")
@@ -472,7 +472,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="JISX0213-1", &
                             long_name="JISX0213-1", &
-                            iso_final_char=iachar("O"), &
+                            iso_final_character=iachar("O"), &
                             emacs_mule_id=151, &
                             code_offset=1359872, &
                             unify_map="JISX2131")
@@ -481,7 +481,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="JISX0213-2", &
                             long_name="JISX0213-2", &
-                            iso_final_char=iachar("P"), &
+                            iso_final_character=iachar("P"), &
                             emacs_mule_id=254, &
                             code_offset=1376256, &
                             unify_map="JISX2132")
@@ -497,15 +497,15 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="JISX0213.2004-1", &
                             long_name="JISX0213.2004-1", &
-                            iso_final_char=iachar("Q"), &
-                            superset=[character(len=CHARSET_NAME_LEN) :: "japanese-jisx0213-a", "japanese-jisx0213-1"])
+                            iso_final_character=iachar("Q"), &
+                            superset=[character(len=CHARSET_NAME_LENGTH) :: "japanese-jisx0213-a", "japanese-jisx0213-1"])
         call define_charset("katakana-sjis", &
                             "Katakana part of Shift-JIS", status, &
                             code_space=[161, 223], &
                             short_name="katakana-sjis", &
                             long_name="katakana-sjis", &
                             supplementary=.true., &
-                            subset_parent="jisx0201", subset_min_code=161, subset_max_code=223, subset_offset=0)
+                            subset_parent="jisx0201", subset_minimum_code=161, subset_maximum_code=223, subset_offset=0)
         call define_charset("cp932-2-byte", &
                             "2-byte part of CP932", status, &
                             code_space=[64, 252, 129, 252], &
@@ -518,13 +518,13 @@ contains
                             code_space=[0, 255, 0, 254], &
                             short_name="CP932", &
                             long_name="CP932", &
-                            superset=[character(len=CHARSET_NAME_LEN) :: "ascii", "katakana-sjis", "cp932-2-byte"])
+                            superset=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "katakana-sjis", "cp932-2-byte"])
         call define_charset("korean-ksc5601", &
                             "KSC5601 Korean Hangul and Hanja: ISO-IR-149", status, &
                             code_space=[33, 126, 33, 126], &
                             short_name="KSC5601", &
                             long_name="KSC5601 (Korean): ISO-IR-149", &
-                            iso_final_char=iachar("C"), &
+                            iso_final_character=iachar("C"), &
                             emacs_mule_id=147, &
                             code_offset=2596756, &
                             unify_map="KSC5601")
@@ -547,13 +547,13 @@ contains
                             code_space=[0, 254, 0, 253], &
                             short_name="CP949", &
                             long_name="CP949 (Korean)", &
-                            superset=[character(len=CHARSET_NAME_LEN) :: "ascii", "cp949-2-byte"])
+                            superset=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "cp949-2-byte"])
         call define_charset("chinese-sisheng", &
                             "SiSheng characters for PinYin/ZhuYin", status, &
                             code_space=[33, 126], &
                             short_name="SiSheng", &
                             long_name="SiSheng (PinYin/ZhuYin)", &
-                            iso_final_char=iachar("0"), &
+                            iso_final_character=iachar("0"), &
                             emacs_mule_id=160, &
                             supplementary=.true., &
                             code_offset=2097152, &
@@ -563,7 +563,7 @@ contains
                             code_space=[32, 127], &
                             short_name="IPA", &
                             long_name="IPA", &
-                            iso_final_char=iachar("0"), &
+                            iso_final_character=iachar("0"), &
                             emacs_mule_id=161, &
                             supplementary=.true., &
                             code_offset=2097280, &
@@ -579,7 +579,7 @@ contains
                             code_space=[32, 127], &
                             short_name="VISCII lower", &
                             long_name="VISCII lower-case", &
-                            iso_final_char=iachar("1"), &
+                            iso_final_character=iachar("1"), &
                             emacs_mule_id=162, &
                             supplementary=.true., &
                             code_offset=2097664, &
@@ -589,7 +589,7 @@ contains
                             code_space=[32, 127], &
                             short_name="VISCII upper", &
                             long_name="VISCII upper-case", &
-                            iso_final_char=iachar("2"), &
+                            iso_final_character=iachar("2"), &
                             emacs_mule_id=163, &
                             supplementary=.true., &
                             code_offset=2097792, &
@@ -872,7 +872,7 @@ contains
                             code_space=[34, 42], &
                             short_name="Arabic digit", &
                             long_name="Arabic digit", &
-                            iso_final_char=iachar("2"), &
+                            iso_final_character=iachar("2"), &
                             emacs_mule_id=164, &
                             supplementary=.true., &
                             code_offset=1536)
@@ -881,7 +881,7 @@ contains
                             code_space=[33, 126], &
                             short_name="Arabic 1-col", &
                             long_name="Arabic 1-column", &
-                            iso_final_char=iachar("3"), &
+                            iso_final_character=iachar("3"), &
                             emacs_mule_id=165, &
                             supplementary=.true., &
                             code_offset=2097408)
@@ -890,7 +890,7 @@ contains
                             code_space=[33, 126], &
                             short_name="Arabic 2-col", &
                             long_name="Arabic 2-column", &
-                            iso_final_char=iachar("4"), &
+                            iso_final_character=iachar("4"), &
                             emacs_mule_id=224, &
                             supplementary=.true., &
                             code_offset=2097536)
@@ -899,7 +899,7 @@ contains
                             code_space=[33, 126], &
                             short_name="Lao", &
                             long_name="Lao", &
-                            iso_final_char=iachar("1"), &
+                            iso_final_character=iachar("1"), &
                             emacs_mule_id=167, &
                             supplementary=.true., &
                             code_offset=3713)
@@ -909,14 +909,14 @@ contains
                             short_name="Lao", &
                             long_name="Lao", &
                             supplementary=.true., &
-                            superset=[character(len=CHARSET_NAME_LEN) :: "ascii", "eight-bit-control", "lao"], &
+                            superset=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "eight-bit-control", "lao"], &
                             superset_offsets=[0, 0, 128])
         call define_charset("indian-is13194", &
                             "7-bit representation of IS 13194 (ISCII) for Devanagari", status, &
                             code_space=[33, 126], &
                             short_name="IS 13194 (DEV)", &
                             long_name="Indian IS 13194 (DEV)", &
-                            iso_final_char=iachar("5"), &
+                            iso_final_character=iachar("5"), &
                             emacs_mule_id=225, &
                             supplementary=.true., &
                             code_offset=1572864, &
@@ -1086,7 +1086,7 @@ contains
                             code_space=[32, 127, 32, 127], &
                             short_name="Indian glyph", &
                             long_name="Indian glyph", &
-                            iso_final_char=iachar("4"), &
+                            iso_final_character=iachar("4"), &
                             emacs_mule_id=240, &
                             supplementary=.true., &
                             code_offset=1573120)
@@ -1095,7 +1095,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="Indian 1-col", &
                             long_name="Indian 1 Column", &
-                            iso_final_char=iachar("6"), &
+                            iso_final_character=iachar("6"), &
                             emacs_mule_id=251, &
                             supplementary=.true., &
                             code_offset=1589248)
@@ -1104,7 +1104,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="Indian 2-col", &
                             long_name="Indian 2 Column", &
-                            iso_final_char=iachar("5"), &
+                            iso_final_character=iachar("5"), &
                             emacs_mule_id=251, &
                             supplementary=.true., &
                             code_offset=1589248)
@@ -1113,7 +1113,7 @@ contains
                             code_space=[33, 126, 33, 37], &
                             short_name="Tibetan 2-col", &
                             long_name="Tibetan 2 column", &
-                            iso_final_char=iachar("7"), &
+                            iso_final_character=iachar("7"), &
                             emacs_mule_id=252, &
                             supplementary=.true., &
                             code_offset=1638400, &
@@ -1123,7 +1123,7 @@ contains
                             code_space=[33, 126, 33, 37], &
                             short_name="Tibetan 1-col", &
                             long_name="Tibetan 1 column", &
-                            iso_final_char=iachar("8"), &
+                            iso_final_character=iachar("8"), &
                             emacs_mule_id=241, &
                             supplementary=.true., &
                             code_offset=1638400)
@@ -1132,7 +1132,7 @@ contains
                             code_space=[32, 127, 32, 71], &
                             short_name="Unicode subset 2", &
                             long_name="Unicode subset (U+2500..U+33FF)", &
-                            iso_final_char=iachar("2"), &
+                            iso_final_character=iachar("2"), &
                             emacs_mule_id=242, &
                             supplementary=.true., &
                             code_offset=9472)
@@ -1141,8 +1141,8 @@ contains
                             code_space=[32, 127, 32, 117], &
                             short_name="Unicode subset 3", &
                             long_name="Unicode subset (U+E000+FFFF)", &
-                            max_code=30015_int64, &
-                            iso_final_char=iachar("3"), &
+                            maximum_code=30015_int64, &
+                            iso_final_character=iachar("3"), &
                             emacs_mule_id=243, &
                             supplementary=.true., &
                             code_offset=57344)
@@ -1151,7 +1151,7 @@ contains
                             code_space=[32, 127, 32, 127], &
                             short_name="Unicode subset", &
                             long_name="Unicode subset (U+0100..U+24FF)", &
-                            iso_final_char=iachar("1"), &
+                            iso_final_character=iachar("1"), &
                             emacs_mule_id=244, &
                             supplementary=.true., &
                             code_offset=256)
@@ -1185,7 +1185,7 @@ contains
                             code_space=[33, 126, 33, 126], &
                             short_name="Ethiopic", &
                             long_name="Ethiopic characters", &
-                            iso_final_char=iachar("3"), &
+                            iso_final_character=iachar("3"), &
                             emacs_mule_id=245, &
                             supplementary=.true., &
                             code_offset=1703936, &
@@ -1358,8 +1358,8 @@ contains
                             code_space=[48, 57, 129, 254, 48, 57, 144, 227], &
                             short_name="gb18030-4-byte-smp", &
                             long_name="gb18030-4-byte-smp", &
-                            min_code=2419097904_int64, &
-                            max_code=3811744309_int64, &
+                            minimum_code=2419097904_int64, &
+                            maximum_code=3811744309_int64, &
                             supplementary=.true., &
                             code_offset=65536)
         call define_charset("gb18030-4-byte-ext-1", &
@@ -1367,8 +1367,8 @@ contains
                             code_space=[48, 57, 129, 254, 48, 57, 132, 143], &
                             short_name="gb18030-4-byte-ext-1", &
                             long_name="gb18030-4-byte-ext-1", &
-                            min_code=2217846064_int64, &
-                            max_code=2402942521_int64, &
+                            minimum_code=2217846064_int64, &
+                            maximum_code=2402942521_int64, &
                             supplementary=.true., &
                             code_offset=2097152)
         call define_charset("gb18030-4-byte-ext-2", &
@@ -1376,8 +1376,8 @@ contains
                             code_space=[48, 57, 129, 254, 48, 57, 227, 254], &
                             short_name="gb18030-4-byte-ext-2", &
                             long_name="gb18030-4-byte-ext-2", &
-                            min_code=3811744310_int64, &
-                            max_code=4265213497_int64, &
+                            minimum_code=3811744310_int64, &
+                            maximum_code=4265213497_int64, &
                             supplementary=.true., &
                             code_offset=2246732)
         call define_charset("gb18030", &
@@ -1385,9 +1385,9 @@ contains
                             code_space=[0, 255, 0, 254, 0, 254, 0, 254], &
                             short_name="gb18030", &
                             long_name="gb18030", &
-                            min_code=0_int64, &
-                            max_code=4265213497_int64, &
-                            superset=[character(len=CHARSET_NAME_LEN) :: "ascii", "gb18030-2-byte", "gb18030-4-byte-bmp", &
+                            minimum_code=0_int64, &
+                            maximum_code=4265213497_int64, &
+                            superset=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "gb18030-2-byte", "gb18030-4-byte-bmp", &
                                       "gb18030-4-byte-smp", "gb18030-4-byte-ext-1", "gb18030-4-byte-ext-2"])
         call define_charset("chinese-cns11643-15", &
                             "CNS11643 Plane 15 Chinese Traditional", status, &

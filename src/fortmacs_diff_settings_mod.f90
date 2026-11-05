@@ -33,14 +33,14 @@
 !> ancestor) and session groups (`meta_buffer', fortmacs_diff_multiple_mod) fit.
 module fortmacs_diff_settings_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, command_type, choice_type
     use data_mod, only: choice_setting_type
     use commands_mod, only: commands
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_live, buffer_serial_live, close_buffer
     use hooks_mod, only: hook_type
-    use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
+    use faces_mod, only: named_face_type, display_when, face_attributes, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     use interval_tree_mod, only: overlay_put, overlay_buffer, move_overlay, delete_overlay, is_overlay
     use frame_mod, only: selected_frame
@@ -50,10 +50,10 @@ module fortmacs_diff_settings_mod
     implicit none(type, external)
     private
 
-    public :: ediff_session_index, has_ediff_face_support, is_ediff_buffer_job, ediff_char_to_buffer_type, &
+    public :: ediff_session_index, has_ediff_face_support, is_ediff_buffer_job, ediff_character_to_buffer_type, &
               ediff_buffer_type_name, set_ediff_overlay_face, move_ediff_overlay, ediff_background_face, &
               paint_ediff_background_regions, check_ediff_control_buffer, close_ediff_buffer_carefully, &
-              make_ediff_session_entry, drop_ediff_session, init_ediff_init, is_ediff_ancestor_metajob, &
+              make_ediff_session_entry, drop_ediff_session, initialize_ediff_init, is_ediff_ancestor_metajob, &
               is_ediff_collect_diffs_metajob, is_ediff_merge_metajob, is_ediff_metajob3, is_ediff_comparison_metajob3, &
               abbreviate_ediff_job_name, strip_ediff_last_directory
 
@@ -199,8 +199,8 @@ module fortmacs_diff_settings_mod
         !> `ediff_control_buffer_suffix' and `ediff_control_buffer_number'.
         character(len=:), allocatable :: control_buffer_suffix
         integer :: control_buffer_number = 0
-        !> `ediff_window_config_saved'.
-        character(len=:), allocatable :: window_config_saved
+        !> `ediff_window_configuration_saved'.
+        character(len=:), allocatable :: window_configuration_saved
         !> `ediff_mode_map', the control buffer's own keymap.
         type(handle_type) :: keymap
         !> The state of each merge region (upstream's `ediff-state-of-merge';
@@ -228,7 +228,32 @@ module fortmacs_diff_settings_mod
         !> `ediff_custom_diff_buffer': the output of
         !> `ediff_custom_diff_program'.
         type(handle_type) :: custom_diff_buffer
+    contains
+        !> Whether n and p skip merge region DIFFERENCE (in SKIP).
+        procedure :: check_region_skip
     end type ediff_session_type
+
+    interface
+        !> In SKIP, whether n and p (`next_ediff_difference',
+        !> `previous_ediff_difference') skip merge region DIFFERENCE of the
+        !> session: with the session's `ediff_show_clashes_only', a region
+        !> without a clash between the ancestor and one of the variants;
+        !> with its `ediff_skip_merge_regions_that_differ_from_default', a
+        !> region that differs from the current default (the user has decided
+        !> how to merge it).  The other tests of ediff-next-difference (the
+        !> regular expression filters, the regions that differ only in white
+        !> space) are Deferred (docs/status/fortmacs_diff_utilities_mod.md).
+        !> In fortmacs_diff_settings_skip_mod.  Port of
+        !> ediff-merg.el:ediff-merge-region-is-non-clash-to-skip and
+        !> ediff-merg.el:ediff-skip-merge-region-if-changed-from-default-p.
+        recursive module subroutine check_region_skip(self, difference, skip, status)
+            implicit none(type, external)
+            class(ediff_session_type), intent(in) :: self
+            integer, intent(in) :: difference
+            logical, intent(out) :: skip
+            type(status_type), intent(out) :: status
+        end subroutine check_region_skip
+    end interface
 
     !> The Ediff sessions, one per control buffer (entries of closed
     !> control buffers are reused).
@@ -247,10 +272,10 @@ module fortmacs_diff_settings_mod
 
     !> Flag placed before highlighted block of differences at beginning of a line.
     !> Port of ediff-init.el ediff-before-flag-bol.
-    character(len=:), allocatable, public :: ediff_before_flag_bol
+    character(len=:), allocatable, public :: ediff_before_flag_beginning_of_line
     !> Flag placed after highlighted block of differences that ends at end of line.
     !> Port of ediff-init.el ediff-after-flag-eol.
-    character(len=:), allocatable, public :: ediff_after_flag_eol
+    character(len=:), allocatable, public :: ediff_after_flag_end_of_line
     !> Flag placed before highlighted block of differences that starts mid-line.
     !> Port of ediff-init.el ediff-before-flag-mol.
     character(len=:), allocatable, public :: ediff_before_flag_mol
@@ -326,7 +351,7 @@ module fortmacs_diff_settings_mod
 
     !> Mode for Ediff temporary files.  Port of ediff-init.el
     !> ediff-temp-file-mode.
-    integer, public :: ediff_temp_file_mode = int(o"600")
+    integer, public :: ediff_temporary_file_mode = int(o"600")
 
     !> Prefix to be attached to saved merge buffers.  Port of ediff-init.el
     !> ediff-merge-filename-prefix.
@@ -492,7 +517,7 @@ contains
     !> ediff-init.el:ediff-has-face-support-p.
     logical function has_ediff_face_support()
         has_ediff_face_support = associated(selected_frame%rif) .or. ediff_force_faces .or. &
-                                 selected_frame%tty%tn_max_colors > 0
+                                 selected_frame%tty%tn_maximum_colors > 0
     end function has_ediff_face_support
 
     !> Whether the job JOB_NAME compares or merges buffers (its name has
@@ -509,7 +534,7 @@ contains
     !> The buffer type a key names: a or A is buffer A, b or B buffer B,
     !> c or C buffer C; 0 for another character.  Port of
     !> ediff-init.el:ediff-char-to-buftype.
-    pure integer function ediff_char_to_buffer_type(c) result(buffer_type)
+    pure integer function ediff_character_to_buffer_type(c) result(buffer_type)
         character, intent(in) :: c
 
         select case (c)
@@ -522,7 +547,7 @@ contains
         case default
             buffer_type = 0
         end select
-    end function ediff_char_to_buffer_type
+    end function ediff_character_to_buffer_type
 
     !> The name of BUFFER_TYPE as messages show it: A, B, C or Ancestor.
     !> Not a port: upstream prints the symbol.
@@ -581,16 +606,16 @@ contains
         end if
     end subroutine move_ediff_overlay
 
-    !> The face for non-current difference DIFF_NUM (counted from 0) of
+    !> The face for non-current difference DIFF_NUMBER (counted from 0) of
     !> BUFFER_TYPE: the even face when the number the user sees is even.
     !> Port of ediff-init.el:ediff-background-face.
-    pure function ediff_background_face(buffer_type, diff_num) result(face)
-        integer, intent(in) :: buffer_type, diff_num
+    pure function ediff_background_face(buffer_type, diff_number) result(face)
+        integer, intent(in) :: buffer_type, diff_number
         character(len=:), allocatable :: face
 
-        ! The value of diff_num is always 1- the one that user sees.
-        ! This is why even face is used when diff_num is odd.
-        if (modulo(diff_num, 2) == 1) then
+        ! The value of diff_number is always 1- the one that user sees.
+        ! This is why even face is used when diff_number is odd.
+        if (modulo(diff_number, 2) == 1) then
             face = trim(EVEN_DIFF_FACES(buffer_type))
         else
             face = trim(ODD_DIFF_FACES(buffer_type))
@@ -643,7 +668,7 @@ contains
         if (k > 0) return
         name = "null()"
         if (associated(this_command)) name = trim(this_command%name)
-        call set_error(status, FM_USER_ERROR, name//": This command runs in Ediff Control Buffer only!")
+        call set_error(status, USER_ERROR_CODE, name//": This command runs in Ediff Control Buffer only!")
     end subroutine check_ediff_control_buffer
 
     !> Kill buffer BUFFER if it exists.  Port of
@@ -782,98 +807,119 @@ contains
 
         f => ediff_current_diff_a
         call f%define("ediff_current_diff_a", "Face for highlighting the selected difference in buffer A.")
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(background="#ffdddd", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(background="#553333", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="firebrick", background="pale green", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="blue3", background="yellow3", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(inverse_video=.true., extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(background="#ffdddd", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(background="#553333", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="firebrick", background="pale green", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="blue3", background="yellow3", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(inverse_video=.true., extend=.true.))
         f => ediff_current_diff_b
         call f%define("ediff_current_diff_b", "Face for highlighting the selected difference in buffer B.")
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(background="#ddffdd", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(background="#335533", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="DarkOrchid", background="Yellow", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="magenta3", background="yellow3", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(inverse_video=.true., extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(background="#ddffdd", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(background="#335533", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="DarkOrchid", background="Yellow", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="magenta3", background="yellow3", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(inverse_video=.true., extend=.true.))
         f => ediff_current_diff_c
         call f%define("ediff_current_diff_c", "Face for highlighting the selected difference in buffer C.")
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(background="#ffffaa", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(background="#888833", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="Navy", background="Pink", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="cyan3", background="yellow3", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(inverse_video=.true., extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(background="#ffffaa", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(background="#888833", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="Navy", background="Pink", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="cyan3", background="yellow3", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(inverse_video=.true., extend=.true.))
         f => ediff_current_diff_ancestor
         call f%define("ediff_current_diff_ancestor", "Face for highlighting the selected difference in buffer Ancestor.")
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(background="#cfdeee", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(background="#004151", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(background="#cfdeee", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(background="#004151", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="black", background="magenta3", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(inverse_video=.true., extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(background="#cfdeee", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(background="#004151", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(background="#cfdeee", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(background="#004151", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="black", background="magenta3", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(inverse_video=.true., extend=.true.))
         f => ediff_fine_diff_a
         call f%define("ediff_fine_diff_a", "Face for highlighting the refinement of the selected diff in buffer A.")
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(background="#ffbbbb"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(background="#882222"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="Navy", background="sky blue"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="white", background="sky blue", weight="bold"))
-        call f%spec_entry(display_when(), face_attrs(underline=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(background="#ffbbbb"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(background="#882222"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="Navy", background="sky blue"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="white", background="sky blue", weight="bold"))
+        call f%specification_entry(display_when(), face_attributes(underline=.true.))
         f => ediff_fine_diff_b
         call f%define("ediff_fine_diff_b", "Face for highlighting the refinement of the selected diff in buffer B.")
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(background="#aaffaa"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(background="#228822"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="Black", background="cyan"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), face_attrs(foreground="magenta3", background="cyan3"))
-        call f%spec_entry(display_when(), face_attrs(underline=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(background="#aaffaa"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(background="#228822"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="Black", background="cyan"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), face_attributes(foreground="magenta3", &
+                                                                                             background="cyan3"))
+        call f%specification_entry(display_when(), face_attributes(underline=.true.))
         f => ediff_fine_diff_c
         call f%define("ediff_fine_diff_c", "Face for highlighting the refinement of the selected diff in buffer C.")
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(background="#ffff55"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(background="#aaaa22"))
-        call f%spec_entry(display_when(types=["pc"]), face_attrs(foreground="white", background="Turquoise"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="Black", background="Turquoise"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="yellow3", background="Turquoise", weight="bold"))
-        call f%spec_entry(display_when(), face_attrs(underline=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(background="#ffff55"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(background="#aaaa22"))
+        call f%specification_entry(display_when(types=["pc"]), face_attributes(foreground="white", background="Turquoise"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="Black", background="Turquoise"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="yellow3", background="Turquoise", weight="bold"))
+        call f%specification_entry(display_when(), face_attributes(underline=.true.))
         f => ediff_fine_diff_ancestor
         call f%define("ediff_fine_diff_ancestor", &
                       "Face for highlighting refinement of the selected diff in the ancestor buffer."//achar(10)// &
                       "At present, this face is not used and no fine differences are"//achar(10)// &
                       "computed for the ancestor buffer.")
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(background="#00c5c0"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(background="#009591"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(background="#00c5c0"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(background="#009591"))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), face_attrs(foreground="red3", background="green"))
-        call f%spec_entry(display_when(), face_attrs(underline=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(background="#00c5c0"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(background="#009591"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(background="#00c5c0"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(background="#009591"))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), face_attributes(foreground="red3", background="green"))
+        call f%specification_entry(display_when(), face_attributes(underline=.true.))
         call define_background_faces()
     end subroutine define_faces
 
@@ -883,117 +929,131 @@ contains
 
         f => ediff_even_diff_a
         call f%define("ediff_even_diff_a", "Face for highlighting even-numbered non-current differences in buffer A.")
-        call f%spec_entry(display_when(types=["pc"]), &
-                          face_attrs(foreground="green3", background="light grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(distant_foreground="Black", background="light grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(distant_foreground="White", background="dark grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="Black", background="light grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="red3", background="light grey", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(slant="italic", extend=.true.))
+        call f%specification_entry(display_when(types=["pc"]), &
+                                   face_attributes(foreground="green3", background="light grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(distant_foreground="Black", background="light grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(distant_foreground="White", background="dark grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="Black", background="light grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="red3", background="light grey", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(slant="italic", extend=.true.))
         f => ediff_even_diff_b
         call f%define("ediff_even_diff_b", "Face for highlighting even-numbered non-current differences in buffer B.")
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(distant_foreground="Black", background="Grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(distant_foreground="White", background="dim grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="White", background="Grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="blue3", background="Grey", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(slant="italic", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(distant_foreground="Black", background="Grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(distant_foreground="White", background="dim grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="White", background="Grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="blue3", background="Grey", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(slant="italic", extend=.true.))
         f => ediff_even_diff_c
         call f%define("ediff_even_diff_c", "Face for highlighting even-numbered non-current differences in buffer C.")
-        call f%spec_entry(display_when(types=["pc"]), &
-                          face_attrs(foreground="yellow3", background="light grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(distant_foreground="Black", background="light grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(distant_foreground="White", background="dark grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="Black", background="light grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="yellow3", background="light grey", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(slant="italic", extend=.true.))
+        call f%specification_entry(display_when(types=["pc"]), &
+                                   face_attributes(foreground="yellow3", background="light grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(distant_foreground="Black", background="light grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(distant_foreground="White", background="dark grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="Black", background="light grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="yellow3", background="light grey", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(slant="italic", extend=.true.))
         f => ediff_even_diff_ancestor
         call f%define("ediff_even_diff_ancestor", &
                       "Face for highlighting even-numbered non-current differences in ancestor buffer.")
-        call f%spec_entry(display_when(types=["pc"]), &
-                          face_attrs(foreground="cyan3", background="light grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(distant_foreground="Black", background="Grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(distant_foreground="White", background="dim grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="White", background="Grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="cyan3", background="light grey", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(slant="italic", extend=.true.))
+        call f%specification_entry(display_when(types=["pc"]), &
+                                   face_attributes(foreground="cyan3", background="light grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(distant_foreground="Black", background="Grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(distant_foreground="White", background="dim grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="White", background="Grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="cyan3", background="light grey", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(slant="italic", extend=.true.))
         f => ediff_odd_diff_a
         call f%define("ediff_odd_diff_a", "Face for highlighting odd-numbered non-current differences in buffer A.")
-        call f%spec_entry(display_when(types=["pc"]), &
-                          face_attrs(foreground="green3", background="gray40", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(distant_foreground="Black", background="Grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(distant_foreground="White", background="dim grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="White", background="Grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="red3", background="black", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(slant="italic", extend=.true.))
+        call f%specification_entry(display_when(types=["pc"]), &
+                                   face_attributes(foreground="green3", background="gray40", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(distant_foreground="Black", background="Grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(distant_foreground="White", background="dim grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="White", background="Grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="red3", background="black", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(slant="italic", extend=.true.))
         f => ediff_odd_diff_b
         call f%define("ediff_odd_diff_b", "Face for highlighting odd-numbered non-current differences in buffer B.")
-        call f%spec_entry(display_when(types=["pc"]), &
-                          face_attrs(foreground="White", background="gray40", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(distant_foreground="Black", background="light grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(distant_foreground="White", background="dark grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="Black", background="light grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="cyan3", background="black", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(slant="italic", extend=.true.))
+        call f%specification_entry(display_when(types=["pc"]), &
+                                   face_attributes(foreground="White", background="gray40", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(distant_foreground="Black", background="light grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(distant_foreground="White", background="dark grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="Black", background="light grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="cyan3", background="black", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(slant="italic", extend=.true.))
         f => ediff_odd_diff_c
         call f%define("ediff_odd_diff_c", "Face for highlighting odd-numbered non-current differences in buffer C.")
-        call f%spec_entry(display_when(types=["pc"]), &
-                          face_attrs(foreground="yellow3", background="gray40", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                          face_attrs(distant_foreground="Black", background="Grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, backgrounds=[FACE_BACKGROUND_DARK]), &
-                          face_attrs(distant_foreground="White", background="dim grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="White", background="Grey", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="yellow3", background="black", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(slant="italic", extend=.true.))
+        call f%specification_entry(display_when(types=["pc"]), &
+                                   face_attributes(foreground="yellow3", background="gray40", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                   face_attributes(distant_foreground="Black", background="Grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                backgrounds=[FACE_BACKGROUND_DARK]), &
+                                   face_attributes(distant_foreground="White", background="dim grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="White", background="Grey", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="yellow3", background="black", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(slant="italic", extend=.true.))
         f => ediff_odd_diff_ancestor
         call f%define("ediff_odd_diff_ancestor", &
                       "Face for highlighting odd-numbered non-current differences in ancestor buffer.")
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88), &
-                          face_attrs(background="gray40", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
-                          face_attrs(foreground="cyan3", background="gray40", extend=.true.))
-        call f%spec_entry(display_when(classes=[FACE_CLASS_COLOR]), &
-                          face_attrs(foreground="green3", background="black", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(slant="italic", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88), &
+                                   face_attributes(background="gray40", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                   face_attributes(foreground="cyan3", background="gray40", extend=.true.))
+        call f%specification_entry(display_when(classes=[FACE_CLASS_COLOR]), &
+                                   face_attributes(foreground="green3", background="black", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(slant="italic", extend=.true.))
     end subroutine define_background_faces
 
     !> Define the faces and give the string options their defaults.
     !> Not a port.
-    subroutine init_ediff_init()
+    subroutine initialize_ediff_init()
         if (len_trim(ediff_current_diff_a%name) > 0) return
         call define_faces()
-        if (.not. allocated(ediff_before_flag_bol)) ediff_before_flag_bol = "->>"
-        if (.not. allocated(ediff_after_flag_eol)) ediff_after_flag_eol = "<<-"
+        if (.not. allocated(ediff_before_flag_beginning_of_line)) ediff_before_flag_beginning_of_line = "->>"
+        if (.not. allocated(ediff_after_flag_end_of_line)) ediff_after_flag_end_of_line = "<<-"
         if (.not. allocated(ediff_before_flag_mol)) ediff_before_flag_mol = "->>"
         if (.not. allocated(ediff_after_flag_mol)) ediff_after_flag_mol = "<<-"
         if (.not. allocated(ediff_coding_system_for_read)) ediff_coding_system_for_read = "raw-text"
         if (.not. allocated(ediff_coding_system_for_write)) ediff_coding_system_for_write = "emacs-internal"
         if (.not. allocated(ediff_merge_filename_prefix)) ediff_merge_filename_prefix = "merge_"
-    end subroutine init_ediff_init
+    end subroutine initialize_ediff_init
 end module fortmacs_diff_settings_mod

@@ -29,8 +29,8 @@ module test_simple_minded_indentation_engine_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, buffer_string
+    use bindings_mod, only: initialize_bindings
     use expression_motion_mod, only: forward_expression
     use indent_mod, only: indent_region
     use newcomment_mod, only: comment_start
@@ -64,15 +64,15 @@ contains
     end subroutine collect_simple_minded_indentation_engine_mod
 
     ! The rules: no opinion (the defaults).
-    subroutine no_rules(method, arg, result, status)
+    subroutine no_rules(method, argument, result, status)
         integer, intent(in) :: method
-        character(len=*), intent(in) :: arg
+        character(len=*), intent(in) :: argument
         type(smie_rule_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
 
         status = status_type()
         result = smie_rule_result_type()
-        if (method < 0 .or. len(arg) < 0) continue
+        if (method < 0 .or. len(argument) < 0) continue
     end subroutine no_rules
 
     subroutine make_grammar(status)
@@ -100,12 +100,12 @@ contains
         has_grammar = status%ok()
     end subroutine make_grammar
 
-    subroutine temp_buffer(text, h)
+    subroutine temporary_buffer(text, h)
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *smie-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -115,7 +115,7 @@ contains
         call comment_start%set_local("# ")
         call make_grammar(st)
         call smie_setup(pascal_grammar, no_rules)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     subroutine leave(h)
         type(handle_type), intent(in) :: h
@@ -171,7 +171,7 @@ contains
         integer :: k
         logical :: found
 
-        call temp_buffer("", h)
+        call temporary_buffer("", h)
 
         checks: block
             call make_grammar(st)
@@ -208,10 +208,10 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer("x := begin a := b; c end + 1", h)
+        call temporary_buffer("x := begin a := b; c end + 1", h)
 
         checks: block
-            call goto_char(6_int64)
+            call goto_character(6_int64)
             call smie_forward_expression_command(1_int64, st)
             call check(error, st%ok(), "no error")
             if (allocated(error)) exit checks
@@ -230,8 +230,8 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer("begin"//LF//"a := b;"//LF//"c"//LF//"end"//LF, h)
-        call indent_region(point_min(), point_max(), st)
+        call temporary_buffer("begin"//LF//"a := b;"//LF//"c"//LF//"end"//LF, h)
+        call indent_region(point_minimum(), point_maximum(), st)
         call check(error, buffer_string(), "begin"//LF//"    a := b;"//LF//"    c"//LF//"end"//LF)
         call leave(h)
     end subroutine test_indent
@@ -241,10 +241,10 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer("begin"//LF//"    a", h)
+        call temporary_buffer("begin"//LF//"    a", h)
 
         checks: block
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call smie_close_block(st)
             call check(error, st%ok(), "no error")
             if (allocated(error)) exit checks

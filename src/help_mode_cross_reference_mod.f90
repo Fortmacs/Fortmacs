@@ -29,14 +29,15 @@
 !> `help_name', `help_back' and `help_forward'; a button's
 !> `button_data' is the name it describes.
 submodule(help_mode_mod) help_mode_cross_reference_mod
-    use error_mod, only: set_error, FM_USER_ERROR
+    use error_mod, only: set_error, USER_ERROR_CODE
     use value_mod, only: value_type, vtag, xstring, V_STRING
     use buffer_mod, only: buffers, current, current_buffer, get_or_make_buffer, set_buffer, is_buffer_live
     use derived_mod, only: is_derived_mode
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_substring_no_properties, delete_region, &
-                                     is_bob, is_eob, is_bol
-    use search_mod, only: re_search_forward, match_beginning, match_end, case_fold_search, SEARCH_NOERROR
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_substring_no_properties, &
+                                     delete_region, &
+                                     is_beginning_of_buffer, is_end_of_buffer, is_beginning_of_line
+    use search_mod, only: regular_expression_search_forward, match_beginning, match_end, case_fold_search, SEARCH_NOERROR
     use syntax_mod, only: skip_syntax_backward, skip_syntax_forward
     use paragraphs_mod, only: forward_paragraph
     use page_mod, only: forward_page, backward_page
@@ -44,7 +45,7 @@ submodule(help_mode_mod) help_mode_cross_reference_mod
     use simple_mod, only: push_mark
     use window_mod, only: windows, get_buffer_window, is_window_live, set_window_point, same_handle
     use frame_mod, only: selected_frame
-    use button_mod, only: button_kind_type, button_type, init_button, button_at, make_text_button, &
+    use button_mod, only: button_kind_type, button_type, initialize_button, button_at, make_text_button, &
                           insert_text_button
     use help_mod, only: help_buffer_name
     use help_functions_mod, only: describe_function, describe_variable, describe_name, is_function_known, is_variable_known
@@ -70,7 +71,7 @@ submodule(help_mode_mod) help_mode_cross_reference_mod
     !> The words preceding the quoted name can be used in doc strings to
     !> distinguish references to variables, functions and names.  Port of
     !> help-mode.el help-xref-symbol-regexp.
-    character(len=*), parameter :: help_xref_name_regexp = &
+    character(len=*), parameter :: help_xref_name_regular_expression = &
                                    "\(\<\(\(variable\|option\)\|" &
                                    //"\(function\|command\|call\)\|" &
                                    //"\(face\)\|" &
@@ -83,7 +84,7 @@ submodule(help_mode_mod) help_mode_cross_reference_mod
     !> An obvious case of a key substitution: M-x and a command name made
     !> of word and identifier characters, ending with a word character.  Port
     !> of the regexp of help-mode.el:help-make-xrefs.
-    character(len=*), parameter :: M_X_REGEXP = "\<M-x\s-+\(\sw\(\sw\|\s_\)*\sw\)"
+    character(len=*), parameter :: M_X_REGULAR_EXPRESSION = "\<M-x\s-+\(\sw\(\sw\|\s_\)*\sw\)"
 
 contains
 
@@ -91,8 +92,8 @@ contains
     ! Button types and actions
     ! ------------------------------------------------------------------
 
-    module procedure init_help_xref
-    call init_button()
+    module procedure initialize_help_xref
+    call initialize_button()
     if (help_xref%index /= 0) return
     help_xref%follow_link = .true.
     call help_xref%define("help_xref")
@@ -113,10 +114,10 @@ contains
     help_forward%action => follow_forward
     commands%help_go_back%execute => help_go_back
     commands%help_go_forward%execute => help_go_forward
-    commands%help_follow_name%execute => cmd_help_follow_name
+    commands%help_follow_name%execute => command_help_follow_name
     commands%help_goto_next_page%execute => help_goto_next_page
     commands%help_goto_previous_page%execute => help_goto_previous_page
-    end procedure init_help_xref
+    end procedure initialize_help_xref
 
     !> Call the help cross-reference procedure DESCRIBE with ARGUMENT.
     !> Things are set up properly so that the resulting help buffer has a
@@ -297,7 +298,7 @@ contains
         if (is_window_live(window) .and. .not. same_handle(window, selected_frame%selected_window)) then
             call set_window_point(windows(window%index), item%position, status)
         else
-            call goto_char(item%position)
+            call goto_character(item%position)
         end if
     end subroutine go_to_item
 
@@ -329,7 +330,7 @@ contains
         end if
     end if
 
-    call set_error(status, FM_USER_ERROR, "No previous help buffer")
+    call set_error(status, USER_ERROR_CODE, "No previous help buffer")
     end procedure help_go_back
 
     module procedure help_go_forward
@@ -342,7 +343,7 @@ contains
         end if
     end if
 
-    call set_error(status, FM_USER_ERROR, "No next help buffer")
+    call set_error(status, USER_ERROR_CODE, "No next help buffer")
     end procedure help_go_forward
 
     ! ------------------------------------------------------------------
@@ -426,7 +427,7 @@ contains
 
         status = status_type()
         saved_point = point()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! Skip the first bit, which has already been buttonized.
         left = forward_paragraph(1_int64)
         start = point()
@@ -435,7 +436,7 @@ contains
 
         ! Quoted names.
         do
-            call re_search_forward(help_xref_name_regexp, found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(help_xref_name_regular_expression, found, st, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found == 0) exit
             name = match_string(9)
             if (.not. (is_function_known(name) .or. is_variable_known(name))) cycle
@@ -461,10 +462,10 @@ contains
 
         ! An obvious case of a key substitution.
         if (status%ok()) then
-            call goto_char(start)
+            call goto_character(start)
 
             do
-                call re_search_forward(M_X_REGEXP, found, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(M_X_REGULAR_EXPRESSION, found, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. found == 0) exit
                 name = match_string(1)
                 if (is_function_known(name)) call help_xref_button(1, help_function, name, status)
@@ -475,9 +476,9 @@ contains
         case_fold_search = saved_fold
         if (.not. status%ok()) return
         ! Delete extraneous newlines at the end of the docstring.
-        call goto_char(point_max())
+        call goto_character(point_maximum())
 
-        do while (.not. is_bob() .and. is_bol())
+        do while (.not. is_beginning_of_buffer() .and. is_beginning_of_line())
             call delete_region(point() - 1, point(), status)
             if (.not. status%ok()) return
         end do
@@ -485,7 +486,7 @@ contains
         call insert(LF, status)
         if (.not. status%ok()) return
         call navigation_buttons(status)
-        call goto_char(min(saved_point, point_max()))
+        call goto_character(min(saved_point, point_maximum()))
     end subroutine make_xrefs
 
     !> Insert the [back] and [forward] buttons at point, after an empty
@@ -518,7 +519,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        if (.not. is_bol()) call insert(LF, status)
+        if (.not. is_beginning_of_line()) call insert(LF, status)
     end subroutine navigation_buttons
 
     !> Ensure that there is exactly one empty line before point, inserting
@@ -531,7 +532,7 @@ contains
 
         status = status_type()
 
-        if (.not. is_bol()) then
+        if (.not. is_beginning_of_line()) then
             call insert(LF, status)
             if (.not. status%ok()) return
         end if
@@ -540,13 +541,13 @@ contains
         ! character's line end, or at the beginning of the buffer.
         start = point()
 
-        do while (start > point_min())
+        do while (start > point_minimum())
             call buffer_substring_no_properties(start - 1, start, before, status)
             if (before /= LF) exit
             start = start - 1
         end do
 
-        if (start > point_min()) start = start + 1
+        if (start > point_minimum()) start = start + 1
 
         if (point() - start < 1) then
             call insert(LF, status)
@@ -560,35 +561,35 @@ contains
     ! ------------------------------------------------------------------
 
     module procedure help_follow_name
-    integer(int64) :: pos, moved, beginning
+    integer(int64) :: position_value, moved, beginning
     character(len=:), allocatable :: name
 
     status = status_type()
-    pos = point()
-    if (present(position)) pos = position
+    position_value = point()
+    if (present(position)) position_value = position
     ! Check if the name under point is a function or variable.
-    call goto_char(pos)
+    call goto_character(position_value)
     moved = skip_syntax_backward("w_")
     beginning = point()
     moved = skip_syntax_forward("w_")
     call buffer_substring_no_properties(beginning, point(), name, status)
-    call goto_char(pos)
+    call goto_character(position_value)
     if (.not. status%ok()) return
 
     if (is_variable_known(name) .or. is_function_known(name)) then
         call help_do_xref(describe_name, name, status)
     else
-        call set_error(status, FM_USER_ERROR, "No name here")
+        call set_error(status, USER_ERROR_CODE, "No name here")
     end if
     end procedure help_follow_name
 
     !> In help buffer, show docs for the name at point.  Port of
     !> help-mode.el:help-follow-symbol (the command).
-    recursive subroutine cmd_help_follow_name(status)
+    recursive subroutine command_help_follow_name(status)
         type(status_type), intent(out) :: status
 
         call help_follow_name(status, point())
-    end subroutine cmd_help_follow_name
+    end subroutine command_help_follow_name
 
     module procedure help_goto_next_page
     integer(int64) :: shortage
@@ -596,7 +597,7 @@ contains
     call push_mark()
     call forward_page(status)
     if (.not. status%ok()) return
-    if (.not. is_eob()) shortage = forward_line(1_int64)
+    if (.not. is_end_of_buffer()) shortage = forward_line(1_int64)
     end procedure help_goto_next_page
 
     module procedure help_goto_previous_page
@@ -606,10 +607,10 @@ contains
     call push_mark()
     count = 1
     before = ""
-    if (point() - 2 >= point_min()) call buffer_substring_no_properties(point() - 2, point(), before, status)
+    if (point() - 2 >= point_minimum()) call buffer_substring_no_properties(point() - 2, point(), before, status)
     if (before == FF//LF) count = 2
     call backward_page(status, count)
     if (.not. status%ok()) return
-    if (.not. is_bob()) shortage = forward_line(1_int64)
+    if (.not. is_beginning_of_buffer()) shortage = forward_line(1_int64)
     end procedure help_goto_previous_page
 end submodule help_mode_cross_reference_mod

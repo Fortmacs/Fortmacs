@@ -29,7 +29,7 @@
 !> cycling, case replacement, case-sensitive search.
 module test_dynamic_abbreviation_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type
@@ -38,15 +38,16 @@ module test_dynamic_abbreviation_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, restore_buffer_modified, &
                           get_buffer, is_buffer_live, buffer_list, buffers, resolve_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, buffer_string, buffer_substring, point, point_min, point_max, pos_bol, pos_eol, &
-                                     narrow_to_region, region_beginning, region_end, delete_region
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio, insert_file_contents
+    use editing_functions_mod, only: goto_character, buffer_string, buffer_substring, point, point_minimum, point_maximum, &
+                                     position_beginning_of_line, position_end_of_line, narrow_to_region, region_beginning, &
+                                     region_end, delete_region
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio, insert_file_contents
     use files_mod, only: find_file_noselect
     use window_mod, only: switch_to_buffer
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, command_loop, last_message
-    use execute_interactively_mod, only: prefix_arg, current_prefix_arg
-    use bindings_mod, only: init_bindings
+    use execute_interactively_mod, only: prefix_argument, current_prefix_argument
+    use bindings_mod, only: initialize_bindings
     use simple_mod, only: fundamental_mode
     use dynamic_abbreviation_mod, only: dabbrev_reset_global_variables, dabbrev_case_fold_search, &
                                         DABBREV_LIKE_CASE_FOLD_SEARCH, dabbrev_case_distinction, dabbrev_case_replace, &
@@ -110,10 +111,10 @@ contains
             call close_buffer(all(k), st)
         end do
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        current_prefix_arg = prefix_arg_type()
+        prefix_argument = prefix_argument_type()
+        current_prefix_argument = prefix_argument_type()
         call dabbrev_reset_global_variables()
         call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
@@ -137,7 +138,7 @@ contains
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert("abc"//achar(10)//"a", st)
-        call goto_char(6_int64)
+        call goto_character(6_int64)
         call switch_to_buffer("dabbrev-test", st)
         call execute_keys("C-M-/")
         call check(error, buffer_string() == "abc"//achar(10)//"abc", buffer_string())
@@ -160,7 +161,7 @@ contains
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert("abc"//achar(10)//"a", st)
-        call goto_char(6_int64)
+        call goto_character(6_int64)
         call switch_to_buffer("dabbrev-test", st)
         call execute_keys("C-u C-u C-M-/")
         call check(error, buffer_string() == "abc"//achar(10)//"a", buffer_string())
@@ -186,7 +187,7 @@ contains
         character(len=:), allocatable :: path
         type(status_type) :: st
 
-        call init_fileio()
+        call initialize_fileio()
         call expand_file_name("test/dabbrev-resources/"//name, path, st, fortmacs_wd)
     end function resource
 
@@ -218,7 +219,7 @@ contains
         character(len=:), allocatable :: s
         type(status_type) :: st
 
-        call buffer_substring(pos_bol(), pos_eol(), s, st)
+        call buffer_substring(position_beginning_of_line(), position_end_of_line(), s, st)
     end function line
 
     ! ------------------------------------------------------------------
@@ -236,7 +237,7 @@ contains
 
         call fresh("*dabbrev-test*", h)
         call insert("ab  x"//LF//"a"//LF//"ab  y", st)
-        call goto_char(8_int64)
+        call goto_character(8_int64)
         call execute_keys("M-/ SPC M-/ M-/")
         call check(error, buffer_string(), "ab  x"//LF//"ab y"//LF//"ab  y")
         call close_buffer(h, st)
@@ -250,7 +251,7 @@ contains
 
         call fresh("*dabbrev-test*", s)
         call find_resource("INSTALL_BEGIN", h)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert(LF, st)
         call execute_keys("Ind M-/")
         call check(error, line(), "Indic")
@@ -269,7 +270,7 @@ contains
 
         call fresh("*dabbrev-test*", s)
         call find_resource("INSTALL_BEGIN", h)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert(LF, st)
         call execute_keys("Indic SPC M-/")
         call check(error, line(), "Indic and")
@@ -289,10 +290,10 @@ contains
 
         call fresh("*dabbrev-test*", s)
         call find_resource("INSTALL_BEGIN", h)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert(LF, st)
         call insert_file_contents(resource("dabbrev-expand.el"), .false., inserted, st)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert(LF, st)
         call execute_keys("Ind M-/")
         call check(error, line(), "Indicate")
@@ -313,7 +314,7 @@ contains
         integer(int64) :: b, e
         type(status_type) :: st
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call execute_keys("C-s Ind M-a C-SPC M-}")
         call region_beginning(b, st)
         call region_end(e, st)
@@ -329,7 +330,7 @@ contains
         call fresh("*dabbrev-test*", s)
         call find_resource("INSTALL_BEGIN", h)
         call narrow_to_ind()
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert(LF, st)
         call execute_keys("Ind M-/")
         call check(error, line(), "Indic")
@@ -464,13 +465,13 @@ contains
                    "fo"//char(226)//char(128)//char(153)//" found")
         if (allocated(error)) return
         ! A prefix argument takes the Nth distinct expansion back.
-        call delete_region(point_min(), point_max(), st)
+        call delete_region(point_minimum(), point_maximum(), st)
         call insert("foo1 foo2 ", st)
         call execute_keys("fo C-u 2 M-/")
         call check(error, buffer_string(), "foo1 foo2 foo1")
         if (allocated(error)) return
         ! At the beginning of the buffer there is no abbreviation.
-        call delete_region(point_min(), point_max(), st)
+        call delete_region(point_minimum(), point_maximum(), st)
         call execute_keys("C-e M-/")
         call check(error, last_message, "No possible abbreviation preceding point")
         call close_buffer(h, st)
@@ -527,7 +528,7 @@ contains
             call check(error, buffer_string(), "abcdef Abcdef abcdef")
             if (allocated(error)) exit checks
             dabbrev_case_distinction = .false.
-            call delete_region(point_min(), point_max(), st)
+            call delete_region(point_minimum(), point_maximum(), st)
             call insert("abcdef Abcdef ", st)
             call execute_keys("SPC ab M-/")
             call check(error, buffer_string(), "abcdef Abcdef  Abcdef")

@@ -24,14 +24,15 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> `goto_line' (M-g g), `goto_line_relative' (C-x n g), the commands
-!> `goto_char' (M-g c), `move_to_column' (M-g TAB), `narrow_to_region'
+!> `goto_character' (M-g c), `move_to_column' (M-g TAB), `narrow_to_region'
 !> (C-x n n, disabled) and `widen' (C-x n w), and `count_words' (M-=)
 !> with `count_words_region'.
 !>
 !> Deferred: `goto_line_history_local' (buffer-local minibuffer
 !> histories), `selective_display'.
 submodule(simple_mod) simple_goto_mod
-    use editing_functions_mod, only: point_min, widen, narrow_to_region, is_buffer_narrowed, interactive_region, region_beginning, &
+    use editing_functions_mod, only: point_minimum, widen, narrow_to_region, is_buffer_narrowed, interactive_region, &
+                                     region_beginning, &
                                      region_end, inhibit_field_text_motion, transpose_regions
     use buffer_mod, only: current_buffer
     use basic_subprograms_mod, only: read_number
@@ -44,21 +45,21 @@ contains
 
     ! Read the arguments of `goto_line' and `goto_line_relative': LINE, and
     ! BUFFER (unless null) after C-u.  Port of simple.el:goto-line-read-args.
-    recursive subroutine goto_line_read_args(relative, line, buffer, status)
+    recursive subroutine goto_line_read_arguments(relative, line, buffer, status)
         logical, intent(in) :: relative
         integer(int64), intent(out) :: line
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: buffer_prompt, which
-        integer(int64) :: number, current_line, begv, zv_from_end
+        integer(int64) :: number, current_line, beginning_of_accessible_portion, end_of_accessible_portion_from_end
         logical :: found, is_integer
         type(status_type) :: st
 
         status = status_type()
         line = 1
 
-        if (current_prefix_arg%kind /= PREFIX_NONE .and. current_prefix_arg%kind /= PREFIX_RAW) then
-            line = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_argument%kind /= PREFIX_NONE .and. current_prefix_argument%kind /= PREFIX_RAW) then
+            line = prefix_numeric_value(current_prefix_argument)
             return
         end if
 
@@ -69,7 +70,7 @@ contains
         ! Decide if we're switching buffers.
         buffer_prompt = ""
 
-        if (current_prefix_arg%kind == PREFIX_RAW) then
+        if (current_prefix_argument%kind == PREFIX_RAW) then
             buffer = other_buffer(current_buffer(), .true.)
             if (buffer%index /= 0) buffer_prompt = " in "//buffers(buffer%index)%name
         end if
@@ -85,34 +86,34 @@ contains
         end if
 
         if (relative .or. .not. is_buffer_narrowed()) then
-            current_line = line_number_at_pos()
+            current_line = line_number_at_position()
         else
-            begv = buffers(current)%begv
-            zv_from_end = buffers(current)%text%z - buffers(current)%zv
+            beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+            end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
             call widen()
-            current_line = line_number_at_pos()
-            call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
+            current_line = line_number_at_position()
+            call narrow_to_region(beginning_of_accessible_portion, buffers(current)%text%z - end_of_accessible_portion_from_end, st)
         end if
 
         ! Read the argument, offering that number (if any) as default.
         if (found) then
-            call read_number("Goto"//which//" line"//buffer_prompt//": ", line, status, hist="goto_line_history", &
+            call read_number("Goto"//which//" line"//buffer_prompt//": ", line, status, history="goto_line_history", &
                              defaults=[number, current_line])
         else
-            call read_number("Goto"//which//" line"//buffer_prompt//": ", line, status, hist="goto_line_history", &
+            call read_number("Goto"//which//" line"//buffer_prompt//": ", line, status, history="goto_line_history", &
                              defaults=[current_line], no_default=.true.)
         end if
-    end subroutine goto_line_read_args
+    end subroutine goto_line_read_arguments
 
     module procedure goto_line
     type(handle_type) :: window
-    integer(int64) :: pos, begv, zv_from_end, shortage
-    logical :: rel, inter
+    integer(int64) :: position, beginning_of_accessible_portion, end_of_accessible_portion_from_end, shortage
+    logical :: relative_line, inter
     type(status_type) :: st
 
     status = status_type()
-    rel = .false.
-    if (present(relative)) rel = relative
+    relative_line = .false.
+    if (present(relative)) relative_line = relative
     inter = .false.
     if (present(interactive)) inter = interactive
 
@@ -137,20 +138,20 @@ contains
     end if
 
     ! Move to the specified line number in that buffer.
-    begv = buffers(current)%begv
-    zv_from_end = buffers(current)%text%z - buffers(current)%zv
-    if (.not. rel) call widen()
-    call goto_char(point_min())
+    beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+    end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
+    if (.not. relative_line) call widen()
+    call goto_character(point_minimum())
     shortage = forward_line(line - 1)
-    pos = point()
-    call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
+    position = point()
+    call narrow_to_region(beginning_of_accessible_portion, buffers(current)%text%z - end_of_accessible_portion_from_end, st)
 
-    if (.not. rel .and. is_buffer_narrowed() .and. widen_automatically) then
+    if (.not. relative_line .and. is_buffer_narrowed() .and. widen_automatically) then
         ! Position is outside narrowed part of buffer
-        if (point_min() > pos .or. pos > point_max()) call widen()
+        if (point_minimum() > position .or. position > point_maximum()) call widen()
     end if
 
-    call goto_char(pos)
+    call goto_character(position)
     end procedure goto_line
 
     module procedure goto_line_relative
@@ -159,12 +160,12 @@ contains
 
     !> Go to LINE, counting from line 1 at beginning of buffer (the
     !> command).  Port of simple.el:goto-line.
-    recursive subroutine cmd_goto_line(status)
+    recursive subroutine execute_goto_line(status)
         type(status_type), intent(out) :: status
         integer(int64) :: line
         type(handle_type) :: buffer
 
-        call goto_line_read_args(.false., line, buffer, status)
+        call goto_line_read_arguments(.false., line, buffer, status)
         if (.not. status%ok()) return
 
         if (buffer%index /= 0) then
@@ -172,16 +173,16 @@ contains
         else
             call goto_line(line, status, interactive=.true.)
         end if
-    end subroutine cmd_goto_line
+    end subroutine execute_goto_line
 
     !> Go to LINE, counting from line at (point-min) (the command).  Port
     !> of simple.el:goto-line-relative.
-    recursive subroutine cmd_goto_line_relative(status)
+    recursive subroutine execute_goto_line_relative(status)
         type(status_type), intent(out) :: status
         integer(int64) :: line
         type(handle_type) :: buffer
 
-        call goto_line_read_args(.true., line, buffer, status)
+        call goto_line_read_arguments(.true., line, buffer, status)
         if (.not. status%ok()) return
 
         if (buffer%index /= 0) then
@@ -189,12 +190,12 @@ contains
         else
             call goto_line_relative(line, status, interactive=.true.)
         end if
-    end subroutine cmd_goto_line_relative
+    end subroutine execute_goto_line_relative
 
     ! Get a natural number argument, optionally prompting with PROMPT.
     ! If there is a natural number at point, use it as default.  Port of
     ! subr.el:goto-char--read-natnum-interactive.
-    recursive subroutine goto_char_read_natnum_interactive(prompt, n, status)
+    recursive subroutine goto_character_read_natnum_interactive(prompt, n, status)
         character(len=*), intent(in) :: prompt
         integer(int64), intent(out) :: n
         type(status_type), intent(out) :: status
@@ -203,8 +204,8 @@ contains
 
         status = status_type()
 
-        if (current_prefix_arg%kind /= PREFIX_NONE .and. current_prefix_arg%kind /= PREFIX_RAW) then
-            n = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_argument%kind /= PREFIX_NONE .and. current_prefix_argument%kind /= PREFIX_RAW) then
+            n = prefix_numeric_value(current_prefix_argument)
             return
         end if
 
@@ -217,7 +218,7 @@ contains
         else
             call read_number(prompt, n, status, defaults=[point()], no_default=.true.)
         end if
-    end subroutine goto_char_read_natnum_interactive
+    end subroutine goto_character_read_natnum_interactive
 
     !> Set point to POSITION, a number or marker.
     !> Beginning of buffer is position (point-min), end is (point-max).
@@ -228,14 +229,14 @@ contains
     !> POSITION; without a numeric prefix argument, read POSITION from the
     !> minibuffer.  The default value is the number at point (if any).
     !> Port of editfns.c:Fgoto_char (the command).
-    recursive subroutine cmd_goto_char(status)
+    recursive subroutine execute_goto_character(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call goto_char_read_natnum_interactive("Go to char: ", pos, status)
+        call goto_character_read_natnum_interactive("Go to char: ", position, status)
         if (.not. status%ok()) return
-        call goto_char(min(max(pos, point_min()), point_max()))
-    end subroutine cmd_goto_char
+        call goto_character(min(max(position, point_minimum()), point_maximum()))
+    end subroutine execute_goto_character
 
     !> Move point to column COLUMN in the current line.
     !> Interactively, COLUMN is the value of prefix numeric argument.
@@ -245,7 +246,7 @@ contains
     !> there is no upper limit on the column number a character can have
     !> and horizontal scrolling has no effect.
     !> Text that has an invisible property is considered as having width 0,
-    !> unless `buffer_invisibility_spec' specifies that it is replaced by
+    !> unless `buffer_invisibility_specification' specifies that it is replaced by
     !> an ellipsis.
     !>
     !> If specified column is within a character, point goes after that character.
@@ -259,19 +260,19 @@ contains
     !>
     !> The return value is the current column.  Port of
     !> indent.c:Fmove_to_column (the command).
-    recursive subroutine cmd_move_to_column(status)
+    recursive subroutine execute_move_to_column(status)
         type(status_type), intent(out) :: status
         integer(int64) :: column, reached
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             call read_number("Move to column: ", column, status)
             if (.not. status%ok()) return
         else
-            column = prefix_numeric_value(current_prefix_arg)
+            column = prefix_numeric_value(current_prefix_argument)
         end if
 
         call move_to_column(column, reached, .false., status)
-    end subroutine cmd_move_to_column
+    end subroutine execute_move_to_column
 
     !> Restrict editing in this buffer to the current region.
     !> The rest of the text becomes temporarily invisible and untouchable
@@ -290,14 +291,14 @@ contains
     !> argument.  To gain access to other portions of the buffer, use
     !> `without_restriction' with the same label.  Port of
     !> editfns.c:Fnarrow_to_region (the command).
-    recursive subroutine cmd_narrow_to_region(status)
+    recursive subroutine execute_narrow_to_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
         call interactive_region(b, e, status)
         if (.not. status%ok()) return
         call narrow_to_region(b, e, status)
-    end subroutine cmd_narrow_to_region
+    end subroutine execute_narrow_to_region
 
     !> Remove restrictions (narrowing) from current buffer.
     !>
@@ -308,12 +309,12 @@ contains
     !> To gain access to other portions of the buffer, use
     !> `without_restriction' with the same label.  Port of
     !> editfns.c:Fwiden (the command).
-    recursive subroutine cmd_widen(status)
+    recursive subroutine execute_widen(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call widen()
-    end subroutine cmd_widen
+    end subroutine execute_widen
 
     !> Transpose region STARTR1 to ENDR1 with STARTR2 to ENDR2.
     !> The regions should not be overlapping, because the size of the buffer is
@@ -330,37 +331,37 @@ contains
     !> successive marks N entries back in the mark ring.  A negative prefix
     !> argument instead counts forward from the oldest mark in the mark
     !> ring.  Port of editfns.c:Ftranspose_regions (the command).
-    recursive subroutine cmd_transpose_regions(status)
+    recursive subroutine execute_transpose_regions(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: num, ring_length, mark_pos, startr2, endr2
+        integer(int64) :: number, ring_length, mark_position, startr2, endr2
 
         ring_length = 0
         if (allocated(buffers(current)%mark_ring)) ring_length = size(buffers(current)%mark_ring, kind=int64)
 
         if (ring_length < 2) then
-            call set_error(status, FM_GENERIC_ERROR, "Other region must be marked before transposing two regions")
+            call set_error(status, GENERIC_ERROR_CODE, "Other region must be marked before transposing two regions")
             return
         end if
 
-        num = 0
-        if (current_prefix_arg%kind /= PREFIX_NONE) num = prefix_numeric_value(current_prefix_arg)
-        call mark(mark_pos, status)
+        number = 0
+        if (current_prefix_argument%kind /= PREFIX_NONE) number = prefix_numeric_value(current_prefix_argument)
+        call mark(mark_position, status)
         if (.not. status%ok()) return
 
-        if (mark_pos == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
+        if (mark_position == 0) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer")
             return
         end if
 
-        call marker_position(buffers(current)%mark_ring(modulo(num, ring_length) + 1), startr2, status)
+        call marker_position(buffers(current)%mark_ring(modulo(number, ring_length) + 1), startr2, status)
         if (.not. status%ok()) return
-        call marker_position(buffers(current)%mark_ring(modulo(num + 1, ring_length) + 1), endr2, status)
+        call marker_position(buffers(current)%mark_ring(modulo(number + 1, ring_length) + 1), endr2, status)
         if (.not. status%ok()) return
-        call transpose_regions(point(), mark_pos, startr2, endr2, status)
-    end subroutine cmd_transpose_regions
+        call transpose_regions(point(), mark_position, startr2, endr2, status)
+    end subroutine execute_transpose_regions
 
     module procedure count_words
-    integer(int64) :: opoint, begv, zv_from_end
+    integer(int64) :: original_point, beginning_of_accessible_portion, end_of_accessible_portion_from_end
     type(status_type) :: st
     logical :: saved, ok
 
@@ -368,11 +369,11 @@ contains
     ! Count across field boundaries. (Bug#41761)
     saved = inhibit_field_text_motion
     inhibit_field_text_motion = .true.
-    opoint = point()
-    begv = buffers(current)%begv
-    zv_from_end = buffers(current)%text%z - buffers(current)%zv
+    original_point = point()
+    beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+    end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
     call narrow_to_region(start, end, st)
-    call goto_char(point_min())
+    call goto_character(point_minimum())
 
     do
         call forward_word(1_int64, ok)
@@ -381,8 +382,8 @@ contains
     end do
 
     call widen()
-    call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
-    call goto_char(opoint)
+    call narrow_to_region(beginning_of_accessible_portion, buffers(current)%text%z - end_of_accessible_portion_from_end, st)
+    call goto_character(original_point)
     inhibit_field_text_motion = saved
     end procedure count_words
 
@@ -392,9 +393,9 @@ contains
         character(len=:), allocatable :: text
 
         if (is_buffer_narrowed()) then
-            text = count_words_format("Narrowed part of buffer", point_min(), point_max())
+            text = count_words_format("Narrowed part of buffer", point_minimum(), point_maximum())
         else
-            text = count_words_format("Buffer", point_min(), point_max())
+            text = count_words_format("Buffer", point_minimum(), point_maximum())
         end if
     end function count_words_buffer_format
 
@@ -426,21 +427,21 @@ contains
     !> of lines, sentences, words, and chars of the region if it is active,
     !> else of the buffer; with a prefix argument, also those of the
     !> entire (un-narrowed) buffer.  Port of simple.el:count-words.
-    recursive subroutine cmd_count_words(status)
+    recursive subroutine execute_count_words(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: totals
-        integer(int64) :: b, e, begv, zv_from_end
+        integer(int64) :: b, e, beginning_of_accessible_portion, end_of_accessible_portion_from_end
         type(status_type) :: st
 
         status = status_type()
         totals = ""
 
-        if (current_prefix_arg%kind /= PREFIX_NONE .and. (is_use_region() .or. is_buffer_narrowed())) then
-            begv = buffers(current)%begv
-            zv_from_end = buffers(current)%text%z - buffers(current)%zv
+        if (current_prefix_argument%kind /= PREFIX_NONE .and. (is_use_region() .or. is_buffer_narrowed())) then
+            beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+            end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
             call widen()
-            totals = count_words_format("; buffer in total", point_min(), point_max())
-            call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
+            totals = count_words_format("; buffer in total", point_minimum(), point_maximum())
+            call narrow_to_region(beginning_of_accessible_portion, buffers(current)%text%z - end_of_accessible_portion_from_end, st)
         end if
 
         if (is_use_region()) then
@@ -451,24 +452,24 @@ contains
         else
             call message(count_words_buffer_format()//totals)
         end if
-    end subroutine cmd_count_words
+    end subroutine execute_count_words
 
     !> Count the number of words in the region.
     !> If called interactively, print a message reporting the number of
     !> lines, words, and characters in the region (whether or not the
-    !> region is active); with prefix ARG, report for the entire buffer
+    !> region is active); with prefix ARGUMENT, report for the entire buffer
     !> rather than the region.
     !>
     !> If called from a program, return the number of words between positions
     !> START and END.  Port of simple.el:count-words-region (the command;
     !> `count_words' is the function).
-    recursive subroutine cmd_count_words_region(status)
+    recursive subroutine execute_count_words_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
         status = status_type()
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
             call message(count_words_buffer_format())
             return
         end if
@@ -477,18 +478,18 @@ contains
         if (status%ok()) call region_end(e, status)
         if (.not. status%ok()) return
         call message(count_words_format("Region", b, e))
-    end subroutine cmd_count_words_region
+    end subroutine execute_count_words_region
 
-    module procedure init_simple_goto
-    commands%goto_line%execute => cmd_goto_line
-    commands%goto_line_relative%execute => cmd_goto_line_relative
-    commands%goto_char%execute => cmd_goto_char
-    commands%move_to_column%execute => cmd_move_to_column
-    commands%narrow_to_region%execute => cmd_narrow_to_region
+    module procedure initialize_simple_goto
+    commands%goto_line%execute => execute_goto_line
+    commands%goto_line_relative%execute => execute_goto_line_relative
+    commands%goto_character%execute => execute_goto_character
+    commands%move_to_column%execute => execute_move_to_column
+    commands%narrow_to_region%execute => execute_narrow_to_region
     commands%narrow_to_region%disabled = .true.
-    commands%widen%execute => cmd_widen
-    commands%transpose_regions%execute => cmd_transpose_regions
-    commands%count_words%execute => cmd_count_words
-    commands%count_words_region%execute => cmd_count_words_region
-    end procedure init_simple_goto
+    commands%widen%execute => execute_widen
+    commands%transpose_regions%execute => execute_transpose_regions
+    commands%count_words%execute => execute_count_words
+    commands%count_words_region%execute => execute_count_words_region
+    end procedure initialize_simple_goto
 end submodule simple_goto_mod

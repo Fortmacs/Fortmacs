@@ -6,19 +6,19 @@
 
 ## Ported
 
-`frame_type` (terminal, current and desired matrices, face table, cursor, root, minibuffer and selected window handles, FRAME_RIF `rif`, the font driver, FRAME_COLUMN_WIDTH/FRAME_LINE_HEIGHT, FRAME_SMALLEST_CHAR_WIDTH/FONT_HEIGHT, text_cols/text_lines),
+`frame_type` (terminal, current and desired matrices, face table, cursor, root, minibuffer and selected window handles, FRAME_RIF `rif`, the font driver, FRAME_COLUMN_WIDTH/FRAME_LINE_HEIGHT, FRAME_SMALLEST_CHAR_WIDTH/FONT_HEIGHT, text_columns/text_lines),
 `selected_frame` (frame.c),
 `frame-selected-window`,
 `FRAME_WINDOW_P`,
 `FRAME_LINES`,
-`FRAME_COLS`,
+`FRAME_COLUMNS`,
 WINDOW_LEFT_EDGE_X,
 WINDOW_TOP_EDGE_Y,
 WINDOW_PIXEL_WIDTH/HEIGHT,
 `window_body_width` in pixels;
 step 42e: a pending size change (`new_width`, `new_height`, `new_size_pending` for new_size_p),
 `needs_redraw` for frame.h:garbaged (frame.h:SET_FRAME_GARBAGED),
-window.c's `resize_frame_windows` (here, not in window_mod: it needs the frame, and window_mod is below frame_mod; a root window with children shares the change by the windows' normal and minimum sizes through window_mod's port of window.el's `window--resize-root-window`, first with `window_min_height` and `window_min_width`, then ignoring them),
+window.c's `resize_frame_windows` (here, not in window_mod: it needs the frame, and window_mod is below frame_mod; a root window with children shares the change by the windows' normal and minimum sizes through window_mod's port of window.el's `window--resize-root-window`, first with `window_minimum_height` and `window_minimum_width`, then ignoring them),
 window.el's `frame-windows-min-size` with IGNORE `safe` (`window-min-size`, `window--min-size-1`, `window-safe-min-size`);
 step 45c: frame parameters as typed components (`frame_parameters_type`: `right-divider-width`, `bottom-divider-width`),
 a frame's own (`parameters`) and `default-frame-alist` as `default_frame`,
@@ -60,7 +60,7 @@ C-f,
 r,
 d,
 step 44b: frame.h:tab_bar_lines (`tab_bar_lines`, the `tab-bar-lines` parameter, also in `default_frame`) and `tab-bar-lines-keep-state`,
-frame.h:FRAME_TOP_MARGIN (`frame_top_margin`: the root window starts below the tab bar in `resize_frame_windows`, dispnew's `adjust_frame_size` and xdisp's `init_frame_windows`),
+frame.h:FRAME_TOP_MARGIN (`frame_top_margin`: the root window starts below the tab bar in `resize_frame_windows`, dispnew's `adjust_frame_size` and xdisp's `initialize_frame_windows`),
 frame.c:set_tab_bar_lines (terminal frames),
 the `tabs` parameter (`tab_type` records with `tab_window_configuration_type`, freed when the frame is deleted) and the frame's tab history
 

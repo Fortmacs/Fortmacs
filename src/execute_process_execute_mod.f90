@@ -27,14 +27,14 @@
 !> above execute_process_mod.
 submodule(execute_process_mod) execute_process_execute_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: set_error, FM_GENERIC_ERROR
+    use error_mod, only: set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
-    use value_mod, only: xstring, xhandle, vtag, V_NAME, SYM_T, xsymbol, list_elements, V_INTEGER, V_STRING, V_BUFFER
+    use value_mod, only: xstring, xhandle, vtag, V_NAME, SYMBOL_T, xsymbol, list_elements, V_INTEGER, V_STRING, V_BUFFER
     use data_mod, only: check_string
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, BEGINNING, &
                           is_buffer_live
     use character_mod, only: str_as_multibyte
-    use insert_delete_mod, only: insert, del_range
+    use insert_delete_mod, only: insert, delete_range
     use editing_functions_mod, only: widen, delete_region, validate_region
     use file_input_output_mod, only: expand_file_name, file_name_as_directory, is_file_accessible_directory, &
                                      is_file_executable, is_file_directory, &
@@ -48,23 +48,23 @@ submodule(execute_process_mod) execute_process_execute_mod
 contains
 
     module procedure execute_process
-    type(string_type), allocatable :: argv(:), env(:), overrides(:)
-    type(value_type), allocatable :: elems(:)
+    type(string_type), allocatable :: argv(:), environment_variables(:), overrides(:)
+    type(value_type), allocatable :: elements(:)
     type(handle_type) :: buffer, old
-    character(len=:), allocatable :: dir, input, output, path, errpath
+    character(len=:), allocatable :: directory, input, output, path, errpath
     character(len=65536) :: chunk
     logical :: discard
-    integer(int32) :: fds(2), err, fd, pid, code, sig
+    integer(int32) :: fds(2), err, fd, pid, code, signal
     integer(int64) :: n, k
     type(status_type) :: rst
 
     result = value_type()
-    call get_current_directory(dir, status)
+    call get_current_directory(directory, status)
     if (.not. status%ok()) return
     input = "/dev/null"
 
     if (present(infile)) then
-        call expand_file_name(infile, input, status, dir)
+        call expand_file_name(infile, input, status, directory)
         if (.not. status%ok()) return
         err = fortmacs_open_read(input, fd)
 
@@ -84,15 +84,15 @@ contains
             ! nil: discard the output.
             discard = .true.
         else if (vtag(destination) == V_INTEGER) then
-            call set_error(status, FM_GENERIC_ERROR, &
+            call set_error(status, GENERIC_ERROR_CODE, &
                            "call-process with DESTINATION 0 (not waiting) is not supported yet")
             return
         else if (vtag(destination) == V_NAME) then
-            if (xsymbol(destination) == SYM_T) then
+            if (xsymbol(destination) == SYMBOL_T) then
                 discard = .false.
                 buffer = current_buffer()
             else if (allocated(destination%a)) then
-                call set_error(status, FM_GENERIC_ERROR, "Invalid destination for execute_process")
+                call set_error(status, GENERIC_ERROR_CODE, "Invalid destination for execute_process")
                 return
             end if
         else if (vtag(destination) == V_BUFFER) then
@@ -100,7 +100,7 @@ contains
             buffer = xhandle(destination)
 
             if (.not. is_buffer_live(buffer)) then
-                call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
+                call set_error(status, GENERIC_ERROR_CODE, "Selecting deleted buffer")
                 return
             end if
         else if (vtag(destination) == V_STRING) then
@@ -108,47 +108,47 @@ contains
             call get_or_make_buffer(xstring(destination), buffer, status)
             if (.not. status%ok()) return
         else
-            call set_error(status, FM_GENERIC_ERROR, "Invalid destination for execute_process")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid destination for execute_process")
             return
         end if
     end if
 
-    call locate_program(program, dir, path)
+    call locate_program(program, directory, path)
 
     if (len(path) == 0) then
         call report_file_errno("Searching for program", program, ENOENT, status)
         return
     end if
 
-    ! The argument vector: PROGRAM, then ARGS.
-    if (present(args)) then
-        call list_elements(args, elems)
+    ! The argument vector: PROGRAM, then ARGUMENTS.
+    if (present(arguments)) then
+        call list_elements(arguments, elements)
     else
-        allocate (elems(0))
+        allocate (elements(0))
     end if
 
-    allocate (argv(size(elems) + 1))
+    allocate (argv(size(elements) + 1))
     argv(1)%text = program
 
-    do k = 1, size(elems, kind=int64)
-        call check_string(elems(k), status)
+    do k = 1, size(elements, kind=int64)
+        call check_string(elements(k), status)
         if (.not. status%ok()) return
-        argv(k + 1)%text = xstring(elems(k))
+        argv(k + 1)%text = xstring(elements(k))
     end do
 
     if (present(environment)) then
-        call list_elements(environment, elems)
-        allocate (overrides(size(elems)))
+        call list_elements(environment, elements)
+        allocate (overrides(size(elements)))
 
-        do k = 1, size(elems, kind=int64)
-            call check_string(elems(k), status)
+        do k = 1, size(elements, kind=int64)
+            call check_string(elements(k), status)
             if (.not. status%ok()) return
-            overrides(k)%text = xstring(elems(k))
+            overrides(k)%text = xstring(elements(k))
         end do
 
-        call make_environment_block(dir, env, overrides)
+        call make_environment_block(directory, environment_variables, overrides)
     else
-        call make_environment_block(dir, env)
+        call make_environment_block(directory, environment_variables)
     end if
 
     fds = -1
@@ -163,7 +163,7 @@ contains
     end if
 
     if (present(error_file)) then
-        call expand_file_name(error_file, errpath, status, dir)
+        call expand_file_name(error_file, errpath, status, directory)
 
         if (.not. status%ok()) then
             if (.not. discard) call close_fd(fds(1))
@@ -171,9 +171,9 @@ contains
             return
         end if
 
-        err = fortmacs_spawn(path, argv, input, fds(2), dir, pid, errpath, env)
+        err = fortmacs_spawn(path, argv, input, fds(2), directory, pid, errpath, environment_variables)
     else
-        err = fortmacs_spawn(path, argv, input, fds(2), dir, pid, env=env)
+        err = fortmacs_spawn(path, argv, input, fds(2), directory, pid, environment=environment_variables)
     end if
 
     if (.not. discard) call close_fd(fds(2))
@@ -197,7 +197,7 @@ contains
         call close_fd(fds(1))
     end if
 
-    err = wait_for_termination(pid, code, sig)
+    err = wait_for_termination(pid, code, signal)
 
     if (len(output) > 0) then
         old = current_buffer()
@@ -208,8 +208,8 @@ contains
         if (.not. status%ok()) return
     end if
 
-    if (sig /= 0) then
-        result = value_type(text=fortmacs_strsignal(sig))
+    if (signal /= 0) then
+        result = value_type(text=fortmacs_strsignal(signal))
     else
         result = value_type(int(code, int64))
     end if
@@ -228,9 +228,9 @@ contains
     if (len(curdir) == 0) curdir = "/"
     call expand_file_name(curdir, expanded, status)
     if (.not. status%ok()) return
-    dir = file_name_as_directory(expanded)
+    directory = file_name_as_directory(expanded)
 
-    if (.not. is_file_accessible_directory(dir)) then
+    if (.not. is_file_accessible_directory(directory)) then
         call report_file_errno("Setting current directory", curdir, ENOENT, status)
     end if
     end procedure get_current_directory
@@ -243,7 +243,7 @@ contains
     path = ""
 
     if (index(program, "/") > 0) then
-        call expand_file_name(program, candidate, st, dir)
+        call expand_file_name(program, candidate, st, directory)
         if (st%ok() .and. is_executable_file(candidate)) path = candidate
         return
     end if
@@ -262,7 +262,7 @@ contains
         end if
 
         entry = search(b:e - 1)
-        if (len(entry) == 0) entry = dir
+        if (len(entry) == 0) entry = directory
         call expand_file_name(program, candidate, st, file_name_as_directory(entry))
 
         if (st%ok() .and. is_executable_file(candidate)) then
@@ -302,7 +302,7 @@ contains
     character(len=:), allocatable :: tempfile
     integer(int64) :: s, e
     logical :: whole, empty_input
-    type(status_type) :: dst
+    type(status_type) :: destination_status
 
     result = value_type()
     whole = .not. (present(start) .and. present(end))
@@ -321,9 +321,9 @@ contains
 
     if (.not. empty_input) then
         if (whole) then
-            call create_temp_file(tempfile, status)
+            call create_temporary_file(tempfile, status)
         else
-            call create_temp_file(tempfile, status, s, e)
+            call create_temporary_file(tempfile, status, s, e)
         end if
 
         if (.not. status%ok()) return
@@ -336,35 +336,35 @@ contains
             ! No need to save restrictions since we delete everything
             ! anyway.
             call widen()
-            call del_range(BEGINNING, buffers(current)%text%z, status)
+            call delete_range(BEGINNING, buffers(current)%text%z, status)
         else
             call delete_region(s, e, status)
         end if
 
         if (.not. status%ok()) then
-            if (len(tempfile) > 0) call delete_file_internal(tempfile, dst)
+            if (len(tempfile) > 0) call delete_file_internal(tempfile, destination_status)
             return
         end if
     end if delete_text
 
     if (len(tempfile) > 0) then
-        call execute_process(program, result, status, tempfile, destination, args, error_file)
-        call delete_file_internal(tempfile, dst)
+        call execute_process(program, result, status, tempfile, destination, arguments, error_file)
+        call delete_file_internal(tempfile, destination_status)
     else
-        call execute_process(program, result, status, destination=destination, args=args, error_file=error_file)
+        call execute_process(program, result, status, destination=destination, arguments=arguments, error_file=error_file)
     end if
     end procedure execute_process_region
 
     !> Write the text from `start' to `end' (the whole buffer if absent) to
     !> a new temporary file, named `tempfile'.  Port of
     !> callproc.c:create_temp_file.
-    subroutine create_temp_file(tempfile, status, start, end)
+    subroutine create_temporary_file(tempfile, status, start, end)
         character(len=:), allocatable, intent(out) :: tempfile
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start, end
         character(len=:), allocatable :: pattern
         integer(int32) :: fd, err
-        type(status_type) :: dst
+        type(status_type) :: destination
 
         ! temp-file-name-pattern in temporary-file-directory.
         call expand_file_name("emacsXXXXXX", pattern, status, temporary_file_directory())
@@ -379,6 +379,6 @@ contains
 
         call close_fd(fd)
         call write_region(tempfile, .false., status, start, end)
-        if (.not. status%ok()) call delete_file_internal(tempfile, dst)
-    end subroutine create_temp_file
+        if (.not. status%ok()) call delete_file_internal(tempfile, destination)
+    end subroutine create_temporary_file
 end submodule execute_process_execute_mod

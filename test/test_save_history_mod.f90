@@ -31,9 +31,9 @@ module test_save_history_mod
     use value_mod, only: value_type, list
     use data_mod, only: set, symbol_value
     use utility_functions_mod, only: value_equal
-    use basic_subprograms_mod, only: defvar_nil
-    use files_mod, only: create_temp_file, delete_file
-    use bindings_mod, only: init_bindings
+    use basic_subprograms_mod, only: defvar_false
+    use files_mod, only: create_temporary_file, delete_file
+    use bindings_mod, only: initialize_bindings
     use modes_mod, only: minor_modes
     use minibuffer_reading_mod, only: minibuffer_history_variable
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, generate_new_buffer_name
@@ -66,8 +66,8 @@ contains
         logical, intent(in) :: ignore_t3
         type(status_type) :: st
 
-        call init_bindings()
-        call create_temp_file("savehist-test", tmpfile, st)
+        call initialize_bindings()
+        call create_temporary_file("savehist-test", tmpfile, st)
         savehist_file = tmpfile
         savehist_save_minibuffer_history = .true.
         savehist_loaded = .false.
@@ -82,20 +82,20 @@ contains
             allocate (savehist_ignored_variables(0))
         end if
 
-        call defvar_nil("savehist_tests_t1")
-        call defvar_nil("savehist_tests_t2")
-        call defvar_nil("t3")
+        call defvar_false("savehist_tests_t1")
+        call defvar_false("savehist_tests_t2")
+        call defvar_false("t3")
         call set(value_type(name="savehist_tests_t1"), list(value_type(text="t1-value")), st)
         call set(value_type(name="savehist_tests_t2"), list(value_type(text="t2-value")), st)
         call set(value_type(name="t3"), list(value_type(text="t3-value")), st)
     end subroutine setup
 
-    subroutine save_var(name)
+    subroutine save_variable(name)
         character(len=*), intent(in) :: name
 
         minibuffer_history_variable = name
         call savehist_minibuffer_hook()
-    end subroutine save_var
+    end subroutine save_variable
 
     !> Force reloading the file.
     subroutine reload()
@@ -139,10 +139,10 @@ contains
         t1_copy = value_of("savehist_tests_t1")
         t2_copy = value_of("savehist_tests_t2")
         call minor_modes%savehist_mode%enable(st)
-        call save_var("savehist_tests_t1")
-        call save_var("savehist_tests_t2")
+        call save_variable("savehist_tests_t1")
+        call save_variable("savehist_tests_t2")
         ! Should be ignored.
-        call save_var("t3")
+        call save_variable("t3")
         call savehist_save(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -169,8 +169,8 @@ contains
 
         call setup(tmpfile, .false.)
         call minor_modes%savehist_mode%enable(st)
-        call save_var("savehist_tests_t1")
-        call save_var("savehist_tests_t2")
+        call save_variable("savehist_tests_t1")
+        call save_variable("savehist_tests_t2")
         call savehist_save(st)
         call reload()
         old = current_buffer()

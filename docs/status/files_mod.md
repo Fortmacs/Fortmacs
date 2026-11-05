@@ -1,6 +1,6 @@
 # files_mod
 
-- Module: files_mod, files_dir_mod, files_copy_mod (submodules)
+- Module: files_mod, files_directory_mod, files_copy_mod (submodules)
 - Upstream: files.el (+ startup.el `command-line-1` file arguments are in fortmacs_mod); dired.el `dired--ls-error-file`/`-buffer`
 - State: partial
 
@@ -48,7 +48,7 @@ run by `after-find-file`,
 `revert-buffer-preserve-modes`,
 `revert-buffer-restore-functions` (`revert-buffer-restore-read-only`, with `read-only-mode--state` set by C-x C-q and View mode),
 `after-find-file` NOMODES;
-in the submodule files_dir_mod: `insert-directory` (`insert-directory-program` through `call-process`, wildcards through the shell, standard error into a temporary file and the *ls error* buffer, the //DIRED// and //SUBDIRED// offsets as `dired-filename` properties, //DIRED-OPTIONS//),
+in the submodule files_directory_mod: `insert-directory` (`insert-directory-program` through `call-process`, wildcards through the shell, standard error into a temporary file and the *ls error* buffer, the //DIRED// and //SUBDIRED// offsets as `dired-filename` properties, //DIRED-OPTIONS//),
 `insert-directory-clean`,
 `insert-directory-wildcard-in-dir-p`,
 `directory-listing-before-filename-regexp`,
@@ -58,7 +58,7 @@ in the submodule files_dir_mod: `insert-directory` (`insert-directory-program` t
 `split-string-and-unquote`,
 `shell-quote-wildcard-pattern`,
 `string-prefix-p`,
-`make-temp-file` (as `create_temp_file`: DIR-FLAG and SUFFIX; an empty, "." or ".." PREFIX names a file in `temporary-file-directory`; TEXT Deferred),
+`make-temp-file` (as `create_temporary_file`: DIR-FLAG and SUFFIX; an empty, "." or ".." PREFIX names a file in `temporary-file-directory`; TEXT Deferred),
 `temporary-file-directory` (cus-start.el: $TMPDIR, $TMP, $TEMP, else /tmp),
 `revert-buffer--default` (`revert-without-query`, `before-revert-hook`, `after-revert-hook` as it was before reverting),
 `revert-buffer-insert-file-contents--default-function`;

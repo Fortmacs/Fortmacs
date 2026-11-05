@@ -1,4 +1,4 @@
-! c_mode_align_mod.f90 -- custom indentation functions for CC Mode.
+! cc_mode_align_mod.f90 -- custom indentation functions for CC Mode.
 ! Ported from GNU Emacs 31.1 lisp/progmodes/cc-align.el.
 !
 ! Copyright (C) 1985, 1987, 1992-2026 Free Software Foundation, Inc.
@@ -25,14 +25,14 @@
 !> Deferred: CC Mode itself (the syntactic analysis that gives a line its
 !> syntactic elements, `c_offsets') and the other line-up
 !> functions of cc-align.el.
-module c_mode_align_mod
+module cc_mode_align_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
-    use editing_functions_mod, only: point, goto_char
+    use editing_functions_mod, only: point, goto_character
     use editing_commands_mod, only: forward_line
     use indent_mod, only: current_column
-    use search_mod, only: looking_at, match_beginning, match_end, regexp_quote
-    use syntax_mod, only: skip_chars_backward
+    use search_mod, only: looking_at, match_beginning, match_end, regular_expression_quote
+    use syntax_mod, only: skip_characters_backward
     use simple_mod, only: back_to_indentation
     use basic_subprograms_mod, only: match_string
     use newcomment_mod, only: comment_start_skip
@@ -46,10 +46,10 @@ module c_mode_align_mod
         !> continuation line): the column of the current line, whose comment
         !> starts at LANGELEM_POS (its anchor), when its comment line prefix
         !> is matched by COMMENT_PREFIX (c-current-comment-prefix).
-        integer function c_lineup_procedure(langelem_pos, comment_prefix)
+        integer function c_lineup_procedure(langelem_position, comment_prefix)
             import :: int64
             implicit none(type, external)
-            integer(int64), intent(in) :: langelem_pos
+            integer(int64), intent(in) :: langelem_position
             character(len=*), intent(in) :: comment_prefix
         end function c_lineup_procedure
     end interface
@@ -76,22 +76,22 @@ contains
     !>      `comment_start_skip' regexp.
     !>     *********************************************************************/
     !>
-    !> COMMENT_PREFIX (`c_comment_prefix_regexp' as the mode sets it) is
+    !> COMMENT_PREFIX (`c_comment_prefix_regular_expression' as the mode sets it) is
     !> used to recognize the comment line prefix, e.g. the `*' that usually
     !> starts every line inside a comment.  The result is the column of the
     !> current line (an absolute column, CC Mode's vector).
     !>
     !> Works with: The `c' syntactic symbol.  Port of
     !> cc-align.el:c-lineup-C-comments.
-    integer function c_lineup_c_comments(langelem_pos, comment_prefix) result(column)
-        integer(int64), intent(in) :: langelem_pos
+    integer function c_lineup_c_comments(langelem_position, comment_prefix) result(column)
+        integer(int64), intent(in) :: langelem_position
         character(len=*), intent(in) :: comment_prefix
         type(status_type) :: st
         character(len=:), allocatable :: prefix_match, skip
-        integer(int64) :: here, opoint, prefixlen, starterlen, a, b, shortage, end1, moved
+        integer(int64) :: here, original_point, prefixlen, starterlen, a, b, shortage, end1, moved
         logical :: prefix_matched, matched
 
-        opoint = point()
+        original_point = point()
         here = point()
         skip = ""
         if (allocated(comment_start_skip%value)) skip = comment_start_skip%value
@@ -110,34 +110,34 @@ contains
         ! matches the starter or if it matches comment_start_skip, and
         ! choose whichever is longest.
         a = 0
-        call goto_char(langelem_pos + 1)
+        call goto_character(langelem_position + 1)
 
         if (prefix_matched) then
-            if (looking_at(regexp_quote(prefix_match), st)) a = match_end(0, st) - match_beginning(0, st)
+            if (looking_at(regular_expression_quote(prefix_match), st)) a = match_end(0, st) - match_beginning(0, st)
         end if
 
-        call goto_char(langelem_pos)
+        call goto_character(langelem_position)
         matched = looking_at(skip, st)
         end1 = match_end(1, st)
 
         if (end1 > 0) then
             b = end1 - point() - 1
         else
-            call goto_char(match_end(0, st))
-            moved = skip_chars_backward(" "//achar(9), st)
-            b = point() - langelem_pos - 1
-            call goto_char(langelem_pos)
+            call goto_character(match_end(0, st))
+            moved = skip_characters_backward(" "//achar(9), st)
+            b = point() - langelem_position - 1
+            call goto_character(langelem_position)
         end if
 
         starterlen = max(a, b)
-        call goto_char(here)
+        call goto_character(here)
 
         if (starterlen > 10 .and. prefixlen == 0) then
             ! The comment has a long starter and the line doesn't have a
             ! nonempty comment prefix.  Treat it as free form text and
             ! don't change the indentation.
             column = int(current_column())
-            call goto_char(opoint)
+            call goto_character(original_point)
             return
         end if
 
@@ -145,26 +145,26 @@ contains
         do
             shortage = forward_line(-1_int64)
             call back_to_indentation()
-            if (.not. point() > langelem_pos) exit
+            if (.not. point() > langelem_position) exit
             if (.not. looking_at("[ "//achar(9)//"]*$", st)) exit
         end do
 
         ! Is the starting line the first continuation line with content?
-        if (langelem_pos >= point()) then
+        if (langelem_position >= point()) then
             if (prefixlen == 0) then
                 ! No nonempty comment prefix.  Align after comment starter.
                 matched = looking_at(skip, st)
-                call goto_char(match_end(0, st))
+                call goto_character(match_end(0, st))
                 column = int(current_column())
             else if (starterlen > prefixlen) then
                 ! How long is the comment starter?  if greater than the
                 ! length of the comment prefix, align left.  if less than
                 ! or equal, align right.  this should also pick up Javadoc
                 ! style comments.
-                call goto_char(langelem_pos)
+                call goto_character(langelem_position)
                 column = int(current_column()) + 1
             else
-                call goto_char(langelem_pos + starterlen + 1)
+                call goto_character(langelem_position + starterlen + 1)
                 column = int(current_column() - prefixlen)
             end if
         else
@@ -176,11 +176,11 @@ contains
             if (matched) matched = match_beginning(0, st) /= match_end(0, st)
 
             if (.not. matched) then
-                call goto_char(here)
+                call goto_character(here)
                 call back_to_indentation()
 
                 if (looking_at("\("//comment_prefix//"\)\*/", st)) then
-                    call goto_char(langelem_pos)
+                    call goto_character(langelem_position)
                 else
                     do
                         shortage = forward_line(-1_int64)
@@ -191,13 +191,13 @@ contains
                     call back_to_indentation()
                     ! Align with the comment starter rather than with the
                     ! code before it.
-                    if (point() < langelem_pos) call goto_char(langelem_pos)
+                    if (point() < langelem_position) call goto_character(langelem_position)
                 end if
             end if
 
             column = int(current_column())
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end function c_lineup_c_comments
-end module c_mode_align_mod
+end module cc_mode_align_mod

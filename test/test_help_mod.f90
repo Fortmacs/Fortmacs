@@ -26,13 +26,13 @@
 !> tests, through the command loop.
 module test_help_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_RAW
+    use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_RAW
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
     use print_mod, only: fortran_text
-    use execute_interactively_mod, only: current_prefix_arg
+    use execute_interactively_mod, only: current_prefix_argument
     use files_mod, only: require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT
     use buffer_mod, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, current_buffer, is_buffer_modified, &
                           auto_fill_function, is_buffer_live
@@ -42,7 +42,7 @@ module test_help_mod
     use keymap_mod, only: key_parse, keymap_global_set, keymap_set
     use text_mode_mod, only: text_mode, text_mode_map
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop, store_event
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use display_engine_mod, only: tab_width
     use incremental_search_mod, only: search_upper_case, SEARCH_UPPER_CASE_NOT_PASTED
     use simple_mod, only: fill_prefix, do_auto_fill, copy_region_blink_test_function, is_region_indistinguishable
@@ -51,7 +51,7 @@ module test_help_mod
                         make_separator_line, register_keymap_name
     use display_engine_mod, only: message, message_nolog
     use keymap_mod, only: make_sparse_keymap, destroy_keymap
-    use value_mod, only: make_keymap_ref, value_type
+    use value_mod, only: make_keymap_reference, value_type
     use help_functions_mod, only: describe_function_1, describe_variable_text
     implicit none(type, external)
     private
@@ -96,9 +96,9 @@ contains
                     new_unittest("help-tests-substitute-command-keys/keymaps", test_sck_keymaps), &
                     new_unittest("help-tests-substitute-command-keys/undefined-map", test_sck_undefined_map), &
                     new_unittest("help-tests-describe-map-tree/mention-shadow-t", test_map_tree_shadow_t), &
-                    new_unittest("help-tests-describe-map-tree/mention-shadow-nil", test_map_tree_shadow_nil), &
+                    new_unittest("help-tests-describe-map-tree/mention-shadow-nil", test_map_tree_shadow_false), &
                     new_unittest("help-tests-describe-map-tree/partial-t", test_map_tree_partial_t), &
-                    new_unittest("help-tests-describe-map-tree/partial-nil", test_map_tree_partial_nil), &
+                    new_unittest("help-tests-describe-map-tree/partial-nil", test_map_tree_partial_false), &
                     new_unittest("describe-map-tree-ranges-and-prefixes", test_map_tree_ranges), &
                     new_unittest("describe-bindings", test_describe_bindings), &
                     new_unittest("describe-mode", test_describe_mode), &
@@ -119,7 +119,7 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
@@ -201,7 +201,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call fresh_scratch()
-        call test_sck(error, "foo \[forward_char]", "foo C-f")
+        call test_sck(error, "foo \[forward_character]", "foo C-f")
         if (allocated(error)) return
         call test_sck(error, "\[next_line]", "C-n")
         if (allocated(error)) return
@@ -266,7 +266,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call fresh_scratch()
-        call test_sck(error, "foo \=\[goto_char]", "foo \[goto_char]")
+        call test_sck(error, "foo \=\[goto_character]", "foo \[goto_character]")
         if (allocated(error)) return
         call test_sck(error, "foo \=\=", "foo \=")
         if (allocated(error)) return
@@ -297,7 +297,7 @@ contains
         if (allocated(error)) return
         call test_sck(error, "\<help_mode_map>\[quit_window]", "q")
         if (allocated(error)) return
-        call test_sck(error, "\<no-such-map>\[forward_char]", "C-f")
+        call test_sck(error, "\<no-such-map>\[forward_character]", "C-f")
     end subroutine test_keymap
 
     subroutine test_describe_command(error)
@@ -305,7 +305,7 @@ contains
         character(len=:), allocatable :: text
 
         call fresh_scratch()
-        call describe_function_1("forward_char", text)
+        call describe_function_1("forward_character", text)
         call check(error, index(text, "an interactive Fortran subroutine in "//LQ//"editing_commands_mod.f90"//RQ//"."// &
                                 LF//LF) == 1, text)
         if (allocated(error)) return
@@ -313,7 +313,7 @@ contains
         if (allocated(error)) return
         call check(error, index(text, "Move point N characters forward (backward if N is negative).") > 0, text)
         if (allocated(error)) return
-        ! \[right_char] became a key, and the citation is gone.
+        ! \[right_character] became a key, and the citation is gone.
         call check(error, index(text, "This is in contrast with"//LF//"<right>, which see.") > 0 .and. &
                    index(text, "Port of") == 0, text)
         if (allocated(error)) return
@@ -379,8 +379,8 @@ contains
         call describe_variable_text("completion_ignored_extensions", text, found)
         call check(error, index(text, "Its value is"//LF//"["".o"", ""~"", ") > 0, text)
         if (allocated(error)) return
-        call describe_variable_text("current_prefix_arg", text, found)
-        call check(error, index(text, "Its value is prefix_arg_type(kind=PREFIX_NONE)"//LF) > 0, text)
+        call describe_variable_text("current_prefix_argument", text, found)
+        call check(error, index(text, "Its value is prefix_argument_type(kind=PREFIX_NONE)"//LF) > 0, text)
         if (allocated(error)) return
         ! A procedure pointer: null(), the name of its default procedure
         ! while it points there, else a procedure the configuration set.
@@ -472,16 +472,16 @@ contains
         call check(error, index(text, "Its value is indent_relative"//LF) > 0, text)
         if (allocated(error)) return
         ! A C-u prefix argument.
-        current_prefix_arg = prefix_arg_type(PREFIX_RAW, 4_int64)
-        call describe_variable_text("current_prefix_arg", text, found)
-        current_prefix_arg = prefix_arg_type()
-        call check(error, index(text, "Its value is prefix_arg_type(kind=PREFIX_RAW, value=4)"//LF) > 0, text)
+        current_prefix_argument = prefix_argument_type(PREFIX_RAW, 4_int64)
+        call describe_variable_text("current_prefix_argument", text, found)
+        current_prefix_argument = prefix_argument_type()
+        call check(error, index(text, "Its value is prefix_argument_type(kind=PREFIX_RAW, value=4)"//LF) > 0, text)
         if (allocated(error)) return
         ! A hook has no printed form yet: the documentation follows the
         ! Fortran name.
         ! A deferred-length string variable is documented too.
-        call describe_variable_text("search_whitespace_regexp", text, found)
-        call check(error, found .and. index(text, "Its Fortran name is "//LQ//"search_whitespace_regexp"//RQ) > 0, text)
+        call describe_variable_text("search_whitespace_regular_expression", text, found)
+        call check(error, found .and. index(text, "Its Fortran name is "//LQ//"search_whitespace_regular_expression"//RQ) > 0, text)
         if (allocated(error)) return
         call describe_variable_text("text_mode_hook", text, found)
         call check(error, found .and. index(text, "Its value") == 0 .and. index(text, "Original value") == 0 .and. &
@@ -528,7 +528,7 @@ contains
     !> Values written as Fortran.
     subroutine test_fortran_text(error)
         type(error_type), allocatable, intent(out) :: error
-        type(value_type) :: elems(3)
+        type(value_type) :: elements(3)
 
         call check(error, fortran_text(value_type()) == ".false." .and. fortran_text(value_type(.true.)) == ".true.")
         if (allocated(error)) return
@@ -538,10 +538,10 @@ contains
         if (allocated(error)) return
         call check(error, fortran_text(value_type(name="SEARCH_UPPER_CASE_NOT_PASTED")) == "SEARCH_UPPER_CASE_NOT_PASTED")
         if (allocated(error)) return
-        elems(1) = value_type(1_int64)
-        elems(2) = value_type(text="a")
-        elems(3) = value_type()
-        call check(error, fortran_text(make_list(elems)) == '[1, "a", .false.]', fortran_text(make_list(elems)))
+        elements(1) = value_type(1_int64)
+        elements(2) = value_type(text="a")
+        elements(3) = value_type()
+        call check(error, fortran_text(make_list(elements)) == '[1, "a", .false.]', fortran_text(make_list(elements)))
     end subroutine test_fortran_text
 
     !> Empty input to C-h f, C-h v and C-h w is an error.
@@ -605,8 +605,8 @@ contains
         call check(error, buffers(current)%name == "*scratch*" .and. window_count() == 2, buffers(current)%name)
         if (allocated(error)) return
         ! The line is filled (describe-function-1).
-        call check(error, index(help_text(), "C-f runs the command forward_char (found in global_map), which is "// &
-                                "an"//LF//"interactive Fortran subroutine in "//LQ//"editing_commands_mod.f90"//RQ// &
+        call check(error, index(help_text(), "C-f runs the command forward_character (found in global_map), which is"//LF// &
+                                "an interactive Fortran subroutine in "//LQ//"editing_commands_mod.f90"//RQ// &
                                 "."//LF//LF) == 1, &
                    help_text())
         if (allocated(error)) return
@@ -652,10 +652,10 @@ contains
         call fresh_scratch()
         call switch_to_buffer("*locus*", st)
         call text_mode(st)
-        call keymap_set(text_mode_map, "C-c t", "forward_char", st)
+        call keymap_set(text_mode_map, "C-c t", "forward_character", st)
         call type_keys("C-h k C-c t")
         call command_loop(st)
-        call check(error, index(help_text(), "C-c t runs the command forward_char (found in text_mode_map)") == 1, &
+        call check(error, index(help_text(), "C-c t runs the command forward_character (found in text_mode_map)") == 1, &
                    help_text())
         call keymap_set(text_mode_map, "C-c t", value_type(), st)
         call fresh_scratch()
@@ -688,9 +688,9 @@ contains
         type(status_type) :: st
 
         call fresh_scratch()
-        call type_keys("C-h w f o r w a r d _ c h a r RET")
+        call type_keys("C-h w f o r w a r d _ c h a r a c t e r RET")
         call command_loop(st)
-        call check(error, last_message == "forward_char is on C-f", last_message)
+        call check(error, last_message == "forward_character is on C-f", last_message)
         if (allocated(error)) return
         call type_keys("C-h w h e l p _ q u i t RET")
         call command_loop(st)
@@ -754,7 +754,7 @@ contains
         end do
 
         call register_keymap_name("help_tests_test_keymap", map)
-        call test_sck(error, "\{help_tests_test_keymap}", LF//"Key             Binding"//LF//sep()// &
+        call test_sck(error, "\{help_tests_test_keymap}", LF//"Key             Binding"//LF//separator()// &
                       "C-g"//TAB//TAB//"abort_minibuffers"//LF//"TAB"//TAB//TAB//"minibuffer_complete"//LF// &
                       "C-j"//TAB//TAB//"minibuffer_complete_and_exit"//LF//"RET"//TAB//TAB//"minibuffer_complete_and_exit"// &
                       LF//"SPC"//TAB//TAB//"minibuffer_complete_word"//LF//"?"//TAB//TAB//"minibuffer_completion_help"//LF// &
@@ -789,11 +789,11 @@ contains
 
     !> The separator line: dashes without a display that underlines (as
     !> in tests run alone), else a newline.
-    function sep() result(s)
+    function separator() result(s)
         character(len=:), allocatable :: s
 
         s = make_separator_line()
-    end function sep
+    end function separator
 
     subroutine shadow_maps(map, shadow)
         type(handle_type), intent(out) :: map
@@ -807,7 +807,7 @@ contains
         call make_sparse_keymap(s)
         call keymap_set(s, "C-a", value_type(name="baz"), st)
         allocate (shadow(1))
-        shadow(1) = make_keymap_ref(s)
+        shadow(1) = make_keymap_reference(s)
     end subroutine shadow_maps
 
     subroutine test_map_tree_shadow_t(error)
@@ -820,12 +820,12 @@ contains
         call fresh_scratch()
         call shadow_maps(map, shadow)
         text = map_tree_text(map, .true., shadow, .true.)
-        call check(error, text, LF//"Key             Binding"//LF//sep()//"C-a"//TAB//TAB//"foo"//LF// &
+        call check(error, text, LF//"Key             Binding"//LF//separator()//"C-a"//TAB//TAB//"foo"//LF// &
                    "  (this binding is currently shadowed)"//LF//"C-b"//TAB//TAB//"bar"//LF)
         call destroy_keymap(map, st)
     end subroutine test_map_tree_shadow_t
 
-    subroutine test_map_tree_shadow_nil(error)
+    subroutine test_map_tree_shadow_false(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map
         type(value_type), allocatable :: shadow(:)
@@ -835,9 +835,9 @@ contains
         call fresh_scratch()
         call shadow_maps(map, shadow)
         text = map_tree_text(map, .true., shadow, .false.)
-        call check(error, text, LF//"Key             Binding"//LF//sep()//"C-b"//TAB//TAB//"bar"//LF)
+        call check(error, text, LF//"Key             Binding"//LF//separator()//"C-b"//TAB//TAB//"bar"//LF)
         call destroy_keymap(map, st)
-    end subroutine test_map_tree_shadow_nil
+    end subroutine test_map_tree_shadow_false
 
     subroutine test_map_tree_partial_t(error)
         type(error_type), allocatable, intent(out) :: error
@@ -851,11 +851,11 @@ contains
         call keymap_set(map, "C-a", value_type(name="foo"), st)
         call keymap_set(map, "C-b", value_type(name="undefined"), st)
         call check(error, map_tree_text(map, .true., none, .false.), &
-                   LF//"Key             Binding"//LF//sep()//"C-a"//TAB//TAB//"foo"//LF)
+                   LF//"Key             Binding"//LF//separator()//"C-a"//TAB//TAB//"foo"//LF)
         call destroy_keymap(map, st)
     end subroutine test_map_tree_partial_t
 
-    subroutine test_map_tree_partial_nil(error)
+    subroutine test_map_tree_partial_false(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map
         type(value_type), allocatable :: none(:)
@@ -867,9 +867,9 @@ contains
         call keymap_set(map, "C-a", value_type(name="foo"), st)
         call keymap_set(map, "C-b", value_type(name="undefined"), st)
         call check(error, map_tree_text(map, .false., none, .false.), &
-                   LF//"Key             Binding"//LF//sep()//"C-a"//TAB//TAB//"foo"//LF//"C-b"//TAB//TAB//"undefined"//LF)
+                   LF//"Key             Binding"//LF//separator()//"C-a"//TAB//TAB//"foo"//LF//"C-b"//TAB//TAB//"undefined"//LF)
         call destroy_keymap(map, st)
-    end subroutine test_map_tree_partial_nil
+    end subroutine test_map_tree_partial_false
 
     !> Runs of characters bound alike, prefix maps after the map itself
     !> (accessible-keymaps), keys too wide for column 16, the natural
@@ -891,7 +891,7 @@ contains
         call keymap_set(map, "C-c C-x", value_type(name="ccx"), st)
         call keymap_set(map, "C-c <some-long-key-name>", value_type(name="long"), st)
         call check(error, map_tree_text(map, .true., none, .false.), &
-                   LF//"Key             Binding"//LF//sep()//"a .. c"//TAB//TAB//"self_insert_command"//LF// &
+                   LF//"Key             Binding"//LF//separator()//"a .. c"//TAB//TAB//"self_insert_command"//LF// &
                    "<f2>"//TAB//TAB//"two"//LF//"<f11>"//TAB//TAB//"eleven"//LF//LF// &
                    "C-c C-x"//repeat(TAB, 4)//"ccx"//LF//"C-c <some-long-key-name>"//TAB//"long"//LF)
         call destroy_keymap(map, st)
@@ -908,18 +908,18 @@ contains
         call fresh_scratch()
         call switch_to_buffer("*bindings*", st)
         call text_mode(st)
-        call keymap_set(text_mode_map, "C-f", "backward_char", st)
+        call keymap_set(text_mode_map, "C-f", "backward_character", st)
         call type_keys("C-h b")
         call command_loop(st)
         call keymap_set(text_mode_map, "C-f", value_type(), st)
         text = help_text()
         k1 = index(text, FF//LF//LQ//"text_mode"//RQ//" Major Mode Bindings:"//LF//LF//"Key             Binding"//LF// &
-                   sep())
-        k2 = index(text, FF//LF//"Global Bindings:"//LF//LF//"Key             Binding"//LF//sep())
+                   separator())
+        k2 = index(text, FF//LF//"Global Bindings:"//LF//LF//"Key             Binding"//LF//separator())
         call check(error, k1 == 1 .and. k2 > k1, text)
         if (allocated(error)) return
-        call check(error, index(text, LF//"C-f"//TAB//TAB//"backward_char"//LF) > k1 .and. &
-                   index(text, LF//"C-f"//TAB//TAB//"forward_char"//LF//"  (this binding is currently shadowed)"//LF) > k2 &
+        call check(error, index(text, LF//"C-f"//TAB//TAB//"backward_character"//LF) > k1 .and. &
+                   index(text, LF//"C-f"//TAB//TAB//"forward_character"//LF//"  (this binding is currently shadowed)"//LF) > k2 &
                    .and. index(text, LF//"C-x C-f"//TAB//TAB//"find_file"//LF) > k2, text)
         if (allocated(error)) return
         call check(error, index(text, LF//"SPC .. ~"//TAB//"self_insert_command"//LF) > k2 .and. &
@@ -969,7 +969,7 @@ contains
         call command_loop(st)
         text = help_text()
         call check(error, index(text, "transient_mark_mode is an interactive Fortran subroutine") == 1 .and. &
-                   index(text, LF//LF//sep()//LF//"transient_mark_mode is a variable defined in ") > 0, text)
+                   index(text, LF//LF//separator()//LF//"transient_mark_mode is a variable defined in ") > 0, text)
         if (allocated(error)) return
         call type_keys("C-h o f i l l _ c o l u m n RET")
         call command_loop(st)
@@ -986,9 +986,9 @@ contains
         type(status_type) :: st
 
         call fresh_scratch()
-        call type_keys("C-h x f o r w a r d _ c h a r RET")
+        call type_keys("C-h x f o r w a r d _ c h a r a c t e r RET")
         call command_loop(st)
-        call check(error, index(help_text(), "forward_char is an interactive Fortran subroutine") == 1, help_text())
+        call check(error, index(help_text(), "forward_character is an interactive Fortran subroutine") == 1, help_text())
         if (allocated(error)) return
         ! Functions that are not commands don't complete.
         call type_keys("C-h x RET")
@@ -1030,8 +1030,8 @@ contains
         call command_loop(st)
         text = help_text()
         call check(error, index(text, LF//" a"//TAB//TAB//TAB//";; self_insert_command"//LF// &
-                                " C-b"//TAB//TAB//TAB//";; backward_char"//LF// &
-                                " C-f"//TAB//TAB//TAB//";; forward_char"//LF// &
+                                " C-b"//TAB//TAB//TAB//";; backward_character"//LF// &
+                                " C-f"//TAB//TAB//TAB//";; forward_character"//LF// &
                                 " C-x h"//TAB//TAB//TAB//";; mark_whole_buffer"//LF// &
                                 " C-h l"//TAB//TAB//TAB//";; view_lossage"//LF) > 0, text)
         if (allocated(error)) return
@@ -1130,7 +1130,7 @@ contains
                    index(text, LF//"   C-t "//TAB//"Fortmacs TODO"//LF) > 0, text)
         if (allocated(error)) return
         ! k ran describe-key, in the previous window configuration.
-        call check(error, index(help_text(), "C-f runs the command forward_char") == 1, help_text())
+        call check(error, index(help_text(), "C-f runs the command forward_character") == 1, help_text())
         call fresh_scratch()
     end subroutine test_help_for_help
 

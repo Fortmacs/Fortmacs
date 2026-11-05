@@ -52,14 +52,14 @@ module saveplace_mod
     use buffer_mod, only: buffers, current, buffer_list, set_buffer, current_buffer, get_or_make_buffer, &
                           generate_new_buffer_name, close_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, buffer_string
+    use editing_functions_mod, only: point, goto_character, buffer_string
     use file_input_output_mod, only: is_file_readable, expand_file_name, write_region, insert_file_contents
     use files_mod, only: find_file_hook, close_buffer_hook, abbreviate_file_name, revert_buffer_in_progress
     use configuration_mod, only: state_directory
     use coding_mod, only: coding_system_for_write
     use derived_mod, only: is_derived_mode
     use directory_editor_mode_mod, only: dired_initial_position_hook, dired_current_directory, dired_get_filename, &
-                                         dired_goto_file, dired_subdir_dirs
+                                         dired_goto_file, dired_subdirectory_directories
     use search_mod, only: string_match
     use keyboard_mod, only: exit_fortmacs_hook
     use easy_minor_mode_mod, only: mode_called_interactively
@@ -72,7 +72,7 @@ module saveplace_mod
 
     public :: save_place_mode, save_place_local_mode, save_place_store, save_place_forget_unreadable_files, &
               save_places_to_file, save_places_store, save_place_find_file_hook, save_place_dired_hook, &
-              save_place_load_places_from_file, save_place_exit_fortmacs_hook, init_saveplace
+              save_place_load_places_from_file, save_place_exit_fortmacs_hook, initialize_saveplace
 
     !> An element of `save_places': FILE with the POSITION to go back
     !> to (upstream's (FILENAME . POSITION)), or a directory FILE ending
@@ -132,7 +132,7 @@ module saveplace_mod
     !> True means forget place in unreadable files.
     !>
     !> The filenames in `save_places' that do not match
-    !> `save_place_skip_check_regexp' are filtered through
+    !> `save_place_skip_check_regular_expression' are filtered through
     !> `is_file_readable'.  If false, their table entries are removed.
     !>
     !> You may do this anytime by calling the complementary function,
@@ -148,7 +148,7 @@ module saveplace_mod
     !> save-place-abbreviate-file-names.
     logical, public :: save_place_abbreviate_file_names = .false.
 
-    !> If true, remember files matching `save_place_skip_check_regexp'.
+    !> If true, remember files matching `save_place_skip_check_regular_expression'.
     !>
     !> When filtering `save_places' for unreadable files, some will
     !> not be checked, based on said regexp, and instead saved or forgotten
@@ -164,14 +164,14 @@ module saveplace_mod
     !> Files for which such a check may be inconvenient include those on
     !> removable and network volumes.  Port of saveplace.el
     !> save-place-skip-check-regexp.
-    character(len=:), allocatable, public :: save_place_skip_check_regexp
+    character(len=:), allocatable, public :: save_place_skip_check_regular_expression
 
     !> Regexp matching files whose positions should not be recorded.
     !> Useful to exclude temporary files, such as commit message files
     !> that are automatically created by VCSes.  If unallocated, this
     !> feature is disabled, i.e., no files are excluded.  Port of
     !> saveplace.el save-place-ignore-files-regexp.
-    character(len=:), allocatable, public :: save_place_ignore_files_regexp
+    character(len=:), allocatable, public :: save_place_ignore_files_regular_expression
 
     !> The interval between auto saves of buffer places, in seconds.
     !> If set to 0, disables timer-based auto saving.  Port of saveplace.el
@@ -538,17 +538,17 @@ contains
     end subroutine save_place_local_mode_body
 
     !> The current Dired directory of a Dired buffer, else "".  Not a port.
-    function dired_directory() result(dir)
-        character(len=:), allocatable :: dir
-        type(string_type), allocatable :: dirs(:)
+    function dired_directory() result(directory)
+        character(len=:), allocatable :: directory
+        type(string_type), allocatable :: directories(:)
         type(status_type) :: st
 
-        dir = ""
+        directory = ""
         if (.not. is_derived_mode("dired_mode")) return
-        dirs = dired_subdir_dirs()
-        if (size(dirs) == 0) return
-        dir = dired_current_directory(st)
-        if (.not. st%ok()) dir = ""
+        directories = dired_subdirectory_directories()
+        if (size(directories) == 0) return
+        directory = dired_current_directory(st)
+        if (.not. st%ok()) directory = ""
     end function dired_directory
 
     !> Add current buffer filename and position to `save_places'.
@@ -576,8 +576,8 @@ contains
             return
         end if
 
-        if (allocated(save_place_ignore_files_regexp)) then
-            if (string_match(save_place_ignore_files_regexp, item, st) > 0) return
+        if (allocated(save_place_ignore_files_regular_expression)) then
+            if (string_match(save_place_ignore_files_regular_expression, item, st) > 0) return
         end if
 
         if (save_place_abbreviate_file_names) item = abbreviate_file_name(item)
@@ -617,7 +617,7 @@ contains
         character(len=*), intent(in) :: file
         type(status_type) :: st
 
-        if (string_match(save_place_skip_check_regexp, file, st) > 0) then
+        if (string_match(save_place_skip_check_regular_expression, file, st) > 0) then
             keep = save_place_save_skipped
         else
             keep = is_file_readable(file)
@@ -643,12 +643,12 @@ contains
         end do
     end subroutine save_place_forget_unreadable_files
 
-    recursive subroutine cmd_save_place_forget_unreadable_files(status)
+    recursive subroutine execute_save_place_forget_unreadable_files(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call save_place_forget_unreadable_files()
-    end subroutine cmd_save_place_forget_unreadable_files
+    end subroutine execute_save_place_forget_unreadable_files
 
     !> Write `save_places' to `save_place_file'.  Port of
     !> saveplace.el:save-place-alist-to-file.
@@ -745,7 +745,7 @@ contains
 
         if (k > 0) then
             if (.not. revert_buffer_in_progress .and. .not. allocated(save_places(k)%dired_filename)) then
-                call goto_char(save_places(k)%position)
+                call goto_character(save_places(k)%position)
             end if
 
             call set(value_type(name="save_place_mode"), value_type(.true.), st)
@@ -767,7 +767,7 @@ contains
     recursive subroutine save_place_dired_hook()
         character(len=:), allocatable :: directory, item
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: k
 
         if (.not. save_place_loaded) call save_place_load_places_from_file()
@@ -780,9 +780,9 @@ contains
 
         if (.not. revert_buffer_in_progress) then
             if (allocated(save_places(k)%dired_filename)) then
-                pos = dired_goto_file(expand(save_places(k)%dired_filename), st)
+                position = dired_goto_file(expand(save_places(k)%dired_filename), st)
             else
-                call goto_char(save_places(k)%position)
+                call goto_character(save_places(k)%position)
             end if
         end if
 
@@ -812,18 +812,18 @@ contains
     end subroutine save_place_exit_fortmacs_hook_adapter
 
     !> Define the modes, the command and the options' defaults.  Not a port.
-    subroutine init_saveplace()
+    subroutine initialize_saveplace()
         type(status_type) :: st
 
         if (.not. allocated(save_place_file)) save_place_file = state_directory()//"places"
 
-        if (.not. allocated(save_place_skip_check_regexp)) then
-            save_place_skip_check_regexp = "\`/\(?:cdrom\|floppy\|mnt\|\(?:[^@/:]*@\)?[^@/:]*[^@/:.]:\)"
+        if (.not. allocated(save_place_skip_check_regular_expression)) then
+            save_place_skip_check_regular_expression = "\`/\(?:cdrom\|floppy\|mnt\|\(?:[^@/:]*@\)?[^@/:]*[^@/:.]:\)"
         end if
 
-        if (.not. allocated(save_place_ignore_files_regexp)) then
-            save_place_ignore_files_regexp = "\(?:COMMIT_EDITMSG\|hg-editor-[[:alnum:]]+\.txt\|svn-commit\.tmp\|" &
-                                             //"bzr_log\.[[:alnum:]]+\)$"
+        if (.not. allocated(save_place_ignore_files_regular_expression)) then
+            save_place_ignore_files_regular_expression = "\(?:COMMIT_EDITMSG\|hg-editor-[[:alnum:]]+\.txt\|svn-commit\.tmp\|" &
+                                                         //"bzr_log\.[[:alnum:]]+\)$"
         end if
 
         if (.not. allocated(save_places)) allocate (save_places(0))
@@ -835,6 +835,6 @@ contains
                                                       body=save_place_local_mode_body)
         commands%save_place_mode%execute => save_place_mode
         commands%save_place_local_mode%execute => save_place_local_mode
-        commands%save_place_forget_unreadable_files%execute => cmd_save_place_forget_unreadable_files
-    end subroutine init_saveplace
+        commands%save_place_forget_unreadable_files%execute => execute_save_place_forget_unreadable_files
+    end subroutine initialize_saveplace
 end module saveplace_mod

@@ -34,20 +34,20 @@ submodule(coding_mod) miscellaneous_language_mod
 contains
 
     !> Port of the `charset' coding systems of misc-lang.el.
-    module subroutine init_misc_lang()
+    module subroutine initialize_miscellaneous_language()
         call define_charset_coding_system("iso-8859-6", iachar("6"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-6"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "iso-8859-6"], &
                                           mime_charset="iso-8859-6", &
                                           doc="ISO-8859-6 based encoding (MIME:ISO-8859-6).")
         call define_charset_coding_system("windows-1256", iachar("A"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1256"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "windows-1256"], &
                                           mime_charset="windows-1256", &
                                           doc="windows-1256 (Arabic) encoding (MIME: WINDOWS-1256)")
         call define_coding_system_alias("cp1256", "windows-1256")
-    end subroutine init_misc_lang
+    end subroutine initialize_miscellaneous_language
 
     !> Port of the language environments of misc-lang.el.
-    module subroutine define_misc_lang_language_environments()
+    module subroutine define_miscellaneous_language_language_environments()
         call define_language_environment("IPA", &
                                          documentation="IPA is International Phonetic Alphabet for English, French, " &
                                          //"German"//achar(10)//"and Italian.", &
@@ -146,5 +146,5 @@ contains
                                          coding_systems=[character(len=40) :: "utf-8"], &
                                          coding_system_order=[character(len=40) :: "utf-8"], &
                                          input_method="tifinagh")
-    end subroutine define_misc_lang_language_environments
+    end subroutine define_miscellaneous_language_language_environments
 end submodule miscellaneous_language_mod

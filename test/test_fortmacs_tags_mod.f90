@@ -31,13 +31,14 @@ module test_fortmacs_tags_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use error_mod, only: status_type, format_error, FM_USER_ERROR
+    use error_mod, only: status_type, format_error, USER_ERROR_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, buffers, current, &
                           get_buffer
     use editing_functions_mod, only: buffer_string, point, line_beginning_position
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, file_name_nondirectory
-    use bindings_mod, only: init_bindings
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio, file_name_as_directory, &
+                                     file_name_nondirectory
+    use bindings_mod, only: initialize_bindings
     use simple_mod, only: fundamental_mode
     use cross_reference_mod, only: xref_item_type, find_xref_definitions, find_xref_apropos, xref_items_at
     use fortmacs_tags_mod, only: visit_tags_table, visit_tags_table_buffer, reset_tags_tables, tags_file_name, tags_table_list, &
@@ -74,7 +75,7 @@ contains
         character(len=:), allocatable :: path
         type(status_type) :: st
 
-        call init_fileio()
+        call initialize_fileio()
         call expand_file_name("test/etags-resources/"//name, path, st, fortmacs_wd)
     end function resource
 
@@ -85,7 +86,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call reset_tags_tables(st)
         tags_add_tables = TAGS_ADD_TABLES_ASK
         call get_or_make_buffer(name, h, st)
@@ -135,7 +136,7 @@ contains
         ! Check that tags not in ETAGS.good_1, but in ETAGS.good_3, are NOT
         ! recognized.
         call definitions(global_buffer, "intNumber", xref_buffer, st)
-        call check(error, st%code == FM_USER_ERROR, "intNumber in good_1: "//format_error(st))
+        call check(error, st%code == USER_ERROR_CODE, "intNumber in good_1: "//format_error(st))
         if (allocated(error)) return
         call set_buffer(local_buffer, st)
         tags_add_tables = .false.
@@ -181,7 +182,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call definitions(h, "foobar123", xref_buffer, st)
-        call check(error, st%code == FM_USER_ERROR, "a user error")
+        call check(error, st%code == USER_ERROR_CODE, "a user error")
         if (allocated(error)) return
         call check(error, format_error(st), "No definitions found for: foobar123")
         call close_buffer(h, st)

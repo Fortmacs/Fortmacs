@@ -26,7 +26,7 @@ confirm or correct it.
 Requires gfortran ≥ 13 and [fpm](https://fpm.fortran-lang.org); development
 also needs [fprettify](https://github.com/fortran-lang/fprettify) 0.3.7 and
 [Fortitude](https://fortitude.readthedocs.io) 0.9.2. Build through
-`tools/build.sh`, which first generates the modules made from `src/` (the
+`tools/build.sh`, which first generates the modules made from `source/` (the
 command, mode, face and help tables, not kept in git) and then runs fpm with
 its arguments.
 

@@ -53,11 +53,11 @@ module help_mode_mod
     use modes_mod, only: major_modes
     use hooks_mod, only: hook_type
     use abbreviation_mod, only: abbrev_table_type
-    use simple_mod, only: init_simple_modes
+    use simple_mod, only: initialize_simple_modes
     implicit none(type, external)
     private
 
-    public :: init_help_mode, help_mode, help_xref_item_type, help_xref_procedure, help_setup_xref, help_make_xrefs, &
+    public :: initialize_help_mode, help_mode, help_xref_item_type, help_xref_procedure, help_setup_xref, help_make_xrefs, &
               help_xref_go_back, help_xref_go_forward, help_go_back, help_go_forward, help_follow_name, &
               help_goto_next_page, help_goto_previous_page
 
@@ -87,7 +87,7 @@ module help_mode_mod
 
     !> A way to show a help page again: `describe' called with `argument',
     !> then point moved to `position'.  Port of help-mode.el's elements of
-    !> help-xref-stack, (POSITION FUNCTION ARGS...).
+    !> help-xref-stack, (POSITION FUNCTION ARGUMENTS...).
     type :: help_xref_item_type
         !> Where point was on the page.
         integer(int64) :: position = 0
@@ -158,7 +158,7 @@ module help_mode_mod
         !> cross references for selection with `help_follow_name'.
         !> Cross-references have the canonical form `...'  and the type of
         !> reference may be disambiguated by the preceding word(s) used in
-        !> `help_xref_name_regexp'.  Variables without variable
+        !> `help_xref_name_regular_expression'.  Variables without variable
         !> documentation do not get cross-referenced.
         !>
         !> A special reference `back' is made to return back through a
@@ -235,18 +235,18 @@ module help_mode_mod
 
         !> Define the button types of the cross-references.  Not a port.
         !> (In help_mode_cross_reference_mod.)
-        module subroutine init_help_xref()
+        module subroutine initialize_help_xref()
             implicit none(type, external)
-        end subroutine init_help_xref
+        end subroutine initialize_help_xref
     end interface
 
 contains
 
     !> Define Help mode and its parent, Special mode.  Not a port.
-    subroutine init_help_mode()
+    subroutine initialize_help_mode()
         type(status_type) :: st
 
-        call init_simple_modes()
+        call initialize_simple_modes()
         call major_modes%help_mode%define("help_mode", "Help", help_mode, help_mode_hook, &
                                           parent=major_modes%special_mode, abbrev_table=help_mode_abbrev_table)
         help_mode_map = major_modes%help_mode%map
@@ -263,9 +263,9 @@ contains
         call keymap_set(help_mode_map, "<XF86Back>", "help_go_back", st)
         call keymap_set(help_mode_map, "<XF86Forward>", "help_go_forward", st)
         call keymap_set(help_mode_map, "C-c C-c", "help_follow_name", st)
-        call init_help_xref()
+        call initialize_help_xref()
         commands%help_mode%execute => help_mode
-    end subroutine init_help_mode
+    end subroutine initialize_help_mode
 
     !> Major mode for viewing help text and navigating references in it.
     !> Port of help-mode.el:help-mode.
@@ -273,7 +273,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_keymap_live(help_mode_map)) call init_help_mode()
+        if (.not. is_keymap_live(help_mode_map)) call initialize_help_mode()
         call major_modes%help_mode%begin(saved, status)
         if (.not. status%ok()) return
         call major_modes%help_mode%end(saved, status)

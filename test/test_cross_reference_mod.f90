@@ -23,28 +23,28 @@
 
 !> xref-tests.el's cases (the resource files are in test/xref-resources),
 !> and own tests: the *xref* buffer, its motion and jumps, the history
-!> (M-, and C-M-,), `xref_regexp_to_extended' and C-h v of
+!> (M-, and C-M-,), `xref_regular_expression_to_extended' and C-h v of
 !> `xref_prompt_for_identifier'.
 module test_cross_reference_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use error_mod, only: status_type, format_error, FM_USER_ERROR
+    use error_mod, only: status_type, format_error, USER_ERROR_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, buffers, current
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, point, goto_char, point_min
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, directory_file_name, &
-                                     file_name_directory
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: buffer_string, point, goto_character, point_minimum
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio, file_name_as_directory, &
+                                     directory_file_name, file_name_directory
+    use bindings_mod, only: initialize_bindings
     use cross_reference_mod, only: xref_item_type, xref_file_location_type, xref_items_fetcher_type, make_xref, &
                                    make_xref_buffer_location, append_xref_item, xref_matches_in_directory, xref_matches_in_files, &
                                    xref_group_name_for_display, xref_file_name_display, show_xrefs, xref_items_at, &
-                  next_xref_line_no_show, goto_xref, go_back_in_xref_history, go_forward_in_xref_history, clear_xref_marker_stack, &
-                                   is_xref_marker_stack_empty, xref_regexp_to_extended, XREF_FILE_NAME_DISPLAY_ABSOLUTE, &
-                                   XREF_FILE_NAME_DISPLAY_NONDIRECTORY, XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE, &
-                                   XREF_DISPLAY_ACTION_NONE, xref_prompt_for_identifier, XREF_PROMPT_FOR_IDENTIFIER_LISTED, &
-                                   XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED
+                                   next_xref_line_no_show, goto_xref, go_back_in_xref_history, go_forward_in_xref_history, &
+                                   clear_xref_marker_stack, is_xref_marker_stack_empty, xref_regular_expression_to_extended, &
+                                   XREF_FILE_NAME_DISPLAY_ABSOLUTE, XREF_FILE_NAME_DISPLAY_NONDIRECTORY, &
+                                   XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE, XREF_DISPLAY_ACTION_NONE, xref_prompt_for_identifier, &
+                                   XREF_PROMPT_FOR_IDENTIFIER_LISTED, XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED
     use help_functions_mod, only: describe_variable_text
     implicit none(type, external)
     private
@@ -67,12 +67,12 @@ contains
                     new_unittest("xref-matches-in-directory-finds-an-empty-line-regexp-match", test_empty_line), &
                     new_unittest("xref-matches-in-files-includes-matches-from-all-the-files", test_files_all), &
                     new_unittest("xref-matches-in-files-trims-summary-for-matches-on-same-line", test_files_trims), &
-                    new_unittest("xref--xref-file-name-display-is-abs", test_display_abs), &
+                    new_unittest("xref--xref-file-name-display-is-abs", test_display_absolute), &
                     new_unittest("xref--xref-file-name-display-is-nondirectory", test_display_nondirectory), &
                     new_unittest("xref--xref-file-name-display-is-relative-to-project-root", test_display_relative), &
                     new_unittest("xref-buffer", test_xref_buffer), &
                     new_unittest("xref-history", test_history), &
-                    new_unittest("xref-regexp-to-extended", test_regexp_to_extended), &
+                    new_unittest("xref-regexp-to-extended", test_regular_expression_to_extended), &
                     new_unittest("xref-prompt-for-identifier-help", test_prompt_for_identifier_help) &
                     ]
     end subroutine collect_cross_reference_mod
@@ -83,8 +83,8 @@ contains
         type(status_type) :: st
         type(handle_type) :: h
 
-        call init_fileio()
-        call init_bindings()
+        call initialize_fileio()
+        call initialize_bindings()
         call expand_file_name("test/xref-resources/", directory, st, fortmacs_wd)
         directory = file_name_as_directory(directory)
 
@@ -96,25 +96,25 @@ contains
     end function data_directory
 
     !> Port of xref-tests.el xref-tests--matches-in-data-dir.
-    subroutine matches_in_data_dir(regexp, items, status)
-        character(len=*), intent(in) :: regexp
+    subroutine matches_in_data_directory(regular_expression, items, status)
+        character(len=*), intent(in) :: regular_expression
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         character(len=1) :: none(0)
 
-        call xref_matches_in_directory(regexp, "*", data_directory(), none, items, status)
-    end subroutine matches_in_data_dir
+        call xref_matches_in_directory(regular_expression, "*", data_directory(), none, items, status)
+    end subroutine matches_in_data_directory
 
     !> Port of xref-tests.el xref-tests--locations-in-data-dir: the items
     !> sorted by their location's group (a stable sort).
-    subroutine locations_in_data_dir(regexp, items, status)
-        character(len=*), intent(in) :: regexp
+    subroutine locations_in_data_directory(regular_expression, items, status)
+        character(len=*), intent(in) :: regular_expression
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         type(xref_item_type) :: item
         integer :: i, j
 
-        call matches_in_data_dir(regexp, items, status)
+        call matches_in_data_directory(regular_expression, items, status)
 
         do i = 2, size(items)
             item = items(i)
@@ -128,7 +128,7 @@ contains
 
             items(j + 1) = item
         end do
-    end subroutine locations_in_data_dir
+    end subroutine locations_in_data_directory
 
     ! Whether STRING ends with SUFFIX.  Not a port.
     logical function ends_with(string, suffix)
@@ -145,7 +145,7 @@ contains
         type(xref_item_type), allocatable :: items(:)
         type(status_type) :: st
 
-        call matches_in_data_dir("zzz", items, st)
+        call matches_in_data_directory("zzz", items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 0)
@@ -157,7 +157,7 @@ contains
         type(xref_item_type), allocatable :: items(:)
         type(status_type) :: st
 
-        call locations_in_data_dir("bar", items, st)
+        call locations_in_data_directory("bar", items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 2)
@@ -190,7 +190,7 @@ contains
         integer :: i
         integer(int64) :: columns(2)
 
-        call locations_in_data_dir("foo", items, st)
+        call locations_in_data_directory("foo", items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 2)
@@ -221,7 +221,7 @@ contains
         type(status_type) :: st
         integer(int64) :: column
 
-        call locations_in_data_dir("^$", items, st)
+        call locations_in_data_directory("^$", items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 1)
@@ -306,7 +306,7 @@ contains
 
         names = ""
         last = ""
-        call locations_in_data_dir("\(bar\|foo\)", items, st)
+        call locations_in_data_directory("\(bar\|foo\)", items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
 
@@ -321,7 +321,7 @@ contains
     end subroutine display_names
 
     !> Port of xref-tests.el xref--xref-file-name-display-is-abs.
-    subroutine test_display_abs(error)
+    subroutine test_display_absolute(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: names, directory
 
@@ -331,7 +331,7 @@ contains
         xref_file_name_display = XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE
         if (allocated(error)) return
         call check(error, names, directory//"file1.txt"//LF//directory//"file2.txt"//LF)
-    end subroutine test_display_abs
+    end subroutine test_display_absolute
 
     !> Port of xref-tests.el xref--xref-file-name-display-is-nondirectory.
     subroutine test_display_nondirectory(error)
@@ -366,12 +366,12 @@ contains
         type(xref_item_type) :: item
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer("xref-test", source, st)
         call set_buffer(source, st)
         call erase_buffer(st)
         call insert("first line"//LF//"second line"//LF, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call show_alone()
         item = make_xref("first line", make_xref_buffer_location(source, 1_int64))
         call append_xref_item(fetcher%items, item)
@@ -398,7 +398,7 @@ contains
         call xref_items_at(xref_buffer, shown)
         call check(error, size(shown), 2)
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call next_xref_line_no_show(st)
         call next_xref_line_no_show(st)
         call goto_xref(.false., st)
@@ -423,11 +423,11 @@ contains
 
         call make_source(source, fetcher)
         call clear_xref_marker_stack()
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call show_xrefs(fetcher, XREF_DISPLAY_ACTION_NONE, xref_buffer, st)
         call check(error,.not. is_xref_marker_stack_empty(), "a marker pushed")
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call next_xref_line_no_show(st)
         call next_xref_line_no_show(st)
         call goto_xref(.false., st)
@@ -439,7 +439,7 @@ contains
         call check(error, point() == 5_int64, "back where it started")
         if (allocated(error)) return
         call go_back_in_xref_history(st)
-        call check(error, st%code == FM_USER_ERROR .and. format_error(st) == "At start of xref history", format_error(st))
+        call check(error, st%code == USER_ERROR_CODE .and. format_error(st) == "At start of xref history", format_error(st))
         if (allocated(error)) return
         call go_forward_in_xref_history(st)
         call check(error, st%ok(), format_error(st))
@@ -453,22 +453,22 @@ contains
         call close_buffer(source, st)
     end subroutine test_history
 
-    !> `xref_regexp_to_extended': the operators lose their backslash, the
+    !> `xref_regular_expression_to_extended': the operators lose their backslash, the
     !> literal characters gain one, bracket expressions stay.  Not a port.
-    subroutine test_regexp_to_extended(error)
+    subroutine test_regular_expression_to_extended(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
-        call check(error, xref_regexp_to_extended("\(bar\|foo\)"), "(bar|foo)")
+        call initialize_bindings()
+        call check(error, xref_regular_expression_to_extended("\(bar\|foo\)"), "(bar|foo)")
         if (allocated(error)) return
-        call check(error, xref_regexp_to_extended("a(b)"), "a\(b\)")
+        call check(error, xref_regular_expression_to_extended("a(b)"), "a\(b\)")
         if (allocated(error)) return
-        call check(error, xref_regexp_to_extended("x\{2\}"), "x{2}")
+        call check(error, xref_regular_expression_to_extended("x\{2\}"), "x{2}")
         if (allocated(error)) return
-        call check(error, xref_regexp_to_extended("[(]a"), "[(]a")
+        call check(error, xref_regular_expression_to_extended("[(]a"), "[(]a")
         if (allocated(error)) return
-        call check(error, xref_regexp_to_extended("plain"), "plain")
-    end subroutine test_regexp_to_extended
+        call check(error, xref_regular_expression_to_extended("plain"), "plain")
+    end subroutine test_regular_expression_to_extended
 
     !> C-h v xref_prompt_for_identifier shows its commands with the state
     !> that uses them, as upstream shows the whole list
@@ -481,7 +481,7 @@ contains
         character(len=:), allocatable :: text
         logical :: found
 
-        call init_bindings()
+        call initialize_bindings()
         call describe_variable_text("xref_prompt_for_identifier", text, found)
         call check(error, found .and. index(text, "Its value is"//LF//"XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, "// &
                                             COMMANDS_TEXT//LF) > 0 .and. index(text, "Original value") == 0, text)

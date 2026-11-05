@@ -79,24 +79,24 @@ module fake_graphical_user_interface_mod
 
 contains
 
-    !> Make `f' a fake window-system frame `cols' by `lines' characters
+    !> Make `f' a fake window-system frame `columns' by `lines' characters
     !> drawn on `device' with fonts from `driver'.
-    subroutine make_fake_frame(f, device, driver, cols, lines)
+    subroutine make_fake_frame(f, device, driver, columns, lines)
         type(frame_type), intent(inout) :: f
         type(fake_device_type), target, intent(inout) :: device
         type(fake_font_driver_type), target, intent(inout) :: driver
-        integer, intent(in) :: cols, lines
+        integer, intent(in) :: columns, lines
 
         f%rif => device
         f%font_driver => driver
         f%column_width = FAKE_COLUMN_WIDTH
         f%line_height = FAKE_LINE_HEIGHT
-        f%smallest_char_width = FAKE_COLUMN_WIDTH
-        if (driver%proportional) f%smallest_char_width = 4
+        f%smallest_character_width = FAKE_COLUMN_WIDTH
+        if (driver%proportional) f%smallest_character_width = 4
         f%smallest_font_height = FAKE_LINE_HEIGHT
-        f%text_cols = cols
+        f%text_columns = columns
         f%text_lines = lines
-        device%width = cols*FAKE_COLUMN_WIDTH
+        device%width = columns*FAKE_COLUMN_WIDTH
         device%height = lines*FAKE_LINE_HEIGHT
         allocate (device%ch(0:device%width - 1, 0:device%height - 1), device%face(0:device%width - 1, 0:device%height - 1), &
                   device%starts(0:device%width - 1, 0:device%height - 1), &
@@ -132,9 +132,9 @@ contains
         ft%descent = 4*scale
         ft%space_width = 8*scale
         ft%average_width = 8*scale
-        ft%min_width = 8*scale
-        if (self%proportional) ft%min_width = 4*scale
-        ft%max_width = 16*scale
+        ft%minimum_width = 8*scale
+        if (self%proportional) ft%minimum_width = 4*scale
+        ft%maximum_width = 16*scale
     end function fake_font
 
     subroutine fake_text_extents(self, id, c, metrics, found)

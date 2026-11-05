@@ -9,7 +9,7 @@
 `smtpmail-send-it` (`send_mail_with_smtp`: the envelope address from `mail_envelope_from` (send_mail_mod's `get_mail_envelope_from`), the From field (mail_extract_mod) or `smtpmail_user_mail_address`, the blank header lines, blank Subject, the From field in the `angles`, `parens` and plain styles, Message-Id and Date fields, the MIME header for `mail_send_nonascii` MIME, Fcc with the message's coding system, the recipients, Bcc removed, sending or queueing; the `smtpmail_mail_address` and `smtpmail_code_conv_from` bindings),
 `smtpmail-send-queued-mail` (`send_queued_mail_with_smtp`; the variables of a queued message are kept in a namelist file, FILE.nml, where upstream writes FILE.el),
 `smtpmail-via-smtp` (the trace buffer "*trace of SMTP session to HOST*", the greeting, EHLO and HELO, the extensions, ONEX, VERB, XUSR, MAIL FROM with SIZE, RCPT TO, DATA, QUIT; retries after transient 4xx errors up to `smtpmail_retries`; asking for credentials after 530 or 550-554; `smtpmail_servers_requiring_authorization`),
-`smtpmail-try-auth-methods` (the mechanisms of `smtpmail_auth_supported` the server offers),
+`smtpmail-try-auth-methods` (the mechanisms of `smtpmail_authentication_supported` the server offers),
 `smtpmail-try-auth-method` (cram-md5, plain, login, xoauth2),
 `smtpmail-command-or-throw` (`send_command_or_fail`),
 `smtpmail-read-response`,

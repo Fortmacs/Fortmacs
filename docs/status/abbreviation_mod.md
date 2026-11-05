@@ -6,7 +6,7 @@
 
 ## Ported
 
-abbrev tables as `abbrev_table_type` (`define` = define-abbrev with :count, :system, force, :case-fixed, :enable-function and a hook with `no-self-insert`; `define_table` = define-abbrev-table; components `parents`, `case_fixed`, `regexp`, `enable_function`, `modiff`),
+abbrev tables as `abbrev_table_type` (`define` = define-abbrev with :count, :system, force, :case-fixed, :enable-function and a hook with `no-self-insert`; `define_table` = define-abbrev-table; components `parents`, `case_fixed`, `regular_expression`, `enable_function`, `modiff`),
 `abbrev-table-name-list`,
 `global-abbrev-table`,
 `fundamental-mode-abbrev-table`,

@@ -15,7 +15,7 @@ and the wait runs the ripe timers and lasts until the next one (timer_mod),
 the exitfun of `set-transient-map` (`exit_transient_map`);
 other descriptors watched while waiting (process.c `add_read_fd`, `delete_read_fd`: inotify's) and special events (the events `special-event-map` binds: queued with `insert_special_event`, also subr.el's `insert-special-event`, and handled whenever events are read, in `sit-for` and by `read-event`),
 `read-event`'s SECONDS (also without a terminal);
-keyboard macro recording (the macro part of `record_char`: every event read while no macro executes, unread events too; `finalize_kbd_macro_chars` after each command that leaves no prefix argument; `discard-input` cancels the current command's events and ends the definition, so command errors and C-g do),
+keyboard macro recording (the macro part of `record_character`: every event read while no macro executes, unread events too; `finalize_keyboard_macro_characters` after each command that leaves no prefix argument; `discard-input` cancels the current command's events and ends the definition, so command errors and C-g do),
 `last-input-event`,
 the echo area kept while a macro's commands run;
 macros.c in macros_mod: `start-kbd-macro` (APPEND re-executing the last macro unless NO-EXEC),
@@ -39,13 +39,13 @@ event queue,
 `unread-command-events`,
 `discard-input`,
 `input-pending-p`,
-`read_char` core (with `input-method-function`: the first event of a key sequence goes to the current buffer's input method and the events it returns are read in turn, the rest through `unread-post-input-method-events`, with `this-command-keys` and the echo saved around it; `input-method-previous-message`),
+`read_character` core (with `input-method-function`: the first event of a key sequence goes to the current buffer's input method and the events it returns are read in turn, the rest through `unread-post-input-method-events`, with `this-command-keys` and the echo saved around it; `input-method-previous-message`),
 `unread-post-input-method-events`,
 `unread-input-method-events`,
 `read_key_sequence` (input-decode-map, local-function-key-map, key-translation-map, upper-case and shift fallbacks),
 `keyremap_step`,
 `is_undefined_binding`,
-`command_loop_1` (prefix arg, keyboard macros run by a command loop over their events, `cmd_error` with discard-input and the bell),
+`command_loop_1` (prefix arg, keyboard macros run by a command loop over their events, `execute_error` with discard-input and the bell),
 subr.el `set-transient-map` (one key sequence, pushed over the previous overriding map as internal-push-keymap does),
 redisplay before waiting for input (a hook, to keep keyboard_mod below display_engine_mod),
 `recursive_edit_1` and the `exit` catch (`exit-recursive-edit`, `abort-recursive-edit`),
@@ -62,22 +62,22 @@ command errors logged in *Messages*;
 `global-disable-point-adjustment`;
 step 42c: echoing (`echo-keystrokes`, `echo-keystrokes-help` with help.el's help--append-keystrokes-help, `echo_add_key`, `echo_dash`, `echo_update` with simple.el's internal-echo-keystrokes-prefix and universal-argument--description, `echo_now`, `cancel_echoing`, `echo_length`, `echo_truncate`, `is_echo_keystrokes`),
 the echo area wiped as typed events are read,
-`help-char` and `help-event-list` (`is_help_char`),
-`this_command_keys` as read_char adds events (`add_command_key`; `this-command-keys`, `this-command-keys-vector`, `this-single-command-keys`, `this-single-command-raw-keys`, `clear-this-command-keys`, `set--this-command-keys`),
+`help-char` and `help-event-list` (`is_help_character`),
+`this_command_keys` as read_character adds events (`add_command_key`; `this-command-keys`, `this-command-keys-vector`, `this-single-command-keys`, `this-single-command-raw-keys`, `clear-this-command-keys`, `set--this-command-keys`),
 `read-char`,
 `read-char-exclusive` and `read-event` with PROMPT and SECONDS (`read_filtered_event`, the `ascii-character` of keypad keys),
 `read-key-sequence` and `read-key-sequence-vector` (`read_key_sequence_vs`: PROMPT, CONTINUE-ECHO, DONT-DOWNCASE-LAST; `follow_key`, `active_maps`, `access_keymap_keyremap`; the case fallback through the case tables and `translate-upper-case-key-bindings`; fabricated events returned),
 `recursion-depth`,
-`top-level` (the status `FM_TOP_LEVEL`),
+`top-level` (the status `TOP_LEVEL_CODE`),
 `recursive-edit` (`recursive_edit_unwind`; `command_loop_level` counts recursive edits, not minibuffers),
 the start of command_loop_1 in a recursive edit (post-command-hook, `last-command`),
 `exit-recursive-edit` with `user_error`,
 `lossage-size` with ARG (`update_recent_keys`),
 `num-nonmacro-input-events`,
-`event-convert-list` (`parse_solitary_modifier`, `make_ctrl_char`),
+`event-convert-list` (`parse_solitary_modifier`, `make_control_character`),
 `internal-event-symbol-parse-modifiers` (`lispy_modifier_list`),
 `safe_execute_hooks` for pre- and post-command-hook (`safe_run_hook_funcall`, `safe_execute_hooks_1`, `safe_execute_hooks_error`, `safe_execute_hooks_maybe_narrowed`: the failing function is shown and removed),
-`open-dribble-file` (file_input_output_mod) and the dribble part of `record_char`,
+`open-dribble-file` (file_input_output_mod) and the dribble part of `record_character`,
 idle timers started before the echo wait,
 `insert-special-event`,
 the input queue (`kbd_buffer_get_event`, `read_event_from_main_queue`, `next_kbd_event`, `clear_event`, `get_input_pending`, `readable_events`, `detect_input_pending`, `detect_input_pending_execute_timers`, `requeued_events_pending_p`, `requeued_command_events_pending_p`, `kbd_buffer_events_waiting`, `gobble_input`),
@@ -85,11 +85,11 @@ the input queue (`kbd_buffer_get_event`, `read_event_from_main_queue`, `next_kbd
 `cmd_error_internal`,
 `command_loop` and `command_loop_2`;
 subr.el's C-M-c and C-] bindings;
-the command state (`last-command`, `real-this-command`, `real-last-command`, `last-repeatable-command`) is `type(command_type), pointer` and `last-prefix-arg` a `prefix_arg_type` (A7);
+the command state (`last-command`, `real-this-command`, `real-last-command`, `last-repeatable-command`) is `type(command_type), pointer` and `last-prefix-arg` a `prefix_argument_type` (A7);
 where upstream holds a keyboard macro there (a key bound to a macro, `call-last-kbd-macro`, `kmacro-call-macro`) it points at `last_macro_command`,
 whose `macro` handle names the macro's events in the registry `command_macros` (A7a; a handle, not an allocatable component, keeps the generated commands fast to compile),
 so C-x z repeats it;
-step 42e: `suspend-emacs` with `stuff_buffered_input` (submodule keyboard_suspend_mod, because it needs terminal_output_mod and display_update_mod, which use keyboard_mod: `suspend_hook` and `suspend_resume_hook`, subr.el's; the terminal reset and set again, terminal_output_mod's `reset_all_sys_modes` and `init_all_sys_modes`; the frame resized if the terminal's size changed meanwhile) and frame.el's `suspend-frame` (in keyboard_suspend_mod too),
+step 42e: `suspend-emacs` with `stuff_buffered_input` (submodule keyboard_suspend_mod, because it needs terminal_output_mod and display_update_mod, which use keyboard_mod: `suspend_hook` and `suspend_resume_hook`, subr.el's; the terminal reset and set again, terminal_output_mod's `reset_all_system_modes` and `initialize_all_system_modes`; the frame resized if the terminal's size changed meanwhile) and frame.el's `suspend-frame` (in keyboard_suspend_mod too),
 bound to C-z and C-x C-z (subr.el binds suspend-emacs, which bindings.el substitutes);
 a SIGWINCH while waiting for input or in `sit-for` redisplays,
 which makes the pending size change (process.c:wait_reading_process_output).

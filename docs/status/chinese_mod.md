@@ -10,7 +10,7 @@ the coding systems of type `charset` (80),
 `shift-jis` (2),
 `big5` (1) and `iso-2022` (13),
 with their aliases,
-defined in loadup.el's order (`init_chinese`, ...);
+defined in loadup.el's order (`initialize_chinese`, ...);
 their language environments (`define_chinese_language_environments`, ...)
 
 ## Deferred

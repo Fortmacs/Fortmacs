@@ -20,7 +20,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `find_project_regexp' and `find_project_or_external_regexp': a
+!> `find_project_regular_expression' and `find_project_or_external_regular_expression': a
 !> submodule because they use cross_reference_mod, which uses project_mod.
 submodule(project_mod) project_cross_reference_mod
     use cross_reference_mod, only: xref_fetcher_type, xref_item_type, xref_matches_in_files, show_xrefs, &
@@ -28,73 +28,73 @@ submodule(project_mod) project_cross_reference_mod
     use grep_mod, only: grep_read_files
     implicit none(type, external)
 
-    ! The fetcher of the search commands: the matches for REGEXP in FILES
+    ! The fetcher of the search commands: the matches for REGULAR_EXPRESSION in FILES
     ! (relative to DIRECTORY when not absolute).  Port of the
-    ! (apply-partially #'project--find-regexp-in-files REGEXP FILES) of
+    ! (apply-partially #'project--find-regexp-in-files REGULAR_EXPRESSION FILES) of
     ! project.el.
-    type, extends(xref_fetcher_type) :: project_regexp_fetcher_type
-        character(len=:), allocatable :: regexp
+    type, extends(xref_fetcher_type) :: project_regular_expression_fetcher_type
+        character(len=:), allocatable :: regular_expression
         character(len=:), allocatable :: directory
         type(string_type), allocatable :: files(:)
     contains
-        procedure :: fetch => find_regexp_in_files
-    end type project_regexp_fetcher_type
+        procedure :: fetch => find_regular_expression_in_files
+    end type project_regular_expression_fetcher_type
 
 contains
 
-    module procedure find_project_regexp
-    type(project_regexp_fetcher_type) :: fetcher
+    module procedure find_project_regular_expression
+    type(project_regular_expression_fetcher_type) :: fetcher
     class(project_type), allocatable :: pr
     type(handle_type) :: buffer
     type(string_type) :: none(0)
-    character(len=:), allocatable :: caller_dir, saved_dir, dir, patterns
+    character(len=:), allocatable :: caller_directory, saved_directory, directory, patterns
     logical :: saved_relative
 
-    caller_dir = current_directory()
+    caller_directory = current_directory()
     call get_current_project(pr, status, maybe_prompt=.true.)
     if (.not. status%ok()) return
-    fetcher%regexp = regexp
+    fetcher%regular_expression = regular_expression
     fetcher%directory = pr%root()
 
-    if (current_prefix_arg%kind == PREFIX_NONE) then
-        saved_dir = current_directory()
+    if (current_prefix_argument%kind == PREFIX_NONE) then
+        saved_directory = current_directory()
         call set_directory(fetcher%directory)
         saved_relative = project_files_relative_names
         project_files_relative_names = .true.
         call pr%list_files(fetcher%files, status)
         project_files_relative_names = saved_relative
-        call set_directory(saved_dir)
+        call set_directory(saved_directory)
         if (.not. status%ok()) return
     else
-        call read_directory_name("Base directory: ", dir, status, dir=caller_dir, mustmatch=REQUIRE_MATCH_YES)
+        call read_directory_name("Base directory: ", directory, status, directory=caller_directory, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
-        fetcher%directory = file_name_as_directory(dir)
-        call grep_read_files(regexp, patterns, status)
+        fetcher%directory = file_name_as_directory(directory)
+        call grep_read_files(regular_expression, patterns, status)
         if (.not. status%ok()) return
-        saved_dir = current_directory()
+        saved_directory = current_directory()
         call set_directory(fetcher%directory)
         saved_relative = project_files_relative_names
         project_files_relative_names = .true.
-        call project_files_in_directory(dir, none, fetcher%files, status, patterns)
+        call project_files_in_directory(directory, none, fetcher%files, status, patterns)
         project_files_relative_names = saved_relative
-        call set_directory(saved_dir)
+        call set_directory(saved_directory)
         if (.not. status%ok()) return
     end if
 
-    call show_regexp_matches(fetcher, buffer, status)
-    end procedure find_project_regexp
+    call show_regular_expression_matches(fetcher, buffer, status)
+    end procedure find_project_regular_expression
 
-    module procedure find_project_or_external_regexp
-    type(project_regexp_fetcher_type) :: fetcher
+    module procedure find_project_or_external_regular_expression
+    type(project_regular_expression_fetcher_type) :: fetcher
     class(project_type), allocatable :: pr
     type(handle_type) :: buffer
     type(string_type), allocatable :: roots(:), external(:)
-    character(len=:), allocatable :: saved_dir
+    character(len=:), allocatable :: saved_directory
     integer :: k
 
     call get_current_project(pr, status, maybe_prompt=.true.)
     if (.not. status%ok()) return
-    fetcher%regexp = regexp
+    fetcher%regular_expression = regular_expression
     fetcher%directory = pr%root()
     allocate (roots(0))
     call append_string(roots, pr%root())
@@ -105,44 +105,44 @@ contains
         call append_string(roots, external(k)%text)
     end do
 
-    saved_dir = current_directory()
+    saved_directory = current_directory()
     call set_directory(fetcher%directory)
     call pr%list_files(fetcher%files, status, roots)
-    call set_directory(saved_dir)
+    call set_directory(saved_directory)
     if (.not. status%ok()) return
-    call show_regexp_matches(fetcher, buffer, status)
-    end procedure find_project_or_external_regexp
+    call show_regular_expression_matches(fetcher, buffer, status)
+    end procedure find_project_or_external_regular_expression
 
     ! Show the matches FETCHER finds with `show_xrefs', from its
     ! directory (upstream's let-bound `default-directory').  Port of the
     ! (xref-show-xrefs ... nil) of project.el:project-find-regexp.
-    recursive subroutine show_regexp_matches(fetcher, buffer, status)
-        type(project_regexp_fetcher_type), intent(inout) :: fetcher
+    recursive subroutine show_regular_expression_matches(fetcher, buffer, status)
+        type(project_regular_expression_fetcher_type), intent(inout) :: fetcher
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: saved_dir
+        character(len=:), allocatable :: saved_directory
 
-        saved_dir = current_directory()
+        saved_directory = current_directory()
         call set_directory(fetcher%directory)
         call show_xrefs(fetcher, XREF_DISPLAY_ACTION_NONE, buffer, status)
-        call set_directory(saved_dir)
-    end subroutine show_regexp_matches
+        call set_directory(saved_directory)
+    end subroutine show_regular_expression_matches
 
     ! The matches for the fetcher's regexp in its files: a `user_error'
     ! error condition occurs when there are no files or no matches.
     ! Port of project.el:project--find-regexp-in-files.
-    recursive subroutine find_regexp_in_files(this, items, status)
-        class(project_regexp_fetcher_type), intent(inout) :: this
+    recursive subroutine find_regular_expression_in_files(this, items, status)
+        class(project_regular_expression_fetcher_type), intent(inout) :: this
         type(xref_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: files(:), saved_dir
+        character(len=:), allocatable :: files(:), saved_directory
         integer :: k, width
 
         allocate (items(0))
         status = status_type()
 
         if (size(this%files) == 0) then
-            call set_error(status, FM_USER_ERROR, "Empty file list")
+            call set_error(status, USER_ERROR_CODE, "Empty file list")
             return
         end if
 
@@ -158,35 +158,35 @@ contains
             files(k) = this%files(k)%text
         end do
 
-        saved_dir = current_directory()
+        saved_directory = current_directory()
         call set_directory(this%directory)
-        call xref_matches_in_files(this%regexp, files, items, status)
-        call set_directory(saved_dir)
+        call xref_matches_in_files(this%regular_expression, files, items, status)
+        call set_directory(saved_directory)
         if (.not. status%ok()) return
 
         if (size(items) == 0) then
-            call set_error(status, FM_USER_ERROR, "No matches for: "//this%regexp)
+            call set_error(status, USER_ERROR_CODE, "No matches for: "//this%regular_expression)
             return
         end if
-    end subroutine find_regexp_in_files
+    end subroutine find_regular_expression_in_files
 
     ! The current buffer's `default_directory' ("./" for none), as
     ! project_mod's private `default_directory' gives it (gfortran does
     ! not export a private procedure of the parent to a submodule).
     ! Not a port.
-    function current_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function current_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = "./"
+        directory = "./"
         if (current == 0) return
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
     end function current_directory
 
-    ! Make DIR the current buffer's `default_directory'.  Not a port.
-    subroutine set_directory(dir)
-        character(len=*), intent(in) :: dir
+    ! Make DIRECTORY the current buffer's `default_directory'.  Not a port.
+    subroutine set_directory(directory)
+        character(len=*), intent(in) :: directory
 
         if (current == 0) return
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
     end subroutine set_directory
 end submodule project_cross_reference_mod

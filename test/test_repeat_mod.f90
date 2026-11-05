@@ -25,18 +25,18 @@
 !> components, as defvar-keymap :repeat does; own test of C-x z.
 module test_repeat_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, assignment(=)
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer, generate_new_buffer_name
     use editing_functions_mod, only: buffer_string
     use keymap_mod, only: make_sparse_keymap, key_parse, keymap_set, use_local_map, set_repeat_map
-    use keyboard_mod, only: execute_kbd_macro, last_kbd_macro
-    use keyboard_macros_mod, only: init_kmacro
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use keyboard_mod, only: execute_keyboard_macro, last_keyboard_macro
+    use keyboard_macros_mod, only: initialize_kmacro
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use test_support_mod, only: show_alone
     use repeat_mod, only: repeat_echo_function, repeat_check_key, repeat_exit_key, repeat_keep_prefix, &
                           repeat_echo_message_string, repeat_in_progress
@@ -45,9 +45,10 @@ module test_repeat_mod
 
     public :: collect_repeat_mod
 
-    !> The commands called, as "ARG NAME" (repeat-tests-calls).
+    !> The commands called, as "ARGUMENT NAME" (repeat-tests-calls).
     character(len=:), allocatable :: calls
-    type(command_type), target, save :: cmd_a, cmd_b, cmd_c, cmd_d, cmd_e, cmd_g, cmd_o, cmd_q, cmd_s, cmd_t, cmd_u
+    type(command_type), target, save :: command_a, command_b, command_c, command_d, command_e, command_g, command_o, command_q, &
+                                        command_s, command_t, command_u
     type(handle_type) :: global_map, another_repeat_map, repeat_map
 
 contains
@@ -74,7 +75,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=24) :: buffer
 
-        write (buffer, "(i0)") prefix_numeric_value(current_prefix_arg)
+        write (buffer, "(i0)") prefix_numeric_value(current_prefix_argument)
         calls = calls//"("//trim(buffer)//" "//name//")"
     end subroutine record
 
@@ -160,29 +161,29 @@ contains
     subroutine setup()
         type(status_type) :: st
 
-        call init_bindings()
-        cmd_a = command_type("repeat_tests_execute_a", execute_a)
-        cmd_b = command_type("repeat_tests_execute_b", execute_b)
-        cmd_c = command_type("repeat_tests_execute_c", execute_c)
-        cmd_d = command_type("repeat_tests_execute_d", execute_d)
-        cmd_e = command_type("repeat_tests_execute_e", execute_e)
-        cmd_g = command_type("repeat_tests_execute_g", execute_g)
-        cmd_o = command_type("repeat_tests_execute_o", execute_o)
-        cmd_q = command_type("repeat_tests_execute_q", execute_q)
-        cmd_s = command_type("repeat_tests_execute_s", execute_s)
-        cmd_t = command_type("repeat_tests_execute_t", execute_t)
-        cmd_u = command_type("repeat_tests_execute_u", execute_u)
-        call cmd_a%define()
-        call cmd_b%define()
-        call cmd_c%define()
-        call cmd_d%define()
-        call cmd_e%define()
-        call cmd_g%define()
-        call cmd_o%define()
-        call cmd_q%define()
-        call cmd_s%define()
-        call cmd_t%define()
-        call cmd_u%define()
+        call initialize_bindings()
+        command_a = command_type("repeat_tests_execute_a", execute_a)
+        command_b = command_type("repeat_tests_execute_b", execute_b)
+        command_c = command_type("repeat_tests_execute_c", execute_c)
+        command_d = command_type("repeat_tests_execute_d", execute_d)
+        command_e = command_type("repeat_tests_execute_e", execute_e)
+        command_g = command_type("repeat_tests_execute_g", execute_g)
+        command_o = command_type("repeat_tests_execute_o", execute_o)
+        command_q = command_type("repeat_tests_execute_q", execute_q)
+        command_s = command_type("repeat_tests_execute_s", execute_s)
+        command_t = command_type("repeat_tests_execute_t", execute_t)
+        command_u = command_type("repeat_tests_execute_u", execute_u)
+        call command_a%define()
+        call command_b%define()
+        call command_c%define()
+        call command_d%define()
+        call command_e%define()
+        call command_g%define()
+        call command_o%define()
+        call command_q%define()
+        call command_s%define()
+        call command_t%define()
+        call command_u%define()
         call make_sparse_keymap(global_map)
         call keymap_set(global_map, "C-x w a", "repeat_tests_execute_a", st)
         call keymap_set(global_map, "C-M-a", "repeat_tests_execute_a", st)
@@ -208,20 +209,20 @@ contains
         call keymap_set(repeat_map, "C-M-o", "repeat_tests_execute_o", st)
         call keymap_set(repeat_map, "q", "repeat_tests_execute_q", st)
         ! The expansion of the two defvar-keymaps, in order.
-        cmd_s%repeat_map = another_repeat_map
-        call cmd_e%append_repeat_continue(another_repeat_map)
-        call cmd_o%append_repeat_continue(another_repeat_map)
-        call cmd_u%append_repeat_continue(another_repeat_map)
+        command_s%repeat_map = another_repeat_map
+        call command_e%append_repeat_continue(another_repeat_map)
+        call command_o%append_repeat_continue(another_repeat_map)
+        call command_u%append_repeat_continue(another_repeat_map)
         call set_repeat_map(another_repeat_map)
-        cmd_t%repeat_hint = "test"
-        cmd_o%repeat_hint = "another test"
-        cmd_a%repeat_map = repeat_map
-        call cmd_e%append_repeat_continue(repeat_map)
-        call cmd_o%append_repeat_continue(repeat_map)
+        command_t%repeat_hint = "test"
+        command_o%repeat_hint = "another test"
+        command_a%repeat_map = repeat_map
+        call command_e%append_repeat_continue(repeat_map)
+        call command_o%append_repeat_continue(repeat_map)
         call set_repeat_map(repeat_map, exit=["repeat_tests_execute_q"])
         ! Test using a variable instead of the symbol:
-        cmd_b%repeat_map = repeat_map
-        cmd_g%repeat_continue_all = .true.
+        command_b%repeat_map = repeat_map
+        command_g%repeat_continue_all = .true.
         repeat_echo_function => null()
         repeat_check_key = .true.
     end subroutine setup
@@ -258,7 +259,7 @@ contains
         calls = ""
         call erase_buffer(st)
         call key_parse(keys, events, st)
-        call execute_kbd_macro(events, prefix_arg_type(), st)
+        call execute_keyboard_macro(events, prefix_argument_type(), st)
         call check(error, calls, expected_calls, keys//": "//calls)
         if (allocated(error)) return
         ! Check for self-inserting keys
@@ -279,16 +280,16 @@ contains
             if (allocated(error)) exit body
             call check_keys(error, "C-M-b c d z", "(1 b)", "cdz")
             if (allocated(error)) exit body
-            cmd_b%repeat_check_key = .false.
+            command_b%repeat_check_key = .false.
             call check_keys(error, "C-M-b c d z", "(1 b)(1 c)(1 d)", "z")
-            cmd_b%repeat_check_key = REPEAT_CHECK_KEY_DEFAULT
+            command_b%repeat_check_key = REPEAT_CHECK_KEY_DEFAULT
             if (allocated(error)) exit body
             repeat_check_key = .false.
             call check_keys(error, "C-M-b c d z", "(1 b)(1 c)(1 d)", "z")
             if (allocated(error)) exit body
-            cmd_b%repeat_check_key = .true.
+            command_b%repeat_check_key = .true.
             call check_keys(error, "C-M-b c d z", "(1 b)", "cdz")
-            cmd_b%repeat_check_key = REPEAT_CHECK_KEY_DEFAULT
+            command_b%repeat_check_key = REPEAT_CHECK_KEY_DEFAULT
         end block body
 
         call finish()
@@ -411,7 +412,7 @@ contains
         call begin(global_map)
         repeat_check_key = .false.
         call key_parse("C-M-s", events, st)
-        call execute_kbd_macro(events, prefix_arg_type(), st)
+        call execute_keyboard_macro(events, prefix_argument_type(), st)
         call check(error, repeat_echo_message_string(repeat_in_progress), &
                    "Repeat with s, [T]est, C-M-o (an[O]ther test), C-M-u")
         call finish()
@@ -435,10 +436,10 @@ contains
         type(status_type) :: st
 
         call setup()
-        call init_kmacro()
-        call init_bindings()
+        call initialize_kmacro()
+        call initialize_bindings()
         call begin(global_map)
-        call key_parse("C-M-a C-M-b", last_kbd_macro, st)
+        call key_parse("C-M-a C-M-b", last_keyboard_macro, st)
         call check_keys(error, "C-x e C-x z z", "(1 a)(1 b)(1 a)(1 b)(1 a)(1 b)", "")
         if (.not. allocated(error)) call check_keys(error, "C-u 2 C-x e C-x z", "(1 a)(1 b)(1 a)(1 b)(1 a)(1 b)", "")
         call finish()

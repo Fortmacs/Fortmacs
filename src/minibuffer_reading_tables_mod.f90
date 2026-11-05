@@ -33,7 +33,7 @@ module minibuffer_reading_tables_mod
 
     public :: completion_list_table, completion_obarray_table, completion_function_table, completion_test_procedure, &
               completion_procedure, completion_table_with_quoting, completion_unquote_procedure, completion_quote_procedure, &
-              completion_requote_procedure, completion_exit_function_procedure, capf_perform_procedure
+              completion_requote_procedure, completion_exit_function_procedure, completion_at_point_function_perform_procedure
 
     !> Actions passed to a completion function (programmed completion): as
     !> `try_completion' (COMPLETE_TRY), `all_completions' (COMPLETE_ALL), `is_exact_completion'
@@ -54,12 +54,12 @@ module minibuffer_reading_tables_mod
                                   COMPLETION_UNKNOWN = 4
 
     abstract interface
-        !> A completion test: whether the element `elt' (the list
+        !> A completion test: whether the element `element' (the list
         !> element or the name) is an acceptable completion.  Not a port.
-        logical function completion_test_procedure(elt)
+        logical function completion_test_procedure(element)
             import :: value_type
             implicit none(type, external)
-            type(value_type), intent(in) :: elt
+            type(value_type), intent(in) :: element
         end function completion_test_procedure
 
         !> A function completion table.  ACTION says what to compute for
@@ -105,9 +105,9 @@ module minibuffer_reading_tables_mod
         !> A function a function of `completion_at_point_functions' may
         !> return instead of completion data: it performs completion
         !> itself, returning whether it did anything.
-        recursive logical function capf_perform_procedure()
+        recursive logical function completion_at_point_function_perform_procedure()
             implicit none(type, external)
-        end function capf_perform_procedure
+        end function completion_at_point_function_perform_procedure
     end interface
 
     abstract interface
@@ -150,16 +150,16 @@ module minibuffer_reading_tables_mod
     !> What a function of `completion_at_point_functions' returns: nothing
     !> (`found' false: not applicable at point), or the text from `start'
     !> to `end' to complete with `table' (the list (START END COLLECTION .
-    !> PROPS)), or a function `perform' that performs completion itself.
+    !> PROPERTIES)), or a function `perform' that performs completion itself.
     !> (Functions that perform completion themselves while being called
     !> are not supported; the other properties of
     !> `completion_extra_properties' are deferred.)
-    type, public :: capf_data_type
+    type, public :: completion_at_point_function_data_type
         logical :: found = .false.
         integer(int64) :: start = 0, end = 0
         type(completion_table_type) :: table
         !> The function returned instead of completion data, if associated.
-        procedure(capf_perform_procedure), pointer, nopass :: perform => null()
+        procedure(completion_at_point_function_perform_procedure), pointer, nopass :: perform => null()
         !> The `:test' property: candidates must satisfy it.
         procedure(completion_test_procedure), pointer, nopass :: test => null()
         !> The `:exit_function' property: run after completion is performed.
@@ -168,7 +168,7 @@ module minibuffer_reading_tables_mod
         !> table fails to match the text at point, the next function is
         !> tried instead of reporting a completion failure.
         logical :: exclusive = .true.
-    end type capf_data_type
+    end type completion_at_point_function_data_type
 
 contains
 

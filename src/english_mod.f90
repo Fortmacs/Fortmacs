@@ -37,23 +37,23 @@ submodule(coding_mod) english_mod
 contains
 
     !> Port of the `charset' coding systems of english.el.
-    module subroutine init_english()
+    module subroutine initialize_english()
         call define_charset_coding_system("ebcdic-us", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ebcdic-us"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ebcdic-us"], &
                                           doc="US version of EBCDIC")
         call define_charset_coding_system("ebcdic-uk", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ebcdic-uk"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ebcdic-uk"], &
                                           doc="UK version of EBCDIC")
         call define_charset_coding_system("ibm1047", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm1047"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ibm1047"], &
                                           doc="A version of EBCDIC used in OS/390 Unix")
         call define_coding_system_alias("cp1047", "ibm1047")
         call define_charset_coding_system("ibm038", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm038"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ibm038"], &
                                           doc="International version of EBCDIC")
         call define_coding_system_alias("ebcdic-int", "ibm038")
         call define_coding_system_alias("cp038", "ibm038")
-    end subroutine init_english
+    end subroutine initialize_english
 
     !> Port of the language environments of english.el.
     module subroutine define_english_language_environments()

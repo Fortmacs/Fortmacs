@@ -44,57 +44,60 @@ module css_mode_mod
     use modes_mod, only: major_modes
     use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key
-    use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
-                          forward_comment, skip_chars_forward, skip_chars_backward, char_syntax
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_bol, is_eol, char_after, char_before, &
-                                     buffer_substring, line_beginning_position, line_end_position, narrow_to_region, widen, &
-                                     following_char, preceding_char
-    use editing_commands_mod, only: forward_char
+    use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_parser_state, parse_state_type, &
+                          forward_comment, skip_characters_forward, skip_characters_backward, character_syntax
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, is_beginning_of_line, is_end_of_line, &
+                                     character_after, character_before, buffer_substring, line_beginning_position, &
+                                     line_end_position, narrow_to_region, widen, following_character, preceding_character
+    use editing_commands_mod, only: forward_character
     use insert_delete_mod, only: insert
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use indent_mod, only: indent_region
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, search_backward, string_match, &
-                          match_beginning, match_end, replace_match, case_fold_search, SEARCH_NOERROR
+    use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, search_backward, &
+                          string_match, match_beginning, match_end, replace_match, case_fold_search, SEARCH_NOERROR
     use basic_subprograms_mod, only: match_string_no_properties, looking_back, silent_modifications_type, &
                                      silent_modifications_begin, silent_modifications_end
     use simple_mod, only: newline, backward_word
     use text_properties_mod, only: put_text_property
     use display_engine_mod, only: message
-    use faces_mod, only: named_face_type, display_when, face_attrs, readable_foreground_color
-    use color_mod, only: color_name_to_rgb, color_rgb_to_hex, color_hsl_to_rgb
+    use faces_mod, only: named_face_type, display_when, face_attributes, readable_foreground_color
+    use color_mod, only: color_name_to_rgb, color_rgb_to_hexadecimal, color_hsl_to_rgb
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_KEEP
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_default_fontify_region, &
                              font_lock_fontify_region_function_set_local
     use expression_motion_mod, only: forward_expression, backward_expression, down_group, cut_expression
     use newcomment_mod, only: comment_start, comment_start_skip, comment_end, comment_end_skip, comment_continue, &
-                              comment_normalize_vars, comment_search_forward, comment_beginning
+                              comment_normalize_variables, comment_search_forward, comment_beginning
     use paragraphs_mod, only: paragraph_start, paragraph_separate
     use fill_mod, only: fill_paragraph, fill_paragraph_function, adaptive_fill_function
-    use electric_mod, only: electric_indent_chars_value, electric_indent_chars_set_local
+    use electric_mod, only: electric_indent_characters_value, electric_indent_characters_set_local
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use simple_minded_indentation_engine_mod, only: smie_prec_type, smie_precs_type, smie_prec2_type, smie_grammar_type, &
-                                                    smie_rule_result_type, &
-                                   smie_indent_type, smie_expression_type, smie_precs_to_prec2, smie_prec2_to_grammar, smie_setup, &
-                                                smie_default_forward_token, smie_default_backward_token, smie_backward_expression, &
-                             is_smie_rule_hanging, is_smie_rule_bol, smie_rule_parent, smie_indent_virtual, SMIE_ASSOC, SMIE_LEFT, &
-                          SMIE_AFTER, SMIE_BEFORE, SMIE_ELEM, SMIE_LIST_INTRO, SMIE_RULE_NONE, SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, &
-                                                    SMIE_RULE_YES, SMIE_INDENT_COLUMN
-    use minibuffer_reading_tables_mod, only: capf_data_type, completion_table_type, completion_test_procedure, TABLE_FUNCTION, &
-                                             COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, COMPLETION_FINISHED
+                                                    smie_rule_result_type, smie_indent_type, smie_expression_type, &
+                                                    smie_precs_to_prec2, smie_prec2_to_grammar, smie_setup, &
+                                                    smie_default_forward_token, smie_default_backward_token, &
+                                                    smie_backward_expression, is_smie_rule_hanging, &
+                                                    is_smie_rule_beginning_of_line, smie_rule_parent, smie_indent_virtual, &
+                                                    SMIE_ASSOC, SMIE_LEFT, SMIE_AFTER, SMIE_BEFORE, SMIE_ELEMENT, SMIE_LIST_INTRO, &
+                                                    SMIE_RULE_NONE, SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, SMIE_RULE_YES, &
+                                                    SMIE_INDENT_COLUMN
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type, completion_table_type, &
+                                             completion_test_procedure, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, &
+                                             COMPLETION_FINISHED
     use minibuffer_reading_mod, only: try_completion, all_completions, is_exact_completion
     use minibuffer_mod, only: completion_at_point_functions
-    use regular_expression_optimization_mod, only: regexp_opt
-    use index_menu_mod, only: imenu_prev_index_position_function, imenu_extract_index_name_function, imenu_space_replacement
+    use regular_expression_optimization_mod, only: regular_expression_optimization
+    use index_menu_mod, only: imenu_previous_index_position_function, imenu_extract_index_name_function, imenu_space_replacement
     implicit none(type, external)
     private
 
-    public :: init_css_mode, css_base_mode, css_mode, scss_mode, css_value_class_lookup, css_property_values, &
+    public :: initialize_css_mode, css_base_mode, css_mode, scss_mode, css_value_class_lookup, css_property_values, &
               css_property_value_cache_get, css_foreign_completions, css_completion_at_point, css_color_to_4_dpc, &
-              css_format_hex, css_named_color_to_hex, css_format_rgba_alpha, css_hex_to_rgb, &
-              css_rgb_to_named_color_or_hex, css_cycle_color_format, css_join_nested_selectors, &
-              css_prev_index_position, extract_css_index_name, css_current_rule_name, css_mdn_find_symbol, &
-              css_rgb_color, css_hsl_color, css_hex_color, css_hex_alpha, css_named_color, css_compute_color, &
+              css_format_hexadecimal, css_named_color_to_hexadecimal, css_format_rgba_alpha, css_hexadecimal_to_rgb, &
+              css_rgb_to_named_color_or_hexadecimal, css_cycle_color_format, css_join_nested_selectors, &
+              css_previous_index_position, extract_css_index_name, css_current_rule_name, css_mdn_find_symbol, &
+              css_rgb_color, css_hsl_color, css_hexadecimal_color, css_hexadecimal_alpha, css_named_color, css_compute_color, &
               css_fontify_region, css_smie_forward_token, css_smie_backward_token, css_smie_rules, css_fill_paragraph, &
               css_adaptive_fill, is_scss_smie_not_interpolation, css_font_lock_keywords_of, scss_font_lock_keywords
     public :: css_list_procedure
@@ -224,10 +227,10 @@ module css_mode_mod
     type(syntax_propertize_rules_type) :: propertize_rules
 
     ! The tables of the completion `css_completion_at_point' returns: the
-    ! properties (if `merge_prop'), and the selectors after MERGE_SEL_CHAR
+    ! properties (if `merge_property'), and the selectors after MERGE_SEL_CHARACTER
     ! (if `merge_sel').
-    logical :: merge_prop = .false., merge_sel = .false.
-    integer :: merge_sel_char = 0
+    logical :: merge_property = .false., merge_sel = .false.
+    integer :: merge_sel_character = 0
 
     !> Identifiers for pseudo-classes.  Port of css-mode.el css-pseudo-class-ids.
     character(len=*), parameter, public :: css_pseudo_class_ids(39) = [character(len=20) :: &
@@ -702,7 +705,7 @@ module css_mode_mod
                                        "seagreen", "seashell", "sienna", "skyblue", "slateblue", "slategray", "slategrey", "snow", &
                                            "springgreen", "steelblue", "tan", "thistle", "tomato", "turquoise", "violet", "wheat", &
                                                        "whitesmoke", "yellowgreen", "rebeccapurple"]
-    character(len=*), parameter :: COLOR_HEX(148) = [character(len=7) :: &
+    character(len=*), parameter :: COLOR_HEXADECIMAL(148) = [character(len=7) :: &
                                 "#000000", "#c0c0c0", "#808080", "#ffffff", "#800000", "#ff0000", "#800080", "#ff00ff", "#ff00ff", &
                                 "#008000", "#00ff00", "#808000", "#ffff00", "#000080", "#0000ff", "#008080", "#00ffff", "#00ffff", &
                                 "#ffa500", "#f0f8ff", "#faebd7", "#7fffd4", "#f0ffff", "#f5f5dc", "#ffe4c4", "#ffebcd", "#8a2be2", &
@@ -719,7 +722,7 @@ module css_mode_mod
                                 "#db7093", "#ffefd5", "#ffdab9", "#cd853f", "#ffc0cb", "#dda0dd", "#b0e0e6", "#bc8f8f", "#4169e1", &
                                 "#8b4513", "#fa8072", "#f4a460", "#2e8b57", "#fff5ee", "#a0522d", "#87ceeb", "#6a5acd", "#708090", &
                                 "#708090", "#fffafa", "#00ff7f", "#4682b4", "#d2b48c", "#d8bfd8", "#ff6347", "#40e0d0", "#ee82ee", &
-                                                     "#f5deb3", "#f5f5f5", "#9acd32", "#663399"]
+                                                             "#f5deb3", "#f5f5f5", "#9acd32", "#663399"]
     ! css--html-tags: the HTML tags (the names of sgml-mode.el's
     ! html-tag-alist), completed in selectors.
     character(len=*), parameter :: HTML_TAGS(134) = [character(len=10) :: &
@@ -736,45 +739,45 @@ module css_mode_mod
                                "samp", "script", "section", "small", "source", "span", "strong", "style", "sub", "summary", "sup", &
                                                      "time", "title", "tr", "track", "tt", "u", "var", "video", "wbr"]
     ! css--uri-re.
-    character(len=*), parameter :: URI_REGEXP = &
+    character(len=*), parameter :: URI_REGULAR_EXPRESSION = &
                                    "url\((\)[[:space:]]*\(?:\\.\|[^()[:space:]"//LF//"'""]\)+[" &
                                    //"[:space:]]*\()\)"
     !> Port of css-mode.el css-escapes-re.
-    character(len=*), parameter, public :: css_escapes_regexp = &
+    character(len=*), parameter, public :: css_escapes_regular_expression = &
                        "\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]]+[ "//LF//TAB//achar(13)//achar(12)//"]?\)"
     !> Port of css-mode.el css-nmchar-re.
-    character(len=*), parameter, public :: css_nmchar_regexp = &
+    character(len=*), parameter, public :: css_nmchar_regular_expression = &
                                      "\(?:[-_[:alnum:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]]+[ "//LF &
                                            //TAB//achar(13)//achar(12)//"]?\)\)"
     !> Port of css-mode.el css-nmstart-re.
-    character(len=*), parameter, public :: css_nmstart_regexp = &
+    character(len=*), parameter, public :: css_nmstart_regular_expression = &
                        "\(?:[[:alpha:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]]+[ "//LF//TAB//achar(13) &
                                            //achar(12)//"]?\)\)"
     !> Port of css-mode.el css-ident-re.
-    character(len=*), parameter, public :: css_ident_regexp = &
+    character(len=*), parameter, public :: css_ident_regular_expression = &
                                      "\(?:[-_[:alnum:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]]+[ "//LF &
                                            //TAB//achar(13)//achar(12)//"]?\)\)+"
     !> Vendor-specific properties.  Port of css-mode.el
     !> css-proprietary-nmstart-re.
-    character(len=*), parameter, public :: css_proprietary_nmstart_regexp = &
+    character(len=*), parameter, public :: css_proprietary_nmstart_regular_expression = &
                                            "[-_]\(?:khtml\|m\(?:oz\|s\)\|o\|webkit\)-"
     !> Port of css-mode.el css-name-re.
-    character(len=*), parameter, public :: css_name_regexp = &
+    character(len=*), parameter, public :: css_name_regular_expression = &
                                      "\(?:[-_[:alnum:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]]+[ "//LF &
                                            //TAB//achar(13)//achar(12)//"]?\)\)+"
     ! scss--hash-re.
-    character(len=*), parameter :: SCSS_HASH_REGEXP = &
+    character(len=*), parameter :: SCSS_HASH_REGULAR_EXPRESSION = &
                                    "#\(?:{[$-_[:alnum:]]+}\|[[:alnum:]]+\)"
     ! The regexps of (css--font-lock-keywords), then of (css--font-lock-keywords
     ! t) (the first is rebuilt from css--bang-ids).
-    character(len=*), parameter :: KW1_REGEXP = &
+    character(len=*), parameter :: KW1_REGULAR_EXPRESSION = &
                                    "!\s-*\(?:important\)"
-    character(len=*), parameter :: KW2_REGEXP = &
+    character(len=*), parameter :: KW2_REGULAR_EXPRESSION = &
                                    "@\(?:[-_[:alnum:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]]+[ " &
                                    //LF//TAB//achar(13)//achar(12)//"]?\)\)+"
-    character(len=*), parameter :: KW3_REGEXP = &
+    character(len=*), parameter :: KW3_REGULAR_EXPRESSION = &
                                    "^[ "//TAB//"]*\(:root\)["//LF//" "//TAB//"]*{"
-    character(len=*), parameter :: KW4_REGEXP = &
+    character(len=*), parameter :: KW4_REGULAR_EXPRESSION = &
                                    "^[ "//TAB//"]*\(\(?:[-_%*#.>[:alnum:]]+\(?:\(:\(a\(?:ctive" &
                                    //"\|fter\)\|before\|checked\|d\(?:efault\|isabled\)\" &
                                    //"|e\(?:mpty\|nabled\)\|f\(?:irst\(?:-\(?:child\|l\(" &
@@ -803,27 +806,27 @@ module css_mode_mod
                                    //"|first-l\(?:etter\|ine\)\|selection\)\)\)?\(?:\[[^" &
                                    //"]"//LF//"]+\]\)?\(?:([^)]+)\)?\|\[[^]"//LF//"]+\]\|::?[[:alnum:]" &
                                    //"]+\(?:([^)]+)\)?\)\)*\)[ "//LF//TAB//"]*{"
-    character(len=*), parameter :: KW5_REGEXP = &
+    character(len=*), parameter :: KW5_REGULAR_EXPRESSION = &
                                    "^[ "//TAB//"]*{"
-    character(len=*), parameter :: KW6_REGEXP = &
+    character(len=*), parameter :: KW6_REGULAR_EXPRESSION = &
                                    "\_<--\(?:[-_[:alnum:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]" &
                                    //"]+[ "//LF//TAB//achar(13)//achar(12)//"]?\)\)+"
-    character(len=*), parameter :: KW7_REGEXP = &
+    character(len=*), parameter :: KW7_REGULAR_EXPRESSION = &
                                    "\(?:[{;]\|^\)[ "//TAB//"]*\(\(?:\([-_]\(?:khtml\|m\(?:oz\|" &
                                    //"s\)\|o\|webkit\)-\)\|\(?:[[:alpha:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127) &
                                    //"]\|[[:xdigit:]]+[ "//LF//TAB//achar(13)//achar(12)//"]?\)\)\)\(?:[-_[:alnum:]]\|\" &
             //"\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]]+[ "//LF//TAB//achar(13)//achar(12)//"]?\)\)*\)\s-*:"
-    character(len=*), parameter :: KW8_REGEXP = &
+    character(len=*), parameter :: KW8_REGULAR_EXPRESSION = &
                                    "url\((\)[[:space:]]*\(?:\\.\|[^()[:space:]"//LF//"'""]\)+[" &
                                    //"[:space:]]*\()\)"
-    character(len=*), parameter :: SASSY_KW1_REGEXP = &
+    character(len=*), parameter :: SASSY_KW1_REGULAR_EXPRESSION = &
                                    "!\s-*\(?:important\)"
-    character(len=*), parameter :: SASSY_KW2_REGEXP = &
+    character(len=*), parameter :: SASSY_KW2_REGULAR_EXPRESSION = &
                                    "@\(?:[-_[:alnum:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]]+[ " &
                                    //LF//TAB//achar(13)//achar(12)//"]?\)\)+"
-    character(len=*), parameter :: SASSY_KW3_REGEXP = &
+    character(len=*), parameter :: SASSY_KW3_REGULAR_EXPRESSION = &
                                    "^[ "//TAB//"]*\(:root\)["//LF//" "//TAB//"]*{"
-    character(len=*), parameter :: SASSY_KW4_REGEXP = &
+    character(len=*), parameter :: SASSY_KW4_REGULAR_EXPRESSION = &
                                    "^[ "//TAB//"]*\(\(?:\(?:[-_%*#.>&+~[:alnum:]]*#\(?:{[$-_[:" &
                                    //"alnum:]]+}\|[[:alnum:]]+\)\|[-_%*#.>&+~[:alnum:]]+" &
                                    //"\)\(?:\(:\(a\(?:ctive\|fter\)\|before\|checked\|d\" &
@@ -855,39 +858,39 @@ module css_mode_mod
                                    //"\(?:etter\|ine\)\|selection\)\)\)?\(?:\[[^]"//LF//"]+\]\)" &
                                    //"?\(?:([^)]+)\)?\|\[[^]"//LF//"]+\]\|::?[[:alnum:]]+\(?:([" &
                                    //"^)]+)\)?\)\)*\)[ "//LF//TAB//"]*{"
-    character(len=*), parameter :: SASSY_KW5_REGEXP = &
+    character(len=*), parameter :: SASSY_KW5_REGULAR_EXPRESSION = &
                                    "^[ "//TAB//"]*{"
-    character(len=*), parameter :: SASSY_KW6_REGEXP = &
+    character(len=*), parameter :: SASSY_KW6_REGULAR_EXPRESSION = &
                                    "\_<--\(?:[-_[:alnum:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]" &
                                    //"]+[ "//LF//TAB//achar(13)//achar(12)//"]?\)\)+"
-    character(len=*), parameter :: SASSY_KW7_REGEXP = &
+    character(len=*), parameter :: SASSY_KW7_REGULAR_EXPRESSION = &
                                    "\(?:[{;]\|^\)[ "//TAB//"]*\(\(?:\([-_]\(?:khtml\|m\(?:oz\|" &
                                    //"s\)\|o\|webkit\)-\)\|\(?:[[:alpha:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127) &
                                    //"]\|[[:xdigit:]]+[ "//LF//TAB//achar(13)//achar(12)//"]?\)\)\)\(?:[-_[:alnum:]]\|\" &
             //"\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]]+[ "//LF//TAB//achar(13)//achar(12)//"]?\)\)*\)\s-*:"
-    character(len=*), parameter :: SASSY_KW8_REGEXP = &
+    character(len=*), parameter :: SASSY_KW8_REGULAR_EXPRESSION = &
                                    "url\((\)[[:space:]]*\(?:\\.\|[^()[:space:]"//LF//"'""]\)+[" &
                                    //"[:space:]]*\()\)"
     ! The first and last regexps of scss-font-lock-keywords.
-    character(len=*), parameter :: SCSS_VARIABLE_REGEXP = &
+    character(len=*), parameter :: SCSS_VARIABLE_REGULAR_EXPRESSION = &
                                    "$\(?:[-_[:alnum:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:xdigit:]]+[ " &
                                    //LF//TAB//achar(13)//achar(12)//"]?\)\)+"
-    character(len=*), parameter :: SCSS_MIXIN_REGEXP = &
+    character(len=*), parameter :: SCSS_MIXIN_REGULAR_EXPRESSION = &
                                 "@mixin[ "//TAB//"]+\(\(?:[-_[:alnum:]]\|\\\(?:[^"//achar(0)//"-"//achar(31)//achar(127)//"]\|[[:" &
                                    //"xdigit:]]+[ "//LF//TAB//achar(13)//achar(12)//"]?\)\)+\)[ "//TAB//"]*("
     ! css--number-regexp, css--percent-regexp, css--number-or-percent-regexp,
     ! css--angle-regexp and css--colors-regexp.
-    character(len=*), parameter :: NUMBER_REGEXP = &
+    character(len=*), parameter :: NUMBER_REGULAR_EXPRESSION = &
                                    "\(\(?:[0-9]*\.[0-9]+\(?:[eE][0-9]+\)?\)\|[0-9]+\)"
-    character(len=*), parameter :: PERCENT_REGEXP = &
+    character(len=*), parameter :: PERCENT_REGULAR_EXPRESSION = &
                                    "\([0-9]+\)%"
-    character(len=*), parameter :: NUMBER_OR_PERCENT_REGEXP = &
+    character(len=*), parameter :: NUMBER_OR_PERCENT_REGULAR_EXPRESSION = &
                                    "\(?:\([0-9]+\)%\)\|\(?:\(\(?:[0-9]*\.[0-9]+\(?:[eE" &
                                    //"][0-9]+\)?\)\|[0-9]+\)\)"
-    character(len=*), parameter :: ANGLE_REGEXP = &
+    character(len=*), parameter :: ANGLE_REGULAR_EXPRESSION = &
                                    "\(\(?:[0-9]*\.[0-9]+\(?:[eE][0-9]+\)?\)\|[0-9]+\)\" &
                                    //"(deg\|grad\|rad\|turn\)?"
-    character(len=*), parameter :: COLORS_REGEXP = &
+    character(len=*), parameter :: COLORS_REGULAR_EXPRESSION = &
                                    "\_<\(a\(?:liceblue\|ntiquewhite\|qua\(?:marine\)?\" &
                                    //"|zure\)\|b\(?:eige\|isque\|l\(?:a\(?:ck\|nchedalmo" &
                                    //"nd\)\|ue\(?:violet\)?\)\|rown\|urlywood\)\|c\(?:ad" &
@@ -924,7 +927,7 @@ module css_mode_mod
                                    //"it:]]\{3,4\}\b\)\|\(#\(?:[[:xdigit:]][[:xdigit:]]\" &
                                    //")\{3,4\}\b\)\|\(\_<rgba?(\)\|\(\_<hsla?(\)"
     ! css--mdn-symbol-regexp and css--mdn-property-regexp.
-    character(len=*), parameter :: MDN_SYMBOL_REGEXP = &
+    character(len=*), parameter :: MDN_SYMBOL_REGULAR_EXPRESSION = &
                                    "\(\(@\(?:charset\|font-face\|import\|keyframes\|me" &
                                    //"dia\|namespace\|page\|supports\)\)\|\(a\(?:l\(?:ig" &
                                    //"n-\(?:content\|items\|self\)\|l\)\|nimation\(?:-\(" &
@@ -1002,7 +1005,7 @@ module css_mode_mod
                                    //"\|write\)\|quired\)\|\(?:igh\|oo\)t\)\|scope\|targ" &
                                    //"et\|v\(?:\(?:ali\|isite\)d\)\)\)\|\(::?\(?:after\|" &
                                    //"before\|first-l\(?:etter\|ine\)\|selection\)\)\)"
-    character(len=*), parameter :: MDN_PROPERTY_REGEXP = &
+    character(len=*), parameter :: MDN_PROPERTY_REGULAR_EXPRESSION = &
                                    "\_<\(a\(?:l\(?:ign-\(?:content\|items\|self\)\|l\)" &
                                    //"\|nimation\(?:-\(?:d\(?:elay\|\(?:irec\|ura\)tion\" &
                                    //")\|fill-mode\|iteration-count\|name\|play-state\|t" &
@@ -1328,105 +1331,105 @@ contains
     ! Completion
     ! ------------------------------------------------------------------
 
-    ! A list of strings: the trimmed elements of STRS, each with PREFIX.
+    ! A list of strings: the trimmed elements of STRINGS, each with PREFIX.
     ! Not a port.
-    function string_list(strs, prefix) result(v)
-        character(len=*), intent(in) :: strs(:)
+    function string_list(strings, prefix) result(v)
+        character(len=*), intent(in) :: strings(:)
         character(len=*), intent(in), optional :: prefix
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer :: i
 
-        allocate (elts(size(strs)))
+        allocate (elements(size(strings)))
 
-        do i = 1, size(strs)
+        do i = 1, size(strings)
             if (present(prefix)) then
-                elts(i) = value_type(text=prefix//trim(strs(i)))
+                elements(i) = value_type(text=prefix//trim(strings(i)))
             else
-                elts(i) = value_type(text=trim(strs(i)))
+                elements(i) = value_type(text=trim(strings(i)))
             end if
         end do
 
-        v = make_list(elts)
+        v = make_list(elements)
     end function string_list
 
-    ! Append V to ELTS.
+    ! Append V to ELEMENTS.
     ! Not a port.
-    subroutine append(elts, v)
-        type(value_type), allocatable, intent(inout) :: elts(:)
+    subroutine append(elements, v)
+        type(value_type), allocatable, intent(inout) :: elements(:)
         type(value_type), intent(in) :: v
 
-        elts = [elts, v]
+        elements = [elements, v]
     end subroutine append
 
-    ! Append the elements of MORE to ELTS.
+    ! Append the elements of MORE to ELEMENTS.
     ! Not a port.
-    subroutine push_all(elts, more)
-        type(value_type), allocatable, intent(inout) :: elts(:)
+    subroutine push_all(elements, more)
+        type(value_type), allocatable, intent(inout) :: elements(:)
         type(value_type), intent(in) :: more(:)
         integer :: i
 
         do i = 1, size(more)
-            call append(elts, more(i))
+            call append(elements, more(i))
         end do
     end subroutine push_all
 
     ! Complete property at point.  Port of css-mode.el:css--complete-property.
     subroutine complete_property(data)
-        type(capf_data_type), intent(out) :: data
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type) :: st
-        integer(int64) :: opoint, pos, start, moved
+        integer(int64) :: original_point, position, start, moved
 
-        opoint = point()
-        pos = point()
-        moved = skip_chars_backward("-[:alnum:]", st)
+        original_point = point()
+        position = point()
+        moved = skip_characters_backward("-[:alnum:]", st)
         start = point()
-        moved = skip_chars_backward(" "//TAB//achar(13)//LF, st)
+        moved = skip_characters_backward(" "//TAB//achar(13)//LF, st)
 
-        if (preceding_char() == iachar("{") .or. preceding_char() == iachar(";")) then
+        if (preceding_character() == iachar("{") .or. preceding_character() == iachar(";")) then
             data%found = .true.
             data%start = start
-            data%end = pos
+            data%end = position
             data%table%list = string_list(css_property_ids)
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine complete_property
 
     ! Complete bang-rule at point.  Port of css-mode.el:css--complete-bang-rule.
     subroutine complete_bang_rule(data)
-        type(capf_data_type), intent(out) :: data
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
 
-        opoint = point()
-        moved = skip_chars_backward("-[:alnum:]", st)
+        original_point = point()
+        moved = skip_characters_backward("-[:alnum:]", st)
 
-        if (preceding_char() == iachar("!")) then
+        if (preceding_character() == iachar("!")) then
             data%found = .true.
             data%start = point()
-            data%end = opoint
+            data%end = original_point
             data%table%list = string_list(bang_ids())
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine complete_bang_rule
 
     ! Complete pseudo-element or pseudo-class at point.  Port of
     ! css-mode.el:css--complete-pseudo-element-or-class.
     subroutine complete_pseudo_element_or_class(data)
-        type(capf_data_type), intent(out) :: data
-        type(value_type), allocatable :: elts(:), more(:)
+        type(completion_at_point_function_data_type), intent(out) :: data
+        type(value_type), allocatable :: elements(:), more(:)
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
         logical :: double_colon
         integer :: i
 
-        opoint = point()
-        moved = skip_chars_backward("-[:alnum:]", st)
+        original_point = point()
+        moved = skip_characters_backward("-[:alnum:]", st)
 
-        if (preceding_char() == iachar(":")) then
-            double_colon = before_char_at(point() - 1) == iachar(":")
+        if (preceding_character() == iachar(":")) then
+            double_colon = before_character_at(point() - 1) == iachar(":")
             data%found = .true.
 
             if (double_colon) then
@@ -1435,8 +1438,8 @@ contains
                 data%start = point() - 1
             end if
 
-            data%end = opoint
-            allocate (elts(0))
+            data%end = original_point
+            allocate (elements(0))
 
             if (.not. double_colon) then
                 allocate (more(size(css_pseudo_class_ids)))
@@ -1445,7 +1448,7 @@ contains
                     more(i) = value_type(text=":"//trim(css_pseudo_class_ids(i)))
                 end do
 
-                call push_all(elts, more)
+                call push_all(elements, more)
                 deallocate (more)
             end if
 
@@ -1455,57 +1458,57 @@ contains
                 more(i) = value_type(text="::"//trim(css_pseudo_element_ids(i)))
             end do
 
-            call push_all(elts, more)
-            data%table%list = make_list(elts)
+            call push_all(elements, more)
+            data%table%list = make_list(elements)
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine complete_pseudo_element_or_class
 
     ! Complete at-rule (statement beginning with `@') at point.  Port of
     ! css-mode.el:css--complete-at-rule.
     subroutine complete_at_rule(data)
-        type(capf_data_type), intent(out) :: data
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
 
-        opoint = point()
-        moved = skip_chars_backward("-[:alnum:]", st)
+        original_point = point()
+        moved = skip_characters_backward("-[:alnum:]", st)
 
-        if (preceding_char() == iachar("@")) then
+        if (preceding_character() == iachar("@")) then
             data%found = .true.
             data%start = point()
-            data%end = opoint
+            data%end = original_point
             data%table%list = string_list(at_ids())
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine complete_at_rule
 
     ! Complete property value at point.  Port of
     ! css-mode.el:css--complete-property-value.
     subroutine complete_property_value(data)
-        type(capf_data_type), intent(out) :: data
-        type(parse_state_type) :: ppss
+        type(completion_at_point_function_data_type), intent(out) :: data
+        type(parse_state_type) :: parser_state
         type(status_type) :: st
         character(len=:), allocatable :: property
-        integer(int64) :: opoint, limit, moved
+        integer(int64) :: original_point, limit, moved
         character(len=36), allocatable :: values(:)
 
-        opoint = point()
-        call syntax_ppss(ppss)
+        original_point = point()
+        call syntax_parser_state(parser_state)
         limit = point()
-        if (ppss%innermost_start > 0) limit = ppss%innermost_start
+        if (parser_state%innermost_start > 0) limit = parser_state%innermost_start
         if (.not. looking_back("\([[:alnum:]-]+\):[^/][^;]*", st, limit, greedy=.true.)) return
         property = match_string_no_properties(1)
         if (property_index(property) == 0) return
-        moved = skip_chars_backward("[:graph:]", st)
+        moved = skip_characters_backward("[:graph:]", st)
         data%found = .true.
         data%start = point()
-        data%end = opoint
+        data%end = original_point
         values = css_property_values(property)
         data%table%list = string_list([character(len=36) :: "inherit", "initial", "unset", values])
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine complete_property_value
 
     !> Return a list of completions provided by other buffers.
@@ -1516,7 +1519,7 @@ contains
     subroutine css_foreign_completions(extractor, completions)
         type(css_list_function_type), intent(in) :: extractor
         character(len=:), allocatable, intent(out) :: completions(:)
-        type(handle_type), allocatable :: bufs(:)
+        type(handle_type), allocatable :: buffers(:)
         type(handle_type) :: saved
         type(status_type) :: st
         procedure(css_list_procedure), pointer :: fn
@@ -1525,12 +1528,12 @@ contains
         integer :: i, j, n, width
 
         saved = current_buffer()
-        bufs = buffer_list()
+        buffers = buffer_list()
         allocate (found(0))
 
-        do i = 1, size(bufs)
-            if (.not. is_buffer_live(bufs(i))) cycle
-            call set_buffer(bufs(i), st)
+        do i = 1, size(buffers)
+            if (.not. is_buffer_live(buffers(i))) cycle
+            call set_buffer(buffers(i), st)
             fn => extractor%current()
 
             if (associated(fn)) then
@@ -1579,10 +1582,10 @@ contains
         type(value_type) :: v
         character(len=:), allocatable :: names(:)
 
-        if (merge_sel_char == iachar(".")) then
+        if (merge_sel_character == iachar(".")) then
             call css_foreign_completions(css_class_list_function, names)
             v = string_list(names)
-        else if (merge_sel_char == iachar("#")) then
+        else if (merge_sel_character == iachar("#")) then
             call css_foreign_completions(css_id_list_function, names)
             v = string_list(names)
         else
@@ -1602,19 +1605,19 @@ contains
         character(len=*), intent(in), optional :: suffix
         type(completion_table_type) :: tables(2), retvals
         type(value_type) :: v, all(2)
-        type(value_type), allocatable :: elts(:), more(:)
+        type(value_type), allocatable :: elements(:), more(:)
         logical :: have(2)
         integer :: i
 
         status = status_type()
         result = value_type()
-        have = [merge_prop, merge_sel]
-        if (merge_prop) tables(1)%list = string_list(css_property_ids)
+        have = [merge_property, merge_sel]
+        if (merge_property) tables(1)%list = string_list(css_property_ids)
         if (merge_sel) tables(2)%list = selector_candidates()
 
         select case (action)
         case (COMPLETE_TRY)
-            allocate (elts(0))
+            allocate (elements(0))
 
             do i = 1, 2
                 if (.not. have(i)) cycle
@@ -1622,31 +1625,31 @@ contains
                 if (.not. status%ok()) return
 
                 if (is_t(v)) then
-                    call append(elts, value_type(text=string))
+                    call append(elements, value_type(text=string))
                 else if (allocated(v%a)) then
                     if (string_of(v) == string) then
                         result = value_type(text=string)
                         return
                     end if
 
-                    call append(elts, v)
+                    call append(elements, v)
                 end if
             end do
 
-            retvals%list = make_list(elts)
+            retvals%list = make_list(elements)
             call try_completion(string, retvals, result, status, test)
         case (COMPLETE_ALL)
-            allocate (elts(0))
+            allocate (elements(0))
 
             do i = 1, 2
                 if (.not. have(i)) cycle
                 call all_completions(string, tables(i), all(i), status, test)
                 if (.not. status%ok()) return
                 call list_to_array(all(i), more)
-                call push_all(elts, more)
+                call push_all(elements, more)
             end do
 
-            result = make_list(elts)
+            result = make_list(elements)
         case (COMPLETE_TEST)
             do i = 1, 2
                 if (.not. have(i)) cycle
@@ -1673,12 +1676,12 @@ contains
 
     ! The elements of the list V.
     ! Not a port.
-    subroutine list_to_array(v, elts)
+    subroutine list_to_array(v, elements)
         use value_mod, only: list_elements, value_type
         type(value_type), intent(in) :: v
-        type(value_type), allocatable, intent(out) :: elts(:)
+        type(value_type), allocatable, intent(out) :: elements(:)
 
-        call list_elements(v, elts)
+        call list_elements(v, elements)
     end subroutine list_to_array
 
     ! The :exit-function of `css_completion_at_point': after a property
@@ -1687,14 +1690,14 @@ contains
     recursive subroutine property_exit_function(string, finished)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
-        type(completion_table_type) :: prop_table, sel_table
+        type(completion_table_type) :: property_table, sel_table
         type(status_type) :: st
 
         if (finished /= COMPLETION_FINISHED) return
-        if (.not. is_eol()) return
-        if (.not. merge_prop) return
-        prop_table%list = string_list(css_property_ids)
-        if (.not. is_exact_completion(string, prop_table)) return
+        if (.not. is_end_of_line()) return
+        if (.not. merge_property) return
+        property_table%list = string_list(css_property_ids)
+        if (.not. is_exact_completion(string, property_table)) return
 
         if (merge_sel) then
             sel_table%list = selector_candidates()
@@ -1702,32 +1705,32 @@ contains
         end if
 
         call insert(": ;", st)
-        call forward_char(st, -1_int64)
+        call forward_character(st, -1_int64)
     end subroutine property_exit_function
 
     ! Complete part of a CSS selector at point (whether it applies, and
     ! where).  Port of css-mode.el:css--complete-selector.
-    subroutine complete_selector(found, start, end, start_char)
+    subroutine complete_selector(found, start, end, start_character)
         logical, intent(out) :: found
         integer(int64), intent(out) :: start, end
-        integer, intent(out) :: start_char
-        type(parse_state_type) :: ppss
+        integer, intent(out) :: start_character
+        type(parse_state_type) :: parser_state
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
 
         found = .false.
         start = 0
         end = 0
-        start_char = 0
-        opoint = point()
-        call syntax_ppss(ppss)
-        if (ppss%depth /= 0 .and. .not. scss_buffer()) return
+        start_character = 0
+        original_point = point()
+        call syntax_parser_state(parser_state)
+        if (parser_state%depth /= 0 .and. .not. scss_buffer()) return
         end = point()
-        moved = skip_chars_backward("-[:alnum:]", st)
-        start_char = preceding_char()
+        moved = skip_characters_backward("-[:alnum:]", st)
+        start_character = preceding_character()
         start = point()
         found = .true.
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine complete_selector
 
     !> Complete current symbol at point.
@@ -1735,12 +1738,12 @@ contains
     !> pseudo-elements, pseudo-classes, at-rules, bang-rules, and HTML
     !> tags, classes and IDs.  Port of css-mode.el:css-completion-at-point.
     recursive subroutine css_completion_at_point(data, status)
-        type(capf_data_type), intent(out) :: data
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
-        type(capf_data_type) :: prop
+        type(completion_at_point_function_data_type) :: property
         integer(int64) :: sel_beginning, sel_end
         logical :: sel_found
-        integer :: sel_char
+        integer :: sel_character
 
         status = status_type()
         call complete_bang_rule(data)
@@ -1751,17 +1754,17 @@ contains
         if (data%found) return
         call complete_at_rule(data)
         if (data%found) return
-        call complete_property(prop)
-        call complete_selector(sel_found, sel_beginning, sel_end, sel_char)
-        if (.not. prop%found .and. .not. sel_found) return
-        merge_prop = prop%found
+        call complete_property(property)
+        call complete_selector(sel_found, sel_beginning, sel_end, sel_character)
+        if (.not. property%found .and. .not. sel_found) return
+        merge_property = property%found
         merge_sel = sel_found
-        merge_sel_char = sel_char
+        merge_sel_character = sel_character
         data%found = .true.
 
-        if (prop%found) then
-            data%start = prop%start
-            data%end = prop%end
+        if (property%found) then
+            data%start = property%start
+            data%end = property%end
         else
             data%start = sel_beginning
             data%end = sel_end
@@ -1790,15 +1793,15 @@ contains
 
     ! N rounded to the nearest integer, ties to even (round).
     ! Not a port.
-    integer function round_int(n)
+    integer function round_integer(n)
         real(real64), intent(in) :: n
 
-        round_int = int(ieee_rint(n))
-    end function round_int
+        round_integer = int(ieee_rint(n))
+    end function round_integer
 
     ! "#" and the two-digit hex forms of COMPONENTS.
     ! Not a port.
-    function hex_string(components) result(s)
+    function hexadecimal_string(components) result(s)
         integer, intent(in) :: components(:)
         character(len=:), allocatable :: s
         character(len=2) :: buffer
@@ -1812,7 +1815,7 @@ contains
         end do
 
         s = downcase_ascii(s)
-    end function hex_string
+    end function hexadecimal_string
 
     ! The start of subexpression N of the last match, 0 if it didn't match.
     ! Not a port.
@@ -1843,31 +1846,31 @@ contains
         if (.not. allocated(text)) text = ""
     end function text_between
 
-    ! The character after POS, -1 if none.
+    ! The character after POSITION, -1 if none.
     ! Not a port.
-    integer function after_char_at(pos)
-        integer(int64), intent(in) :: pos
+    integer function after_character_at(position)
+        integer(int64), intent(in) :: position
         integer(int32) :: c
         logical :: found
 
-        after_char_at = -1
-        if (pos < point_min() .or. pos >= point_max()) return
-        call char_after(c, found, pos)
-        if (found) after_char_at = c
-    end function after_char_at
+        after_character_at = -1
+        if (position < point_minimum() .or. position >= point_maximum()) return
+        call character_after(c, found, position)
+        if (found) after_character_at = c
+    end function after_character_at
 
-    ! The character before POS, -1 if none.
+    ! The character before POSITION, -1 if none.
     ! Not a port.
-    integer function before_char_at(pos)
-        integer(int64), intent(in) :: pos
+    integer function before_character_at(position)
+        integer(int64), intent(in) :: position
         integer(int32) :: c
         logical :: found
 
-        before_char_at = -1
-        if (pos <= point_min() .or. pos > point_max()) return
-        call char_before(c, found, pos)
-        if (found) before_char_at = c
-    end function before_char_at
+        before_character_at = -1
+        if (position <= point_minimum() .or. position > point_maximum()) return
+        call character_before(c, found, position)
+        if (found) before_character_at = c
+    end function before_character_at
 
     ! Skip blanks and comments.  Port of css-mode.el:css--color-skip-blanks.
     subroutine color_skip_blanks()
@@ -1901,7 +1904,7 @@ contains
 
         do while (iter < 4)
             call color_skip_blanks()
-            if (.not. looking_at(NUMBER_OR_PERCENT_REGEXP, st)) return
+            if (.not. looking_at(NUMBER_OR_PERCENT_REGULAR_EXPRESSION, st)) return
             is_percent = mb(1) > 0
 
             if (is_percent) then
@@ -1919,13 +1922,13 @@ contains
             end if
 
             n = n + 1
-            result(n) = min(max(0, round_int(number)), 255)
-            call goto_char(me(0))
+            result(n) = min(max(0, round_integer(number)), 255)
+            call goto_character(me(0))
             call color_skip_blanks()
             iter = iter + 1
 
             ! Accept a superset of the CSS syntax since I'm feeling lazy.
-            if (skip_chars_forward(",/", st) == 0 .and. iter == 3) then
+            if (skip_characters_forward(",/", st) == 0 .and. iter == 3) then
                 ! The alpha is optional.
                 iter = iter + 1
             end if
@@ -1934,13 +1937,13 @@ contains
         end do
 
         if (looking_at(")", st)) then
-            call forward_char(st, 1_int64)
+            call forward_character(st, 1_int64)
             found = .true.
 
             if (alpha .and. n == 4) then
-                color = hex_string(result(1:4))
+                color = hexadecimal_string(result(1:4))
             else
-                color = hex_string(result(1:3))
+                color = hexadecimal_string(result(1:3))
             end if
         end if
     end subroutine css_rgb_color
@@ -1964,10 +1967,10 @@ contains
         found = .false.
         ! First parse the hue.
         call color_skip_blanks()
-        if (.not. looking_at(ANGLE_REGEXP, st)) return
+        if (.not. looking_at(ANGLE_REGULAR_EXPRESSION, st)) return
         hue = to_number(match_string_no_properties(1))
         unit = match_string_no_properties(2)
-        call goto_char(me(0))
+        call goto_character(me(0))
 
         ! Note that here "turn" is just passed through.
         if (unit == "" .or. unit == "deg") then
@@ -1982,30 +1985,30 @@ contains
         result(1) = modulo(hue, 1.0_real64)
 
         do i = 2, 3
-            moved = skip_chars_forward(",", st)
+            moved = skip_characters_forward(",", st)
             call color_skip_blanks()
-            if (.not. looking_at(PERCENT_REGEXP, st)) return
+            if (.not. looking_at(PERCENT_REGULAR_EXPRESSION, st)) return
             number = to_number(match_string_no_properties(1))
             number = number/100.0_real64
             result(i) = min(max(number, 0.0_real64), 1.0_real64)
-            call goto_char(me(0))
+            call goto_character(me(0))
             call color_skip_blanks()
         end do
 
         call color_skip_blanks()
 
         ! Accept a superset of the CSS syntax since I'm feeling lazy.
-        if (skip_chars_forward(",/", st) > 0) then
+        if (skip_characters_forward(",/", st) > 0) then
             call color_skip_blanks()
-            if (.not. looking_at(NUMBER_OR_PERCENT_REGEXP, st)) return
-            call goto_char(me(0))
+            if (.not. looking_at(NUMBER_OR_PERCENT_REGULAR_EXPRESSION, st)) return
+            call goto_character(me(0))
             call color_skip_blanks()
         end if
 
         if (looking_at(")", st)) then
-            call forward_char(st, 1_int64)
+            call forward_character(st, 1_int64)
             rgb = color_hsl_to_rgb(result(1), result(2), result(3))
-            color = color_rgb_to_hex(rgb(1), rgb(2), rgb(3), 2)
+            color = color_rgb_to_hexadecimal(rgb(1), rgb(2), rgb(3), 2)
             found = .true.
         end if
     end subroutine css_hsl_color
@@ -2014,39 +2017,39 @@ contains
     !> STRING is the incoming CSS hex color.
     !> This function simply drops any transparency.  Port of
     !> css-mode.el:css--hex-color.
-    function css_hex_color(string) result(hex)
+    function css_hexadecimal_color(string) result(hexadecimal)
         character(len=*), intent(in) :: string
-        character(len=:), allocatable :: hex
+        character(len=:), allocatable :: hexadecimal
 
         ! Either #RGB or #RRGGBB, drop the "A" or "AA".
         if (len(string) > 5) then
-            hex = string(1:min(7, len(string)))
+            hexadecimal = string(1:min(7, len(string)))
         else
-            hex = string(1:min(4, len(string)))
+            hexadecimal = string(1:min(4, len(string)))
         end if
-    end function css_hex_color
+    end function css_hexadecimal_color
 
-    !> Return the alpha component of CSS color HEX.
-    !> HEX can either be in the #RGBA or #RRGGBBAA format.  `found' is
+    !> Return the alpha component of CSS color HEXADECIMAL.
+    !> HEXADECIMAL can either be in the #RGBA or #RRGGBBAA format.  `found' is
     !> false if the color doesn't have an alpha component.  Port of
     !> css-mode.el:css--hex-alpha.
-    subroutine css_hex_alpha(hex, alpha, found)
-        character(len=*), intent(in) :: hex
+    subroutine css_hexadecimal_alpha(hexadecimal, alpha, found)
+        character(len=*), intent(in) :: hexadecimal
         character(len=:), allocatable, intent(out) :: alpha
         logical, intent(out) :: found
 
         alpha = ""
         found = .true.
 
-        select case (len(hex))
+        select case (len(hexadecimal))
         case (5)
-            alpha = hex(5:5)
+            alpha = hexadecimal(5:5)
         case (9)
-            alpha = hex(8:9)
+            alpha = hexadecimal(8:9)
         case default
             found = .false.
         end select
-    end subroutine css_hex_alpha
+    end subroutine css_hexadecimal_alpha
 
     ! The index of the named color NAME, 0 if none.
     ! Not a port.
@@ -2070,7 +2073,7 @@ contains
         character(len=:), allocatable, intent(out) :: color
         logical, intent(out) :: found
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
         logical :: moved_any
         integer :: k
 
@@ -2078,22 +2081,22 @@ contains
         found = .false.
         k = color_index(string)
         if (k == 0) return
-        opoint = point()
-        call goto_char(start_point)
+        original_point = point()
+        call goto_character(start_point)
         moved_any = forward_comment(-point())
-        moved = skip_chars_backward("@[:alpha:]", st)
+        moved = skip_characters_backward("@[:alpha:]", st)
 
         if (.not. looking_at("@\(mixin\|include\)", st, inhibit_modify=.true.)) then
-            color = trim(COLOR_HEX(k))
+            color = trim(COLOR_HEXADECIMAL(k))
             found = .true.
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine css_named_color
 
     !> Return the CSS color at point.
     !> Point should be just after the start of a CSS color, as recognized
-    !> by `css__colors_regexp'.  START_POINT is the start of the color,
+    !> by `css__colors_regular_expression'.  START_POINT is the start of the color,
     !> and MATCH is the string matched by the regexp.
     !>
     !> This function will either return the color, as a hex RGB string;
@@ -2111,7 +2114,7 @@ contains
         if (len(match) == 0) return
 
         if (match(1:1) == "#") then
-            color = css_hex_color(match)
+            color = css_hexadecimal_color(match)
             found = .true.
         else if (match == "rgb(" .or. match == "rgba(") then
             call css_rgb_color(color, found)
@@ -2132,27 +2135,27 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(out) :: done_beginning, done_end
         type(silent_modifications_type) :: silent
-        type(parse_state_type) :: ppss
+        type(parse_state_type) :: parser_state
         type(status_type) :: st
         character(len=:), allocatable :: color
-        integer(int64) :: opoint, found_at, start
+        integer(int64) :: original_point, found_at, start
         logical :: saved_fold, found
 
         call font_lock_default_fontify_region(beginning, end, loudly, status, done_beginning, done_end)
         if (.not. status%ok()) return
         if (.not. css_fontify_colors%value) return
-        opoint = point()
+        original_point = point()
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
-        call goto_char(done_beginning)
+        call goto_character(done_beginning)
 
         do
-            call re_search_forward(COLORS_REGEXP, found_at, st, bound=done_end, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(COLORS_REGULAR_EXPRESSION, found_at, st, bound=done_end, noerror=SEARCH_NOERROR)
             if (found_at == 0) exit
             ! Skip comments and strings.
-            call syntax_ppss(ppss)
+            call syntax_parser_state(parser_state)
 
-            if (ppss%comstr_start == 0) then
+            if (parser_state%comstr_start == 0) then
                 start = mb(0)
                 call css_compute_color(start, match_string_no_properties(0), color, found)
 
@@ -2175,56 +2178,56 @@ contains
         end do
 
         case_fold_search%value = saved_fold
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine css_fontify_region
 
     ! ------------------------------------------------------------------
     ! Color formats
     ! ------------------------------------------------------------------
 
-    !> Convert the CSS color HEX to four digits per component.
+    !> Convert the CSS color HEXADECIMAL to four digits per component.
     !> CSS colors use one or two digits per component for RGB hex
     !> values.  Convert the given color to four digits per component.
     !>
     !> Note that this function handles CSS colors specifically, and
     !> should not be mixed with those in color_mod.  Port of
     !> css-mode.el:css--color-to-4-dpc.
-    function css_color_to_4_dpc(hex) result(out)
-        character(len=*), intent(in) :: hex
+    function css_color_to_4_dpc(hexadecimal) result(out)
+        character(len=*), intent(in) :: hexadecimal
         character(len=:), allocatable :: out
         integer :: width, i, j
 
         out = "#"
 
-        if (len(hex) == 7) then
+        if (len(hexadecimal) == 7) then
             width = 2
         else
             width = 1
         end if
 
-        do i = 2, len(hex), width
+        do i = 2, len(hexadecimal), width
             do j = 1, 4/width
-                out = out//hex(i:min(i + width - 1, len(hex)))
+                out = out//hexadecimal(i:min(i + width - 1, len(hexadecimal)))
             end do
         end do
     end function css_color_to_4_dpc
 
     !> Format a CSS hex color by shortening it if possible.  Port of
     !> css-mode.el:css--format-hex.
-    function css_format_hex(hex) result(out)
-        character(len=*), intent(in) :: hex
+    function css_format_hexadecimal(hexadecimal) result(out)
+        character(len=*), intent(in) :: hexadecimal
         character(len=:), allocatable :: out
         integer :: i
         logical :: same
 
-        out = hex
-        if (len(hex) < 6) return
+        out = hexadecimal
+        if (len(hexadecimal) < 6) return
         same = .true.
 
-        do i = 2, len(hex), 2
-            if (i + 1 > len(hex)) then
+        do i = 2, len(hexadecimal), 2
+            if (i + 1 > len(hexadecimal)) then
                 same = .false.
-            else if (hex(i:i) /= hex(i + 1:i + 1)) then
+            else if (hexadecimal(i:i) /= hexadecimal(i + 1:i + 1)) then
                 same = .false.
             end if
         end do
@@ -2232,25 +2235,25 @@ contains
         if (.not. same) return
         out = "#"
 
-        do i = 2, len(hex), 2
-            out = out//hex(i:i)
+        do i = 2, len(hexadecimal), 2
+            out = out//hexadecimal(i:i)
         end do
-    end function css_format_hex
+    end function css_format_hexadecimal
 
     ! The word around point (thing-at-point 'word), "" for none.
     ! Not a port.
     function word_at_point() result(word)
         character(len=:), allocatable :: word
         type(status_type) :: st
-        integer(int64) :: opoint, b, e, moved
+        integer(int64) :: original_point, b, e, moved
 
-        opoint = point()
-        moved = skip_chars_backward("[:alnum:]", st)
+        original_point = point()
+        moved = skip_characters_backward("[:alnum:]", st)
         b = point()
-        call goto_char(opoint)
-        moved = skip_chars_forward("[:alnum:]", st)
+        call goto_character(original_point)
+        moved = skip_characters_forward("[:alnum:]", st)
         e = point()
-        call goto_char(opoint)
+        call goto_character(original_point)
         word = text_between(b, e)
     end function word_at_point
 
@@ -2260,7 +2263,7 @@ contains
     !> Note that this function handles CSS colors specifically, and
     !> should not be mixed with those in color_mod.  Port of
     !> css-mode.el:css--named-color-to-hex.
-    logical function css_named_color_to_hex() result(converted)
+    logical function css_named_color_to_hexadecimal() result(converted)
         type(status_type) :: st
         type(handle_type) :: mark
         character(len=:), allocatable :: color
@@ -2269,19 +2272,19 @@ contains
         converted = .false.
         call excursion_begin(mark)
 
-        if (.not. looking_at(COLORS_REGEXP, st)) then
-            if (preceding_char() /= iachar("#")) call backward_word(1_int64)
+        if (.not. looking_at(COLORS_REGULAR_EXPRESSION, st)) then
+            if (preceding_character() /= iachar("#")) call backward_word(1_int64)
         end if
 
         if (color_index(word_at_point()) > 0) then
-            if (looking_at(COLORS_REGEXP, st)) continue
+            if (looking_at(COLORS_REGULAR_EXPRESSION, st)) continue
             call css_compute_color(point(), match_string_no_properties(0), color, found)
-            call replace_match(css_format_hex(color), st)
+            call replace_match(css_format_hexadecimal(color), st)
             converted = .true.
         end if
 
         call excursion_end(mark)
-    end function css_named_color_to_hex
+    end function css_named_color_to_hexadecimal
 
     !> Return ALPHA component formatted for use in rgba().  Port of
     !> css-mode.el:css--format-rgba-alpha.
@@ -2320,10 +2323,10 @@ contains
     !> Note that this function handles CSS colors specifically, and
     !> should not be mixed with those in color_mod.  Port of
     !> css-mode.el:css--hex-to-rgb.
-    logical function css_hex_to_rgb() result(converted)
+    logical function css_hexadecimal_to_rgb() result(converted)
         type(status_type) :: st
         type(handle_type) :: mark
-        character(len=:), allocatable :: hex, rgb, alpha, text
+        character(len=:), allocatable :: hexadecimal, rgb, alpha, text
         character(len=64) :: buffer
         real(real64) :: comps(3)
         integer :: r, g, b, digits, value
@@ -2332,26 +2335,26 @@ contains
         converted = .false.
         call excursion_begin(mark)
 
-        if (following_char() /= iachar("#") .and. preceding_char() /= iachar("(")) then
+        if (following_character() /= iachar("#") .and. preceding_character() /= iachar("(")) then
             call backward_expression(1_int64, st)
         end if
 
-        if (looking_at(COLORS_REGEXP, st)) then
-            hex = match_string_no_properties(0)
+        if (looking_at(COLORS_REGULAR_EXPRESSION, st)) then
+            hexadecimal = match_string_no_properties(0)
 
-            if (len(hex) > 0) then
-                if (hex(1:1) == "#") then
-                    rgb = css_hex_color(hex)
+            if (len(hexadecimal) > 0) then
+                if (hexadecimal(1:1) == "#") then
+                    rgb = css_hexadecimal_color(hexadecimal)
                     call color_name_to_rgb(css_color_to_4_dpc(rgb), comps, found)
 
                     if (found) then
-                        r = round_int(comps(1)*255)
-                        g = round_int(comps(2)*255)
-                        b = round_int(comps(3)*255)
-                        call css_hex_alpha(hex, alpha, has_alpha)
+                        r = round_integer(comps(1)*255)
+                        g = round_integer(comps(2)*255)
+                        b = round_integer(comps(3)*255)
+                        call css_hexadecimal_alpha(hexadecimal, alpha, has_alpha)
 
                         if (has_alpha) then
-                            value = hex_value(alpha)
+                            value = hexadecimal_value(alpha)
                             digits = len(alpha)
                             write (buffer, '("rgba(",i0,", ",i0,", ",i0,", ")') r, g, b
                             text = trim(buffer)//" "//css_format_rgba_alpha(value/real(16**digits - 1, real64))//")"
@@ -2368,7 +2371,7 @@ contains
         end if
 
         call excursion_end(mark)
-    end function css_hex_to_rgb
+    end function css_hexadecimal_to_rgb
 
     !> Convert CSS RGB color at point to a named color or hex format.
     !> Convert to a named color if the color at point has a name, else
@@ -2377,55 +2380,55 @@ contains
     !> Note that this function handles CSS colors specifically, and
     !> should not be mixed with those in color_mod.  Port of
     !> css-mode.el:css--rgb-to-named-color-or-hex.
-    logical function css_rgb_to_named_color_or_hex() result(converted)
-        type(parse_state_type) :: ppss
+    logical function css_rgb_to_named_color_or_hexadecimal() result(converted)
+        type(parse_state_type) :: parser_state
         type(status_type) :: st
         type(handle_type) :: mark
         character(len=:), allocatable :: color
-        integer(int64) :: open_paren_pos, start, moved, here
+        integer(int64) :: open_parenthesis_position, start, moved, here
         logical :: found, rgba_before
         integer :: k
 
         converted = .false.
         call excursion_begin(mark)
-        call syntax_ppss(ppss)
-        open_paren_pos = ppss%innermost_start
+        call syntax_parser_state(parser_state)
+        open_parenthesis_position = parser_state%innermost_start
 
-        if (open_paren_pos > 0) then
+        if (open_parenthesis_position > 0) then
             here = point()
-            call goto_char(open_paren_pos)
+            call goto_character(open_parenthesis_position)
             rgba_before = looking_back("rgba?", st, point() - 4)
-            call goto_char(here)
+            call goto_character(here)
 
             if (rgba_before) then
-                call syntax_ppss(ppss)
-                call goto_char(ppss%innermost_start)
+                call syntax_parser_state(parser_state)
+                call goto_character(parser_state%innermost_start)
             end if
         end if
 
-        if (preceding_char() == iachar(")")) call backward_expression(1_int64, st)
-        moved = skip_chars_backward("rgba", st)
+        if (preceding_character() == iachar(")")) call backward_expression(1_int64, st)
+        moved = skip_characters_backward("rgba", st)
 
-        if (looking_at(COLORS_REGEXP, st)) then
+        if (looking_at(COLORS_REGULAR_EXPRESSION, st)) then
             start = me(0)
             here = point()
-            call goto_char(start)
+            call goto_character(start)
             call css_rgb_color(color, found, include_alpha=.true.)
-            call goto_char(here)
+            call goto_character(here)
 
             if (found) then
                 call cut_expression(1_int64, st)
                 call cut_expression(1_int64, st)
                 k = 0
 
-                do k = 1, size(COLOR_HEX)
-                    if (trim(COLOR_HEX(k)) == color) exit
+                do k = 1, size(COLOR_HEXADECIMAL)
+                    if (trim(COLOR_HEXADECIMAL(k)) == color) exit
                 end do
 
-                if (k <= size(COLOR_HEX)) then
+                if (k <= size(COLOR_HEXADECIMAL)) then
                     call insert(trim(COLOR_NAMES(k)), st)
                 else
-                    call insert(css_format_hex(color), st)
+                    call insert(css_format_hexadecimal(color), st)
                 end if
 
                 converted = .true.
@@ -2433,7 +2436,7 @@ contains
         end if
 
         call excursion_end(mark)
-    end function css_rgb_to_named_color_or_hex
+    end function css_rgb_to_named_color_or_hexadecimal
 
     !> Cycle the color at point between different CSS color formats.
     !> Supported formats are by name (if possible), hexadecimal, and
@@ -2442,9 +2445,9 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (css_named_color_to_hex()) return
-        if (css_hex_to_rgb()) return
-        if (css_rgb_to_named_color_or_hex()) return
+        if (css_named_color_to_hexadecimal()) return
+        if (css_hexadecimal_to_rgb()) return
+        if (css_rgb_to_named_color_or_hexadecimal()) return
         call message("It doesn't look like a color at point")
     end subroutine css_cycle_color_format
 
@@ -2462,16 +2465,16 @@ contains
     subroutine excursion_end(mark)
         type(handle_type), intent(in) :: mark
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call marker_position(mark, pos, st)
-        call goto_char(pos)
+        call marker_position(mark, position, st)
+        call goto_character(position)
         call destroy_marker(mark, st)
     end subroutine excursion_end
 
     ! The number the hexadecimal digits S denote (string-to-number S 16).
     ! Not a port.
-    integer function hex_value(s) result(n)
+    integer function hexadecimal_value(s) result(n)
         character(len=*), intent(in) :: s
         integer :: i, d
 
@@ -2482,7 +2485,7 @@ contains
             if (d < 0) return
             n = n*16 + d
         end do
-    end function hex_value
+    end function hexadecimal_value
 
     ! ------------------------------------------------------------------
     ! Subprogram names
@@ -2517,18 +2520,18 @@ contains
     function css_join_nested_selectors(selectors) result(joined)
         character(len=*), intent(in) :: selectors(:)
         character(len=:), allocatable :: joined
-        character(len=:), allocatable :: sel, prev, last
+        character(len=:), allocatable :: sel, previous, last
         integer :: i
 
         joined = ""
-        prev = ""
+        previous = ""
         last = ""
 
         do i = 1, size(selectors)
             sel = trim(selectors(i))
 
             if (index(sel, "&") > 0) then
-                sel = replace_all(sel, "&", prev)
+                sel = replace_all(sel, "&", previous)
                 ! (pop processed): drop the previous selector.
                 joined = joined(1:len(joined) - len(last))
             else if (i > 1) then
@@ -2539,42 +2542,42 @@ contains
 
             joined = joined//sel
             last = sel
-            prev = sel
+            previous = sel
         end do
     end function css_join_nested_selectors
 
     !> Move to the start of the CSS section before point, FOUND if there
-    !> is one (an `imenu_prev_index_position_function').  Port of
+    !> is one (an `imenu_previous_index_position_function').  Port of
     !> css-mode.el:css--prev-index-position.
-    recursive subroutine css_prev_index_position(found)
+    recursive subroutine css_previous_index_position(found)
         logical, intent(out) :: found
-        type(parse_state_type) :: ppss
+        type(parse_state_type) :: parser_state
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
         logical :: moved
 
         found = .false.
-        call syntax_ppss(ppss)
-        if (ppss%incomment /= 0) call goto_char(comment_beginning())
+        call syntax_parser_state(parser_state)
+        if (parser_state%incomment /= 0) call goto_character(comment_beginning())
         moved = forward_comment(-point())
-        call search_backward("{", pos, st, bound=point_min(), noerror=SEARCH_NOERROR)
-        if (pos == 0) return
-        call re_search_backward("}\|;\|{", pos, st, bound=point_min(), noerror=SEARCH_NOERROR)
+        call search_backward("{", position, st, bound=point_minimum(), noerror=SEARCH_NOERROR)
+        if (position == 0) return
+        call regular_expression_search_backward("}\|;\|{", position, st, bound=point_minimum(), noerror=SEARCH_NOERROR)
 
-        if (pos > 0) then
-            call forward_char(st, 1_int64)
+        if (position > 0) then
+            call forward_character(st, 1_int64)
         else
-            call goto_char(point_min())
+            call goto_character(point_minimum())
         end if
 
-        moved = forward_comment(point_max())
-        pos = point()
-        call re_search_forward("[^{;]*", pos, st, noerror=SEARCH_NOERROR)
-        found = pos > 0
-        call goto_char(point() - (me(0) - mb(0)))
+        moved = forward_comment(point_maximum())
+        position = point()
+        call regular_expression_search_forward("[^{;]*", position, st, noerror=SEARCH_NOERROR)
+        found = position > 0
+        call goto_character(point() - (me(0) - mb(0)))
         ! (The match data stays that of the name, for
         ! `extract_css_index_name'.)
-    end subroutine css_prev_index_position
+    end subroutine css_previous_index_position
 
     ! STRING with each run of newlines and spaces made one space, trimmed
     ! (string-trim of replace-regexp-in-string).
@@ -2614,36 +2617,36 @@ contains
     !> css-mode.el:css--extract-index-name.
     recursive subroutine extract_css_index_name(name)
         character(len=:), allocatable, intent(out) :: name
-        type(parse_state_type) :: ppss
+        type(parse_state_type) :: parser_state
         type(status_type) :: st
         character(len=200), allocatable :: res(:)
-        integer(int64) :: opoint, pos
+        integer(int64) :: original_point, position
         logical :: moved
 
-        opoint = point()
+        original_point = point()
         res = [character(len=200) :: match_string_no_properties(0)]
 
         do
-            call syntax_ppss(ppss)
-            if (ppss%innermost_start == 0) exit
-            call goto_char(ppss%innermost_start)
-            call re_search_backward("}\|;\|{", pos, st, bound=point_min(), noerror=SEARCH_NOERROR)
+            call syntax_parser_state(parser_state)
+            if (parser_state%innermost_start == 0) exit
+            call goto_character(parser_state%innermost_start)
+            call regular_expression_search_backward("}\|;\|{", position, st, bound=point_minimum(), noerror=SEARCH_NOERROR)
 
-            if (pos > 0) then
-                call forward_char(st, 1_int64)
+            if (position > 0) then
+                call forward_character(st, 1_int64)
             else
-                call goto_char(point_min())
+                call goto_character(point_minimum())
             end if
 
-            moved = forward_comment(point_max())
-            pos = point()
-            call re_search_forward("[^{;]*", pos, st, noerror=SEARCH_NOERROR)
-            if (pos > 0) res = [character(len=200) :: match_string_no_properties(0), res]
-            call goto_char(mb(0))
+            moved = forward_comment(point_maximum())
+            position = point()
+            call regular_expression_search_forward("[^{;]*", position, st, noerror=SEARCH_NOERROR)
+            if (position > 0) res = [character(len=200) :: match_string_no_properties(0), res]
+            call goto_character(mb(0))
         end do
 
         name = join_squeezed(res)
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine extract_css_index_name
 
     ! css--join-nested-selectors of the squeezed elements of RES.
@@ -2667,13 +2670,13 @@ contains
     !> none).  Port of css-mode.el:css-current-defun-name.
     recursive subroutine css_current_rule_name(name)
         character(len=:), allocatable, intent(out) :: name
-        integer(int64) :: opoint
+        integer(int64) :: original_point
         logical :: found
 
-        opoint = point()
-        call css_prev_index_position(found)
+        original_point = point()
+        call css_previous_index_position(found)
         if (found) call extract_css_index_name(name)
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine css_current_rule_name
 
     !> A helper for `css_lookup_symbol' that finds the symbol at point.
@@ -2683,32 +2686,33 @@ contains
         character(len=:), allocatable, intent(out) :: symbol
         logical, intent(out) :: found
         type(status_type) :: st
-        integer(int64) :: opoint, moved, bound, pos
+        integer(int64) :: original_point, moved, bound, position
 
         symbol = ""
         found = .false.
-        opoint = point()
+        original_point = point()
         ! Skip any whitespace between the word and point.
-        moved = skip_chars_backward("- "//TAB, st)
+        moved = skip_characters_backward("- "//TAB, st)
         ! Skip backward over a word.
-        moved = skip_chars_backward("-[:alnum:]", st)
+        moved = skip_characters_backward("-[:alnum:]", st)
         ! Now skip ":" or "@" to see if it's a pseudo-element or at-id.
-        moved = skip_chars_backward("@:", st)
+        moved = skip_characters_backward("@:", st)
 
-        if (looking_at(MDN_SYMBOL_REGEXP, st)) then
+        if (looking_at(MDN_SYMBOL_REGULAR_EXPRESSION, st)) then
             symbol = match_string_no_properties(0)
             found = .true.
         else
             bound = line_beginning_position()
-            call re_search_backward(MDN_PROPERTY_REGEXP, pos, st, bound=bound, noerror=SEARCH_NOERROR)
+            call regular_expression_search_backward(MDN_PROPERTY_REGULAR_EXPRESSION, position, st, bound=bound, &
+                                                    noerror=SEARCH_NOERROR)
 
-            if (pos > 0) then
+            if (position > 0) then
                 symbol = match_string_no_properties(1)
                 found = .true.
             end if
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine css_mdn_find_symbol
 
     ! ------------------------------------------------------------------
@@ -2732,14 +2736,14 @@ contains
     subroutine brace_multiline(face)
         character(len=:), allocatable, intent(out) :: face
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
 
         face = ""
-        opoint = point()
-        call goto_char(mb(0))
-        moved = skip_chars_backward(" "//LF//TAB, st)
+        original_point = point()
+        call goto_character(mb(0))
+        moved = skip_characters_backward(" "//LF//TAB, st)
         call put_text_property(point(), me(0), value_type(name="font_lock_multiline"), value_type(name="t"), st)
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine brace_multiline
 
     ! The FACE of a property name: vendor-specific or not.
@@ -2764,24 +2768,24 @@ contains
 
         ids = bang_ids()
         h1(1) = h(0, "font_lock_builtin_face")
-        kw(1) = font_lock_keyword("!\s-*"//regexp_opt(ids), highlights=h1)
+        kw(1) = font_lock_keyword("!\s-*"//regular_expression_optimization(ids), highlights=h1)
 
         ! Atrules keywords.  IDs not in css-at-ids are valid (ignored).
         if (sassy) then
-            kw(2) = font_lock_keyword(SASSY_KW2_REGEXP, highlights=h1)
+            kw(2) = font_lock_keyword(SASSY_KW2_REGULAR_EXPRESSION, highlights=h1)
         else
-            kw(2) = font_lock_keyword(KW2_REGEXP, highlights=h1)
+            kw(2) = font_lock_keyword(KW2_REGULAR_EXPRESSION, highlights=h1)
         end if
 
         ! Selectors.
         ! Allow plain ":root" as a selector.
         h1(1) = h(1, "css_selector", FONT_LOCK_OVERRIDE_KEEP)
-        kw(3) = font_lock_keyword(KW3_REGEXP, highlights=h1)
+        kw(3) = font_lock_keyword(KW3_REGULAR_EXPRESSION, highlights=h1)
 
         if (sassy) then
-            kw(4) = font_lock_keyword(SASSY_KW4_REGEXP, highlights=h1)
+            kw(4) = font_lock_keyword(SASSY_KW4_REGULAR_EXPRESSION, highlights=h1)
         else
-            kw(4) = font_lock_keyword(KW4_REGEXP, highlights=h1)
+            kw(4) = font_lock_keyword(KW4_REGULAR_EXPRESSION, highlights=h1)
         end if
 
         ! In the above rule, we allow the open-brace to be on some
@@ -2790,20 +2794,20 @@ contains
         ! then, this only ensures proper refontification, but not proper
         ! discovery).
         h1(1) = font_lock_highlight(0, face_function=brace_multiline)
-        kw(5) = font_lock_keyword(KW5_REGEXP, highlights=h1)
+        kw(5) = font_lock_keyword(KW5_REGULAR_EXPRESSION, highlights=h1)
         ! Variables.
         h1(1) = h(0, "font_lock_variable_name_face")
-        kw(6) = font_lock_keyword(KW6_REGEXP, highlights=h1)
+        kw(6) = font_lock_keyword(KW6_REGULAR_EXPRESSION, highlights=h1)
         ! Properties.  Again, we don't limit ourselves to css-property-ids.
         h1(1) = font_lock_highlight(1, face_function=property_face)
-        kw(7) = font_lock_keyword(KW7_REGEXP, highlights=h1)
+        kw(7) = font_lock_keyword(KW7_REGULAR_EXPRESSION, highlights=h1)
         ! Make sure the parens in a url(...) expression receive the
         ! default face. This is done because the parens may sometimes
         ! receive generic string delimiter syntax (see
         ! `css_syntax_propertize_function').
         h2(1) = h(1, "default", FONT_LOCK_OVERRIDE_REPLACE)
         h2(2) = h(2, "default", FONT_LOCK_OVERRIDE_REPLACE)
-        kw(8) = font_lock_keyword(KW8_REGEXP, highlights=h2)
+        kw(8) = font_lock_keyword(KW8_REGULAR_EXPRESSION, highlights=h2)
     end function css_font_lock_keywords_of
 
     !> The Font Lock keywords of SCSS mode.  Port of
@@ -2813,10 +2817,10 @@ contains
         type(font_lock_highlight_type) :: h1(1)
 
         h1(1) = h(0, "font_lock_variable_name_face")
-        kw(1) = font_lock_keyword(SCSS_VARIABLE_REGEXP, highlights=h1)
+        kw(1) = font_lock_keyword(SCSS_VARIABLE_REGULAR_EXPRESSION, highlights=h1)
         kw(2:9) = css_font_lock_keywords_of(.true.)
         h1(1) = h(1, "font_lock_function_name_face")
-        kw(10) = font_lock_keyword(SCSS_MIXIN_REGEXP, highlights=h1)
+        kw(10) = font_lock_keyword(SCSS_MIXIN_REGULAR_EXPRESSION, highlights=h1)
     end function scss_font_lock_keywords
 
     ! css-syntax-propertize-function.
@@ -2825,7 +2829,7 @@ contains
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
 
-        call goto_char(start)
+        call goto_character(start)
         call propertize_rules%apply(start, end, status)
     end subroutine css_syntax_propertize_function
 
@@ -2840,40 +2844,40 @@ contains
     ! css-mode.el:css--colon-inside-selector-p.
     logical function is_colon_inside_selector()
         type(status_type) :: st
-        integer(int64) :: opoint, pos
+        integer(int64) :: original_point, position
 
-        opoint = point()
-        call re_search_forward("[{};]", pos, st, noerror=SEARCH_NOERROR)
-        is_colon_inside_selector = preceding_char() == iachar("{")
-        call goto_char(opoint)
+        original_point = point()
+        call regular_expression_search_forward("[{};]", position, st, noerror=SEARCH_NOERROR)
+        is_colon_inside_selector = preceding_character() == iachar("{")
+        call goto_character(original_point)
     end function is_colon_inside_selector
 
     ! Return true if point is inside a function call.  Port of
     ! css-mode.el:css--colon-inside-funcall.
     logical function colon_inside_function_call()
-        type(parse_state_type) :: ppss
+        type(parse_state_type) :: parser_state
 
         colon_inside_function_call = .false.
-        call syntax_ppss(ppss)
-        if (ppss%innermost_start == 0) return
-        colon_inside_function_call = after_char_at(ppss%innermost_start) == iachar("(")
+        call syntax_parser_state(parser_state)
+        if (parser_state%innermost_start == 0) return
+        colon_inside_function_call = after_character_at(parser_state%innermost_start) == iachar("(")
     end function colon_inside_function_call
 
     !> Whether the "}" before point doesn't end an interpolation #{$...}.
     !> Port of css-mode.el:scss-smie--not-interpolation-p.
     logical function is_scss_smie_not_interpolation()
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
 
-        opoint = point()
-        call forward_char(st, -1_int64)
-        is_scss_smie_not_interpolation = skip_chars_backward("-[:alnum:]", st) == 0
+        original_point = point()
+        call forward_character(st, -1_int64)
+        is_scss_smie_not_interpolation = skip_characters_backward("-[:alnum:]", st) == 0
 
         if (.not. is_scss_smie_not_interpolation) then
             is_scss_smie_not_interpolation = .not. looking_back("#{\$", st, point() - 3)
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end function is_scss_smie_not_interpolation
 
     ! The token of a colon after point: in a selector or function call, or
@@ -2902,14 +2906,14 @@ contains
         status = status_type()
         hanging = .false.
 
-        if (preceding_char() == iachar("}")) then
+        if (preceding_character() == iachar("}")) then
             if (is_scss_smie_not_interpolation()) then
                 ! FIXME: If the next char is not whitespace, what should we do?
-                c = following_char()
+                c = following_character()
 
                 if (c == iachar(" ") .or. c == 9 .or. c == 10) then
                     hanging = .true.
-                    call forward_char(status, 1_int64)
+                    call forward_character(status, 1_int64)
                 else if (allocated(comment_start_skip%value)) then
                     if (looking_at(comment_start_skip%value, status)) then
                         hanging = .true.
@@ -2924,10 +2928,10 @@ contains
             return
         end if
 
-        moved = forward_comment(point_max())
+        moved = forward_comment(point_maximum())
 
         if (looking_at("[;,:]", status)) then
-            call forward_char(status, 1_int64)
+            call forward_character(status, 1_int64)
 
             if (match_string_no_properties(0) == ":") then
                 token = colon_token()
@@ -2944,19 +2948,19 @@ contains
     recursive subroutine css_smie_backward_token(token, status)
         character(len=:), allocatable, intent(out) :: token
         type(status_type), intent(out) :: status
-        integer(int64) :: pos
+        integer(int64) :: position
         logical :: moved
         integer :: c
 
         status = status_type()
-        pos = point()
+        position = point()
         moved = forward_comment(-point())
-        c = preceding_char()
+        c = preceding_character()
 
         if (c == iachar("}")) then
             ! FIXME: If the next char is not whitespace, what should we do?
             if (is_scss_smie_not_interpolation()) then
-                if (pos > point()) then
+                if (position > point()) then
                     token = ";"
                     return
                 end if
@@ -2964,12 +2968,12 @@ contains
         end if
 
         if (c == iachar(";") .or. c == iachar(",") .or. c == iachar(":")) then
-            call forward_char(status, -1_int64)
+            call forward_character(status, -1_int64)
 
-            if (following_char() == iachar(":")) then
+            if (following_character() == iachar(":")) then
                 token = colon_token()
             else
-                token = achar(following_char())
+                token = achar(following_character())
             end if
         else
             call smie_default_backward_token(token, status)
@@ -2977,9 +2981,9 @@ contains
     end subroutine css_smie_backward_token
 
     !> The SMIE rules of CSS mode.  Port of css-mode.el:css-smie-rules.
-    recursive subroutine css_smie_rules(method, arg, result, status)
+    recursive subroutine css_smie_rules(method, argument, result, status)
         integer, intent(in) :: method
-        character(len=*), intent(in) :: arg
+        character(len=*), intent(in) :: argument
         type(smie_rule_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
         type(smie_expression_type) :: res
@@ -2989,21 +2993,22 @@ contains
         result = smie_rule_result_type()
 
         select case (method)
-        case (SMIE_ELEM)
-            if (arg == "basic") then
+        case (SMIE_ELEMENT)
+            if (argument == "basic") then
                 result = smie_rule_result_type(kind=SMIE_RULE_OFFSET, value=int(css_indent_offset%value))
-            else if (arg == "arg") then
+            else if (argument == "arg") then
                 result = smie_rule_result_type(kind=SMIE_RULE_OFFSET, value=0)
             end if
         case (SMIE_LIST_INTRO)
-            ! "" stands for BOB (bug#15467).
-            if (arg == ";" .or. arg == "" .or. arg == ":-property") result = smie_rule_result_type(kind=SMIE_RULE_YES)
+            ! "" stands for BEGINNING_OF_BUFFER (bug#15467).
+            if (argument == ";" .or. argument == "" .or. argument == ":-property") result = smie_rule_result_type( &
+                                                                                            kind=SMIE_RULE_YES)
         case (SMIE_BEFORE)
-            if (arg == "{") then
-                if (is_smie_rule_hanging(status) .or. is_smie_rule_bol()) then
+            if (argument == "{") then
+                if (is_smie_rule_hanging(status) .or. is_smie_rule_beginning_of_line()) then
                     call smie_backward_expression(res, status, token=";")
 
-                    if (following_char() /= iachar("{")) then
+                    if (following_character() /= iachar("{")) then
                         indent = smie_indent_virtual(status)
 
                         if (indent%kind == SMIE_INDENT_COLUMN) then
@@ -3011,15 +3016,15 @@ contains
                         end if
                     end if
                 end if
-            else if (arg == "(") then
+            else if (argument == "(") then
                 if (is_smie_rule_hanging(status)) then
                     result = smie_rule_parent(status, 0)
-                else if (.not. is_smie_rule_bol()) then
+                else if (.not. is_smie_rule_beginning_of_line()) then
                     result = smie_rule_result_type(kind=SMIE_RULE_OFFSET, value=0)
                 end if
             end if
         case (SMIE_AFTER)
-            if (arg == ":-property") then
+            if (argument == ":-property") then
                 if (is_smie_rule_hanging(status)) then
                     result = smie_rule_result_type(kind=SMIE_RULE_OFFSET, value=int(css_indent_offset%value))
                 end if
@@ -3036,7 +3041,7 @@ contains
     ! The paragraph regexps of filling a comment whose comment-continue is
     ! CONTINUE: START and SEPARATE.
     ! Port of css-mode.el:css-fill-paragraph (in part).
-    subroutine comment_paragraph_regexps(start, separate)
+    subroutine comment_paragraph_regular_expressions(start, separate)
         character(len=:), allocatable, intent(inout) :: start, separate
         type(status_type) :: st
         character(len=:), allocatable :: cont, skip, end_skip
@@ -3048,14 +3053,14 @@ contains
         if (allocated(comment_start_skip%value)) skip = comment_start_skip%value
         end_skip = ""
         if (allocated(comment_end_skip%value)) end_skip = comment_end_skip%value
-        separate = "\(?:[ "//TAB//"]*\(?:"//regexp_quote(cont)//"\|"//skip//"\|"//end_skip//"\)\)?"// &
+        separate = "\(?:[ "//TAB//"]*\(?:"//regular_expression_quote(cont)//"\|"//skip//"\|"//end_skip//"\)\)?"// &
                    "\(?:"//separate//"\)"
-        start = "\(?:[ "//TAB//"]*"//regexp_quote(cont)//"\)?\(?:"//start//"\)"
-    end subroutine comment_paragraph_regexps
+        start = "\(?:[ "//TAB//"]*"//regular_expression_quote(cont)//"\)?\(?:"//start//"\)"
+    end subroutine comment_paragraph_regular_expressions
 
     ! S with the characters special in regexps quoted (regexp-quote).
     ! Not a port.
-    function regexp_quote(s) result(q)
+    function regular_expression_quote(s) result(q)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: q
         integer :: i
@@ -3069,7 +3074,7 @@ contains
                 q = q//s(i:i)
             end if
         end do
-    end function regexp_quote
+    end function regular_expression_quote
 
     !> Fill the comment or reformat the declaration block at point (the
     !> `fill_paragraph_function' of CSS mode; JUSTIFY as in
@@ -3078,11 +3083,12 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(out) :: done
         integer, intent(in), optional :: justify
-        type(handle_type) :: mark, end_marker, begv_marker, zv_marker
-        type(parse_state_type) :: ppss
+        type(handle_type) :: mark, end_marker, beginning_of_accessible_portion_marker, end_of_accessible_portion_marker
+        type(parse_state_type) :: parser_state
         type(status_type) :: st
         character(len=:), allocatable :: saved_start, saved_separate, start, separate
-        integer(int64) :: eol, cstart, pos, begv, zv, end, here, opening
+        integer(int64) :: end_of_line, cstart, position, beginning_of_accessible_portion, end_of_accessible_portion, end, here, &
+                          opening
         logical :: moved, ok, has_end
         integer :: c
 
@@ -3092,21 +3098,21 @@ contains
         ! Fill succeeding comment when invoked right before a multi-line
         ! comment.
         here = point()
-        call goto_char(line_beginning_position())
+        call goto_character(line_beginning_position())
         cstart = comment_search_forward(line_end_position(), .true., st)
-        call goto_char(here)
-        if (cstart > 0) call goto_char(me(0))
-        call syntax_ppss(ppss)
-        eol = line_end_position()
+        call goto_character(here)
+        if (cstart > 0) call goto_character(me(0))
+        call syntax_parser_state(parser_state)
+        end_of_line = line_end_position()
         ok = .false.
 
-        if (ppss%incomment /= 0) then
+        if (parser_state%incomment /= 0) then
             here = point()
-            call goto_char(ppss%comstr_start)
+            call goto_character(parser_state%comstr_start)
             moved = forward_comment(1_int64)
-            ok = .not. is_bol()
-            eol = point()
-            call goto_char(here)
+            ok = .not. is_beginning_of_line()
+            end_of_line = point()
+            call goto_character(here)
         end if
 
         if (ok) then
@@ -3114,62 +3120,63 @@ contains
             ! This code is meant to be generic, so that it works not only
             ! for css-mode but for all modes.
             ! save-restriction.
-            call copy_marker_at(buffers(current)%begv, begv_marker, .false., st)
-            call copy_marker_at(buffers(current)%zv, zv_marker, .true., st)
-            call narrow_to_region(ppss%comstr_start, eol, st)
+            call copy_marker_at(buffers(current)%beginning_of_accessible_portion, beginning_of_accessible_portion_marker, .false., &
+                                st)
+            call copy_marker_at(buffers(current)%end_of_accessible_portion, end_of_accessible_portion_marker, .true., st)
+            call narrow_to_region(parser_state%comstr_start, end_of_line, st)
             ! Will define comment-continue.
-            call comment_normalize_vars(st)
+            call comment_normalize_variables(st)
             saved_start = paragraph_start%value
             saved_separate = paragraph_separate%value
             start = saved_start
             separate = saved_separate
-            call comment_paragraph_regexps(start, separate)
+            call comment_paragraph_regular_expressions(start, separate)
             paragraph_start%value = start
             paragraph_separate%value = separate
             call fill_without_function(status, justify)
             paragraph_start%value = saved_start
             paragraph_separate%value = saved_separate
             call widen()
-            call marker_position(begv_marker, begv, st)
-            call marker_position(zv_marker, zv, st)
-            call narrow_to_region(begv, zv, st)
-            call destroy_marker(begv_marker, st)
-            call destroy_marker(zv_marker, st)
+            call marker_position(beginning_of_accessible_portion_marker, beginning_of_accessible_portion, st)
+            call marker_position(end_of_accessible_portion_marker, end_of_accessible_portion, st)
+            call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
+            call destroy_marker(beginning_of_accessible_portion_marker, st)
+            call destroy_marker(end_of_accessible_portion_marker, st)
             ! Don't try filling again.
             done = .true.
-        else if (ppss%comstr_start == 0) then
-            ok = ppss%innermost_start > 0
+        else if (parser_state%comstr_start == 0) then
+            ok = parser_state%innermost_start > 0
 
             if (.not. ok) then
                 here = point()
                 call down_group(1_int64, st)
 
-                if (st%ok() .and. point() <= eol) then
-                    call syntax_ppss(ppss)
+                if (st%ok() .and. point() <= end_of_line) then
+                    call syntax_parser_state(parser_state)
                     ok = .true.
                 else
-                    call goto_char(here)
+                    call goto_character(here)
                 end if
             end if
 
             if (ok) then
-                opening = ppss%innermost_start
-                call goto_char(opening)
+                opening = parser_state%innermost_start
+                call goto_character(opening)
                 here = point()
                 call forward_expression(1_int64, st)
                 has_end = st%ok()
                 if (has_end) call copy_marker_at(point(), end_marker, .true., st)
-                call goto_char(here)
+                call goto_character(here)
 
                 if (has_end) then
                     do
                         call marker_position(end_marker, end, st)
-                        call re_search_forward("[{;}]", pos, st, bound=end, noerror=SEARCH_NOERROR)
-                        if (pos == 0) exit
+                        call regular_expression_search_forward("[{;}]", position, st, bound=end, noerror=SEARCH_NOERROR)
+                        if (position == 0) exit
                         call reformat_after_delimiter()
                     end do
 
-                    call goto_char(opening)
+                    call goto_character(opening)
                     call marker_position(end_marker, end, st)
                     call indent_region(line_beginning_position(2_int64), end, st)
                     call destroy_marker(end_marker, st)
@@ -3190,20 +3197,20 @@ contains
             integer(int64) :: line_end, back
             logical :: again
 
-            call syntax_ppss(p)
+            call syntax_parser_state(p)
             ! This is a false positive inside a string or comment.
             if (p%comstr_start > 0) return
             ! This is a false positive when encountering an interpolated
             ! variable (bug#19751).
-            if (before_char_at(point() - 1) == iachar("#")) return
-            c = preceding_char()
+            if (before_character_at(point() - 1) == iachar("#")) return
+            c = preceding_character()
 
             if (c == iachar("}")) then
                 call excursion_begin(saved)
-                call forward_char(st, -1_int64)
-                back = skip_chars_backward(" "//TAB, st)
+                call forward_character(st, -1_int64)
+                back = skip_characters_backward(" "//TAB, st)
 
-                if (.not. is_bol()) then
+                if (.not. is_beginning_of_line()) then
                     if (is_scss_smie_not_interpolation()) call newline(st)
                 end if
 
@@ -3280,18 +3287,18 @@ contains
 
         f => css_selector
         call f%define("css_selector", "Face to use for selectors.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_function_name_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_function_name_face"))
         f => css_property
         call f%define("css_property", "Face to use for properties.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_keyword_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_keyword_face"))
         f => css_proprietary_property
         call f%define("css_proprietary_property", "Face to use for vendor-specific properties.")
-        call f%spec_entry(display_when(), face_attrs(inherits=[character(len=12) :: "css_property", "italic"]))
+        call f%specification_entry(display_when(), face_attributes(inherits=[character(len=12) :: "css_property", "italic"]))
     end subroutine define_faces
 
     ! css-mode-syntax-table and scss-mode-syntax-table.
     ! Not a port.
-    subroutine init_syntax_tables()
+    subroutine initialize_syntax_tables()
         type(status_type) :: st
         type(handle_type) :: t
         integer :: i
@@ -3333,18 +3340,18 @@ contains
         ! Variable names are prefixed by $.
         call modify_syntax_entry(iachar("$"), iachar("$"), "_", st, t)
         call modify_syntax_entry(iachar("%"), iachar("%"), "_", st, t)
-    end subroutine init_syntax_tables
+    end subroutine initialize_syntax_tables
 
     ! css-syntax-propertize-function's rules and css-smie-grammar.
     ! Not a port.
-    subroutine init_rules()
+    subroutine initialize_rules()
         type(syntax_highlight_type) :: hl(2)
         type(smie_precs_type) :: precs
         type(smie_prec2_type) :: prec2
         type(status_type) :: st
 
         allocate (propertize_rules%rules(1))
-        propertize_rules%rules(1)%regexp = URI_REGEXP
+        propertize_rules%rules(1)%regular_expression = URI_REGULAR_EXPRESSION
         hl(1) = syntax_highlight_type(group=1, syntax="|")
         hl(2) = syntax_highlight_type(group=2, syntax="|")
         propertize_rules%rules(1)%highlights = hl
@@ -3358,7 +3365,7 @@ contains
         call precs%append(SMIE_ASSOC, [character(len=1) :: ":"])
         call smie_precs_to_prec2(precs, prec2)
         call smie_prec2_to_grammar(prec2, css_smie_grammar, st)
-    end subroutine init_rules
+    end subroutine initialize_rules
 
     !> Generic mode to edit Cascading Style Sheets (CSS).
     !>
@@ -3369,14 +3376,14 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(css_mode_syntax_table)) call init_css_mode()
+        if (.not. is_syntax_table_live(css_mode_syntax_table)) call initialize_css_mode()
         call major_modes%css_base_mode%begin(saved, status)
         if (.not. status%ok()) return
         call comment_start%set_local("/*")
         call comment_start_skip%set_local("/\*+[ "//TAB//"]*")
         call comment_end%set_local("*/")
         call comment_end_skip%set_local("[ "//TAB//"]*\*+/")
-        call electric_indent_chars_set_local([css_electric_keys, electric_indent_chars_value()])
+        call electric_indent_characters_set_local([css_electric_keys, electric_indent_characters_value()])
         ! The default "." creates ambiguity with class selectors.
         call imenu_space_replacement%set_local(" ")
         call major_modes%css_base_mode%end(saved, status)
@@ -3397,7 +3404,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(css_mode_syntax_table)) call init_css_mode()
+        if (.not. is_syntax_table_live(css_mode_syntax_table)) call initialize_css_mode()
         call major_modes%css_mode%begin(saved, status)
         if (.not. status%ok()) return
         call font_lock_defaults%set_local(keywords=css_font_lock_keywords, case_fold=.true.)
@@ -3407,7 +3414,7 @@ contains
         call smie_setup(css_smie_grammar, css_smie_rules, css_smie_forward_token, css_smie_backward_token)
         call font_lock_fontify_region_function_set_local(css_fontify_region)
         call completion_at_point_functions%prepend(css_completion_at_point, local=.true.)
-        call imenu_prev_index_position_function%set_local(css_prev_index_position)
+        call imenu_previous_index_position_function%set_local(css_previous_index_position)
         call imenu_extract_index_name_function%set_local(extract_css_index_name)
         call add_log_current_subprogram_function%set_local(css_current_rule_name)
         call major_modes%css_mode%end(saved, status)
@@ -3419,7 +3426,7 @@ contains
         integer :: k
         logical :: saved
 
-        if (.not. is_syntax_table_live(css_mode_syntax_table)) call init_css_mode()
+        if (.not. is_syntax_table_live(css_mode_syntax_table)) call initialize_css_mode()
         call major_modes%scss_mode%begin(saved, status)
         if (.not. status%ok()) return
         call comment_start%set_local("// ")
@@ -3435,11 +3442,11 @@ contains
     end subroutine scss_mode
 
     ! The command `css_cycle_color_format'.
-    recursive subroutine cmd_css_cycle_color_format(status)
+    recursive subroutine execute_css_cycle_color_format(status)
         type(status_type), intent(out) :: status
 
         call css_cycle_color_format(status)
-    end subroutine cmd_css_cycle_color_format
+    end subroutine execute_css_cycle_color_format
 
     ! Bind [remap FROM] to COMMAND in `css_mode_map'.
     ! Not a port.
@@ -3456,7 +3463,7 @@ contains
     !> Define CSS mode and SCSS mode: their variables, tables, keymaps and
     !> commands.
     !> Not a port.
-    recursive subroutine init_css_mode()
+    recursive subroutine initialize_css_mode()
         type(status_type) :: st
 
         if (is_syntax_table_live(css_mode_syntax_table)) return
@@ -3470,12 +3477,12 @@ contains
 
         if (.not. allocated(css_electric_keys)) css_electric_keys = [iachar("}"), iachar(";")]
         call define_faces()
-        call init_syntax_tables()
-        call init_rules()
+        call initialize_syntax_tables()
+        call initialize_rules()
         css_font_lock_keywords = css_font_lock_keywords_of(.false.)
         call append_locals_clearer(clear_css_locals)
         call major_modes%css_base_mode%define("css_base_mode", "CSS", css_base_mode, css_base_mode_hook, &
-                                              parent=major_modes%prog_mode, syntax_table=css_mode_syntax_table)
+                                              parent=major_modes%programming_mode, syntax_table=css_mode_syntax_table)
         css_base_mode_map = major_modes%css_base_mode%map
         call major_modes%css_mode%define("css_mode", "CSS", css_mode, css_mode_hook, parent=major_modes%css_base_mode)
         css_mode_map = major_modes%css_mode%map
@@ -3488,6 +3495,6 @@ contains
         commands%css_base_mode%execute => css_base_mode
         commands%css_mode%execute => css_mode
         commands%scss_mode%execute => scss_mode
-        commands%css_cycle_color_format%execute => cmd_css_cycle_color_format
-    end subroutine init_css_mode
+        commands%css_cycle_color_format%execute => execute_css_cycle_color_format
+    end subroutine initialize_css_mode
 end module css_mode_mod

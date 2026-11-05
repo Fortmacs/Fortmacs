@@ -25,7 +25,7 @@
 !> at point (`add_log_current_subprogram', which modes refine through
 !> `add_log_current_subprogram_function'), finding the ChangeLog file of
 !> a file (`find_change_log'), the buffer for it, or the `*changes to
-!> DIR*' buffer standing for one that doesn't exist
+!> DIRECTORY*' buffer standing for one that doesn't exist
 !> (`add_log_find_changelog_buffer'), the options naming the user and the
 !> date in ChangeLog headers, Change Log mode with its faces, font lock
 !> and \[find_change_log_entry_file], and reading and inserting ChangeLog
@@ -42,7 +42,7 @@ module add_log_mod
     use data_mod, only: string_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, PREFIX_NONE
+    use execute_interactively_mod, only: current_prefix_argument, PREFIX_NONE
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_file_buffer, &
                           is_buffer_live, buffer_serial_live
     use file_input_output_mod, only: expand_file_name, file_name_directory, file_name_nondirectory, is_file_directory, &
@@ -52,21 +52,21 @@ module add_log_mod
     use utility_functions_mod, only: count_characters
     use derived_mod, only: is_derived_mode
     use modes_mod, only: major_modes
-    use syntax_mod, only: make_syntax_table, modify_syntax_entry, skip_chars_forward, skip_chars_backward, &
+    use syntax_mod, only: make_syntax_table, modify_syntax_entry, skip_characters_forward, skip_characters_backward, &
                           skip_syntax_backward
-    use faces_mod, only: named_face_type, display_when, face_attrs
+    use faces_mod, only: named_face_type, display_when, face_attributes
     use buffer_mod, only: fill_column, left_margin
     use indent_mod, only: indent_tabs_mode, indent_to, indent_relative_first_indent_point, current_column
     use display_engine_mod, only: tab_width, message
     use paragraphs_mod, only: paragraph_start, paragraph_separate, page_delimiter, forward_paragraph
     use page_mod, only: forward_page
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_eob, char_before, delete_region, buffer_substring, &
-                                     line_beginning_position, line_end_position, point_marker, user_full_name, widen, &
-                                     narrow_to_region, buffer_size
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_end_of_buffer, character_before, &
+                                     delete_region, buffer_substring, line_beginning_position, line_end_position, point_marker, &
+                                     user_full_name, widen, narrow_to_region, buffer_size
     use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
     use insert_delete_mod, only: insert
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, search_forward, regexp_quote, string_match, &
-                          match_beginning, case_fold_search, SEARCH_NOERROR
+    use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, search_forward, &
+                          regular_expression_quote, string_match, match_beginning, case_fold_search, SEARCH_NOERROR
     use basic_subprograms_mod, only: match_string_no_properties
     use undo_mod, only: undo_boundary
     use marker_mod, only: marker_position, destroy_marker
@@ -85,7 +85,7 @@ module add_log_mod
     private
 
     public :: find_change_log, change_log_name, add_log_find_changelog_buffer, add_log_pseudo_changelog_buffer_name, &
-              add_log_iso8601_time_string, change_log_mode, init_add_log
+              add_log_iso8601_time_string, change_log_mode, initialize_add_log
     public :: change_log_entry_type, change_log_read_subprograms, insert_change_log_entries
     public :: add_log_name_procedure, add_log_file_name_procedure, add_log_name_function_type
     public :: add_change_log_entry, add_change_log_entry_other_window, add_log_current_subprogram, add_log_file_name, &
@@ -143,20 +143,20 @@ module add_log_mod
 
     !> Regexp matching the file names of unindented ChangeLog entries.
     !> Port of add-log.el change-log-unindented-file-names-re.
-    character(len=*), parameter, public :: change_log_unindented_file_names_regexp = "^[*] \([^ ,:(["//LF//"]+\)"
+    character(len=*), parameter, public :: change_log_unindented_file_names_regular_expression = "^[*] \([^ ,:(["//LF//"]+\)"
 
     !> Regexp matching a tag name in change log entries.  Port of
     !> add-log.el change-log-tag-re.
-    character(len=*), parameter, public :: change_log_tag_regexp = &
+    character(len=*), parameter, public :: change_log_tag_regular_expression = &
                                            "(\(\(?:\sw\|\s_\)+\(?:[, "//TAB//"]+\(?:\sw\|\s_\)+\)*\))"
 
     !> Regexp matching the indented file names of ChangeLog entries (the
     !> name in group 2).  Port of add-log.el change-log-file-names-re.
-    character(len=*), parameter, public :: change_log_file_names_regexp = "^\( +\|"//TAB//"\)\* \([^ ,:(["//LF//"]+\)"
+    character(len=*), parameter, public :: change_log_file_names_regular_expression = "^\( +\|"//TAB//"\)\* \([^ ,:(["//LF//"]+\)"
 
     !> Regexp matching the date line that starts a ChangeLog entry.  Port
     !> of add-log.el change-log-start-entry-re.
-    character(len=*), parameter, public :: change_log_start_entry_regexp = "^\sw.........[0-9:+ ]*"
+    character(len=*), parameter, public :: change_log_start_entry_regular_expression = "^\sw.........[0-9:+ ]*"
 
     !> A function giving (in S) the date for a ChangeLog header.
     abstract interface
@@ -253,12 +253,12 @@ module add_log_mod
     !> The version number must be in group 1.
     !> Note: The search is conducted only within 10%, at the beginning of the file.
     !> Port of add-log.el change-log-version-number-regexp-list.
-    character(len=64), allocatable, public :: change_log_version_number_regexps(:)
+    character(len=64), allocatable, public :: change_log_version_number_regular_expressions(:)
 
     !> Heuristic regexp used by `add_log_current_subprogram' for unknown major modes.
     !> The regexp's first submatch is placed in the ChangeLog entry, in
     !> parentheses.  Port of add-log.el add-log-current-defun-header-regexp.
-    character(len=:), allocatable, public :: add_log_current_subprogram_header_regexp
+    character(len=:), allocatable, public :: add_log_current_subprogram_header_regular_expression
 
     !> If true, don't create ChangeLog files for log entries.
     !> If a ChangeLog file does not already exist, a true value
@@ -385,8 +385,8 @@ contains
     !> Move point to the end of names read and return the function names
     !> as a list of strings.  Port of add-log.el:change-log-read-defuns.
     recursive subroutine change_log_read_subprograms(names, status, end)
-        use editing_functions_mod, only: point, goto_char
-        use syntax_mod, only: skip_chars_forward, skip_chars_backward
+        use editing_functions_mod, only: point, goto_character
+        use syntax_mod, only: skip_characters_forward, skip_characters_backward
         use search_mod, only: looking_at, match_end
         use basic_subprograms_mod, only: match_string_no_properties
         type(string_type), allocatable, intent(out) :: names(:)
@@ -399,30 +399,30 @@ contains
         allocate (names(0))
 
         do
-            moved = skip_chars_forward(":"//LF//"[:blank:]", status, end)
+            moved = skip_characters_forward(":"//LF//"[:blank:]", status, end)
             if (.not. status%ok()) return
 
             if (present(end)) then
                 if (point() >= end) exit
             end if
 
-            tagged = looking_at(change_log_tag_regexp, status)
+            tagged = looking_at(change_log_tag_regular_expression, status)
             if (.not. status%ok()) return
             if (.not. tagged) exit
             tag = match_string_no_properties(1)
-            call goto_char(match_end_0())
+            call goto_character(match_end_0())
             call split_tag(tag)
         end do
 
-        moved = skip_chars_backward(LF//"[:blank:]", status)
+        moved = skip_characters_backward(LF//"[:blank:]", status)
 
     contains
 
-        integer(int64) function match_end_0() result(pos)
+        integer(int64) function match_end_0() result(position)
             use search_mod, only: match_end
             type(status_type) :: st
 
-            pos = match_end(0, st)
+            position = match_end(0, st)
         end function match_end_0
 
         ! (split-string TAG ",[[:blank:]]*" t), appended to NAMES.
@@ -495,25 +495,26 @@ contains
         character(len=:), allocatable, intent(out) :: name
         integer(int64), intent(out), optional :: file_beginning
         type(status_type) :: st
-        integer(int64) :: opoint, found, beginning
+        integer(int64) :: original_point, found, beginning
         logical :: matched
 
-        opoint = point()
+        original_point = point()
         beginning = 0
-        call goto_char(where)
+        call goto_character(where)
         call beginning_of_line()
 
-        if (looking_at(change_log_start_entry_regexp, st)) then
+        if (looking_at(change_log_start_entry_regular_expression, st)) then
             ! We are at the start of an entry, search forward for a file
             ! name.
             call file_name_after(2)
-        else if (looking_at(change_log_file_names_regexp, st)) then
+        else if (looking_at(change_log_file_names_regular_expression, st)) then
             ! We found a file name.
             call take(2)
         else
             ! Look backwards for either a file name or the log entry start.
-            call re_search_backward("\("//change_log_start_entry_regexp//"\)\|\("//change_log_file_names_regexp//"\)", &
-                                    found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_backward("\("//change_log_start_entry_regular_expression//"\)\|\(" &
+                                                    //change_log_file_names_regular_expression//"\)", &
+                                                    found, st, noerror=SEARCH_NOERROR)
 
             if (found > 0) then
                 if (match_beginning(1, st) > 0) then
@@ -530,17 +531,17 @@ contains
         end if
 
         if (present(file_beginning)) file_beginning = beginning
-        call goto_char(opoint)
+        call goto_character(original_point)
 
     contains
 
         ! (re-search-forward change-log-file-names-re nil t), then group N.
         subroutine file_name_after(n)
             integer, intent(in) :: n
-            integer(int64) :: pos
+            integer(int64) :: position
 
-            call re_search_forward(change_log_file_names_regexp, pos, st, noerror=SEARCH_NOERROR)
-            if (pos > 0) call take(n)
+            call regular_expression_search_forward(change_log_file_names_regular_expression, position, st, noerror=SEARCH_NOERROR)
+            if (position > 0) call take(n)
         end subroutine file_name_after
 
         subroutine take(n)
@@ -626,12 +627,12 @@ contains
 
     !> Return version number of current buffer's file.
     !> This is the value returned by `vc_working_revision' or, if that is
-    !> unallocated, by matching `change_log_version_number_regexps'
+    !> unallocated, by matching `change_log_version_number_regular_expressions'
     !> (VERSION unallocated for none).  Port of
     !> add-log.el:change-log-version-number-search.
     recursive subroutine search_change_log_version_number(version)
         character(len=:), allocatable, intent(out) :: version
-        integer(int64) :: total, limit, opoint, begv, zv_from_end, found
+        integer(int64) :: total, limit, original_point, beginning_of_accessible_portion, end_of_accessible_portion_from_end, found
         type(status_type) :: st
         character(len=:), allocatable :: file
         logical :: has_revision
@@ -655,20 +656,22 @@ contains
             if (allocated(version)) deallocate (version)
         end if
 
-        if (.not. allocated(change_log_version_number_regexps)) return
-        opoint = point()
-        begv = buffers(current)%begv
-        zv_from_end = buffers(current)%text%z - buffers(current)%zv
+        if (.not. allocated(change_log_version_number_regular_expressions)) return
+        original_point = point()
+        beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+        end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
         call widen()
 
-        do k = 1, size(change_log_version_number_regexps)
-            call goto_char(point_min())
+        do k = 1, size(change_log_version_number_regular_expressions)
+            call goto_character(point_minimum())
 
             if (limit > 0) then
-                call re_search_forward(trim(change_log_version_number_regexps(k)), found, st, bound=limit, &
-                                       noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(trim(change_log_version_number_regular_expressions(k)), found, st, &
+                                                       bound=limit, &
+                                                       noerror=SEARCH_NOERROR)
             else
-                call re_search_forward(trim(change_log_version_number_regexps(k)), found, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(trim(change_log_version_number_regular_expressions(k)), found, st, &
+                                                       noerror=SEARCH_NOERROR)
             end if
 
             if (st%ok() .and. found > 0) then
@@ -677,8 +680,8 @@ contains
             end if
         end do
 
-        call goto_char(opoint)
-        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
+        call goto_character(original_point)
+        call narrow_to_region(beginning_of_accessible_portion, buffers(current)%text%z - end_of_accessible_portion_from_end, st)
     end subroutine search_change_log_version_number
 
     !> Find a change log file for \[add_change_log_entry] and return the name.
@@ -701,7 +704,7 @@ contains
     !> add-log.el:find-change-log.
     recursive function find_change_log(file_name_in, buffer_file) result(file_name)
         character(len=*), intent(in), optional :: file_name_in, buffer_file
-        character(len=:), allocatable :: file_name, cbase, dir, try, up, source, chased
+        character(len=:), allocatable :: file_name, cbase, directory, try, up, source, chased
         type(handle_type) :: old, source_buffer
         type(status_type) :: st
         logical :: found
@@ -745,8 +748,8 @@ contains
             end if
 
             if (is_file_directory(file_name)) then
-                dir = file_name
-                call expand_file_name(change_log_name(), file_name, st, dir)
+                directory = file_name
+                call expand_file_name(change_log_name(), file_name, st, directory)
             end if
 
             ! Chase links before visiting the file.
@@ -756,18 +759,18 @@ contains
             call expand_file_name(chased, file_name, st)
             cbase = file_name_nondirectory(change_log_name())
             ! locate-dominating-file with the test.
-            dir = file_name_directory(abbreviate_file_name(file_name))
+            directory = file_name_directory(abbreviate_file_name(file_name))
             found = .false.
 
-            do while (len(dir) > 0)
-                call expand_file_name(cbase, try, st, dir)
+            do while (len(directory) > 0)
+                call expand_file_name(cbase, try, st, directory)
 
                 if (is_buffer_live(get_file_buffer(try)) .or. file_exists(try)) then
                     found = .true.
                 else if (allocated(change_log_directory_files)) then
                     ! Stop at VCS root?
                     do k = 1, size(change_log_directory_files)
-                        call expand_file_name(trim(change_log_directory_files(k)), try, st, dir)
+                        call expand_file_name(trim(change_log_directory_files(k)), try, st, directory)
 
                         if (file_exists(try)) then
                             found = .true.
@@ -777,12 +780,12 @@ contains
                 end if
 
                 if (found) exit
-                up = file_name_directory(directory_file_name(dir))
-                if (up == dir) exit
-                dir = up
+                up = file_name_directory(directory_file_name(directory))
+                if (up == directory) exit
+                directory = up
             end do
 
-            if (found) call expand_file_name(cbase, file_name, st, file_name_as_directory(dir))
+            if (found) call expand_file_name(cbase, file_name, st, file_name_as_directory(directory))
         end if
 
         ! Make a local variable in this buffer so we needn't search again.
@@ -797,7 +800,7 @@ contains
         character(len=*), intent(in) :: log_file
         character(len=:), allocatable, intent(out) :: name
         character(len=*), intent(in), optional :: buffer_file
-        character(len=:), allocatable :: dir, rel, new, true_file, true_dir
+        character(len=:), allocatable :: directory, relative, new, true_file, true_directory
         type(status_type) :: st, st2
 
         ! Never want to add a change log entry for the ChangeLog file itself.
@@ -809,29 +812,29 @@ contains
             return
         end if
 
-        dir = file_name_directory(log_file)
-        rel = file_relative_name(buffer_file, dir)
+        directory = file_name_directory(log_file)
+        relative = file_relative_name(buffer_file, directory)
 
         ! Sometimes with symlinks, the two buffers may have names that
         ! appear to belong to different directory trees.  So check the
         ! file-truenames, to see if we get a better result.
-        if (index(rel, "../") == 1) then
+        if (index(relative, "../") == 1) then
             call file_truename(buffer_file, true_file, st)
-            call file_truename(dir, true_dir, st2)
+            call file_truename(directory, true_directory, st2)
 
             if (st%ok() .and. st2%ok()) then
-                new = file_relative_name(true_file, true_dir)
-                if (count_characters(new) < count_characters(rel)) rel = new
+                new = file_relative_name(true_file, true_directory)
+                if (count_characters(new) < count_characters(relative)) relative = new
             end if
         end if
 
         ! If we have a backup file, it's presumably because we're
         ! comparing old and new versions (e.g. for deleted
         ! functions) and we'll want to use the original name.
-        if (is_backup_file_name(rel)) then
-            name = file_name_sans_versions(rel)
+        if (is_backup_file_name(relative)) then
+            name = file_name_sans_versions(relative)
         else
-            name = rel
+            name = relative
         end if
     end subroutine add_log_file_name
 
@@ -932,7 +935,7 @@ contains
         character(len=:), allocatable :: subprogram, version, buffer_file_name, buffer_file, log_file, item, full_name, &
                                          mailing_address, entry_text, time, answer, text
         procedure(add_log_name_procedure), pointer :: fn
-        type(handle_type) :: shown, log_buffer, pos
+        type(handle_type) :: shown, log_buffer, position
         type(status_type) :: st
         integer(int64) :: bound, found, saved, moved, here, beginning, p, mincol
         integer(int32) :: c
@@ -1003,7 +1006,7 @@ contains
         end if
 
         call undo_boundary()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (allocated(add_log_full_name)) then
             full_name = add_log_full_name
@@ -1037,7 +1040,7 @@ contains
         if (looking_at("Copyright", st)) then
             call search_forward(LF//LF, found, status)
             if (.not. status%ok()) return
-            moved = skip_chars_forward(LF, st)
+            moved = skip_characters_forward(LF, st)
         end if
 
         ! Advance into first entry if it is usable; else make new one.
@@ -1046,12 +1049,12 @@ contains
         hit = .false.
 
         if (.not. add_log_always_start_new_record) then
-            if (looking_at(regexp_quote(entry_text), st)) then
+            if (looking_at(regular_expression_quote(entry_text), st)) then
                 ! Reject multiple author entries.  (Bug#8645)
                 saved = point()
                 moved = forward_line(1_int64)
                 hit = .not. looking_at("[ "//TAB//"]+.*<.*>$", st)
-                call goto_char(saved)
+                call goto_character(saved)
             end if
         end if
 
@@ -1068,7 +1071,7 @@ contains
         saved = point()
 
         if (looking_at(LF//"*[^"//LF//"* "//TAB//"]", st)) then
-            moved = skip_chars_forward(LF, st)
+            moved = skip_characters_forward(LF, st)
         else if (add_log_keep_changes_together) then
             ! page delimits entries for date
             call forward_page(st)
@@ -1078,9 +1081,9 @@ contains
         end if
 
         bound = point()
-        call goto_char(saved)
+        call goto_character(saved)
         ! Now insert the new line for this item.
-        call re_search_forward("^\s *\* *$", found, st, bound=bound, noerror=SEARCH_NOERROR)
+        call regular_expression_search_forward("^\s *\* *$", found, st, bound=bound, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
             ! Put this file name into the existing empty item.
@@ -1094,20 +1097,20 @@ contains
                 saved_case = case_fold_search%value
                 case_fold_search = .false.
                 ! Don't accept `foo.bar' when looking for `foo':
-                call re_search_forward(regexp_quote(text)//"\(\s \|[(),:]\)", found, st, bound=bound, &
-                                       noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(regular_expression_quote(text)//"\(\s \|[(),:]\)", found, st, bound=bound, &
+                                                       noerror=SEARCH_NOERROR)
                 case_fold_search = saved_case
                 hit = found > 0
             end if
 
             if (hit) then
                 ! Add to the existing item for the same file.
-                call re_search_forward("^\s *$\|^\s \*", found, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("^\s *$\|^\s \*", found, st, noerror=SEARCH_NOERROR)
 
                 if (found > 0) then
-                    call goto_char(match_beginning(0, st))
+                    call goto_character(match_beginning(0, st))
                 else
-                    call goto_char(point_max())
+                    call goto_character(point_maximum())
                     call insert(LF, status)
                     if (.not. status%ok()) return
                 end if
@@ -1148,7 +1151,7 @@ contains
             saved = point()
             call beginning_of_line()
             blank = looking_at("\s *\(\* *\)?$", st)
-            call goto_char(saved)
+            call goto_character(saved)
 
             if (.not. blank) then
                 call insert(": ", status)
@@ -1166,7 +1169,7 @@ contains
         saved = point()
         call beginning_of_line()
         blank = looking_at("\s *$", st)
-        call goto_char(saved)
+        call goto_character(saved)
 
         if (.not. blank) then
             call insert(" ", status)
@@ -1175,9 +1178,9 @@ contains
 
         ! See if the prev function name has a message yet or not.
         ! If not, merge the two items.
-        call point_marker(pos)
+        call point_marker(position)
         moved = skip_syntax_backward(" ")
-        moved = skip_chars_backward("):", st)
+        moved = skip_characters_backward("):", st)
         merge = .false.
 
         if (.not. on_new_line) then
@@ -1187,7 +1190,7 @@ contains
 
                 if (status%ok()) then
                     beginning = point()
-                    call goto_char(here)
+                    call goto_character(here)
                     call buffer_substring(beginning, here, text, st)
 
                     if (text == subprogram .and. len(text) == len(subprogram)) then
@@ -1202,12 +1205,12 @@ contains
         end if
 
         if (status%ok()) then
-            call marker_position(pos, p, st)
+            call marker_position(position, p, st)
 
             if (merge) then
-                moved = skip_chars_backward(", ", st)
+                moved = skip_characters_backward(", ", st)
                 call delete_region(point(), p, status)
-                call char_before(c, has_c)
+                call character_before(c, has_c)
 
                 if (status%ok()) then
                     if (.not. has_c .or. c /= iachar("(")) call insert(", ", status)
@@ -1217,13 +1220,13 @@ contains
                     if (looking_at("):", st)) call delete_region(point() + 1, line_end_position(), status)
                 end if
 
-                call marker_position(pos, p, st)
-                call goto_char(p)
+                call marker_position(position, p, st)
+                call goto_character(p)
                 if (status%ok()) call insert("(", status)
             end if
         end if
 
-        call destroy_marker(pos, st)
+        call destroy_marker(position, st)
         if (.not. status%ok()) return
         call insert(subprogram//"): ", status)
 
@@ -1233,7 +1236,7 @@ contains
 
     contains
 
-        ! (while (and (not (is_eob)) (looking-at "^\\s *$"))
+        ! (while (and (not (is_end_of_buffer)) (looking-at "^\\s *$"))
         !   (delete-region (point) (line-beginning-position 2)))
         recursive subroutine delete_empty_lines(status)
             type(status_type), intent(out) :: status
@@ -1241,7 +1244,7 @@ contains
 
             status = status_type()
 
-            do while (.not. is_eob())
+            do while (.not. is_end_of_buffer())
                 if (.not. looking_at("^\s *$", st)) exit
                 call delete_region(point(), line_beginning_position(2_int64), status)
                 if (.not. status%ok()) return
@@ -1264,40 +1267,40 @@ contains
         call add_change_log_entry(status, whoami, file_name, other_window=.true.)
     end subroutine add_change_log_entry_other_window
 
-    recursive subroutine cmd_add_change_log_entry(status)
+    recursive subroutine execute_add_change_log_entry(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
         call read_change_log_name(name, status)
         if (.not. status%ok()) return
-        call add_change_log_entry(status, current_prefix_arg%kind /= PREFIX_NONE, name)
-    end subroutine cmd_add_change_log_entry
+        call add_change_log_entry(status, current_prefix_argument%kind /= PREFIX_NONE, name)
+    end subroutine execute_add_change_log_entry
 
-    recursive subroutine cmd_add_change_log_entry_other_window(status)
+    recursive subroutine execute_add_change_log_entry_other_window(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
             call read_change_log_name(name, status)
             if (.not. status%ok()) return
             call add_change_log_entry_other_window(status, .true., name)
         else
             call add_change_log_entry_other_window(status)
         end if
-    end subroutine cmd_add_change_log_entry_other_window
+    end subroutine execute_add_change_log_entry_other_window
 
-    recursive subroutine cmd_find_change_log_entry_file(status)
+    recursive subroutine execute_find_change_log_entry_file(status)
         type(status_type), intent(out) :: status
 
         call find_change_log_entry_file(status)
-    end subroutine cmd_find_change_log_entry_file
+    end subroutine execute_find_change_log_entry_file
 
     !> Return name of function definition point is in, or unallocated.
     !>
     !> Other modes are handled by a heuristic that looks in the 10K before
     !> point for uppercase headings starting in the first column or
     !> identifiers followed by `:' or `='.  See variables
-    !> `add_log_current_subprogram_header_regexp' and
+    !> `add_log_current_subprogram_header_regular_expression' and
     !> `add_log_current_subprogram_function'.
     !>
     !> Has a preference of looking backwards.  Port of
@@ -1308,10 +1311,10 @@ contains
         procedure(add_log_name_procedure), pointer :: fn
         character(len=:), allocatable :: result
         type(status_type) :: st
-        integer(int64) :: opoint, found
+        integer(int64) :: original_point, found
         logical :: saved_case, matched
 
-        opoint = point()
+        original_point = point()
         fn => add_log_current_subprogram_function%current()
 
         if (associated(fn)) then
@@ -1321,8 +1324,8 @@ contains
             saved_case = case_fold_search%value
             case_fold_search = .false.
             call end_of_line()
-            call re_search_backward(add_log_current_subprogram_header_regexp, found, st, &
-                                    bound=max(point() - 10000, point_min()), noerror=SEARCH_NOERROR)
+            call regular_expression_search_backward(add_log_current_subprogram_header_regular_expression, found, st, &
+                                                    bound=max(point() - 10000, point_minimum()), noerror=SEARCH_NOERROR)
 
             if (st%ok() .and. found > 0) then
                 result = match_string_no_properties(1, matched=matched)
@@ -1340,7 +1343,7 @@ contains
             case_fold_search = saved_case
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine add_log_current_subprogram
 
     ! ------------------------------------------------------------------
@@ -1364,31 +1367,31 @@ contains
         ! Name and e-mail; some people put e-mail in parens, not angles.
         person(1) = font_lock_highlight(1, face="change_log_name")
         person(2) = font_lock_highlight(2, face="change_log_email")
-        date(2) = font_lock_anchored(person, regexp="\([^<(]+?\)["//" "//TAB// &
+        date(2) = font_lock_anchored(person, regular_expression="\([^<(]+?\)["//" "//TAB// &
                                      "]*[(<]\([A-Za-z0-9_.+-]+@[A-Za-z0-9_.-]+\)[>)]")
-        keywords(1) = font_lock_keyword(regexp="^[0-9-]+ +\|^ \{11,\}\|^"//TAB//" \{3,\}\|"// &
+        keywords(1) = font_lock_keyword(regular_expression="^[0-9-]+ +\|^ \{11,\}\|^"//TAB//" \{3,\}\|"// &
                                         "^\(Sun\|Mon\|Tue\|Wed\|Thu\|Fri\|Sat\) [A-Z][a-z][a-z] [0-9:+ ]+", &
                                         highlights=date)
         ! File names.
         files(1) = font_lock_highlight(2, face="change_log_file")
         ! Possibly further names in a list:
         file(1) = font_lock_highlight(1, face="change_log_file")
-        files(2) = font_lock_anchored(file, regexp="\=, \([^ ,:(["//LF//"]+\)")
+        files(2) = font_lock_anchored(file, regular_expression="\=, \([^ ,:(["//LF//"]+\)")
         ! Possibly a parenthesized list of names:
         list(1) = font_lock_highlight(1, face="change_log_list")
-        files(3) = font_lock_anchored(list, regexp="\= ("//NAMES)
-        files(4) = font_lock_anchored(list, regexp="\=, *"//NAMES)
-        keywords(2) = font_lock_keyword(regexp=change_log_file_names_regexp, highlights=files)
+        files(3) = font_lock_anchored(list, regular_expression="\= ("//NAMES)
+        files(4) = font_lock_anchored(list, regular_expression="\=, *"//NAMES)
+        keywords(2) = font_lock_keyword(regular_expression=change_log_file_names_regular_expression, highlights=files)
         ! Function or variable names.
         functions(1) = font_lock_highlight(2, face="change_log_list")
-        functions(2) = font_lock_anchored(list, regexp="\=, *"//NAMES)
-        keywords(3) = font_lock_keyword(regexp="^\( +\|"//TAB//"\)("//NAMES, highlights=functions)
+        functions(2) = font_lock_anchored(list, regular_expression="\=, *"//NAMES)
+        keywords(3) = font_lock_keyword(regular_expression="^\( +\|"//TAB//"\)("//NAMES, highlights=functions)
         ! Conditionals.
         h(1) = font_lock_highlight(1, face="change_log_conditionals")
-        keywords(4) = font_lock_keyword(regexp="\[!?\([^]"//LF//"]+\)\]\(:\| (\)", highlights=h)
+        keywords(4) = font_lock_keyword(regular_expression="\[!?\([^]"//LF//"]+\)\]\(:\| (\)", highlights=h)
         ! Function of change.
         h(1) = font_lock_highlight(1, face="change_log_function")
-        keywords(5) = font_lock_keyword(regexp="<\([^>"//LF//"]+\)>\(:\| (\)", highlights=h)
+        keywords(5) = font_lock_keyword(regular_expression="<\([^>"//LF//"]+\)>\(:\| (\)", highlights=h)
         ! Acknowledgments.
         ! Don't include plain "From" because that is vague;
         ! we want to encourage people to say something more specific.
@@ -1396,7 +1399,7 @@ contains
         ! is to put the name of the author of the changes at the top
         ! of the change log entry.
         h(1) = font_lock_highlight(3, face="change_log_acknowledgment")
-        keywords(6) = font_lock_keyword(regexp="\(^\( +\|"//TAB//"\)\|  \)\(Thanks to\|Patch\(es\)? by\|"// &
+        keywords(6) = font_lock_keyword(regular_expression="\(^\( +\|"//TAB//"\)\|  \)\(Thanks to\|Patch\(es\)? by\|"// &
                                         "Report\(ed by\| from\)\|Suggest\(ed by\|ion from\)\)", highlights=h)
     end subroutine change_log_font_lock_keywords
 
@@ -1415,7 +1418,7 @@ contains
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: saved
 
-        if (.not. associated(major_modes%change_log_mode%execute)) call init_add_log()
+        if (.not. associated(major_modes%change_log_mode%execute)) call initialize_add_log()
         call major_modes%change_log_mode%begin(saved, status)
         if (.not. status%ok()) return
         call left_margin%set_local(8_int64)
@@ -1442,34 +1445,34 @@ contains
 
         f => change_log_date
         call f%define("change_log_date", "Face used to highlight dates in date lines.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_string_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_string_face"))
         f => change_log_name_face
         call f%define("change_log_name", "Face for highlighting author names.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_constant_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_constant_face"))
         f => change_log_email
         call f%define("change_log_email", "Face for highlighting author email addresses.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_variable_name_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_variable_name_face"))
         f => change_log_file
         call f%define("change_log_file", "Face for highlighting file names.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_function_name_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_function_name_face"))
         f => change_log_list
         call f%define("change_log_list", "Face for highlighting parenthesized lists of functions or variables.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_keyword_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_keyword_face"))
         f => change_log_conditionals
         call f%define("change_log_conditionals", "Face for highlighting conditionals of the form `[...]'.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_variable_name_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_variable_name_face"))
         f => change_log_function
         call f%define("change_log_function", "Face for highlighting items of the form `<....>'.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_variable_name_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_variable_name_face"))
         f => change_log_acknowledgment
         call f%define("change_log_acknowledgment", "Face for highlighting acknowledgments.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_comment_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_comment_face"))
     end subroutine define_faces
 
     !> Define Change Log mode, its syntax table, keys and faces, the
-    !> commands, and (with CTL_X_4_MAP) C-x 4 a.  Not a port.
-    subroutine init_add_log(ctl_x_4_map)
-        type(handle_type), intent(in), optional :: ctl_x_4_map
+    !> commands, and (with CONTROL_X_4_MAP) C-x 4 a.  Not a port.
+    subroutine initialize_add_log(control_x_4_map)
+        type(handle_type), intent(in), optional :: control_x_4_map
         type(status_type) :: st
 
         call define_faces()
@@ -1478,18 +1481,18 @@ contains
             change_log_directory_files = [character(len=8) :: ".bzr", ".git", ".hg", ".svn"]
         end if
 
-        if (.not. allocated(change_log_version_number_regexps)) then
+        if (.not. allocated(change_log_version_number_regular_expressions)) then
             !  (defconst ad-version "2.15"
             ! Revision: pcl-cvs.el,v 1.72 1999/09/05 20:21:54 monnier Exp
-            change_log_version_number_regexps = [character(len=64) :: &
-                                                 "^(def[^ "//TAB//LF//"]+[ "//TAB//"]+[^ "//TAB//LF//"][ "//TAB// &
-                                                 """\([0-9]+\.[0-9.]+\)", &
-                                                 "^;+ *Revision: +[^ "//TAB//LF//"]+[ "//TAB//"]+\([0-9]+\.[0-9.]+\)"]
+            change_log_version_number_regular_expressions = [character(len=64) :: &
+                                                             "^(def[^ "//TAB//LF//"]+[ "//TAB//"]+[^ "//TAB//LF//"][ "//TAB// &
+                                                             """\([0-9]+\.[0-9.]+\)", &
+                                                             "^;+ *Revision: +[^ "//TAB//LF//"]+[ "//TAB//"]+\([0-9]+\.[0-9.]+\)"]
         end if
 
-        if (.not. allocated(add_log_current_subprogram_header_regexp)) then
-            add_log_current_subprogram_header_regexp = "^\([[:upper:]][[:upper:]_ ]*[[:upper:]_]\|"// &
-                                                       "[-_[:alnum:]]*[[:alpha:]][-_[:alnum:]]*\)[ "//TAB//"]*[:=]"
+        if (.not. allocated(add_log_current_subprogram_header_regular_expression)) then
+            add_log_current_subprogram_header_regular_expression = "^\([[:upper:]][[:upper:]_ ]*[[:upper:]_]\|"// &
+                                                                   "[-_[:alnum:]]*[[:alpha:]][-_[:alnum:]]*\)[ "//TAB//"]*[:=]"
         end if
 
         call forward_setting(change_log_default_name, local_if_set=.true.)
@@ -1506,10 +1509,10 @@ contains
                                                 syntax_table=change_log_mode_syntax_table)
         change_log_mode_map = major_modes%change_log_mode%map
         commands%change_log_mode%execute => change_log_mode
-        commands%add_change_log_entry%execute => cmd_add_change_log_entry
-        commands%add_change_log_entry_other_window%execute => cmd_add_change_log_entry_other_window
-        commands%find_change_log_entry_file%execute => cmd_find_change_log_entry_file
+        commands%add_change_log_entry%execute => execute_add_change_log_entry
+        commands%add_change_log_entry_other_window%execute => execute_add_change_log_entry_other_window
+        commands%find_change_log_entry_file%execute => execute_find_change_log_entry_file
         call keymap_set(change_log_mode_map, "C-c C-f", "find_change_log_entry_file", st)
-        if (present(ctl_x_4_map)) call keymap_set(ctl_x_4_map, "a", "add_change_log_entry_other_window", st)
-    end subroutine init_add_log
+        if (present(control_x_4_map)) call keymap_set(control_x_4_map, "a", "add_change_log_entry_other_window", st)
+    end subroutine initialize_add_log
 end module add_log_mod

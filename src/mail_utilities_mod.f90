@@ -31,23 +31,22 @@
 module mail_utilities_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, PREFIX_NONE
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use execute_interactively_mod, only: current_prefix_argument, PREFIX_NONE
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, &
                           generate_new_buffer_name
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, narrow_to_region, widen, &
-                                     buffer_substring_no_properties, &
-                                     delete_region, char_after, char_before, line_beginning_position, interactive_region, &
-                                     char_to_string, is_eob
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, narrow_to_region, widen, &
+                                     buffer_substring_no_properties, delete_region, character_after, character_before, &
+                                     line_beginning_position, interactive_region, character_to_string, is_end_of_buffer
     use insert_delete_mod, only: insert
-    use editing_commands_mod, only: forward_line, forward_char
-    use syntax_mod, only: skip_chars_forward, skip_chars_backward
-    use search_mod, only: string_match, regexp_quote, re_search_forward, looking_at, match_beginning, match_end, &
-                          replace_match, case_fold_search, string_index_to_offset, SEARCH_NOERROR, match_data, &
+    use editing_commands_mod, only: forward_line, forward_character
+    use syntax_mod, only: skip_characters_forward, skip_characters_backward
+    use search_mod, only: string_match, regular_expression_quote, regular_expression_search_forward, looking_at, match_beginning, &
+                          match_end, replace_match, case_fold_search, string_index_to_offset, SEARCH_NOERROR, match_data, &
                           set_match_data
     use basic_subprograms_mod, only: match_string
-    use character_mod, only: string_char_and_length, byte8_to_char
+    use character_mod, only: string_character_and_length, byte8_to_character
     use utility_functions_mod, only: count_characters
     use file_input_output_mod, only: insert_file_contents
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
@@ -58,7 +57,7 @@ module mail_utilities_mod
 
     public :: is_mail_file_babyl, quote_mail_printable, quote_mail_printable_region, unquote_mail_printable, &
               unquote_mail_printable_region, strip_mail_quoted_names, mail_dont_reply_to, get_mail_field, &
-              parse_mail_comma_list, mail_comma_list_regexp, mail_rfc822_date, init_mail_utils
+              parse_mail_comma_list, mail_comma_list_regular_expression, mail_rfc822_date, initialize_mail_utilities
 
     !> Regexp specifying addresses to prune from a reply message.
     !> If this is unallocated, it is set the first time you compose a reply, to
@@ -100,13 +99,13 @@ contains
     end function chars
 
     ! The character at index K of STRING.  Not a port.
-    integer(int32) function char_at(string, k) result(c)
+    integer(int32) function character_at(string, k) result(c)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: k
         integer(int32) :: clen
 
-        call string_char_and_length(string, string_index_to_offset(string, k) + 1, c, clen)
-    end function char_at
+        call string_character_and_length(string, string_index_to_offset(string, k) + 1, c, clen)
+    end function character_at
 
     ! A marker at point (save-excursion).  Not a port.
     function marker_here() result(m)
@@ -117,11 +116,11 @@ contains
     end function marker_here
 
     ! The position of marker M, which is destroyed.  Not a port.
-    integer(int64) function marker_end(m) result(pos)
+    integer(int64) function marker_end(m) result(position)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
-        call marker_position(m, pos, st)
+        call marker_position(m, position, st)
         call destroy_marker(m, st)
     end function marker_end
 
@@ -130,10 +129,11 @@ contains
         type(restriction_type), intent(out) :: r
         type(status_type) :: st
 
-        r%narrowed = buffers(current)%begv /= 1 .or. buffers(current)%zv /= buffers(current)%text%z
+        r%narrowed = buffers(current)%beginning_of_accessible_portion /= 1 .or. buffers(current)%end_of_accessible_portion &
+                     /= buffers(current)%text%z
         if (.not. r%narrowed) return
-        call copy_marker_at(buffers(current)%begv, r%beginning, .false., st)
-        call copy_marker_at(buffers(current)%zv, r%end, .true., st)
+        call copy_marker_at(buffers(current)%beginning_of_accessible_portion, r%beginning, .false., st)
+        call copy_marker_at(buffers(current)%end_of_accessible_portion, r%end, .true., st)
     end subroutine restriction_begin
 
     ! Restore the restriction R remembered.  Not a port.
@@ -148,24 +148,24 @@ contains
 
     ! Make a temporary buffer current (with-temp-buffer); OLD is the
     ! buffer to go back to.  Not a port.
-    subroutine temp_begin(old, tmp)
-        type(handle_type), intent(out) :: old, tmp
+    subroutine temporary_begin(old, temporary)
+        type(handle_type), intent(out) :: old, temporary
         type(status_type) :: st
 
         old = current_buffer()
-        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, st)
-        call set_buffer(tmp, st)
-    end subroutine temp_begin
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, st)
+        call set_buffer(temporary, st)
+    end subroutine temporary_begin
 
-    ! Close the temporary buffer TMP and make OLD current again.
+    ! Close the temporary buffer TEMPORARY and make OLD current again.
     ! Not a port.
-    subroutine temp_end(old, tmp)
-        type(handle_type), intent(in) :: old, tmp
+    subroutine temporary_end(old, temporary)
+        type(handle_type), intent(in) :: old, temporary
         type(status_type) :: st
 
-        call close_buffer(tmp, st)
+        call close_buffer(temporary, st)
         call set_buffer(old, st)
-    end subroutine temp_end
+    end subroutine temporary_end
 
     ! ------------------------------------------------------------------
     ! Files
@@ -176,14 +176,14 @@ contains
     logical function is_mail_file_babyl(file, status) result(babyl)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         integer(int64) :: inserted
 
         babyl = .false.
-        call temp_begin(old, tmp)
+        call temporary_begin(old, temporary)
         call insert_file_contents(file, .false., inserted, status, beginning_byte=0_int64, end_byte=100_int64)
         if (status%ok()) babyl = looking_at("BABYL OPTIONS:", status)
-        call temp_end(old, tmp)
+        call temporary_end(old, temporary)
     end function is_mail_file_babyl
 
     ! ------------------------------------------------------------------
@@ -204,7 +204,7 @@ contains
         integer(int64) :: i, m
         integer(int64), allocatable :: saved(:)
         type(status_type) :: st
-        character(len=16) :: hex
+        character(len=16) :: hexadecimal
 
         i = 1
         result = ""
@@ -216,14 +216,14 @@ contains
             if (m == 0) m = string_match("[^"//achar(0)//"-"//achar(127)//"]", string, st, start=i)
             if (m == 0) exit
             ! (upcase (format "=%02x" C))
-            write (hex, '("=", z0.2)') char_at(string, m)
-            result = result//chars(string, i, m)//trim(hex)
+            write (hexadecimal, '("=", z0.2)') character_at(string, m)
+            result = result//chars(string, i, m)//trim(hexadecimal)
             i = match_end(0, st)
         end do
 
         call set_match_data(saved)
 
-        if (opt(wrapper)) then
+        if (option(wrapper)) then
             result = "=?ISO-8859-1?Q?"//result//chars(string, i)//"?="
         else
             result = result//chars(string, i)
@@ -244,38 +244,38 @@ contains
         logical :: ok
         type(restriction_type) :: r
         type(handle_type) :: here
-        character(len=16) :: hex
+        character(len=16) :: hexadecimal
         character(len=:), allocatable :: low, high
 
         saved = match_data()
         here = marker_here()
         call restriction_begin(r)
-        call goto_char(beginning)
+        call goto_character(beginning)
         call narrow_to_region(beginning, end, status)
         ! The raw bytes 128..255 (a unibyte \200-\377 range upstream).
-        if (status%ok()) call char_to_string(byte8_to_char(128), low, status)
-        if (status%ok()) call char_to_string(byte8_to_char(255), high, status)
+        if (status%ok()) call character_to_string(byte8_to_character(128), low, status)
+        if (status%ok()) call character_to_string(byte8_to_character(255), high, status)
 
         if (status%ok()) then
             do
-                call re_search_forward("[?=""]\|["//low//"-"//high//"]", found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("[?=""]\|["//low//"-"//high//"]", found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok() .or. found == 0) exit
-                call char_before(c, ok)
-                write (hex, '("=", z0.2)') c
-                call replace_match(trim(hex), status, fixedcase=.true., literal=.true.)
+                call character_before(c, ok)
+                write (hexadecimal, '("=", z0.2)') c
+                call replace_match(trim(hexadecimal), status, fixedcase=.true., literal=.true.)
                 if (.not. status%ok()) exit
             end do
         end if
 
-        if (status%ok() .and. opt(wrapper)) then
-            call goto_char(beginning)
+        if (status%ok() .and. option(wrapper)) then
+            call goto_character(beginning)
             call insert("=?ISO-8859-1?Q?", status)
-            call goto_char(end)
+            call goto_character(end)
             if (status%ok()) call insert("?=", status)
         end if
 
         call restriction_end(r)
-        call goto_char(marker_end(here))
+        call goto_character(marker_end(here))
         call set_match_data(saved)
     end subroutine quote_mail_printable_region
 
@@ -311,7 +311,7 @@ contains
         saved = match_data()
         string = string_in
 
-        if (opt(wrapper)) then
+        if (option(wrapper)) then
             if (string_match("\`=\?ISO-8859-1\?Q\?\([^?]*\)\?", string, st) > 0) string = match_string(1, string)
         end if
 
@@ -324,9 +324,9 @@ contains
             result = result//chars(string, i, m)
             b = match_beginning(1, st)
 
-            if (char_at(string, b) /= 10) then
-                call char_to_string(16*unquote_mail_printable_hexdigit(char_at(string, b)) &
-                                    + unquote_mail_printable_hexdigit(char_at(string, b + 1)), text, st)
+            if (character_at(string, b) /= 10) then
+                call character_to_string(16*unquote_mail_printable_hexdigit(character_at(string, b)) &
+                                         + unquote_mail_printable_hexdigit(character_at(string, b + 1)), text, st)
                 result = result//text
             end if
 
@@ -369,16 +369,16 @@ contains
 
         body: block
             if (.not. status%ok()) exit body
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
-            if (opt(wrapper)) then
+            if (option(wrapper)) then
                 matched = looking_at("\`=\?ISO-8859-1\?Q\?\([^?]*\)\?", status)
                 if (.not. status%ok()) exit body
 
                 if (matched) then
                     e1 = match_end(1, st)
                     b1 = match_beginning(1, st)
-                    call delete_region(e1, point_max(), status)
+                    call delete_region(e1, point_maximum(), status)
                     if (.not. status%ok()) exit body
                     call delete_region(point(), b1, status)
                     if (.not. status%ok()) exit body
@@ -386,12 +386,12 @@ contains
             end if
 
             do
-                call re_search_forward("=\(\([0-9A-F][0-9A-F]\)\|[="//LF//"]\|..\)", found, status, &
-                                       noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("=\(\([0-9A-F][0-9A-F]\)\|[="//LF//"]\|..\)", found, status, &
+                                                       noerror=SEARCH_NOERROR)
                 if (.not. status%ok() .or. found == 0) exit
-                call goto_char(match_end(0, st))
+                call goto_character(match_end(0, st))
                 m1 = match_beginning(1, st)
-                call char_after(c1, ok, m1)
+                call character_after(c1, ok, m1)
 
                 if (c1 == 10) then
                     call replace_match("", status)
@@ -399,25 +399,25 @@ contains
                     call replace_match("=", status)
                 else if (match_beginning(2, st) > 0) then
                     b2 = match_beginning(2, st)
-                    call char_after(c1, ok, b2)
-                    call char_after(c2, ok, b2 + 1)
+                    call character_after(c1, ok, b2)
+                    call character_after(c2, ok, b2 + 1)
                     code = 16*unquote_mail_printable_hexdigit(c1) + unquote_mail_printable_hexdigit(c2)
 
-                    if (opt(unibyte)) then
+                    if (option(unibyte)) then
                         call replace_match("", status)
                         ! insert-byte will insert this as a
                         ! corresponding eight-bit character.
-                        if (code >= 128) code = byte8_to_char(code)
-                        if (status%ok()) call char_to_string(code, text, status)
+                        if (code >= 128) code = byte8_to_character(code)
+                        if (status%ok()) call character_to_string(code, text, status)
                         if (status%ok()) call insert(text, status)
                     else
-                        call char_to_string(code, text, status)
+                        call character_to_string(code, text, status)
                         if (status%ok()) call replace_match(text, status, fixedcase=.true., literal=.true.)
                     end if
-                else if (opt(noerror)) then
+                else if (option(noerror)) then
                     failed = .true.
                 else
-                    call set_error(status, FM_GENERIC_ERROR, "Malformed MIME quoted-printable message")
+                    call set_error(status, GENERIC_ERROR_CODE, "Malformed MIME quoted-printable message")
                 end if
 
                 if (.not. status%ok()) exit
@@ -425,7 +425,7 @@ contains
         end block body
 
         call restriction_end(r)
-        call goto_char(marker_end(here))
+        call goto_character(marker_end(here))
         call set_match_data(saved)
         if (present(succeeded)) succeeded = .not. failed
     end subroutine unquote_mail_printable_region
@@ -443,36 +443,36 @@ contains
         character(len=*), intent(in) :: address_in
         character(len=:), allocatable :: address
         character(len=:), allocatable :: replaced
-        integer(int64) :: pos, me, e
+        integer(int64) :: position, me, e
         type(status_type) :: st
 
         address = address_in
 
         ! Strip comments.
         do
-            pos = string_match("[ "//TAB//"]*(\([^()\]\|\\.\|\\"//LF//"\)*)", address, st)
-            if (pos == 0) exit
+            position = string_match("[ "//TAB//"]*(\([^()\]\|\\.\|\\"//LF//"\)*)", address, st)
+            if (position == 0) exit
             call replace_match("", st, string=address, subexp=0, result=replaced)
             address = replaced
         end do
 
         ! strip surrounding whitespace
-        pos = string_match("\`[ "//TAB//LF//"]*", address, st)
+        position = string_match("\`[ "//TAB//LF//"]*", address, st)
         me = match_end(0, st)
         e = string_match("[ "//TAB//LF//"]*\'", address, st, start=me)
         address = chars(address, me, e)
         ! strip `quoted' names (This is supposed to hack `"Foo Bar" <bar@host>')
-        pos = 1
+        position = 1
 
         do
-            pos = string_match("\([ "//TAB//"]?\)\([ "//TAB//"]*""\([^""\]\|\\.\|\\"//LF//"\)*""[ "//TAB//LF//"]*\)", &
-                               address, st, start=pos)
-            if (pos == 0) exit
+            position = string_match("\([ "//TAB//"]?\)\([ "//TAB//"]*""\([^""\]\|\\.\|\\"//LF//"\)*""[ "//TAB//LF//"]*\)", &
+                                    address, st, start=position)
+            if (position == 0) exit
             me = match_end(0, st)
 
             ! If the next thing is "@", we have "foo bar"@host.  Leave it.
             if (count_characters(address) >= me .and. is_at_sign(me)) then
-                pos = me
+                position = me
             else
                 ! Otherwise discard the "..." part.
                 call replace_match("", st, string=address, subexp=2, result=replaced)
@@ -483,8 +483,8 @@ contains
         ! If this address contains <...>, replace it with just
         ! the part between the <...>.
         do
-            pos = string_match("\(,\s-*\|\`\)\([^,]*<\([^>,:]*\)>[^,]*\)\(\s-*,\|\'\)", address, st)
-            if (pos == 0) exit
+            position = string_match("\(,\s-*\|\`\)\([^,]*<\([^>,:]*\)>[^,]*\)\(\s-*,\|\'\)", address, st)
+            if (position == 0) exit
             call replace_match(match_string(3, address), st, literal=.true., string=address, subexp=2, result=replaced)
             address = replaced
         end do
@@ -494,7 +494,7 @@ contains
         logical function is_at_sign(k)
             integer(int64), intent(in) :: k
 
-            is_at_sign = char_at(address, k) == iachar("@")
+            is_at_sign = character_at(address, k) == iachar("@")
         end function is_at_sign
     end function strip_mail_quoted_names
 
@@ -506,7 +506,7 @@ contains
         character(len=*), intent(in) :: destinations_in
         character(len=:), allocatable :: destinations
         character(len=:), allocatable :: address, naked, mail_address, tail
-        integer(int64) :: start_pos, current_pos, next_pos, pos
+        integer(int64) :: start_position, current_position, next_position, position
         logical :: saved_fold, quote
         type(status_type) :: st
 
@@ -514,64 +514,64 @@ contains
 
         if (.not. allocated(mail_dont_reply_to_names)) then
             mail_address = user_mail_address_value()
-            if (len(mail_address) > 0) mail_dont_reply_to_names = "\`"//regexp_quote(mail_address)//"\'"
+            if (len(mail_address) > 0) mail_dont_reply_to_names = "\`"//regular_expression_quote(mail_address)//"\'"
         end if
 
         ! Split up DESTINATIONS and match each element separately.
-        start_pos = 1
-        current_pos = 1
+        start_position = 1
+        current_position = 1
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
 
-        do while (start_pos > 0)
-            current_pos = string_match("[,""]", destinations, st, start=current_pos)
+        do while (start_position > 0)
+            current_position = string_match("[,""]", destinations, st, start=current_position)
             quote = .false.
-            if (current_pos > 0) quote = match_string(0, destinations) == '"'
+            if (current_position > 0) quote = match_string(0, destinations) == '"'
 
             if (quote) then
                 ! Search for matching quote.
-                tail = chars(destinations, current_pos + 1)
-                next_pos = index(tail, '"', kind=int64)
+                tail = chars(destinations, current_position + 1)
+                next_position = index(tail, '"', kind=int64)
 
-                if (next_pos > 0) then
-                    next_pos = current_pos + count_characters(tail(1:next_pos - 1)) + 1
-                    current_pos = next_pos + 1
+                if (next_position > 0) then
+                    next_position = current_position + count_characters(tail(1:next_position - 1)) + 1
+                    current_position = next_position + 1
                 else
                     ! If the open-quote has no close-quote,
                     ! delete the open-quote to get something well-defined.
                     ! This case is not valid, but it can happen if things
                     ! are weird elsewhere.
-                    destinations = chars(destinations, 1_int64, current_pos)//chars(destinations, current_pos + 1)
-                    current_pos = start_pos
+                    destinations = chars(destinations, 1_int64, current_position)//chars(destinations, current_position + 1)
+                    current_position = start_position
                 end if
             else
-                if (current_pos > 0) then
-                    address = chars(destinations, start_pos, current_pos)
+                if (current_position > 0) then
+                    address = chars(destinations, start_position, current_position)
                 else
-                    address = chars(destinations, start_pos)
+                    address = chars(destinations, start_position)
                 end if
 
                 naked = strip_mail_quoted_names(address)
 
                 if (is_pruned(naked)) then
-                    if (current_pos > 0) then
-                        destinations = chars(destinations, 1_int64, start_pos)//chars(destinations, current_pos + 1)
+                    if (current_position > 0) then
+                        destinations = chars(destinations, 1_int64, start_position)//chars(destinations, current_position + 1)
                     else
-                        destinations = chars(destinations, 1_int64, start_pos)
+                        destinations = chars(destinations, 1_int64, start_position)
                     end if
 
-                    current_pos = start_pos
+                    current_position = start_position
                 else
-                    if (current_pos > 0) current_pos = current_pos + 1
-                    start_pos = current_pos
+                    if (current_position > 0) current_position = current_position + 1
+                    start_position = current_position
                 end if
             end if
         end do
 
         case_fold_search%value = saved_fold
         ! get rid of any trailing commas
-        pos = string_match("[ ,"//TAB//LF//"]*\'", destinations, st)
-        if (pos > 0) destinations = chars(destinations, 1_int64, pos)
+        position = string_match("[ ,"//TAB//LF//"]*\'", destinations, st)
+        if (position > 0) destinations = chars(destinations, 1_int64, position)
         ! remove leading spaces. they bother me.
         if (string_match("\(\s \|,\)*", destinations, st) > 0) destinations = chars(destinations, match_end(0, st))
 
@@ -604,27 +604,27 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: last, all, delete
         character(len=:), allocatable :: name, text
-        integer(int64) :: opoint, found
+        integer(int64) :: original_point, found
         type(handle_type) :: here
         logical :: saved_fold
 
         here = marker_here()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
-        name = "^"//regexp_quote(field_name)//"[ "//TAB//"]*:[ "//TAB//"]*"
+        name = "^"//regular_expression_quote(field_name)//"[ "//TAB//"]*:[ "//TAB//"]*"
 
         body: block
-            if (opt(all)) then
+            if (option(all)) then
                 value = ""
 
                 do
-                    call re_search_forward(name, found, status, noerror=SEARCH_NOERROR)
+                    call regular_expression_search_forward(name, found, status, noerror=SEARCH_NOERROR)
                     if (.not. status%ok()) exit body
                     if (found == 0) exit
-                    call field_end(opoint, status)
+                    call field_end(original_point, status)
                     if (.not. status%ok()) exit body
-                    call buffer_substring_no_properties(opoint, point(), text, status)
+                    call buffer_substring_no_properties(original_point, point(), text, status)
                     if (.not. status%ok()) exit body
 
                     if (value == "") then
@@ -633,7 +633,7 @@ contains
                         value = value//", "//text
                     end if
 
-                    if (opt(delete)) then
+                    if (option(delete)) then
                         call delete_region(line_beginning_position(), point(), status)
                         if (.not. status%ok()) exit body
                     end if
@@ -641,24 +641,24 @@ contains
 
                 if (value == "") deallocate (value)
             else
-                call re_search_forward(name, found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(name, found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok() .or. found == 0) exit body
 
-                if (opt(last)) then
+                if (option(last)) then
                     do
-                        call re_search_forward(name, found, status, noerror=SEARCH_NOERROR)
+                        call regular_expression_search_forward(name, found, status, noerror=SEARCH_NOERROR)
                         if (.not. status%ok()) exit body
                         if (found == 0) exit
                     end do
                 end if
 
-                call field_end(opoint, status)
+                call field_end(original_point, status)
                 if (.not. status%ok()) exit body
-                call buffer_substring_no_properties(opoint, point(), text, status)
+                call buffer_substring_no_properties(original_point, point(), text, status)
                 if (.not. status%ok()) exit body
                 value = text
 
-                if (opt(delete)) then
+                if (option(delete)) then
                     call delete_region(line_beginning_position(), point() + 1, status)
                     if (.not. status%ok()) exit body
                 end if
@@ -666,20 +666,20 @@ contains
         end block body
 
         case_fold_search%value = saved_fold
-        call goto_char(marker_end(here))
+        call goto_character(marker_end(here))
 
     contains
 
         ! Move over the field's continuation lines, then back over the
-        ! newline and the trailing spaces or tabs; OPOINT is where the
+        ! newline and the trailing spaces or tabs; ORIGINAL_POINT is where the
         ! value starts.
-        recursive subroutine field_end(opoint, status)
-            integer(int64), intent(out) :: opoint
+        recursive subroutine field_end(original_point, status)
+            integer(int64), intent(out) :: original_point
             type(status_type), intent(out) :: status
             integer(int64) :: moved, shortage
             logical :: continued
 
-            opoint = point()
+            original_point = point()
 
             do
                 shortage = forward_line(1_int64)
@@ -689,9 +689,9 @@ contains
             end do
 
             ! Back up over newline, then trailing spaces or tabs
-            call forward_char(status, -1_int64)
+            call forward_character(status, -1_int64)
             if (.not. status%ok()) return
-            moved = skip_chars_backward(" "//TAB, status, opoint)
+            moved = skip_characters_backward(" "//TAB, status, original_point)
         end subroutine field_end
     end subroutine get_mail_field
 
@@ -709,17 +709,17 @@ contains
         character(len=:), allocatable :: text
 
         allocate (starts(0), ends(0))
-        moved = skip_chars_forward(" "//TAB//LF, status)
+        moved = skip_characters_forward(" "//TAB//LF, status)
         if (.not. status%ok()) return
 
-        do while (.not. is_eob())
+        do while (.not. is_end_of_buffer())
             beginning = point()
-            moved = skip_chars_forward("^,", status)
-            moved = skip_chars_backward(" "//TAB//LF, status)
+            moved = skip_characters_forward("^,", status)
+            moved = skip_characters_backward(" "//TAB//LF, status)
             starts = [beginning, starts]
             ends = [point(), ends]
-            moved = skip_chars_forward("^,", status)
-            moved = skip_chars_forward(", "//TAB//LF, status)
+            moved = skip_characters_forward("^,", status)
+            moved = skip_characters_forward(", "//TAB//LF, status)
             if (.not. status%ok()) return
         end do
 
@@ -743,26 +743,26 @@ contains
 
     !> LABELS, a comma-separated list, as a regexp matching any of them.
     !> Port of mail-utils.el:mail-comma-list-regexp.
-    function mail_comma_list_regexp(labels_in) result(labels)
+    function mail_comma_list_regular_expression(labels_in) result(labels)
         character(len=*), intent(in) :: labels_in
         character(len=:), allocatable :: labels
-        integer(int64) :: pos, e
+        integer(int64) :: position, e
         type(status_type) :: st
 
         labels = labels_in
-        pos = string_match("[^ "//TAB//"]", labels, st)
-        if (pos == 0) pos = 1
+        position = string_match("[^ "//TAB//"]", labels, st)
+        if (position == 0) position = 1
         ! Remove leading and trailing whitespace.
-        e = string_match("[ "//TAB//"]*$", labels, st, start=pos)
-        labels = chars(labels, pos, e)
+        e = string_match("[ "//TAB//"]*$", labels, st, start=position)
+        labels = chars(labels, position, e)
 
         ! Change each comma to \|, and flush surrounding whitespace.
         do
-            pos = string_match("[ "//TAB//"]*,[ "//TAB//"]*", labels, st)
-            if (pos == 0) exit
-            labels = chars(labels, 1_int64, pos)//"\|"//chars(labels, match_end(0, st))
+            position = string_match("[ "//TAB//"]*,[ "//TAB//"]*", labels, st)
+            if (position == 0) exit
+            labels = chars(labels, 1_int64, position)//"\|"//chars(labels, match_end(0, st))
         end do
-    end function mail_comma_list_regexp
+    end function mail_comma_list_regular_expression
 
     !> The current date as an RFC 822 date ("7 Feb 2021 22:46:37 -0500").
     !> Port of mail-utils.el:mail-rfc822-date.
@@ -776,33 +776,33 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    recursive subroutine cmd_quote_mail_printable_region(status)
+    recursive subroutine execute_quote_mail_printable_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
         call interactive_region(b, e, status)
-        if (status%ok()) call quote_mail_printable_region(b, e, status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_quote_mail_printable_region
+        if (status%ok()) call quote_mail_printable_region(b, e, status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_quote_mail_printable_region
 
-    recursive subroutine cmd_unquote_mail_printable_region(status)
+    recursive subroutine execute_unquote_mail_printable_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
         call interactive_region(b, e, status)
-        if (status%ok()) call unquote_mail_printable_region(b, e, status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_unquote_mail_printable_region
+        if (status%ok()) call unquote_mail_printable_region(b, e, status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_unquote_mail_printable_region
 
     ! The value of an optional logical, false if absent.  Not a port.
-    pure logical function opt(flag)
+    pure logical function option(flag)
         logical, intent(in), optional :: flag
 
-        opt = .false.
-        if (present(flag)) opt = flag
-    end function opt
+        option = .false.
+        if (present(flag)) option = flag
+    end function option
 
     !> Register the commands of mail-utils.el.  Not a port.
-    subroutine init_mail_utils()
-        commands%quote_mail_printable_region%execute => cmd_quote_mail_printable_region
-        commands%unquote_mail_printable_region%execute => cmd_unquote_mail_printable_region
-    end subroutine init_mail_utils
+    subroutine initialize_mail_utilities()
+        commands%quote_mail_printable_region%execute => execute_quote_mail_printable_region
+        commands%unquote_mail_printable_region%execute => execute_unquote_mail_printable_region
+    end subroutine initialize_mail_utilities
 end module mail_utilities_mod

@@ -30,7 +30,7 @@
 !> the abbrev commands, table properties, mode tables, saving.
 module test_abbreviation_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type, format_error
@@ -39,23 +39,23 @@ module test_abbreviation_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, buffers, current, buffer_name, &
                           current_buffer, buffer_list, resolve_buffer, restore_buffer_modified
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, buffer_string, point, point_min, point_max
+    use editing_functions_mod, only: goto_character, buffer_string, point, point_minimum, point_maximum
     use search_mod, only: search_forward, SEARCH_NOERROR
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, command_loop, last_message
-    use execute_interactively_mod, only: prefix_arg, current_prefix_arg
-    use bindings_mod, only: init_bindings
+    use execute_interactively_mod, only: prefix_argument, current_prefix_argument
+    use bindings_mod, only: initialize_bindings
     use simple_mod, only: fundamental_mode, push_mark
     use indent_mod, only: indent_tabs_mode
     use text_mode_mod, only: text_mode, text_mode_abbrev_table
     use help_mode_mod, only: help_mode, help_mode_abbrev_table
     use simple_mod, only: special_mode_abbrev_table
     use display_engine_mod, only: mode_line_modes
-    use names_mod, only: user_init_file
-    use file_input_output_mod, only: expand_file_name, create_directory_internal, delete_file_internal, fortmacs_wd, init_fileio, &
-                                     file_exists
+    use names_mod, only: user_initialization_file
+    use file_input_output_mod, only: expand_file_name, create_directory_internal, delete_file_internal, fortmacs_wd, &
+                                     initialize_fileio, file_exists
     use files_mod, only: save_some_buffers
-    use abbreviation_mod, only: abbrev_table_type, abbrev_ref_type, global_abbrev_table, fundamental_mode_abbrev_table, &
+    use abbreviation_mod, only: abbrev_table_type, abbrev_reference_type, global_abbrev_table, fundamental_mode_abbrev_table, &
                                 abbrev_tables, abbrev_mode, abbrev_all_caps, only_global_abbrevs, abbrevs_changed, &
                                 abbrev_file_name, save_abbrevs, last_abbrev_text, &
                               clear_all_abbrevs, copy_abbrev_table, insert_abbrevs, abbrev_table_name, prepare_abbrev_list_buffer, &
@@ -95,7 +95,7 @@ contains
                     new_unittest("prepare-abbrev-list-buffer-test", test_prepare_list_buffer), &
                     new_unittest("insert-abbrevs-test", test_insert_abbrevs), &
                     new_unittest("read-write-abbrev-file-test", test_write_abbrev_file), &
-                    new_unittest("read-write-abbrev-file-test-with-props", test_write_abbrev_file_props), &
+                    new_unittest("read-write-abbrev-file-test-with-props", test_write_abbrev_file_properties), &
                     new_unittest("inverse-add-abbrev-skips-trailing-nonword", test_inverse_add_1), &
                     new_unittest("inverse-add-abbrev-skips-trailing-nonword/positive-arg", test_inverse_add_2), &
                     new_unittest("inverse-add-abbrev-skips-trailing-nonword/negative-arg", test_inverse_add_3), &
@@ -110,7 +110,7 @@ contains
                     new_unittest("add-mode-abbrev", test_add_mode_abbrev), &
                     new_unittest("inverse-add-global-abbrev-keys", test_inverse_add_keys), &
                     new_unittest("expand-region-abbrevs", test_expand_region), &
-                    new_unittest("define-global-abbrev-check-chars", test_check_chars), &
+                    new_unittest("define-global-abbrev-check-chars", test_check_characters), &
                     new_unittest("table-properties", test_table_properties), &
                     new_unittest("abbrev-hooks", test_hooks), &
                     new_unittest("mode-tables", test_mode_tables), &
@@ -131,10 +131,10 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        current_prefix_arg = prefix_arg_type()
+        prefix_argument = prefix_argument_type()
+        current_prefix_argument = prefix_argument_type()
         call get_or_make_buffer("*abbrev-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -226,7 +226,7 @@ contains
         character(len=:), allocatable :: path
         type(status_type) :: st
 
-        call init_fileio()
+        call initialize_fileio()
         call expand_file_name("build/test-abbrev", path, st, fortmacs_wd)
         call create_directory_internal(path, st)
         path = path//"/"//name
@@ -295,15 +295,15 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer :: num_tables, k, empty
+        integer :: number_tables, k, empty
 
         call fresh(h)
         ! ensure at least one abbrev exists
         call setup_test_abbrev_table()
-        num_tables = size(abbrev_tables)
+        number_tables = size(abbrev_tables)
         call clear_all_abbrevs()
         ! no tables should have been removed/added
-        call check(error, size(abbrev_tables), num_tables)
+        call check(error, size(abbrev_tables), number_tables)
         if (allocated(error)) return
         ! number of empty tables should be the same as number of tables
         empty = 0
@@ -312,7 +312,7 @@ contains
             if (abbrev_tables(k)%p%empty()) empty = empty + 1
         end do
 
-        call check(error, empty, num_tables)
+        call check(error, empty, number_tables)
         call close_buffer(h, st)
     end subroutine test_clear_all_abbrevs
 
@@ -382,11 +382,11 @@ contains
         call prepare_abbrev_list_buffer(abbrev_buffer, st)
         call set_buffer(abbrev_buffer, st)
         ! Check for a couple of abbrev-table names in buffer.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward(abbrev_table_name(ert_test_abbrevs), found, st, noerror=SEARCH_NOERROR)
         call check(error, found > 0, "ert_test_abbrevs")
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward("global_abbrev_table", found, st, noerror=SEARCH_NOERROR)
         call check(error, found > 0, "global_abbrev_table")
         if (allocated(error)) return
@@ -401,11 +401,11 @@ contains
         call set_buffer(h, st)
         call prepare_abbrev_list_buffer(abbrev_buffer, st, local=.true.)
         call set_buffer(abbrev_buffer, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward("fundamental_mode_abbrev_table", found, st, noerror=SEARCH_NOERROR)
         call check(error, found > 0, "fundamental_mode_abbrev_table")
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward("global_abbrev_table", found, st, noerror=SEARCH_NOERROR)
         call check(error, found == 0, "no global_abbrev_table")
         if (allocated(error)) return
@@ -469,7 +469,7 @@ contains
 
     !> Test writing abbrevs with properties to a file; long and
     !> multi-line expansions are continued.
-    subroutine test_write_abbrev_file_props(error)
+    subroutine test_write_abbrev_file_properties(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -498,7 +498,7 @@ contains
                    "    end subroutine configure"//LF//"end module user_config"//LF, text)
         call delete_file_internal(file, st)
         call close_buffer(h, st)
-    end subroutine test_write_abbrev_file_props
+    end subroutine test_write_abbrev_file_properties
 
     !> Test that adding an inverse abbrev skips trailing nonword characters.
     subroutine test_inverse_add_1(error)
@@ -539,7 +539,7 @@ contains
 
         call fresh(h)
         call insert("some     text foo", st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call type_text("bar"//achar(13))
         call inverse_add_abbrev(table, "Global", -1_int64, st)
         call check(error, expansion_of("text", table), "bar")
@@ -775,19 +775,19 @@ contains
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
         call insert("teh cat and teh dog", st)
-        call expand_region_abbrevs(point_min(), point_max(), st, noquery=.true.)
+        call expand_region_abbrevs(point_minimum(), point_maximum(), st, noquery=.true.)
         call check(error, buffer_string(), "the cat and the dog")
         if (allocated(error)) return
         ! Asking: y, then n.
         call erase_buffer(st)
         call insert("teh cat and teh dog", st)
         call type_text("yn")
-        call expand_region_abbrevs(point_min(), point_max(), st)
+        call expand_region_abbrevs(point_minimum(), point_maximum(), st)
         call check(error, buffer_string(), "the cat and teh dog")
         call close_buffer(h, st)
     end subroutine test_expand_region
 
-    subroutine test_check_chars(error)
+    subroutine test_check_characters(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -800,7 +800,7 @@ contains
         call define_global_abbrev("ABC", "x", st)
         call check(error, st%ok() .and. expansion_of("abc", global_abbrev_table) == "x", "lower-cased")
         call close_buffer(h, st)
-    end subroutine test_check_chars
+    end subroutine test_check_characters
 
     logical function never()
         never = .false.
@@ -811,7 +811,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(abbrev_ref_type) :: sym
+        type(abbrev_reference_type) :: symbol
 
         call fresh(h)
         abbrev_mode = .true.
@@ -837,16 +837,16 @@ contains
         if (allocated(error)) return
         ! A regexp naming the abbrev before point.
         call erase_buffer(st)
-        global_abbrev_table%regexp = "\(\#[a-z]+\)"
+        global_abbrev_table%regular_expression = "\(\#[a-z]+\)"
         call global_abbrev_table%define("#inc", "#include")
         call execute_keys("x#inc SPC")
-        deallocate (global_abbrev_table%regexp)
+        deallocate (global_abbrev_table%regular_expression)
         call check(error, buffer_string(), "x#include ")
         if (allocated(error)) return
         ! Parents: unlisted_table inherits global_abbrev_table.
         call unlisted_table%append_parent(global_abbrev_table)
-        call abbrev_name("teh", sym, unlisted_table)
-        call check(error, associated(sym%table, global_abbrev_table), "found in the parent")
+        call abbrev_name("teh", symbol, unlisted_table)
+        call check(error, associated(symbol%table, global_abbrev_table), "found in the parent")
         call close_buffer(h, st)
     end subroutine test_table_properties
 
@@ -874,7 +874,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(abbrev_ref_type) :: sym
+        type(abbrev_reference_type) :: symbol
 
         call fresh(h)
         abbrev_mode = .true.
@@ -892,8 +892,8 @@ contains
         call erase_buffer(st)
         call global_abbrev_table%define("rf", "refused", hook=refuse_hook, no_self_insert=.true.)
         call insert("rf", st)
-        call expand_abbrev(st, sym)
-        call check(error, buffer_string() == "refused" .and. .not. associated(sym%table), "refused")
+        call expand_abbrev(st, symbol)
+        call check(error, buffer_string() == "refused" .and. .not. associated(symbol%table), "refused")
         call close_buffer(h, st)
     end subroutine test_hooks
 
@@ -1002,7 +1002,7 @@ contains
         call close_buffer(h, st)
     end subroutine test_open_line
 
-    !> save_some_buffers offers to save the abbrevs (here with ARG: without
+    !> save_some_buffers offers to save the abbrevs (here with ARGUMENT: without
     !> asking).
     subroutine test_save_some_buffers(error)
         type(error_type), allocatable, intent(out) :: error

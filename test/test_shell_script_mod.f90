@@ -24,22 +24,22 @@
 !> here-document syntax and `sh_set_shell'.
 module test_shell_script_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY, choice_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, is_buffer_live
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string
-    use editing_commands_mod, only: forward_line, forward_char
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, buffer_string
+    use editing_commands_mod, only: forward_line, forward_character
     use search_mod, only: search_forward
     use text_properties_mod, only: get_text_property
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use modes_mod, only: minor_modes
     use indent_mod, only: indent_region, indent_for_tab_command
     use font_lock_mod, only: font_lock_ensure
-    use syntax_mod, only: parse_state_type, syntax_ppss, ST_STRING_STYLE
+    use syntax_mod, only: parse_state_type, syntax_parser_state, ST_STRING_STYLE
     use data_mod, only: choice_state, setting_errors
     use shell_script_mod, only: sh_mode, sh_indent_supported_here, sh_indent_for_continuation, &
                                 sh_indent_after_continuation, sh_smie_default_backward_token, sh_set_shell, &
@@ -48,13 +48,13 @@ module test_shell_script_mod
                                 SH_INDENT_AFTER_CONTINUATION_ALWAYS, &
                                 sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
                                 sh_styles, sh_basic_offset, sh_indent_for_do, SH_PLUS, sh_if, sh_for, sh_case, &
-                                sh_while_getopts, sh_while, sh_function, sh_indexed_loop, sh_modify, sh_var_value, &
+                                sh_while_getopts, sh_while, sh_function, sh_indexed_loop, sh_modify, sh_variable_value, &
                                 sh_indent_for_fi, sh_indent_choice_setting_type, SH_MINUS, SH_STAR
     use skeleton_mod, only: skeleton_element_type, skeleton_prompt, skeleton_text, SKELETON_END
-    use simple_minded_indentation_engine_mod, only: smie_config_show_indent, smie_config_guess
-    use keyboard_mod, only: kbd_store_bytes, discard_input, last_message
-    use minibuffer_reading_tables_mod, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL
-    use value_mod, only: list_length, list_elt, xstring, value_type
+    use simple_minded_indentation_engine_mod, only: smie_configuration_show_indent, smie_configuration_guess
+    use keyboard_mod, only: keyboard_store_bytes, discard_input, last_message
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type, TABLE_FUNCTION, COMPLETE_ALL
+    use value_mod, only: list_length, list_element, xstring, value_type
     use expression_motion_mod, only: beginning_of_subprogram, end_of_subprogram
     use window_mod, only: display_buffer_overriding_action, display_action_type, pop_to_buffer_same_window, &
                           get_buffer_window, delete_other_windows
@@ -87,26 +87,26 @@ contains
                     new_unittest("sh-completion-at-point-function", test_completion), &
                     new_unittest("sh-defun-prompt-regexp", test_subprogram), &
                     new_unittest("sh-styles", test_styles), &
-                    new_unittest("sh-var-value", test_var_value), &
+                    new_unittest("sh-var-value", test_variable_value), &
                     new_unittest("sh-skeletons", test_skeletons), &
                     new_unittest("sh-modify", test_sh_modify), &
-                    new_unittest("smie-config", test_smie_config), &
+                    new_unittest("smie-config", test_smie_configuration), &
                     new_unittest("display-buffer-overriding-action", test_overriding_action) &
                     ]
     end subroutine collect_shell_script_mod
 
     !> A fresh buffer holding TEXT (with-temp-buffer, insert).
-    subroutine temp_buffer(text, h)
+    subroutine temporary_buffer(text, h)
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *sh-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> TEXT in a fresh buffer in `shell_script_mode'.
     subroutine script(text, h)
@@ -114,7 +114,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call temp_buffer(text, h)
+        call temporary_buffer(text, h)
         call sh_mode(st)
     end subroutine script
 
@@ -140,9 +140,9 @@ contains
                 exit checks
             end if
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             shortage = forward_line(1_int64)
-            call indent_for_tab_command(prefix_arg_type(), st)
+            call indent_for_tab_command(prefix_argument_type(), st)
             call check(error, buffer_string(), "relative-path/to/configure --prefix=$prefix\"//LF// &
                        TAB//TAB//TAB//"   --with-x")
         end block checks
@@ -163,7 +163,7 @@ contains
                 exit checks
             end if
 
-            call indent_region(point_min(), point_max(), st)
+            call indent_region(point_minimum(), point_maximum(), st)
             call check(error, buffer_string(), "myecho () {"//LF//"    echo foo"//LF//"}"//LF)
         end block checks
 
@@ -182,7 +182,7 @@ contains
         if (len(sh_indent_supported_here()) == 0) then
             call skip_test(error, "sh-indent-supported-here")
         else
-            call indent_region(point_min(), point_max(), st)
+            call indent_region(point_minimum(), point_maximum(), st)
             call check(error, buffer_string(), text, name)
         end if
 
@@ -230,15 +230,15 @@ contains
 
             sh_indent_for_continuation = SH_PLUS_PLUS
             sh_indent_after_continuation = .true.
-            call indent_region(point_min(), point_max(), st)
+            call indent_region(point_minimum(), point_maximum(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//"    toto; \"//LF//"    done"//LF)
             if (allocated(error)) exit checks
             sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_ALWAYS
-            call indent_region(point_min(), point_max(), st)
+            call indent_region(point_minimum(), point_maximum(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//TAB//"toto; \"//LF//TAB//"done"//LF)
             if (allocated(error)) exit checks
             sh_indent_after_continuation = .false.
-            call indent_region(point_min(), point_max(), st)
+            call indent_region(point_minimum(), point_maximum(), st)
             call check(error, buffer_string(), "for f \"//LF//"in a; do \"//LF//"    toto; \"//LF//"done"//LF)
         end block checks
 
@@ -285,15 +285,15 @@ contains
     function face() result(name)
         character(len=:), allocatable :: name
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: st
 
         name = ""
         call get_text_property(point(), value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
-            call list_elements(v, elts)
-            v = elts(1)
+            call list_elements(v, elements)
+            v = elements(1)
         end if
 
         if (.not. allocated(v%a)) return
@@ -311,9 +311,9 @@ contains
         call insert("for i do echo 1; done", st)
         call minor_modes%font_lock_mode%enable(st)
         call font_lock_ensure(st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward("do", found, st)
-        call forward_char(st, -1_int64)
+        call forward_character(st, -1_int64)
         call check(error, face(), "font_lock_keyword_face")
         call leave(h)
     end subroutine test_do_fontification
@@ -371,10 +371,10 @@ contains
         call script("cat <<EOF"//LF//"it's $x"//LF//"EOF"//LF//"echo done"//LF, h)
 
         checks: block
-            call syntax_ppss(state, 14_int64)
+            call syntax_parser_state(state, 14_int64)
             call check(error, state%instring == ST_STRING_STYLE, "inside the here document")
             if (allocated(error)) exit checks
-            call syntax_ppss(state, 25_int64)
+            call syntax_parser_state(state, 25_int64)
             call check(error, state%instring, -1, "after it")
         end block checks
 
@@ -404,23 +404,23 @@ contains
         in_list = .false.
 
         do k = 1, list_length(v)
-            if (xstring(list_elt(v, k)) == name) in_list = .true.
+            if (xstring(list_element(v, k)) == name) in_list = .true.
         end do
     end function in_list
 
     subroutine test_completion(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(capf_data_type) :: data
+        type(completion_at_point_function_data_type) :: data
         type(value_type) :: all
         type(status_type) :: st
 
         call script("FOO=1"//LF//"BAR=2"//LF//"echo $F", h)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
 
         checks: block
             call sh_completion_at_point_function(data, st)
-            call check(error, data%found .and. data%start == point_max() - 1 .and. data%end == point_max(), "variable")
+            call check(error, data%found .and. data%start == point_maximum() - 1 .and. data%end == point_maximum(), "variable")
             if (allocated(error)) exit checks
             call check(error, in_list(data%table%list, "FOO") .and. in_list(data%table%list, "BAR"), "variables")
             if (allocated(error)) exit checks
@@ -446,7 +446,7 @@ contains
         type(status_type) :: st
 
         call script("x=1"//LF//"foo () {"//LF//"  a"//LF//"}"//LF//"function bar {"//LF//"  b"//LF//"}"//LF, h)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
 
         checks: block
             call beginning_of_subprogram(1_int64, found, st)
@@ -481,7 +481,7 @@ contains
         type(status_type) :: st
 
         call shell_buffer("bash", h)
-        call kbd_store_bytes(CR)
+        call keyboard_store_bytes(CR)
         call sh_if(st, string="true")
         call check(error, buffer_string() == "if true; then"//LF//"    "//LF//"else"//LF//"    "//LF//"fi", &
                    "if: "//buffer_string())
@@ -495,7 +495,7 @@ contains
         call check(error, point() == 10_int64, "for: point")
         if (allocated(error)) return
         call shell_buffer("bash", h)
-        call kbd_store_bytes("a"//CR//"b"//CR//CR)
+        call keyboard_store_bytes("a"//CR//"b"//CR//CR)
         call sh_case(st, string="$x")
         call check(error, buffer_string() == "case $x in"//LF//"    a)"//LF//TAB//LF//TAB//";;"//LF//"    b)"//LF//TAB//LF// &
                    TAB//";;"//LF//"    *)"//LF//TAB//LF//"esac", "case: "//buffer_string())
@@ -518,7 +518,7 @@ contains
         call check(error, buffer_string() == "function f() {"//LF//"    "//LF//"}", "function: "//buffer_string())
         if (allocated(error)) return
         call shell_buffer("bash", h)
-        call kbd_store_bytes("10"//CR)
+        call keyboard_store_bytes("10"//CR)
         call sh_indexed_loop(st, string="i")
         call check(error, buffer_string() == "i=1"//LF//"while [ $i -le 10 ]; do"//LF//"    $i"//LF//"    i=$(( i + 1 ))"// &
                    LF//"done", "indexed loop: "//buffer_string())
@@ -536,31 +536,31 @@ contains
     end subroutine test_sh_modify
 
     !> smie-config: show, guess, local rules (the rules GNU Emacs guesses).
-    subroutine test_smie_config(error)
+    subroutine test_smie_configuration(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call shell_buffer("bash", h)
         call insert("if true; then"//LF//"  echo x"//LF//"fi"//LF//"while x; do"//LF//"  y"//LF//"done"//LF, st)
-        call goto_char(1_int64)
-        call goto_char(15_int64)
-        call smie_config_show_indent(.false., st)
-        call check(error, last_message == 'Rules used: SMIE_ELEM "basic" -> 4, SMIE_BEFORE "then" -> 0, '// &
+        call goto_character(1_int64)
+        call goto_character(15_int64)
+        call smie_configuration_show_indent(.false., st)
+        call check(error, last_message == 'Rules used: SMIE_ELEMENT "basic" -> 4, SMIE_BEFORE "then" -> 0, '// &
                    'SMIE_AFTER "then" -> SMIE_RULE_NONE', "show: "//last_message)
         if (allocated(error)) return
-        call smie_config_guess(st)
+        call smie_configuration_guess(st)
         call check(error, last_message == "Local rules set", "guess: "//last_message)
         if (allocated(error)) return
-        call smie_config_show_indent(.false., st)
-        call check(error, last_message == 'Rules used: SMIE_ELEM "basic" -> 4, SMIE_BEFORE "then" -> -2(via 0), '// &
+        call smie_configuration_show_indent(.false., st)
+        call check(error, last_message == 'Rules used: SMIE_ELEMENT "basic" -> 4, SMIE_BEFORE "then" -> -2(via 0), '// &
                    'SMIE_AFTER "then" -> SMIE_RULE_NONE', "show after: "//last_message)
         if (allocated(error)) return
-        call indent_region(point_min(), point_max(), st)
+        call indent_region(point_minimum(), point_maximum(), st)
         call check(error, buffer_string() == "if true; then"//LF//"  echo x"//LF//"fi"//LF//"while x; do"//LF//"  y"//LF// &
                    "done"//LF, "indented: "//buffer_string())
         call leave(h)
-    end subroutine test_smie_config
+    end subroutine test_smie_configuration
 
     subroutine test_styles(error)
         type(error_type), allocatable, intent(out) :: error
@@ -616,32 +616,32 @@ contains
 
     ! Own: the indentation variables' numbers and named constants, and their
     ! buffer-local values.
-    subroutine test_var_value(error)
+    subroutine test_variable_value(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, other
         type(sh_indent_choice_setting_type) :: saved
         integer(int64) :: saved_offset
         type(status_type) :: st
 
-        call temp_buffer("", h)
+        call temporary_buffer("", h)
         saved = sh_indent_for_fi
         saved_offset = sh_basic_offset%value
 
         checks: block
             sh_basic_offset = 4
             sh_indent_for_fi%columns = 3
-            call check(error, sh_var_value(sh_indent_for_fi), 3)
+            call check(error, sh_variable_value(sh_indent_for_fi), 3)
             if (allocated(error)) exit checks
             sh_indent_for_fi%columns = -2
-            call check(error, sh_var_value(sh_indent_for_fi), -2)
+            call check(error, sh_variable_value(sh_indent_for_fi), -2)
             if (allocated(error)) exit checks
             sh_indent_for_fi = SH_MINUS
-            call check(error, sh_var_value(sh_indent_for_fi), -4)
+            call check(error, sh_variable_value(sh_indent_for_fi), -4)
             if (allocated(error)) exit checks
             call check(error, sh_indent_for_fi%other_value(), "")
             if (allocated(error)) exit checks
             sh_indent_for_fi = SH_STAR
-            call check(error, sh_var_value(sh_indent_for_fi), 2)
+            call check(error, sh_variable_value(sh_indent_for_fi), 2)
             if (allocated(error)) exit checks
             ! A buffer-local number survives switching buffers.
             call sh_indent_for_fi%make_local()
@@ -672,7 +672,7 @@ contains
         sh_basic_offset = saved_offset
         if (is_buffer_live(other)) call close_buffer(other, st)
         call leave(h)
-    end subroutine test_var_value
+    end subroutine test_variable_value
 
     subroutine test_overriding_action(error)
         type(error_type), allocatable, intent(out) :: error

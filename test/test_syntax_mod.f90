@@ -35,17 +35,17 @@ module test_syntax_mod
     use value_mod, only: value_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, erase_buffer, close_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, mark_position
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_string, mark_position
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, command_loop
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use simple_mod, only: current_clipboard_entry
-    use syntax_mod, only: skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward
-    use syntax_mod, only: syntax_descriptor_type, string_to_syntax, syntax_class_to_char, char_syntax, &
+    use syntax_mod, only: skip_characters_forward, skip_characters_backward, skip_syntax_forward, skip_syntax_backward
+    use syntax_mod, only: syntax_descriptor_type, string_to_syntax, syntax_class_to_character, character_syntax, &
                           modify_syntax_entry, make_syntax_table, copy_syntax_table, destroy_syntax_table, &
-                          set_syntax_table, standard_syntax_table, matching_paren, syntax_entry, scan_words, &
+                          set_syntax_table, standard_syntax_table, matching_parenthesis, syntax_entry, scan_words, &
                           forward_word, is_word_boundary, SWORD, SOPEN, internal_describe_syntax_value
-    use character_script_mod, only: char_script, script_names
+    use character_script_mod, only: character_script, script_names
     implicit none(type, external)
     private
 
@@ -63,25 +63,25 @@ contains
                     new_unittest("standard-syntax-table-characters-el", test_characters_el), &
                     new_unittest("string-to-syntax", test_string_to_syntax), &
                     new_unittest("syntax-table-inheritance", test_inheritance), &
-                    new_unittest("char-script", test_char_script), &
+                    new_unittest("char-script", test_character_script), &
                     new_unittest("word-boundaries", test_word_boundaries), &
                     new_unittest("forward-word", test_forward_word), &
                     new_unittest("word-keys", test_word_keys), &
-                    new_unittest("skip-chars", test_skip_chars), &
+                    new_unittest("skip-chars", test_skip_characters), &
                     new_unittest("skip-syntax", test_skip_syntax), &
-                    new_unittest("modify-syntax-entry-clears-regexp-cache", test_regexp_cache), &
-                    new_unittest("syntax-char-syntax", test_char_syntax_unibyte), &
+                    new_unittest("modify-syntax-entry-clears-regexp-cache", test_regular_expression_cache), &
+                    new_unittest("syntax-char-syntax", test_character_syntax_unibyte), &
                     new_unittest("internal-describe-syntax-value", test_describe_syntax_value) &
                     ]
     end subroutine collect_syntax_mod
 
     !> A fresh buffer holding `text`, point at its start.
-    subroutine temp_buffer(text)
+    subroutine temporary_buffer(text)
         character(len=*), intent(in) :: text
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer(" *syntax-test*", buffer, st)
         call set_buffer(buffer, st)
@@ -89,9 +89,9 @@ contains
         buffers(current)%syntax_table = handle_type()
         call erase_buffer(st)
         call insert(text, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call show_alone()
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> The syntax class of character `c` in table `t`.
     integer function class_in(c, t)
@@ -129,27 +129,27 @@ contains
         integer :: i
 
         do i = 0, len(chars) - 1
-            call syntax_class_to_char(i, ch, st)
+            call syntax_class_to_character(i, ch, st)
             call check(error, st%ok() .and. ch == chars(i + 1:i + 1), chars(i + 1:i + 1))
             if (allocated(error)) return
             call string_to_syntax(chars(i + 1:i + 1), d, st)
 
             ! "@" (inherit) gives nil.
             if (d%code >= 0) then
-                call syntax_class_to_char(iand(d%code, 255), ch, st)
+                call syntax_class_to_character(iand(d%code, 255), ch, st)
                 call check(error, ch == chars(i + 1:i + 1), chars(i + 1:i + 1))
                 if (allocated(error)) return
             end if
         end do
 
-        call syntax_class_to_char(-1, ch, st)
+        call syntax_class_to_character(-1, ch, st)
         call check(error,.not. st%ok())
         if (allocated(error)) return
-        call syntax_class_to_char(200, ch, st)
+        call syntax_class_to_character(200, ch, st)
         call check(error,.not. st%ok())
     end subroutine test_class_character
 
-    !> init_syntax_once's entries.
+    !> initialize_syntax_once's entries.
     subroutine test_standard_ascii(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: chars = "a Z09$%()[]{}""\_-+*/&|<>=.,;:?!#@~^'`"//achar(9)//achar(10)// &
@@ -157,15 +157,15 @@ contains
         character(len=*), parameter :: want = "w wwwww()()()""\__________............  .."
         integer :: i
 
-        call temp_buffer("")
+        call temporary_buffer("")
 
         do i = 1, len(chars)
-            call check(error, char_syntax(iachar(chars(i:i))) == want(i:i), "syntax of "//chars(i:i)// &
-                       " is "//char_syntax(iachar(chars(i:i))))
+            call check(error, character_syntax(iachar(chars(i:i))) == want(i:i), "syntax of "//chars(i:i)// &
+                       " is "//character_syntax(iachar(chars(i:i))))
             if (allocated(error)) return
         end do
 
-        call check(error, matching_paren(iachar("(")) == iachar(")") .and. matching_paren(iachar("a")) == -1)
+        call check(error, matching_parenthesis(iachar("(")) == iachar(")") .and. matching_parenthesis(iachar("a")) == -1)
     end subroutine test_standard_ascii
 
     !> A sample of the entries characters.el makes.
@@ -179,15 +179,15 @@ contains
         character(len=*), parameter :: want = "._. www_._.()(()ww.w.w_w"
         integer :: i
 
-        call temp_buffer("")
+        call temporary_buffer("")
 
         do i = 1, size(cs)
-            call check(error, char_syntax(cs(i)) == want(i:i), "syntax of "//u(cs(i))//" is "//char_syntax(cs(i)))
+            call check(error, character_syntax(cs(i)) == want(i:i), "syntax of "//u(cs(i))//" is "//character_syntax(cs(i)))
             if (allocated(error)) return
         end do
 
         ! 「 is an open paren matching 」.
-        call check(error, matching_paren(int(z'300C')) == int(z'300D'))
+        call check(error, matching_parenthesis(int(z'300C')) == int(z'300D'))
     end subroutine test_characters_el
 
     subroutine test_string_to_syntax(error)
@@ -219,7 +219,7 @@ contains
         type(status_type) :: st
         type(syntax_descriptor_type) :: d
 
-        call temp_buffer("")
+        call temporary_buffer("")
         call make_syntax_table(t1, st)
         call modify_syntax_entry(iachar("_"), iachar("_"), "w", st, t1)
         call check(error, st%ok() .and. class_in(iachar("_"), t1) == SWORD)
@@ -228,10 +228,10 @@ contains
         d = syntax_entry(iachar("("), t1)
         call check(error, d%code == SOPEN .and. d%match == iachar(")"))
         if (allocated(error)) return
-        call check(error, char_syntax(iachar("_")) == "_", "the buffer still uses the standard table")
+        call check(error, character_syntax(iachar("_")) == "_", "the buffer still uses the standard table")
         if (allocated(error)) return
         call set_syntax_table(t1, st)
-        call check(error, char_syntax(iachar("_")) == "w")
+        call check(error, character_syntax(iachar("_")) == "w")
         if (allocated(error)) return
         call copy_syntax_table(t2, st, t1)
         call modify_syntax_entry(int(z'4E00'), int(z'9FFF'), ".", st, t2)
@@ -241,7 +241,7 @@ contains
         if (allocated(error)) return
         ! "@" makes an entry inherit again.
         call modify_syntax_entry(iachar("_"), iachar("_"), "@", st, t1)
-        call check(error, char_syntax(iachar("_")) == "_")
+        call check(error, character_syntax(iachar("_")) == "_")
         if (allocated(error)) return
         call destroy_syntax_table(t2, st)
         call check(error, st%ok())
@@ -252,16 +252,16 @@ contains
         call destroy_syntax_table(t1, st)
     end subroutine test_inheritance
 
-    subroutine test_char_script(error)
+    subroutine test_character_script(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, trim(script_names(char_script(iachar("a")))) == "latin" .and. &
-                   trim(script_names(char_script(int(z'03B1')))) == "greek" .and. &
-                   trim(script_names(char_script(int(z'4E00')))) == "han" .and. &
-                   trim(script_names(char_script(int(z'3042')))) == "kana" .and. &
-                   trim(script_names(char_script(int(z'AB65')))) == "greek" .and. &
-                   trim(script_names(char_script(int(z'16FE1')))) == "nushu")
-    end subroutine test_char_script
+        call check(error, trim(script_names(character_script(iachar("a")))) == "latin" .and. &
+                   trim(script_names(character_script(int(z'03B1')))) == "greek" .and. &
+                   trim(script_names(character_script(int(z'4E00')))) == "han" .and. &
+                   trim(script_names(character_script(int(z'3042')))) == "kana" .and. &
+                   trim(script_names(character_script(int(z'AB65')))) == "greek" .and. &
+                   trim(script_names(character_script(int(z'16FE1')))) == "nushu")
+    end subroutine test_character_script
 
     subroutine test_word_boundaries(error)
         type(error_type), allocatable, intent(out) :: error
@@ -290,7 +290,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         logical :: ok
 
-        call temp_buffer("Hello, world!  foo_bar "//u(int(z'03B1'))//u(int(z'03B2'))//"abc")
+        call temporary_buffer("Hello, world!  foo_bar "//u(int(z'03B1'))//u(int(z'03B2'))//"abc")
         call forward_word(1_int64, ok)
         call check(error, ok .and. point() == 6)
         if (allocated(error)) return
@@ -305,10 +305,10 @@ contains
         call check(error, point() == 26, "bar, then the Greek letters")
         if (allocated(error)) return
         call forward_word(1_int64)
-        call check(error, point() == point_max())
+        call check(error, point() == point_maximum())
         if (allocated(error)) return
         call forward_word(1_int64, ok)
-        call check(error,.not. ok .and. point() == point_max(), "no more words")
+        call check(error,.not. ok .and. point() == point_maximum(), "no more words")
         if (allocated(error)) return
         call forward_word(-2_int64)
         call check(error, point() == 24)
@@ -324,7 +324,7 @@ contains
         type(value_type), allocatable :: evs(:)
         character(len=:), allocatable :: killed
 
-        call temp_buffer("one two three four")
+        call temporary_buffer("one two three four")
         call key_parse("M-f M-f M-b", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
@@ -343,13 +343,13 @@ contains
         call current_clipboard_entry(0_int64, killed, st)
         call check(error, killed == "one", killed)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call key_parse("M-DEL", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
         call check(error, buffer_string() == " two three ", buffer_string())
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call key_parse("M-@ M-@", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
@@ -359,48 +359,48 @@ contains
 
     !> skip-chars-forward and -backward: ranges, negation, quoting,
     !> character classes, limits and the return value.
-    subroutine test_skip_chars(error)
+    subroutine test_skip_characters(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: moved
 
-        call temp_buffer("abcXYZ-123 éü!")
-        call goto_char(1_int64)
-        moved = skip_chars_forward("a-z", st)
+        call temporary_buffer("abcXYZ-123 éü!")
+        call goto_character(1_int64)
+        moved = skip_characters_forward("a-z", st)
         call check(error, moved == 3 .and. point() == 4)
         if (allocated(error)) return
-        moved = skip_chars_forward("^0-9", st)
+        moved = skip_characters_forward("^0-9", st)
         call check(error, moved == 4 .and. point() == 8)
         if (allocated(error)) return
-        moved = skip_chars_backward("A-Z\-", st)
+        moved = skip_characters_backward("A-Z\-", st)
         call check(error, moved == -4 .and. point() == 4)
         if (allocated(error)) return
-        call goto_char(8_int64)
-        moved = skip_chars_forward("[:digit:][:space:]", st)
+        call goto_character(8_int64)
+        moved = skip_characters_forward("[:digit:][:space:]", st)
         call check(error, point() == 12)
         if (allocated(error)) return
-        moved = skip_chars_forward("[:alpha:]", st)
+        moved = skip_characters_forward("[:alpha:]", st)
         call check(error, point() == 14, "multibyte letters")
         if (allocated(error)) return
-        call goto_char(1_int64)
-        moved = skip_chars_forward("a-z", st, 3_int64)
+        call goto_character(1_int64)
+        moved = skip_characters_forward("a-z", st, 3_int64)
         call check(error, point() == 3, "limit")
         if (allocated(error)) return
         ! `-' at the end is a literal; a reversed range is empty.
-        call goto_char(7_int64)
-        moved = skip_chars_forward("z-a-", st)
+        call goto_character(7_int64)
+        moved = skip_characters_forward("z-a-", st)
         call check(error, point() == 8)
         if (allocated(error)) return
-        moved = skip_chars_forward("[:bogus:]", st)
+        moved = skip_characters_forward("[:bogus:]", st)
         call check(error,.not. st%ok())
-    end subroutine test_skip_chars
+    end subroutine test_skip_characters
 
     subroutine test_skip_syntax(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: moved
 
-        call temp_buffer("foo_bar  (baz)")
-        call goto_char(1_int64)
+        call temporary_buffer("foo_bar  (baz)")
+        call goto_character(1_int64)
         moved = skip_syntax_forward("w")
         call check(error, moved == 3 .and. point() == 4)
         if (allocated(error)) return
@@ -417,15 +417,15 @@ contains
         call check(error, moved == -4 .and. point() == 10)
     end subroutine test_skip_syntax
 
-    !> modify-syntax-entry clears the regexp cache (clear_regexp_cache):
+    !> modify-syntax-entry clears the regexp cache (clear_regular_expression_cache):
     !> a cached \w pattern sees the new syntax.
-    subroutine test_regexp_cache(error)
+    subroutine test_regular_expression_cache(error)
         use search_mod, only: string_match
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: t1
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
         call make_syntax_table(t1, st)
         call set_syntax_table(t1, st)
         call check(error, string_match("\w", "+", st) == 0, "+ is not a word constituent")
@@ -434,12 +434,12 @@ contains
         call check(error, string_match("\w", "+", st) == 1, "now it is")
         call set_syntax_table(standard_syntax_table(), st)
         call destroy_syntax_table(t1, st)
-    end subroutine test_regexp_cache
+    end subroutine test_regular_expression_cache
 
     !> Ports syntax-char-syntax (the interpreted half; there is no byte
     !> compiler): in a unibyte buffer, char-syntax of 128 is that of the
     !> raw byte 128.
-    subroutine test_char_syntax_unibyte(error)
+    subroutine test_character_syntax_unibyte(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, st_table
         type(status_type) :: st
@@ -450,10 +450,10 @@ contains
         call make_syntax_table(st_table, st)
         call modify_syntax_entry(int(z'3FFF80'), int(z'3FFF80'), "_", st, st_table)
         call set_syntax_table(st_table, st)
-        call check(error, char_syntax(128) == "_")
+        call check(error, character_syntax(128) == "_")
         buffers(current)%multibyte = .true.
         call close_buffer(h, st)
-    end subroutine test_char_syntax_unibyte
+    end subroutine test_character_syntax_unibyte
 
     subroutine test_describe_syntax_value(error)
         type(error_type), allocatable, intent(out) :: error

@@ -36,9 +36,9 @@
 module data_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_is_nan, ieee_value, ieee_positive_inf, ieee_quiet_nan
-    use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
-                         FM_VOID_VARIABLE, FM_SETTING_CONSTANT, FM_VOID_FUNCTION, FM_ARGS_OUT_OF_RANGE
-    use value_mod, only: list, list_elt, list_tail, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
+    use error_mod, only: status_type, set_error, WRONG_TYPE_ARGUMENT_CODE, &
+                         VOID_VARIABLE_CODE, SETTING_CONSTANT_CODE, VOID_FUNCTION_CODE, ARGUMENTS_OUT_OF_RANGE_CODE
+    use value_mod, only: list, list_element, list_tail, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
                          V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol, V_STRING
     use names_mod, only: ensure_obarray
     use value_mod, only: command_procedure, command_type, value_type, set_choice_state, is_choice_off, choice_type
@@ -58,7 +58,7 @@ module data_mod
     !> Fortran code reads `fill_column%value'.
     type, abstract, public :: setting_type
         !> The variable's name, as the help commands show it.
-        character(len=48) :: name = ""
+        character(len=64) :: name = ""
         !> Void (`makunbound'); cleared by any assignment.
         logical :: void = .false.
     contains
@@ -88,10 +88,10 @@ module data_mod
     type, extends(setting_type), public :: integer_setting_type
         integer(int64) :: value = 0
     contains
-        generic :: assignment(=) => assign_int, assign_int64
-        generic :: set_local => set_local_int, set_local_int64, set_local_setting
-        procedure, private :: assign_int => integer_assign_int, assign_int64 => integer_assign_int64
-        procedure, private :: set_local_int => integer_set_local_int, set_local_int64 => integer_set_local_int64
+        generic :: assignment(=) => assign_integer, assign_int64
+        generic :: set_local => set_local_integer, set_local_int64, set_local_setting
+        procedure, private :: assign_integer => integer_assign_integer, assign_int64 => integer_assign_int64
+        procedure, private :: set_local_integer => integer_set_local_integer, set_local_int64 => integer_set_local_int64
         procedure, private :: set_local_setting => integer_set_local_setting
     end type integer_setting_type
 
@@ -131,7 +131,7 @@ module data_mod
     end type function_setting_type
 
     !> The most named constants a choice setting accepts.  Not a port.
-    integer, parameter, public :: MAX_CHOICES = 12
+    integer, parameter, public :: MAXIMUM_CHOICES = 12
 
     !> A setting with more than two states (R6-38): `=' takes .true. and
     !> .false. for its on and off states (upstream t and nil) and its
@@ -153,7 +153,7 @@ module data_mod
     !>
     !> The object also says which values it accepts (panel 2026-11-04):
     !> `choices', its named constants (filled by docstrings_mod's
-    !> `init_choice_values' from the "Values of `x'" parameter statements,
+    !> `initialize_choice_values' from the "Values of `x'" parameter statements,
     !> once `choices_declared' is set), and `true_valid' and `false_valid',
     !> given in its declaration when .true. or .false. is not one of its
     !> states.  Assigning anything else leaves the state as it was and
@@ -166,7 +166,7 @@ module data_mod
         integer :: choice = 0
         !> The named constants it accepts (unused entries 0), once
         !> `choices_declared' is set; any constant before.
-        integer :: choices(MAX_CHOICES) = 0
+        integer :: choices(MAXIMUM_CHOICES) = 0
         logical :: choices_declared = .false.
         !> Whether .true. and .false. are states of it.
         logical :: true_valid = .true., false_valid = .true.
@@ -266,14 +266,14 @@ module data_mod
 
     !> A setting of a module above this one forwarded by its name, like
     !> the built-in table of data_buffer_mod (DEFVAR_LISP and friends).
-    type :: forwarded_ref_type
+    type :: forwarded_reference_type
         class(setting_type), pointer :: p => null()
         !> Buffer-local when set (make-variable-buffer-local).
         logical :: local_if_set = .false.
-    end type forwarded_ref_type
+    end type forwarded_reference_type
 
     !> The settings forwarded with `forward_setting'.
-    type(forwarded_ref_type), allocatable :: forwarded(:)
+    type(forwarded_reference_type), allocatable :: forwarded(:)
 
     public :: forward_setting, find_history, choice_state
 
@@ -289,7 +289,7 @@ module data_mod
     !>
     !> `call string_to_number(string, number, base, status)': NUMBER is an
     !> integer(int64) or a real(real64); a BASE out of range is an
-    !> `args_out_of_range' error condition in STATUS (with STATUS absent the
+    !> `arguments_out_of_range' error condition in STATUS (with STATUS absent the
     !> caller guarantees it; NUMBER is then 0).  Port of
     !> data.c:Fstring_to_number.
     interface string_to_number
@@ -586,7 +586,7 @@ contains
         type(status_type), intent(out), optional :: status
         integer :: b, cp, first, digit, ios
         real(real64) :: value
-        logical :: negative, signed, lead_int, trail_int, e_exp, overflow, value_known
+        logical :: negative, signed, lead_integer, trail_integer, e_exp, overflow, value_known
         character(len=11) :: digits
 
         n = 0
@@ -597,7 +597,7 @@ contains
         if (present(base)) then
             if (.not. (base >= 2 .and. base <= 16)) then
                 write (digits, "(i0)") base
-                if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(digits))
+                if (present(status)) call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, trim(digits))
                 return
             end if
 
@@ -613,15 +613,15 @@ contains
         if (signed) cp = cp + 1
         value = 0
         value_known = .false.
-        lead_int = .false.
-        trail_int = .false.
+        lead_integer = .false.
+        trail_integer = .false.
         e_exp = .false.
         overflow = .false.
 
         do while (cp <= len(string))
             digit = digit_to_number(string(cp:cp), b)
             if (digit < 0) exit
-            lead_int = .true.
+            lead_integer = .true.
 
             if (n > (huge(0_int64) - digit)/b) then
                 overflow = .true.
@@ -640,14 +640,14 @@ contains
         if (b == 10) then
             do while (cp <= len(string))
                 if (verify(string(cp:cp), "0123456789") /= 0) exit
-                trail_int = .true.
+                trail_integer = .true.
                 cp = cp + 1
             end do
 
             call parse_exponent()
             ! A float has digits after the dot or an exponent.
             ! This excludes numbers like "1." which are lexed as integers.
-            is_float = trail_int .or. (lead_int .and. e_exp)
+            is_float = trail_integer .or. (lead_integer .and. e_exp)
         end if
 
         if (is_float) then
@@ -663,7 +663,7 @@ contains
             return
         end if
 
-        if (.not. lead_int) then
+        if (.not. lead_integer) then
             n = 0
             x = 0
             return
@@ -758,7 +758,7 @@ contains
     subroutine forward_setting(s, local_if_set)
         class(setting_type), intent(inout), target :: s
         logical, intent(in), optional :: local_if_set
-        type(forwarded_ref_type) :: ref
+        type(forwarded_reference_type) :: reference
         integer(int64) :: id
         integer :: k
 
@@ -768,9 +768,9 @@ contains
             if (associated(forwarded(k)%p, s)) return
         end do
 
-        ref%p => s
-        if (present(local_if_set)) ref%local_if_set = local_if_set
-        forwarded = [forwarded, ref]
+        reference%p => s
+        if (present(local_if_set)) reference%local_if_set = local_if_set
+        forwarded = [forwarded, reference]
         ! Resolve the symbol again.
         call ensure_obarray()
         id = xsymbol(value_type(name=trim(s%name)))
@@ -856,13 +856,13 @@ contains
     end function setting_other_value
 
     ! Not a port.
-    subroutine integer_assign_int(self, v)
+    subroutine integer_assign_integer(self, v)
         class(integer_setting_type), intent(inout) :: self
         integer, intent(in) :: v
 
         self%value = v
         call settled(self)
-    end subroutine integer_assign_int
+    end subroutine integer_assign_integer
 
     ! Not a port.
     subroutine integer_assign_int64(self, v)
@@ -874,14 +874,14 @@ contains
     end subroutine integer_assign_int64
 
     !> Give the current buffer its own value V.  Port of subr.el:setq-local.
-    subroutine integer_set_local_int(self, v)
+    subroutine integer_set_local_integer(self, v)
         class(integer_setting_type), intent(inout) :: self
         integer, intent(in) :: v
 
         call self%make_local()
         self%value = v
         call settled(self)
-    end subroutine integer_set_local_int
+    end subroutine integer_set_local_integer
 
     !> Give the current buffer its own value V.  Port of subr.el:setq-local.
     subroutine integer_set_local_int64(self, v)
@@ -1153,7 +1153,7 @@ contains
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: test
 
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, test)
+        call set_error(status, WRONG_TYPE_ARGUMENT_CODE, test)
     end subroutine wrong_type
 
     !> Port of lisp.h:CHECK_FIXNUM.
@@ -1262,16 +1262,16 @@ contains
         call forwarded_get(id, v, found, bound)
 
         if (found) then
-            if (.not. bound) call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
+            if (.not. bound) call set_error(status, VOID_VARIABLE_CODE, symbols(id)%name)
             return
         end if
 
         if (.not. symbols(id)%bound) then
-            call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
+            call set_error(status, VOID_VARIABLE_CODE, symbols(id)%name)
             return
         end if
 
-        v = symbols(id)%val
+        v = symbols(id)%value
     end subroutine symbol_value
 
     !> Give `symbol' the value `newval'.  Constants (nil, t, keywords)
@@ -1289,8 +1289,8 @@ contains
         id = xsymbol(symbol)
 
         if (symbols(id)%constant) then
-            if (.not. (index(symbols(id)%name, ":") == 1 .and. value_eq(newval, symbols(id)%val))) then
-                call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
+            if (.not. (index(symbols(id)%name, ":") == 1 .and. value_eq(newval, symbols(id)%value))) then
+                call set_error(status, SETTING_CONSTANT_CODE, symbols(id)%name)
             end if
 
             return
@@ -1306,7 +1306,7 @@ contains
 
         call forwarded_set(id, newval, status, found)
         if (found) return
-        symbols(id)%val = newval
+        symbols(id)%value = newval
         symbols(id)%bound = .true.
     end subroutine set
 
@@ -1323,7 +1323,7 @@ contains
         id = xsymbol(symbol)
 
         if (symbols(id)%constant) then
-            call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
+            call set_error(status, SETTING_CONSTANT_CODE, symbols(id)%name)
             return
         end if
 
@@ -1338,7 +1338,7 @@ contains
 
         call forwarded_makunbound(id, status, found)
         if (found) return
-        symbols(id)%val = value_type()
+        symbols(id)%value = value_type()
         symbols(id)%bound = .false.
     end subroutine makunbound
 

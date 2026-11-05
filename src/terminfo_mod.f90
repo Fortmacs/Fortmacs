@@ -46,7 +46,7 @@
 module terminfo_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use character_mod, only: downcase_ascii
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_FILE_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, FILE_ERROR_CODE
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -79,18 +79,18 @@ module terminfo_mod
                                                      "NR", "NP", "ND", "cc", "ut", "hl", "YA", "YB", &
                                                      "YC", "YD", "YE", "YF", "YG", "bs", "ns", "nc", &
                                                      "MT", "NL", "pt", "xr"]
-    character(len=6), parameter :: NUM_NAMES(39) = [character(len=6) :: &
-                                                    "cols", "it", "lines", "lm", "xmc", "pb", "vt", "wsl", &
-                                                    "nlab", "lh", "lw", "ma", "wnum", "colors", "pairs", "ncv", &
-                                                    "bufsz", "spinv", "spinh", "maddr", "mjump", "mcs", "mls", "npins", &
-                                                    "orc", "orl", "orhi", "orvi", "cps", "widcs", "btns", "bitwin", &
-                                                    "bitype", "OTug", "OTdC", "OTdN", "OTdB", "OTdT", "OTkn"]
-    character(len=2), parameter :: NUM_CODES(39) = [character(len=2) :: &
-                                                    "co", "it", "li", "lm", "sg", "pb", "vt", "ws", &
-                                                    "Nl", "lh", "lw", "ma", "MW", "Co", "pa", "NC", &
-                                                    "Ya", "Yb", "Yc", "Yd", "Ye", "Yf", "Yg", "Yh", &
-                                                    "Yi", "Yj", "Yk", "Yl", "Ym", "Yn", "BT", "Yo", &
-                                                    "Yp", "ug", "dC", "dN", "dB", "dT", "kn"]
+    character(len=6), parameter :: NUMBER_NAMES(39) = [character(len=6) :: &
+                                                       "cols", "it", "lines", "lm", "xmc", "pb", "vt", "wsl", &
+                                                       "nlab", "lh", "lw", "ma", "wnum", "colors", "pairs", "ncv", &
+                                                       "bufsz", "spinv", "spinh", "maddr", "mjump", "mcs", "mls", "npins", &
+                                                       "orc", "orl", "orhi", "orvi", "cps", "widcs", "btns", "bitwin", &
+                                                       "bitype", "OTug", "OTdC", "OTdN", "OTdB", "OTdT", "OTkn"]
+    character(len=2), parameter :: NUMBER_CODES(39) = [character(len=2) :: &
+                                                       "co", "it", "li", "lm", "sg", "pb", "vt", "ws", &
+                                                       "Nl", "lh", "lw", "ma", "MW", "Co", "pa", "NC", &
+                                                       "Ya", "Yb", "Yc", "Yd", "Ye", "Yf", "Yg", "Yh", &
+                                                       "Yi", "Yj", "Yk", "Yl", "Ym", "Yn", "BT", "Yo", &
+                                                       "Yp", "ug", "dC", "dN", "dB", "dT", "kn"]
     character(len=8), parameter :: STRING_NAMES(414) = [character(len=8) :: &
                                                         "cbt", "bel", "cr", "csr", "tbc", "clear", "el", "ed", &
                                                         "hpa", "cmdch", "cup", "cud1", "home", "civis", "cub1", "mrcup", &
@@ -207,10 +207,10 @@ module terminfo_mod
         integer(int32) :: numbers(NUMCOUNT) = -1
         type(string_type) :: strings(STRCOUNT)
         !> Extended capabilities: names and values.
-        type(string_type), allocatable :: ext_flag_names(:), ext_num_names(:), &
-                                          ext_string_names(:), ext_strs(:)
+        type(string_type), allocatable :: ext_flag_names(:), ext_number_names(:), &
+                                          ext_string_names(:), ext_strings(:)
         logical, allocatable :: ext_flags(:)
-        integer(int32), allocatable :: ext_nums(:)
+        integer(int32), allocatable :: ext_numbers(:)
     end type terminfo_type
 
 contains
@@ -241,16 +241,16 @@ contains
         inquire (file=path, exist=file_exists)
     end function file_exists
 
-    !> The file holding entry `term' in directory `dir', or "".  Not a port.
-    function entry_path(dir, term) result(path)
-        character(len=*), intent(in) :: dir, term
+    !> The file holding entry `term' in directory `directory', or "".  Not a port.
+    function entry_path(directory, term) result(path)
+        character(len=*), intent(in) :: directory, term
         character(len=:), allocatable :: path
-        character(len=2) :: hex
+        character(len=2) :: hexadecimal
 
-        path = dir//"/"//term(1:1)//"/"//term
+        path = directory//"/"//term(1:1)//"/"//term
         if (file_exists(path)) return
-        write (hex, "(z2.2)") iachar(term(1:1))
-        path = dir//"/"//downcase_ascii(hex)//"/"//term
+        write (hexadecimal, "(z2.2)") iachar(term(1:1))
+        path = directory//"/"//downcase_ascii(hexadecimal)//"/"//term
         if (file_exists(path)) return
         path = ""
     end function entry_path
@@ -259,15 +259,15 @@ contains
     !> Not a port.
     function find_entry(term) result(path)
         character(len=*), intent(in) :: term
-        character(len=:), allocatable :: path, dirs, home, dir
-        character(len=*), parameter :: SYSTEM_DIRS = "/etc/terminfo:/lib/terminfo:/usr/share/terminfo"
+        character(len=:), allocatable :: path, directories, home, directory
+        character(len=*), parameter :: SYSTEM_DIRECTORIES = "/etc/terminfo:/lib/terminfo:/usr/share/terminfo"
         integer :: k
 
         path = ""
-        dir = getenv_string("TERMINFO")
+        directory = getenv_string("TERMINFO")
 
-        if (len(dir) > 0) then
-            path = entry_path(dir, term)
+        if (len(directory) > 0) then
+            path = entry_path(directory, term)
             if (len(path) > 0) return
         end if
 
@@ -278,32 +278,32 @@ contains
             if (len(path) > 0) return
         end if
 
-        dirs = getenv_string("TERMINFO_DIRS")
+        directories = getenv_string("TERMINFO_DIRS")
 
-        if (len(dirs) == 0) then
-            dirs = SYSTEM_DIRS
+        if (len(directories) == 0) then
+            directories = SYSTEM_DIRECTORIES
         else
-            dirs = dirs//":"
+            directories = directories//":"
         end if
 
-        do while (len(dirs) > 0)
-            k = index(dirs, ":")
-            if (k == 0) k = len(dirs) + 1
-            dir = dirs(1:k - 1)
+        do while (len(directories) > 0)
+            k = index(directories, ":")
+            if (k == 0) k = len(directories) + 1
+            directory = directories(1:k - 1)
 
-            if (k > len(dirs)) then
-                dirs = ""
+            if (k > len(directories)) then
+                directories = ""
             else
-                dirs = dirs(k + 1:)
+                directories = directories(k + 1:)
             end if
 
-            if (len(dir) == 0) then
+            if (len(directory) == 0) then
                 ! An empty element stands for the system directories.
-                if (index(dirs, SYSTEM_DIRS) /= 1) dirs = SYSTEM_DIRS//":"//dirs
+                if (index(directories, SYSTEM_DIRECTORIES) /= 1) directories = SYSTEM_DIRECTORIES//":"//directories
                 cycle
             end if
 
-            path = entry_path(dir, term)
+            path = entry_path(directory, term)
             if (len(path) > 0) return
         end do
     end function find_entry
@@ -318,7 +318,7 @@ contains
         character(len=:), allocatable :: path
 
         if (len(term) == 0 .or. index(term, "/") > 0) then
-            call set_error(status, FM_GENERIC_ERROR, &
+            call set_error(status, GENERIC_ERROR_CODE, &
                            "Terminal type "//term//" is not defined")
             return
         end if
@@ -335,7 +335,7 @@ contains
             return
         end if
 
-        call set_error(status, FM_GENERIC_ERROR, "Terminal type "//term//" is not defined")
+        call set_error(status, GENERIC_ERROR_CODE, "Terminal type "//term//" is not defined")
     end subroutine tgetent
 
     !> Load the compiled entry in file `path'.  Not a port.
@@ -350,7 +350,7 @@ contains
         inquire (file=path, size=size)
 
         if (size <= 0) then
-            call set_error(status, FM_FILE_ERROR, "Cannot read terminfo entry: "//path)
+            call set_error(status, FILE_ERROR_CODE, "Cannot read terminfo entry: "//path)
             return
         end if
 
@@ -359,7 +359,7 @@ contains
               action="read", status="old", iostat=ios)
 
         if (ios /= 0) then
-            call set_error(status, FM_FILE_ERROR, "Cannot read terminfo entry: "//path)
+            call set_error(status, FILE_ERROR_CODE, "Cannot read terminfo entry: "//path)
             return
         end if
 
@@ -367,7 +367,7 @@ contains
         close (unit)
 
         if (ios /= 0) then
-            call set_error(status, FM_FILE_ERROR, "Cannot read terminfo entry: "//path)
+            call set_error(status, FILE_ERROR_CODE, "Cannot read terminfo entry: "//path)
             return
         end if
 
@@ -507,8 +507,8 @@ contains
 
         off = tab + tab_size
         ! The extended section (ncurses), if present.
-        allocate (ti%ext_flag_names(0), ti%ext_num_names(0), ti%ext_string_names(0), &
-                  ti%ext_strs(0), ti%ext_flags(0), ti%ext_nums(0))
+        allocate (ti%ext_flag_names(0), ti%ext_number_names(0), ti%ext_string_names(0), &
+                  ti%ext_strings(0), ti%ext_flags(0), ti%ext_numbers(0))
         if (mod(off, 2_int64) == 1) off = off + 1
         if (off + 10 > n) return
         ebools = get16(data, off)
@@ -519,11 +519,11 @@ contains
         if (ebools < 0 .or. enums < 0 .or. estrs < 0 .or. etab_size < 0 .or. &
             eitems /= estrs + ebools + enums + estrs) return
         off = off + 10
-        deallocate (ti%ext_flag_names, ti%ext_num_names, ti%ext_string_names, &
-                    ti%ext_strs, ti%ext_flags, ti%ext_nums)
-        allocate (ti%ext_flag_names(ebools), ti%ext_num_names(enums), &
-                  ti%ext_string_names(estrs), ti%ext_strs(estrs), ti%ext_flags(ebools), &
-                  ti%ext_nums(enums))
+        deallocate (ti%ext_flag_names, ti%ext_number_names, ti%ext_string_names, &
+                    ti%ext_strings, ti%ext_flags, ti%ext_numbers)
+        allocate (ti%ext_flag_names(ebools), ti%ext_number_names(enums), &
+                  ti%ext_string_names(estrs), ti%ext_strings(estrs), ti%ext_flags(ebools), &
+                  ti%ext_numbers(enums))
 
         if (off + ebools > n) then
             call bad(status)
@@ -544,12 +544,12 @@ contains
 
         do k = 1, enums
             if (numsize == 2) then
-                ti%ext_nums(k) = get16(data, off)
+                ti%ext_numbers(k) = get16(data, off)
             else
-                ti%ext_nums(k) = get32(data, off)
+                ti%ext_numbers(k) = get32(data, off)
             end if
 
-            if (ti%ext_nums(k) < 0) ti%ext_nums(k) = -1
+            if (ti%ext_numbers(k) < 0) ti%ext_numbers(k) = -1
             off = off + numsize
         end do
 
@@ -562,8 +562,8 @@ contains
             o = get16(data, off + 2*(k - 1))
 
             if (o >= 0 .and. o < etab_size) then
-                ti%ext_strs(k)%text = cstring(table, int(o, int64))
-                last = o + len(ti%ext_strs(k)%text) + 1
+                ti%ext_strings(k)%text = cstring(table, int(o, int64))
+                last = o + len(ti%ext_strings(k)%text) + 1
                 names_start = max(names_start, last)
             end if
         end do
@@ -575,7 +575,7 @@ contains
             if (k <= ebools) then
                 ti%ext_flag_names(k)%text = cstring(table, names_start + o)
             else if (k <= ebools + enums) then
-                ti%ext_num_names(k - ebools)%text = cstring(table, names_start + o)
+                ti%ext_number_names(k - ebools)%text = cstring(table, names_start + o)
             else
                 ti%ext_string_names(k - ebools - enums)%text = cstring(table, names_start + o)
             end if
@@ -586,7 +586,7 @@ contains
         subroutine bad(status)
             type(status_type), intent(inout) :: status
 
-            call set_error(status, FM_GENERIC_ERROR, "Invalid terminfo entry")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid terminfo entry")
         end subroutine bad
     end subroutine parse_terminfo
 
@@ -632,13 +632,13 @@ contains
         integer :: k
 
         v = -1
-        k = findloc(NUM_NAMES, name, dim=1)
+        k = findloc(NUMBER_NAMES, name, dim=1)
 
         if (k > 0) then
             v = ti%numbers(k)
-        else if (allocated(ti%ext_num_names)) then
-            k = find_ext(ti%ext_num_names, name)
-            if (k > 0) v = ti%ext_nums(k)
+        else if (allocated(ti%ext_number_names)) then
+            k = find_ext(ti%ext_number_names, name)
+            if (k > 0) v = ti%ext_numbers(k)
         end if
     end function tigetnum
 
@@ -661,8 +661,8 @@ contains
             if (.not. allocated(ti%ext_string_names)) return
             k = find_ext(ti%ext_string_names, name)
             if (k == 0) return
-            if (.not. allocated(ti%ext_strs(k)%text)) return
-            s = ti%ext_strs(k)%text
+            if (.not. allocated(ti%ext_strings(k)%text)) return
+            s = ti%ext_strings(k)%text
         end if
 
         if (present(found)) found = .true.
@@ -692,7 +692,7 @@ contains
         integer :: k
 
         k = 0
-        if (len(code) == 2) k = findloc(NUM_CODES, code, dim=1)
+        if (len(code) == 2) k = findloc(NUMBER_CODES, code, dim=1)
 
         if (k > 0) then
             v = ti%numbers(k)
@@ -734,15 +734,15 @@ contains
     end subroutine set_flag
 
     ! Not a port.
-    subroutine set_num(ti, name, v)
+    subroutine set_number(ti, name, v)
         type(terminfo_type), intent(inout) :: ti
         character(len=*), intent(in) :: name
         integer, intent(in) :: v
         integer :: k
 
-        k = findloc(NUM_NAMES, name, dim=1)
+        k = findloc(NUMBER_NAMES, name, dim=1)
         if (k > 0) ti%numbers(k) = v
-    end subroutine set_num
+    end subroutine set_number
 
     ! Not a port.
     subroutine set_string(ti, name, v)
@@ -761,11 +761,11 @@ contains
         n = size(ti%ext_string_names)
         allocate (names(n + 1), values(n + 1))
         names(1:n) = ti%ext_string_names
-        values(1:n) = ti%ext_strs
+        values(1:n) = ti%ext_strings
         names(n + 1)%text = name
         values(n + 1)%text = v
         call move_alloc(names, ti%ext_string_names)
-        call move_alloc(values, ti%ext_strs)
+        call move_alloc(values, ti%ext_strings)
     end subroutine set_string
 
     !> A built-in xterm-256color description: the capabilities term.c uses,
@@ -775,18 +775,18 @@ contains
         type(terminfo_type), intent(out) :: ti
 
         ti%names = "xterm-256color|xterm with 256 colors (built in)"
-        allocate (ti%ext_flag_names(0), ti%ext_num_names(0), ti%ext_string_names(0), &
-                  ti%ext_strs(0), ti%ext_flags(0), ti%ext_nums(0))
+        allocate (ti%ext_flag_names(0), ti%ext_number_names(0), ti%ext_string_names(0), &
+                  ti%ext_strings(0), ti%ext_flags(0), ti%ext_numbers(0))
         call set_flag(ti, "OTbs")
         call set_flag(ti, "am")
         call set_flag(ti, "km")
         call set_flag(ti, "mir")
         call set_flag(ti, "msgr")
         call set_flag(ti, "xenl")
-        call set_num(ti, "colors", 256)
-        call set_num(ti, "cols", 80)
-        call set_num(ti, "lines", 24)
-        call set_num(ti, "pairs", 65536)
+        call set_number(ti, "colors", 256)
+        call set_number(ti, "cols", 80)
+        call set_number(ti, "lines", 24)
+        call set_number(ti, "pairs", 65536)
         call set_string(ti, "bel", achar(7))
         call set_string(ti, "bold", achar(27)//"[1m")
         call set_string(ti, "cbt", achar(27)//"[Z")
@@ -874,7 +874,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> `n' in base `base' (2..16), at least `mindigits' digits.  Not a port.
-    function int_digits(n, base, upper, mindigits) result(s)
+    function integer_digits(n, base, upper, mindigits) result(s)
         integer(int64), intent(in) :: n
         integer, intent(in) :: base, mindigits
         logical, intent(in) :: upper
@@ -900,12 +900,12 @@ contains
         end do
 
         if (len(s) < mindigits) s = repeat("0", mindigits - len(s))//s
-    end function int_digits
+    end function integer_digits
 
     !> printf-style formatting of `v' for conversion `conv' (d o x X) with
     !> `flags' (- + # space), `width' and `precision' (-1: none), and
     !> zero padding.  Not a port.
-    function format_int(v, conv, flags, width, precision, zero) result(s)
+    function format_integer(v, conv, flags, width, precision, zero) result(s)
         integer(int64), intent(in) :: v
         character, intent(in) :: conv
         character(len=*), intent(in) :: flags
@@ -932,20 +932,20 @@ contains
                 sign = " "
             end if
 
-            digits = int_digits(u, 10, .false., mindigits)
+            digits = integer_digits(u, 10, .false., mindigits)
         case default
             ! Unsigned conversions see the value as a C unsigned int.
             u = iand(v, 4294967295_int64)
 
             select case (conv)
             case ("o")
-                digits = int_digits(u, 8, .false., mindigits)
+                digits = integer_digits(u, 8, .false., mindigits)
                 if (index(flags, "#") > 0 .and. digits(1:1) /= "0") digits = "0"//digits
             case ("x")
-                digits = int_digits(u, 16, .false., mindigits)
+                digits = integer_digits(u, 16, .false., mindigits)
                 if (index(flags, "#") > 0 .and. u /= 0) prefix = "0x"
             case default
-                digits = int_digits(u, 16, .true., mindigits)
+                digits = integer_digits(u, 16, .true., mindigits)
                 if (index(flags, "#") > 0 .and. u /= 0) prefix = "0X"
             end select
         end select
@@ -962,7 +962,7 @@ contains
                 s = repeat(" ", width - len(s))//s
             end if
         end if
-    end function format_int
+    end function format_integer
 
     !> Instantiate parameterized string `string' with integer parameters
     !> `p1'..`p9' (absent ones are 0).  The terminfo(5) language: %p %d %c
@@ -974,24 +974,24 @@ contains
         character(len=*), intent(in) :: string
         integer(int64), intent(in), optional :: p1, p2, p3, p4, p5, p6, p7, p8, p9
         character(len=:), allocatable :: out
-        integer(int64) :: params(9), stack(64), dynamic(26), static_vars(26), a, b, v
+        integer(int64) :: parameters(9), stack(64), dynamic(26), static_variables(26), a, b, v
         integer :: i, n, sp, width, precision
         character :: c
         character(len=:), allocatable :: flags
         logical :: zero
 
-        params = 0
-        if (present(p1)) params(1) = p1
-        if (present(p2)) params(2) = p2
-        if (present(p3)) params(3) = p3
-        if (present(p4)) params(4) = p4
-        if (present(p5)) params(5) = p5
-        if (present(p6)) params(6) = p6
-        if (present(p7)) params(7) = p7
-        if (present(p8)) params(8) = p8
-        if (present(p9)) params(9) = p9
+        parameters = 0
+        if (present(p1)) parameters(1) = p1
+        if (present(p2)) parameters(2) = p2
+        if (present(p3)) parameters(3) = p3
+        if (present(p4)) parameters(4) = p4
+        if (present(p5)) parameters(5) = p5
+        if (present(p6)) parameters(6) = p6
+        if (present(p7)) parameters(7) = p7
+        if (present(p8)) parameters(8) = p8
+        if (present(p9)) parameters(9) = p9
         dynamic = 0
-        static_vars = 0
+        static_variables = 0
         sp = 0
         out = ""
         n = len(string)
@@ -1030,17 +1030,17 @@ contains
             case ("p")
                 if (i <= n) then
                     v = iachar(string(i:i)) - iachar("0")
-                    if (v >= 1 .and. v <= 9) call push(params(v))
+                    if (v >= 1 .and. v <= 9) call push(parameters(v))
                     i = i + 1
                 end if
             case ("P")
                 if (i <= n) then
-                    call set_var(string(i:i), pop())
+                    call set_variable(string(i:i), pop())
                     i = i + 1
                 end if
             case ("g")
                 if (i <= n) then
-                    call push(get_var(string(i:i)))
+                    call push(get_variable(string(i:i)))
                     i = i + 1
                 end if
             case ("'")
@@ -1066,8 +1066,8 @@ contains
             case ("~")
                 call push(not(pop()))
             case ("i")
-                params(1) = params(1) + 1
-                params(2) = params(2) + 1
+                parameters(1) = parameters(1) + 1
+                parameters(2) = parameters(2) + 1
             case ("?", ";")
             case ("t")
                 if (pop() == 0) call skip(.true.)
@@ -1087,13 +1087,13 @@ contains
 
                 zero = .false.
                 if (i <= n) zero = string(i:i) == "0"
-                width = read_int()
+                width = read_integer()
                 precision = -1
 
                 if (i <= n) then
                     if (string(i:i) == ".") then
                         i = i + 1
-                        precision = read_int()
+                        precision = read_integer()
                     end if
                 end if
 
@@ -1102,7 +1102,7 @@ contains
                 i = i + 1
 
                 if (index("doxX", c) > 0) then
-                    out = out//format_int(pop(), c, flags, width, precision, zero)
+                    out = out//format_integer(pop(), c, flags, width, precision, zero)
                 else if (c == "s") then
                     v = pop()
                 end if
@@ -1129,18 +1129,18 @@ contains
             end if
         end function pop
 
-        subroutine set_var(name, x)
+        subroutine set_variable(name, x)
             character, intent(in) :: name
             integer(int64), intent(in) :: x
 
             if (name >= "a" .and. name <= "z") then
                 dynamic(iachar(name) - iachar("a") + 1) = x
             else if (name >= "A" .and. name <= "Z") then
-                static_vars(iachar(name) - iachar("A") + 1) = x
+                static_variables(iachar(name) - iachar("A") + 1) = x
             end if
-        end subroutine set_var
+        end subroutine set_variable
 
-        integer(int64) function get_var(name) result(x)
+        integer(int64) function get_variable(name) result(x)
             character, intent(in) :: name
 
             x = 0
@@ -1148,11 +1148,11 @@ contains
             if (name >= "a" .and. name <= "z") then
                 x = dynamic(iachar(name) - iachar("a") + 1)
             else if (name >= "A" .and. name <= "Z") then
-                x = static_vars(iachar(name) - iachar("A") + 1)
+                x = static_variables(iachar(name) - iachar("A") + 1)
             end if
-        end function get_var
+        end function get_variable
 
-        integer function read_int() result(x)
+        integer function read_integer() result(x)
             x = 0
 
             do while (i <= n)
@@ -1160,7 +1160,7 @@ contains
                 x = 10*x + iachar(string(i:i)) - iachar("0")
                 i = i + 1
             end do
-        end function read_int
+        end function read_integer
 
         !> Skip to after the matching %e (if `to_else') or %;.
         subroutine skip(to_else)
@@ -1247,14 +1247,14 @@ contains
         out = tparm(string, arg1, arg2, arg3, arg4)
     end function tparam
 
-    !> Cursor motion to `col', `row' (0-based): the terminfo library's
+    !> Cursor motion to `column', `row' (0-based): the terminfo library's
     !> tgoto, which takes its arguments column first.  Not a port.
-    function tgoto(cm, col, row) result(out)
+    function tgoto(cm, column, row) result(out)
         character(len=*), intent(in) :: cm
-        integer(int64), intent(in) :: col, row
+        integer(int64), intent(in) :: column, row
         character(len=:), allocatable :: out
 
-        out = tparm(cm, row, col)
+        out = tparm(cm, row, column)
     end function tgoto
 
     !> `s' without $<...> padding specifications.  Modern terminals need no

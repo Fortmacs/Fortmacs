@@ -33,7 +33,7 @@
 !> electric-quote and electric-layout cases wait for those modes.
 module test_electric_pair_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NUMBER
+    use execute_interactively_mod, only: prefix_argument_type, PREFIX_NUMBER
     use value_mod, only: value_type, choice_type
     use data_mod, only: choice_state
     use testdrive, only: new_unittest, unittest_type, error_type, check, test_failed
@@ -42,16 +42,16 @@ module test_electric_pair_mod
     use value_mod, only: value_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, transient_mark_mode
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point, point_min, point_max, buffer_string
-    use execute_interactively_mod, only: execute_interactively, current_prefix_arg
+    use editing_functions_mod, only: goto_character, point, point_minimum, point_maximum, buffer_string
+    use execute_interactively_mod, only: execute_interactively, current_prefix_argument
     use keyboard_mod, only: last_command_event
-    use editing_commands_mod, only: delete_char, forward_char
-    use simple_mod, only: fundamental_mode, blink_paren_function, newline, undo, deactivate_mark
+    use editing_commands_mod, only: delete_character, forward_character
+    use simple_mod, only: fundamental_mode, blink_parenthesis_function, newline, undo, deactivate_mark
     use text_mode_mod, only: text_mode
     use expression_motion_mod, only: mark_expression
     use undo_mod, only: undo_boundary
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use electric_pair_mod, only: electric_pair_syntax_info, electric_pair_info_type, electric_pair_delete_pair, &
                                  electric_pair_skip_whitespace, electric_pair_pairs, electric_pair_type, &
                                  ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
@@ -88,7 +88,7 @@ contains
                     new_unittest("electric-pair-balanced-situation", test_balanced), &
                     new_unittest("electric-pair-too-many", test_too_many), &
                     new_unittest("electric-pair-autoskipping", test_autoskipping), &
-                    new_unittest("electric-pair-mixed-paren", test_mixed_paren), &
+                    new_unittest("electric-pair-mixed-paren", test_mixed_parenthesis), &
                     new_unittest("electric-pair-different-paren-types", test_different_types), &
                     new_unittest("electric-pair-quotes", test_quotes), &
                     new_unittest("electric-pair-whitespace", test_whitespace), &
@@ -118,7 +118,7 @@ contains
     end subroutine enable_pair_mode
 
     !> A fresh Fundamental (or, with TEXT, Text) mode buffer holding FIXTURE.
-    subroutine temp_buffer(h, fixture, text)
+    subroutine temporary_buffer(h, fixture, text)
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: fixture
         logical, intent(in), optional :: text
@@ -134,12 +134,12 @@ contains
 
         call insert(fixture, st)
         call show_alone()
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> Port of electric-tests.el:electric-pair-test-for: insert FIXTURE,
     !> put point at WHERE, run FIXTURE_FN and with BINDINGS self-insert CHAR
     !> (with `save_electric_modes': Electric Pair, Indent and Layout modes
-    !> off, no `blink_paren_function').  OK says whether the text and
+    !> off, no `blink_parenthesis_function').  OK says whether the text and
     !> point are as expected.
     subroutine pair_test_for(fixture, where, char, expected_string, expected_point, bindings, fixture_fn, ok, &
                              text, prefix)
@@ -156,25 +156,25 @@ contains
         procedure(command_procedure), pointer :: saved_blink
         logical :: saved_indent
 
-        call temp_buffer(h, fixture, text)
+        call temporary_buffer(h, fixture, text)
         ! save-electric-modes
-        saved_blink => blink_paren_function
-        blink_paren_function => null()
+        saved_blink => blink_parenthesis_function
+        blink_parenthesis_function => null()
         saved_indent = minor_modes%electric_indent_mode%enabled()
         call minor_modes%electric_pair_mode%disable(st)
         call minor_modes%electric_indent_mode%disable(st)
         last_command_event = value_type(int(char, int64))
         transient_mark_mode = .true.
-        call goto_char(where)
+        call goto_character(where)
         call fixture_fn()
         call bindings(.true.)
-        if (present(prefix)) current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, prefix)
+        if (present(prefix)) current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, prefix)
         call execute_interactively(value_type(name="self_insert_command"), st)
-        current_prefix_arg = prefix_arg_type()
+        current_prefix_argument = prefix_argument_type()
         call bindings(.false.)
         call minor_modes%electric_pair_mode%disable(st)
         if (saved_indent) call minor_modes%electric_indent_mode%enable(st)
-        blink_paren_function => saved_blink
+        blink_parenthesis_function => saved_blink
         ok = buffer_string() == expected_string .and. point() == expected_point
         call deactivate_mark(.true.)
         call close_buffer(h, st)
@@ -196,8 +196,8 @@ contains
         procedure(bindings_procedure), optional :: bindings
         procedure(fixture_procedure), optional :: fixture_fn
         logical, intent(in), optional :: in_strings, in_code, text
-        character(len=:), allocatable :: expected, prefix, suffix, desc, mode
-        integer(int64) :: point_expected, pos
+        character(len=:), allocatable :: expected, prefix, suffix, description, mode
+        integer(int64) :: point_expected, position
         integer :: k, variant
         logical :: ok, strings, code
         character(len=16) :: buffer
@@ -217,20 +217,20 @@ contains
                 if (.not. strings) cycle
                 prefix = '"'
                 suffix = '"'
-                desc = "-in-strings"
+                description = "-in-strings"
             else
                 if (.not. code) cycle
                 prefix = ""
                 suffix = ""
-                desc = ""
+                description = ""
             end if
 
             do k = 1, len(input)
                 if (input(k:k) == "-") cycle
-                pos = k - 1
+                position = k - 1
 
                 if (present(skip_pair_string)) then
-                    call expected_from_skip_pair_string(fixture, input(k:k), pos, skip_pair_string(k:k), &
+                    call expected_from_skip_pair_string(fixture, input(k:k), position, skip_pair_string(k:k), &
                                                         expected, point_expected, bindings, text)
                 else
                     expected = expected_string
@@ -238,26 +238,26 @@ contains
                 end if
 
                 if (present(bindings) .and. present(fixture_fn)) then
-                    call pair_test_for(prefix//fixture//suffix, len(prefix) + pos + 1, iachar(input(k:k)), &
+                    call pair_test_for(prefix//fixture//suffix, len(prefix) + position + 1, iachar(input(k:k)), &
                                        prefix//expected//suffix, len(prefix) + point_expected, bindings, &
                                        fixture_fn, ok, text)
                 else if (present(bindings)) then
-                    call pair_test_for(prefix//fixture//suffix, len(prefix) + pos + 1, iachar(input(k:k)), &
+                    call pair_test_for(prefix//fixture//suffix, len(prefix) + position + 1, iachar(input(k:k)), &
                                        prefix//expected//suffix, len(prefix) + point_expected, bindings, &
                                        enable_pair_mode, ok, text)
                 else if (present(fixture_fn)) then
-                    call pair_test_for(prefix//fixture//suffix, len(prefix) + pos + 1, iachar(input(k:k)), &
+                    call pair_test_for(prefix//fixture//suffix, len(prefix) + position + 1, iachar(input(k:k)), &
                                        prefix//expected//suffix, len(prefix) + point_expected, no_bindings, &
                                        fixture_fn, ok, text)
                 else
-                    call pair_test_for(prefix//fixture//suffix, len(prefix) + pos + 1, iachar(input(k:k)), &
+                    call pair_test_for(prefix//fixture//suffix, len(prefix) + position + 1, iachar(input(k:k)), &
                                        prefix//expected//suffix, len(prefix) + point_expected, no_bindings, &
                                        enable_pair_mode, ok, text)
                 end if
 
                 if (.not. ok) then
-                    write (buffer, "(i0)") len(prefix) + pos + 1
-                    call test_failed(error, "electric-pair-"//name//"-at-point-"//trim(buffer)//"-in-"//mode//desc)
+                    write (buffer, "(i0)") len(prefix) + position + 1
+                    call test_failed(error, "electric-pair-"//name//"-at-point-"//trim(buffer)//"-in-"//mode//description)
                     return
                 end if
             end do
@@ -266,9 +266,9 @@ contains
 
     !> The expected text and point for a SKIP_PAIR_STRING character
     !> (electric-pair-define-test-form).
-    subroutine expected_from_skip_pair_string(fixture, char, pos, what, expected, point_expected, bindings, text)
+    subroutine expected_from_skip_pair_string(fixture, char, position, what, expected, point_expected, bindings, text)
         character(len=*), intent(in) :: fixture, char, what
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         character(len=:), allocatable, intent(out) :: expected
         integer(int64), intent(out) :: point_expected
         procedure(bindings_procedure), optional :: bindings
@@ -278,17 +278,17 @@ contains
         type(electric_pair_info_type) :: info
 
         if (present(bindings)) call bindings(.true.)
-        call temp_buffer(h, fixture, text)
-        call goto_char(pos + 1)
+        call temporary_buffer(h, fixture, text)
+        call goto_character(position + 1)
         call insert(char, st)
 
         if (what == "p") then
             info = electric_pair_syntax_info(iachar(char))
             call insert(achar(info%pair), st)
-            call goto_char(point() - 1)
+            call goto_character(point() - 1)
         else if (what == "s") then
-            call delete_char(-1_int64, st)
-            call forward_char(st, 1_int64)
+            call delete_character(-1_int64, st)
+            call forward_character(st, 1_int64)
         end if
 
         expected = buffer_string()
@@ -304,14 +304,14 @@ contains
     subroutine test_balanced(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call pair_test(error, "balanced-situation", " (())  ", "(((((((", skip_pair_string="ppppppp")
     end subroutine test_balanced
 
     subroutine test_too_many(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call pair_test(error, "too-many-openings", " ((()) ", "(((((((", skip_pair_string="ppppppp")
         if (allocated(error)) return
         call pair_test(error, "too-many-closings", " (())) ", "(((((((", skip_pair_string="------p")
@@ -324,7 +324,7 @@ contains
     subroutine test_autoskipping(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call pair_test(error, "balanced-autoskipping", " (())  ", "---))--", skip_pair_string="---ss--")
         if (allocated(error)) return
         call pair_test(error, "too-many-openings-autoskipping", " ((()) ", "----))-", skip_pair_string="-------")
@@ -332,10 +332,10 @@ contains
         call pair_test(error, "too-many-closings-autoskipping", " (())) ", "---)))-", skip_pair_string="---sss-")
     end subroutine test_autoskipping
 
-    subroutine test_mixed_paren(error)
+    subroutine test_mixed_parenthesis(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call pair_test(error, "mixed-paren-1", "  ()]  ", "-(-(---", skip_pair_string="-p-p---")
         if (allocated(error)) return
         call pair_test(error, "mixed-paren-2", "  [()  ", "-(-()--", skip_pair_string="-p-ps--")
@@ -345,12 +345,12 @@ contains
         call pair_test(error, "mixed-paren-4", "  ()]  ", "---)]--", skip_pair_string="---ss--")
         if (allocated(error)) return
         call pair_test(error, "mixed-paren-5", "  [()  ", "----(--", skip_pair_string="----p--")
-    end subroutine test_mixed_paren
+    end subroutine test_mixed_parenthesis
 
     subroutine test_different_types(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call pair_test(error, "find-matching-different-paren-type", "  ()]  ", "-[-----", skip_pair_string="-------")
         if (allocated(error)) return
         call pair_test(error, "find-matching-different-paren-type-inside-list", "( ()]) ", "-[-----", &
@@ -381,7 +381,7 @@ contains
     subroutine test_quotes(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         ! (electric-pair-text-syntax-table is prog-mode-syntax-table, the
         ! default here.)
         call pair_test(error, "pair-some-quotes-skip-others", ' ""      ', '-""-"---', skip_pair_string="-ps-p----", &
@@ -423,7 +423,7 @@ contains
     subroutine test_whitespace(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call pair_test(error, "whitespace-jumping", " (    )  ", "--))))---", expected_string=" (    )  ", &
                        expected_point=8_int64, bindings=skip_whitespace_t)
         if (allocated(error)) return
@@ -467,7 +467,7 @@ contains
     subroutine test_angle_brackets(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call pair_test(error, "angle-brackets-everywhere", "<>", "<>", skip_pair_string="ps", bindings=angle_pairs)
         if (allocated(error)) return
         call pair_test(error, "angle-brackets-everywhere-2", "(<>", "-<>", skip_pair_string="-ps", bindings=angle_pairs)
@@ -491,10 +491,10 @@ contains
         type(status_type) :: st
 
         call minor_modes%electric_pair_mode%enable(st)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
 
-        if (point() > point_min()) then
-            if (buffer_string_tail() == '"') call goto_char(point() - 1)
+        if (point() > point_minimum()) then
+            if (buffer_string_tail() == '"') call goto_character(point() - 1)
         end if
 
         call mark_expression(-1_int64, .true., .false., st)
@@ -513,7 +513,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         logical :: ok
 
-        call init_bindings()
+        call initialize_bindings()
         call pair_test(error, "autowrapping-1", "foo", "(", expected_string="(foo)", expected_point=2_int64, &
                        fixture_fn=mark_forward)
         if (allocated(error)) return
@@ -568,8 +568,8 @@ contains
         type(status_type) :: st
         type(electric_pair_type), allocatable :: saved(:)
 
-        call init_bindings()
-        call temp_buffer(h, "")
+        call initialize_bindings()
+        call temporary_buffer(h, "")
         call minor_modes%electric_indent_mode%disable(st)
         saved = electric_pair_pairs
         deallocate (electric_pair_pairs)
@@ -603,9 +603,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
-        call temp_buffer(h, "()")
-        call goto_char(2_int64)
+        call initialize_bindings()
+        call temporary_buffer(h, "()")
+        call goto_character(2_int64)
         call electric_pair_delete_pair(1_int64, st)
         call check(error, buffer_string(), "")
         call close_buffer(h, st)
@@ -616,9 +616,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
-        call temp_buffer(h, "((()))")
-        call goto_char(4_int64)
+        call initialize_bindings()
+        call temporary_buffer(h, "((()))")
+        call goto_character(4_int64)
         call electric_pair_delete_pair(2_int64, st)
         call check(error, buffer_string(), "()")
         call close_buffer(h, st)
@@ -630,8 +630,8 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
-        call temp_buffer(h, "")
+        call initialize_bindings()
+        call temporary_buffer(h, "")
         call minor_modes%electric_pair_local_mode%enable(st)
         last_command_event = value_type(int(iachar("("), int64))
         call execute_interactively(value_type(name="self_insert_command"), st)
@@ -639,7 +639,7 @@ contains
         last_command_event = value_type(int(iachar("a"), int64))
         call execute_interactively(value_type(name="self_insert_command"), st)
         call undo_boundary()
-        call undo(prefix_arg_type(), st)
+        call undo(prefix_argument_type(), st)
         last_command_event = value_type(int(iachar("("), int64))
         call execute_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), "(())")
@@ -655,16 +655,16 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
-        call temp_buffer(h, "")
+        call initialize_bindings()
+        call temporary_buffer(h, "")
         call minor_modes%electric_pair_mode%enable(st)
         call minor_modes%electric_indent_mode%enable(st)
         call insert("int main {}", st)
-        call goto_char(point() - 1)
+        call goto_character(point() - 1)
         call newline(st, 1_int64, interactive=.true.)
         call check(error, buffer_string(), "int main {"//achar(10)//achar(10)//"}")
         if (allocated(error)) return
-        call check(error, point() == point_max() - 2, "between the braces")
+        call check(error, point() == point_maximum() - 2, "between the braces")
         call minor_modes%electric_pair_mode%disable(st)
         call close_buffer(h, st)
     end subroutine test_open_extra_newline
@@ -675,7 +675,7 @@ contains
         type(handle_type) :: a, b
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer("*elec-pair-a*", a, st)
         call get_or_make_buffer("*elec-pair-b*", b, st)
         call set_buffer(a, st)

@@ -31,31 +31,32 @@
 !> Deferred: see docs/status/simple_merge_mode_mod.md.
 module simple_merge_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, format_error, GENERIC_ERROR_CODE, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle, has_handle
-    use value_mod, only: value_type, make_keymap_ref, make_buffer_ref, make_list, vtag, xfixnum, V_INTEGER
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use value_mod, only: value_type, make_keymap_reference, make_buffer_reference, make_list, vtag, xfixnum, V_INTEGER
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use commands_mod, only: commands
     use data_mod, only: append_locals_clearer, string_to_number
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, close_buffer, erase_buffer, buffer_modified_tick
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_eob, char_after, line_end_position, &
-                                     line_beginning_position, delete_region, delete_and_extract_region, insert_buffer_substring, &
-                                     buffer_substring_no_properties, narrow_to_region, widen, is_buffer_narrowed, mark_marker
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, is_end_of_buffer, character_after, &
+                                     line_end_position, line_beginning_position, delete_region, delete_and_extract_region, &
+                                     insert_buffer_substring, buffer_substring_no_properties, narrow_to_region, widen, &
+                                     is_buffer_narrowed, mark_marker
     use insert_delete_mod, only: insert
     use editing_commands_mod, only: forward_line
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, match_data, &
-                          set_match_data, SEARCH_NOERROR
+    use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, match_beginning, &
+                          match_end, match_data, set_match_data, SEARCH_NOERROR
     use basic_subprograms_mod, only: match_string
     use basic_subprograms_mod, only: change_group_type, prepare_change_group, activate_change_group, accept_change_group, &
                                      cancel_change_group
-    use syntax_mod, only: parse_state_type, syntax_ppss, forward_comment
+    use syntax_mod, only: parse_state_type, syntax_parser_state, forward_comment
     use newcomment_mod, only: is_comment_only, comment_search_forward, comment_forward, comment_enter_backward
     use simple_mod, only: count_lines, is_use_region
     use file_input_output_mod, only: write_region, insert_file_contents, file_name_nondirectory
-    use files_mod, only: create_temp_file, delete_file, file_relative_name
+    use files_mod, only: create_temporary_file, delete_file, file_relative_name
     use execute_process_mod, only: execute_process, execute_process_region
     use coding_mod, only: coding_system_for_read, buffer_file_coding_system
     use interval_tree_mod, only: make_overlay, move_overlay, destroy_overlay, overlay_start, overlay_end, overlay_buffer, &
@@ -67,20 +68,20 @@ module simple_merge_mode_mod
     use display_engine_mod, only: message
     use display_update_mod, only: ding
     use paragraphs_mod, only: paragraph_separate
-    use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
+    use faces_mod, only: named_face_type, display_when, face_attributes, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type, font_lock_mode_enabled, &
                              FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_add_keywords, font_lock_fontify_region, &
                              FONT_LOCK_ADD_END
-    use easy_minor_mode_mod, only: easy_mmode_next, easy_mmode_prev
+    use easy_minor_mode_mod, only: easy_mmode_next, easy_mmode_previous
     use modes_mod, only: minor_modes
     use diff_mod, only: diff_switches, diff_command, diff_check_labels, diff_use_labels
     use diff_mode_mod, only: diff_mode
     implicit none(type, external)
     private
 
-    public :: init_smerge_mode, smerge_mode, start_smerge_session, match_smerge_conflict, find_smerge_conflict, &
+    public :: initialize_smerge_mode, smerge_mode, start_smerge_session, match_smerge_conflict, find_smerge_conflict, &
               check_smerge, next_smerge_conflict, previous_smerge_conflict, keep_smerge_all, keep_smerge_base, keep_smerge_lower, &
               keep_smerge_upper, keep_smerge_current, delete_smerge_current, combine_smerge_with_next, &
               auto_combine_smerge, resolve_smerge, resolve_smerge_all, swap_smerge, extend_smerge, &
@@ -184,20 +185,22 @@ module simple_merge_mode_mod
 
     !> The line that begins a conflict.  Port of smerge-mode.el
     !> smerge-begin-re.
-    character(len=*), parameter, public :: smerge_begin_regexp = "^<<<<<<< \(.*\)"//LF
+    character(len=*), parameter, public :: smerge_begin_regular_expression = "^<<<<<<< \(.*\)"//LF
     !> The line that ends a conflict.  Port of smerge-mode.el smerge-end-re.
-    character(len=*), parameter, public :: smerge_end_regexp = "^>>>>>>> \(.*\)"//LF
+    character(len=*), parameter, public :: smerge_end_regular_expression = "^>>>>>>> \(.*\)"//LF
     !> The line that begins the base version.  Port of smerge-mode.el
     !> smerge-base-re.
-    character(len=*), parameter, public :: smerge_base_regexp = "^||||||| \(.*\)"//LF
+    character(len=*), parameter, public :: smerge_base_regular_expression = "^||||||| \(.*\)"//LF
     !> The line that begins the lower version.  Port of smerge-mode.el
     !> smerge-lower-re.
-    character(len=*), parameter, public :: smerge_lower_regexp = "^======="//LF
+    character(len=*), parameter, public :: smerge_lower_regular_expression = "^======="//LF
     !> The conflict marker lines, as alternatives that `smerge_mode' puts
     !> in front of `paragraph_separate'.  Port of smerge-mode.el
     !> smerge-parsep-re.
-    character(len=*), parameter, public :: smerge_parsep_regexp = smerge_begin_regexp//"\|"//smerge_end_regexp//"\|"// &
-                                           smerge_base_regexp//"\|"//smerge_lower_regexp//"\|"
+    character(len=*), parameter, public :: smerge_parsep_regular_expression = smerge_begin_regular_expression//"\|" &
+                                           //smerge_end_regular_expression &
+                                           //"\|"// &
+                                           smerge_base_regular_expression//"\|"//smerge_lower_regular_expression//"\|"
     !> The names of the parts of a conflict, by subexpression of the match
     !> data (0 to 3).  Port of smerge-mode.el smerge-match-names.
     character(len=8), parameter, public :: smerge_match_names(0:3) = [character(len=8) :: "conflict", "upper", &
@@ -205,7 +208,7 @@ module simple_merge_mode_mod
 
     !> A diff hunk header of the normal format (as diff writes without
     !> options): smerge-apply-resolution-patch's regexp.
-    character(len=*), parameter :: normal_hunk_header_regexp = &
+    character(len=*), parameter :: normal_hunk_header_regular_expression = &
                                    "\([0-9]+\)\(?:,\([0-9]+\)\)?\([acd]\)\([0-9]+\)\(?:,\([0-9]+\)\)?$"
 
     !> A buffer's Smerge variables (buffer-local upstream), by buffer
@@ -309,7 +312,7 @@ contains
         logical, intent(in), optional :: safe
 
         if (present(safe)) continue
-        call set_error(status, FM_USER_ERROR, "Don't know how to resolve")
+        call set_error(status, USER_ERROR_CODE, "Don't know how to resolve")
     end subroutine resolve_unknown
 
     !> Whether strings A and B are equal, trailing blanks included (Lisp's
@@ -336,18 +339,18 @@ contains
     !> Port of smerge-mode.el:smerge-match-conflict.
     recursive subroutine match_smerge_conflict(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: orig, start, upper_start, upper_end, lower_start, lower_end, end, base_start, base_end
+        integer(int64) :: original, start, upper_start, upper_end, lower_start, lower_end, end, base_start, base_end
         integer(int64) :: found, shortage, here
         character(len=:), allocatable :: filename, visited
         type(status_type) :: st
         integer :: k
 
         status = status_type()
-        orig = point()
+        original = point()
 
         search: block
             shortage = forward_line(1_int64)
-            call re_search_backward(smerge_begin_regexp, found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_backward(smerge_begin_regular_expression, found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) exit search
 
             if (found == 0) then
@@ -358,7 +361,7 @@ contains
             start = match_beginning(0, st)
             upper_start = match_end(0, st)
             filename = match_string(1)
-            call re_search_forward(smerge_end_regexp, found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(smerge_end_regular_expression, found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) exit search
 
             if (found == 0) then
@@ -368,14 +371,15 @@ contains
 
             ! Point is not within the conflict we found, so this conflict
             ! is not ours.
-            if (match_end(0, st) < orig) then
+            if (match_end(0, st) < original) then
                 call not_in_conflict()
                 exit search
             end if
 
             lower_end = match_beginning(0, st)
             end = match_end(0, st)
-            call re_search_backward(smerge_lower_regexp, found, status, bound=start, noerror=SEARCH_NOERROR)
+            call regular_expression_search_backward(smerge_lower_regular_expression, found, status, bound=start, &
+                                                    noerror=SEARCH_NOERROR)
             if (.not. status%ok()) exit search
 
             if (found == 0) then
@@ -389,9 +393,10 @@ contains
             base_end = 0
             ! Handle the various conflict styles.
             here = point()
-            call goto_char(upper_start)
-            call re_search_forward(smerge_begin_regexp, found, status, bound=end, noerror=SEARCH_NOERROR)
-            call goto_char(here)
+            call goto_character(upper_start)
+            call regular_expression_search_forward(smerge_begin_regular_expression, found, status, bound=end, &
+                                                   noerror=SEARCH_NOERROR)
+            call goto_character(here)
             if (.not. status%ok()) exit search
 
             if (found /= 0) then
@@ -401,11 +406,12 @@ contains
                 ! case it can only be something nastier that we don't know how
                 ! to handle, so may as well arbitrarily decide to treat it as
                 ! a nested conflict.  --Stef
-                call set_error(status, FM_GENERIC_ERROR, "There is a nested conflict")
+                call set_error(status, GENERIC_ERROR_CODE, "There is a nested conflict")
                 exit search
             end if
 
-            call re_search_backward(smerge_base_regexp, found, status, bound=start, noerror=SEARCH_NOERROR)
+            call regular_expression_search_backward(smerge_base_regular_expression, found, status, bound=start, &
+                                                    noerror=SEARCH_NOERROR)
             if (.not. status%ok()) exit search
             visited = ""
             if (allocated(buffers(current)%filename)) visited = buffers(current)%filename
@@ -439,13 +445,13 @@ contains
             end if
         end block search
 
-        call goto_char(orig)
+        call goto_character(original)
 
     contains
 
         ! The search-failed handler: not inside a conflict.
         subroutine not_in_conflict()
-            call set_error(status, FM_USER_ERROR, "Point not in conflict region")
+            call set_error(status, USER_ERROR_CODE, "Point not in conflict region")
         end subroutine not_in_conflict
 
         ! (string-match "\\`[.0-9]+\\'" S)
@@ -457,19 +463,19 @@ contains
         end function is_revision_number
     end subroutine match_smerge_conflict
 
-    !> POS gets the beginning of part N of the conflict at point (0 for the
+    !> POSITION gets the beginning of part N of the conflict at point (0 for the
     !> whole conflict, as for `match_smerge_conflict'), or 0 if there is no
     !> conflict at point or it has no part N.  The match data are those of
     !> the conflict, cached while point and the buffer stay the same.
     !> Port of smerge-mode.el:smerge-check.
-    recursive subroutine check_smerge(n, pos)
+    recursive subroutine check_smerge(n, position)
         integer, intent(in) :: n
-        integer(int64), intent(out) :: pos
+        integer(int64), intent(out) :: position
         type(status_type) :: st
         integer(int64) :: tick
         integer :: k
 
-        pos = 0
+        position = 0
         call buffer_modified_tick(current_buffer(), tick, st)
         call make_local_entry(k)
         if (k == 0) return
@@ -484,7 +490,7 @@ contains
             locals(k)%check_tick = tick
         end if
 
-        if (size(locals(k)%check_data) > 2*n) pos = locals(k)%check_data(2*n + 1)
+        if (size(locals(k)%check_data) > 2*n) position = locals(k)%check_data(2*n + 1)
     end subroutine check_smerge
 
     !> An error unless part N of the conflict (see `match_smerge_conflict')
@@ -495,7 +501,7 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        if (match_end(n, st) == 0) call set_error(status, FM_GENERIC_ERROR, "No `"//trim(smerge_match_names(n))//"'")
+        if (match_end(n, st) == 0) call set_error(status, GENERIC_ERROR_CODE, "No `"//trim(smerge_match_names(n))//"'")
     end subroutine ensure_smerge_match
 
     !> Turn `smerge_mode' off when `smerge_auto_leave' is true and there
@@ -508,28 +514,28 @@ contains
         status = status_type()
         if (.not. smerge_auto_leave) return
         here = point()
-        call goto_char(point_min())
-        call re_search_forward(smerge_begin_regexp, found, status, noerror=SEARCH_NOERROR)
-        call goto_char(here)
+        call goto_character(point_minimum())
+        call regular_expression_search_forward(smerge_begin_regular_expression, found, status, noerror=SEARCH_NOERROR)
+        call goto_character(here)
         if (.not. status%ok()) return
         if (found /= 0) return
         call minor_modes%smerge_mode%disable(status)
     end subroutine auto_leave_smerge
 
-    !> The conflict overlay at POS, if any (else the null handle).  Port of
+    !> The conflict overlay at POSITION, if any (else the null handle).  Port of
     !> smerge-mode.el:smerge-conflict-overlay.
-    function get_smerge_conflict_overlay(pos) result(conflict)
-        integer(int64), intent(in) :: pos
+    function get_smerge_conflict_overlay(position) result(conflict)
+        integer(int64), intent(in) :: position
         type(handle_type) :: conflict
         type(handle_type), allocatable :: ols(:)
         integer :: k
 
         conflict = null_handle()
-        call overlays_at(pos, ols)
+        call overlays_at(position, ols)
 
         do k = 1, size(ols)
             if (.not. has_handle(conflict_overlays, ols(k))) cycle
-            if (overlay_end(ols(k)) > pos) conflict = ols(k)
+            if (overlay_end(ols(k)) > position) conflict = ols(k)
         end do
     end function get_smerge_conflict_overlay
 
@@ -562,33 +568,33 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: conflict
         type(status_type) :: st
-        integer(int64) :: pos, f, ostart, oend
+        integer(int64) :: position, f, ostart, oend
 
         status = status_type()
         found = .false.
-        pos = point()
+        position = point()
         call prune_conflict_overlays()
 
         ! First check to see if point is already inside a conflict, using
         ! the conflict overlays.
         do while (.not. found)
-            conflict = get_smerge_conflict_overlay(pos)
+            conflict = get_smerge_conflict_overlay(position)
             if (conflict%index == 0) exit
             ! Check the overlay's validity and kill it if it's out of date.
             ostart = overlay_start(conflict)
             oend = overlay_end(conflict)
-            call goto_char(ostart)
+            call goto_character(ostart)
             call match_smerge_conflict(st)
 
             if (st%ok()) then
-                call goto_char(match_end(0, st))
+                call goto_character(match_end(0, st))
                 ! (Matching backward is an error.)
-                found = point() > pos
+                found = point() > position
             end if
 
             if (.not. found) then
                 call remove_smerge_properties(ostart, oend)
-                call goto_char(pos)
+                call goto_character(position)
             end if
         end do
 
@@ -596,16 +602,17 @@ contains
         ! and add/update its overlay.
         do while (.not. found)
             if (limit > 0) then
-                call re_search_forward(smerge_begin_regexp, f, status, bound=limit, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(smerge_begin_regular_expression, f, status, bound=limit, &
+                                                       noerror=SEARCH_NOERROR)
             else
-                call re_search_forward(smerge_begin_regexp, f, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(smerge_begin_regular_expression, f, status, noerror=SEARCH_NOERROR)
             end if
 
             if (.not. status%ok()) return
             if (f == 0) exit
             call match_smerge_conflict(st)
             if (.not. st%ok()) cycle
-            call goto_char(match_end(0, st))
+            call goto_character(match_end(0, st))
             conflict = get_smerge_conflict_overlay(point() - 1)
 
             if (conflict%index /= 0) then
@@ -721,9 +728,9 @@ contains
         mb3 = match_beginning(3, st)
         me3 = match_end(3, st)
         mb2 = match_beginning(2, st)
-        if (mb2 == 0) mb2 = point_max()
+        if (mb2 == 0) mb2 = point_maximum()
         me2 = match_end(2, st)
-        if (me2 == 0) me2 = point_min()
+        if (me2 == 0) me2 = point_minimum()
         call delete_region(me3, me0, status)
         if (.not. status%ok()) return
         call delete_region(max(me2, me1), mb3, status)
@@ -793,14 +800,14 @@ contains
     !> smerge-mode.el:smerge-get-current.
     integer function get_smerge_current() result(i)
         type(status_type) :: st
-        integer(int64) :: pt
+        integer(int64) :: point_value
 
-        pt = point()
+        point_value = point()
         i = 3
 
         do while (i > 0)
             if (match_end(i, st) /= 0) then
-                if (pt >= match_beginning(i, st) .and. pt <= match_end(i, st)) exit
+                if (point_value >= match_beginning(i, st) .and. point_value <= match_end(i, st)) exit
             end if
 
             i = i - 1
@@ -818,7 +825,7 @@ contains
         i = get_smerge_current()
 
         if (i <= 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Not inside a version")
+            call set_error(status, GENERIC_ERROR_CODE, "Not inside a version")
             return
         end if
 
@@ -839,7 +846,7 @@ contains
         i = get_smerge_current()
 
         if (i <= 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Not inside a version")
+            call set_error(status, GENERIC_ERROR_CODE, "Not inside a version")
             return
         end if
 
@@ -854,7 +861,7 @@ contains
         end do
 
         if (count == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong type argument: expected integer")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "Wrong type argument: expected integer")
             return
         end if
 
@@ -881,7 +888,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: ends(0:3), md(12)
         integer(int64), allocatable :: data(:)
-        integer(int64) :: pos, found, b, e
+        integer(int64) :: position, found, b, e
         type(status_type) :: st
         integer :: i
 
@@ -897,12 +904,12 @@ contains
         end do
 
         combine: block
-            call goto_char(at(ends(0)))
-            call re_search_forward(smerge_begin_regexp, found, status, noerror=SEARCH_NOERROR)
+            call goto_character(at(ends(0)))
+            call regular_expression_search_forward(smerge_begin_regular_expression, found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) exit combine
 
             if (found == 0) then
-                call set_error(status, FM_GENERIC_ERROR, "No next conflict")
+                call set_error(status, GENERIC_ERROR_CODE, "No next conflict")
                 exit combine
             end if
 
@@ -917,7 +924,7 @@ contains
             ! First copy the in-between text in each alternative.
             do i = 1, 3
                 if (ends(i)%index == 0) cycle
-                call goto_char(at(ends(i)))
+                call goto_character(at(ends(i)))
                 call insert_buffer_substring(current_buffer(), status, at(ends(0)), at(md(1)))
                 if (.not. status%ok()) exit combine
             end do
@@ -932,7 +939,7 @@ contains
                 if (match_end(i, st) == 0) cycle
                 b = match_beginning(i, st)
                 e = match_end(i, st)
-                call goto_char(at(ends(i)))
+                call goto_character(at(ends(i)))
                 call insert_buffer_substring(current_buffer(), status, b, e)
                 if (.not. status%ok()) exit combine
             end do
@@ -956,8 +963,8 @@ contains
             type(handle_type), intent(in) :: m
             type(status_type) :: mst
 
-            call marker_position(m, pos, mst)
-            at = pos
+            call marker_position(m, position, mst)
+            at = position
         end function at
 
         ! (set-match-data match-data): the second conflict's match data
@@ -985,7 +992,7 @@ contains
 
         status = status_type()
         here = point()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         outer: do
             call find_smerge_conflict(0_int64, found, status)
@@ -997,7 +1004,7 @@ contains
                 inner = point()
                 limit = line_beginning_position(int(2 + smerge_auto_combine_max_separation, int64))
                 call find_smerge_conflict(limit, next, status)
-                call goto_char(inner)
+                call goto_character(inner)
                 if (.not. status%ok()) exit outer
                 if (.not. next) exit
                 ! Go back inside the conflict.
@@ -1009,7 +1016,7 @@ contains
             end do
         end do outer
 
-        call goto_char(here)
+        call goto_character(here)
     end subroutine auto_combine_smerge
 
     !> Swap the "Upper" and the "Lower" chunks.
@@ -1029,14 +1036,14 @@ contains
         me1 = match_end(1, st)
         mb3 = match_beginning(3, st)
         me3 = match_end(3, st)
-        call goto_char(mb3)
+        call goto_character(mb3)
         call delete_and_extract_region(point(), me3, txt3, status)
         if (.not. status%ok()) return
         call delete_and_extract_region(mb1, me1, txt1, status)
         if (.not. status%ok()) return
         call insert(txt1, status)
         if (.not. status%ok()) return
-        call goto_char(mb1)
+        call goto_character(mb1)
         call insert(txt3, status)
     end subroutine swap_smerge
 
@@ -1057,7 +1064,7 @@ contains
         type(handle_type) :: other, end_marker
         type(status_type) :: st
         character(len=:), allocatable :: text
-        integer(int64) :: beginning, end, pos, me, here
+        integer(int64) :: beginning, end, position, me, here
         logical :: own_other, after
         integer :: i
 
@@ -1071,7 +1078,7 @@ contains
             ! Point is at the other end: go to OTHERPOS and use point as
             ! the other end instead.
             here = point()
-            call goto_char(at(otherpos))
+            call goto_character(at(otherpos))
             call copy_marker_at(here, other, .false., st)
             own_other = .true.
             call match_smerge_conflict(status)
@@ -1083,16 +1090,16 @@ contains
 
         extend: block
             if (.not. present(otherpos)) then
-                pos = 1
-                if (present(lines)) pos = lines
+                position = 1
+                if (present(lines)) position = lines
 
-                if (pos >= 0) then
-                    call goto_char(at(end_marker))
+                if (position >= 0) then
+                    call goto_character(at(end_marker))
                 else
-                    call goto_char(beginning)
+                    call goto_character(beginning)
                 end if
 
-                call copy_marker_at(line_beginning_position(pos + 1), other, .false., st)
+                call copy_marker_at(line_beginning_position(position + 1), other, .false., st)
                 own_other = .true.
             end if
 
@@ -1103,7 +1110,7 @@ contains
             else if (at(other) <= beginning) then
                 call buffer_substring_no_properties(at(other), beginning, text, status)
             else
-                call set_error(status, FM_USER_ERROR, "The other end should be outside the conflict")
+                call set_error(status, USER_ERROR_CODE, "The other end should be outside the conflict")
                 exit extend
             end if
 
@@ -1118,7 +1125,7 @@ contains
                 end if
 
                 if (me == 0) cycle
-                call goto_char(me)
+                call goto_character(me)
                 call insert(text, status)
                 if (.not. status%ok()) exit extend
             end do
@@ -1158,25 +1165,25 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: textbuf
         character(len=:), allocatable :: name1, name2, name3, othertext, header
-        integer(int64) :: line, m3b, startline, endline, nlines, otherlines, other_start, pos, shortage, n
+        integer(int64) :: line, m3b, startline, endline, nlines, otherlines, other_start, position, shortage, n
         integer(int32) :: op
         logical :: found
         type(status_type) :: st
 
         line = 1
         textbuf = current_buffer()
-        call goto_char(m0b)
+        call goto_character(m0b)
         call buffer_substring_no_properties(point() + 8, line_end_position(), name1, status)
         if (.not. status%ok()) return
 
         if (m2b /= 0) then
-            call goto_char(m2b)
+            call goto_character(m2b)
             shortage = forward_line(-1_int64)
             call buffer_substring_no_properties(point() + 8, line_end_position(), name2, status)
             if (.not. status%ok()) return
         end if
 
-        call goto_char(m0e)
+        call goto_character(m0e)
         shortage = forward_line(-1_int64)
         call buffer_substring_no_properties(point() + 8, line_end_position(), name3, status)
         if (.not. status%ok()) return
@@ -1187,20 +1194,20 @@ contains
         if (.not. status%ok()) return
         ! (Upstream then sets m3e to m3e - (m3b - m0b), which it does not use.)
         m3b = m0b
-        call goto_char(m3b)
+        call goto_character(m3b)
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        hunks: do while (.not. is_eob())
-            if (.not. looking_at(normal_hunk_header_regexp, status)) then
+        hunks: do while (.not. is_end_of_buffer())
+            if (.not. looking_at(normal_hunk_header_regular_expression, status)) then
                 if (.not. status%ok()) exit hunks
                 call buffer_substring_no_properties(point(), line_end_position(), header, st)
-                call set_error(status, FM_GENERIC_ERROR, "Unexpected patch hunk header: "//header)
+                call set_error(status, GENERIC_ERROR_CODE, "Unexpected patch hunk header: "//header)
                 exit hunks
             end if
 
-            call char_after(op, found, match_beginning(3, st))
+            call character_after(op, found, match_beginning(3, st))
             call string_to_number(match_string(1), startline)
             ! No clue why this is the way it is, but line numbers seem to be
             ! off-by-one for `a' ops.
@@ -1237,7 +1244,7 @@ contains
             if (otherlines < 0) then
                 othertext = ""
             else
-                pos = point()
+                position = point()
 
                 do n = 1, otherlines
                     call delete_region(point(), point() + 2, status)
@@ -1245,7 +1252,7 @@ contains
                     shortage = forward_line(1_int64)
                 end do
 
-                call buffer_substring_no_properties(pos, point(), othertext, status)
+                call buffer_substring_no_properties(position, point(), othertext, status)
                 if (.not. status%ok()) exit hunks
             end if
 
@@ -1314,22 +1321,22 @@ contains
 
         here = point()
         text = " "
-        call goto_char(beginning)
+        call goto_character(beginning)
 
         do while (point() < end)
             combeg = comment_search_forward(end, .true., st)
             if (combeg == 0) exit
             inner = point()
-            call goto_char(combeg)
+            call goto_character(combeg)
             moved = comment_forward(1_int64)
             after = point()
             call comment_enter_backward()
             call buffer_substring_no_properties(inner, point(), comment, st)
             text = text//comment//" "
-            call goto_char(after)
+            call goto_character(after)
         end do
 
-        call goto_char(here)
+        call goto_character(here)
         text = collapse_whitespace(text)
     end function extract_resolve_smerge_comment
 
@@ -1404,11 +1411,11 @@ contains
             ! that the 2 additions should be somehow merged rather
             ! than concatenated.
             nlines = count_lines(m3b, m3e)
-            call create_temp_file("smm", m, status)
+            call create_temporary_file("smm", m, status)
             if (.not. status%ok()) exit resolve
             call write_part(m1b, m1e, m)
             if (.not. status%ok()) exit resolve
-            call create_temp_file("smo", o, status)
+            call create_temporary_file("smo", o, status)
             if (.not. status%ok()) exit resolve
             call write_part(m3b, m3e, o)
             if (.not. status%ok()) exit resolve
@@ -1424,7 +1431,7 @@ contains
 
             ! "Mere whitespace changes" conflicts.
             if (m2e /= 0) then
-                call create_temp_file("smb", b, status)
+                call create_temporary_file("smb", b, status)
                 if (.not. status%ok()) exit resolve
                 call write_part(m2b, m2e, b)
                 if (.not. status%ok()) exit resolve
@@ -1503,7 +1510,7 @@ contains
                 exit resolve
             end if
 
-            call set_error(status, FM_USER_ERROR, "Don't know how to resolve")
+            call set_error(status, USER_ERROR_CODE, "Don't know how to resolve")
         end block resolve
 
         if (is_buffer_live(buffer)) call close_buffer(buffer, st)
@@ -1555,9 +1562,9 @@ contains
         subroutine write_part(start, finish, file)
             integer(int64), intent(in) :: start, finish
             character(len=*), intent(in) :: file
-            character(len=:), allocatable :: msg
+            character(len=:), allocatable :: message
 
-            call write_region(file, .false., status, start, finish, msg)
+            call write_region(file, .false., status, start, finish, message)
         end subroutine write_part
 
         ! The refinement test: neither upper nor lower is empty, diff -b
@@ -1578,7 +1585,7 @@ contains
             ! Make sure there's some refinement.
             call set_buffer(buffer, status)
             if (.not. status%ok()) return
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             write (change_text, '("1,", i0, "c")') nlines
             refinable = .not. looking_at(trim(change_text), status)
             call set_buffer(old, st)
@@ -1598,13 +1605,14 @@ contains
             character(len=*), intent(in) :: switches, file1, file2
             integer, intent(out) :: rc
             type(value_type) :: result
-            type(value_type) :: args(3)
+            type(value_type) :: arguments(3)
 
             rc = -1
-            args(1) = value_type(text=switches)
-            args(2) = value_type(text=file1)
-            args(3) = value_type(text=file2)
-            call execute_process(diff_program(), result, status, destination=make_buffer_ref(buffer), args=make_list(args))
+            arguments(1) = value_type(text=switches)
+            arguments(2) = value_type(text=file1)
+            arguments(3) = value_type(text=file2)
+            call execute_process(diff_program(), result, status, destination=make_buffer_reference(buffer), &
+                                 arguments=make_list(arguments))
             if (.not. status%ok()) return
             if (vtag(result) == V_INTEGER) rc = int(xfixnum(result))
         end subroutine diff_into_buffer
@@ -1616,18 +1624,18 @@ contains
             character(len=*), intent(in) :: file
             integer, intent(out) :: rc
             type(value_type) :: result
-            type(value_type) :: args(5)
+            type(value_type) :: arguments(5)
 
             rc = -1
-            args(1) = value_type(text="-r")
-            args(2) = value_type(text="/dev/null")
-            args(3) = value_type(text="--no-backup-if-mismatch")
-            args(4) = value_type(text="-fl")
-            args(5) = value_type(text=file)
+            arguments(1) = value_type(text="-r")
+            arguments(2) = value_type(text="/dev/null")
+            arguments(3) = value_type(text="--no-backup-if-mismatch")
+            arguments(4) = value_type(text="-fl")
+            arguments(5) = value_type(text=file)
             call set_buffer(buffer, status)
             if (.not. status%ok()) return
-            call execute_process_region("patch", result, status, point_min(), point_max(), delete=.true., &
-                                        args=make_list(args))
+            call execute_process_region("patch", result, status, point_minimum(), point_maximum(), delete=.true., &
+                                        arguments=make_list(arguments))
             call set_buffer(old, st)
             if (.not. status%ok()) return
             if (vtag(result) == V_INTEGER) rc = int(xfixnum(result))
@@ -1636,7 +1644,7 @@ contains
         ! Replace the conflict with the contents of FILE.
         subroutine replace_conflict(file)
             character(len=*), intent(in) :: file
-            type(handle_type) :: begv, zv
+            type(handle_type) :: beginning_of_accessible_portion, end_of_accessible_portion
             integer(int64) :: b, e
             logical :: narrowed
 
@@ -1644,8 +1652,8 @@ contains
             narrowed = is_buffer_narrowed()
 
             if (narrowed) then
-                call copy_marker_at(buffers(current)%begv, begv, .false., st)
-                call copy_marker_at(buffers(current)%zv, zv, .true., st)
+                call copy_marker_at(buffers(current)%beginning_of_accessible_portion, beginning_of_accessible_portion, .false., st)
+                call copy_marker_at(buffers(current)%end_of_accessible_portion, end_of_accessible_portion, .true., st)
             end if
 
             call narrow_to_region(m0b, m0e, status)
@@ -1658,11 +1666,11 @@ contains
             call widen()
 
             if (narrowed) then
-                call marker_position(begv, b, st)
-                call marker_position(zv, e, st)
+                call marker_position(beginning_of_accessible_portion, b, st)
+                call marker_position(end_of_accessible_portion, e, st)
                 call narrow_to_region(b, e, st)
-                call destroy_marker(begv, st)
-                call destroy_marker(zv, st)
+                call destroy_marker(beginning_of_accessible_portion, st)
+                call destroy_marker(end_of_accessible_portion, st)
             end if
         end subroutine replace_conflict
 
@@ -1693,21 +1701,21 @@ contains
             here = point()
 
             test: block
-                call syntax_ppss(ps, m0b)
+                call syntax_parser_state(ps, m0b)
                 if (ps%incomment == 0) exit test
                 ! If there's a conflict earlier in the file,
                 ! syntax-ppss is not reliable.
-                call re_search_backward(smerge_begin_regexp, found, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_backward(smerge_begin_regular_expression, found, st, noerror=SEARCH_NOERROR)
                 if (found /= 0) exit test
-                call syntax_ppss(ps, m0b)
-                call goto_char(ps%comstr_start)
+                call syntax_parser_state(ps, m0b)
+                call goto_character(ps%comstr_start)
                 moved = forward_comment(1_int64)
                 if (point() <= m0e) exit test
                 c = choose(normalize_resolve_smerge(m1b, m1e), normalize_resolve_smerge(m2b, m2e), &
                            normalize_resolve_smerge(m3b, m3e))
             end block test
 
-            call goto_char(here)
+            call goto_character(here)
         end subroutine test_in_one_comment
     end subroutine resolve_smerge
 
@@ -1720,10 +1728,10 @@ contains
 
         status = status_type()
         here = point()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward(smerge_begin_regexp, found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(smerge_begin_regular_expression, found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) exit
             if (found == 0) exit
             ! (with-demoted-errors "%S" ...)
@@ -1732,22 +1740,22 @@ contains
             if (.not. st%ok()) call message(format_error(st))
         end do
 
-        call goto_char(here)
+        call goto_character(here)
     end subroutine resolve_smerge_all
 
     ! ------------------------------------------------------------------
     ! Diffs between versions
     ! ------------------------------------------------------------------
 
-    !> Append the argument TEXT to ARGS.  Not a port.
-    subroutine append_arg(args, text)
-        type(value_type), allocatable, intent(inout) :: args(:)
+    !> Append the argument TEXT to ARGUMENTS.  Not a port.
+    subroutine append_argument(arguments, text)
+        type(value_type), allocatable, intent(inout) :: arguments(:)
         character(len=*), intent(in) :: text
-        type(value_type) :: arg
+        type(value_type) :: argument
 
-        arg = value_type(text=text)
-        args = [args, arg]
-    end subroutine append_arg
+        argument = value_type(text=text)
+        arguments = [arguments, argument]
+    end subroutine append_argument
 
     !> The program `diff_command' names.  Not a port.
     function diff_program() result(program)
@@ -1763,8 +1771,8 @@ contains
     recursive subroutine diff_smerge(n1, n2, status)
         integer, intent(in) :: n1, n2
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: name1, name2, file1, file2, dir, file, msg, saved_coding
-        type(value_type), allocatable :: args(:)
+        character(len=:), allocatable :: name1, name2, file1, file2, directory, file, message, saved_coding
+        type(value_type), allocatable :: arguments(:)
         type(value_type) :: result
         type(handle_type) :: buffer, old, window
         type(status_type) :: st
@@ -1785,17 +1793,17 @@ contains
         end1 = match_end(n1, st)
         beg2 = match_beginning(n2, st)
         end2 = match_end(n2, st)
-        call create_temp_file("smerge1", file1, status)
+        call create_temporary_file("smerge1", file1, status)
         if (.not. status%ok()) return
-        call create_temp_file("smerge2", file2, status)
+        call create_temporary_file("smerge2", file2, status)
 
         if (.not. status%ok()) then
             call delete_file(file1, st)
             return
         end if
 
-        dir = "./"
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        directory = "./"
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
         file = ""
         if (allocated(buffers(current)%filename)) file = file_relative_name(buffers(current)%filename)
         ! We would want to use `emacs-mule-unix' for read&write, but we
@@ -1806,8 +1814,8 @@ contains
         had_coding = allocated(coding_system_for_read%value)
         if (had_coding) saved_coding = coding_system_for_read%value
         if (allocated(buffer_file_coding_system%value)) coding_system_for_read%value = buffer_file_coding_system%value
-        call write_region(file1, .false., status, beg1, end1, msg)
-        if (status%ok()) call write_region(file2, .false., status, beg2, end2, msg)
+        call write_region(file1, .false., status, beg1, end1, message)
+        if (status%ok()) call write_region(file2, .false., status, beg2, end2, message)
         old = current_buffer()
 
         show: block
@@ -1825,7 +1833,7 @@ contains
                 buffers(current)%read_only = .true.
             end if
 
-            buffers(current)%directory = dir
+            buffers(current)%directory = directory
             ! Upstream binds inhibit-read-only to t here; the buffer's own text has
             ! no read-only properties, so clearing its read-only flag for the
             ! time does the same.
@@ -1834,24 +1842,24 @@ contains
             call erase_buffer(status)
 
             if (status%ok()) then
-                allocate (args(0))
+                allocate (arguments(0))
 
                 do k = 1, size(smerge_diff_switches)
-                    call append_arg(args, trim(smerge_diff_switches(k)))
+                    call append_argument(arguments, trim(smerge_diff_switches(k)))
                 end do
 
                 call diff_check_labels()
 
                 if (diff_use_labels%value) then
-                    call append_arg(args, "--label")
-                    call append_arg(args, name1//"/"//file)
-                    call append_arg(args, "--label")
-                    call append_arg(args, name2//"/"//file)
+                    call append_argument(arguments, "--label")
+                    call append_argument(arguments, name1//"/"//file)
+                    call append_argument(arguments, "--label")
+                    call append_argument(arguments, name2//"/"//file)
                 end if
 
-                call append_arg(args, file1)
-                call append_arg(args, file2)
-                call execute_process(diff_program(), result, status, destination=value_type(.true.), args=make_list(args))
+                call append_argument(arguments, file1)
+                call append_argument(arguments, file2)
+                call execute_process(diff_program(), result, status, destination=value_type(.true.), arguments=make_list(arguments))
 
                 if (status%ok()) then
                     if (vtag(result) == V_INTEGER) then
@@ -1862,7 +1870,7 @@ contains
 
             buffers(current)%read_only = read_only
             if (.not. status%ok()) exit show
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call diff_mode(status)
             if (.not. status%ok()) exit show
             call display_buffer(current_buffer(), window, status, &
@@ -1922,7 +1930,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_next(smerge_begin_regexp, "conflict", n, status, interactive=interactive)
+        call easy_mmode_next(smerge_begin_regular_expression, "conflict", n, status, interactive=interactive)
     end subroutine next_smerge_conflict
 
     !> Go to the previous COUNT'th conflict.
@@ -1936,7 +1944,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_prev(smerge_begin_regexp, "conflict", n, status)
+        call easy_mmode_previous(smerge_begin_regular_expression, "conflict", n, status)
     end subroutine previous_smerge_conflict
 
     ! ------------------------------------------------------------------
@@ -1977,7 +1985,7 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             do
                 call find_smerge_conflict(0_int64, found, status)
@@ -1990,26 +1998,26 @@ contains
                 ! occasionally.
                 call font_lock_fontify_region(mb0, me0, st, loudly=.false.)
                 if (.not. st%ok()) call message(format_error(st))
-                call goto_char(inner)
+                call goto_character(inner)
             end do
 
-            call goto_char(here)
+            call goto_character(here)
             if (.not. status%ok()) return
         end if
 
         if (.not. allocated(paragraph_separate%value)) paragraph_separate%value = ""
-        k = index(paragraph_separate%value, smerge_parsep_regexp)
+        k = index(paragraph_separate%value, smerge_parsep_regular_expression)
 
         if (k > 0) then
             if (.not. enable) then
                 call paragraph_separate%set_local(paragraph_separate%value(:k - 1)// &
-                                                  paragraph_separate%value(k + len(smerge_parsep_regexp):))
+                                                  paragraph_separate%value(k + len(smerge_parsep_regular_expression):))
             end if
         else if (enable) then
-            call paragraph_separate%set_local(smerge_parsep_regexp//paragraph_separate%value)
+            call paragraph_separate%set_local(smerge_parsep_regular_expression//paragraph_separate%value)
         end if
 
-        if (.not. enable) call remove_smerge_properties(point_min(), point_max())
+        if (.not. enable) call remove_smerge_properties(point_minimum(), point_maximum())
     end subroutine smerge_mode_body
 
     !> The font-lock keyword of Smerge mode: each conflict that
@@ -2046,7 +2054,7 @@ contains
         call minor_modes%smerge_mode%enable(status)
         if (.not. status%ok()) return
 
-        if (.not. looking_at(smerge_begin_regexp, st)) then
+        if (.not. looking_at(smerge_begin_regular_expression, st)) then
             if (st%ok()) call next_smerge_conflict(st)
         end if
 
@@ -2061,7 +2069,7 @@ contains
         if (mode_map_ready) return
         mode_map_ready = .true.
         if (len(smerge_command_prefix) > 0) call keymap_set(smerge_mode_map, smerge_command_prefix, &
-                                                            make_keymap_ref(smerge_basic_map), st)
+                                                            make_keymap_reference(smerge_basic_map), st)
     end subroutine ready_mode_map
 
     ! ------------------------------------------------------------------
@@ -2069,35 +2077,35 @@ contains
     ! ------------------------------------------------------------------
 
     !> The numeric prefix argument.  Not a port.
-    integer(int64) function p_arg()
-        p_arg = prefix_numeric_value(current_prefix_arg)
-    end function p_arg
+    integer(int64) function p_argument()
+        p_argument = prefix_numeric_value(current_prefix_argument)
+    end function p_argument
 
-    recursive subroutine cmd_next_smerge_conflict(status)
+    recursive subroutine execute_next_smerge_conflict(status)
         type(status_type), intent(out) :: status
 
-        call next_smerge_conflict(status, p_arg(), interactive=.true.)
-    end subroutine cmd_next_smerge_conflict
+        call next_smerge_conflict(status, p_argument(), interactive=.true.)
+    end subroutine execute_next_smerge_conflict
 
-    recursive subroutine cmd_previous_smerge_conflict(status)
+    recursive subroutine execute_previous_smerge_conflict(status)
         type(status_type), intent(out) :: status
 
-        call previous_smerge_conflict(status, p_arg())
-    end subroutine cmd_previous_smerge_conflict
+        call previous_smerge_conflict(status, p_argument())
+    end subroutine execute_previous_smerge_conflict
 
-    recursive subroutine cmd_resolve_smerge(status)
+    recursive subroutine execute_resolve_smerge(status)
         type(status_type), intent(out) :: status
 
         call resolve_smerge(status)
-    end subroutine cmd_resolve_smerge
+    end subroutine execute_resolve_smerge
 
-    recursive subroutine cmd_start_smerge_session(status)
+    recursive subroutine execute_start_smerge_session(status)
         type(status_type), intent(out) :: status
 
         call start_smerge_session(status, .true.)
-    end subroutine cmd_start_smerge_session
+    end subroutine execute_start_smerge_session
 
-    recursive subroutine cmd_extend_smerge(status)
+    recursive subroutine execute_extend_smerge(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: m
 
@@ -2105,9 +2113,9 @@ contains
             call mark_marker(m)
             call extend_smerge(status, otherpos=m)
         else
-            call extend_smerge(status, p_arg())
+            call extend_smerge(status, p_argument())
         end if
-    end subroutine cmd_extend_smerge
+    end subroutine execute_extend_smerge
 
     ! ------------------------------------------------------------------
     ! Definitions
@@ -2120,49 +2128,53 @@ contains
 
         f => smerge_upper
         call f%define("smerge_upper", "Face for the `upper' version of a conflict.")
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[L]), &
-                          face_attrs(background="#ffdddd", extend=.true.))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[D]), &
-                          face_attrs(background="#553333", extend=.true.))
-        call f%spec_entry(display_when(classes=[C]), face_attrs(foreground="red", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[L]), &
+                                   face_attributes(background="#ffdddd", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[D]), &
+                                   face_attributes(background="#553333", extend=.true.))
+        call f%specification_entry(display_when(classes=[C]), face_attributes(foreground="red", extend=.true.))
         f => smerge_lower
         call f%define("smerge_lower", "Face for the `lower' version of a conflict.")
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[L]), &
-                          face_attrs(background="#ddffdd", extend=.true.))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[D]), &
-                          face_attrs(background="#335533", extend=.true.))
-        call f%spec_entry(display_when(classes=[C]), face_attrs(foreground="green", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[L]), &
+                                   face_attributes(background="#ddffdd", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[D]), &
+                                   face_attributes(background="#335533", extend=.true.))
+        call f%specification_entry(display_when(classes=[C]), face_attributes(foreground="green", extend=.true.))
         f => smerge_base
         call f%define("smerge_base", "Face for the base code.")
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[L]), &
-                          face_attrs(background="#ffffaa", extend=.true.))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[D]), &
-                          face_attrs(background="#888833", extend=.true.))
-        call f%spec_entry(display_when(classes=[C]), face_attrs(foreground="yellow", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[L]), &
+                                   face_attributes(background="#ffffaa", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[D]), &
+                                   face_attributes(background="#888833", extend=.true.))
+        call f%specification_entry(display_when(classes=[C]), face_attributes(foreground="yellow", extend=.true.))
         f => smerge_markers
         call f%define("smerge_markers", "Face for the conflict markers.")
-        call f%spec_entry(display_when(backgrounds=[L]), face_attrs(background="grey85", extend=.true.))
-        call f%spec_entry(display_when(backgrounds=[D]), face_attrs(background="grey30", extend=.true.))
+        call f%specification_entry(display_when(backgrounds=[L]), face_attributes(background="grey85", extend=.true.))
+        call f%specification_entry(display_when(backgrounds=[D]), face_attributes(background="grey30", extend=.true.))
         f => smerge_refined_changed
         call f%define("smerge_refined_changed", "Face used for char-based changes shown by `smerge_refine'.")
-        call f%spec_entry(display_when(), face_attrs())
+        call f%specification_entry(display_when(), face_attributes())
         f => smerge_refined_removed
         call f%define("smerge_refined_removed", "Face used for removed characters shown by `smerge_refine'.")
-        call f%spec_entry(display_when(is_default=.true.), face_attrs(inherit="smerge_refined_changed"))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[L]), face_attrs(background="#ffbbbb"))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[D]), face_attrs(background="#882222"))
-        call f%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call f%specification_entry(display_when(is_default=.true.), face_attributes(inherit="smerge_refined_changed"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[L]), &
+                                   face_attributes(background="#ffbbbb"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[D]), &
+                                   face_attributes(background="#882222"))
+        call f%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         f => smerge_refined_added
         call f%define("smerge_refined_added", "Face used for added characters shown by `smerge_refine'.")
-        call f%spec_entry(display_when(is_default=.true.), face_attrs(inherit="smerge_refined_changed"))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[L]), face_attrs(background="#aaffaa"))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[D]), face_attrs(background="#228822"))
-        call f%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call f%specification_entry(display_when(is_default=.true.), face_attributes(inherit="smerge_refined_changed"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[L]), &
+                                   face_attributes(background="#aaffaa"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[D]), &
+                                   face_attributes(background="#228822"))
+        call f%specification_entry(display_when(), face_attributes(inverse_video=.true.))
     end subroutine define_faces
 
     !> Define Smerge mode, its keymaps and faces, and register the
     !> commands.  Not a port.
-    subroutine init_smerge_mode()
+    subroutine initialize_smerge_mode()
         type(status_type) :: st
         type(handle_type) :: diff_map, empty
 
@@ -2186,8 +2198,8 @@ contains
         call register_keymap_name("smerge_mode_map", smerge_mode_map)
         call append_locals_clearer(clear_smerge_locals)
         commands%smerge_mode%execute => smerge_mode
-        commands%next_smerge_conflict%execute => cmd_next_smerge_conflict
-        commands%previous_smerge_conflict%execute => cmd_previous_smerge_conflict
+        commands%next_smerge_conflict%execute => execute_next_smerge_conflict
+        commands%previous_smerge_conflict%execute => execute_previous_smerge_conflict
         commands%keep_smerge_all%execute => keep_smerge_all
         commands%keep_smerge_base%execute => keep_smerge_base
         commands%keep_smerge_lower%execute => keep_smerge_lower
@@ -2196,14 +2208,14 @@ contains
         commands%delete_smerge_current%execute => delete_smerge_current
         commands%combine_smerge_with_next%execute => combine_smerge_with_next
         commands%auto_combine_smerge%execute => auto_combine_smerge
-        commands%resolve_smerge%execute => cmd_resolve_smerge
+        commands%resolve_smerge%execute => execute_resolve_smerge
         commands%resolve_smerge_all%execute => resolve_smerge_all
         commands%swap_smerge%execute => swap_smerge
-        commands%extend_smerge%execute => cmd_extend_smerge
+        commands%extend_smerge%execute => execute_extend_smerge
         commands%diff_smerge_base_upper%execute => diff_smerge_base_upper
         commands%diff_smerge_base_lower%execute => diff_smerge_base_lower
         commands%diff_smerge_upper_lower%execute => diff_smerge_upper_lower
-        commands%start_smerge_session%execute => cmd_start_smerge_session
+        commands%start_smerge_session%execute => execute_start_smerge_session
         ! smerge-basic-map.
         call make_sparse_keymap(smerge_basic_map)
         call keymap_set(smerge_basic_map, "n", "next_smerge_conflict", st)
@@ -2223,7 +2235,7 @@ contains
         call keymap_set(diff_map, "<", "diff_smerge_base_upper", st)
         call keymap_set(diff_map, ">", "diff_smerge_base_lower", st)
         call keymap_set(diff_map, "=", "diff_smerge_upper_lower", st)
-        call keymap_set(smerge_basic_map, "=", make_keymap_ref(diff_map), st)
+        call keymap_set(smerge_basic_map, "=", make_keymap_reference(diff_map), st)
         call register_keymap_name("smerge_basic_map", smerge_basic_map)
         ! smerge-repeat-map.
         call make_sparse_keymap(smerge_repeat_map)
@@ -2246,6 +2258,6 @@ contains
         ! Make it so `C-c ^ n' doesn't insert `n' but just signals an error
         ! when SMerge mode is not enabled (bug#73544).
         call make_sparse_keymap(empty)
-        call keymap_set(current_global_map(), "C-c ^", make_keymap_ref(empty), st)
-    end subroutine init_smerge_mode
+        call keymap_set(current_global_map(), "C-c ^", make_keymap_reference(empty), st)
+    end subroutine initialize_smerge_mode
 end module simple_merge_mode_mod

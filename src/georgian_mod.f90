@@ -30,14 +30,14 @@ submodule(coding_mod) georgian_mod
 contains
 
     !> Port of the `charset' coding systems of georgian.el.
-    module subroutine init_georgian()
+    module subroutine initialize_georgian()
         call define_charset_coding_system("georgian-ps", iachar("G"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "georgian-ps"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "georgian-ps"], &
                                           doc="Georgian PS encoding")
         call define_charset_coding_system("georgian-academy", iachar("G"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "georgian-academy"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "georgian-academy"], &
                                           doc="Georgian Academy encoding")
-    end subroutine init_georgian
+    end subroutine initialize_georgian
 
     !> Port of the language environments of georgian.el.
     module subroutine define_georgian_language_environments()

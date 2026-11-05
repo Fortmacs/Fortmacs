@@ -35,7 +35,7 @@ all the maps built in (character_set_maps_mod) and loaded on first use (a map th
 for coding_mod,
 the charsets by id (`charsets`, protected),
 `find_charset`,
-DECODE_CHAR as `decode_char_id` and char_charset with a charset list as `char_charset_id`;
+DECODE_CHARACTER as `decode_character_id` and character_charset with a charset list as `character_charset_id`;
 `current-iso639-language` (set by `set_language_environment`);
 which attributes a charset was given,
 for `describe-character-set` (`code_space_count`, the number of elements of `:code-space`; `has_code_offset`, `has_invalid_code`; `internal` for charset.c's own charsets)

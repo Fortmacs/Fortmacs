@@ -31,9 +31,9 @@ submodule(basic_subprograms_mod) basic_subprograms_hooks_mod
     implicit none(type, external)
 
     !> A pointer to a hook.
-    type :: hook_ref_type
+    type :: hook_reference_type
         type(hook_type), pointer :: p => null()
-    end type hook_ref_type
+    end type hook_reference_type
 
     !> A function of `delayed_after_hook_functions'.
     type :: after_fn_type
@@ -45,7 +45,7 @@ submodule(basic_subprograms_mod) basic_subprograms_hooks_mod
     type :: delay_type
         integer(int64) :: serial = 0
         logical :: delay = .false.
-        type(hook_ref_type), allocatable :: delayed(:)
+        type(hook_reference_type), allocatable :: delayed(:)
         type(after_fn_type), allocatable :: after(:)
     end type delay_type
 
@@ -122,7 +122,7 @@ contains
     end procedure delay_mode_hooks_end
 
     module procedure execute_mode_hooks
-    type(hook_ref_type), allocatable :: delayed(:)
+    type(hook_reference_type), allocatable :: delayed(:)
     type(after_fn_type), allocatable :: after(:)
     integer :: k, i
 
@@ -132,7 +132,7 @@ contains
 
     if (delays(k)%delay) then
         ! Delaying case.
-        if (present(hook)) delays(k)%delayed = [delays(k)%delayed, hook_ref_type(hook)]
+        if (present(hook)) delays(k)%delayed = [delays(k)%delayed, hook_reference_type(hook)]
         return
     end if
 

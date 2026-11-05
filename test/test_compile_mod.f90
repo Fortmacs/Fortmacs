@@ -33,21 +33,21 @@ module test_compile_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, &
                           is_buffer_live, set_buffer_read_only
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, point_max
+    use editing_functions_mod, only: buffer_string, point_maximum
     use keyboard_mod, only: last_message
     use file_input_output_mod, only: file_name_as_directory
     use files_mod, only: temporary_file_directory, abbreviate_file_name
     use keymap_mod, only: key_binding, key_parse
     use value_mod, only: value_type, xsymbol, symbols, vtag, V_NULL, V_NAME
-    use bindings_mod, only: init_bindings
-    use process_mod, only: accept_process_output, get_buffer_process, num_processors
-    use compile_mod, only: compile, recompile, stop_compilation, compile_command, comint_carriage_motion, &
-                           compilation_always_stop, compilation_parse_errors, compilation_forget_errors, &
-                           compilation_message_info, compilation_message_info_type, compilation_message_counts, &
-                           compilation_error_count_found, compilation_warning_count_found, compilation_info_count_found, &
-                           compilation_error_regexp_names, compilation_error_regexps, compilation_rule_type, &
-                           compilation_next_error, compile_goto_error, compilation_ensure_parse
-    use editing_functions_mod, only: point, point_min, goto_char
+    use bindings_mod, only: initialize_bindings
+    use process_mod, only: accept_process_output, get_buffer_process, number_processors
+    use compile_mod, only: compile, recompile, stop_compilation, compile_command, comint_carriage_motion, compilation_always_stop, &
+                           compilation_parse_errors, compilation_forget_errors, compilation_message_info, &
+                           compilation_message_info_type, compilation_message_counts, compilation_error_count_found, &
+                           compilation_warning_count_found, compilation_info_count_found, &
+                           compilation_error_regular_expression_names, compilation_error_regular_expressions, &
+                           compilation_rule_type, compilation_next_error, compile_goto_error, compilation_ensure_parse
+    use editing_functions_mod, only: point, point_minimum, goto_character
     use simple_mod, only: next_error
     use display_engine_mod, only: mode_line_process_text
     implicit none(type, external)
@@ -72,7 +72,7 @@ contains
                     new_unittest("kill-compilation", test_kill), &
                     new_unittest("comint-carriage-motion", test_carriage_motion), &
                     new_unittest("compilation-mode", test_mode), &
-                    new_unittest("compile-test-error-regexps", test_error_regexps), &
+                    new_unittest("compile-test-error-regexps", test_error_regular_expressions), &
                     new_unittest("compile-test-functions", test_functions), &
                     new_unittest("compile-directory-tracking", test_directory_tracking), &
                     new_unittest("compile-next-error", test_next_error), &
@@ -80,16 +80,16 @@ contains
                     ]
     end subroutine collect_compile_mod
 
-    !> A fresh source buffer in `dir', shown alone.
-    subroutine source_buffer(h, dir)
+    !> A fresh source buffer in `directory', shown alone.
+    subroutine source_buffer(h, directory)
         type(handle_type), intent(out) :: h
-        character(len=*), intent(in) :: dir
+        character(len=*), intent(in) :: directory
         type(status_type) :: st
 
         call get_or_make_buffer("*compile-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
         call show_alone()
         ! (Deleting the other windows makes the selected window's buffer
         ! current.)
@@ -173,8 +173,8 @@ contains
         character(len=:), allocatable :: expected
 
         if (allocated(compile_command%value)) deallocate (compile_command%value)
-        call init_bindings()
-        write (n, "(i0)") (2*num_processors() + 2)/3
+        call initialize_bindings()
+        write (n, "(i0)") (2*number_processors() + 2)/3
         expected = "make -k -j"//trim(n)//" "
         call check(error, compile_command%value, expected)
     end subroutine test_default_command
@@ -184,18 +184,18 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        character(len=:), allocatable :: text, dir
+        character(len=:), allocatable :: text, directory
 
-        call init_bindings()
-        dir = file_name_as_directory(temporary_file_directory())
-        call source_buffer(h, dir)
+        call initialize_bindings()
+        directory = file_name_as_directory(temporary_file_directory())
+        call source_buffer(h, directory)
         last_message = ""
         call compile("echo built", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call wait_compilation()
         text = compilation_text()
-        call check(error, line(text, 1), "-*- mode: compilation; default-directory: """//abbreviate_file_name(dir)//""" -*-")
+        call check(error, line(text, 1), "-*- mode: compilation; default-directory: """//abbreviate_file_name(directory)//""" -*-")
         if (.not. allocated(error)) call check(error, index(line(text, 2), "Compilation started at ") == 1, line(text, 2))
         if (.not. allocated(error)) call check(error, len(line(text, 2)), len("Compilation started at Fri Oct 24 10:00:00"))
         if (.not. allocated(error)) call check(error, line(text, 3), "")
@@ -229,7 +229,7 @@ contains
         call close_buffer(h, st)
     end subroutine test_abnormal
 
-    !> A leading "cd DIR;" sets the buffer's directory (the shell does the
+    !> A leading "cd DIRECTORY;" sets the buffer's directory (the shell does the
     !> cd).
     subroutine test_cd(error)
         type(error_type), allocatable, intent(out) :: error
@@ -297,7 +297,7 @@ contains
 
         call source_buffer(h, "/")
         call insert("abc"//achar(13)//"xy"//new_line("a")//"ab"//achar(8)//"c"//new_line("a")//"end"//achar(13), st)
-        call comint_carriage_motion(1_int64, point_max())
+        call comint_carriage_motion(1_int64, point_maximum())
         call check(error, buffer_string(), "xy"//new_line("a")//"ac"//new_line("a")//"end")
         call close_buffer(h, st)
     end subroutine test_carriage_motion
@@ -310,7 +310,7 @@ contains
         type(value_type), allocatable :: key(:)
         type(value_type) :: b
 
-        call init_bindings()
+        call initialize_bindings()
         call source_buffer(h, file_name_as_directory(temporary_file_directory()))
         call compile("true", st)
         call wait_compilation()
@@ -342,14 +342,15 @@ contains
     end subroutine parse_buffer
 
     !> Port of compile-tests.el compile--test-error-line: parse STRING and
-    !> check the message at POS: its column (and END_COL), line (and
+    !> check the message at POSITION: its column (and END_COLUMN), line (and
     !> END_LINE), file, TYPE (-1 for any) and RULE ("" for none).
-    subroutine error_line(error, rule, string, pos, has_col, col, has_end_col, end_col, has_line, line, has_end_line, &
+    subroutine error_line(error, rule, string, position, has_column, column, has_end_column, end_column, has_line, line, &
+                          has_end_line, &
                           end_line, has_file, file, type)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: rule, string, file
-        integer(int64), intent(in) :: pos, col, end_col, line, end_line
-        logical, intent(in) :: has_col, has_end_col, has_line, has_end_line, has_file
+        integer(int64), intent(in) :: position, column, end_column, line, end_line
+        logical, intent(in) :: has_column, has_end_column, has_line, has_end_line, has_file
         integer, intent(in) :: type
         type(compilation_message_info_type) :: info
         type(status_type) :: st
@@ -361,26 +362,26 @@ contains
         call erase_buffer(st)
         call compilation_forget_errors()
         call insert(string, st)
-        call compilation_parse_errors(point_min(), point_max(), st)
+        call compilation_parse_errors(point_minimum(), point_maximum(), st)
         call check(error, st%ok(), what//": "//format_error(st))
         if (allocated(error)) return
-        call compilation_message_info(pos, info, found)
+        call compilation_message_info(position, info, found)
         call check(error, found, what//": no message")
         if (allocated(error)) return
-        call check(error, info%has_loc, what//": no location")
+        call check(error, info%has_location, what//": no location")
         if (allocated(error)) return
-        call check(error, info%has_column .eqv. has_col, what//": column")
-        if (.not. allocated(error) .and. has_col) call check(error, info%column, col, what//": column")
+        call check(error, info%has_column .eqv. has_column, what//": column")
+        if (.not. allocated(error) .and. has_column) call check(error, info%column, column, what//": column")
         if (.not. allocated(error)) call check(error, info%has_line .eqv. has_line, what//": line")
         if (.not. allocated(error) .and. has_line) call check(error, info%line, line, what//": line")
         if (.not. allocated(error) .and. has_file) call check(error, info%file, file, what//": file")
         if (allocated(error)) return
 
-        if (has_end_col) then
+        if (has_end_column) then
             ! The computed END-COL is exclusive; subtract one to get the
             ! number in the error message.
             call check(error, info%has_end .and. info%has_end_column, what//": end column")
-            if (.not. allocated(error)) call check(error, info%end_column - 1, end_col, what//": end column")
+            if (.not. allocated(error)) call check(error, info%end_column - 1, end_column, what//": end column")
             if (allocated(error)) return
         end if
 
@@ -412,18 +413,18 @@ contains
     end subroutine error_line
 
     !> Port of compile-tests.el compile-test-error-regexps: the rules of
-    !> `compilation_error_regexps' on the test data of
+    !> `compilation_error_regular_expressions' on the test data of
     !> compile-tests--test-regexps-data.
-    subroutine test_error_regexps(error)
+    subroutine test_error_regular_expressions(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: s, f
         character(len=64), allocatable :: saved(:)
-        character(len=*), parameter :: NL = achar(10), TB = achar(9)
+        character(len=*), parameter :: NEWLINE = achar(10), TB = achar(9)
         integer :: k
 
-        call init_bindings()
+        call initialize_bindings()
         call parse_buffer(h)
         compilation_error_count_found = 0
         compilation_warning_count_found = 0
@@ -547,7 +548,7 @@ contains
             call error_line(error, "python_tracebacks_and_caml", s, 1_int64, .true., 20_int64, .true., 155_int64, &
                             .true., 5_int64, .true., 8_int64, .true., f, 2)
             if (allocated(error)) return
-            s = 'File "F:\ocaml\sorting.ml", line 65, characters 2-145:'//NL//"Warni"// &
+            s = 'File "F:\ocaml\sorting.ml", line 65, characters 2-145:'//NEWLINE//"Warni"// &
                 "ng 26: unused variable equ."
             f = "F:\ocaml\sorting.ml"
             call error_line(error, "python_tracebacks_and_caml", s, 1_int64, .true., 2_int64, .true., 145_int64, &
@@ -773,14 +774,14 @@ contains
             call error_line(error, "java", s, 13_int64, .false., 0_int64, .false., 0_int64, &
                             .true., 180_int64, .false., 0_int64, .true., f, 1)
             if (allocated(error)) return
-            s = "/src/Test.java:5: ';' expected"//NL//"        foo foo"//NL//"             "// &
-                "  ^"//NL
+            s = "/src/Test.java:5: ';' expected"//NEWLINE//"        foo foo"//NEWLINE//"             "// &
+                "  ^"//NEWLINE
             f = "/src/Test.java"
             call error_line(error, "javac", s, 1_int64, .true., 16_int64, .false., 0_int64, &
                             .true., 5_int64, .false., 0_int64, .true., f, 2)
             if (allocated(error)) return
-            s = "e:\src\Test.java:7: warning: ';' expected"//NL//"   foo foo"//NL//"       "// &
-                "   ^"//NL
+            s = "e:\src\Test.java:7: warning: ';' expected"//NEWLINE//"   foo foo"//NEWLINE//"       "// &
+                "   ^"//NEWLINE
             f = "e:\src\Test.java"
             call error_line(error, "javac", s, 1_int64, .true., 11_int64, .false., 0_int64, &
                             .true., 7_int64, .false., 0_int64, .true., f, 1)
@@ -813,37 +814,37 @@ contains
             call error_line(error, "gcc_include", s, 1_int64, .false., 0_int64, .false., 0_int64, &
                             .true., 1_int64, .false., 0_int64, .true., f, 0)
             if (allocated(error)) return
-            s = "lua: database.lua:10: assertion failed!"//NL//"stack traceback:"//NL//TB
+            s = "lua: database.lua:10: assertion failed!"//NEWLINE//"stack traceback:"//NEWLINE//TB
             f = "database.lua"
             call error_line(error, "lua", s, 6_int64, .false., 0_int64, .false., 0_int64, &
                             .true., 10_int64, .false., 0_int64, .true., f, 2)
             if (allocated(error)) return
-            s = "lua 5.4: database 2.lua:10: assertion failed!"//NL//"stack tracebac"// &
-                "k:"//NL//TB
+            s = "lua 5.4: database 2.lua:10: assertion failed!"//NEWLINE//"stack tracebac"// &
+                "k:"//NEWLINE//TB
             f = "database 2.lua"
             call error_line(error, "lua", s, 10_int64, .false., 0_int64, .false., 0_int64, &
                             .true., 10_int64, .false., 0_int64, .true., f, 2)
             if (allocated(error)) return
-            s = "/usr/local/bin/lua: core/database.lua:20: assertion failed!"//NL// &
-                "stack traceback:"//NL//TB
+            s = "/usr/local/bin/lua: core/database.lua:20: assertion failed!"//NEWLINE// &
+                "stack traceback:"//NEWLINE//TB
             f = "core/database.lua"
             call error_line(error, "lua", s, 21_int64, .false., 0_int64, .false., 0_int64, &
                             .true., 20_int64, .false., 0_int64, .true., f, 2)
             if (allocated(error)) return
-            s = "C:\Lua\Lua.exe: Core\Database.lua:20: assertion failed!"//NL//"stac"// &
-                "k traceback:"//NL//TB
+            s = "C:\Lua\Lua.exe: Core\Database.lua:20: assertion failed!"//NEWLINE//"stac"// &
+                "k traceback:"//NEWLINE//TB
             f = "Core\Database.lua"
             call error_line(error, "lua", s, 17_int64, .false., 0_int64, .false., 0_int64, &
                             .true., 20_int64, .false., 0_int64, .true., f, 2)
             if (allocated(error)) return
-            s = "lua: /tmp/database.lua:20: assertion failed!"//NL//"stack traceback"// &
-                ":"//NL//TB
+            s = "lua: /tmp/database.lua:20: assertion failed!"//NEWLINE//"stack traceback"// &
+                ":"//NEWLINE//TB
             f = "/tmp/database.lua"
             call error_line(error, "lua", s, 6_int64, .false., 0_int64, .false., 0_int64, &
                             .true., 20_int64, .false., 0_int64, .true., f, 2)
             if (allocated(error)) return
-            s = "Lua.exe: C:\Temp\Database.lua:20: assertion failed!"//NL//"stack tr"// &
-                "aceback:"//NL//TB
+            s = "Lua.exe: C:\Temp\Database.lua:20: assertion failed!"//NEWLINE//"stack tr"// &
+                "aceback:"//NEWLINE//TB
             f = "C:\Temp\Database.lua"
             call error_line(error, "lua", s, 10_int64, .false., 0_int64, .false., 0_int64, &
                             .true., 20_int64, .false., 0_int64, .true., f, 2)
@@ -1073,7 +1074,7 @@ contains
             call error_line(error, "gradle_android", s, 1_int64, .false., 0_int64, .false., 0_int64, &
                             .true., 3_int64, .false., 0_int64, .true., f, 2)
             if (allocated(error)) return
-            s = "In foo.scm:"//NL
+            s = "In foo.scm:"//NEWLINE
             f = "foo.scm"
             call error_line(error, "guile_file", s, 1_int64, .false., 0_int64, .false., 0_int64, &
                             .false., 0_int64, .false., 0_int64, .true., f, 0)
@@ -1269,19 +1270,19 @@ contains
             call error_line(error, "php", s, 1_int64, .false., 0_int64, .false., 0_int64, &
                             .true., 66_int64, .false., 0_int64, .true., f, 2)
             if (allocated(error)) return
-            s = "error[E0277]: `Foo` is not an iterator"//NL//" --> src/main.rs:4:16"
+            s = "error[E0277]: `Foo` is not an iterator"//NEWLINE//" --> src/main.rs:4:16"
             f = "src/main.rs"
             call error_line(error, "rust", s, 1_int64, .true., 16_int64, .false., 0_int64, &
                             .true., 4_int64, .false., 0_int64, .true., f, 2)
             if (allocated(error)) return
             s = "warning: borrow of packed field is unsafe and requires unsaf"// &
-                "e function or block (error E0133)"//NL//"  --> lint_example.rs:11:1"// &
+                "e function or block (error E0133)"//NEWLINE//"  --> lint_example.rs:11:1"// &
                 "3"
             f = "lint_example.rs"
             call error_line(error, "rust", s, 1_int64, .true., 13_int64, .false., 0_int64, &
                             .true., 11_int64, .false., 0_int64, .true., f, 1)
             if (allocated(error)) return
-            s = "note: required by a bound in `Trait`"//NL//"  --> src/auxiliary/tra"// &
+            s = "note: required by a bound in `Trait`"//NEWLINE//"  --> src/auxiliary/tra"// &
                 "it-debuginfo.rs:23:18"
             f = "src/auxiliary/trait-debuginfo.rs"
             call error_line(error, "rust", s, 1_int64, .true., 18_int64, .false., 0_int64, &
@@ -1329,14 +1330,14 @@ contains
             call error_line(error, "gnu", s, 1_int64, .false., 0_int64, .false., 0_int64, &
                             .true., 10_int64, .false., 0_int64, .true., f, 2)
             if (allocated(error)) return
-            s = "Error: Mismatched end tag: expected </geroup>, got </group>"//NL// &
+            s = "Error: Mismatched end tag: expected </geroup>, got </group>"//NEWLINE// &
                 "in unnamed entity at line 71 char 8 of file:///home/reto/tes"// &
                 "t/group.xml"
             f = "/home/reto/test/group.xml"
             call error_line(error, "rxp", s, 1_int64, .true., 8_int64, .false., 0_int64, &
                             .true., 71_int64, .false., 0_int64, .true., f, 2)
             if (allocated(error)) return
-            s = "Warning: Start tag for undeclared element geroup"//NL//"in unnamed "// &
+            s = "Warning: Start tag for undeclared element geroup"//NEWLINE//"in unnamed "// &
                 "entity at line 4 char 8 of file:///home/reto/test/group.xml"
             f = "/home/reto/test/group.xml"
             call error_line(error, "rxp", s, 1_int64, .true., 8_int64, .false., 0_int64, &
@@ -1426,21 +1427,21 @@ contains
         !> Test the `omake' rule separately.  This doesn't actually test
         !> the `omake' rule itself but its indirect effects.
         subroutine omake_case()
-            saved = compilation_error_regexp_names
-            deallocate (compilation_error_regexp_names)
-            allocate (compilation_error_regexp_names(size(compilation_error_regexps)))
+            saved = compilation_error_regular_expression_names
+            deallocate (compilation_error_regular_expression_names)
+            allocate (compilation_error_regular_expression_names(size(compilation_error_regular_expressions)))
 
-            do k = 1, size(compilation_error_regexps)
-                compilation_error_regexp_names(k) = compilation_error_regexps(k)%name
+            do k = 1, size(compilation_error_regular_expressions)
+                compilation_error_regular_expression_names(k) = compilation_error_regular_expressions(k)%name
             end do
 
             s = "      alpha.c:5:15: error: expected ';' after expression"
             f = "alpha.c"
             call error_line(error, "gnu", s, 1_int64, .true., 15_int64, .false., 0_int64, .true., 5_int64, .false., &
                             0_int64, .true., f, -1)
-            compilation_error_regexp_names = saved
+            compilation_error_regular_expression_names = saved
         end subroutine omake_case
-    end subroutine test_error_regexps
+    end subroutine test_error_regular_expressions
 
     subroutine my_file(filename, directory, found)
         character(len=:), allocatable, intent(out) :: filename, directory
@@ -1467,21 +1468,21 @@ contains
         found = .true.
     end subroutine line_end
 
-    subroutine col_start(number, found)
+    subroutine column_start(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
 
         number = 39
         found = .true.
-    end subroutine col_start
+    end subroutine column_start
 
-    subroutine col_end(number, found)
+    subroutine column_end(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
 
         number = 24
         found = .true.
-    end subroutine col_end
+    end subroutine column_end
 
     !> Port of compile-tests.el compile-test-functions: rules using
     !> functions instead of regexp group numbers.
@@ -1492,20 +1493,20 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call parse_buffer(h)
-        saved_rules = compilation_error_regexps
-        saved_names = compilation_error_regexp_names
-        deallocate (compilation_error_regexps, compilation_error_regexp_names)
-        allocate (compilation_error_regexps(1), compilation_error_regexp_names(1))
-        compilation_error_regexps(1)%name = "my_rule"
-        compilation_error_regexps(1)%regexp = "^My error message"
-        compilation_error_regexps(1)%file_function => my_file
-        compilation_error_regexps(1)%line_function => line_start
-        compilation_error_regexps(1)%end_line_function => line_end
-        compilation_error_regexps(1)%column_function => col_start
-        compilation_error_regexps(1)%end_column_function => col_end
-        compilation_error_regexp_names(1) = "my_rule"
+        saved_rules = compilation_error_regular_expressions
+        saved_names = compilation_error_regular_expression_names
+        deallocate (compilation_error_regular_expressions, compilation_error_regular_expression_names)
+        allocate (compilation_error_regular_expressions(1), compilation_error_regular_expression_names(1))
+        compilation_error_regular_expressions(1)%name = "my_rule"
+        compilation_error_regular_expressions(1)%regular_expression = "^My error message"
+        compilation_error_regular_expressions(1)%file_function => my_file
+        compilation_error_regular_expressions(1)%line_function => line_start
+        compilation_error_regular_expressions(1)%end_line_function => line_end
+        compilation_error_regular_expressions(1)%column_function => column_start
+        compilation_error_regular_expressions(1)%end_column_function => column_end
+        compilation_error_regular_expression_names(1) = "my_rule"
         compilation_error_count_found = 0
         compilation_warning_count_found = 0
         compilation_info_count_found = 0
@@ -1514,8 +1515,8 @@ contains
         if (.not. allocated(error)) call check(error, compilation_error_count_found, 1_int64)
         if (.not. allocated(error)) call check(error, compilation_warning_count_found, 0_int64)
         if (.not. allocated(error)) call check(error, compilation_info_count_found, 0_int64)
-        compilation_error_regexps = saved_rules
-        compilation_error_regexp_names = saved_names
+        compilation_error_regular_expressions = saved_rules
+        compilation_error_regular_expression_names = saved_names
         call close_buffer(h, st)
     end subroutine test_functions
 
@@ -1527,23 +1528,23 @@ contains
         type(status_type) :: st
         type(compilation_message_info_type) :: info
         logical :: found
-        character(len=*), parameter :: NL = achar(10)
+        character(len=*), parameter :: NEWLINE = achar(10)
         integer(int64) :: second
 
-        call init_bindings()
+        call initialize_bindings()
         call parse_buffer(h)
         call compilation_forget_errors()
-        call insert("make: Entering directory '/fortmacs-no-such-dir/sub'"//NL//"foo.c:1: e"//NL, st)
+        call insert("make: Entering directory '/fortmacs-no-such-dir/sub'"//NEWLINE//"foo.c:1: e"//NEWLINE, st)
         second = point()
-        call insert("make: Leaving directory '/fortmacs-no-such-dir/sub'"//NL//"bar.c:2: e"//NL, st)
-        call compilation_ensure_parse(point_max())
+        call insert("make: Leaving directory '/fortmacs-no-such-dir/sub'"//NEWLINE//"bar.c:2: e"//NEWLINE, st)
+        call compilation_ensure_parse(point_maximum())
         call compilation_message_info(second - 10, info, found)
         call check(error, found, "foo.c message")
         if (.not. allocated(error)) call check(error, info%file, "foo.c")
         if (.not. allocated(error)) call check(error, allocated(info%directory), "foo.c directory")
         if (.not. allocated(error)) call check(error, info%directory, "/fortmacs-no-such-dir/sub")
         if (allocated(error)) return
-        call compilation_message_info(point_max() - 10, info, found)
+        call compilation_message_info(point_maximum() - 10, info, found)
         call check(error, found, "bar.c message")
         if (.not. allocated(error)) call check(error, info%file, "bar.c")
         if (.not. allocated(error)) call check(error,.not. allocated(info%directory), "bar.c directory")
@@ -1556,19 +1557,19 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer
         type(status_type) :: st
-        character(len=:), allocatable :: dir, path
+        character(len=:), allocatable :: directory, path
         integer(int64) :: errors, warnings, infos
         integer :: unit
 
-        call init_bindings()
-        dir = file_name_as_directory(temporary_file_directory())
-        path = dir//"fortmacs-compile-test.c"
+        call initialize_bindings()
+        directory = file_name_as_directory(temporary_file_directory())
+        path = directory//"fortmacs-compile-test.c"
         open (newunit=unit, file=path, status="replace", action="write")
         write (unit, "(a)") "line one"
         write (unit, "(a)") "line two"
         write (unit, "(a)") "    line three"
         close (unit)
-        call source_buffer(h, dir)
+        call source_buffer(h, directory)
         call compile("printf 'fortmacs-compile-test.c:2: error: e\nfortmacs-compile-test.c:3:6: warning: w\n'", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -1582,7 +1583,7 @@ contains
         if (.not. allocated(error)) call check(error, mode_line_process_text(current), ":exit [0] [1 1 0]")
         if (allocated(error)) return
         ! M-n from the start: the first message, on line 5.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call compilation_next_error(1_int64, st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, current_line_start_text(), "fortmacs-compile-test.c:2")
@@ -1606,7 +1607,7 @@ contains
         if (allocated(error)) return
         ! RET on the first message.
         call set_buffer(buffer, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call compilation_next_error(1_int64, st)
         call compile_goto_error(st)
         call check(error, st%ok(), format_error(st))
@@ -1643,7 +1644,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
 
-        call init_bindings()
+        call initialize_bindings()
         call source_buffer(h, file_name_as_directory(temporary_file_directory()))
         call compile("echo interactive", st, comint=.true.)
         call check(error, st%ok(), format_error(st))

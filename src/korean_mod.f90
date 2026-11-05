@@ -37,16 +37,17 @@ submodule(coding_mod) korean_mod
 contains
 
     !> Port of the `charset' and `iso-2022' coding systems of korean.el.
-    module subroutine init_korean()
+    module subroutine initialize_korean()
         call define_iso_2022_coding_system("korean-iso-8bit", iachar("K"), &
                                            doc="ISO 2022 based EUC encoding for Korean KSC5601 (MIME:EUC-KR)" &
                                            //".", &
-                                           initial=[character(len=CHARSET_NAME_LEN) :: "ascii", "korean-ksc5601", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LEN) :: "korean-ksc5601", "ascii"], &
+                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "korean-ksc5601", "", ""], &
+                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: "korean-ksc5601", &
+                                                                  "ascii"], &
                                            request_registers=[integer :: 1, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) ::], &
-                                           charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "korean-ksc5601"], &
+                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "korean-ksc5601"], &
                                            mime_charset="euc-kr")
         call define_coding_system_alias("euc-kr", "korean-iso-8bit")
         call define_coding_system_alias("euc-korea", "korean-iso-8bit")
@@ -54,21 +55,22 @@ contains
         call define_iso_2022_coding_system("iso-2022-kr", iachar("k"), &
                                            doc="ISO 2022 based 7-bit encoding for Korean KSC5601 (MIME:ISO-2" &
                                            //"022-KR).", &
-                                           initial=[character(len=CHARSET_NAME_LEN) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LEN) :: "korean-ksc5601", "ascii"], &
+                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: "korean-ksc5601", &
+                                                                  "ascii"], &
                                            request_registers=[integer :: 1, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) :: &
                                                   "ascii-at-eol", "ascii-at-cntl", "7-bit", "designation", "locking-shift", &
                                                   "designation-bol"], &
-                                           charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "korean-ksc5601"], &
+                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "korean-ksc5601"], &
                                            mime_charset="iso-2022-kr", suitable_for_keyboard=.true.)
         call define_coding_system_alias("korean-iso-7bit-lock", "iso-2022-kr")
         call define_charset_coding_system("korean-cp949", iachar("K"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "cp949"], &
+                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "cp949"], &
                                           doc="CP949 (Microsoft Unified Hangul Code)")
         call define_coding_system_alias("cp949", "korean-cp949")
-    end subroutine init_korean
+    end subroutine initialize_korean
 
     !> Port of the language environments of korean.el.
     module subroutine define_korean_language_environments()

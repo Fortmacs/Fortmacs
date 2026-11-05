@@ -28,36 +28,36 @@
 !>
 !> Not ported: menus, mouse (GPM), glyph production (produce_glyphs, in
 !> the redisplay step), color-mode switching (tty_setup_colors),
-!> tty-mode-set-strings, the termscript, char_ins_del cost vectors, the
+!> tty-mode-set-strings, the termscript, character_ins_delete cost vectors, the
 !> DOS/Windows/Android branches.
 module terminal_output_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use value_mod, only: value_type, list
-    use character_mod, only: downcase_ascii, MAX_MULTIBYTE_LENGTH, char_string, is_char_byte8, &
-                             char_to_byte8
+    use character_mod, only: downcase_ascii, MAXIMUM_MULTIBYTE_LENGTH, character_string, is_character_byte8, &
+                             character_to_byte8
     use terminfo_mod, only: terminfo_type, tgetent, tgetstr, tgetnum, tgetflag, tigetstr, &
                             tigetflag, tparam, delete_padding
     use terminal_state_mod, only: tty_display_info_type, tty_output, tty_put_bytes, tty_flush
     use cursor_motion_mod, only: cmcostinit, cmgoto, cmcheckmagic, cmat, cmplus, &
                                  losecursor, wcm_init
     use glyph_matrices_mod, only: glyph_type, face_type, FACE_TTY_DEFAULT_COLOR, &
-                                  FACE_TTY_DEFAULT_FG_COLOR, FACE_TTY_DEFAULT_BG_COLOR, &
+                                  FACE_TTY_DEFAULT_FOREGROUND_COLOR, FACE_TTY_DEFAULT_BACKGROUND_COLOR, &
                                   FACE_NO_UNDERLINE, FACE_UNDERLINE_SINGLE, &
                                   face_tty_specified_color, TTY_CAP_INVERSE, TTY_CAP_UNDERLINE, &
                                   TTY_CAP_UNDERLINE_STYLED, TTY_CAP_BOLD, TTY_CAP_DIM, TTY_CAP_ITALIC, &
                                   TTY_CAP_STRIKE_THROUGH
     use keymap_mod, only: make_sparse_keymap, define_key, is_keymap_live
     use keyboard_mod, only: input_decode_map
-    use coding_mod, only: terminal_coding_system, coding_system_type, encode_coding_string, is_char_encodable
-    use system_dependent_mod, only: get_tty_size, is_tabs_safe, init_sys_modes, &
-                                    reset_sys_modes
+    use coding_mod, only: terminal_coding_system, coding_system_type, encode_coding_string, is_character_encodable
+    use system_dependent_mod, only: get_tty_size, is_tabs_safe, initialize_system_modes, &
+                                    reset_system_modes
     use frame_mod, only: selected_frame
     implicit none(type, external)
     private
 
-    public :: init_tty, init_tty_entry, delete_tty, calculate_costs, term_get_fkeys
-    public :: reset_all_sys_modes, init_all_sys_modes
+    public :: initialize_tty, initialize_tty_entry, delete_tty, calculate_costs, term_get_fkeys
+    public :: reset_all_system_modes, initialize_all_system_modes
     public :: is_tty_display_color, tty_display_color_cells, tty_type, is_controlling_tty, tty_no_underline
     public :: tty_ring_bell, tty_set_terminal_modes, tty_reset_terminal_modes, &
               tty_update_end, tty_set_terminal_window, tty_set_scroll_region, &
@@ -65,7 +65,7 @@ module terminal_output_mod
               tty_turn_off_highlight, tty_hide_cursor, tty_show_cursor, &
               tty_cursor_to, tty_raw_cursor_to, tty_clear_to_end, &
               tty_clear_frame, tty_clear_end_of_line, tty_write_glyphs, &
-              tty_insert_glyphs, tty_delete_glyphs, tty_ins_del_lines, &
+              tty_insert_glyphs, tty_delete_glyphs, tty_ins_delete_lines, &
               turn_on_face, turn_off_face, encode_terminal_code, is_tty_capable
 
     !> True means try to flash the frame to represent a bell.
@@ -94,29 +94,29 @@ contains
     ! Initialization
     ! ------------------------------------------------------------------
 
-    !> `dest' = termcap string capability `code', unallocated if absent.
+    !> `destination' = termcap string capability `code', unallocated if absent.
     !> Not a port.
-    subroutine getcap(tty, code, dest)
+    subroutine getcap(tty, code, destination)
         type(tty_display_info_type), intent(in) :: tty
         character(len=*), intent(in) :: code
-        character(len=:), allocatable, intent(out) :: dest
+        character(len=:), allocatable, intent(out) :: destination
         character(len=:), allocatable :: s
         logical :: found
 
         s = tgetstr(tty%ti, code, found)
-        if (found) dest = s
+        if (found) destination = s
     end subroutine getcap
 
     !> Like `getcap' with a terminfo name.  Not a port.
-    subroutine getcap_ti(tty, name, dest)
+    subroutine getcap_ti(tty, name, destination)
         type(tty_display_info_type), intent(in) :: tty
         character(len=*), intent(in) :: name
-        character(len=:), allocatable, intent(out) :: dest
+        character(len=:), allocatable, intent(out) :: destination
         character(len=:), allocatable :: s
         logical :: found
 
         s = tigetstr(tty%ti, name, found)
-        if (found) dest = s
+        if (found) destination = s
     end subroutine getcap_ti
 
     !> Set up `tty' as terminal type `terminal_type' on file descriptor
@@ -124,7 +124,7 @@ contains
     !> read its capabilities, register its function keys in
     !> input-decode-map, put it in raw mode, and compute motion costs.
     !> Port of term.c:init_tty.
-    subroutine init_tty(tty, terminal_type, fd, status)
+    subroutine initialize_tty(tty, terminal_type, fd, status)
         type(tty_display_info_type), intent(out) :: tty
         character(len=*), intent(in) :: terminal_type
         integer(int32), intent(in) :: fd
@@ -133,25 +133,25 @@ contains
 
         call tgetent(terminal_type, ti, status)
         if (.not. status%ok()) return
-        call init_tty_entry(tty, ti, terminal_type, fd, status)
-    end subroutine init_tty
+        call initialize_tty_entry(tty, ti, terminal_type, fd, status)
+    end subroutine initialize_tty
 
-    !> init_tty with the terminal description `ti' already loaded.
+    !> initialize_tty with the terminal description `ti' already loaded.
     !> Port of term.c:init_tty, in part.
-    subroutine init_tty_entry(tty, ti, terminal_type, fd, status)
+    subroutine initialize_tty_entry(tty, ti, terminal_type, fd, status)
         type(tty_display_info_type), intent(out) :: tty
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: terminal_type
         integer(int32), intent(in) :: fd
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: colorterm, fg, bg
+        character(len=:), allocatable :: colorterm, foreground, background
         character(len=48) :: text
         integer(int32) :: width, height
         type(status_type) :: st
         integer :: length, stat
 
         tty%type = terminal_type
-        ! The controlling tty (init_tty with NAME null: dev_tty).
+        ! The controlling tty (initialize_tty with NAME null: dev_tty).
         tty%name = "/dev/tty"
         tty%input = fd
         tty%output = fd
@@ -164,23 +164,23 @@ contains
         call getcap(tty, "ce", tty%ts_clr_line)
         call getcap(tty, "cl", tty%ts_clr_frame)
         ! Column-absolute motion ("ch") stays unused, as upstream.
-        call getcap(tty, "cm", tty%wcm%cm_abs)
+        call getcap(tty, "cm", tty%wcm%cm_absolute)
         call getcap(tty, "cr", tty%wcm%cm_cr)
         call getcap(tty, "cs", tty%ts_set_scroll_region)
         call getcap(tty, "cS", tty%ts_set_scroll_region_1)
         call getcap(tty, "cv", tty%wcm%cm_vabs)
-        call getcap(tty, "dc", tty%ts_del_char)
-        call getcap(tty, "DC", tty%ts_del_multi_chars)
-        call getcap(tty, "dl", tty%ts_del_line)
-        call getcap(tty, "DL", tty%ts_del_multi_lines)
+        call getcap(tty, "dc", tty%ts_delete_character)
+        call getcap(tty, "DC", tty%ts_delete_multi_characters)
+        call getcap(tty, "dl", tty%ts_delete_line)
+        call getcap(tty, "DL", tty%ts_delete_multi_lines)
         call getcap(tty, "dm", tty%ts_delete_mode)
         call getcap(tty, "ed", tty%ts_end_delete_mode)
         call getcap(tty, "ei", tty%ts_end_insert_mode)
         call getcap(tty, "ho", tty%wcm%cm_home)
-        call getcap(tty, "ic", tty%ts_ins_char)
-        call getcap(tty, "IC", tty%ts_ins_multi_chars)
+        call getcap(tty, "ic", tty%ts_ins_character)
+        call getcap(tty, "IC", tty%ts_ins_multi_characters)
         call getcap(tty, "im", tty%ts_insert_mode)
-        call getcap(tty, "ip", tty%ts_pad_inserted_char)
+        call getcap(tty, "ip", tty%ts_pad_inserted_character)
         call getcap(tty, "ke", tty%ts_end_keypad_mode)
         call getcap(tty, "ks", tty%ts_keypad_mode)
         call getcap(tty, "ll", tty%wcm%cm_ll)
@@ -195,12 +195,12 @@ contains
         end if
 
         if (.not. allocated(tty%wcm%cm_left)) call getcap(tty, "bc", tty%wcm%cm_left)
-        call getcap(tty, "pc", tty%ts_pad_char)
+        call getcap(tty, "pc", tty%ts_pad_character)
         call getcap(tty, "rp", tty%ts_repeat)
         call getcap(tty, "se", tty%ts_end_standout_mode)
         call getcap(tty, "sf", tty%ts_fwd_scroll)
         call getcap(tty, "so", tty%ts_standout_mode)
-        call getcap(tty, "sr", tty%ts_rev_scroll)
+        call getcap(tty, "sr", tty%ts_revision_scroll)
         call getcap(tty, "ta", tty%wcm%cm_tab)
         call getcap(tty, "te", tty%ts_end_termcap_modes)
         call getcap(tty, "ti", tty%ts_termcap_modes)
@@ -225,9 +225,9 @@ contains
         call getcap(tty, "LE", tty%wcm%cm_multileft)
         call getcap(tty, "RI", tty%wcm%cm_multiright)
         ! Colors.
-        call getcap(tty, "op", tty%ts_orig_pair)
+        call getcap(tty, "op", tty%ts_original_pair)
 
-        if (allocated(tty%ts_orig_pair)) then
+        if (allocated(tty%ts_original_pair)) then
             call getcap(tty, "AF", tty%ts_set_foreground)
             call getcap(tty, "AB", tty%ts_set_background)
 
@@ -236,17 +236,17 @@ contains
                 call getcap(tty, "Sb", tty%ts_set_background)
             end if
 
-            tty%tn_max_colors = tgetnum(tty%ti, "Co")
-            call getcap_ti(tty, "setf24", fg)
-            call getcap_ti(tty, "setb24", bg)
+            tty%tn_maximum_colors = tgetnum(tty%ti, "Co")
+            call getcap_ti(tty, "setf24", foreground)
+            call getcap_ti(tty, "setb24", background)
 
-            if (allocated(fg) .and. allocated(bg)) then
-                tty%ts_set_foreground = fg
-                tty%ts_set_background = bg
-                tty%tn_max_colors = 16777216
+            if (allocated(foreground) .and. allocated(background)) then
+                tty%ts_set_foreground = foreground
+                tty%ts_set_background = background
+                tty%tn_maximum_colors = 16777216
             else
-                call getcap_ti(tty, "setrgbf", fg)
-                call getcap_ti(tty, "setrgbb", bg)
+                call getcap_ti(tty, "setrgbf", foreground)
+                call getcap_ti(tty, "setrgbb", background)
                 colorterm = ""
                 call get_environment_variable("COLORTERM", length=length, status=stat)
 
@@ -256,17 +256,17 @@ contains
                     call get_environment_variable("COLORTERM", colorterm)
                 end if
 
-                if (allocated(fg) .and. allocated(bg)) then
-                    tty%ts_set_foreground = fg
-                    tty%ts_set_background = bg
-                    tty%tn_max_colors = 16777216
+                if (allocated(foreground) .and. allocated(background)) then
+                    tty%ts_set_foreground = foreground
+                    tty%ts_set_background = background
+                    tty%tn_maximum_colors = 16777216
                     tty%tf_rgb_separate = .true.
                 else if (tigetflag(tty%ti, "RGB")) then
-                    tty%tn_max_colors = 16777216
+                    tty%tn_maximum_colors = 16777216
                 else if (tigetflag(tty%ti, "Tc") .or. downcase_ascii(colorterm) == "truecolor") then
                     tty%ts_set_foreground = achar(27)//"[38;2;%p1%d;%p2%d;%p3%d%;m"
                     tty%ts_set_background = achar(27)//"[48;2;%p1%d;%p2%d;%p3%d%;m"
-                    tty%tn_max_colors = 16777216
+                    tty%tn_maximum_colors = 16777216
                     tty%tf_rgb_separate = .true.
                 end if
             end if
@@ -300,14 +300,14 @@ contains
         width = 0
         height = 0
         if (fd >= 0) call get_tty_size(fd, width, height, st)
-        tty%wcm%cm_cols = width
+        tty%wcm%cm_columns = width
         tty%wcm%cm_rows = height
-        if (tty%wcm%cm_cols <= 0) tty%wcm%cm_cols = tgetnum(tty%ti, "co")
+        if (tty%wcm%cm_columns <= 0) tty%wcm%cm_columns = tgetnum(tty%ti, "co")
         if (tty%wcm%cm_rows <= 0) tty%wcm%cm_rows = tgetnum(tty%ti, "li")
 
-        if (tty%wcm%cm_rows < 3 .or. tty%wcm%cm_cols < 3) then
-            write (text, '("Screen size ", i0, "x", i0, " is too small")') tty%wcm%cm_cols, tty%wcm%cm_rows
-            call set_error(status, FM_GENERIC_ERROR, trim(text))
+        if (tty%wcm%cm_rows < 3 .or. tty%wcm%cm_columns < 3) then
+            write (text, '("Screen size ", i0, "x", i0, " is too small")') tty%wcm%cm_columns, tty%wcm%cm_rows
+            call set_error(status, GENERIC_ERROR_CODE, trim(text))
             return
         end if
 
@@ -365,7 +365,7 @@ contains
 
         if (wcm_init(tty) == -1) then
             ! term.c:maybe_fatal: the error goes back to the caller.
-            call set_error(status, FM_GENERIC_ERROR, 'Terminal type "'//terminal_type// &
+            call set_error(status, GENERIC_ERROR_CODE, 'Terminal type "'//terminal_type// &
                            '" is not powerful enough to run Fortmacs')
             return
         end if
@@ -378,28 +378,28 @@ contains
 
         tty%wcm%cm_usetabs = .false.
         if (fd >= 0) tty%wcm%cm_usetabs = is_tabs_safe(fd) .and. tty%wcm%cm_tabwidth == 8
-        tty%scroll_region_ok = allocated(tty%wcm%cm_abs) .and. &
+        tty%scroll_region_ok = allocated(tty%wcm%cm_absolute) .and. &
                                (allocated(tty%ts_set_window) .or. allocated(tty%ts_set_scroll_region) &
                                 .or. allocated(tty%ts_set_scroll_region_1))
-        tty%line_ins_del_ok = ((allocated(tty%ts_ins_line) .or. allocated(tty%ts_ins_multi_lines)) &
-                               .and. (allocated(tty%ts_del_line) .or. allocated(tty%ts_del_multi_lines))) &
-                              .or. (tty%scroll_region_ok .and. allocated(tty%ts_fwd_scroll) &
-                                    .and. allocated(tty%ts_rev_scroll))
-        tty%char_ins_del_ok = (allocated(tty%ts_ins_char) .or. allocated(tty%ts_insert_mode) &
-                               .or. allocated(tty%ts_pad_inserted_char) &
-                               .or. allocated(tty%ts_ins_multi_chars)) &
-                              .and. (allocated(tty%ts_del_char) .or. allocated(tty%ts_del_multi_chars))
+        tty%line_ins_delete_ok = ((allocated(tty%ts_ins_line) .or. allocated(tty%ts_ins_multi_lines)) &
+                                  .and. (allocated(tty%ts_delete_line) .or. allocated(tty%ts_delete_multi_lines))) &
+                                 .or. (tty%scroll_region_ok .and. allocated(tty%ts_fwd_scroll) &
+                                       .and. allocated(tty%ts_revision_scroll))
+        tty%character_ins_delete_ok = (allocated(tty%ts_ins_character) .or. allocated(tty%ts_insert_mode) &
+                                       .or. allocated(tty%ts_pad_inserted_character) &
+                                       .or. allocated(tty%ts_ins_multi_characters)) &
+                                      .and. (allocated(tty%ts_delete_character) .or. allocated(tty%ts_delete_multi_characters))
 
         if (fd >= 0) then
-            call init_sys_modes(fd, tty%old_tty, st, meta_key=tty%meta_key)
+            call initialize_system_modes(fd, tty%old_tty, st, meta_key=tty%meta_key)
             tty%modes_saved = st%ok()
         end if
 
         call calculate_costs(tty)
-    end subroutine init_tty_entry
+    end subroutine initialize_tty_entry
 
     !> Restore the terminal: its modes as Fortmacs found them.  Port of
-    !> term.c:delete_tty (with the reset_sys_modes it triggers).
+    !> term.c:delete_tty (with the reset_system_modes it triggers).
     subroutine delete_tty(tty, status)
         type(tty_display_info_type), intent(inout) :: tty
         type(status_type), intent(out) :: status
@@ -408,7 +408,7 @@ contains
         call tty_flush(tty, status)
 
         if (tty%modes_saved .and. tty%input >= 0) then
-            call reset_sys_modes(tty%input, tty%old_tty, status)
+            call reset_system_modes(tty%input, tty%old_tty, status)
             tty%modes_saved = .false.
         end if
     end subroutine delete_tty
@@ -418,8 +418,8 @@ contains
     !> mode (`tty_reset_terminal_modes') and give it back the modes Fortmacs
     !> found it in.  Port of sysdep.c:reset_all_sys_modes (one terminal)
     !> with sysdep.c:reset_sys_modes (its terminal part; system_dependent_mod's
-    !> `reset_sys_modes' restores the modes).
-    subroutine reset_all_sys_modes()
+    !> `reset_system_modes' restores the modes).
+    subroutine reset_all_system_modes()
         type(status_type) :: status
 
         associate (tty => selected_frame%tty)
@@ -431,7 +431,7 @@ contains
             else
                 ! Have to do it the hard way.
                 call tty_turn_off_insert(tty)
-                call tty_put_bytes(tty, repeat(" ", max(0, tty%wcm%cm_cols - 1 - tty%wcm%cm_curx)))
+                call tty_put_bytes(tty, repeat(" ", max(0, tty%wcm%cm_columns - 1 - tty%wcm%cm_curx)))
             end if
 
             call cmgoto(tty, tty%wcm%cm_rows - 1, 0)
@@ -439,11 +439,11 @@ contains
             call tty_reset_terminal_modes(tty)
 
             if (tty%modes_saved .and. tty%input >= 0) then
-                call reset_sys_modes(tty%input, tty%old_tty, status)
+                call reset_system_modes(tty%input, tty%old_tty, status)
                 tty%modes_saved = .false.
             end if
         end associate
-    end subroutine reset_all_sys_modes
+    end subroutine reset_all_system_modes
 
     !> Initialize the terminal mode on all tty devices that are currently
     !> open: the terminal of `selected_frame' gets Fortmacs's modes again
@@ -451,15 +451,15 @@ contains
     !> (`tty_set_terminal_modes') and its frame is redrawn unless
     !> `redraw_after_suspend' is false.  Port of sysdep.c:init_all_sys_modes
     !> (one terminal) with sysdep.c:init_sys_modes (its terminal part;
-    !> system_dependent_mod's `init_sys_modes' sets the modes; it runs only when
+    !> system_dependent_mod's `initialize_system_modes' sets the modes; it runs only when
     !> Fortmacs is resumed, so the terminal is always initialized already
-    !> (term_initted); `tty_erase_char' is not ported).
-    subroutine init_all_sys_modes()
+    !> (term_initted); `tty_erase_character' is not ported).
+    subroutine initialize_all_system_modes()
         type(status_type) :: status
 
         associate (tty => selected_frame%tty)
             if (tty%input >= 0) then
-                call init_sys_modes(tty%input, tty%old_tty, status, meta_key=tty%meta_key)
+                call initialize_system_modes(tty%input, tty%old_tty, status, meta_key=tty%meta_key)
                 tty%modes_saved = status%ok()
             end if
 
@@ -467,7 +467,7 @@ contains
         end associate
 
         if (redraw_after_suspend) selected_frame%needs_redraw = .true.
-    end subroutine init_all_sys_modes
+    end subroutine initialize_all_system_modes
 
     !> Compute the cursor-motion costs; until then cursor_to does nothing.
     !> Port of the terminal part of term.c:calculate_costs (the
@@ -476,7 +476,7 @@ contains
         type(tty_display_info_type), intent(inout) :: tty
 
         tty%costs_set = .true.
-        call calculate_ins_del_char_costs(tty)
+        call calculate_ins_delete_character_costs(tty)
         call cmcostinit(tty)
     end subroutine calculate_costs
 
@@ -491,52 +491,52 @@ contains
 
     !> Fill in the cost of inserting and deleting characters.  Port of
     !> term.c:calculate_ins_del_char_costs.
-    subroutine calculate_ins_del_char_costs(tty)
+    subroutine calculate_ins_delete_character_costs(tty)
         type(tty_display_info_type), intent(inout) :: tty
-        integer :: ins_startup_cost, del_startup_cost, ins_cost_per_char, &
-                   del_cost_per_char, cols, i
+        integer :: ins_startup_cost, delete_startup_cost, ins_cost_per_character, &
+                   delete_cost_per_character, columns, i
 
-        if (allocated(tty%ts_ins_multi_chars)) then
-            ins_cost_per_char = 0
-            ins_startup_cost = string_cost(tty%ts_ins_multi_chars)
-        else if (allocated(tty%ts_ins_char) .or. allocated(tty%ts_pad_inserted_char) .or. &
+        if (allocated(tty%ts_ins_multi_characters)) then
+            ins_cost_per_character = 0
+            ins_startup_cost = string_cost(tty%ts_ins_multi_characters)
+        else if (allocated(tty%ts_ins_character) .or. allocated(tty%ts_pad_inserted_character) .or. &
                  (allocated(tty%ts_insert_mode) .and. allocated(tty%ts_end_insert_mode))) then
             ins_startup_cost = (30*(string_cost(tty%ts_insert_mode) + &
                                     string_cost(tty%ts_end_insert_mode)))/100
-            ins_cost_per_char = string_cost(tty%ts_ins_char) + string_cost(tty%ts_pad_inserted_char)
+            ins_cost_per_character = string_cost(tty%ts_ins_character) + string_cost(tty%ts_pad_inserted_character)
         else
             ins_startup_cost = 9999
-            ins_cost_per_char = 0
+            ins_cost_per_character = 0
         end if
 
-        if (allocated(tty%ts_del_multi_chars)) then
-            del_cost_per_char = 0
-            del_startup_cost = string_cost(tty%ts_del_multi_chars)
-        else if (allocated(tty%ts_del_char)) then
-            del_startup_cost = string_cost(tty%ts_delete_mode) + string_cost(tty%ts_end_delete_mode)
-            if (tty%delete_in_insert_mode) del_startup_cost = del_startup_cost/2
-            del_cost_per_char = string_cost(tty%ts_del_char)
+        if (allocated(tty%ts_delete_multi_characters)) then
+            delete_cost_per_character = 0
+            delete_startup_cost = string_cost(tty%ts_delete_multi_characters)
+        else if (allocated(tty%ts_delete_character)) then
+            delete_startup_cost = string_cost(tty%ts_delete_mode) + string_cost(tty%ts_end_delete_mode)
+            if (tty%delete_in_insert_mode) delete_startup_cost = delete_startup_cost/2
+            delete_cost_per_character = string_cost(tty%ts_delete_character)
         else
-            del_startup_cost = 9999
-            del_cost_per_char = 0
+            delete_startup_cost = 9999
+            delete_cost_per_character = 0
         end if
 
-        cols = tty%wcm%cm_cols
-        if (allocated(tty%char_ins_del_cost)) deallocate (tty%char_ins_del_cost)
-        allocate (tty%char_ins_del_cost(-cols:cols))
+        columns = tty%wcm%cm_columns
+        if (allocated(tty%character_ins_delete_cost)) deallocate (tty%character_ins_delete_cost)
+        allocate (tty%character_ins_delete_cost(-columns:columns))
 
-        do i = -1, -cols, -1
-            del_startup_cost = del_startup_cost + del_cost_per_char
-            tty%char_ins_del_cost(i) = del_startup_cost
+        do i = -1, -columns, -1
+            delete_startup_cost = delete_startup_cost + delete_cost_per_character
+            tty%character_ins_delete_cost(i) = delete_startup_cost
         end do
 
-        tty%char_ins_del_cost(0) = 0
+        tty%character_ins_delete_cost(0) = 0
 
-        do i = 1, cols
-            ins_startup_cost = ins_startup_cost + ins_cost_per_char
-            tty%char_ins_del_cost(i) = ins_startup_cost
+        do i = 1, columns
+            ins_startup_cost = ins_startup_cost + ins_cost_per_character
+            tty%character_ins_delete_cost(i) = ins_startup_cost
         end do
-    end subroutine calculate_ins_del_char_costs
+    end subroutine calculate_ins_delete_character_costs
 
     !> Map the escape sequences the terminal's function keys send to
     !> function-key events in input-decode-map.  Port of
@@ -693,7 +693,7 @@ contains
         call tty_output(tty, tty%ts_end_keypad_mode)
         call tty_output(tty, tty%ts_cursor_normal)
         call tty_output(tty, tty%ts_end_termcap_modes)
-        call tty_output(tty, tty%ts_orig_pair)
+        call tty_output(tty, tty%ts_original_pair)
         call tty_put_bytes(tty, achar(13))
         call tty_flush(tty, status)
     end subroutine tty_reset_terminal_modes
@@ -737,7 +737,7 @@ contains
             buffer = tparam(tty%ts_set_scroll_region_1, rows, int(start, int64), rows - stop, rows)
         else if (allocated(tty%ts_set_window)) then
             buffer = tparam(tty%ts_set_window, int(start, int64), 0_int64, int(stop, int64), &
-                            int(tty%wcm%cm_cols, int64))
+                            int(tty%wcm%cm_columns, int64))
         else
             return
         end if
@@ -824,29 +824,29 @@ contains
     ! Cursor motion and clearing
     ! ------------------------------------------------------------------
 
-    !> Move the cursor to row `vpos', column `hpos' (0-based).  Port of
+    !> Move the cursor to row `vertical_position', column `horizontal_position' (0-based).  Port of
     !> term.c:tty_cursor_to.
-    subroutine tty_cursor_to(tty, vpos, hpos)
+    subroutine tty_cursor_to(tty, vertical_position, horizontal_position)
         type(tty_display_info_type), intent(inout) :: tty
-        integer, intent(in) :: vpos, hpos
+        integer, intent(in) :: vertical_position, horizontal_position
 
         if (.not. tty%costs_set) return
-        if (tty%wcm%cm_cury == vpos .and. tty%wcm%cm_curx == hpos) return
+        if (tty%wcm%cm_cury == vertical_position .and. tty%wcm%cm_curx == horizontal_position) return
         if (.not. tty%tf_standout_motion) call tty_background_highlight(tty)
         if (.not. tty%tf_insmode_motion) call tty_turn_off_insert(tty)
-        call cmgoto(tty, vpos, hpos)
+        call cmgoto(tty, vertical_position, horizontal_position)
     end subroutine tty_cursor_to
 
     !> Like tty_cursor_to, in absolute terminal coordinates.  Port of
     !> term.c:tty_raw_cursor_to.
-    subroutine tty_raw_cursor_to(tty, row, col)
+    subroutine tty_raw_cursor_to(tty, row, column)
         type(tty_display_info_type), intent(inout) :: tty
-        integer, intent(in) :: row, col
+        integer, intent(in) :: row, column
 
-        if (tty%wcm%cm_cury == row .and. tty%wcm%cm_curx == col) return
+        if (tty%wcm%cm_cury == row .and. tty%wcm%cm_curx == column) return
         if (.not. tty%tf_standout_motion) call tty_background_highlight(tty)
         if (.not. tty%tf_insmode_motion) call tty_turn_off_insert(tty)
-        call cmgoto(tty, row, col)
+        call cmgoto(tty, row, column)
     end subroutine tty_raw_cursor_to
 
     !> Clear from the cursor to the end of the screen.  Port of
@@ -861,7 +861,7 @@ contains
         else
             do i = tty%wcm%cm_cury, tty%wcm%cm_rows - 1
                 call tty_cursor_to(tty, i, 0)
-                call tty_clear_end_of_line(tty, tty%wcm%cm_cols)
+                call tty_clear_end_of_line(tty, tty%wcm%cm_columns)
             end do
         end if
     end subroutine tty_clear_to_end
@@ -880,15 +880,15 @@ contains
         end if
     end subroutine tty_clear_frame
 
-    !> Clear from the cursor to column `first_unused_hpos' (the end of
+    !> Clear from the cursor to column `first_unused_horizontal_position' (the end of
     !> what was written).  Port of term.c:tty_clear_end_of_line.
-    subroutine tty_clear_end_of_line(tty, first_unused_hpos)
+    subroutine tty_clear_end_of_line(tty, first_unused_horizontal_position)
         type(tty_display_info_type), intent(inout) :: tty
-        integer, intent(in) :: first_unused_hpos
+        integer, intent(in) :: first_unused_horizontal_position
         integer :: last
 
         if (.not. tty%costs_set) return
-        if (tty%wcm%cm_curx >= first_unused_hpos) return
+        if (tty%wcm%cm_curx >= first_unused_horizontal_position) return
         call tty_background_highlight(tty)
 
         if (allocated(tty%ts_clr_line)) then
@@ -897,9 +897,9 @@ contains
             ! No kill-line: write spaces, but never in the last cell of an
             ! autowrapping terminal.
             call tty_turn_off_insert(tty)
-            last = first_unused_hpos
+            last = first_unused_horizontal_position
             if (tty%wcm%cm_autowrap .and. tty%wcm%cm_cury == tty%wcm%cm_rows - 1 &
-                .and. last == tty%wcm%cm_cols) last = last - 1
+                .and. last == tty%wcm%cm_columns) last = last - 1
 
             if (last > tty%wcm%cm_curx) then
                 call tty_put_bytes(tty, repeat(" ", last - tty%wcm%cm_curx))
@@ -920,7 +920,7 @@ contains
     function encode_terminal_code(glyphs) result(bytes)
         type(glyph_type), intent(in) :: glyphs(:)
         character(len=:), allocatable :: bytes
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: buffer
         character(len=:), allocatable :: coding, text
         integer(int32) :: n
         logical :: unencodable
@@ -943,13 +943,13 @@ contains
                         cycle
                     end if
 
-                    unencodable = .not. is_char_encodable(int(glyphs(k)%ch), coding)
+                    unencodable = .not. is_character_encodable(int(glyphs(k)%ch), coding)
 
                     if (unencodable) then
                         ! C is not encodable.
                         text = text//"?"
                     else
-                        call char_string(glyphs(k)%ch, buffer, n, status)
+                        call character_string(glyphs(k)%ch, buffer, n, status)
                         if (status%ok()) text = text//buffer(1:n)
                     end if
                 end do
@@ -964,10 +964,10 @@ contains
         do k = 1, size(glyphs)
             if (glyphs(k)%padding) cycle
 
-            if (is_char_byte8(glyphs(k)%ch)) then
-                bytes = bytes//char(char_to_byte8(glyphs(k)%ch))
+            if (is_character_byte8(glyphs(k)%ch)) then
+                bytes = bytes//char(character_to_byte8(glyphs(k)%ch))
             else
-                call char_string(glyphs(k)%ch, buffer, n, status)
+                call character_string(glyphs(k)%ch, buffer, n, status)
 
                 if (status%ok()) then
                     bytes = bytes//buffer(1:n)
@@ -978,14 +978,14 @@ contains
         end do
     end function encode_terminal_code
 
-    !> Whether attribute `attr' may be combined with colors.
+    !> Whether attribute `attribute' may be combined with colors.
     !> Port of term.c:MAY_USE_WITH_COLORS_P.
-    logical function may_use_with_colors(tty, attr)
+    logical function may_use_with_colors(tty, attribute)
         type(tty_display_info_type), intent(in) :: tty
-        integer, intent(in) :: attr
+        integer, intent(in) :: attribute
 
         may_use_with_colors = .true.
-        if (tty%tn_max_colors > 0) may_use_with_colors = iand(tty%tn_no_color_video, attr) == 0
+        if (tty%tn_maximum_colors > 0) may_use_with_colors = iand(tty%tn_no_color_video, attribute) == 0
     end function may_use_with_colors
 
     !> Return true if the terminal TTY is capable of displaying all the
@@ -1042,19 +1042,19 @@ contains
     subroutine turn_on_face(tty, face)
         type(tty_display_info_type), intent(inout) :: tty
         type(face_type), intent(in) :: face
-        integer(int64) :: fg, bg
+        integer(int64) :: foreground, background
         character(len=:), allocatable :: p
 
-        fg = face%foreground
-        bg = face%background
+        foreground = face%foreground
+        background = face%background
 
         if (may_use_with_colors(tty, NC_REVERSE)) then
             if (inverse_video) then
-                if (fg == FACE_TTY_DEFAULT_FG_COLOR .or. bg == FACE_TTY_DEFAULT_BG_COLOR) then
+                if (foreground == FACE_TTY_DEFAULT_FOREGROUND_COLOR .or. background == FACE_TTY_DEFAULT_BACKGROUND_COLOR) then
                     call tty_toggle_highlight(tty)
                 end if
             else
-                if (fg == FACE_TTY_DEFAULT_BG_COLOR .or. bg == FACE_TTY_DEFAULT_FG_COLOR) then
+                if (foreground == FACE_TTY_DEFAULT_BACKGROUND_COLOR .or. background == FACE_TTY_DEFAULT_FOREGROUND_COLOR) then
                     call tty_toggle_highlight(tty)
                 end if
             end if
@@ -1087,21 +1087,21 @@ contains
             call tty_output(tty, tty%ts_enter_strike_through_mode)
         end if
 
-        if (tty%tn_max_colors > 0) then
+        if (tty%tn_maximum_colors > 0) then
             ! In standout mode foreground and background are swapped.
-            if (face_tty_specified_color(fg)) then
+            if (face_tty_specified_color(foreground)) then
                 if (tty%standout_mode) then
-                    call set_color(tty, tty%ts_set_background, fg)
+                    call set_color(tty, tty%ts_set_background, foreground)
                 else
-                    call set_color(tty, tty%ts_set_foreground, fg)
+                    call set_color(tty, tty%ts_set_foreground, foreground)
                 end if
             end if
 
-            if (face_tty_specified_color(bg)) then
+            if (face_tty_specified_color(background)) then
                 if (tty%standout_mode) then
-                    call set_color(tty, tty%ts_set_foreground, bg)
+                    call set_color(tty, tty%ts_set_foreground, background)
                 else
-                    call set_color(tty, tty%ts_set_background, bg)
+                    call set_color(tty, tty%ts_set_background, background)
                 end if
             end if
 
@@ -1132,12 +1132,12 @@ contains
             call tty_output(tty, tty%ts_exit_underline_mode)
         end if
 
-        if (tty%tn_max_colors > 0) then
+        if (tty%tn_maximum_colors > 0) then
             if ((face%foreground /= FACE_TTY_DEFAULT_COLOR .and. &
-                 face%foreground /= FACE_TTY_DEFAULT_FG_COLOR) .or. &
+                 face%foreground /= FACE_TTY_DEFAULT_FOREGROUND_COLOR) .or. &
                 (face%background /= FACE_TTY_DEFAULT_COLOR .and. &
-                 face%background /= FACE_TTY_DEFAULT_BG_COLOR)) then
-                call tty_output(tty, tty%ts_orig_pair)
+                 face%background /= FACE_TTY_DEFAULT_BACKGROUND_COLOR)) then
+                call tty_output(tty, tty%ts_original_pair)
             end if
         end if
     end subroutine turn_off_face
@@ -1159,19 +1159,19 @@ contains
         type(glyph_type), intent(in) :: glyphs(:)
         type(face_type), intent(in) :: faces(0:)
         type(face_type) :: face
-        integer :: start, n, len_
+        integer :: start, n, length_
 
         call tty_turn_off_insert(tty)
         call tty_hide_cursor(tty)
-        len_ = size(glyphs)
-        if (len_ == 0) return
-        call cmplus(tty, len_)
+        length_ = size(glyphs)
+        if (length_ == 0) return
+        call cmplus(tty, length_)
         start = 1
 
-        do while (start <= len_)
+        do while (start <= length_)
             n = 1
 
-            do while (start + n <= len_)
+            do while (start + n <= length_)
                 if (glyphs(start + n)%face_id /= glyphs(start)%face_id) exit
                 n = n + 1
             end do
@@ -1190,27 +1190,27 @@ contains
 
     !> Write `glyphs' at the cursor.  Writing the last cell of an
     !> autowrapping terminal would scroll it, so that cell is inserted
-    !> instead; when only that cell is written, `prev' (the glyph before
+    !> instead; when only that cell is written, `previous' (the glyph before
     !> it, which upstream reads from the glyph row) is rewritten too, and
     !> without it the last cell is left alone.  Port of
     !> term.c:tty_write_glyphs.
-    recursive subroutine tty_write_glyphs(tty, glyphs, faces, prev)
+    recursive subroutine tty_write_glyphs(tty, glyphs, faces, previous)
         type(tty_display_info_type), intent(inout) :: tty
         type(glyph_type), intent(in) :: glyphs(:)
         type(face_type), intent(in) :: faces(0:)
-        type(glyph_type), intent(in), optional :: prev
+        type(glyph_type), intent(in), optional :: previous
         type(glyph_type), allocatable :: run(:)
-        integer :: len_, old_x, old_y
+        integer :: length_, old_x, old_y
 
-        len_ = size(glyphs)
+        length_ = size(glyphs)
 
         if (tty%wcm%cm_autowrap .and. tty%wcm%cm_cury + 1 == tty%wcm%cm_rows .and. &
-            tty%wcm%cm_curx + len_ == tty%wcm%cm_cols .and. len_ > 0) then
-            if (len_ == 1) then
-                if (.not. present(prev) .or. tty%wcm%cm_curx == 0) return
+            tty%wcm%cm_curx + length_ == tty%wcm%cm_columns .and. length_ > 0) then
+            if (length_ == 1) then
+                if (.not. present(previous) .or. tty%wcm%cm_curx == 0) return
                 call cmgoto(tty, tty%wcm%cm_cury, tty%wcm%cm_curx - 1)
                 allocate (run(2))
-                run(1) = prev
+                run(1) = previous
                 run(2) = glyphs(1)
             else
                 run = glyphs
@@ -1246,8 +1246,8 @@ contains
 
         if (n <= 0) return
 
-        if (allocated(tty%ts_ins_multi_chars)) then
-            buffer = tparam(tty%ts_ins_multi_chars, int(n, int64), 0_int64, 0_int64, 0_int64)
+        if (allocated(tty%ts_ins_multi_characters)) then
+            buffer = tparam(tty%ts_ins_multi_characters, int(n, int64), 0_int64, 0_int64, 0_int64)
             call tty_output(tty, buffer)
             if (present(glyphs)) call tty_write_glyphs(tty, glyphs, faces)
             return
@@ -1258,11 +1258,11 @@ contains
         k = 1
 
         do while (k <= n)
-            call tty_output(tty, tty%ts_ins_char)
+            call tty_output(tty, tty%ts_ins_character)
 
             if (.not. present(glyphs)) then
                 call tty_put_bytes(tty, " ")
-                call tty_output(tty, tty%ts_pad_inserted_char)
+                call tty_output(tty, tty%ts_pad_inserted_character)
                 k = k + 1
                 cycle
             end if
@@ -1276,11 +1276,11 @@ contains
             ! The padding cells of a wide character need room too.
             do while (k <= n)
                 if (.not. glyphs(k)%padding) exit
-                call tty_output(tty, tty%ts_ins_char)
+                call tty_output(tty, tty%ts_ins_character)
                 k = k + 1
             end do
 
-            call tty_output(tty, tty%ts_pad_inserted_char)
+            call tty_output(tty, tty%ts_pad_inserted_character)
             call turn_off_face(tty, face)
             call tty_turn_off_highlight(tty)
         end do
@@ -1302,47 +1302,47 @@ contains
             call tty_output(tty, tty%ts_delete_mode)
         end if
 
-        if (allocated(tty%ts_del_multi_chars)) then
-            buffer = tparam(tty%ts_del_multi_chars, int(n, int64), 0_int64, 0_int64, 0_int64)
+        if (allocated(tty%ts_delete_multi_characters)) then
+            buffer = tparam(tty%ts_delete_multi_characters, int(n, int64), 0_int64, 0_int64, 0_int64)
             call tty_output(tty, buffer)
         else
             do i = 1, n
-                call tty_output(tty, tty%ts_del_char)
+                call tty_output(tty, tty%ts_delete_character)
             end do
         end if
 
         if (.not. tty%delete_in_insert_mode) call tty_output(tty, tty%ts_end_delete_mode)
     end subroutine tty_delete_glyphs
 
-    !> Insert `n' blank lines at row `vpos' (delete -`n' lines if
+    !> Insert `n' blank lines at row `vertical_position' (delete -`n' lines if
     !> negative), within the scroll window.  Port of term.c:tty_ins_del_lines.
-    subroutine tty_ins_del_lines(tty, vpos, n)
+    subroutine tty_ins_delete_lines(tty, vertical_position, n)
         type(tty_display_info_type), intent(inout) :: tty
-        integer, intent(in) :: vpos, n
+        integer, intent(in) :: vertical_position, n
         character(len=:), allocatable :: multi, single, scroll, buffer
         integer :: i, k
 
         if (n > 0) then
             if (allocated(tty%ts_ins_multi_lines)) multi = tty%ts_ins_multi_lines
             if (allocated(tty%ts_ins_line)) single = tty%ts_ins_line
-            if (allocated(tty%ts_rev_scroll)) scroll = tty%ts_rev_scroll
+            if (allocated(tty%ts_revision_scroll)) scroll = tty%ts_revision_scroll
         else
-            if (allocated(tty%ts_del_multi_lines)) multi = tty%ts_del_multi_lines
-            if (allocated(tty%ts_del_line)) single = tty%ts_del_line
+            if (allocated(tty%ts_delete_multi_lines)) multi = tty%ts_delete_multi_lines
+            if (allocated(tty%ts_delete_line)) single = tty%ts_delete_line
             if (allocated(tty%ts_fwd_scroll)) scroll = tty%ts_fwd_scroll
         end if
 
         i = abs(n)
-        if (tty%scroll_region_ok .and. vpos + i >= tty%specified_window) return
-        if (.not. tty%memory_below_frame .and. vpos + i >= tty%wcm%cm_rows) return
+        if (tty%scroll_region_ok .and. vertical_position + i >= tty%specified_window) return
+        if (.not. tty%memory_below_frame .and. vertical_position + i >= tty%wcm%cm_rows) return
 
         if (allocated(multi)) then
-            call tty_raw_cursor_to(tty, vpos, 0)
+            call tty_raw_cursor_to(tty, vertical_position, 0)
             call tty_background_highlight(tty)
             buffer = tparam(multi, int(i, int64), 0_int64, 0_int64, 0_int64)
             call tty_output(tty, buffer)
         else if (allocated(single)) then
-            call tty_raw_cursor_to(tty, vpos, 0)
+            call tty_raw_cursor_to(tty, vertical_position, 0)
             call tty_background_highlight(tty)
 
             do k = 1, i
@@ -1351,12 +1351,12 @@ contains
 
             if (tty%tf_teleray) tty%wcm%cm_curx = 0
         else
-            call tty_set_scroll_region(tty, vpos, tty%specified_window)
+            call tty_set_scroll_region(tty, vertical_position, tty%specified_window)
 
             if (n < 0) then
                 call tty_raw_cursor_to(tty, tty%specified_window - 1, 0)
             else
-                call tty_raw_cursor_to(tty, vpos, 0)
+                call tty_raw_cursor_to(tty, vertical_position, 0)
             end if
 
             call tty_background_highlight(tty)
@@ -1372,7 +1372,7 @@ contains
             call tty_cursor_to(tty, tty%wcm%cm_rows + n, 0)
             call tty_clear_to_end(tty)
         end if
-    end subroutine tty_ins_del_lines
+    end subroutine tty_ins_delete_lines
 
     ! ------------------------------------------------------------------
     ! Lisp-visible functions on a tty (TERMINAL is its display info)
@@ -1383,7 +1383,7 @@ contains
     logical function is_tty_display_color(tty)
         type(tty_display_info_type), intent(in) :: tty
 
-        is_tty_display_color = tty%tn_max_colors > 0
+        is_tty_display_color = tty%tn_maximum_colors > 0
     end function is_tty_display_color
 
     !> Return the number of colors supported by the tty device TERMINAL.
@@ -1391,7 +1391,7 @@ contains
     integer function tty_display_color_cells(tty)
         type(tty_display_info_type), intent(in) :: tty
 
-        tty_display_color_cells = tty%tn_max_colors
+        tty_display_color_cells = tty%tn_maximum_colors
     end function tty_display_color_cells
 
     !> Return the type of the tty device that TERMINAL uses (the empty

@@ -33,7 +33,7 @@ module fortmacs_diff_window_mod
     use window_mod, only: windows, select_window, split_window, delete_other_windows, set_window_buffer, &
                           set_window_dedication, get_buffer_window, is_window_live, is_window_minibuffer, other_window, &
                           window_buffer, same_handle, pop_to_buffer, split_window_below, split_window_right, window_list_1, &
-                          window_top_line, window_total_height, switch_to_buffer, window_min_height, DEDICATED_NONE
+                          window_top_line, window_total_height, switch_to_buffer, window_minimum_height, DEDICATED_NONE
     use frame_mod, only: selected_frame
     use fortmacs_diff_settings_mod, only: ediff_sessions, ediff_split_window_procedure, ediff_before_setup_windows_hook, &
                                           ediff_after_setup_windows_hook, EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B, &
@@ -45,7 +45,7 @@ module fortmacs_diff_window_mod
     public :: ediff_window_setup_procedure, set_up_ediff_windows, set_up_ediff_windows_default, set_up_ediff_windows_plain, &
               set_up_ediff_windows_plain_compare, set_up_ediff_windows_plain_merge, select_lowest_ediff_window, &
               refresh_ediff_mode_lines, make_ediff_wide_control_buffer_id, &
-              get_ediff_visible_buffer_window, is_ediff_window_config_kept, ediff_window_config, init_ediff_wind
+              get_ediff_visible_buffer_window, is_ediff_window_configuration_kept, ediff_window_configuration, initialize_ediff_wind
 
     abstract interface
         !> A function that sets up the windows of an Ediff session
@@ -124,7 +124,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        kept = is_ediff_window_config_kept(control_buffer, status)
+        kept = is_ediff_window_configuration_kept(control_buffer, status)
         if (.not. status%ok()) return
 
         if (.not. kept) then
@@ -212,7 +212,7 @@ contains
         procedure(ediff_split_window_procedure), pointer :: split_window_function
         type(handle_type) :: wind_a, wind_b, wind_c, wind_ancestor, new, buffer_ancestor
         real :: merge_window_share
-        integer :: merge_window_lines, k, saved_window_min_height, height
+        integer :: merge_window_lines, k, saved_window_minimum_height, height
         logical :: with_ancestor
 
         status = status_type()
@@ -225,9 +225,9 @@ contains
         split_window_function => ediff_sessions(k)%split_window_function
         if (.not. associated(split_window_function)) split_window_function => split_window_right
         wind_ancestor = null_handle()
-        ! window_min_height is 1 while the windows are set up.
-        saved_window_min_height = window_min_height
-        window_min_height = 1
+        ! window_minimum_height is 1 while the windows are set up.
+        saved_window_minimum_height = window_minimum_height
+        window_minimum_height = 1
 
         body: block
             call delete_other_windows(selected_frame%selected_window, status)
@@ -282,7 +282,7 @@ contains
             call set_up_ediff_control_buffer(k, control_buffer, status)
         end block body
 
-        window_min_height = saved_window_min_height
+        window_minimum_height = saved_window_minimum_height
     end subroutine set_up_ediff_windows_plain_merge
 
     !> The windows of all comparison jobs, including 3way jobs: buffers A,
@@ -404,13 +404,13 @@ contains
         if (is_buffer_live(buffer)) window = get_buffer_window(buffer)
     end function get_ediff_visible_buffer_window
 
-    !> What `ediff_window_config_saved' records of session K: its windows,
+    !> What `ediff_window_configuration_saved' records of session K: its windows,
     !> split function and display.  Not a port: the string
     !> (format "%S%S%S%S%S%S%S%S" ...) of ediff-setup-control-buffer and
     !> ediff-keep-window-config.
-    function ediff_window_config(k) result(config)
+    function ediff_window_configuration(k) result(configuration)
         integer, intent(in) :: k
-        character(len=:), allocatable :: config
+        character(len=:), allocatable :: configuration
         integer :: t
         character(len=240) :: windows_text
 
@@ -419,22 +419,22 @@ contains
             write (windows_text, '(5("#<window ", i0, ".", i0, ">"))') s%control_window%index, &
                 s%control_window%generation, (s%windows(t)%index, s%windows(t)%generation, &
                                               t=EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_ANCESTOR)
-            config = trim(windows_text)
+            configuration = trim(windows_text)
 
             if (associated(s%split_window_function, split_window_right)) then
-                config = config//"split_window_right"
+                configuration = configuration//"split_window_right"
             else if (associated(s%split_window_function, split_window_below)) then
-                config = config//"split_window_below"
+                configuration = configuration//"split_window_below"
             else
-                config = config//"a procedure"
+                configuration = configuration//"a procedure"
             end if
         end associate
-    end function ediff_window_config
+    end function ediff_window_configuration
 
     !> Whether the windows of the session of CONTROL_BUFFER are still as
     !> Ediff set them up, so they need not be set up again.  Port of
     !> ediff-wind.el:ediff-keep-window-config.
-    logical function is_ediff_window_config_kept(control_buffer, status) result(kept)
+    logical function is_ediff_window_configuration_kept(control_buffer, status) result(kept)
         type(handle_type), intent(in) :: control_buffer
         type(status_type), intent(out) :: status
         type(handle_type) :: shown
@@ -444,7 +444,7 @@ contains
         kept = .false.
         if (.not. is_buffer_live(control_buffer)) return
         if (.not. same_handle(current_buffer(), control_buffer)) return
-        if (buffers(current)%zv - buffers(current)%begv == 0) return
+        if (buffers(current)%end_of_accessible_portion - buffers(current)%beginning_of_accessible_portion == 0) return
         k = session_of(control_buffer)
         if (k == 0) return
 
@@ -471,15 +471,15 @@ contains
                 if (.not. same_handle(shown, s%buffers(EDIFF_BUFFER_TYPE_ANCESTOR))) return
             end if
 
-            if (.not. allocated(s%window_config_saved)) return
-            kept = s%window_config_saved == ediff_window_config(k)
+            if (.not. allocated(s%window_configuration_saved)) return
+            kept = s%window_configuration_saved == ediff_window_configuration(k)
         end associate
-    end function is_ediff_window_config_kept
+    end function is_ediff_window_configuration_kept
 
     !> Give the window options their defaults.  Not a port.
-    subroutine init_ediff_wind()
+    subroutine initialize_ediff_wind()
         if (.not. associated(ediff_window_setup_function)) ediff_window_setup_function => set_up_ediff_windows_default
         if (.not. associated(ediff_split_window_function)) ediff_split_window_function => split_window_below
         if (.not. associated(ediff_merge_split_window_function)) ediff_merge_split_window_function => split_window_right
-    end subroutine init_ediff_wind
+    end subroutine initialize_ediff_wind
 end module fortmacs_diff_window_mod

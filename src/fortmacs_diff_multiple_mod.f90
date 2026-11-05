@@ -32,38 +32,39 @@
 !> active sessions and groups.
 !>
 !> What upstream keeps in a group buffer's local variables (the meta
-!> list with its header, `ediff_dir_difference_list', the parent group)
+!> list with its header, `ediff_directory_difference_list', the parent group)
 !> is one `ediff_session_group_type' per group buffer in
 !> `ediff_session_groups'.  The session records of a buffer are found
 !> through their overlays, as upstream finds the overlays'
 !> `ediff-meta-info' property.
 module fortmacs_diff_multiple_mod
     use, intrinsic :: iso_fortran_env, only: int64, int32
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle, same_handle
     use value_mod, only: value_type, command_type, vtag, xfixnum, V_INTEGER
     use string_type_mod, only: string_type
     use buffer_mod, only: buffers, current, current_buffer, get_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           erase_buffer, &
                           restore_buffer_modified, buffer_name, close_buffer
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, char_after, insert_buffer_substring
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_beginning_of_buffer, &
+                                     is_end_of_buffer, character_after, insert_buffer_substring
     use insert_delete_mod, only: insert
-    use editing_commands_mod, only: delete_char, backward_char
-    use syntax_mod, only: skip_chars_forward, skip_chars_backward
+    use editing_commands_mod, only: delete_character, backward_character
+    use syntax_mod, only: skip_characters_forward, skip_characters_backward
     use search_mod, only: search_forward, SEARCH_NOERROR
     use interval_tree_mod, only: make_overlay, overlay_put, overlays_at, overlay_start, overlay_end, next_overlay_change, &
                                  previous_overlay_change, delete_overlay
     use keymap_mod, only: make_sparse_keymap, keymap_set, use_local_map
     use modes_mod, only: major_modes
     use hooks_mod, only: hook_type
-    use execute_interactively_mod, only: this_command, current_prefix_arg, prefix_numeric_value, PREFIX_NONE
+    use execute_interactively_mod, only: this_command, current_prefix_argument, prefix_numeric_value, PREFIX_NONE
     use keyboard_mod, only: last_command_event
     use commands_mod, only: commands
     use window_mod, only: bury_buffer, select_window, set_window_buffer, other_window, display_buffer, delete_other_windows, &
                           window_body_width, display_action_parameters_type
     use frame_mod, only: selected_frame
     use file_input_output_mod, only: expand_file_name, file_name_as_directory, file_name_nondirectory, is_file_directory, &
-                                     file_exists, file_attributes, file_stat_type, copy_file
+                                     file_exists, file_attributes, file_status_type, copy_file
     use files_mod, only: abbreviate_file_name
     use utility_functions_mod, only: count_characters
     use time_functions_mod, only: decode_time, decoded_time_type, time_type
@@ -100,8 +101,8 @@ module fortmacs_diff_multiple_mod
               unmark_ediff_all_for_operation, unmark_ediff_all_for_hiding, collect_ediff_custom_diffs, &
               up_ediff_meta_hierarchy, show_ediff_directory_diffs, copy_ediff_directory_diff_file, &
               bury_ediff_directory_diffs_buffer, &
-              mark_ediff_meta_equal_files, get_ediff_meta_information, init_ediff_multiple, &
-              get_ediff_default_filtering_regexp, get_latest_ediff_filtering_regexp
+              mark_ediff_meta_equal_files, get_ediff_meta_information, initialize_ediff_multiple, &
+              get_ediff_default_filtering_regular_expression, get_latest_ediff_filtering_regular_expression
 
     character, parameter :: LF = achar(10), TAB = achar(9)
 
@@ -146,7 +147,7 @@ module fortmacs_diff_multiple_mod
     end type ediff_group_session_type
 
     !> A file that not all directories of a group have (an entry of
-    !> upstream's `ediff-dir-difference-list', (FILE . NUM)): its name and
+    !> upstream's `ediff-dir-difference-list', (FILE . NUMBER)): its name and
     !> its membership code (EDIFF_MEMBERSHIP_CODE*).
     type, public :: ediff_directory_difference_type
         character(len=:), allocatable :: file
@@ -169,7 +170,7 @@ module fortmacs_diff_multiple_mod
 
     !> A session group (and the registry), upstream's local variables of
     !> the group buffer.  `job_name' is the command that made the group
-    !> (`ediff_metajob_name'; null for the registry).  `regexp',
+    !> (`ediff_metajob_name'; null for the registry).  `regular_expression',
     !> `directory_a', `_b', `_c' and `merge_autostore_directory' are the meta
     !> list's header (unallocated for none), `sessions' its sessions.
     type, public :: ediff_session_group_type
@@ -177,9 +178,9 @@ module fortmacs_diff_multiple_mod
         !> free entry.
         type(handle_type) :: buffer
         type(command_type), pointer :: job_name => null()
-        character(len=:), allocatable :: regexp, directory_a, directory_b, directory_c, merge_autostore_directory
+        character(len=:), allocatable :: regular_expression, directory_a, directory_b, directory_c, merge_autostore_directory
         type(ediff_group_session_type), allocatable :: sessions(:)
-        !> `ediff_dir_difference_list': the files not all directories have
+        !> `ediff_directory_difference_list': the files not all directories have
         !> (`has_directory_differences' is .false. when there is no such list).
         logical :: has_directory_differences = .false.
         type(ediff_directory_difference_type), allocatable :: directory_differences(:)
@@ -229,40 +230,41 @@ module fortmacs_diff_multiple_mod
 
     abstract interface
         !> A procedure computing the default filter of
-        !> `ediff_default_filtering_regexp' into REGEXP, "" for none.  Not a
+        !> `ediff_default_filtering_regular_expression' into REGULAR_EXPRESSION, "" for none.  Not a
         !> port.
-        subroutine ediff_default_filtering_regexp_procedure(regexp)
+        subroutine ediff_default_filtering_regular_expression_procedure(regular_expression)
             implicit none(type, external)
-            character(len=:), allocatable, intent(out) :: regexp
-        end subroutine ediff_default_filtering_regexp_procedure
+            character(len=:), allocatable, intent(out) :: regular_expression
+        end subroutine ediff_default_filtering_regular_expression_procedure
     end interface
 
-    public :: ediff_default_filtering_regexp_procedure
+    public :: ediff_default_filtering_regular_expression_procedure
 
-    !> The setting `ediff_default_filtering_regexp': a regular expression,
+    !> The setting `ediff_default_filtering_regular_expression': a regular expression,
     !> set with `=', or a procedure computing it (R6-37), set with `=>'.
     !> Not a port.
-    type, extends(string_setting_type), public :: ediff_default_filtering_regexp_string_setting_type
-        procedure(ediff_default_filtering_regexp_procedure), pointer, nopass :: procedure => null()
+    type, extends(string_setting_type), public :: ediff_default_filtering_regular_expression_string_setting_type
+        procedure(ediff_default_filtering_regular_expression_procedure), pointer, nopass :: procedure => null()
     contains
-        procedure :: clear_kinds => ediff_default_filtering_regexp_clear_kinds
-        procedure :: other_value => ediff_default_filtering_regexp_other_value
-    end type ediff_default_filtering_regexp_string_setting_type
+        procedure :: clear_kinds => ediff_default_filtering_regular_expression_clear_kinds
+        procedure :: other_value => ediff_default_filtering_regular_expression_other_value
+    end type ediff_default_filtering_regular_expression_string_setting_type
 
     !> Default regular expression used as a filename filter in multifile
     !> comparisons.
-    !> A regular expression (`ediff_default_filtering_regexp = "\.f90$"'),
+    !> A regular expression (`ediff_default_filtering_regular_expression = "\.f90$"'),
     !> or a procedure computing it
-    !> (`ediff_default_filtering_regexp%procedure => mine'), for instance
-    !> `get_latest_ediff_filtering_regexp' (the last filter used); unset
+    !> (`ediff_default_filtering_regular_expression%procedure => mine'), for instance
+    !> `get_latest_ediff_filtering_regular_expression' (the last filter used); unset
     !> for none.  Port of ediff-mult.el ediff-default-filtering-regexp.
-    type(ediff_default_filtering_regexp_string_setting_type), public :: ediff_default_filtering_regexp = &
-                                           ediff_default_filtering_regexp_string_setting_type(name="ediff_default_filtering_regexp")
+    type(ediff_default_filtering_regular_expression_string_setting_type), public :: ediff_default_filtering_regular_expression = &
+                                                                   ediff_default_filtering_regular_expression_string_setting_type( &
+                                                                                  name="ediff_default_filtering_regular_expression")
 
     !> The filters of file names typed in Ediff's directory jobs, the
     !> newest first.  Port of ediff-mult.el ediff-filtering-regexp-history.
-    type(history_setting_type), target, public :: ediff_filtering_regexp_history = &
-                                                  history_setting_type(name="ediff_filtering_regexp_history")
+    type(history_setting_type), target, public :: ediff_filtering_regular_expression_history = &
+                                                  history_setting_type(name="ediff_filtering_regular_expression_history")
 
     !> If true, truncate long file names in the session group buffers.
     !> This can be toggled with `toggle_ediff_filename_truncation'.  Port of
@@ -289,7 +291,7 @@ module fortmacs_diff_multiple_mod
     type(hook_type), target, public :: ediff_show_registry_hook = hook_type(name="ediff_show_registry_hook")
     !> Hooks run just after a session group buffer is shown.  Port of
     !> ediff-mult.el ediff-show-session-group-hook (its default function,
-    !> `delete_other_windows', is added by `init_ediff_multiple').
+    !> `delete_other_windows', is added by `initialize_ediff_multiple').
     type(hook_type), target, public :: ediff_show_session_group_hook = hook_type(name="ediff_show_session_group_hook")
     !> Hooks run just after setting up the `ediff_meta_buffer_map'.
     !> This keymap controls key bindings in the meta buffer and is a local
@@ -435,7 +437,7 @@ contains
         if (k > 0) return
         name = "null()"
         if (associated(this_command)) name = trim(this_command%name)
-        call set_error(status, FM_USER_ERROR, name//": This command runs in Ediff Control Buffer only!")
+        call set_error(status, USER_ERROR_CODE, name//": This command runs in Ediff Control Buffer only!")
     end subroutine check_meta_buffer
 
     ! Whether group K is the registry.  Not a port.
@@ -445,7 +447,7 @@ contains
         is_registry = same_handle(ediff_session_groups(k)%buffer, ediff_registry_buffer)
     end function is_registry
 
-    ! The strings of NAMES in the order of `string_lessp'.  Not a port.
+    ! The strings of NAMES in the order of `is_string_less'.  Not a port.
     subroutine sort_names(names)
         type(string_type), intent(inout) :: names(:)
         type(string_type) :: key
@@ -574,51 +576,51 @@ contains
     end function name_of
 
     !> The default filter of file names: the procedure of
-    !> `ediff_default_filtering_regexp' if set, else its regular
+    !> `ediff_default_filtering_regular_expression' if set, else its regular
     !> expression, "" for none.  Not a port: what upstream's commands do
     !> to read the option.
-    function get_ediff_default_filtering_regexp() result(regexp)
-        character(len=:), allocatable :: regexp
+    function get_ediff_default_filtering_regular_expression() result(regular_expression)
+        character(len=:), allocatable :: regular_expression
 
-        if (associated(ediff_default_filtering_regexp%procedure)) then
-            call ediff_default_filtering_regexp%procedure(regexp)
-        else if (allocated(ediff_default_filtering_regexp%value)) then
-            regexp = ediff_default_filtering_regexp%value
+        if (associated(ediff_default_filtering_regular_expression%procedure)) then
+            call ediff_default_filtering_regular_expression%procedure(regular_expression)
+        else if (allocated(ediff_default_filtering_regular_expression%value)) then
+            regular_expression = ediff_default_filtering_regular_expression%value
         else
-            regexp = ""
+            regular_expression = ""
         end if
-    end function get_ediff_default_filtering_regexp
+    end function get_ediff_default_filtering_regular_expression
 
-    !> REGEXP is the last filter of file names typed (the newest entry of
-    !> `ediff_filtering_regexp_history'), "" if none.  Port of the example
+    !> REGULAR_EXPRESSION is the last filter of file names typed (the newest entry of
+    !> `ediff_filtering_regular_expression_history'), "" if none.  Port of the example
     !> value of ediff-mult.el ediff-default-filtering-regexp (the newest
     !> entry of ediff-filtering-regexp-history).
-    subroutine get_latest_ediff_filtering_regexp(regexp)
-        character(len=:), allocatable, intent(out) :: regexp
+    subroutine get_latest_ediff_filtering_regular_expression(regular_expression)
+        character(len=:), allocatable, intent(out) :: regular_expression
 
-        regexp = ""
-        if (.not. allocated(ediff_filtering_regexp_history%items)) return
-        if (size(ediff_filtering_regexp_history%items) == 0) return
-        regexp = ediff_filtering_regexp_history%items(1)%text
-    end subroutine get_latest_ediff_filtering_regexp
+        regular_expression = ""
+        if (.not. allocated(ediff_filtering_regular_expression_history%items)) return
+        if (size(ediff_filtering_regular_expression_history%items) == 0) return
+        regular_expression = ediff_filtering_regular_expression_history%items(1)%text
+    end subroutine get_latest_ediff_filtering_regular_expression
 
-    !> Forget the procedure of `ediff_default_filtering_regexp' (every
+    !> Forget the procedure of `ediff_default_filtering_regular_expression' (every
     !> `=' does).  Not a port.
-    subroutine ediff_default_filtering_regexp_clear_kinds(self)
-        class(ediff_default_filtering_regexp_string_setting_type), intent(inout) :: self
+    subroutine ediff_default_filtering_regular_expression_clear_kinds(self)
+        class(ediff_default_filtering_regular_expression_string_setting_type), intent(inout) :: self
 
         nullify (self%procedure)
-    end subroutine ediff_default_filtering_regexp_clear_kinds
+    end subroutine ediff_default_filtering_regular_expression_clear_kinds
 
-    !> The procedure of `ediff_default_filtering_regexp' as help shows it.
+    !> The procedure of `ediff_default_filtering_regular_expression' as help shows it.
     !> Not a port.
-    function ediff_default_filtering_regexp_other_value(self) result(text)
-        class(ediff_default_filtering_regexp_string_setting_type), intent(in) :: self
+    function ediff_default_filtering_regular_expression_other_value(self) result(text)
+        class(ediff_default_filtering_regular_expression_string_setting_type), intent(in) :: self
         character(len=:), allocatable :: text
 
         text = ""
         if (associated(self%procedure)) text = "a procedure set by the configuration"
-    end function ediff_default_filtering_regexp_other_value
+    end function ediff_default_filtering_regular_expression_other_value
 
     ! ------------------------------------------------------------------
     ! The meta list
@@ -686,22 +688,22 @@ contains
     end function is_ediff_problematic_session
 
     !> Intersect directories DIRECTORY1 and DIRECTORY2 (and DIRECTORY3, "" for none) for
-    !> session group job JOB_NAME into GROUP: its header (REGEXP, the
+    !> session group job JOB_NAME into GROUP: its header (REGULAR_EXPRESSION, the
     !> directories with a slash, MERGE_AUTOSTORE_DIRECTORY, the directory for
     !> auto-storing the results of merge jobs, "" for none), a session
     !> for each file (or subdirectory) DIRECTORY1 and DIRECTORY2 have in common, and
     !> the files only some of them have with their membership codes.
-    !> REGEXP is "" or a filter regexp; only file names that match the
+    !> REGULAR_EXPRESSION is "" or a filter regexp; only file names that match the
     !> regexp are considered.  If a file is a directory in directory1 but not
     !> directory2 (or vice versa), it is not included in the intersection.
     !> However, a regular file that is a directory in directory3 is included, since
     !> directory3 files are supposed to be ancestors for merging.  Port of
     !> ediff-mult.el:ediff-intersect-directories (string= compares, as
     !> COMPARISON-FUNC upstream).
-    recursive subroutine intersect_ediff_directories(job_name, regexp, directory1, directory2, directory3, &
+    recursive subroutine intersect_ediff_directories(job_name, regular_expression, directory1, directory2, directory3, &
                                                      merge_autostore_directory, group, status)
         type(command_type), pointer, intent(in) :: job_name
-        character(len=*), intent(in) :: regexp, directory1, directory2, directory3, merge_autostore_directory
+        character(len=*), intent(in) :: regular_expression, directory1, directory2, directory3, merge_autostore_directory
         type(ediff_session_group_type), intent(out) :: group
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: names1(:), names2(:), names3(:), shared(:), union(:)
@@ -781,7 +783,7 @@ contains
         end do
 
         group%job_name => job_name
-        group%regexp = regexp
+        group%regular_expression = regular_expression
         group%directory_a = slashed1
         group%directory_b = slashed2
         if (allocated(slashed3)) group%directory_c = slashed3
@@ -818,7 +820,7 @@ contains
 
     contains
 
-        ! The files of DIRECTORY matching REGEXP, but . and .., directories with
+        ! The files of DIRECTORY matching REGULAR_EXPRESSION, but . and .., directories with
         ! a slash.
         recursive subroutine entries(directory, names)
             character(len=*), intent(in) :: directory
@@ -827,7 +829,7 @@ contains
             logical, allocatable :: kept(:)
             integer :: i
 
-            call get_ediff_directory_files(directory, regexp, .false., all, status)
+            call get_ediff_directory_files(directory, regular_expression, .false., all, status)
             allocate (kept(size(all)))
 
             do i = 1, size(all)
@@ -1112,8 +1114,9 @@ contains
 
             call insert_text(LF)
 
-            if (allocated(g%regexp)) then
-                if (len(g%regexp) > 0) call insert_text("*** Filter-through regular expression: "//g%regexp//LF)
+            if (allocated(g%regular_expression)) then
+                if (len(g%regular_expression) > 0) call insert_text("*** Filter-through regular expression: " &
+                                                                    //g%regular_expression//LF)
             end if
 
             call insert_ediff_directories_in_meta_buffer(k)
@@ -1142,7 +1145,7 @@ contains
 
             call restore_buffer_modified(.false.)
             buffers(current)%read_only = .true.
-            call goto_char(saved_point)
+            call goto_character(saved_point)
         end associate
 
         ! Make the old buffer current again, keeping the first error.
@@ -1191,17 +1194,17 @@ contains
     recursive subroutine insert_ediff_meta_file_information(file, status)
         type(ediff_group_file_type), intent(in) :: file
         type(status_type), intent(out) :: status
-        type(file_stat_type) :: stat
+        type(file_status_type) :: stat
         character(len=:), allocatable :: size, date, name
         logical :: found
-        integer :: max_filename_width
+        integer :: maximum_filename_width
 
         status = status_type()
         if (.not. allocated(file%name)) return
-        max_filename_width = 500
+        maximum_filename_width = 500
 
         if (ediff_meta_truncate_filenames) then
-            max_filename_width = window_body_width(selected_frame%selected_window, status) - 41
+            maximum_filename_width = window_body_width(selected_frame%selected_window, status) - 41
             if (.not. status%ok()) return
         end if
 
@@ -1211,7 +1214,7 @@ contains
         if (found) then
             ! Set real size and modtime.
             size = right(stat%size, 10)
-            date = format_ediff_date(stat%mtime_sec)
+            date = format_ediff_date(stat%mtime_second)
         else
             ! File doesn't exist.
             size = repeat(" ", 8)//"--"
@@ -1220,7 +1223,7 @@ contains
 
         ! Dir names in meta lists have trailing slashes, so we just
         ! abbreviate the file name, if file exists.
-        name = truncate_left(abbreviate_file_name(file%name), max_filename_width)
+        name = truncate_left(abbreviate_file_name(file%name), maximum_filename_width)
         call insert_text(merge("=", " ", file%is_equal)//"  "//size//"   "//pad(date, 20)//"   "//name//LF)
     end subroutine insert_ediff_meta_file_information
 
@@ -1296,11 +1299,11 @@ contains
 
         status = status_type()
         saved_point = point()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call next_ediff_meta_item1(k, status)
         if (.not. status%ok()) return
 
-        do while (.not. is_bob())
+        do while (.not. is_beginning_of_buffer())
             n = visible_session_at(k, point())
             m = session_at(k, point())
 
@@ -1325,7 +1328,7 @@ contains
         end do
 
         call restore_buffer_modified(.false.)
-        call goto_char(saved_point)
+        call goto_character(saved_point)
     end subroutine update_ediff_markers_in_directory_meta_buffer
 
     !> Update the markers of session SESSION_NUMBER of group K in its
@@ -1340,7 +1343,7 @@ contains
 
         if (session_number < 1 .or. session_number > size(ediff_session_groups(k)%sessions)) then
             write (number, "(i0)") session_number
-            call set_error(status, FM_GENERIC_ERROR, &
+            call set_error(status, GENERIC_ERROR_CODE, &
                            "Bug in update_ediff_session_marker_in_directory_meta_buffer: no overlay with given number "// &
                            trim(number))
             return
@@ -1349,13 +1352,13 @@ contains
         associate (s => ediff_session_groups(k)%sessions(session_number))
             if (s%overlay%index == 0) then
                 write (number, "(i0)") session_number
-                call set_error(status, FM_GENERIC_ERROR, &
+                call set_error(status, GENERIC_ERROR_CODE, &
                                "Bug in update_ediff_session_marker_in_directory_meta_buffer: no overlay with given number "// &
                                trim(number))
                 return
             end if
 
-            call goto_char(overlay_start(s%overlay))
+            call goto_character(overlay_start(s%overlay))
             call replace_ediff_session_activity_marker(k, session_number, get_ediff_session_activity_marker(s))
             call replace_ediff_session_status(k, session_number, s%status)
         end associate
@@ -1370,7 +1373,7 @@ contains
         integer, intent(in) :: k, n
         character, intent(in) :: marker
 
-        call replace_char(overlay_start(ediff_session_groups(k)%sessions(n)%overlay), marker)
+        call replace_character(overlay_start(ediff_session_groups(k)%sessions(n)%overlay), marker)
     end subroutine replace_ediff_session_activity_marker
 
     !> Replace the status of session N of group K in the buffer by STATUS
@@ -1380,30 +1383,30 @@ contains
         integer, intent(in) :: k, n
         character, intent(in) :: status
 
-        call replace_char(overlay_start(ediff_session_groups(k)%sessions(n)%overlay) + 1, status)
+        call replace_character(overlay_start(ediff_session_groups(k)%sessions(n)%overlay) + 1, status)
     end subroutine replace_ediff_session_status
 
     ! Make the character at POSITION C, unless it is C already, leaving point
     ! at POSITION.  Not a port.
-    subroutine replace_char(position, c)
+    subroutine replace_character(position, c)
         integer(int64), intent(in) :: position
         character, intent(in) :: c
         type(status_type) :: st
         integer(int32) :: old
         logical :: found, read_only
 
-        call goto_char(position)
-        call char_after(old, found)
+        call goto_character(position)
+        call character_after(old, found)
         ! If marker shown in buffer is the same as new-marker, do nothing.
         if (found .and. old == iachar(c)) return
         read_only = buffers(current)%read_only
         buffers(current)%read_only = .false.
         call insert(c, st)
-        call delete_char(1_int64, st)
+        call delete_character(1_int64, st)
         buffers(current)%read_only = read_only
         call restore_buffer_modified(.false.)
-        call goto_char(position)
-    end subroutine replace_char
+        call goto_character(position)
+    end subroutine replace_character
 
     ! ------------------------------------------------------------------
     ! Records and motion
@@ -1551,7 +1554,7 @@ contains
         end if
 
         call update_ediff_registry(st)
-        call set_error(status, FM_USER_ERROR, "No session info in this line")
+        call set_error(status, USER_ERROR_CODE, "No session info in this line")
     end subroutine get_ediff_meta_information
 
     !> The location of the next record after POSITION in group K's buffer (the
@@ -1562,9 +1565,9 @@ contains
         integer(int64), intent(in) :: position
         type(handle_type) :: overlay
 
-        if (is_eob()) then
-            call goto_char(point_min())
-            next = point_min()
+        if (is_end_of_buffer()) then
+            call goto_character(point_minimum())
+            next = point_minimum()
             return
         end if
 
@@ -1587,9 +1590,9 @@ contains
         type(handle_type) :: overlay
         type(handle_type), allocatable :: overlays_here(:)
 
-        if (is_bob()) then
-            call goto_char(point_max())
-            previous = point_max()
+        if (is_beginning_of_buffer()) then
+            call goto_character(point_maximum())
+            previous = point_maximum()
             return
         end if
 
@@ -1597,13 +1600,13 @@ contains
         overlay = record_overlay_at(k, position)
         if (overlay%index /= 0) previous = overlay_start(overlay)
         ! To get to the beginning of prev overlay.
-        if (.not. is_bob()) previous = previous - 1
+        if (.not. is_beginning_of_buffer()) previous = previous - 1
         previous = previous_overlay_change(previous)
         ! If we are not over an overlay after subtracting 1, it means we
         ! are in the description area preceding session records.  In this
         ! case, goto the top of the registry buffer.
         call overlays_at(previous, overlays_here)
-        if (size(overlays_here) == 0) previous = point_min()
+        if (size(overlays_here) == 0) previous = point_minimum()
     end function previous_ediff_meta_overlay_start
 
     !> Move to the next record of group K.  Port of
@@ -1614,7 +1617,7 @@ contains
         integer(int64) :: position
 
         position = next_ediff_meta_overlay_start(k, point())
-        call goto_char(position)
+        call goto_character(position)
         call skip_to_item(k, position, status)
     end subroutine next_ediff_meta_item1
 
@@ -1626,7 +1629,7 @@ contains
         integer(int64) :: position
 
         position = previous_ediff_meta_overlay_start(k, point())
-        call goto_char(position)
+        call goto_character(position)
         call skip_to_item(k, position, status)
     end subroutine previous_ediff_meta_item1
 
@@ -1645,12 +1648,12 @@ contains
             if (registry_record_at(k, position) > 0) then
                 call search_forward("*Ediff", found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) return
-                if (found > 0) moved = skip_chars_backward("a-zA-Z*", status)
+                if (found > 0) moved = skip_characters_backward("a-zA-Z*", status)
             end if
         else
-            moved = skip_chars_forward("-+?H* "//TAB//"0-9", status)
+            moved = skip_characters_forward("-+?H* "//TAB//"0-9", status)
             if (.not. status%ok()) return
-            if (moved > 0) call backward_char(status)
+            if (moved > 0) call backward_character(status)
         end if
     end subroutine skip_to_item
 
@@ -1696,7 +1699,7 @@ contains
     ! read).  Not a port.
     integer(int64) function count_argument()
         count_argument = 1
-        if (current_prefix_arg%kind /= PREFIX_NONE) count_argument = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_argument%kind /= PREFIX_NONE) count_argument = prefix_numeric_value(current_prefix_argument)
     end function count_argument
 
     !> Move to the next item in Ediff registry or session group buffer.
@@ -1749,7 +1752,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Draw the buffer of the files only some directories of group K have
-    !> (`ediff_dir_diffs_buffer'), named BUFFER_NAME (a new
+    !> (`ediff_directory_diffs_buffer'), named BUFFER_NAME (a new
     !> "*Ediff File Group Differences*" if absent).  Port of
     !> ediff-mult.el:ediff-draw-dir-diffs.
     recursive subroutine draw_ediff_directory_diffs(k, status, buffer_name)
@@ -1766,7 +1769,7 @@ contains
         status = status_type()
 
         if (.not. ediff_session_groups(k)%has_directory_differences) then
-            call set_error(status, FM_USER_ERROR, "Lost difference info on these directories")
+            call set_error(status, USER_ERROR_CODE, "Lost difference info on these directories")
             return
         end if
 
@@ -1827,8 +1830,9 @@ contains
             call insert_text("*** Directory B: "//directory2//LF)
             if (allocated(directory3)) call insert_text("*** Directory C: "//directory3//LF)
 
-            if (allocated(g%regexp)) then
-                if (len(g%regexp) > 0) call insert_text("*** Filter-through regular expression: "//g%regexp//LF)
+            if (allocated(g%regular_expression)) then
+                if (len(g%regular_expression) > 0) call insert_text("*** Filter-through regular expression: " &
+                                                                    //g%regular_expression//LF)
             end if
 
             call insert_text(LF)
@@ -1860,7 +1864,7 @@ contains
 
             buffers(current)%read_only = .true.
             call restore_buffer_modified(.false.)
-            call goto_char(saved_point)
+            call goto_character(saved_point)
         end associate
 
         if (is_buffer_live(old)) call set_buffer(old, st)
@@ -1974,7 +1978,7 @@ contains
         if (.not. status%ok()) return
         call set_window_buffer(selected_frame%selected_window, buffer, status)
         if (.not. status%ok()) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine show_ediff_directory_diffs
 
     !> Copy file described at point to directories where this file is
@@ -1983,7 +1987,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: overlays_here(:)
         type(ediff_group_session_type) :: s
-        character(len=:), allocatable :: file_tail, file_abs
+        character(len=:), allocatable :: file_tail, file_absolute
         character(len=:), allocatable :: other1, other2, other3, this_name
         logical :: has3
         logical :: answer
@@ -2004,12 +2008,12 @@ contains
         end if
 
         if (r == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No file suitable for copying described at this location")
+            call set_error(status, GENERIC_ERROR_CODE, "No file suitable for copying described at this location")
             return
         end if
 
         file_tail = ediff_session_groups(k)%directory_diff_records(r)%file
-        file_abs = ediff_session_groups(k)%directory_diff_records(r)%full
+        file_absolute = ediff_session_groups(k)%directory_diff_records(r)%full
         has3 = allocated(ediff_session_groups(k)%directory_c)
         other1 = abbreviate_file_name(ediff_session_groups(k)%directory_a)//file_tail
         other2 = abbreviate_file_name(ediff_session_groups(k)%directory_b)//file_tail
@@ -2054,7 +2058,7 @@ contains
             integer, intent(in) :: code
 
             if (file_exists(other_file)) return
-            call read_y_or_n("Copy "//file_abs//" to "//other_file//"? ", answer, status)
+            call read_y_or_n("Copy "//file_absolute//" to "//other_file//"? ", answer, status)
             if (.not. status%ok()) return
             if (answer) call copy_one(other_file, code)
         end subroutine offer
@@ -2077,7 +2081,7 @@ contains
 
                 if (f == 0) return
                 new_code = g%directory_differences(f)%membership*code
-                call expand_file_name(file_abs, from, status)
+                call expand_file_name(file_absolute, from, status)
                 if (.not. status%ok()) return
                 call expand_file_name(other_file, to, status)
                 if (.not. status%ok()) return
@@ -2114,7 +2118,7 @@ contains
             call show_ediff_meta_buffer(status, ediff_session_groups(k)%parent_meta_buffer, &
                                         session_number=ediff_session_groups(k)%meta_session_number)
         else
-            call set_error(status, FM_USER_ERROR, "This session group has no parent")
+            call set_error(status, USER_ERROR_CODE, "This session group has no parent")
         end if
     end subroutine up_ediff_meta_hierarchy
 
@@ -2130,7 +2134,7 @@ contains
         type(handle_type) :: old, element
         type(ediff_registry_record_type) :: record
         type(status_type) :: st
-        character(len=:), allocatable :: name_a, name_b, name_c, total, current_diff, dir_b, directory_c_name
+        character(len=:), allocatable :: name_a, name_b, name_c, total, current_diff, directory_b, directory_c_name
         character(len=12) :: digits
         integer(int64) :: saved_point, beginning_of_record
         integer :: k, j, g, s
@@ -2177,12 +2181,12 @@ contains
                 beginning_of_record = point()
                 call insert_text("  *group*"//TAB//name_of(element)//": "// &
                                  abbreviate_ediff_job_name(ediff_session_groups(g)%job_name)//LF)
-                dir_b = ""
-                if (allocated(ediff_session_groups(g)%directory_b)) dir_b = ediff_session_groups(g)%directory_b
+                directory_b = ""
+                if (allocated(ediff_session_groups(g)%directory_b)) directory_b = ediff_session_groups(g)%directory_b
                 directory_c_name = ""
                 if (allocated(ediff_session_groups(g)%directory_c)) directory_c_name = ediff_session_groups(g)%directory_c
                 call insert_text(TAB//TAB//"   "//abbreviate_file_name(ediff_session_groups(g)%directory_a)//"   "// &
-                                 abbreviate_file_name(dir_b)//"   "//abbreviate_file_name(directory_c_name)//LF)
+                                 abbreviate_file_name(directory_b)//"   "//abbreviate_file_name(directory_c_name)//LF)
             else
                 s = ediff_session_index(element)
                 if (s == 0) cycle
@@ -2208,7 +2212,7 @@ contains
                         current_diff = right(int(e%current_difference + 1, int64), 4)
                     end if
 
-                    ! Back in the meta buf.
+                    ! Back in the meta buffer.
                     beginning_of_record = point()
                     call insert_text(current_diff//"/"//total//TAB//name_of(element)//": "//abbreviate_ediff_job_name(e%job_name))
                     call insert_text(LF//TAB//TAB//"   "//name_a//"   "//name_b//"   "//name_c//LF)
@@ -2223,7 +2227,7 @@ contains
 
         call restore_buffer_modified(.false.)
         buffers(current)%read_only = .true.
-        call goto_char(saved_point)
+        call goto_character(saved_point)
         if (is_buffer_live(old)) call set_buffer(old, st)
 
     contains
@@ -2267,7 +2271,7 @@ contains
         if (.not. status%ok()) return
 
         if (ediff_group_index(ediff_registry_buffer) == 0) then
-            call set_error(status, FM_USER_ERROR, "No active Ediff sessions or corrupted session registry")
+            call set_error(status, USER_ERROR_CODE, "No active Ediff sessions or corrupted session registry")
             return
         end if
 
@@ -2318,7 +2322,7 @@ contains
 
         if (is_buffer_live(buffer)) then
             call set_buffer(buffer, st)
-            call goto_char(position)
+            call goto_character(position)
         end if
     end subroutine execute_ediff_registry_action
 
@@ -2383,10 +2387,10 @@ contains
         end if
 
         if (meta%index == 0) then
-            call set_error(status, FM_USER_ERROR, "This Ediff session is not part of a session group")
+            call set_error(status, USER_ERROR_CODE, "This Ediff session is not part of a session group")
             return
         else if (ediff_group_index(meta) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Can't find this session's group panel -- session itself is ok")
+            call set_error(status, GENERIC_ERROR_CODE, "Can't find this session's group panel -- session itself is ok")
             return
         end if
 
@@ -2474,10 +2478,10 @@ contains
             ! was when the registry buffer was made, no group's list.
             if (ediff_session_groups(k)%registry_meta_list_empty) then
                 if (.not. associated(this_command, commands%quit_ediff)) then
-                    call set_error(status, FM_GENERIC_ERROR, EDIFF_KILLED_VITAL_BUFFER)
+                    call set_error(status, GENERIC_ERROR_CODE, EDIFF_KILLED_VITAL_BUFFER)
                 end if
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(ediff_session_group_type)")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(ediff_session_group_type)")
             end if
 
             return
@@ -2594,7 +2598,7 @@ contains
         else if (is_ediff_safe_to_quit(buffer)) then
             call bury_buffer(status)
         else
-            call set_error(status, FM_GENERIC_ERROR, "This session group has active sessions---cannot exit")
+            call set_error(status, GENERIC_ERROR_CODE, "This session group has active sessions---cannot exit")
         end if
 
         if (.not. status%ok()) return
@@ -2722,7 +2726,7 @@ contains
         call get_ediff_meta_information(meta, point(), n, target, status)
         if (.not. status%ok()) return
         mode = MARK_TOGGLE
-        if (current_prefix_arg%kind /= PREFIX_NONE) mode = MARK_REMOVE
+        if (current_prefix_argument%kind /= PREFIX_NONE) mode = MARK_REMOVE
 
         if (hiding) then
             call mark_ediff_session_for_hiding(k, n, mode)
@@ -2734,7 +2738,7 @@ contains
         if (.not. status%ok()) return
         saved_point = point()
         call update_ediff_meta_buffer(meta, status, session_number=n)
-        call goto_char(saved_point)
+        call goto_character(saved_point)
     end subroutine mark_at_point
 
     !> Mark session for hiding.
@@ -2769,7 +2773,7 @@ contains
 
         call check_meta_buffer(k, status)
         if (.not. status%ok()) return
-        unhide = current_prefix_arg%kind /= PREFIX_NONE
+        unhide = current_prefix_argument%kind /= PREFIX_NONE
         from = merge(EDIFF_SESSION_STATUS_HIDDEN, EDIFF_SESSION_STATUS_HIDE, unhide)
         to = merge(EDIFF_SESSION_STATUS_HIDE, EDIFF_SESSION_STATUS_HIDDEN, unhide)
         marked_count = 0
@@ -2977,14 +2981,14 @@ contains
     recursive subroutine append_ediff_custom_diff(k, n, status)
         integer, intent(in) :: k, n
         type(status_type), intent(out) :: status
-        type(handle_type) :: session_buffer, meta_diff_buffer, custom_diff_buffer, tmp_buffer, old
+        type(handle_type) :: session_buffer, meta_diff_buffer, custom_diff_buffer, temporary_buffer, old
         type(status_type) :: st
         integer :: s
 
         status = status_type()
 
         if (.not. is_ediff_collect_diffs_metajob(ediff_session_groups(k)%job_name)) then
-            call set_error(status, FM_GENERIC_ERROR, "Can't compute multifile patch in this context")
+            call set_error(status, GENERIC_ERROR_CODE, "Can't compute multifile patch in this context")
             return
         end if
 
@@ -3001,7 +3005,7 @@ contains
         end if
 
         if (.not. is_buffer_live(meta_diff_buffer)) then
-            call set_error(status, FM_USER_ERROR, "Ediff: Something wrong--killed multiple diff's buffer")
+            call set_error(status, USER_ERROR_CODE, "Ediff: Something wrong--killed multiple diff's buffer")
             return
         end if
 
@@ -3014,9 +3018,9 @@ contains
         else
             ! If ediff session is not live, run diff directly on the files:
             ! get diffs by calling shell command on ediff-custom-diff-program.
-            call get_or_make_buffer(" *ediff-tmp*", tmp_buffer, status)
+            call get_or_make_buffer(" *ediff-tmp*", temporary_buffer, status)
             if (.not. status%ok()) return
-            call set_buffer(tmp_buffer, status)
+            call set_buffer(temporary_buffer, status)
             if (.not. status%ok()) return
             call erase_buffer(status)
             if (.not. status%ok()) return
@@ -3028,7 +3032,7 @@ contains
             end associate
 
             if (.not. status%ok()) return
-            call append_to_meta_diff(tmp_buffer)
+            call append_to_meta_diff(temporary_buffer)
         end if
 
         if (is_buffer_live(old)) call set_buffer(old, st)
@@ -3042,7 +3046,7 @@ contains
 
             call set_buffer(meta_diff_buffer, status)
             if (.not. status%ok()) return
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call insert_buffer_substring(buffer, status)
             if (.not. status%ok()) return
             call insert(LF, status)
@@ -3158,7 +3162,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: meta, session_buffer, target
         type(hook_type), target :: hooks
-        character(len=:), allocatable :: file1, file2, file3, regexp, default_regexp
+        character(len=:), allocatable :: file1, file2, file3, regular_expression, default_regular_expression
         type(command_type), pointer :: job
         integer(int64) :: position
         logical :: answer
@@ -3173,7 +3177,7 @@ contains
         call get_ediff_meta_information(meta, position, n, target, status)
         if (.not. status%ok()) return
         session_buffer = ediff_session_groups(k)%sessions(n)%buffer
-        default_regexp = get_ediff_default_filtering_regexp()
+        default_regular_expression = get_ediff_default_filtering_regular_expression()
         job => ediff_session_groups(k)%job_name
 
         associate (files => ediff_session_groups(k)%sessions(n)%files)
@@ -3192,7 +3196,7 @@ contains
             if (.not. status%ok()) return
 
             if (.not. answer) then
-                call set_error(status, FM_USER_ERROR, "Aborted")
+                call set_error(status, USER_ERROR_CODE, "Aborted")
                 return
             end if
 
@@ -3202,7 +3206,7 @@ contains
         end if
 
         ! If the user clicked on session--move point there.
-        call goto_char(position)
+        call goto_character(position)
         pending_meta_buffer = meta
         pending_session_number = n
         if (allocated(pending_merge_store_file)) deallocate (pending_merge_store_file)
@@ -3221,12 +3225,13 @@ contains
             if (is_buffer_live(session_buffer)) then
                 call show_ediff_meta_buffer(status, session_buffer)
             else
-                call read_string(format_prompt("Filter filenames through regular expression", default_regexp), regexp, &
-                                 status, history="ediff_filtering_regexp_history", default=default_regexp)
+                call read_string(format_prompt("Filter filenames through regular expression", default_regular_expression), &
+                                 regular_expression, &
+                                 status, history="ediff_filtering_regular_expression_history", default=default_regular_expression)
                 if (.not. status%ok()) return
                 ! Make it update the session's buffer after startup.
                 call hooks%append(attach_ediff_group_to_parent)
-                call ediff_directories_internal(file1, file2, file3, regexp, job, status, startup_hooks=hooks)
+                call ediff_directories_internal(file1, file2, file3, regular_expression, job, status, startup_hooks=hooks)
             end if
         else if (is_buffer_live(session_buffer)) then
             ! Handle an individual session with a live control buffer.
@@ -3241,7 +3246,7 @@ contains
                 call hooks%append(attach_ediff_session_to_group)
                 call ediff_merge_files(file1, file2, status, startup_hooks=hooks)
             else
-                call set_error(status, FM_USER_ERROR, "Aborted")
+                call set_error(status, USER_ERROR_CODE, "Aborted")
             end if
         else if (.not. is_ediff_metajob3(job)) then
             ! Need 2 file args.
@@ -3279,12 +3284,12 @@ contains
     !> Define Ediff Meta mode and the directory difference keymap, register
     !> the commands of ediff-mult.el and give the options their defaults.
     !> Not a port.
-    subroutine init_ediff_multiple()
+    subroutine initialize_ediff_multiple()
         type(status_type) :: st
 
         if (associated(commands%show_ediff_registry%execute)) return
         call major_modes%ediff_meta_mode%define("ediff_meta_mode", "MetaEdiff", ediff_meta_mode, ediff_meta_mode_hook)
-        call forward_setting(ediff_filtering_regexp_history)
+        call forward_setting(ediff_filtering_regular_expression_history)
         call ediff_show_session_group_hook%prepend(delete_other_windows_of_selected)
         call make_sparse_keymap(ediff_directory_diffs_buffer_map)
         call keymap_set(ediff_directory_diffs_buffer_map, "<remap> <self_insert_command>", "undefined", st)
@@ -3299,7 +3304,7 @@ contains
         commands%ediff_meta_mode%execute => ediff_meta_mode
         commands%show_ediff_registry%execute => show_ediff_registry
         commands%eregistry%execute => show_ediff_registry
-        commands%show_ediff_meta_buffer%execute => cmd_show_ediff_meta_buffer
+        commands%show_ediff_meta_buffer%execute => execute_show_ediff_meta_buffer
         commands%show_ediff_current_session_meta_buffer%execute => show_ediff_current_session_meta_buffer
         commands%show_ediff_meta_buffer_from_registry%execute => show_ediff_meta_buffer_from_registry
         commands%next_ediff_meta_item%execute => next_ediff_meta_item
@@ -3320,13 +3325,13 @@ contains
         commands%copy_ediff_directory_diff_file%execute => copy_ediff_directory_diff_file
         commands%bury_ediff_directory_diffs_buffer%execute => bury_ediff_directory_diffs_buffer
         commands%mark_ediff_meta_equal_files%execute => mark_ediff_meta_equal_files
-    end subroutine init_ediff_multiple
+    end subroutine initialize_ediff_multiple
 
     !> Show the session group buffer.  Port of
     !> ediff-mult.el:ediff-show-meta-buffer (the command).
-    recursive subroutine cmd_show_ediff_meta_buffer(status)
+    recursive subroutine execute_show_ediff_meta_buffer(status)
         type(status_type), intent(out) :: status
 
         call show_ediff_meta_buffer(status)
-    end subroutine cmd_show_ediff_meta_buffer
+    end subroutine execute_show_ediff_meta_buffer
 end module fortmacs_diff_multiple_mod

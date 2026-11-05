@@ -6,7 +6,7 @@
 
 ## Ported
 
-`fontification-functions` (`handle_fontified_prop`: called at text not `fontified`, errors ignored),
+`fontification-functions` (`handle_fontified_property`: called at text not `fontified`, errors ignored),
 faces of buffer text (`face` property, the active region as the region overlay in the selected window, `escape-glyph`, `nobreak-space`/`nobreak-hyphen`, the end-of-line space in the newline's face, `extend_face_to_end_of_line`),
 `mode-line-active`/`mode-line-inactive` (CURRENT_MODE_LINE_ACTIVE_FACE_ID_3) with `mode-line-buffer-id` on `%12b`,
 `vertical-border`,
@@ -34,7 +34,7 @@ window-system frames (so far the tests' fake device): `gui_produce_glyphs` (char
 `try_window` down to the text area's height in pixels,
 `estimate_mode_line_height`,
 the graphic mode line (mode-line-front-space " ", mode-line-frame-control "  ", no mode-line-end-spaces; display_string truncation and the space fill),
-`get_phys_cursor_geometry`,
+`get_physical_cursor_geometry`,
 `gui_draw_vertical_border`,
 the selected window's filled box cursor,
 the echo area;
@@ -85,8 +85,8 @@ step 45c: `pre-redisplay-function` (a procedure pointer, called with all windows
 no redisplay while one runs (redisplaying_p),
 a forced window start kept and point moved to the middle of the window when it does not show (redisplay_window's force_start, on a terminal frame),
 `window-scroll-functions` run for a forced start and for a recentered one (`run_window_scroll_functions`, as `execute_scroll_functions_for_start`),
-`window_end_pos` counted from the end of the text (Z less the end);
-bindings.el's `mode-line-misc-info` after the modes (`prepend_mode_line_misc_info`: procedures giving segments, called with the window's buffer current, the displayed window or else the selected one) (step 49c),
+`window_end_position` counted from the end of the text (Z less the end);
+bindings.el's `mode-line-misc-info` after the modes (`prepend_mode_line_miscellaneous_info`: procedures giving segments, called with the window's buffer current, the displayed window or else the selected one) (step 49c),
 step 44b: xdisp.c:display_tab_bar for a terminal frame (with update_tab_bar: the items made again at each redisplay through `get_tab_bar_items`, set by tab_bar_mod; `tab_bar_run_type` runs of text in their faces merged into `tab_bar`)
 
 ## Deferred

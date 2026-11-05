@@ -24,7 +24,7 @@
 !> (a `.mailrc' file: "alias NAME DEFINITION", "group", "source FILE")
 !> become the abbrevs of the table `mail_abbrevs', which expand as you
 !> type in the address fields of a Mail mode buffer (the fields
-!> `mail_abbrev_mode_regexp' matches).  Turn it on with
+!> `mail_abbrev_mode_regular_expression' matches).  Turn it on with
 !> `mail_abbrevs_mode', or put `set_up_mail_abbrevs' on `mail_mode_hook'.
 !> Aliases can refer to other aliases, and are resolved when expanded.
 !>
@@ -35,32 +35,34 @@
 module mail_abbreviations_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, prefix_arg_type, this_command, PREFIX_NONE
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, prefix_argument_type, this_command, &
+                                         PREFIX_NONE
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use casefiddle_mod, only: downcase_string
     use handle_mod, only: handle_type
     use value_mod, only: value_type, vtag, V_INTEGER, make_list
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, is_buffer_live, &
                           buffer_serial_live, generate_new_buffer_name, get_file_buffer, fill_column, auto_fill_function
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bol, is_eob, buffer_substring, buffer_string, &
-                            delete_region, narrow_to_region, widen, preceding_char, line_beginning_position, insert_buffer_substring
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_beginning_of_line, is_end_of_buffer, &
+                                     buffer_substring, buffer_string, delete_region, narrow_to_region, widen, preceding_character, &
+                                     line_beginning_position, insert_buffer_substring
     use insert_delete_mod, only: insert
-    use editing_commands_mod, only: forward_char, end_of_line, beginning_of_line, delete_char
-    use syntax_mod, only: skip_chars_forward, copy_syntax_table, syntax_table, set_syntax_table, modify_syntax_entry, &
-                          char_syntax_class, char_syntax, destroy_syntax_table, is_syntax_table_live, SSYMBOL
-    use search_mod, only: re_search_forward, re_search_backward, search_forward, search_backward, looking_at, &
-                          match_beginning, match_end, replace_match, string_match, case_fold_search, SEARCH_NOERROR, &
+    use editing_commands_mod, only: forward_character, end_of_line, beginning_of_line, delete_character
+    use syntax_mod, only: skip_characters_forward, copy_syntax_table, syntax_table, set_syntax_table, modify_syntax_entry, &
+                          character_syntax_class, character_syntax, destroy_syntax_table, is_syntax_table_live, SSYMBOL
+    use search_mod, only: regular_expression_search_forward, regular_expression_search_backward, search_forward, search_backward, &
+                          looking_at, match_beginning, match_end, replace_match, string_match, case_fold_search, SEARCH_NOERROR, &
                           SEARCH_MOVE
     use basic_subprograms_mod, only: match_string
     use indent_mod, only: current_column
     use keyboard_mod, only: last_command_event
     use window_mod, only: is_window_minibuffer
     use file_input_output_mod, only: expand_file_name, file_exists, file_attributes, insert_file_contents, substitute_in_file_name
-    use system_dependent_mod, only: file_stat_type
+    use system_dependent_mod, only: file_status_type
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use display_engine_mod, only: message
     use simple_mod, only: rfc822_goto_eoh, next_line, end_of_buffer
-    use abbreviation_mod, only: abbrev_table_type, abbrev_ref_type, abbrev_mode, abbrevs_changed, abbrev_expand_function, &
+    use abbreviation_mod, only: abbrev_table_type, abbrev_reference_type, abbrev_mode, abbrevs_changed, abbrev_expand_function, &
                                 abbrev_expand_procedure, abbrev_default_expand, expand_abbrev, local_abbrev_table, &
                                 abbrev_table_set_local
     use modes_mod, only: minor_modes
@@ -69,14 +71,14 @@ module mail_abbreviations_mod
     use minibuffer_mod, only: completing_read, read_file_name, completion_in_region, REQUIRE_MATCH_YES
     use replace_mod, only: format_prompt
     use minibuffer_reading_tables_mod, only: completion_table_type, TABLE_LIST
-    use send_mail_mod, only: mail_mode_hook, mail_mode_map, mail_personal_alias_file, init_sendmail
+    use send_mail_mod, only: mail_mode_hook, mail_mode_map, mail_personal_alias_file, initialize_sendmail
     implicit none(type, external)
     private
 
     public :: mail_abbrevs_mode, set_up_mail_abbrevs, enable_mail_abbrevs, disable_mail_abbrevs, build_mail_abbrevs, &
               define_mail_abbrev, resolve_all_mail_aliases, mail_abbrev_expand_hook, is_mail_abbrev_in_expansion_header, &
               mail_abbrev_expand_wrapper, merge_mail_abbrevs, rebuild_mail_abbrevs, insert_mail_abbrev_alias, &
-              complete_mail_abbrev_alias, mail_abbrev_next_line, mail_abbrev_end_of_buffer, init_mailabbrev
+              complete_mail_abbrev_alias, mail_abbrev_next_line, mail_abbrev_end_of_buffer, initialize_mailabbrev
 
     !> True means only mail abbrevs should expand automatically.
     !> Other abbrevs expand only when you explicitly use `expand_abbrev'.
@@ -107,12 +109,12 @@ module mail_abbreviations_mod
     !> it will be turned off.  (You don't need to worry about continuation lines.)
     !> This should be set to match those mail fields in which you want abbreviations
     !> turned on.  Port of mailabbrev.el mail-abbrev-mode-regexp.
-    character(len=:), allocatable, public :: mail_abbrev_mode_regexp
+    character(len=:), allocatable, public :: mail_abbrev_mode_regular_expression
 
     ! The modification time of your mail alias file when it was last
     ! examined (mail-abbrev-modtime; HAS_MODTIME false for nil).
     logical :: has_modtime = .false.
-    integer(int64) :: modtime_sec = 0
+    integer(int64) :: modtime_second = 0
     integer(int32) :: modtime_nsec = 0
 
     ! define-mail-abbrev sets this flag, which causes
@@ -199,15 +201,15 @@ contains
 
     ! The modification time of FILE (FOUND false if it has none).
     ! Not a port.
-    subroutine file_modtime(file, sec, nsec, found)
+    subroutine file_modtime(file, second, nsec, found)
         character(len=*), intent(in) :: file
-        integer(int64), intent(out) :: sec
+        integer(int64), intent(out) :: second
         integer(int32), intent(out) :: nsec
         logical, intent(out) :: found
-        type(file_stat_type) :: st
+        type(file_status_type) :: st
 
         call file_attributes(file, st, found)
-        sec = st%mtime_sec
+        second = st%mtime_second
         nsec = st%mtime_nsec
     end subroutine file_modtime
 
@@ -219,7 +221,7 @@ contains
     !>
     !> Mail Abbrevs mode is a global minor mode.  When enabled,
     !> abbrev-like expansion is performed when editing certain mail
-    !> headers (those specified by `mail_abbrev_mode_regexp'), based on
+    !> headers (those specified by `mail_abbrev_mode_regular_expression'), based on
     !> the entries in your `mail_personal_alias_file'.  Port of
     !> mailabbrev.el:mail-abbrevs-mode.
     recursive subroutine mail_abbrevs_mode(status)
@@ -245,24 +247,24 @@ contains
 
     ! Rebuild the aliases if the alias file changed since it was last
     ! examined.  Port of mailabbrev.el:mail-abbrevs-sync-aliases.
-    recursive subroutine sync_mail_abbrevs_aliases(status)
+    recursive subroutine synchronize_mail_abbrevs_aliases(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: sec
+        integer(int64) :: second
         integer(int32) :: nsec
         logical :: found
 
         status = status_type()
         if (.not. allocated(mail_personal_alias_file)) return
         if (.not. file_exists(mail_personal_alias_file)) return
-        call file_modtime(mail_personal_alias_file, sec, nsec, found)
+        call file_modtime(mail_personal_alias_file, second, nsec, found)
 
-        if (.not. (has_modtime .and. sec == modtime_sec .and. nsec == modtime_nsec)) then
+        if (.not. (has_modtime .and. second == modtime_second .and. nsec == modtime_nsec)) then
             has_modtime = .true.
-            modtime_sec = sec
+            modtime_second = second
             modtime_nsec = nsec
             call build_mail_abbrevs(status)
         end if
-    end subroutine sync_mail_abbrevs_aliases
+    end subroutine synchronize_mail_abbrevs_aliases
 
     !> Initialize use of the `mailabbrev' package.  Port of
     !> mailabbrev.el:mail-abbrevs-setup.
@@ -275,14 +277,14 @@ contains
 
         if (.not. mail_abbrevs_built .and. allocated(mail_personal_alias_file)) then
             if (file_exists(mail_personal_alias_file)) then
-                call file_modtime(mail_personal_alias_file, modtime_sec, modtime_nsec, found)
+                call file_modtime(mail_personal_alias_file, modtime_second, modtime_nsec, found)
                 has_modtime = found
                 call build_mail_abbrevs(status)
                 if (.not. status%ok()) return
             end if
         end if
 
-        call sync_mail_abbrevs_aliases(status)
+        call synchronize_mail_abbrevs_aliases(status)
         if (.not. status%ok()) return
         ! (add-function :around (local 'abbrev-expand-function) ...)
         call install_wrapper()
@@ -335,7 +337,7 @@ contains
         character(len=*), intent(in), optional :: file_in
         logical, intent(in), optional :: recursive
         character(len=:), allocatable :: file, name, definition, sourced
-        type(handle_type) :: old, tmp, visiting
+        type(handle_type) :: old, temporary, visiting
         integer(int64) :: found, p, moved, start, inserted
         logical :: is_recursive, sourcing, saved_changed
         type(status_type) :: st
@@ -361,9 +363,9 @@ contains
 
         call message("Parsing "//file//"...")
         old = current_buffer()
-        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, status)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, status)
         if (.not. status%ok()) return
-        call set_buffer(tmp, status)
+        call set_buffer(temporary, status)
 
         body: block
             visiting = get_file_buffer(file)
@@ -376,9 +378,9 @@ contains
 
             if (.not. status%ok()) exit body
             ! Don't lose if no final newline.
-            call goto_char(point_max())
-            if (preceding_char() /= 10) call insert(LF, status)
-            call goto_char(point_min())
+            call goto_character(point_maximum())
+            if (preceding_character() /= 10) call insert(LF, status)
+            call goto_character(point_minimum())
 
             ! Delete comments from the file
             do
@@ -391,28 +393,28 @@ contains
                 if (.not. status%ok()) exit body
             end do
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             ! handle "\\\n" continuation lines
-            do while (.not. is_eob())
+            do while (.not. is_end_of_buffer())
                 call end_of_line()
 
-                if (preceding_char() == iachar("\")) then
-                    call delete_char(-1_int64, status)
-                    if (status%ok()) call delete_char(1_int64, status)
+                if (preceding_character() == iachar("\")) then
+                    call delete_character(-1_int64, status)
+                    if (status%ok()) call delete_character(1_int64, status)
                     if (status%ok()) call insert(" ", status)
                     if (.not. status%ok()) exit body
                 else
-                    call forward_char(status, 1_int64)
+                    call forward_character(status, 1_int64)
                     if (.not. status%ok()) exit body
                 end if
             end do
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             do
-                call re_search_forward("^\(a\(lias\)?\|g\(roup\)?\|source\)[ "//TAB//"]+", found, status, &
-                                       noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("^\(a\(lias\)?\|g\(roup\)?\|source\)[ "//TAB//"]+", found, status, &
+                                                       noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) exit body
                 if (found == 0) exit
                 call beginning_of_line()
@@ -423,13 +425,13 @@ contains
                     sourced = match_string(1)
                     call end_of_line()
                     call build_mail_abbrevs(status, substitute_in_file_name(sourced), .true.)
-                    call set_buffer(tmp, status)
+                    call set_buffer(temporary, status)
                     if (.not. status%ok()) exit body
                 else
-                    call re_search_forward("[ "//TAB//"]+\([^ "//TAB//LF//"]+\)", found, status)
+                    call regular_expression_search_forward("[ "//TAB//"]+\([^ "//TAB//LF//"]+\)", found, status)
                     if (.not. status%ok()) exit body
                     name = match_string(1)
-                    moved = skip_chars_forward(" "//TAB, status)
+                    moved = skip_characters_forward(" "//TAB, status)
                     start = point()
                     call end_of_line()
                     call buffer_substring(start, point(), definition, status)
@@ -445,7 +447,7 @@ contains
             if (.not. is_recursive) call resolve_all_mail_aliases(status)
         end block body
 
-        call close_buffer(tmp, st)
+        call close_buffer(temporary, st)
         if (is_buffer_live(old)) call set_buffer(old, st)
         if (status%ok()) call message("Parsing "//file//"... done")
     end subroutine build_mail_abbrevs
@@ -482,7 +484,7 @@ contains
         if (string_match("\`[ "//TAB//LF//",]+", definition, st) > 0) definition = chars(definition, match_end(0, st), 0_int64)
         m = string_match("[ "//TAB//LF//",]+\'", definition, st)
         if (m > 0) definition = chars(definition, 1_int64, m)
-        l = string_chars_of(definition)
+        l = string_characters_of(definition)
         start = 0
         if (l > 0) start = 1
         allocate (character(len=0) :: result(0))
@@ -492,7 +494,7 @@ contains
                 ! If we're reading from the mailrc file, addresses are
                 ! delimited by spaces, and addresses with embedded spaces are
                 ! surrounded by non-escaped double-quotes.
-                if (char_is(definition, start, '"')) then
+                if (character_is(definition, start, '"')) then
                     start = start + 1
                     end = 0
 
@@ -594,21 +596,21 @@ contains
             call move_alloc(grown, result)
         end subroutine push
 
-        logical function char_is(text, k, c)
+        logical function character_is(text, k, c)
             character(len=*), intent(in) :: text, c
             integer(int64), intent(in) :: k
             character(len=:), allocatable :: one
 
             one = chars(text, k, k + 1)
-            char_is = one == c
-        end function char_is
+            character_is = one == c
+        end function character_is
 
-        integer(int64) function string_chars_of(text)
+        integer(int64) function string_characters_of(text)
             use utility_functions_mod, only: count_characters
             character(len=*), intent(in) :: text
 
-            string_chars_of = count_characters(text)
-        end function string_chars_of
+            string_characters_of = count_characters(text)
+        end function string_characters_of
     end subroutine define_mail_abbrev
 
     !> Resolve all forward references in the mail aliases table.  Port of
@@ -658,7 +660,7 @@ contains
                 names = names//" <- "//trim(mail_abbrevs%abbrevs(so_far(i))%name)
             end do
 
-            call set_error(status, FM_GENERIC_ERROR, "Mail alias loop detected: "//names)
+            call set_error(status, GENERIC_ERROR_CODE, "Mail alias loop detected: "//names)
             return
         end if
 
@@ -730,11 +732,11 @@ contains
                 p = point()
             end do
 
-            if (is_bol() .and. p > 0) call goto_char(p)
+            if (is_beginning_of_line() .and. p > 0) call goto_character(p)
 
-            if (.not. is_bol()) then
+            if (.not. is_beginning_of_line()) then
                 p = 0
-                call forward_char(status, 1_int64)
+                call forward_character(status, 1_int64)
                 if (status%ok()) call insert(LF, status)
                 if (.not. status%ok()) exit fill
                 spaces = looking_at("["//TAB//" ]+", status)
@@ -755,7 +757,7 @@ contains
         end do fill
 
         call marker_position(here, found, st)
-        call goto_char(found)
+        call goto_character(found)
         call destroy_marker(here, st)
     end subroutine mail_abbrev_expand_hook
 
@@ -788,7 +790,7 @@ contains
         call set_syntax_table(table, st)
 
         do c = 0, 127
-            if (char_syntax_class(c) == SSYMBOL) call modify_syntax_entry(c, c, "w", st, table)
+            if (character_syntax_class(c) == SSYMBOL) call modify_syntax_entry(c, c, "w", st, table)
         end do
 
         call set_syntax_table(saved, st)
@@ -806,7 +808,7 @@ contains
     recursive logical function is_mail_abbrev_in_expansion_header(status) result(in_header)
         type(status_type), intent(out) :: status
         integer(int64) :: here, found, eoh
-        integer(int64) :: begv, zv
+        integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion
         logical :: saved_fold
 
         in_header = .false.
@@ -814,21 +816,21 @@ contains
         case_fold_search%value = .true.
         here = point()
         ! we are on an appropriate header line...
-        if (.not. is_eob()) call forward_char(status, 1_int64)
-        call re_search_backward("^[^ "//TAB//"]", found, status, noerror=SEARCH_MOVE)
+        if (.not. is_end_of_buffer()) call forward_character(status, 1_int64)
+        call regular_expression_search_backward("^[^ "//TAB//"]", found, status, noerror=SEARCH_MOVE)
         ! are we at the front of an appropriate header line?
-        if (status%ok()) in_header = looking_at(mail_abbrev_mode_regexp, status)
-        call goto_char(here)
+        if (status%ok()) in_header = looking_at(mail_abbrev_mode_regular_expression, status)
+        call goto_character(here)
 
         if (in_header .and. status%ok()) then
             ! ...and are we in the headers?
-            begv = buffers(current)%begv
-            zv = buffers(current)%zv
+            beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+            end_of_accessible_portion = buffers(current)%end_of_accessible_portion
             call widen()
             call rfc822_goto_eoh(status)
             eoh = point()
-            call narrow_to_region(begv, zv, status)
-            call goto_char(here)
+            call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, status)
+            call goto_character(here)
             in_header = here < eoh
         end if
 
@@ -840,7 +842,7 @@ contains
     !> where `set_up_mail_abbrevs' ran).  Port of
     !> mailabbrev.el:mail-abbrev-expand-wrapper.
     recursive subroutine mail_abbrev_expand_wrapper(abbrev, status)
-        type(abbrev_ref_type), intent(out) :: abbrev
+        type(abbrev_reference_type), intent(out) :: abbrev
         type(status_type), intent(out) :: status
         type(abbrev_table_type), pointer :: saved_table
         type(handle_type) :: table, saved_syntax
@@ -901,7 +903,7 @@ contains
 
                         if (.not. skip .and. event >= 0 .and. event < 4194304) then
                             ! Don't expand on @.
-                            skip = char_syntax(int(event)) == "_"
+                            skip = character_syntax(int(event)) == "_"
                         end if
                     end if
                 end if
@@ -927,7 +929,7 @@ contains
 
         ! The function this one is around.
         recursive subroutine expand(abbrev, status)
-            type(abbrev_ref_type), intent(out) :: abbrev
+            type(abbrev_reference_type), intent(out) :: abbrev
             type(status_type), intent(out) :: status
 
             if (associated(next_expand_function)) then
@@ -1020,7 +1022,7 @@ contains
         call set_syntax_table(table, st)
         call backward_word(1_int64)
         beginning = point()
-        call goto_char(end)
+        call goto_character(end)
         call set_syntax_table(saved_syntax, st)
         call alias_table(collection)
         done = completion_in_region(beginning, end, collection)
@@ -1045,14 +1047,14 @@ contains
         collection%list = make_list(names)
     end subroutine alias_table
 
-    !> Expand a mail abbrev before point, then move vertically down ARG lines.
+    !> Expand a mail abbrev before point, then move vertically down ARGUMENT lines.
     !> This only expands an abbrev (if one is present) if called with
     !> point at the end of a line, or on whitespace before the end of a line.
     !>
     !> In terms of line motion, this behaves like `next_line', which see.
     !> Port of mailabbrev.el:mail-abbrev-next-line.
-    recursive subroutine mail_abbrev_next_line(arg, status)
-        integer(int64), intent(in) :: arg
+    recursive subroutine mail_abbrev_next_line(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         logical :: at_end
 
@@ -1065,7 +1067,7 @@ contains
         end if
 
         this_command => commands%next_line
-        call next_line(arg, status)
+        call next_line(argument, status)
     end subroutine mail_abbrev_next_line
 
     !> Expand a mail abbrev before point, then move to the end of the buffer.
@@ -1074,8 +1076,8 @@ contains
     !>
     !> In other respects, this behaves like `end_of_buffer', which see.
     !> Port of mailabbrev.el:mail-abbrev-end-of-buffer.
-    recursive subroutine mail_abbrev_end_of_buffer(arg, status)
-        type(prefix_arg_type), intent(in) :: arg
+    recursive subroutine mail_abbrev_end_of_buffer(argument, status)
+        type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         logical :: at_end
 
@@ -1088,14 +1090,14 @@ contains
         end if
 
         this_command => commands%end_of_buffer
-        call end_of_buffer(arg)
+        call end_of_buffer(argument)
     end subroutine mail_abbrev_end_of_buffer
 
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
 
-    recursive subroutine cmd_define_mail_abbrev(status)
+    recursive subroutine execute_define_mail_abbrev(status)
         use minibuffer_reading_mod, only: read_string
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name, definition
@@ -1104,7 +1106,7 @@ contains
         if (.not. status%ok()) return
         call read_string("Define "//name//" as mail alias for: ", definition, status)
         if (status%ok()) call define_mail_abbrev(name, definition, status)
-    end subroutine cmd_define_mail_abbrev
+    end subroutine execute_define_mail_abbrev
 
     ! The file name argument of merge-mail-abbrevs and
     ! rebuild-mail-abbrevs, read with PROMPT.  Not a port.
@@ -1112,34 +1114,34 @@ contains
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dir, def, default
+        character(len=:), allocatable :: directory, def, default
 
-        call expand_file_name("~/", dir, status)
+        call expand_file_name("~/", directory, status)
         if (.not. status%ok()) return
         def = mail_personal_alias_file
-        call expand_file_name(def, default, status, dir)
+        call expand_file_name(def, default, status, directory)
         if (.not. status%ok()) return
-        call read_file_name(format_prompt(prompt, def), file, status, dir=dir, default_filename=default, &
+        call read_file_name(format_prompt(prompt, def), file, status, directory=directory, default_filename=default, &
                             mustmatch=REQUIRE_MATCH_YES)
     end subroutine read_alias_file
 
-    recursive subroutine cmd_merge_mail_abbrevs(status)
+    recursive subroutine execute_merge_mail_abbrevs(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         call read_alias_file("Read additional aliases from file", file, status)
         if (status%ok()) call merge_mail_abbrevs(file, status)
-    end subroutine cmd_merge_mail_abbrevs
+    end subroutine execute_merge_mail_abbrevs
 
-    recursive subroutine cmd_rebuild_mail_abbrevs(status)
+    recursive subroutine execute_rebuild_mail_abbrevs(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         call read_alias_file("Read mail aliases from file", file, status)
         if (status%ok()) call rebuild_mail_abbrevs(status, file)
-    end subroutine cmd_rebuild_mail_abbrevs
+    end subroutine execute_rebuild_mail_abbrevs
 
-    recursive subroutine cmd_insert_mail_abbrev_alias(status)
+    recursive subroutine execute_insert_mail_abbrev_alias(status)
         type(status_type), intent(out) :: status
         type(completion_table_type) :: collection
         character(len=:), allocatable :: alias
@@ -1152,44 +1154,44 @@ contains
         call alias_table(collection)
         call completing_read("Expand alias: ", collection, alias, status, require_match=REQUIRE_MATCH_YES)
         if (status%ok()) call insert_mail_abbrev_alias(status, alias)
-    end subroutine cmd_insert_mail_abbrev_alias
+    end subroutine execute_insert_mail_abbrev_alias
 
-    recursive subroutine cmd_mail_abbrev_next_line(status)
+    recursive subroutine execute_mail_abbrev_next_line(status)
         type(status_type), intent(out) :: status
 
-        call mail_abbrev_next_line(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_mail_abbrev_next_line
+        call mail_abbrev_next_line(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_mail_abbrev_next_line
 
-    recursive subroutine cmd_mail_abbrev_end_of_buffer(status)
+    recursive subroutine execute_mail_abbrev_end_of_buffer(status)
         type(status_type), intent(out) :: status
 
-        call mail_abbrev_end_of_buffer(current_prefix_arg, status)
-    end subroutine cmd_mail_abbrev_end_of_buffer
+        call mail_abbrev_end_of_buffer(current_prefix_argument, status)
+    end subroutine execute_mail_abbrev_end_of_buffer
 
     !> Define Mail Abbrevs mode and register the commands; bind C-c C-a
     !> and M-TAB in `mail_mode_map' (upstream's eval-after-load of
     !> sendmail).  Not a port.
-    subroutine init_mailabbrev()
+    subroutine initialize_mailabbrev()
         type(status_type) :: st
 
         if (.not. allocated(mail_alias_separator_string)) mail_alias_separator_string = ", "
 
-        if (.not. allocated(mail_abbrev_mode_regexp)) then
-            mail_abbrev_mode_regexp = "^\(Resent-\)?\(To\|From\|Cc\|Bcc\|Reply-To\|X-Debbugs-Cc\):"
+        if (.not. allocated(mail_abbrev_mode_regular_expression)) then
+            mail_abbrev_mode_regular_expression = "^\(Resent-\)?\(To\|From\|Cc\|Bcc\|Reply-To\|X-Debbugs-Cc\):"
         end if
 
         call minor_modes%mail_abbrevs_mode%define("mail_abbrevs_mode", global=.true., body=mail_abbrevs_mode_body)
         commands%mail_abbrevs_mode%execute => mail_abbrevs_mode
-        commands%define_mail_abbrev%execute => cmd_define_mail_abbrev
-        commands%merge_mail_abbrevs%execute => cmd_merge_mail_abbrevs
-        commands%rebuild_mail_abbrevs%execute => cmd_rebuild_mail_abbrevs
-        commands%insert_mail_abbrev_alias%execute => cmd_insert_mail_abbrev_alias
+        commands%define_mail_abbrev%execute => execute_define_mail_abbrev
+        commands%merge_mail_abbrevs%execute => execute_merge_mail_abbrevs
+        commands%rebuild_mail_abbrevs%execute => execute_rebuild_mail_abbrevs
+        commands%insert_mail_abbrev_alias%execute => execute_insert_mail_abbrev_alias
         commands%complete_mail_abbrev_alias%execute => complete_mail_abbrev_alias
-        commands%mail_abbrev_next_line%execute => cmd_mail_abbrev_next_line
-        commands%mail_abbrev_end_of_buffer%execute => cmd_mail_abbrev_end_of_buffer
-        call init_sendmail()
+        commands%mail_abbrev_next_line%execute => execute_mail_abbrev_next_line
+        commands%mail_abbrev_end_of_buffer%execute => execute_mail_abbrev_end_of_buffer
+        call initialize_sendmail()
         call keymap_set(mail_mode_map, "C-c C-a", "insert_mail_abbrev_alias", st)
         ! like completion-at-point
         call keymap_set(mail_mode_map, "M-TAB", "complete_mail_abbrev_alias", st)
-    end subroutine init_mailabbrev
+    end subroutine initialize_mailabbrev
 end module mail_abbreviations_mod

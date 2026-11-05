@@ -22,7 +22,7 @@
 
 module test_simple_shell_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type, format_error
@@ -30,10 +30,10 @@ module test_simple_shell_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, &
                           current_buffer, is_buffer_live, set_buffer_read_only
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_max, goto_char, buffer_string, mark_position
-    use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, last_message
-    use execute_interactively_mod, only: prefix_arg
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: point, point_maximum, goto_character, buffer_string, mark_position
+    use keyboard_mod, only: keyboard_store_bytes, command_loop, discard_input, last_message
+    use execute_interactively_mod, only: prefix_argument
+    use bindings_mod, only: initialize_bindings
     use simple_mod, only: shell_command, shell_command_on_region, shell_command_keep_output, push_mark, &
                           deactivate_mark, shell_command_buffer_name, &
                           SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, &
@@ -46,9 +46,9 @@ module test_simple_shell_mod
     public :: collect_simple_shell_mod
 
     ! (0 stands for .false., the erase-unless-current state.)
-    integer, parameter :: SAVE_POS(5) = [SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, 0, &
-                                         SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, &
-                                         SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT]
+    integer, parameter :: SAVE_POSITION(5) = [SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, 0, &
+                                              SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, &
+                                              SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT]
 
 contains
 
@@ -112,11 +112,11 @@ contains
         if (output_is_current) n = 3
 
         do way = 1, n
-            do k = 1, size(SAVE_POS)
-                if (SAVE_POS(k) == 0) then
+            do k = 1, size(SAVE_POSITION)
+                if (SAVE_POSITION(k) == 0) then
                     shell_command_keep_output = .false.
                 else
-                    shell_command_keep_output = SAVE_POS(k)
+                    shell_command_keep_output = SAVE_POSITION(k)
                 end if
 
                 call set_buffer(output, st)
@@ -141,7 +141,7 @@ contains
                 call set_buffer(output, st)
 
                 if (test_point) then
-                    select case (SAVE_POS(k))
+                    select case (SAVE_POSITION(k))
                     case (SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT)
                         expected_point = 1 + len(string)
                     case (SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT)
@@ -154,9 +154,9 @@ contains
 
                     call check(error, point(), expected_point)
                 else
-                    if (SAVE_POS(k) == SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT) then
+                    if (SAVE_POSITION(k) == SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT) then
                         expected = string
-                    else if (SAVE_POS(k) == 0) then
+                    else if (SAVE_POSITION(k) == 0) then
                         if (output_is_current) then
                             expected = string//string
                         else
@@ -221,7 +221,7 @@ contains
     !> Command Output*); more is shown in that buffer's window.
     subroutine test_echo_or_buffer(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, out, win
+        type(handle_type) :: h, out, window
         type(status_type) :: st
 
         call fresh("*shell-test*", h)
@@ -230,8 +230,8 @@ contains
         call check(error, last_message, "hello")
         if (allocated(error)) return
         out = get_buffer(shell_command_buffer_name)
-        win = get_buffer_window(out)
-        call check(error, win%index == 0, "not displayed")
+        window = get_buffer_window(out)
+        call check(error, window%index == 0, "not displayed")
         if (allocated(error)) return
         call set_buffer(out, st)
         call check(error, buffer_string(), "hello"//new_line("a"))
@@ -241,8 +241,8 @@ contains
         call shell_command("echo one; echo two", st)
         call check(error, last_message, "")
         if (allocated(error)) return
-        win = get_buffer_window(out)
-        call check(error, win%index /= 0, "displayed")
+        window = get_buffer_window(out)
+        call check(error, window%index /= 0, "displayed")
         if (allocated(error)) return
         call set_buffer(out, st)
         call check(error, buffer_string(), "one"//new_line("a")//"two"//new_line("a"))
@@ -259,7 +259,7 @@ contains
 
         call fresh("*shell-test*", h)
         call insert("ab", st)
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         call shell_command("printf XY", st, insert_here=.true.)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "aXYb")
@@ -356,14 +356,14 @@ contains
         use buffer_mod, only: generate_new_buffer_name
         use process_mod, only: get_buffer_process, delete_process, accept_process_output
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buffer, process, h, win
+        type(handle_type) :: buffer, process, h, window
         type(status_type) :: st
         character(len=:), allocatable :: first, second
         integer(int64) :: start, now, rate
         logical :: got
         integer :: k
 
-        call init_bindings()
+        call initialize_bindings()
         call fresh("*shell-test*", h)
         async_shell_command_buffer = ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER
         async_shell_command_display_buffer = .false.
@@ -383,8 +383,8 @@ contains
         process = get_buffer_process(buffer)
         call check(error, process%index /= 0, "first process")
         if (.not. allocated(error)) call check(error, size_of(buffer) == 0, "first output")
-        win = get_buffer_window(buffer)
-        if (.not. allocated(error)) call check(error, win%index == 0, "first window")
+        window = get_buffer_window(buffer)
+        if (.not. allocated(error)) call check(error, window%index == 0, "first window")
         if (allocated(error)) return
         ! Second command should both have and display output.
         buffer = get_buffer(second)
@@ -402,8 +402,8 @@ contains
         end do
 
         call check(error, size_of(buffer) > 0, "second output")
-        win = get_buffer_window(buffer)
-        if (.not. allocated(error)) call check(error, win%index /= 0, "second window")
+        window = get_buffer_window(buffer)
+        if (.not. allocated(error)) call check(error, window%index /= 0, "second window")
 
         do k = 1, 2
             if (k == 1) buffer = get_buffer(first)
@@ -428,7 +428,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
 
-        call init_bindings()
+        call initialize_bindings()
         call fresh("*shell-test*", h)
         last_message = ""
         call shell_command("echo async &", st)
@@ -453,18 +453,18 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call fresh("*shell-test*", h)
         call discard_input()
-        prefix_arg = prefix_arg_type()
+        prefix_argument = prefix_argument_type()
         last_message = ""
-        call kbd_store_bytes(achar(27)//"!echo hi"//achar(13))
+        call keyboard_store_bytes(achar(27)//"!echo hi"//achar(13))
         call command_loop(st)
         call check(error, last_message, "hi")
         if (allocated(error)) return
         call insert("b"//new_line("a")//"a"//new_line("a"), st)
         call push_mark(1_int64, .true., .true.)
-        call kbd_store_bytes(achar(21)//achar(27)//"|sort"//achar(13))
+        call keyboard_store_bytes(achar(21)//achar(27)//"|sort"//achar(13))
         call command_loop(st)
         call check(error, buffer_string(), "a"//new_line("a")//"b"//new_line("a"))
         call close_buffer(h, st)
