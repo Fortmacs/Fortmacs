@@ -1161,7 +1161,7 @@ contains
     !> Update the `tab-bar-lines' frame parameter of the selected frame,
     !> or with ALL of all frames as well as the default for new frames
     !> (`default_frame').  Port of tab-bar.el:tab-bar--update-tab-bar-lines
-    !> (FRAMES nil or t).
+    !> (FRAMES absent or true).
     subroutine update_tab_bar_lines(all)
         logical, intent(in) :: all
         type(handle_type), allocatable :: frames(:)
@@ -1524,7 +1524,7 @@ contains
     end subroutine format_tab_group
 
     !> Whether groups A and B (unallocated for none) are equal.
-    !> Not a port (`equal' on two strings or nil).
+    !> Not a port (`equal' on two strings or unallocated ones).
     logical function is_same_group(a, b)
         character(len=:), allocatable, intent(in) :: a, b
 
@@ -1610,7 +1610,7 @@ contains
             if (.not. allocated(part)) cycle
 
             do k = 1, size(part)
-                if (len_trim(part(k)%key) == 0) write (part(k)%key, '("str-", i0)') i
+                if (len_trim(part(k)%key) == 0) write (part(k)%key, '("string-", i0)') i
                 items = [items, part(k)]
             end do
         end do
