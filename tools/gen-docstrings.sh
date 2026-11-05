@@ -104,7 +104,9 @@ function citation(b, var,    flat, k, rest, file, name) {
     file = substr(rest, 1, RLENGTH)
     rest = substr(rest, RLENGTH + 1)
     if (var) {
-        if (!match(rest, /^ [a-z][A-Za-z0-9*+-]*/)) return ""
+        # (@ and ! too: mail-extr-@-binds-tighter-than-!, renamed by its
+        # tools/fortran-names.d entry.)
+        if (!match(rest, /^ [a-z][A-Za-z0-9*+@!-]*/)) return ""
         # (lower case: dired-ls-F-marks-symlinks is dired_ls_f_marks_symlinks)
         name = tolower(substr(rest, 2, RLENGTH - 1))
         # A C variable (point_before_last_command_or_undo), not a DEFVAR.

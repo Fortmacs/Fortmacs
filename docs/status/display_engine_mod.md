@@ -86,7 +86,8 @@ no redisplay while one runs (redisplaying_p),
 a forced window start kept and point moved to the middle of the window when it does not show (redisplay_window's force_start, on a terminal frame),
 `window-scroll-functions` run for a forced start and for a recentered one (`run_window_scroll_functions`, as `execute_scroll_functions_for_start`),
 `window_end_pos` counted from the end of the text (Z less the end);
-bindings.el's `mode-line-misc-info` after the modes (`prepend_mode_line_misc_info`: procedures giving segments, called with the window's buffer current, the displayed window or else the selected one) (step 49c)
+bindings.el's `mode-line-misc-info` after the modes (`prepend_mode_line_misc_info`: procedures giving segments, called with the window's buffer current, the displayed window or else the selected one) (step 49c),
+step 44b: xdisp.c:display_tab_bar for a terminal frame (with update_tab_bar: the items made again at each redisplay through `get_tab_bar_items`, set by tab_bar_mod; `tab_bar_run_type` runs of text in their faces merged into `tab_bar`)
 
 ## Deferred
 
@@ -151,7 +152,8 @@ images and xwidgets (`produce_image_glyph`, `produce_xwidget_glyph`, `next_eleme
 the tool bar (`build_desired_tool_bar_string`, `display_tool_bar_line`, `redisplay_tool_bar`, `tool_bar_height`, `Ftool_bar_height`, `get_tool_bar_item`, `tool_bar_item_info`, `handle_tool_bar_click`, `handle_tool_bar_click_with_device`, `note_tool_bar_highlight`, `update_tool_bar`, `Fdump_tool_bar_row`);
 the hourglass,
 scroll bars and fringes (`show_hourglass`, `start_hourglass`, `cancel_hourglass`, `set_vertical_scroll_bar`, `set_horizontal_scroll_bar`, `note_fringe_highlight`);
-pixel sizes and line heights (`normal_char_height`, `pixel_to_glyph_coords`, `frame_to_window_pixel_xy`, `Fbuffer_text_pixel_size`, `Fwindow_text_pixel_size`, `window_text_pixel_size`, `Fline_pixel_height`, `default_line_pixel_height`, `calc_line_height_property`, `partial_line_height`, `take_vertical_position_into_account`)
+pixel sizes and line heights (`normal_char_height`, `pixel_to_glyph_coords`, `frame_to_window_pixel_xy`, `Fbuffer_text_pixel_size`, `Fwindow_text_pixel_size`, `window_text_pixel_size`, `Fline_pixel_height`, `default_line_pixel_height`, `calc_line_height_property`, `partial_line_height`, `take_vertical_position_into_account`),
+after step 44b: the tab bar of a window-system frame (build_desired_tab_bar_string, display_tab_bar_line, tab_bar_height, redisplay_tab_bar), tab bar lines wrapped to more than one line, tab_bar_item_info and the mouse on the tab bar
 
 ## Tests
 

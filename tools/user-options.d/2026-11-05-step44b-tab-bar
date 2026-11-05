@@ -1,0 +1,22 @@
+# user-options.d/2026-11-05-step44b-tab-bar -- the user options of step 44b
+# (tab-bar.el's defcustoms that are ported).
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+tab_bar_define_keys
+tab_bar_select_tab_modifiers
+tab_bar_show
+tab_bar_new_tab_choice
+tab_bar_new_tab_group
+tab_bar_new_button_show
+tab_bar_close_button_show
+tab_bar_tab_hints
+tab_bar_tab_name_function
+tab_bar_tab_name_truncated_max
+tab_bar_format
+tab_bar_show_inactive_group_tabs
+tab_bar_auto_width
+tab_bar_new_tab_to
+tab_bar_close_tab_select
+tab_bar_close_last_tab_choice

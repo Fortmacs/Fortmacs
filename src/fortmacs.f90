@@ -432,12 +432,12 @@ module fortmacs
     use files_mod, only: save_some_buffers_procedure, save_some_buffers_function_type, save_some_buffers_functions, &
                          append_save_some_buffers_function
     use dynamic_abbreviation_mod, only: dabbrev_expand, is_dabbrev_same_major_mode, dabbrev_select_buffers, &
-                                        dabbrev_friend_buffer_procedure, &
-                                        dabbrev_select_buffers_procedure, dabbrev_backward_only, dabbrev_limit, &
-                                        dabbrev_abbrev_skip_leading_regexp, dabbrev_eliminate_newlines, dabbrev_case_fold_search, &
-                                        dabbrev_upcase_means_case_search, dabbrev_case_distinction, dabbrev_case_replace, &
-                                        dabbrev_abbrev_char_regexp, dabbrev_check_all_buffers, dabbrev_ignored_buffer_names, &
-                                        dabbrev_ignored_buffer_regexps, dabbrev_ignored_buffer_modes, dabbrev_check_other_buffers, &
+                                        dabbrev_friend_buffer_procedure, dabbrev_select_buffers_procedure, dabbrev_backward_only, &
+                                        dabbrev_limit, dabbrev_abbrev_skip_leading_regexp, dabbrev_eliminate_newlines, &
+                                        dabbrev_case_fold_search, dabbrev_upcase_means_case_search, dabbrev_case_distinction, &
+                                        dabbrev_case_replace, dabbrev_abbrev_char_regexp, dabbrev_check_all_buffers, &
+                                        dabbrev_ignored_buffer_names, dabbrev_ignored_buffer_regexps, &
+                                        dabbrev_ignored_buffer_modes, dabbrev_check_other_buffers, &
                                         dabbrev_select_buffers_function, dabbrev_friend_buffer_function, &
                                         dabbrev_search_these_buffers_only, DABBREV_LIKE_CASE_FOLD_SEARCH, &
                                         DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK
@@ -578,6 +578,17 @@ module fortmacs
                                  ibuffer_derived_mode, ibuffer_name, ibuffer_process, ibuffer_starred_name, ibuffer_filename, &
                                  ibuffer_basename, ibuffer_file_extension, ibuffer_directory, ibuffer_size_gt, ibuffer_size_lt, &
                                  ibuffer_modified, ibuffer_visiting_file, ibuffer_content, ibuffer_test
+    use calendar_mod, only: calendar_date_type, calendar_mark_holidays_flag, calendar_view_holidays_initially_flag, &
+                            calendar_christian_all_holidays_flag, calendar_islamic_all_holidays_flag, &
+                            calendar_absolute_from_gregorian, calendar_gregorian_from_absolute, &
+                            calendar_dayname_on_or_before
+    use holidays_mod, only: holidays_type, holiday_entry_type, holiday_type, holiday_expression_procedure, &
+                            holidays_procedure, HOLIDAY_STRING_MAX, HOLIDAY_ENTRY_FIXED, HOLIDAY_ENTRY_FLOAT, &
+                            HOLIDAY_ENTRY_EXPRESSION, HOLIDAY_ENTRY_EASTER_ETC, HOLIDAY_ENTRY_ADVENT, &
+                            HOLIDAY_ENTRY_GREEK_ORTHODOX_EASTER, HOLIDAY_ENTRY_JULIAN, HOLIDAY_ENTRY_ISLAMIC, &
+                            HOLIDAY_ENTRY_PROCEDURE, holiday_general_holidays, holiday_local_holidays, &
+                            holiday_other_holidays, holiday_christian_holidays, holiday_islamic_holidays, &
+                            calendar_holidays, holidays, list_holidays
     use completing_read_multiple_mod, only: completing_read_multiple, crm_separator, crm_prompt, crm_local_completion_map, &
                                             crm_local_must_match_map
     use buffer_menu_mod, only: buffer_menu_marker_char, buffer_menu_del_char, buffer_menu_use_header_line, &
@@ -710,8 +721,8 @@ module fortmacs
                               EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_CHMOD_NONE
     use files_mod, only: before_save_hook, after_save_hook, write_file_functions
     use fill_mod, only: fill_paragraph_function, fill_paragraph_handle_comment, adaptive_fill_function
-    use sgml_mode_mod, only: sgml_basic_offset, sgml_attribute_offset, sgml_xml_mode, &
-                             sgml_specials, sgml_validate_command, sgml_slash_distance, sgml_char_names, sgml_empty_tags, &
+    use sgml_mode_mod, only: sgml_basic_offset, sgml_attribute_offset, sgml_xml_mode, sgml_specials, &
+                             sgml_validate_command, sgml_slash_distance, sgml_char_names, sgml_empty_tags, &
                              sgml_unclosed_tags, sgml_whitespace_sensitive_tags, html_tag_faces, sgml_tag_face_type, &
                              sgml_mode_hook, html_mode_hook, sgml_mode_map, html_mode_map, sgml_mode_syntax_table, &
                              sgml_tag_syntax_table
@@ -1086,6 +1097,15 @@ module fortmacs
               ibuffer_process, ibuffer_starred_name, ibuffer_filename, ibuffer_basename, ibuffer_file_extension, &
               ibuffer_directory, ibuffer_size_gt, ibuffer_size_lt, ibuffer_modified, ibuffer_visiting_file, &
               ibuffer_content, ibuffer_test
+    public :: calendar_date_type, calendar_mark_holidays_flag, calendar_view_holidays_initially_flag, &
+              calendar_christian_all_holidays_flag, calendar_islamic_all_holidays_flag, calendar_absolute_from_gregorian, &
+              calendar_gregorian_from_absolute, calendar_dayname_on_or_before
+    public :: holidays_type, holiday_entry_type, holiday_type, holiday_expression_procedure, holidays_procedure, &
+              HOLIDAY_STRING_MAX, HOLIDAY_ENTRY_FIXED, HOLIDAY_ENTRY_FLOAT, HOLIDAY_ENTRY_EXPRESSION, &
+              HOLIDAY_ENTRY_EASTER_ETC, HOLIDAY_ENTRY_ADVENT, HOLIDAY_ENTRY_GREEK_ORTHODOX_EASTER, HOLIDAY_ENTRY_JULIAN, &
+              HOLIDAY_ENTRY_ISLAMIC, HOLIDAY_ENTRY_PROCEDURE, holiday_general_holidays, holiday_local_holidays, &
+              holiday_other_holidays, holiday_christian_holidays, holiday_islamic_holidays, calendar_holidays, holidays, &
+              list_holidays
     public :: completing_read_multiple, crm_separator, crm_prompt, crm_local_completion_map, crm_local_must_match_map
     public :: buffer_menu_marker_char, buffer_menu_del_char, buffer_menu_use_header_line, buffer_menu_name_width, &
               buffer_menu_name_width_procedure, buffer_menu_dynamic_name_width, &

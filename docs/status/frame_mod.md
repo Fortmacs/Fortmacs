@@ -58,7 +58,11 @@ C-o,
 f,
 C-f,
 r,
-d
+d,
+step 44b: frame.h:tab_bar_lines (`tab_bar_lines`, the `tab-bar-lines` parameter, also in `default_frame`) and `tab-bar-lines-keep-state`,
+frame.h:FRAME_TOP_MARGIN (`frame_top_margin`: the root window starts below the tab bar in `resize_frame_windows`, dispnew's `adjust_frame_size` and xdisp's `init_frame_windows`),
+frame.c:set_tab_bar_lines (terminal frames),
+the `tabs` parameter (`tab_type` records with `tab_window_configuration_type`, freed when the frame is deleted) and the frame's tab history
 
 ## Deferred
 
@@ -103,7 +107,8 @@ the `pop-up-frame-parameters`,
 `compose-mail-other-frame` (C-x 5 m),
 `xref-find-definitions-other-frame` (C-x 5 .),
 `project-other-frame-command` (C-x 5 p),
-`find-file-other-frame` WILDCARDS
+`find-file-other-frame` WILDCARDS,
+after step 44b: the tab bar of a window-system frame (frame.c:gui_set_tab_bar_lines, its tab bar window)
 
 ## Tests
 

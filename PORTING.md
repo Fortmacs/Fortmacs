@@ -281,14 +281,19 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        speller's list run, M-TAB auto-correction) — in progress (the
        correction menu of C-c $ waits for TTY menus).
    44. Terminal frames: several frames on one terminal (C-x 5), and
-       `tab-bar-mode`/`tab-line-mode`.
+       `tab-bar-mode`/`tab-line-mode`: 44a terminal frames and C-x 5 —
+       done; 44b tab-bar.el on terminal frames (the tab bar line, tabs,
+       C-x t, tab history; see docs/status/tab_bar_mod.md) — done; 44c
+       tab-line.el.
    45. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
        `window-divider` and side windows.
    46. Calendar and diary, in parts: 46a the calendar core (calendar.el
        and cal-move.el: M-x calendar, Calendar mode, movement and
-       scrolling) — done; then the holidays, the diary, the other
-       calendars (cal-iso.el, cal-julian.el and the rest), lunar.el
-       and solar.el.
+       scrolling) — done; 46b the holidays (holidays.el, with the
+       Julian and Islamic conversions of cal-julian.el and cal-islam.el;
+       docs/status/holidays_mod.md) — partial; then the diary, the
+       other calendars (cal-iso.el, the rest of cal-julian.el and the
+       others), lunar.el and solar.el (and the holidays that need them).
    47. VC, the rest: `vc-annotate` (C-x v g), branches and tags, pull
        and push, incoming and outgoing logs, and the vc-hg and vc-svn
        backends (vc-svn: done).
@@ -301,9 +306,11 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        ediff-help.el; see docs/status/fortmacs_diff_mod.md) — done; 48c merging
        files and buffers (ediff-merg.el, `ediff-merge-files`,
        `ediff-merge-buffers` and their `-with-ancestor` forms; see
-       docs/status/fortmacs_diff_merging_mod.md) — done; then session groups
-       (ediff-mult.el), revisions (ediff-vers.el) and patches
-       (ediff-ptch.el).
+       docs/status/fortmacs_diff_merging_mod.md) — done; 48d session groups
+       (ediff-mult.el, `ediff-directories`, `ediff-directories3`,
+       `ediff-merge-directories` and `-with-ancestor`, the registry; see
+       docs/status/fortmacs_diff_multiple_mod.md) — done; then revisions
+       (ediff-vers.el) and patches (ediff-ptch.el).
    49. Projects and cross-references: project.el (C-x p), xref.el and
        etags.el (M-., M-?, M-,) — 49a partial (docs/status/cross_reference_mod.md and
        fortmacs_tags_mod.md), 49b partial (docs/status/project_mod.md), Imenu and
@@ -324,7 +331,12 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        rmailedit.el, rmailkwd.el, rmailmm.el; mbox files and movemail).
        In progress: 52a mail-utils.el, mailabbrev.el, sendmail.el (Mail
        mode, `mail`, sending through `sendmail-program`, Fcc) and
-       `compose-mail` with `sendmail-user-agent` — done; 52b smtpmail.el;
+       `compose-mail` with `sendmail-user-agent` — done; 52b smtpmail.el
+       (SMTP over a TCP socket in src/sys, AUTH PLAIN, LOGIN, CRAM-MD5 and
+       XOAUTH2, the queue; TLS, STARTTLS and auth-source deferred; see
+       docs/status/smtpmail_mod.md) — partial, and mail-extr.el (the
+       address and full name of a header address, for the envelope
+       address; docs/status/mail_extract_mod.md) — done;
        52c message.el (`message-user-agent`, the default of
        `mail-user-agent`); then Rmail.
    53. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and

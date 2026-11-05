@@ -48,7 +48,8 @@ BVAR `header_line_format` (a `header_line_format_type`: text segments with a fac
 the overlay functions of buffer.c are interval_tree_mod's,
 `buffer-local-value` and `buffer-local-variables` (with `buffer_local_value`, `buffer_lisp_local_variables`, `buffer_local_variables_1`) data_mod's;
 step 44a: the frames' buffer lists exchanged on a frame switch (`exchange_frame_buffers`; closed buffers leave a frame's lists when it is selected again);
-BVAR `save_length` (`buffer-saved-size`, set where fileio.c sets it; not a variable of its own yet) (step 49c)
+BVAR `save_length` (`buffer-saved-size`, set where fileio.c sets it; not a variable of its own yet) (step 49c),
+`frame_buried_buffers` (the selected frame's buried_buffer_list, for tab-bar.el)
 
 ## Deferred
 

@@ -52,6 +52,7 @@
 | [ediff_init_mod](../status/ediff_init_mod.md) | vc/ediff-init.el | partial |
 | [ediff_merg_mod](../status/ediff_merg_mod.md) | vc/ediff-merg.el | partial |
 | [ediff_mod](../status/ediff_mod.md) | vc/ediff.el | partial |
+| [ediff_multiple_mod](../status/ediff_multiple_mod.md) | vc/ediff-mult.el | partial |
 | [ediff_util_mod](../status/ediff_util_mod.md) | vc/ediff-util.el | partial |
 | [ediff_wind_mod](../status/ediff_wind_mod.md) | vc/ediff-wind.el | partial |
 | [editfns_mod](../status/editfns_mod.md) | editfns.c (+ buffer.c `validate_region`, intervals.c `set_point_from_marker`) | partial |
@@ -84,6 +85,7 @@
 | [help_fns_mod](../status/help_fns_mod.md) | help-fns.el (+ help-mode.el describe-symbol-backends) | partial |
 | [help_mod](../status/help_mod.md) | help.el (+ help-macro.el `make-help-screen`, keymap.c `describe-buffer-bindings`/`describe_vector`, newcomment.el `comment-indent` for the lossage, simple.el `make-separator-line`) | partial |
 | [help_mode_mod](../status/help_mode_mod.md) | help-mode.el | partial |
+| [holidays_mod](../status/holidays_mod.md) | calendar/holidays.el, calendar/cal-julian.el (in part), calendar/cal-islam.el (in part) | partial |
 | [hooks_mod](../status/hooks_mod.md) | eval.c (hooks), subr.el (`add-hook`, `remove-hook`) | partial |
 | [ibuf_macs_mod](../status/ibuf_macs_mod.md) | ibuf-macs.el | partial |
 | [ibuffer_mod](../status/ibuffer_mod.md) | ibuffer.el, ibuf-ext.el | partial |
@@ -105,6 +107,7 @@
 | [kmacro_mod](../status/kmacro_mod.md) | kmacro.el | partial |
 | [log_edit_mod](../status/log_edit_mod.md) | vc/log-edit.el | partial |
 | [log_view_mod](../status/log_view_mod.md) | vc/log-view.el | partial |
+| [mail_extract_mod](../status/mail_extract_mod.md) | mail/mail-extr.el | done |
 | [mail_utils_mod](../status/mail_utils_mod.md) | mail/mail-utils.el | partial |
 | [mailabbrev_mod](../status/mailabbrev_mod.md) | mail/mailabbrev.el | partial |
 | [make_mode_mod](../status/make_mode_mod.md) | progmodes/make-mode.el | partial |
@@ -160,6 +163,7 @@
 | [skeleton_mod](../status/skeleton_mod.md) | skeleton.el | done |
 | [smerge_mode_mod](../status/smerge_mode_mod.md) | vc/smerge-mode.el | partial |
 | [smie_mod](../status/smie_mod.md) | emacs-lisp/smie.el | partial |
+| [smtpmail_mod](../status/smtpmail_mod.md) | mail/smtpmail.el (+ network-stream.el `open-network-stream` and `network-stream-open-starttls` without TLS, `network-stream-get-response`; rfc2104.el `rfc2104-hash` with MD5; message.el `message-make-message-id`, `message-unique-id`, `message-number-base36`, `message-make-fqdn`, `message-user-mail-address`, `message-narrow-to-headers`; process.c's blocking connect, `send_process` and the default sentinel's messages for this connection) | partial |
 | [string_type_mod](../status/string_type_mod.md) | — (fortran-lang stdlib's `string_type`) | done |
 | [subr_mod](../status/subr_mod.md) | subr.el | partial |
 | [syntax_mod](../status/syntax_mod.md) | syntax.c, syntax.h (+ category.c `is_word_boundary`, subr.el `make-syntax-table`) | done |
@@ -167,6 +171,7 @@
 | [sys_linux_mod](../status/sys_linux_mod.md) | — (glibc/kernel headers) | done |
 | [sys_worker_mod](../status/sys_worker_mod.md) | — (replaces select and SIGCHLD in process.c) | done |
 | [sysdep_mod](../status/sysdep_mod.md) | sysdep.c (+ dispnew.c SIGWINCH flag, process.c `allocate_pty`) | done |
+| [tab_bar_mod](../status/tab_bar_mod.md) | tab-bar.el (step 44b; with xdisp.c's display_tab_bar for terminal frames in xdisp_mod, frame.c's set_tab_bar_lines in frame_mod, window.el's window-state-get/put in part in window_mod) | partial |
 | [tabulated_list_mod](../status/tabulated_list_mod.md) | emacs-lisp/tabulated-list.el | partial |
 | [term_mod](../status/term_mod.md) | term.c (+ sysdep.c `reset_all_sys_modes`, `init_all_sys_modes`, dispnew.c `no-redraw-on-reenter`) | partial |
 | [term_xterm_mod](../status/term_xterm_mod.md) | term/xterm.el | partial |

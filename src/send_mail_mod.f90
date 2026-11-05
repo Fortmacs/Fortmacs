@@ -90,9 +90,12 @@ module send_mail_mod
     use mail_utilities_mod, only: get_mail_field, strip_mail_quoted_names, parse_mail_comma_list, is_mail_file_babyl, &
                                   mail_rfc822_date
     use data_mod, only: append_locals_clearer, choice_setting_type
+    use mail_extract_mod, only: extract_mail_address_components, mail_address_components_type
+    use editing_functions_mod, only: save_restriction_begin, save_restriction_end, restriction_type
     implicit none(type, external)
     private
 
+    public :: get_mail_envelope_from
     public :: query_sendmail_once, compose_sendmail_user_agent, set_up_mail, mail_mode, mail_header_end, mail_text_start, &
               delimit_mail_sendmail_header, undelimit_mail_sendmail_header, mail_mode_auto_fill, fill_mail_mode_paragraph, &
               send_mail_and_exit, mail_dont_send, bury_mail, send_mail, insert_mail_from_field, combine_mail_fields, &
@@ -157,12 +160,30 @@ module send_mail_mod
     !> smtpmail.  Port of sendmail.el mail-specify-envelope-from.
     logical, public :: mail_specify_envelope_from = .false.
 
-    !> If allocated, designate the envelope-from address when sending mail.
+    !> The setting `mail_envelope_from': .false., MAIL_ENVELOPE_FROM_HEADER
+    !> or an address (R6-39: `mail_envelope_from%address = "..."';
+    !> unallocated when none is set).  Not a port.
+    type, extends(choice_setting_type), public :: mail_envelope_from_choice_setting_type
+        !> The envelope-from address (upstream's string value).
+        character(len=:), allocatable :: address
+    contains
+        procedure :: clear_kinds => mail_envelope_from_clear_kinds
+        procedure :: other_value => mail_envelope_from_other_value
+        procedure :: kind_hint => mail_envelope_from_kind_hint
+    end type mail_envelope_from_choice_setting_type
+
+    !> Values of `mail_envelope_from' besides .false.
+    integer, parameter, public :: MAIL_ENVELOPE_FROM_HEADER = 2
+
+    !> If set, designate the envelope-from address when sending mail.
     !> This only has an effect if `mail_specify_envelope_from' is true.
-    !> The value should be a string, or unallocated (in which case the value of
-    !> `user_mail_address' is used).  Port of sendmail.el
-    !> mail-envelope-from (its value `header' is Deferred).
-    character(len=:), allocatable, public :: mail_envelope_from
+    !> The value should be either an address (`mail_envelope_from%address =
+    !> "..."'), or MAIL_ENVELOPE_FROM_HEADER (in
+    !> which case the contents of the "From" header of the message
+    !> being sent is used), or .false. (in which case the value of
+    !> `user_mail_address' is used).  Port of sendmail.el mail-envelope-from.
+    type(mail_envelope_from_choice_setting_type), public :: mail_envelope_from = &
+                                               mail_envelope_from_choice_setting_type(name="mail_envelope_from", true_valid=.false.)
 
     !> True means insert Bcc to self in messages to be sent.
     !> This is done when the message is initialized,
@@ -382,6 +403,21 @@ module send_mail_mod
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
+    interface
+        !> Ask the user how to send mail, showing the choices in a help
+        !> buffer; CHOSEN is the function chosen.  The "mail client" choice
+        !> names a function not ported yet (mailclient.el), so choosing it
+        !> is a `void_function' error condition.  Port of
+        !> sendmail.el:sendmail-query-user-about-smtp.  (In submodule
+        !> send_mail_query_mod, as the "smtp" choice is smtpmail_mod's
+        !> `send_mail_with_smtp', and smtpmail_mod uses this module.)
+        recursive module subroutine query_sendmail_user_about_smtp(chosen, status)
+            implicit none(type, external)
+            procedure(command_procedure), pointer, intent(out) :: chosen
+            type(status_type), intent(out) :: status
+        end subroutine query_sendmail_user_about_smtp
+    end interface
+
 contains
 
     ! ------------------------------------------------------------------
@@ -590,92 +626,6 @@ contains
         if (.not. status%ok()) return
         if (save) send_mail_function => chosen
     end subroutine query_sendmail_once
-
-    ! Ask the user how to send mail, showing the choices in a help
-    ! buffer; CHOSEN is the function chosen.  The "mail client" and "smtp"
-    ! choices name functions not ported yet (mailclient.el and
-    ! smtpmail.el), so choosing them is a `void_function' error condition.
-    ! Port of sendmail.el:sendmail-query-user-about-smtp.
-    recursive subroutine query_sendmail_user_about_smtp(chosen, status)
-        procedure(command_procedure), pointer, intent(out) :: chosen
-        type(status_type), intent(out) :: status
-        type(value_type), allocatable :: options(:)
-        type(value_type) :: item
-        type(completion_table_type) :: table
-        type(handle_type) :: old, help, window
-        character(len=:), allocatable :: choice, path, first
-        logical :: transport, saved_ignore
-        type(status_type) :: st
-
-        chosen => null()
-        transport = .false.
-
-        if (allocated(sendmail_program)) then
-            call executable_find(sendmail_program, path)
-            transport = len(path) > 0
-        end if
-
-        allocate (options(0))
-        item = value_type(text="mail client")
-        options = [options, item]
-
-        if (transport) then
-            item = value_type(text="transport")
-            options = [options, item]
-        end if
-
-        item = value_type(text="smtp")
-        options = [options, item]
-        first = "mail client"
-        ! Query the user.
-        old = current_buffer()
-        call generate_new_buffer("*Fortmacs Mail Setup Help*", help, status)
-        if (.not. status%ok()) return
-        call set_buffer(help, status)
-        call insert(substitute_command_keys(" Fortmacs is about to send an email message, but it has not been"//LF// &
-                                            " configured for sending email.  To tell Fortmacs how to send email:"//LF// &
-                                            LF//" - Type `")//"mail client"// &
-                    substitute_command_keys("' to start your default email client and"//LF// &
-                                            "   pass it the message text."//LF//LF), status)
-
-        if (transport) then
-            call insert(substitute_command_keys(" - Type `")//"transport"// &
-                        substitute_command_keys("' to invoke the system's mail transport agent"//LF//"   (the `")// &
-                        sendmail_program//substitute_command_keys("' program)."//LF//LF), status)
-        end if
-
-        call insert(substitute_command_keys(" - Type `")//"smtp"// &
-                    substitute_command_keys("' to send mail directly to an ""outgoing mail"" server."//LF// &
-                                            "   (Fortmacs may prompt you for SMTP settings)."//LF//LF// &
-                                            " Fortmacs will record your selection and will use it thereafter."//LF// &
-                                            " To change it later, set `send_mail_function'."//LF), status)
-        call goto_char(point_min())
-        call display_buffer(help, window, status)
-
-        if (status%ok()) then
-            table%kind = TABLE_LIST
-            table%list = make_list(options)
-            saved_ignore = completion_ignore_case%value
-            completion_ignore_case%value = .true.
-            call completing_read(format_prompt("Send mail via", first), table, choice, status, &
-                                 require_match=REQUIRE_MATCH_YES, default=first)
-            completion_ignore_case%value = saved_ignore
-        end if
-
-        ! The buffer of with-temp-buffer goes away.
-        call close_buffer(help, st)
-        if (is_buffer_live(old)) call set_buffer(old, st)
-        if (.not. status%ok()) return
-
-        select case (downcase_string(choice))
-        case ("transport")
-            chosen => send_mail_with_sendmail
-        case ("smtp")
-            call set_error(status, FM_VOID_FUNCTION, "smtpmail_send_it")
-        case default
-            call set_error(status, FM_VOID_FUNCTION, "mailclient_send_it")
-        end select
-    end subroutine query_sendmail_user_about_smtp
 
     ! ------------------------------------------------------------------
     ! Composing
@@ -1631,7 +1581,9 @@ contains
         type(handle_type) :: errbuf, tembuf, mailbuf, delimline
         type(value_type) :: result, destination, item
         type(value_type), allocatable :: argv(:)
-        character(len=:), allocatable :: selected_coding, envelope_from, charset, errors, resend_to(:), part(:), merged(:)
+        character(len=:), allocatable :: selected_coding, envelope_from, charset, errors, resend_to(:), part(:), merged(:), &
+                                         address
+        type(restriction_type) :: restriction
         logical :: failed, fcc_was_found, multibyte, saved_fold, found, has_errbuf
         integer(int64) :: moved, where_content_type, k, longest
         type(status_type) :: st
@@ -1659,9 +1611,15 @@ contains
         envelope_from = ""
 
         if (mail_specify_envelope_from) then
-            ! mail-envelope-from
-            if (allocated(mail_envelope_from)) then
-                envelope_from = mail_envelope_from
+            ! Only look at the headers when fetching the envelope address.
+            call save_restriction_begin(restriction)
+            call narrow_to_mail_headers(status)
+            if (status%ok()) call get_mail_envelope_from(address, status)
+            call save_restriction_end(restriction)
+            if (.not. status%ok()) return
+
+            if (allocated(address)) then
+                envelope_from = address
             else
                 envelope_from = user_mail_address_value()
             end if
@@ -2986,4 +2944,70 @@ contains
         text = "a string is `"//trim(self%name)//"%text = ""...""' and a procedure `"//trim(self%name)//"%procedure => mine'"
         if (len(number) < 0) text = number
     end function mail_signature_variable_kind_hint
+
+    !> The envelope mail address to use when sending mail, in ADDRESS
+    !> (unallocated for none).
+    !> This procedure uses the `mail_envelope_from' variable.
+    !>
+    !> The buffer should be narrowed to the headers of the mail message
+    !> before this procedure is called.  Port of
+    !> sendmail.el:mail-envelope-from.
+    recursive subroutine get_mail_envelope_from(address, status)
+        character(len=:), allocatable, intent(out) :: address
+        type(status_type), intent(out) :: status
+        type(mail_address_components_type), allocatable :: components(:)
+        character(len=:), allocatable :: from
+
+        status = status_type()
+
+        if (allocated(mail_envelope_from%address)) then
+            address = mail_envelope_from%address
+        else if (mail_envelope_from%choice == MAIL_ENVELOPE_FROM_HEADER) then
+            call get_mail_field("From", from, status)
+            if (.not. status%ok()) return
+
+            ! Upstream passes the missing field on to
+            ! mail-extract-address-components, which refuses it.
+            if (.not. allocated(from)) then
+                call set_error(status, FM_GENERIC_ERROR, "Invalid address: .false.")
+                return
+            end if
+
+            call extract_mail_address_components(from, components, status)
+            if (.not. status%ok()) return
+
+            if (size(components) > 0) then
+                if (allocated(components(1)%address)) address = components(1)%address
+            end if
+        end if
+    end subroutine get_mail_envelope_from
+
+    !> Forget the address of `mail_envelope_from', as any assignment to it
+    !> does.  Not a port.
+    subroutine mail_envelope_from_clear_kinds(self)
+        class(mail_envelope_from_choice_setting_type), intent(inout) :: self
+
+        if (allocated(self%address)) deallocate (self%address)
+    end subroutine mail_envelope_from_clear_kinds
+
+    !> The address of `mail_envelope_from' as help shows it
+    !> (`%address = "..."'); "" when none is set.  Not a port.
+    function mail_envelope_from_other_value(self) result(text)
+        class(mail_envelope_from_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (allocated(self%address)) text = "%address = """//self%address//""""
+    end function mail_envelope_from_other_value
+
+    !> The assignment that sets the address `mail_envelope_from' takes, for
+    !> the error of a rejected value.  Not a port.
+    function mail_envelope_from_kind_hint(self, number) result(text)
+        class(mail_envelope_from_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "an address is `"//trim(self%name)//"%address = ""...""'"
+        if (len(number) < 0) text = number
+    end function mail_envelope_from_kind_hint
 end module send_mail_mod

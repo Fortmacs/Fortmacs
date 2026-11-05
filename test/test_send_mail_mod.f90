@@ -42,7 +42,8 @@ module test_send_mail_mod
                              mail_signature, set_up_mail_with_from, mail_signature_variable, &
                              mail_from_style, send_mail_function, sendmail_program, mail_archive_file_name, &
                              sendmail_user_agent, mail_header_end, mail_text_start, &
-                             MAIL_FROM_STYLE_SIMPLE, MAIL_FROM_STYLE_ANGLES, MAIL_NOERASE_NO
+                             MAIL_FROM_STYLE_SIMPLE, MAIL_FROM_STYLE_ANGLES, MAIL_NOERASE_NO, mail_specify_envelope_from, &
+                             mail_envelope_from, MAIL_ENVELOPE_FROM_HEADER
     implicit none(type, external)
     private
 
@@ -68,7 +69,8 @@ contains
                     new_unittest("send-with-sendmail-fcc", test_send_fcc), &
                     new_unittest("send-with-sendmail-failure", test_send_failure), &
                     new_unittest("send-with-sendmail-error-output", test_send_error_output), &
-                    new_unittest("send-with-sendmail-no-recipients", test_no_recipients) &
+                    new_unittest("send-with-sendmail-no-recipients", test_no_recipients), &
+                    new_unittest("send-with-sendmail-envelope-from", test_envelope_from) &
                     ]
     end subroutine collect_send_mail_mod
 
@@ -402,4 +404,45 @@ contains
         if (.not. allocated(error)) call check(error, index(format_error(st), "No recipients") > 0, format_error(st))
         call leave(output)
     end subroutine test_no_recipients
+
+    !> The envelope-from address passed with -f: from the From field with
+    !> MAIL_ENVELOPE_FROM_HEADER, then the address `mail_envelope_from'
+    !> gives.
+    subroutine test_envelope_from(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        character(len=:), allocatable :: output
+
+        call set_up(output)
+        mail_specify_envelope_from = .true.
+        mail_envelope_from = MAIL_ENVELOPE_FROM_HEADER
+        call compose(error)
+        if (allocated(error)) return
+        call goto_char(point_min())
+        call insert("From: ""Ann Lee"" <ann@x.org>"//LF, st)
+        call send_mail(st)
+        call check(error, st%ok(), format_error(st))
+        if (.not. allocated(error)) call check(error, index(file_text(output), "-oi -f ann@x.org -oep") == 1, file_text(output))
+        call leave(output)
+
+        if (.not. allocated(error)) then
+            call set_up(output)
+            mail_envelope_from%address = "bounce@x.org"
+            call compose(error)
+
+            if (.not. allocated(error)) then
+                call send_mail(st)
+                call check(error, st%ok(), format_error(st))
+            end if
+
+            if (.not. allocated(error)) then
+                call check(error, index(file_text(output), "-oi -f bounce@x.org -oep") == 1, file_text(output))
+            end if
+
+            call leave(output)
+        end if
+
+        mail_specify_envelope_from = .false.
+        mail_envelope_from = .false.
+    end subroutine test_envelope_from
 end module test_send_mail_mod

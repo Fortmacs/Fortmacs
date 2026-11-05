@@ -104,12 +104,13 @@ module display_engine_mod
                              byte8_to_char, multibyte_chars_in_text
     use glyph_matrices_mod, only: glyph_type, glyph_row_type, DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, &
                                   HEADER_LINE_ACTIVE_FACE_ID, HEADER_LINE_INACTIVE_FACE_ID, &
-                                  MODE_LINE_INACTIVE_FACE_ID, VERTICAL_BORDER_FACE_ID, STRETCH_GLYPH, FILLED_BOX_CURSOR
+                                  MODE_LINE_INACTIVE_FACE_ID, VERTICAL_BORDER_FACE_ID, STRETCH_GLYPH, FILLED_BOX_CURSOR, &
+                                  TAB_BAR_FACE_ID
     use font_mod, only: font_type, font_metrics_type
     use face_realization_mod, only: face_at_buffer_position, face_at_string_position, merge_faces, realize_basic_faces, &
                                     TEXT_PROP_DISTANCE_LIMIT
     use frame_mod, only: frame_type, selected_frame, ensure_frames, selected_window, frame_lines, frame_cols, window_pixel_left, &
-                         window_pixel_top, window_pixel_width, window_pixel_height, window_body_pixel_width
+                         window_pixel_top, window_pixel_width, window_pixel_height, window_body_pixel_width, frame_top_margin
     use window_mod, only: execute_window_change_functions
     use window_mod, only: window_type, set_window_buffer, window_start, &
                           set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
@@ -204,6 +205,35 @@ module display_engine_mod
     !> of simple.el:redisplay-unhighlight-region-function.
     procedure(unhighlight_region_procedure), pointer, public :: redisplay_unhighlight_region_function => &
         redisplay_unhighlight_overlay_function
+
+    !> A run of the text of a tab bar item: TEXT, in FACES (face names; the
+    !> first wins where they set the same attribute; blank entries unused),
+    !> merged into the `tab_bar' face.  The caption of a tab bar item
+    !> (keyboard.c's TAB_BAR_ITEM_CAPTION) is one or more runs.  Not a port.
+    type, public :: tab_bar_run_type
+        character(len=:), allocatable :: text
+        character(len=40) :: faces(3) = ""
+        !> The run is a tab's close button (the `close-tab' text property).
+        logical :: close_tab = .false.
+    end type tab_bar_run_type
+
+    abstract interface
+        !> The runs of text to show in the selected frame's tab bar.
+        !> Not a port.
+        subroutine tab_bar_items_procedure(runs)
+            import :: tab_bar_run_type
+            implicit none(type, external)
+            type(tab_bar_run_type), allocatable, intent(out) :: runs(:)
+        end subroutine tab_bar_items_procedure
+    end interface
+
+    public :: tab_bar_items_procedure
+
+    !> Called by redisplay for the text of the tab bar of a frame with tab
+    !> bar lines (keyboard.c:tab_bar_items, which makes the items from
+    !> the `[tab-bar]' key's menu item filter, tab-bar.el's
+    !> tab-bar-make-keymap); set by tab_bar_mod.
+    procedure(tab_bar_items_procedure), pointer, public :: get_tab_bar_items => null()
 
     !> Values of `invisibility': hidden, and replaced by an ellipsis.
     integer, parameter, public :: INVISIBLE_HIDDEN = 1, INVISIBLE_ELLIPSIS = 2
@@ -488,8 +518,8 @@ contains
     ! ------------------------------------------------------------------
 
     !> Lay out the frame's windows, making them if need be: the window
-    !> tree above (at first one window, selected), the one-line minibuffer
-    !> window at the bottom.  Port of frame.c:make_terminal_frame and
+    !> tree above (at first one window, selected; below the tab bar lines,
+    !> if any), the one-line minibuffer window at the bottom.  Port of frame.c:make_terminal_frame and
     !> frame.c:make_frame_without_minibuffer, in part (their window part).
     subroutine init_frame_windows(f)
         type(frame_type), intent(inout) :: f
@@ -508,7 +538,7 @@ contains
             windows(f%minibuffer_window%index)%mini = .true.
         end if
 
-        call resize_window_tree(f%root_window, 0, 0, rows - 1, cols, cols)
+        call resize_window_tree(f%root_window, frame_top_margin(f), 0, rows - 1 - frame_top_margin(f), cols, cols)
         call resize_window_tree(f%minibuffer_window, rows - 1, 0, 1, cols, cols)
     end subroutine init_frame_windows
 
@@ -3655,6 +3685,61 @@ contains
         end function put
     end subroutine display_header_line
 
+    !> Draw the tab bar of terminal frame F on its tab bar lines: the runs
+    !> `get_tab_bar_items' gives, each in its faces merged into the
+    !> `tab_bar' face, cut at the right edge of the frame, and the rest
+    !> filled with spaces in the `tab_bar' face.  Port of
+    !> xdisp.c:display_tab_bar for a terminal frame (with
+    !> xdisp.c:update_tab_bar: the items are made again at each
+    !> redisplay).
+    subroutine display_tab_bar(f)
+        type(frame_type), intent(inout) :: f
+        type(tab_bar_run_type), allocatable :: runs(:)
+        type(glyph_row_type) :: rows(1)
+        type(glyph_type) :: cells(MAX_CHAR_CELLS)
+        integer(int32), allocatable :: chars(:)
+        integer(int32) :: face
+        integer :: cols, column, k, i, j, n, nchars, r
+
+        cols = f%desired_matrix%ncols
+        allocate (rows(1)%glyphs(cols))
+
+        do r = 0, f%tab_bar_lines - 1
+            ! Clear all rows of the tab bar.
+            rows(1)%glyphs = glyph_type(face_id=TAB_BAR_FACE_ID)
+            call put_rows(f, r, 0, rows, .false.)
+        end do
+
+        if (associated(get_tab_bar_items)) call get_tab_bar_items(runs)
+        if (.not. allocated(runs)) return
+        column = 0
+
+        ! Display all items of the tab bar.
+        items: do k = 1, size(runs)
+            face = TAB_BAR_FACE_ID
+
+            do i = size(runs(k)%faces), 1, -1
+                if (len_trim(runs(k)%faces(i)) > 0) face = merge_faces(f, trim(runs(k)%faces(i)), 0_int32, face)
+            end do
+
+            call decode_string(runs(k)%text, chars, nchars)
+
+            do i = 1, nchars
+                cells = glyph_type()
+                call produce_char(chars(i), column, cells, n, gui=.false.)
+                cells(1:n)%face_id = face
+
+                do j = 1, n
+                    if (column >= cols) exit items
+                    rows(1)%glyphs(column + 1) = cells(j)
+                    column = column + 1
+                end do
+            end do
+        end do items
+
+        call put_rows(f, 0, 0, rows, .false.)
+    end subroutine display_tab_bar
+
     !> Where and how large the cursor of window `w' on window-system frame
     !> `f' is drawn: on glyph `hpos' of `row' at pixel `x' of the text
     !> area (less wide on a stretch glyph, `x_stretch_cursor' .false.), as high
@@ -4124,7 +4209,7 @@ contains
         logical, intent(in) :: nlflag
         type(handle_type) :: oldbuf, buffer, oldpoint, oldbegv, oldzv
         type(status_type) :: st
-        integer(int64) :: this_bol, this_bol_byte, prev_bol, prev_bol_byte, dups, pos
+        integer(int64) :: this_bol, this_bol_byte, prev_bol, prev_bol_byte, dups, pos, pos_byte
         logical :: newbuffer, point_at_end, zv_at_end, old_inhibit
         character(len=24) :: dupstr
 
@@ -4200,17 +4285,21 @@ contains
             inhibit_modification_hooks%value = old_inhibit
         end if
 
+        ! The byte position first, while begv still matches its byte
+        ! position.
         call marker_position(oldbegv, pos, st)
+        pos_byte = buf_charpos_to_bytepos(current, pos)
         buffers(current)%begv = pos
-        buffers(current)%begv_byte = buf_charpos_to_bytepos(current, pos)
+        buffers(current)%begv_byte = pos_byte
 
         if (zv_at_end) then
             buffers(current)%zv = buffers(current)%text%z
             buffers(current)%zv_byte = buffers(current)%text%z_byte
         else
             call marker_position(oldzv, pos, st)
+            pos_byte = buf_charpos_to_bytepos(current, pos)
             buffers(current)%zv = pos
-            buffers(current)%zv_byte = buf_charpos_to_bytepos(current, pos)
+            buffers(current)%zv_byte = pos_byte
         end if
 
         if (point_at_end) then
@@ -4377,6 +4466,8 @@ contains
             do r = 0, windows(f%minibuffer_window%index)%top_line - 1
                 call blank_row(f, r)
             end do
+
+            if (f%tab_bar_lines > 0) call display_tab_bar(f)
         end if
 
         ! Each live window, at its point: the buffer's point for the

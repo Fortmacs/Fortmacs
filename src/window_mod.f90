@@ -34,6 +34,7 @@ module window_mod
     use data_mod, only: choice_setting_type
     use marker_mod, only: make_marker, destroy_marker, set_marker, marker_position
     use hooks_mod, only: hook_type
+    use value_mod, only: command_procedure
     implicit none(type, external)
     private
 
@@ -47,6 +48,8 @@ module window_mod
               split_window_and_copy, is_window_combined, is_window_full_height, is_window_splittable, &
               copy_quit_restore, window_resize, init_window_display, &
               current_window_configuration, set_window_configuration, destroy_window_configuration, &
+              get_window_state, set_window_state, destroy_window_state, &
+              window_display_buffer, &
               copy_window_configuration, is_window_configuration_equal, execute_window_change_functions, &
               execute_window_configuration_change_hook
     public :: window_start, set_window_start, window_point, &
@@ -115,8 +118,9 @@ module window_mod
 
     !> What a window's `quit_restore' parameter records (see
     !> window.el:display-buffer-record-window): how the window came to
-    !> show `buffer' (QR_WINDOW, QR_FRAME, QR_SAME or QR_OTHER; QR_NONE
-    !> for no parameter), what to restore (QR_WINDOW, QR_FRAME, or with
+    !> show `buffer' (QR_WINDOW, QR_FRAME, QR_TAB, QR_SAME or QR_OTHER;
+    !> QR_NONE for no parameter), what to restore (QR_WINDOW, QR_FRAME,
+    !> QR_TAB, or with
     !> `has_quad' the buffer shown before with its start, point and
     !> size), and the window selected at the time.
     type, public :: quit_restore_type
@@ -131,7 +135,13 @@ module window_mod
     end type quit_restore_type
 
     !> Kinds of `quit_restore' parameter.
-    integer, parameter, public :: QR_NONE = 0, QR_WINDOW = 1, QR_FRAME = 2, QR_SAME = 3, QR_OTHER = 4
+    integer, parameter, public :: QR_NONE = 0, QR_WINDOW = 1, QR_FRAME = 2, QR_SAME = 3, QR_OTHER = 4, QR_TAB = 5
+
+    !> Called by `quit_window' and the other callers of window.el's
+    !> window--delete to close the selected frame's current tab when the
+    !> window to delete is its last one (tab-bar.el's tab-bar-close-tab,
+    !> set by tab_bar_mod: the windows are below the tab bar).
+    procedure(command_procedure), pointer, public :: close_tab_hook => null()
 
     !> Dedication of a window to its buffer: none, weak or strong
     !> (DEDICATED_NONE, DEDICATED_WEAK and DEDICATED_STRONG), or
@@ -583,6 +593,32 @@ module window_mod
         !> frame_lines).
         integer :: frame_cols = 0, frame_lines = 0
     end type window_configuration_type
+
+    !> A window of a window state: its place in the tree (the indices of
+    !> its parent and previous sibling in the state, 0 for none), its
+    !> edges relative to the state's root window, its sizes, and for a live
+    !> window its buffer with copies of its start and point, its other
+    !> buffer settings and its previous and next buffers.  Not a port.
+    type :: window_state_window_type
+        integer :: parent = 0, prev = 0
+        logical :: live = .false., horizontal = .false., divider = .false.
+        integer :: left_col = 0, top_line = 0, total_cols = 0, total_lines = 0
+        real(real64) :: normal_lines = 1.0_real64, normal_cols = 1.0_real64
+        type(handle_type) :: buffer, start, point
+        logical :: selected = .false.
+        integer :: hscroll = 0, dedicated = DEDICATED_NONE
+        type(prev_buffer_type), allocatable :: prev_buffers(:)
+        type(handle_type), allocatable :: next_buffers(:)
+    end type window_state_window_type
+
+    !> The state of a window and its subwindows, depth first, which
+    !> `set_window_state' puts back as new windows.  Free it with
+    !> `destroy_window_state'.  Port of window.el's window state (as
+    !> window-state-get makes it with WRITABLE false: markers, not
+    !> positions; no window parameters, pixel sizes or minimum sizes).
+    type, public :: window_state_type
+        type(window_state_window_type), allocatable :: windows(:)
+    end type window_state_type
 
     !> The window registry, indexed by handle (windows are objects with
     !> explicit lifetimes: make_window, delete_window_object).
@@ -1063,17 +1099,19 @@ module window_mod
 
         !> Display BUFFER in some window and return that window (the null
         !> handle if none could be found): the action functions ACTIONS
-        !> (DISPLAY_ACTION_* codes) are tried in turn with TABLE, then those
-        !> of `display_buffer_fallback_action'.  Port of
+        !> (DISPLAY_ACTION_* codes) are tried in turn with TABLE, after
+        !> ACTION_FUNCTION if present (an action function of the ACTION
+        !> argument), then those of `display_buffer_fallback_action'.  Port of
         !> window.el:display-buffer (and of window.c:display_buffer, which
         !> calls it).
-        module subroutine display_buffer(buffer, window, status, actions, table)
+        module subroutine display_buffer(buffer, window, status, actions, table, action_function)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             type(handle_type), intent(out) :: window
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
             type(display_action_parameters_type), intent(in), optional :: table
+            procedure(display_action_function_procedure), optional :: action_function
         end subroutine display_buffer
 
         !> Display BUFFER in no window.
@@ -1099,13 +1137,14 @@ module window_mod
 
         !> Display BUFFER and select its window.  Port of
         !> window.el:pop-to-buffer.
-        module subroutine pop_to_buffer(buffer, status, actions, table, norecord)
+        module subroutine pop_to_buffer(buffer, status, actions, table, norecord, action_function)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
             type(display_action_parameters_type), intent(in), optional :: table
             logical, intent(in), optional :: norecord
+            procedure(display_action_function_procedure), optional :: action_function
         end subroutine pop_to_buffer
 
         !> Select the buffer BUFFER in another window.  Return the buffer
@@ -1401,6 +1440,38 @@ module window_mod
             type(window_configuration_type), intent(in) :: config
             type(window_configuration_type), intent(out) :: copy
         end subroutine copy_window_configuration
+
+        !> Return state of the selected frame's root window and its
+        !> subwindows: their sizes and structure, and for each live window
+        !> its buffer, where display starts, point, horizontal scrolling,
+        !> dedication and previous and next buffers.  Free it with
+        !> `destroy_window_state'.  Port of window.el:window-state-get
+        !> (WINDOW the frame's root window, WRITABLE false; window
+        !> parameters, pixel and minimum sizes are not recorded).
+        module subroutine get_window_state(state)
+            implicit none(type, external)
+            type(window_state_type), intent(out) :: state
+        end subroutine get_window_state
+
+        !> Put window state STATE into the selected frame: its windows are
+        !> deleted and new ones made with STATE's structure, sizes, buffers,
+        !> starts and points; the window that was selected when STATE was
+        !> made is selected.  STATE's root window must be as large as the
+        !> frame's (else an `error' error condition occurs).  Port of
+        !> window.el:window-state-put (WINDOW absent, the totals equal; resizing
+        !> to other sizes and window parameters are Deferred).
+        module subroutine set_window_state(state, status)
+            implicit none(type, external)
+            type(window_state_type), intent(in) :: state
+            type(status_type), intent(out) :: status
+        end subroutine set_window_state
+
+        !> Free window state STATE: its markers.  Not a port (upstream
+        !> relies on GC).
+        module subroutine destroy_window_state(state)
+            implicit none(type, external)
+            type(window_state_type), intent(inout) :: state
+        end subroutine destroy_window_state
 
         !> Say whether two window configurations have the same window layout.
         !> This function ignores details such as the values of point and

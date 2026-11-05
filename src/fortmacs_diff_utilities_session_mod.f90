@@ -24,7 +24,7 @@
 ! fortmacs_diff_diff_mod (which use fortmacs_diff_utilities_mod), with the commands.
 submodule(fortmacs_diff_utilities_mod) fortmacs_diff_utilities_session_mod
     use error_mod, only: set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, FM_QUIT
-    use handle_mod, only: null_handle
+    use handle_mod, only: null_handle, same_handle
     use value_mod, only: value_type, vtag, xfixnum, V_INTEGER, choice_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, buffer_list, is_buffer_modified, &
                           header_line_format_type, restore_buffer_modified, erase_buffer, get_file_buffer
@@ -81,11 +81,14 @@ submodule(fortmacs_diff_utilities_mod) fortmacs_diff_utilities_session_mod
     use fortmacs_diff_diff_mod, only: set_up_ediff_diff_regions, set_up_ediff_diff_regions3, set_ediff_actual_diff_options, &
                                       ediff_actual_diff_options, execute_ediff_process, ediff_custom_diff_program, &
                                       ediff_custom_diff_options
+    use fortmacs_diff_multiple_mod, only: ediff_session_registry, update_ediff_registry, update_ediff_meta_buffer, &
+                                          show_ediff_meta_buffer
     use fortmacs_diff_merging_mod, only: ediff_default_variant, ediff_show_clashes_only, &
-                                         ediff_skip_merge_regions_that_differ_from_default, &
-                                         ediff_quit_merge_hook, is_ediff_merge_region_non_clash_to_skip, &
-                                       is_ediff_skip_merge_region_if_changed_from_default, set_ediff_state_of_diff_in_all_buffers, &
-                                  set_ediff_state_of_all_diffs_in_all_buffers, set_ediff_merge_mode, EDIFF_DEFAULT_VARIANT_DEFAULT_B
+                                         ediff_skip_merge_regions_that_differ_from_default, ediff_quit_merge_hook, &
+                                         is_ediff_merge_region_non_clash_to_skip, &
+                                         is_ediff_skip_merge_region_if_changed_from_default, &
+                                         set_ediff_state_of_diff_in_all_buffers, set_ediff_state_of_all_diffs_in_all_buffers, &
+                                         set_ediff_merge_mode, EDIFF_DEFAULT_VARIANT_DEFAULT_B
     implicit none(type, external)
 
     character, parameter :: LF = achar(10)
@@ -224,6 +227,8 @@ contains
         call bind("h", "toggle_ediff_highlighting")
         call bind("?", "toggle_ediff_help")
         call bind("!", "update_ediff_diffs")
+        call bind("M", "show_ediff_current_session_meta_buffer")
+        call bind("R", "show_ediff_registry")
 
         if (ediff_sessions(k)%merge_job) then
             ! Will barf if no ancestor.
@@ -525,6 +530,19 @@ contains
         if (.not. status%ok()) return
         call refresh_ediff_mode_lines(k)
         buffers(current)%read_only = .true.
+        if (.not. allocated(ediff_session_registry)) allocate (ediff_session_registry(0))
+        ediff_session_registry = [control_buffer, ediff_session_registry]
+        call update_ediff_registry(status)
+        if (.not. status%ok()) return
+
+        if (is_buffer_live(ediff_sessions(k)%meta_buffer)) then
+            call update_ediff_meta_buffer(ediff_sessions(k)%meta_buffer, status, &
+                                          session_number=ediff_sessions(k)%meta_session_number)
+            if (.not. status%ok()) return
+        end if
+
+        call set_buffer(control_buffer, status)
+        if (.not. status%ok()) return
         call ediff_startup_hook%execute(status)
 
         ! Make the old buffer current again, keeping the first error.
@@ -1580,9 +1598,13 @@ contains
         integer, intent(in) :: k
         logical, intent(in) :: reverse_default_keep_variants
         type(status_type), intent(out) :: status
+        type(handle_type) :: control_buffer, meta_buffer
         logical :: keep_variants
-        integer :: t
+        integer :: t, session_number
 
+        control_buffer = ediff_sessions(k)%control_buffer
+        meta_buffer = ediff_sessions(k)%meta_buffer
+        session_number = ediff_sessions(k)%meta_session_number
         call unhighlight_ediff_diffs_totally(k, status)
         if (.not. status%ok()) return
         call clear_ediff_differences(k)
@@ -1599,6 +1621,15 @@ contains
             ediff_sessions(k)%narrow_bounds(t) = null_handle()
             ediff_sessions(k)%visible_bounds(t) = null_handle()
         end do
+
+        if (allocated(ediff_session_registry)) then
+            ediff_session_registry = pack(ediff_session_registry,.not. same_handle(ediff_session_registry, control_buffer))
+        end if
+
+        call update_ediff_registry(status)
+        if (.not. status%ok()) return
+        call set_buffer(control_buffer, status)
+        if (.not. status%ok()) return
 
         ! If the user interrupts (canceling saving the merge buffer),
         ! continue normally.
@@ -1619,6 +1650,12 @@ contains
         ! One hook here is clean_up_ediff_mess, which kills the control
         ! buffer and other auxiliary buffers.
         call ediff_quit_hook%execute(status)
+        if (.not. status%ok()) return
+        call update_ediff_meta_buffer(meta_buffer, status, session_number=session_number)
+        if (.not. status%ok()) return
+        ! What ediff-mult.el:ediff-filegroup-action adds to
+        ! `ediff-after-quit-hook-internal': back to the session group.
+        if (is_buffer_live(meta_buffer)) call show_ediff_meta_buffer(status, meta_buffer, session_number=session_number)
     end subroutine quit_ediff_session
 
     ! Kill control buffer, other auxiliary Ediff buffers.
@@ -2560,8 +2597,7 @@ contains
             call write_ediff_merge_buffer_and_maybe_close(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_C), merge_store_file, &
                                                           .false., save_and_continue, status)
         end if
-        ! Otherwise the parent session group's job passed no file (session
-        ! groups are Deferred with ediff-mult.el).
+        ! Otherwise the parent session group's job passed no file.
     end subroutine maybe_save_and_delete_ediff_merge_session
 
     ! Write merge buffer BUFFER into FILE (asking before overwriting an
@@ -2725,13 +2761,7 @@ contains
         end if
     end subroutine save_ediff_buffer
 
-    ! Compute the custom diff output of buffers A and B of session K into
-    ! its custom diff buffer, in Diff mode: `ediff_custom_diff_program'
-    ! with `ediff_custom_diff_options' on their files (temporary copies
-    ! when a buffer visits no existing file).  Port of
-    ! ediff-util.el:ediff-compute-custom-diffs-maybe (remote files are not
-    ! ported).
-    recursive subroutine compute_ediff_custom_diffs_maybe(k, status)
+    recursive module subroutine compute_ediff_custom_diffs_maybe(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file_a, file_b

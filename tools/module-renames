@@ -94,6 +94,7 @@ regexp_opt regular_expression_optimization
 rmc read_multiple_choice
 savehist save_history
 sendmail send_mail
+sendmail_query send_mail_query
 sh_script shell_script
 simple_setvar simple_set_variable
 smerge_mode simple_merge_mode
@@ -103,6 +104,7 @@ subr_change_group basic_subprograms_change_group
 subr_hooks basic_subprograms_hooks
 subr_read basic_subprograms_read
 sys_linux system_linux
+sys_socket system_socket
 sys_worker system_worker
 sysdep system_dependent
 term terminal_output

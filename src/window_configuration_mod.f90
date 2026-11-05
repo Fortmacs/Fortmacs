@@ -36,8 +36,9 @@ submodule(window_mod) window_configuration_mod
                           get_or_make_buffer
     use marker_mod, only: make_marker, destroy_marker, set_marker, set_marker_restricted, marker_position
     use editing_functions_mod, only: goto_char
-    use frame_mod, only: selected_frame
+    use frame_mod, only: selected_frame, frame_lines, frame_top_margin, resize_frame_windows
     use minibuffer_reading_mod, only: is_minibuffer, minibuf_level
+    use error_mod, only: set_error, FM_GENERIC_ERROR
     implicit none(type, external)
 
 contains
@@ -407,6 +408,15 @@ contains
 
         selected_frame%root_window = config%root_window
 
+        ! Resize the frame's windows if necessary: adjust_frame_size with
+        ! the frame's size, here when the configuration was saved with
+        ! another top margin (tab bar lines) than the frame has now.
+        if (windows(config%root_window%index)%top_line /= frame_top_margin(selected_frame) .and. &
+            frame_lines(selected_frame) > 0) then
+            call resize_frame_windows(selected_frame, (frame_lines(selected_frame) - &
+                                                       frame_top_margin(selected_frame))*selected_frame%line_height, .false.)
+        end if
+
         ! Arrange *not* to restore point in the buffer that was current
         ! when the window configuration was saved.
         if (window_current_shows(config%current_window, new_current_buffer)) then
@@ -584,4 +594,264 @@ contains
 
         equal = .true.
     end function is_window_configuration_equal
+
+    ! ------------------------------------------------------------------
+    ! Window states
+    ! ------------------------------------------------------------------
+
+    module subroutine get_window_state(state)
+        type(window_state_type), intent(out) :: state
+        integer :: n
+
+        call ensure_frame_windows_here()
+        allocate (state%windows(count_windows(selected_frame%root_window)))
+        n = get_window_state_1(selected_frame%root_window, state%windows, 1, 0)
+    end subroutine get_window_state
+
+    !> Record `h' and its next siblings, with their children, in WINDOWS
+    !> from index I on (depth first); PARENT is the index of their parent.
+    !> Return the next free index.  Port of window.el:window--state-get-1.
+    recursive integer function get_window_state_1(h, states, i, parent) result(next)
+        type(handle_type), intent(in) :: h
+        type(window_state_window_type), intent(inout) :: states(:)
+        integer, intent(in) :: i, parent
+        type(handle_type) :: w, root
+        type(status_type) :: status
+        integer(int64) :: pos, bi
+        integer :: prev, k
+
+        next = i
+        prev = 0
+        w = h
+        root = selected_frame%root_window
+
+        do while (is_window_valid(w))
+            associate (p => states(next), x => windows(w%index))
+                p%parent = parent
+                p%prev = prev
+                p%live = .not. is_window_valid(x%child)
+                p%horizontal = x%horizontal
+                p%divider = x%divider
+                p%left_col = x%left_col - windows(root%index)%left_col
+                p%top_line = x%top_line - windows(root%index)%top_line
+                p%total_cols = x%total_cols
+                p%total_lines = x%total_lines
+                p%normal_lines = x%normal_lines
+                p%normal_cols = x%normal_cols
+
+                if (p%live .and. is_buffer_live(x%buffer)) then
+                    p%buffer = x%buffer
+                    p%selected = same_window(w, selected_frame%selected_window)
+                    p%hscroll = x%hscroll
+                    p%dedicated = x%dedicated
+
+                    ! The selected window's point is its buffer's.
+                    if (p%selected) then
+                        call resolve_buffer(p%buffer, bi, status)
+                        pos = buffers(bi)%pt
+                    else
+                        pos = window_point(x)
+                    end if
+
+                    call make_marker(p%point)
+                    call set_marker(p%point, pos, status, p%buffer)
+                    call make_marker(p%start)
+                    call set_marker(p%start, window_start(x), status, p%buffer)
+
+                    if (allocated(x%prev_buffers)) then
+                        allocate (p%prev_buffers(size(x%prev_buffers)))
+
+                        do k = 1, size(x%prev_buffers)
+                            p%prev_buffers(k)%buffer = x%prev_buffers(k)%buffer
+                            call copy_saved_marker(x%prev_buffers(k)%start, x%prev_buffers(k)%buffer, &
+                                                   p%prev_buffers(k)%start)
+                            call copy_saved_marker(x%prev_buffers(k)%point, x%prev_buffers(k)%buffer, &
+                                                   p%prev_buffers(k)%point)
+                        end do
+                    end if
+
+                    if (allocated(x%next_buffers)) p%next_buffers = x%next_buffers
+                end if
+            end associate
+
+            prev = next
+            next = next + 1
+
+            if (is_window_valid(windows(w%index)%child)) then
+                next = get_window_state_1(windows(w%index)%child, states, next, prev)
+            end if
+
+            w = windows(w%index)%next
+        end do
+
+    contains
+
+        !> A new marker M in BUFFER where marker FROM points (null when
+        !> FROM is).  Not a port.
+        subroutine copy_saved_marker(from, buffer, m)
+            type(handle_type), intent(in) :: from, buffer
+            type(handle_type), intent(out) :: m
+            integer(int64) :: pos
+
+            m = null_handle()
+            if (from%index == 0) return
+            call make_marker(m)
+            call marker_position(from, pos, status)
+            if (.not. status%ok()) return
+            if (is_buffer_live(buffer)) call set_marker(m, pos, status, buffer)
+        end subroutine copy_saved_marker
+    end function get_window_state_1
+
+    module subroutine set_window_state(state, status)
+        type(window_state_type), intent(in) :: state
+        type(status_type), intent(out) :: status
+        type(handle_type), allocatable :: made(:), leaves(:)
+        type(handle_type) :: root, selected, b
+        integer :: k, top, left
+
+        status = status_type()
+        call ensure_frame_windows_here()
+        if (.not. allocated(state%windows)) return
+        if (size(state%windows) == 0) return
+        root = selected_frame%root_window
+
+        if (state%windows(1)%total_cols /= windows(root%index)%total_cols .or. &
+            state%windows(1)%total_lines /= windows(root%index)%total_lines) then
+            call set_error(status, FM_GENERIC_ERROR, "Window state of another size")
+            return
+        end if
+
+        top = windows(root%index)%top_line
+        left = windows(root%index)%left_col
+        ! Delete the frame's windows.
+        call window_leaves(root, leaves)
+
+        do k = 1, size(leaves)
+            call unshow_buffer(leaves(k))
+        end do
+
+        call delete_window_tree(root)
+        ! Make the new ones.
+        allocate (made(size(state%windows)))
+        selected = null_handle()
+
+        do k = 1, size(state%windows)
+            call make_window(made(k))
+        end do
+
+        do k = 1, size(state%windows)
+            associate (p => state%windows(k), w => windows(made(k)%index))
+                w%left_col = left + p%left_col
+                w%top_line = top + p%top_line
+                w%total_cols = p%total_cols
+                w%total_lines = p%total_lines
+                w%normal_lines = p%normal_lines
+                w%normal_cols = p%normal_cols
+                w%horizontal = p%horizontal
+                w%divider = p%divider
+                if (p%parent /= 0) w%parent = made(p%parent)
+
+                if (p%prev /= 0) then
+                    w%prev = made(p%prev)
+                    windows(made(p%prev)%index)%next = made(k)
+                else if (p%parent /= 0) then
+                    windows(made(p%parent)%index)%child = made(k)
+                end if
+            end associate
+
+            if (.not. state%windows(k)%live) cycle
+            b = state%windows(k)%buffer
+            if (.not. is_buffer_live(b)) b = other_buffer_safely(current_buffer())
+            call set_window_buffer_internal(made(k), b, .false.)
+
+            if (same_handle(b, state%windows(k)%buffer)) then
+                call restrict(windows(made(k)%index)%start, marker_pos(state%windows(k)%start), b)
+                call restrict(windows(made(k)%index)%pointm, marker_pos(state%windows(k)%point), b)
+                windows(made(k)%index)%hscroll = state%windows(k)%hscroll
+                windows(made(k)%index)%dedicated = state%windows(k)%dedicated
+
+                if (allocated(state%windows(k)%next_buffers)) then
+                    windows(made(k)%index)%next_buffers = state%windows(k)%next_buffers
+                end if
+
+                call put_prev_buffers(made(k), state%windows(k))
+                if (state%windows(k)%selected) selected = made(k)
+            end if
+        end do
+
+        selected_frame%root_window = made(1)
+        if (.not. is_window_live(selected)) call first_live(selected)
+        call select_window(selected, status)
+
+    contains
+
+        !> The first live window made, in SELECTED.  Not a port.
+        subroutine first_live(window)
+            type(handle_type), intent(out) :: window
+            integer :: j
+
+            window = made(1)
+
+            do j = 1, size(made)
+                if (is_window_live(made(j))) then
+                    window = made(j)
+                    return
+                end if
+            end do
+        end subroutine first_live
+    end subroutine set_window_state
+
+    !> Give window H the previous buffers of state window P (those still
+    !> live), with markers of their own.  Port of
+    !> window.el:window--state-put-2 (its prev-buffers part).
+    subroutine put_prev_buffers(h, p)
+        type(handle_type), intent(in) :: h
+        type(window_state_window_type), intent(in) :: p
+        type(prev_buffer_type), allocatable :: entries(:)
+        type(handle_type) :: m
+        type(status_type) :: status
+        integer :: k, n
+
+        if (.not. allocated(p%prev_buffers)) return
+        allocate (entries(size(p%prev_buffers)))
+        n = 0
+
+        do k = 1, size(p%prev_buffers)
+            if (.not. is_buffer_live(p%prev_buffers(k)%buffer)) cycle
+            n = n + 1
+            entries(n)%buffer = p%prev_buffers(k)%buffer
+            call make_marker(m)
+            call set_marker(m, marker_pos(p%prev_buffers(k)%start), status, entries(n)%buffer)
+            entries(n)%start = m
+            call make_marker(m)
+            call set_marker(m, marker_pos(p%prev_buffers(k)%point), status, entries(n)%buffer)
+            entries(n)%point = m
+        end do
+
+        windows(h%index)%prev_buffers = entries(1:n)
+    end subroutine put_prev_buffers
+
+    module subroutine destroy_window_state(state)
+        type(window_state_type), intent(inout) :: state
+        type(status_type) :: status
+        integer :: k, j
+
+        if (.not. allocated(state%windows)) return
+
+        do k = 1, size(state%windows)
+            associate (p => state%windows(k))
+                if (p%start%index /= 0) call destroy_marker(p%start, status)
+                if (p%point%index /= 0) call destroy_marker(p%point, status)
+
+                if (allocated(p%prev_buffers)) then
+                    do j = 1, size(p%prev_buffers)
+                        if (p%prev_buffers(j)%start%index /= 0) call destroy_marker(p%prev_buffers(j)%start, status)
+                        if (p%prev_buffers(j)%point%index /= 0) call destroy_marker(p%prev_buffers(j)%point, status)
+                    end do
+                end if
+            end associate
+        end do
+
+        deallocate (state%windows)
+    end subroutine destroy_window_state
 end submodule window_configuration_mod

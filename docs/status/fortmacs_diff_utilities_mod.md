@@ -61,7 +61,10 @@ the highlighting with faces or ASCII flags (`ediff-highlight-diff(-in-one-buffer
 `ediff-make-temp-file`,
 `ediff-verify-file-buffer`,
 `ediff-other-buffer`,
-`ediff-unique-buffer-name`
+`ediff-unique-buffer-name`,
+the session registry in `ediff-setup` and `ediff-really-quit` (`ediff-session-registry`, `ediff-update-registry`, the session group's record updated),
+M (`ediff-show-current-session-meta-buffer`) and R (`ediff-show-registry`),
+`ediff-after-quit-hook-internal` as given by session groups (back to the group after quitting)
 
 ## Deferred
 
@@ -77,7 +80,6 @@ scrolling (`v`, `V`, `C-v`, `M-v`, `^`, `<`, `>`: `ediff-scroll-vertically`, `-h
 `ediff-documentation` (E),
 `ediff-help-for-quick-help` (RET, mouse-2),
 `ediff-submit-report` (G),
-the session registry and groups (R, M; ediff-mult.el),
 `ediff-toggle-wide-display` (m),
 `ediff-toggle-multiframe`,
 `ediff-toggle-use-toolbar`,
@@ -88,7 +90,7 @@ the session registry and groups (R, M; ediff-mult.el),
 `ediff-debug-info`,
 `ediff-profile`,
 the mode lines of buffers A, B and C (`ediff-strip-mode-line-format`, `ediff-protected-variables`: waits for `mode_line_format`),
-`ediff-delete-temp-files` and the deletion at exit (the temporary files of revision jobs),
+`ediff-delete-temp-files` and the deletion at exit (`ediff--delete-temp-files-on-kill-emacs`; the temporary files of revision jobs),
 `balance-windows` in `ediff-cleanup-mess`,
 the `window-min-height` bindings,
 indirect buffers,

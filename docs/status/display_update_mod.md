@@ -47,7 +47,8 @@ step 42e: frame size changes: `handle_window_change_signal` (run by `do_pending_
 `change_frame_size_1`,
 `frame_size_change_delayed` (`is_frame_size_change_delayed`),
 frame.c's `adjust_frame_size` with INHIBIT 5 (windows resized, the terminal's size set, the selected window's cursor kept inside it, matrices reallocated, costs recomputed, the frame marked for redraw),
-xdisp.c's `redisplaying_p` (`redisplaying`; both here, not in frame_mod and display_engine_mod, which would then use each other: adjust_frame_size needs the matrices and the terminal's costs, whose modules use frame_mod, and display_engine_mod uses display_update_mod, which reads redisplaying_p)
+xdisp.c's `redisplaying_p` (`redisplaying`; both here, not in frame_mod and display_engine_mod, which would then use each other: adjust_frame_size needs the matrices and the terminal's costs, whose modules use frame_mod, and display_engine_mod uses display_update_mod, which reads redisplaying_p),
+step 44b: the top margin (tab bar lines) in `adjust_frame_size`
 
 ## Deferred
 

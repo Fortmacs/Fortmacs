@@ -113,6 +113,7 @@ program tester
     use test_fortmacs_diff_diff_mod, only: collect_fortmacs_diff_diff_mod
     use test_fortmacs_diff_utilities_mod, only: collect_fortmacs_diff_utilities_mod
     use test_fortmacs_diff_merging_mod, only: collect_fortmacs_diff_merging_mod
+    use test_fortmacs_diff_multiple_mod, only: collect_fortmacs_diff_multiple_mod
     use test_simple_merge_mode_mod, only: collect_simple_merge_mode_mod
     use test_view_mod, only: collect_view_mod
     use test_files_copy_mod, only: collect_files_copy_mod
@@ -163,6 +164,7 @@ program tester
     use test_namelist_mod, only: collect_namelist_mod
     use test_save_history_mod, only: collect_save_history_mod
     use test_winner_mod, only: collect_winner_mod
+    use test_tab_bar_mod, only: collect_tab_bar_mod
     use test_window_move_mod, only: collect_window_move_mod
     use test_saveplace_mod, only: collect_saveplace_mod
     use test_recent_files_mod, only: collect_recent_files_mod
@@ -171,11 +173,14 @@ program tester
     use test_info_lookup_mod, only: collect_info_lookup_mod
     use test_programmable_completion_mod, only: collect_programmable_completion_mod
     use test_mail_utilities_mod, only: collect_mail_utilities_mod
+    use test_mail_extract_mod, only: collect_mail_extract_mod
     use test_mail_abbreviations_mod, only: collect_mail_abbreviations_mod
     use test_send_mail_mod, only: collect_send_mail_mod
+    use test_smtpmail_mod, only: collect_smtpmail_mod
     use test_ansi_color_mod, only: collect_ansi_color_mod
     use test_buffer_menu_mod, only: collect_buffer_menu_mod
     use test_calendar_mod, only: collect_calendar_mod
+    use test_holidays_mod, only: collect_holidays_mod
     use test_ibuffer_mod, only: collect_ibuffer_mod
     use test_ibuffer_extensions_mod, only: collect_ibuffer_extensions_mod
     use test_time_date_mod, only: collect_time_date_mod
@@ -252,6 +257,7 @@ program tester
                  new_testsuite("fortmacs_diff_diff_mod", collect_fortmacs_diff_diff_mod), &
                  new_testsuite("fortmacs_diff_utilities_mod", collect_fortmacs_diff_utilities_mod), &
                  new_testsuite("fortmacs_diff_merging_mod", collect_fortmacs_diff_merging_mod), &
+                 new_testsuite("fortmacs_diff_multiple_mod", collect_fortmacs_diff_multiple_mod), &
                  new_testsuite("simple_merge_mode_mod", collect_simple_merge_mode_mod), &
                  new_testsuite("view_mod", collect_view_mod), &
                  new_testsuite("files_copy_mod", collect_files_copy_mod), &
@@ -333,12 +339,14 @@ program tester
                  new_testsuite("namelist_mod", collect_namelist_mod), &
                  new_testsuite("save_history_mod", collect_save_history_mod), &
                  new_testsuite("winner_mod", collect_winner_mod), &
+                 new_testsuite("tab_bar_mod", collect_tab_bar_mod), &
                  new_testsuite("window_move_mod", collect_window_move_mod), &
                  new_testsuite("saveplace_mod", collect_saveplace_mod), &
                  new_testsuite("recent_files_mod", collect_recent_files_mod), &
                  new_testsuite("bookmark_mod", collect_bookmark_mod), &
                  new_testsuite("buffer_menu_mod", collect_buffer_menu_mod), &
                  new_testsuite("calendar_mod", collect_calendar_mod), &
+                 new_testsuite("holidays_mod", collect_holidays_mod), &
                  new_testsuite("ibuffer_mod", collect_ibuffer_mod), &
                  new_testsuite("ibuffer_extensions_mod", collect_ibuffer_extensions_mod), &
                  new_testsuite("time_date_mod", collect_time_date_mod), &
@@ -349,8 +357,10 @@ program tester
                  new_testsuite("ansi_color_mod", collect_ansi_color_mod), &
                  new_testsuite("programmable_completion_mod", collect_programmable_completion_mod), &
                  new_testsuite("mail_utilities_mod", collect_mail_utilities_mod), &
+                 new_testsuite("mail_extract_mod", collect_mail_extract_mod), &
                  new_testsuite("mail_abbreviations_mod", collect_mail_abbreviations_mod), &
-                 new_testsuite("send_mail_mod", collect_send_mail_mod) &
+                 new_testsuite("send_mail_mod", collect_send_mail_mod), &
+                 new_testsuite("smtpmail_mod", collect_smtpmail_mod) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

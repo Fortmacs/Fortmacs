@@ -43,7 +43,7 @@
 module display_update_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use frame_mod, only: frame_type, selected_frame, selected_window, frame_lines, frame_cols, &
-                         frame_windows_min_size, resize_frame_windows, window_pixel_width, window_pixel_height
+                         frame_windows_min_size, resize_frame_windows, frame_top_margin, window_pixel_width, window_pixel_height
     use window_mod, only: windows, is_window_valid, window_text_cols, window_body_lines
     use system_dependent_mod, only: get_tty_size, window_change_pending, clear_window_change
     use handle_mod, only: handle_type
@@ -321,17 +321,21 @@ contains
     !> frame.c:adjust_frame_size with INHIBIT 5 (as change_frame_size
     !> calls it: the window system is never asked for a size), for a frame
     !> without internal borders, menu, tool or tab bar (`frame_size_history',
-    !> fullscreen frames and child frames are not ported).
+    !> fullscreen frames and child frames are not ported; the top margin is
+    !> the tab bar lines).
     subroutine adjust_frame_size(f, new_text_width, new_text_height)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: new_text_width, new_text_height
         integer :: unit_width, unit_height, old_inner_width, old_inner_height, old_text_cols, old_text_lines, &
                    old_text_width, old_text_height, min_inner_width, min_inner_height, new_native_width, &
                    new_native_height, new_inner_width, new_inner_height, new_width, new_height, new_text_cols, &
-                   new_text_lines, root_top
+                   new_text_lines, root_top, margin_height
 
         unit_width = f%column_width
         unit_height = f%line_height
+        ! The tab bar lines above the windows (FRAME_MARGIN_HEIGHT; no
+        ! internal borders).
+        margin_height = frame_top_margin(f)*unit_height
         ! The "old" inner width and height of F, from its root window and
         ! minibuffer window.
         old_inner_width = 0
@@ -358,12 +362,12 @@ contains
         new_inner_width = new_native_width
         new_width = new_native_width
         new_text_cols = new_width/unit_width
-        new_native_height = max(new_text_height, min_inner_height)
-        new_inner_height = new_native_height
+        new_native_height = max(new_text_height, min_inner_height + margin_height)
+        new_inner_height = new_native_height - margin_height
         new_height = new_native_height
         new_text_lines = new_height/unit_height
         ! No change.
-        if (root_top == 0 .and. new_width == old_text_width .and. new_height == old_text_height &
+        if (root_top == frame_top_margin(f) .and. new_width == old_text_width .and. new_height == old_text_height &
             .and. new_inner_width == old_inner_width .and. new_inner_height == old_inner_height &
             .and. new_text_cols == old_text_cols .and. new_text_lines == old_text_lines) return
         ! (Where only the number of columns or lines changes, upstream
@@ -373,7 +377,7 @@ contains
         if (new_inner_width /= old_inner_width) call resize_frame_windows(f, new_inner_width, .true.)
 
         ! When the top margin has changed the windows' top edges move too.
-        if (new_inner_height /= old_inner_height .or. root_top /= 0) then
+        if (new_inner_height /= old_inner_height .or. root_top /= frame_top_margin(f)) then
             call resize_frame_windows(f, new_inner_height, .false.)
         end if
 

@@ -431,6 +431,18 @@ module fortmacs_diff_utilities_mod
             type(status_type), intent(out) :: status
         end subroutine maybe_save_and_delete_ediff_merge_session
 
+        !> Compute the custom diff output of buffers A and B of session K into
+        !> its custom diff buffer, in Diff mode: `ediff_custom_diff_program'
+        !> with `ediff_custom_diff_options' on their files (temporary copies
+        !> when a buffer visits no existing file).  Port of
+        !> ediff-util.el:ediff-compute-custom-diffs-maybe (remote files are not
+        !> ported).
+        recursive module subroutine compute_ediff_custom_diffs_maybe(k, status)
+            implicit none(type, external)
+            integer, intent(in) :: k
+            type(status_type), intent(out) :: status
+        end subroutine compute_ediff_custom_diffs_maybe
+
         !> Register the commands of ediff-util.el, add `clean_up_ediff_mess'
         !> to `ediff_quit_hook' and `maybe_save_and_delete_ediff_merge' to
         !> `ediff_quit_merge_hook'.  Not a port.
@@ -446,7 +458,8 @@ module fortmacs_diff_utilities_mod
               unselect_and_select_ediff_difference, get_ediff_diff_position, get_ediff_region_contents, &
               read_ediff_file_name, create_ediff_temp_file, verify_ediff_file_buffer, ediff_other_buffer, &
               toggle_ediff_show_ancestor, toggle_ediff_show_clashes_only, toggle_ediff_skip_changed_regions, &
-              save_ediff_buffer, maybe_save_and_delete_ediff_merge, maybe_save_and_delete_ediff_merge_session, init_ediff_util
+              save_ediff_buffer, maybe_save_and_delete_ediff_merge, maybe_save_and_delete_ediff_merge_session, init_ediff_util, &
+              compute_ediff_custom_diffs_maybe
 
 contains
 

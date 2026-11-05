@@ -69,8 +69,8 @@ submodule(window_mod) window_display_mod
     implicit none(type, external)
 
     !> What `window_deletable' says of a window: it cannot be deleted, it
-    !> can, or its frame can.
-    integer, parameter :: DELETABLE_NO = 0, DELETABLE_YES = 1, DELETABLE_FRAME = 2
+    !> can, its frame can, or its tab can be closed.
+    integer, parameter :: DELETABLE_NO = 0, DELETABLE_YES = 1, DELETABLE_FRAME = 2, DELETABLE_TAB = 3
 
 contains
 
@@ -849,15 +849,49 @@ contains
     ! Deleting and quitting windows
     ! ------------------------------------------------------------------
 
-    !> Whether window `h' can be deleted: not its frame's only window,
-    !> the minibuffer window (the frame, Fortmacs's only one, can't be
-    !> deleted) or, unless `ignore_window_parameters', the main window of
-    !> the frame.  Port of window.el:window-deletable-p.
+    !> Whether window `h' can be deleted: its tab can be closed instead
+    !> when the frame shows a tab bar with more than one tab and `h' was
+    !> made for a new tab or is the frame's only window (and no other
+    !> window was made explicitly); else not its frame's only window, the
+    !> minibuffer window or, unless `ignore_window_parameters', the main
+    !> window of the frame; its frame can be deleted when it is the
+    !> frame's only window and other frames are left.  Port of
+    !> window.el:window-deletable-p.
     integer function window_deletable(h) result(deletable)
         type(handle_type), intent(in) :: h
         type(handle_type) :: frame
+        type(handle_type), allocatable :: leaves(:)
+        type(frame_type), pointer :: f
+        integer :: k, explicit, ntabs
 
         deletable = DELETABLE_NO
+        frame = window_frame(h)
+        f => get_frame(frame)
+
+        if (associated(f) .and. .not. windows(h%index)%mini) then
+            ! The tabs (tab-bar-tabs makes the first when there is none).
+            ntabs = 1
+            if (allocated(f%parameters%tabs)) ntabs = max(1, size(f%parameters%tabs))
+
+            if (f%tab_bar_lines > 0 .and. ntabs > 1 .and. (windows(h%index)%quit_restore%what == QR_TAB .or. &
+                                                           same_handle(h, f%root_window))) then
+                ! Don't close the tab if more windows were created
+                ! explicitly.
+                call window_leaves(f%root_window, leaves)
+                explicit = 0
+
+                do k = 1, size(leaves)
+                    if (any(windows(leaves(k)%index)%quit_restore%kind == [QR_WINDOW, QR_TAB, QR_FRAME, QR_SAME])) then
+                        explicit = explicit + 1
+                    end if
+                end do
+
+                if (explicit < 2) then
+                    deletable = DELETABLE_TAB
+                    return
+                end if
+            end if
+        end if
 
         if (.not. is_window_valid(windows(h%index)%parent) .and. .not. windows(h%index)%mini) then
             ! WINDOW's frame can be deleted only if there are other frames
@@ -878,8 +912,9 @@ contains
     !> can be deleted, delete the frame when KILL (the buffer shown in the
     !> window will be closed), else hide it with `frame_auto_hide_function'
     !> (its default, iconify_frame, does nothing on a terminal).  Return
-    !> whether WINDOW got deleted or its frame hidden.  Port of
-    !> window.el:window--delete (no tabs).
+    !> whether WINDOW got deleted or its frame hidden.  When its tab can be
+    !> closed instead (`window_deletable'), `close_tab_hook' closes the tab.
+    !> Port of window.el:window--delete.
     logical function window_delete(h, dedicated_only, kill) result(deleted)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: dedicated_only
@@ -893,6 +928,11 @@ contains
         if (dedicated_only .and. windows(h%index)%dedicated == DEDICATED_NONE) return
 
         select case (window_deletable(h))
+        case (DELETABLE_TAB)
+            if (associated(close_tab_hook)) then
+                call close_tab_hook(status)
+                deleted = .true.
+            end if
         case (DELETABLE_FRAME)
             if (closing) call delete_frame(status, window_frame(h))
             deleted = .true.
@@ -939,7 +979,7 @@ contains
     !> and moves it to the end of the buffer list; `close' closes it;
     !> `closing' and `burying' are like `close' and `bury' but mean the
     !> buffer will be closed or buried elsewhere.  Port of
-    !> window.el:quit-restore-window (no tabs).
+    !> window.el:quit-restore-window.
     module subroutine quit_restore_window(window, bury_or_close, status)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: bury_or_close
@@ -985,7 +1025,8 @@ contains
             end if
         end if
 
-        if (.not. done .and. prev_buffer%index == 0 .and. (qr%what == QR_FRAME .or. (qr%what == QR_WINDOW .and. &
+        if (.not. done .and. prev_buffer%index == 0 .and. (qr%what == QR_FRAME .or. qr%what == QR_TAB .or. &
+                                                           (qr%what == QR_WINDOW .and. &
                                        .not. same_handle(h, selected_frame%root_window))) .and. same_handle(qr%buffer, buffer)) then
             ! Delete WINDOW if possible.
             if (window_delete(h, .false., bury_or_close == BK_CLOSE)) then
@@ -2284,12 +2325,13 @@ contains
     !> `display_buffer_overriding_action'.  Port of window.el:display-buffer
     !> (one frame; `display_buffer_rules' and `display_buffer_base_action'
     !> are deferred: they are empty).
-    module subroutine display_buffer(buffer, window, status, actions, table)
+    module subroutine display_buffer(buffer, window, status, actions, table, action_function)
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
         type(display_action_parameters_type), intent(in), optional :: table
+        procedure(display_action_function_procedure), optional :: action_function
         integer, parameter :: fallback(5) = [DISPLAY_ACTION_MAYBE_SAME_WINDOW, DISPLAY_ACTION_REUSE_WINDOW, &
                                              DISPLAY_ACTION_MAYBE_POP_UP_WINDOW, DISPLAY_ACTION_IN_PREVIOUS_WINDOW, &
                                              DISPLAY_ACTION_USE_SOME_WINDOW]
@@ -2334,6 +2376,16 @@ contains
             end do
         end if
 
+        if (present(action_function)) then
+            call action_function(buffer, al, window, failed, status)
+            if (.not. status%ok() .or. window%index /= 0) return
+
+            if (failed) then
+                window = null_handle()
+                return
+            end if
+        end if
+
         if (present(actions)) then
             do k = 1, size(actions)
                 window = display_buffer_action(actions(k), buffer, al, status)
@@ -2365,15 +2417,16 @@ contains
     !> unless NORECORD, BUFFER becomes the most recently selected buffer.
     !> If no window shows it, BUFFER becomes current.  Port of
     !> window.el:pop-to-buffer (one frame).
-    module subroutine pop_to_buffer(buffer, status, actions, table, norecord)
+    module subroutine pop_to_buffer(buffer, status, actions, table, norecord, action_function)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: actions(:)
         type(display_action_parameters_type), intent(in), optional :: table
         logical, intent(in), optional :: norecord
+        procedure(display_action_function_procedure), optional :: action_function
         type(handle_type) :: window
 
-        call display_buffer(buffer, window, status, actions, table)
+        call display_buffer(buffer, window, status, actions, table, action_function)
         if (.not. status%ok()) return
 
         if (.not. is_window_live(window)) then
