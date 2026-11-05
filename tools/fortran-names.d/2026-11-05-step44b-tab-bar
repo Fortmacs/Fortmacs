@@ -1,0 +1,14 @@
+# fortran-names.d/2026-11-05-step44b-tab-bar -- the names step 44b (tab-bar.el)
+# gives Lisp-derived terms, by existing rules (decided and reported):
+# window-state-get/put by the owner (#261, 2026-11-04); the others by
+# R6-17/R6-40 (verb first) with the precedent xref-go-back ->
+# go_back_in_xref_history.  The other tab names wait for the decision
+# panel (see the PR's session log).
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+name	window_state_get	get_window_state
+name	window_state_put	set_window_state
+name	tab_bar_history_back	go_back_in_tab_bar_history
+name	tab_bar_history_forward	go_forward_in_tab_bar_history
