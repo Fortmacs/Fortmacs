@@ -555,7 +555,8 @@ contains
             call insert_buffer_substring(variant, status)
             if (.not. status%ok()) return
             call goto_char(point_min())
-            mode => major_mode_named(buffers(variant%index)%major_mode)
+            mode => null()
+            if (allocated(buffers(variant%index)%major_mode)) mode => major_mode_named(buffers(variant%index)%major_mode)
 
             if (associated(mode)) then
                 if (associated(mode%execute)) call mode%execute(status)
