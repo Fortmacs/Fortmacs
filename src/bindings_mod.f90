@@ -138,6 +138,7 @@ module bindings_mod
     use abbrev_mod, only: init_abbrev, edit_abbrevs_mode_map
     use dabbrev_mod, only: init_dabbrev
     use ispell_mod, only: init_ispell
+    use flyspell_mod, only: init_flyspell
     use paren_mod, only: init_paren
     use imenu_mod, only: init_imenu
     use which_func_mod, only: init_which_func
@@ -406,6 +407,7 @@ contains
         call init_kmacro()
         call init_dabbrev()
         call init_ispell()
+        call init_flyspell()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)

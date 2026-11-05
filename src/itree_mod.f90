@@ -45,8 +45,8 @@
 !>
 !> Deferred: indirect buffers (`copy_overlays'), the `window', `mouse_face' and
 !> `intangible' properties, priorities given as two values, PRIMARY and SECONDARY
-!> (no entry of two names), `remove_overlays' (subr.el) and
-!> `copy_overlay'.
+!> (no entry of two names); subr.el's `remove_overlays' and `copy_overlay'
+!> are in subr_mod.
 module itree_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use value_mod, only: vtag, V_NULL, V_INTEGER, V_ARRAY, value_type

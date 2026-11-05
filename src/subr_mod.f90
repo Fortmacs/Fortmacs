@@ -100,6 +100,7 @@ module subr_mod
     !> Normal hook run at the very end of major mode functions.  Port of
     !> subr.el after-change-major-mode-hook.
     type(hook_type), public, target :: after_change_major_mode_hook = hook_type(name="after_change_major_mode_hook")
+    public :: copy_overlay, remove_overlays, split_string
     public :: match_string, match_string_no_properties, string_matches, is_looking_at, looking_back, &
               match_substitute_replacement, is_subregexp_context
 
@@ -1667,4 +1668,143 @@ contains
         call find_tag_default_as_regexp(regexp, found)
         if (found) regexp = "\_<"//regexp//"\_>"
     end subroutine find_tag_default_as_identifier_regexp
+
+    ! ------------------------------------------------------------------
+    ! Overlays and strings
+    ! ------------------------------------------------------------------
+
+    !> Return a copy of overlay OVERLAY in COPY.
+    !> The copy will be deleted if OVERLAY is.  Port of
+    !> subr.el:copy-overlay (the properties are copied at once).
+    subroutine copy_overlay(overlay, copy, status)
+        use itree_mod, only: make_overlay, delete_overlay, overlay_buffer, overlay_start, overlay_end, &
+                             overlay_properties, overlay_put
+        type(handle_type), intent(in) :: overlay
+        type(handle_type), intent(out) :: copy
+        type(status_type), intent(out) :: status
+        type(handle_type) :: buffer
+        type(value_type), allocatable :: props(:)
+        integer :: k
+
+        buffer = overlay_buffer(overlay)
+
+        if (buffer%index /= 0) then
+            call make_overlay(copy, overlay_start(overlay), overlay_end(overlay), status, buffer=buffer)
+        else
+            call make_overlay(copy, point_min(), point_min(), status)
+            if (status%ok()) call delete_overlay(copy)
+        end if
+
+        if (.not. status%ok()) return
+        call list_elements(overlay_properties(overlay), props)
+
+        do k = 1, size(props) - 1, 2
+            call overlay_put(copy, symbols(xsymbol(props(k)))%name, props(k + 1), status)
+            if (.not. status%ok()) return
+        end do
+    end subroutine copy_overlay
+
+    !> Clear BEGINNING and END of overlays whose property NAME has value
+    !> VALUE.  Overlays might be moved and/or split.  If any targeted
+    !> overlays end up being empty, they will be deleted.  Port of
+    !> subr.el:remove-overlays (BEGINNING and END given).
+    subroutine remove_overlays(beginning, end, name, value, status)
+        use itree_mod, only: overlays_in, overlay_get, overlay_start, overlay_end, move_overlay, delete_overlay
+        integer(int64), intent(in) :: beginning, end
+        character(len=*), intent(in) :: name
+        type(value_type), intent(in) :: value
+        type(status_type), intent(out) :: status
+        type(handle_type), allocatable :: found(:)
+        type(handle_type) :: copy
+        integer(int64) :: lo, hi
+        integer :: k
+
+        status = status_type()
+        lo = min(beginning, end)
+        hi = max(beginning, end)
+        call overlays_in(lo, hi, found)
+
+        do k = 1, size(found)
+            if (.not. value_eq(overlay_get(found(k), name), value)) cycle
+
+            ! Either push this overlay outside beginning...end or split it
+            ! to exclude beginning...end or delete it entirely (if it is
+            ! contained in beginning...end).
+            if (overlay_start(found(k)) < lo) then
+                if (overlay_end(found(k)) > hi) then
+                    call copy_overlay(found(k), copy, status)
+                    if (status%ok()) call move_overlay(copy, overlay_start(found(k)), lo, status)
+                    if (status%ok()) call move_overlay(found(k), hi, overlay_end(found(k)), status)
+                else
+                    call move_overlay(found(k), overlay_start(found(k)), lo, status)
+                end if
+            else if (overlay_end(found(k)) > hi) then
+                call move_overlay(found(k), hi, overlay_end(found(k)), status)
+            else
+                call delete_overlay(found(k))
+            end if
+
+            if (.not. status%ok()) return
+        end do
+    end subroutine remove_overlays
+
+    !> Split STRING into substrings bounded by matches for SEPARATORS, a
+    !> regexp, in PARTS.
+    !>
+    !> The beginning and end of STRING, and each match for SEPARATORS, are
+    !> splitting points.  The substrings matching SEPARATORS are removed,
+    !> and the substrings between the splitting points are collected as a
+    !> list, which is returned.
+    !>
+    !> If OMIT_NULLS is true, zero-length substrings are omitted from the
+    !> list; otherwise they are kept.  Port of subr.el:split-string
+    !> (SEPARATORS given; no TRIM).
+    subroutine split_string(string, separators, parts, status, omit_nulls)
+        use fns_mod, only: substring, count_characters
+        use string_type_mod, only: string_type, append_string
+        character(len=*), intent(in) :: string, separators
+        type(string_type), allocatable, intent(out) :: parts(:)
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: omit_nulls
+        integer(int64) :: start, this_start, this_end, length, from, found, previous_beginning
+        logical :: keep_nulls, notfirst
+        type(status_type) :: st
+
+        allocate (parts(0))
+        keep_nulls = .true.
+        if (present(omit_nulls)) keep_nulls = .not. omit_nulls
+        length = count_characters(string)
+        start = 0
+        notfirst = .false.
+        previous_beginning = -1
+
+        do
+            from = start
+
+            if (notfirst .and. start < length) then
+                if (start == previous_beginning) from = start + 1
+            end if
+
+            found = string_match(separators, string, status, start=from + 1)
+            if (.not. status%ok()) return
+            if (found == 0 .or. start >= length) exit
+            notfirst = .true.
+            this_start = start
+            this_end = match_beginning(0, st) - 1
+            previous_beginning = this_end
+            start = match_end(0, st) - 1
+            call push_one()
+        end do
+
+        ! Handle the substring at the end of STRING.
+        this_start = start
+        this_end = length
+        call push_one()
+
+    contains
+
+        subroutine push_one()
+            if (keep_nulls .or. this_start < this_end) call append_string(parts, substring(string, this_start, this_end))
+        end subroutine push_one
+    end subroutine split_string
 end module subr_mod

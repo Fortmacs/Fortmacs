@@ -214,6 +214,15 @@ module value_mod
         !> window or current buffer, so Follow mode can keep the window
         !> positions it computed (the `follow-mode-use-cache' property).
         logical :: follow_mode_use_cache = .false.
+        !> After the command, Flyspell waits `flyspell_delay' seconds before
+        !> checking the word at point (the `flyspell-delayed' property, set
+        !> by `set_flyspell_delayed_command').
+        logical :: flyspell_delayed = .false.
+        !> The command moves the cursor: after it, Flyspell checks the word
+        !> at point only if the previous command was another one (the
+        !> `flyspell-deplacement' property, set by
+        !> `set_flyspell_deplacement_command').
+        logical :: flyspell_deplacement = .false.
         !> For a keyboard macro held as a command (`this_command' after
         !> C-x e, so that C-x z repeats it): the handle of its key events
         !> in keyboard_mod's registry of macros; 0 for any other command.

@@ -42,9 +42,7 @@ the overlay modification hooks (`report_overlay_modification`, `add_overlay_mod_
 indirect buffers,
 the `window`,
 `mouse-face` (mouse highlighting, with xdisp) and `intangible` properties (the display ones are xdisp_mod's),
-(PRIMARY . SECONDARY) priorities,
-`remove-overlays`,
-`copy-overlay`;
+(PRIMARY . SECONDARY) priorities (subr.el's `remove-overlays` and `copy-overlay` are in subr_mod);
 Not applicable: the red-black tree machinery the flat array replaces (`itree_rotate_left/right`, `itree_insert_fix`, `itree_remove_fix`, `itree_transplant`, `itree_replace_child`, `itree_subtree_min`, the limit and offset bookkeeping `itree_update_limit`, `itree_propagate_limit`, `itree_newlimit`, `itree_limit_is_stable`, `itree_inherit_offset`, `itree_total_offset`, the iterator stack `itree_stack_*`, `itree_max_height`, `itree_iterator_narrow`, `itree_size`, `null_safe_is_red/black`),
 tree allocation (`itree_create`, `itree_init`, `itree_destroy`),
 the consistency checks (`itree_validate`, `itree_contains`, `check_tree`, `check_subtree`),
