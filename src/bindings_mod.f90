@@ -133,6 +133,7 @@ module bindings_mod
     use info_look_mod, only: init_info_look
     use buff_menu_mod, only: init_buff_menu
     use calendar_mod, only: init_calendar
+    use holidays_mod, only: init_holidays
     use ibuffer_mod, only: init_ibuffer
     use crm_mod, only: init_crm
     use register_mod, only: init_register
@@ -402,6 +403,7 @@ contains
         call init_bookmark()
         call init_buff_menu()
         call init_calendar()
+        call init_holidays()
         call init_ibuffer()
         call init_info()
         call init_info_look()
