@@ -6,7 +6,7 @@
 
 ## Ported
 
-`message-user-agent` (the default of `mail_user_agent`, set by `init_message`),
+`message-user-agent` (the default of `mail_user_agent`, set by `initialize_message`),
 `message-mail` (`mail_message`, the agent's COMPOSE: CONTINUE, SWITCH-FUNCTION, TO, SUBJECT),
 `message-mail-other-window` (`mail_message_other_window`),
 `message-mode` (derived from Text mode: `message-mode-map` with the keys of the commands below, `message-mode-syntax-table`, `message-setup-fill-variables` with `paragraph-start`, `paragraph-separate`, `fill-paragraph-function` and `normal-auto-fill-function`, `message-fill-column`, `comment-start` and `comment-start-skip` from the paste prefix, mail abbrevs, the drafts file name, `indent-tabs-mode` and `parse-sexp-ignore-comments`),

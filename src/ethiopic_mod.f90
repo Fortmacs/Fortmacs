@@ -42,7 +42,7 @@ contains
                                          //"-f5] ethio-toggle-punctuation"//achar(10)//"    [S-f6] ethio-modify-vowel"//achar(10) &
                                          //"    [S-f7] ethio-replace-space"//achar(10)//achar(10)//"    [S-f9] ethio-replace-spa" &
                                          //"ce"//achar(10)//"    [C-f9] ethio-toggle-space", &
-                                         charsets=[character(len=40) :: "ethiopic"], &
+                                         character_sets=[character(len=40) :: "ethiopic"], &
                                          sample_text="ፊደል", &
                                          coding_systems=[character(len=40) :: "utf-8-emacs"], &
                                          coding_system_order=[character(len=40) :: "utf-8-emacs"], &

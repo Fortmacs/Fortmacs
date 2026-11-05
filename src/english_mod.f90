@@ -1,4 +1,4 @@
-! english_mod.f90 -- the english coding systems of type `charset'.
+! english_mod.f90 -- the english coding systems of type `character_set'.
 ! Ported from GNU Emacs 31.1 lisp/language/english.el.
 !
 ! Copyright (C) 1997, 2001-2026 Free Software Foundation, Inc.
@@ -26,7 +26,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' that english.el defines, with their
+!> The coding systems of type `character_set' that english.el defines, with their
 !> aliases, and its language environments (its other coding systems are
 !> Deferred).  A submodule of coding_mod, which defines the coding systems
 !> when it starts and the language environments when multilingual_environment_mod asks for them.
@@ -36,35 +36,35 @@ submodule(coding_mod) english_mod
 
 contains
 
-    !> Port of the `charset' coding systems of english.el.
-    module subroutine init_english()
-        call define_charset_coding_system("ebcdic-us", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ebcdic-us"], &
-                                          doc="US version of EBCDIC")
-        call define_charset_coding_system("ebcdic-uk", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ebcdic-uk"], &
-                                          doc="UK version of EBCDIC")
-        call define_charset_coding_system("ibm1047", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm1047"], &
-                                          doc="A version of EBCDIC used in OS/390 Unix")
+    !> Port of the `character_set' coding systems of english.el.
+    module subroutine initialize_english()
+        call define_character_set_coding_system("ebcdic-us", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ebcdic-us"], &
+                                                doc="US version of EBCDIC")
+        call define_character_set_coding_system("ebcdic-uk", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ebcdic-uk"], &
+                                                doc="UK version of EBCDIC")
+        call define_character_set_coding_system("ibm1047", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm1047"], &
+                                                doc="A version of EBCDIC used in OS/390 Unix")
         call define_coding_system_alias("cp1047", "ibm1047")
-        call define_charset_coding_system("ibm038", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm038"], &
-                                          doc="International version of EBCDIC")
+        call define_character_set_coding_system("ibm038", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm038"], &
+                                                doc="International version of EBCDIC")
         call define_coding_system_alias("ebcdic-int", "ibm038")
         call define_coding_system_alias("cp038", "ibm038")
-    end subroutine init_english
+    end subroutine initialize_english
 
     !> Port of the language environments of english.el.
     module subroutine define_english_language_environments()
         call define_language_environment("English", &
                                          documentation="Nothing special is needed to handle English.", &
-                                         charsets=[character(len=40) :: "ascii"], &
+                                         character_sets=[character(len=40) :: "ascii"], &
                                          sample_text="Hello!, Hi!, How are you?", &
                                          tutorial="TUTORIAL")
         call define_language_environment("ASCII", &
                                          documentation="Nothing special is needed to handle English.", &
-                                         charsets=[character(len=40) :: "ascii"], &
+                                         character_sets=[character(len=40) :: "ascii"], &
                                          sample_text="Hello!, Hi!, How are you?", &
                                          tutorial="TUTORIAL")
     end subroutine define_english_language_environments

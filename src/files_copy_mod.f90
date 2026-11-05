@@ -28,7 +28,7 @@
 !> files.el procedures `rename_file' calls across file systems.
 submodule(files_mod) files_copy_mod
     use value_mod, only: list_elements, xstring
-    use error_mod, only: FM_FILE_ALREADY_EXISTS
+    use error_mod, only: FILE_ALREADY_EXISTS_CODE
     use system_dependent_mod, only: S_IFMT, S_IFDIR, S_IFLNK
     use directory_editor_mod, only: directory_files
     use time_functions_mod, only: time_type, TIMESPEC_COUNT_RATE
@@ -42,10 +42,10 @@ contains
         character(len=*), intent(in) :: directory, newname
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: keep_time, parents, copy_contents
-        character(len=:), allocatable :: dir, new, target, file, filetype
+        character(len=:), allocatable :: directory_name, new, target, file, filetype
         type(value_type) :: files
-        type(value_type), allocatable :: elems(:)
-        type(file_stat_type) :: attrs, dattrs
+        type(value_type), allocatable :: elements(:)
+        type(file_status_type) :: attributes, dattrs
         type(status_type) :: err
         integer(int32) :: modes
         logical :: keep, mkparents, contents, follow, found
@@ -60,24 +60,24 @@ contains
         if (present(copy_contents)) contents = copy_contents
 
         if (is_file_in_directory(newname, directory)) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("Cannot copy `")//directory// &
+            call set_error(status, GENERIC_ERROR_CODE, format_message("Cannot copy `")//directory// &
                            format_message("' into its subdirectory `")//newname//format_message("'"))
             return
         end if
 
         ! Compute target name.
-        call expand_file_name(directory, dir, status)
+        call expand_file_name(directory, directory_name, status)
         if (.not. status%ok()) return
-        dir = directory_file_name(dir)
+        directory_name = directory_file_name(directory_name)
         call expand_file_name(newname, new, status)
         if (.not. status%ok()) return
 
         ! If DIRECTORY is a symlink, create a symlink with the same target.
-        if (is_file_symlink(dir) .and. copy_directory_create_symlink) then
-            target = file_symlink_target(dir)
+        if (is_file_symlink(directory_name) .and. copy_directory_create_symlink) then
+            target = file_symlink_target(directory_name)
 
             if (is_directory_name(new)) then
-                call create_symbolic_link(target, new//file_name_nondirectory(dir), status, .true.)
+                call create_symbolic_link(target, new//file_name_nondirectory(directory_name), status, .true.)
             else
                 call create_symbolic_link(target, new, status, .true.)
             end if
@@ -97,7 +97,7 @@ contains
             ! NEWNAME is a directory name.  If COPY-CONTENTS is true,
             ! create NEWNAME if it is not already a directory; otherwise,
             ! create NEWNAME/[DIRECTORY-BASENAME].
-            if (.not. contents) new = new//file_name_nondirectory(dir)
+            if (.not. contents) new = new//file_name_nondirectory(directory_name)
             call create_directory(directory_file_name(new), err, mkparents, follow)
 
             if (.not. err%ok()) then
@@ -111,25 +111,25 @@ contains
         end if
 
         ! Copy recursively.  We do not want to copy "." and "..".
-        call directory_files(dir, files, status, full=.true.)
+        call directory_files(directory_name, files, status, full=.true.)
         if (.not. status%ok()) return
-        call list_elements(files, elems)
+        call list_elements(files, elements)
 
-        do k = 1, size(elems)
-            file = xstring(elems(k))
+        do k = 1, size(elements)
+            file = xstring(elements(k))
             if (file_name_nondirectory(file) == "." .or. file_name_nondirectory(file) == "..") cycle
             target = file_name_as_directory(new)//file_name_nondirectory(file)
-            call file_attributes(file, attrs, found, nofollow=.true.)
+            call file_attributes(file, attributes, found, nofollow=.true.)
             filetype = ""
 
             if (found) then
-                if (iand(attrs%mode, S_IFMT) == S_IFLNK) filetype = file_symlink_target(file)
+                if (iand(attributes%mode, S_IFMT) == S_IFLNK) filetype = file_symlink_target(file)
             end if
 
-            if (found .and. iand(attrs%mode, S_IFMT) == S_IFDIR) then
+            if (found .and. iand(attributes%mode, S_IFMT) == S_IFDIR) then
                 ! Directory but not a symlink.
                 call copy_directory(file, target, status, keep, mkparents, .true.)
-            else if (found .and. iand(attrs%mode, S_IFMT) == S_IFLNK) then
+            else if (found .and. iand(attributes%mode, S_IFMT) == S_IFLNK) then
                 ! Symbolic link
                 call create_symbolic_link(filetype, target, status, .true.)
             else
@@ -140,19 +140,19 @@ contains
         end do
 
         ! Set directory attributes.
-        modes = file_modes(dir)
-        call file_attributes(dir, dattrs, found, nofollow=.true.)
+        modes = file_modes(directory_name)
+        call file_attributes(directory_name, dattrs, found, nofollow=.true.)
         if (modes >= 0) call set_file_modes(new, modes, status, nofollow=.not. follow)
         if (.not. status%ok()) return
 
         if (keep .and. found) then
-            call set_file_times(new, status, time_type(dattrs%mtime_sec, int(dattrs%mtime_nsec, int64), &
+            call set_file_times(new, status, time_type(dattrs%mtime_second, int(dattrs%mtime_nsec, int64), &
                                                        TIMESPEC_COUNT_RATE), nofollow=.not. follow)
         end if
     end subroutine copy_directory
 
-    module function is_file_in_directory(file, dir) result(inside)
-        character(len=*), intent(in) :: file, dir
+    module function is_file_in_directory(file, directory) result(inside)
+        character(len=*), intent(in) :: file, directory
         logical :: inside
         character(len=:), allocatable :: f, d, root
         type(status_type) :: st
@@ -160,11 +160,11 @@ contains
         logical :: mismatch, more1, more2
 
         inside = .false.
-        ! DIR must exist.
-        if (.not. is_file_directory(dir)) return
+        ! DIRECTORY must exist.
+        if (.not. is_file_directory(directory)) return
         call file_truename(file, f, st)
         if (.not. st%ok()) return
-        call file_truename(dir, d, st)
+        call file_truename(directory, d, st)
         if (.not. st%ok()) return
 
         if (index(f, "//") == 1) then
@@ -198,7 +198,7 @@ contains
             j1 = j2 + 1
         end do
 
-        if (.not. mismatch) inside = is_file_equal(root, dir)
+        if (.not. mismatch) inside = is_file_equal(root, directory)
 
     contains
 
@@ -230,7 +230,7 @@ contains
         character(len=*), intent(in) :: file1, file2
         logical :: same
         character(len=:), allocatable :: t1, t2
-        type(file_stat_type) :: a1, a2
+        type(file_status_type) :: a1, a2
         type(status_type) :: st
         logical :: found1, found2
 
@@ -245,8 +245,8 @@ contains
         if (.not. found2) return
         ! (equal f1-attr f2-attr)
         same = a1%mode == a2%mode .and. a1%nlink == a2%nlink .and. a1%uid == a2%uid .and. a1%gid == a2%gid .and. &
-               a1%size == a2%size .and. a1%mtime_sec == a2%mtime_sec .and. a1%mtime_nsec == a2%mtime_nsec .and. &
-               a1%atime_sec == a2%atime_sec .and. a1%atime_nsec == a2%atime_nsec .and. a1%dev == a2%dev .and. &
+               a1%size == a2%size .and. a1%mtime_second == a2%mtime_second .and. a1%mtime_nsec == a2%mtime_nsec .and. &
+               a1%atime_second == a2%atime_second .and. a1%atime_nsec == a2%atime_nsec .and. a1%dev == a2%dev .and. &
                a1%ino == a2%ino
     end function is_file_equal
 
@@ -254,7 +254,7 @@ contains
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: parents
-        character(len=:), allocatable :: paren_dir
+        character(len=:), allocatable :: parenthesis_directory
         type(handle_type) :: old, buffer
         type(status_type) :: st
         logical :: mkparents
@@ -264,15 +264,15 @@ contains
         if (present(parents)) mkparents = parents
 
         if (file_exists(filename) .and. .not. mkparents) then
-            call set_error(status, FM_FILE_ALREADY_EXISTS, "File exists: "//filename)
+            call set_error(status, FILE_ALREADY_EXISTS_CODE, "File exists: "//filename)
             return
         end if
 
-        paren_dir = file_name_directory(filename)
+        parenthesis_directory = file_name_directory(filename)
 
-        if (len(paren_dir) > 0) then
-            if (.not. file_exists(paren_dir)) then
-                call create_directory(paren_dir, status, mkparents)
+        if (len(parenthesis_directory) > 0) then
+            if (.not. file_exists(parenthesis_directory)) then
+                call create_directory(parenthesis_directory, status, mkparents)
                 if (.not. status%ok()) return
             end if
         end if
@@ -295,7 +295,7 @@ contains
     !> The bit-mask that is returned extracts from mode bits the access rights
     !> for the specified category of users.  Port of
     !> files.el:file-modes-char-to-who.
-    subroutine file_modes_char_to_who(c, mask, status)
+    subroutine file_modes_character_to_who(c, mask, status)
         character, intent(in) :: c
         integer(int32), intent(out) :: mask
         type(status_type), intent(inout) :: status
@@ -312,15 +312,15 @@ contains
         case ("a")
             mask = int(o'7777', int32)
         case default
-            call set_error(status, FM_GENERIC_ERROR, c//format_message(": Bad `who' character"))
+            call set_error(status, GENERIC_ERROR_CODE, c//format_message(": Bad `who' character"))
         end select
-    end subroutine file_modes_char_to_who
+    end subroutine file_modes_character_to_who
 
     !> Convert CHAR to a numeric value of mode bits.
     !> CHAR is in [rwxXstugo] and represents symbolic access permissions.
     !> If CHAR is in [Xugo], the value is taken from FROM.  Port of
     !> files.el:file-modes-char-to-right.
-    integer(int32) function file_modes_char_to_right(c, from) result(right)
+    integer(int32) function file_modes_character_to_right(c, from) result(right)
         character, intent(in) :: c
         integer(int32), intent(in) :: from
         integer(int32) :: uright, gright, oright
@@ -353,46 +353,46 @@ contains
             ! Never reached: the callers only pass [rwxXstugo].
             right = 0
         end select
-    end function file_modes_char_to_right
+    end function file_modes_character_to_right
 
     !> Convert a symbolic mode string specification to an equivalent number.
     !> RIGHTS is the symbolic mode spec, it should match "([+=-][rwxXstugo]*)+".
     !> WHO_MASK is the bit-mask specifying the category of users to which to
-    !> apply the access permissions.  See `file_modes_char_to_who'.
+    !> apply the access permissions.  See `file_modes_character_to_who'.
     !> FROM gives the mode bits on which to base permissions if
     !> RIGHTS request to add, remove, or set permissions based on existing ones,
     !> as in "og+rX-w".  Port of files.el:file-modes-rights-to-number.
-    integer(int32) function file_modes_rights_to_number(rights, who_mask, from) result(num_rights)
+    integer(int32) function file_modes_rights_to_number(rights, who_mask, from) result(number_rights)
         character(len=*), intent(in) :: rights
         integer(int32), intent(in) :: who_mask, from
-        integer(int32) :: num_right
+        integer(int32) :: number_right
         integer :: i
         character :: op
 
-        num_rights = from
+        number_rights = from
         i = 1
         op = achar(0)
         if (len(rights) >= 1) op = rights(1:1)
 
         do while (index("+-=", op) > 0)
-            num_right = 0
+            number_right = 0
             i = i + 1
 
             do while (i <= len(rights))
                 if (index("rwxXstugo", rights(i:i)) == 0) exit
-                num_right = ior(num_right, file_modes_char_to_right(rights(i:i), num_rights))
+                number_right = ior(number_right, file_modes_character_to_right(rights(i:i), number_rights))
                 i = i + 1
             end do
 
-            num_right = iand(who_mask, num_right)
+            number_right = iand(who_mask, number_right)
 
             select case (op)
             case ("+")
-                num_rights = ior(num_rights, num_right)
+                number_rights = ior(number_rights, number_right)
             case ("-")
-                num_rights = iand(num_rights, not(num_right))
+                number_rights = iand(number_rights, not(number_right))
             case default
-                num_rights = ior(iand(num_rights, not(who_mask)), num_right)
+                number_rights = ior(iand(number_rights, not(who_mask)), number_right)
             end select
 
             op = achar(0)
@@ -406,7 +406,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int32), intent(in), optional :: from
         character(len=:), allocatable :: rest
-        integer(int32) :: num_who, who
+        integer(int32) :: number_who, who
         integer :: start, i, who_end, k
         logical :: matched
 
@@ -452,21 +452,21 @@ contains
             end do
 
             if (.not. matched) then
-                call set_error(status, FM_GENERIC_ERROR, format_message("Parse error in modes near `")//rest// &
+                call set_error(status, GENERIC_ERROR_CODE, format_message("Parse error in modes near `")//rest// &
                                format_message("'"))
                 return
             end if
 
-            num_who = 0
+            number_who = 0
 
             do k = start, who_end - 1
-                call file_modes_char_to_who(rest(k:k), who, status)
+                call file_modes_character_to_who(rest(k:k), who, status)
                 if (.not. status%ok()) return
-                num_who = ior(num_who, who)
+                number_who = ior(number_who, who)
             end do
 
-            if (num_who == 0) num_who = ior(int(o'7000', int32), default_file_modes())
-            mode_count = file_modes_rights_to_number(rest(who_end:), num_who, mode_count)
+            if (number_who == 0) number_who = ior(int(o'7000', int32), default_file_modes())
+            mode_count = file_modes_rights_to_number(rest(who_end:), number_who, mode_count)
 
             if (i <= len(rest)) then
                 if (rest(i:i) == ",") i = i + 1
@@ -565,9 +565,9 @@ contains
         call delete_file(file, status)
     end subroutine delete_file_for_rename
 
-    module subroutine init_files_copy()
+    module subroutine initialize_files_copy()
         copy_directory_hook => copy_directory_for_rename
         delete_directory_hook => delete_directory_for_rename
         delete_file_hook => delete_file_for_rename
-    end subroutine init_files_copy
+    end subroutine initialize_files_copy
 end submodule files_copy_mod

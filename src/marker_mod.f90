@@ -32,21 +32,21 @@
 !> Killing a buffer leaves its markers pointing nowhere.
 !>
 !> Position conversion finds the known character and byte position closest to
-!> the target -- BEGINNING, BEGV, PT, GPT, ZV, Z, a one-entry cache, and the
+!> the target -- BEGINNING, BEGINNING_OF_ACCESSIBLE_PORTION, POINT, GPT, END_OF_ACCESSIBLE_PORTION, Z, a one-entry cache, and the
 !> buffer's markers -- and scans from there.  Upstream also creates a
 !> marker after a long scan "until the next GC"; without GC that would
 !> leak, so only the cache records it.
 module marker_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, slot_table_type, null_handle
-    use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, buf_next_char_len, &
-                          buf_prev_char_len, resolve_buffer, buffer_handle
+    use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, buffer_next_character_length, &
+                          buffer_previous_character_length, resolve_buffer, buffer_handle
     implicit none(type, external)
     private
 
-    public :: buf_charpos_to_bytepos, buf_bytepos_to_charpos
-    public :: char_to_byte, byte_to_char, clear_charpos_cache
+    public :: buffer_character_position_to_byte_position, buffer_byte_position_to_character_position
+    public :: character_to_byte, byte_to_character, clear_character_position_cache
     public :: make_marker, destroy_marker, marker_buffer, marker_position, &
               marker_byte_position, marker_last_position, set_marker, &
               set_marker_to, set_marker_restricted, set_marker_both, &
@@ -59,7 +59,7 @@ module marker_mod
     type, public :: marker_type
         !> Buffer slot, or 0 when the marker points nowhere.
         integer(int64) :: buffer = 0
-        integer(int64) :: charpos = 0, bytepos = 0
+        integer(int64) :: character_position = 0, byte_position = 0
         !> True: the marker advances past text inserted at it.
         logical :: insertion_type = .false.
         !> Next marker slot in the buffer's chain, 0 at the end.
@@ -73,25 +73,25 @@ module marker_mod
     !> marker.c: BYTECHAR_DISTANCE_INITIAL / _INCREMENT.
     integer(int64), parameter :: distance_initial = 50, distance_increment = 50
 
-    !> The one-entry cache of marker.c (cached_charpos et al.).  The buffer
+    !> The one-entry cache of marker.c (cached_character_position et al.).  The buffer
     !> is identified by serial, since registry slots are reused.
-    integer(int64) :: cached_charpos = 0, cached_bytepos = 0
+    integer(int64) :: cached_character_position = 0, cached_byte_position = 0
     integer(int64) :: cached_buffer = 0, cached_modiff = -1
 
 contains
 
     !> Forget the cached position for buffer slot `b'.
     !> Port of marker.c:clear_charpos_cache.
-    subroutine clear_charpos_cache(b)
+    subroutine clear_character_position_cache(b)
         integer(int64), intent(in) :: b
 
         if (cached_buffer == buffers(b)%serial) cached_buffer = 0
-    end subroutine clear_charpos_cache
+    end subroutine clear_character_position_cache
 
-    !> Byte position of `charpos' in buffer slot `b'.
+    !> Byte position of `character_position' in buffer slot `b'.
     !> Port of marker.c:buf_charpos_to_bytepos.
-    integer(int64) function buf_charpos_to_bytepos(b, charpos) result(bytepos)
-        integer(int64), intent(in) :: b, charpos
+    integer(int64) function buffer_character_position_to_byte_position(b, character_position) result(byte_position)
+        integer(int64), intent(in) :: b, character_position
         integer(int64) :: best_above, best_above_byte, best_below, best_below_byte
         integer(int64) :: distance, m
         logical :: done
@@ -102,24 +102,24 @@ contains
 
             ! As many chars as bytes: every char is one byte.
             if (best_above == best_above_byte) then
-                bytepos = charpos
+                byte_position = character_position
                 return
             end if
 
             best_below = BEGINNING
             best_below_byte = BEGINNING_BYTE
             done = .false.
-            call consider(buffer%pt, buffer%pt_byte)
+            call consider(buffer%point, buffer%point_byte)
             if (done) return
             call consider(buffer%text%gpt, buffer%text%gpt_byte)
             if (done) return
-            call consider(buffer%begv, buffer%begv_byte)
+            call consider(buffer%beginning_of_accessible_portion, buffer%beginning_of_accessible_portion_byte)
             if (done) return
-            call consider(buffer%zv, buffer%zv_byte)
+            call consider(buffer%end_of_accessible_portion, buffer%end_of_accessible_portion_byte)
             if (done) return
 
             if (buffer%serial == cached_buffer .and. buffer%text%modiff == cached_modiff) then
-                call consider(cached_charpos, cached_bytepos)
+                call consider(cached_character_position, cached_byte_position)
                 if (done) return
             end if
 
@@ -129,79 +129,79 @@ contains
             m = buffer%text%markers
 
             do while (m /= 0)
-                if (best_above - charpos < distance .or. charpos - best_below < distance) exit
-                call consider(markers(m)%charpos, markers(m)%bytepos)
+                if (best_above - character_position < distance .or. character_position - best_below < distance) exit
+                call consider(markers(m)%character_position, markers(m)%byte_position)
                 if (done) return
                 m = markers(m)%next
                 distance = distance + distance_increment
             end do
 
             ! Scan from whichever known point is closer.
-            if (charpos - best_below < best_above - charpos) then
-                do while (best_below < charpos)
+            if (character_position - best_below < best_above - character_position) then
+                do while (best_below < character_position)
                     best_below = best_below + 1
-                    best_below_byte = best_below_byte + buf_next_char_len(buffer, best_below_byte)
+                    best_below_byte = best_below_byte + buffer_next_character_length(buffer, best_below_byte)
                 end do
 
                 call remember(best_below, best_below_byte)
-                bytepos = best_below_byte
+                byte_position = best_below_byte
             else
-                do while (best_above > charpos)
+                do while (best_above > character_position)
                     best_above = best_above - 1
-                    best_above_byte = best_above_byte - buf_prev_char_len(buffer, best_above_byte)
+                    best_above_byte = best_above_byte - buffer_previous_character_length(buffer, best_above_byte)
                 end do
 
                 call remember(best_above, best_above_byte)
-                bytepos = best_above_byte
+                byte_position = best_above_byte
             end if
         end associate
 
     contains
 
-        !> The CONSIDER macro of buf_charpos_to_bytepos.
-        subroutine consider(this_charpos, this_bytepos)
-            integer(int64), intent(in) :: this_charpos, this_bytepos
+        !> The CONSIDER macro of buffer_character_position_to_byte_position.
+        subroutine consider(this_character_position, this_byte_position)
+            integer(int64), intent(in) :: this_character_position, this_byte_position
             logical :: changed
 
             changed = .false.
 
-            if (this_charpos == charpos) then
-                bytepos = this_bytepos
+            if (this_character_position == character_position) then
+                byte_position = this_byte_position
                 done = .true.
                 return
-            else if (this_charpos > charpos) then
-                if (this_charpos < best_above) then
-                    best_above = this_charpos
-                    best_above_byte = this_bytepos
+            else if (this_character_position > character_position) then
+                if (this_character_position < best_above) then
+                    best_above = this_character_position
+                    best_above_byte = this_byte_position
                     changed = .true.
                 end if
-            else if (this_charpos > best_below) then
-                best_below = this_charpos
-                best_below_byte = this_bytepos
+            else if (this_character_position > best_below) then
+                best_below = this_character_position
+                best_below_byte = this_byte_position
                 changed = .true.
             end if
 
             ! An all-ASCII stretch between the two bounds: interpolate.
             if (changed .and. best_above - best_below == best_above_byte - best_below_byte) then
-                bytepos = best_below_byte + (charpos - best_below)
+                byte_position = best_below_byte + (character_position - best_below)
                 done = .true.
             end if
         end subroutine consider
 
-        subroutine remember(c, bpos)
-            integer(int64), intent(in) :: c, bpos
+        subroutine remember(c, buffer_position)
+            integer(int64), intent(in) :: c, buffer_position
 
             cached_buffer = buffers(b)%serial
             cached_modiff = buffers(b)%text%modiff
-            cached_charpos = c
-            cached_bytepos = bpos
+            cached_character_position = c
+            cached_byte_position = buffer_position
         end subroutine remember
-    end function buf_charpos_to_bytepos
+    end function buffer_character_position_to_byte_position
 
-    !> Character position of `bytepos' (a character boundary) in buffer
+    !> Character position of `byte_position' (a character boundary) in buffer
     !> slot `b'.  Port of marker.c:buf_bytepos_to_charpos.
-    integer(int64) function buf_bytepos_to_charpos(b, bytepos) result(charpos)
-        integer(int64), intent(in) :: b, bytepos
+    integer(int64) function buffer_byte_position_to_character_position(b, byte_position) result(character_position)
+        integer(int64), intent(in) :: b, byte_position
         integer(int64) :: best_above, best_above_byte, best_below, best_below_byte
         integer(int64) :: distance, m
         logical :: done
@@ -211,24 +211,24 @@ contains
             best_above_byte = buffer%text%z_byte
 
             if (best_above == best_above_byte) then
-                charpos = bytepos
+                character_position = byte_position
                 return
             end if
 
             best_below = BEGINNING
             best_below_byte = BEGINNING_BYTE
             done = .false.
-            call consider(buffer%pt_byte, buffer%pt)
+            call consider(buffer%point_byte, buffer%point)
             if (done) return
             call consider(buffer%text%gpt_byte, buffer%text%gpt)
             if (done) return
-            call consider(buffer%begv_byte, buffer%begv)
+            call consider(buffer%beginning_of_accessible_portion_byte, buffer%beginning_of_accessible_portion)
             if (done) return
-            call consider(buffer%zv_byte, buffer%zv)
+            call consider(buffer%end_of_accessible_portion_byte, buffer%end_of_accessible_portion)
             if (done) return
 
             if (buffer%serial == cached_buffer .and. buffer%text%modiff == cached_modiff) then
-                call consider(cached_bytepos, cached_charpos)
+                call consider(cached_byte_position, cached_character_position)
                 if (done) return
             end if
 
@@ -236,86 +236,86 @@ contains
             m = buffer%text%markers
 
             do while (m /= 0)
-                if (best_above_byte - bytepos < distance .or. bytepos - best_below_byte < distance) exit
-                call consider(markers(m)%bytepos, markers(m)%charpos)
+                if (best_above_byte - byte_position < distance .or. byte_position - best_below_byte < distance) exit
+                call consider(markers(m)%byte_position, markers(m)%character_position)
                 if (done) return
                 m = markers(m)%next
                 distance = distance + distance_increment
             end do
 
-            if (bytepos - best_below_byte < best_above_byte - bytepos) then
-                do while (best_below_byte < bytepos)
+            if (byte_position - best_below_byte < best_above_byte - byte_position) then
+                do while (best_below_byte < byte_position)
                     best_below = best_below + 1
-                    best_below_byte = best_below_byte + buf_next_char_len(buffer, best_below_byte)
+                    best_below_byte = best_below_byte + buffer_next_character_length(buffer, best_below_byte)
                 end do
 
                 call remember(best_below, best_below_byte)
-                charpos = best_below
+                character_position = best_below
             else
-                do while (best_above_byte > bytepos)
+                do while (best_above_byte > byte_position)
                     best_above = best_above - 1
-                    best_above_byte = best_above_byte - buf_prev_char_len(buffer, best_above_byte)
+                    best_above_byte = best_above_byte - buffer_previous_character_length(buffer, best_above_byte)
                 end do
 
                 call remember(best_above, best_above_byte)
-                charpos = best_above
+                character_position = best_above
             end if
         end associate
 
     contains
 
-        !> The CONSIDER macro of buf_bytepos_to_charpos.
-        subroutine consider(this_bytepos, this_charpos)
-            integer(int64), intent(in) :: this_bytepos, this_charpos
+        !> The CONSIDER macro of buffer_byte_position_to_character_position.
+        subroutine consider(this_byte_position, this_character_position)
+            integer(int64), intent(in) :: this_byte_position, this_character_position
             logical :: changed
 
             changed = .false.
 
-            if (this_bytepos == bytepos) then
-                charpos = this_charpos
+            if (this_byte_position == byte_position) then
+                character_position = this_character_position
                 done = .true.
                 return
-            else if (this_bytepos > bytepos) then
-                if (this_bytepos < best_above_byte) then
-                    best_above = this_charpos
-                    best_above_byte = this_bytepos
+            else if (this_byte_position > byte_position) then
+                if (this_byte_position < best_above_byte) then
+                    best_above = this_character_position
+                    best_above_byte = this_byte_position
                     changed = .true.
                 end if
-            else if (this_bytepos > best_below_byte) then
-                best_below = this_charpos
-                best_below_byte = this_bytepos
+            else if (this_byte_position > best_below_byte) then
+                best_below = this_character_position
+                best_below_byte = this_byte_position
                 changed = .true.
             end if
 
             if (changed .and. best_above - best_below == best_above_byte - best_below_byte) then
-                charpos = best_below + (bytepos - best_below_byte)
+                character_position = best_below + (byte_position - best_below_byte)
                 done = .true.
             end if
         end subroutine consider
 
-        subroutine remember(c, bpos)
-            integer(int64), intent(in) :: c, bpos
+        subroutine remember(c, buffer_position)
+            integer(int64), intent(in) :: c, buffer_position
 
             cached_buffer = buffers(b)%serial
             cached_modiff = buffers(b)%text%modiff
-            cached_charpos = c
-            cached_bytepos = bpos
+            cached_character_position = c
+            cached_byte_position = buffer_position
         end subroutine remember
-    end function buf_bytepos_to_charpos
+    end function buffer_byte_position_to_character_position
 
     !> Port of buffer.h:CHAR_TO_BYTE (current buffer).
-    integer(int64) function char_to_byte(charpos)
-        integer(int64), intent(in) :: charpos
+    integer(int64) function character_to_byte(character_position)
+        integer(int64), intent(in) :: character_position
 
-        char_to_byte = buf_charpos_to_bytepos(current, charpos)
-    end function char_to_byte
+        character_to_byte = buffer_character_position_to_byte_position(current, character_position)
+    end function character_to_byte
 
     !> Port of buffer.h:BYTE_TO_CHAR (current buffer).
-    integer(int64) function byte_to_char(bytepos)
-        integer(int64), intent(in) :: bytepos
+    integer(int64) function byte_to_character(byte_position)
+        integer(int64), intent(in) :: byte_position
 
-        byte_to_char = buf_bytepos_to_charpos(current, bytepos)
-    end function byte_to_char
+        byte_to_character = buffer_byte_position_to_character_position(current, byte_position)
+    end function byte_to_character
 
     ! ------------------------------------------------------------------
     ! Marker objects
@@ -379,64 +379,64 @@ contains
     !> Character position of `m'; an error if it points nowhere.
     !> Port of marker.c:marker_position and marker.c:Fmarker_position (which returns no position
     !> where this fails).
-    subroutine marker_position(m, pos, status)
+    subroutine marker_position(m, position, status)
         type(handle_type), intent(in) :: m
-        integer(int64), intent(out) :: pos
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
         integer(int64) :: i
 
-        pos = 0
+        position = 0
         call resolve_marker(m, i, status)
         if (.not. status%ok()) return
 
         if (markers(i)%buffer == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Marker does not point anywhere")
+            call set_error(status, GENERIC_ERROR_CODE, "Marker does not point anywhere")
             return
         end if
 
-        pos = markers(i)%charpos
+        position = markers(i)%character_position
     end subroutine marker_position
 
     !> Byte position of `m'.  Port of marker.c:marker_byte_position.
-    subroutine marker_byte_position(m, pos, status)
+    subroutine marker_byte_position(m, position, status)
         type(handle_type), intent(in) :: m
-        integer(int64), intent(out) :: pos
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
         integer(int64) :: i
 
-        pos = 0
+        position = 0
         call resolve_marker(m, i, status)
         if (.not. status%ok()) return
 
         if (markers(i)%buffer == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Marker does not point anywhere")
+            call set_error(status, GENERIC_ERROR_CODE, "Marker does not point anywhere")
             return
         end if
 
-        pos = markers(i)%bytepos
+        position = markers(i)%byte_position
     end subroutine marker_byte_position
 
     !> Last character position of `m', even after its buffer was closed.
     !> Port of marker.c:Fmarker_last_position.
-    subroutine marker_last_position(m, pos, status)
+    subroutine marker_last_position(m, position, status)
         type(handle_type), intent(in) :: m
-        integer(int64), intent(out) :: pos
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
         integer(int64) :: i
 
-        pos = 0
+        position = 0
         call resolve_marker(m, i, status)
         if (.not. status%ok()) return
-        pos = markers(i)%charpos
+        position = markers(i)%character_position
     end subroutine marker_last_position
 
     !> Point marker slot `i' at buffer slot `b', moving it to `b''s chain.
     !> Port of marker.c:attach_marker.
-    subroutine attach_marker(i, b, charpos, bytepos)
-        integer(int64), intent(in) :: i, b, charpos, bytepos
+    subroutine attach_marker(i, b, character_position, byte_position)
+        integer(int64), intent(in) :: i, b, character_position, byte_position
 
-        markers(i)%charpos = charpos
-        markers(i)%bytepos = bytepos
+        markers(i)%character_position = character_position
+        markers(i)%byte_position = byte_position
 
         if (markers(i)%buffer /= b) then
             call unchain_marker(i)
@@ -450,26 +450,26 @@ contains
     !> Port of marker.c:unchain_marker.
     subroutine unchain_marker(i)
         integer(int64), intent(in) :: i
-        integer(int64) :: b, prev, tail
+        integer(int64) :: b, previous, tail
 
         b = markers(i)%buffer
         if (b == 0) return
         markers(i)%buffer = 0
-        prev = 0
+        previous = 0
         tail = buffers(b)%text%markers
 
         do while (tail /= 0)
             if (tail == i) then
-                if (prev == 0) then
+                if (previous == 0) then
                     buffers(b)%text%markers = markers(i)%next
                 else
-                    markers(prev)%next = markers(i)%next
+                    markers(previous)%next = markers(i)%next
                 end if
 
                 exit
             end if
 
-            prev = tail
+            previous = tail
             tail = markers(tail)%next
         end do
 
@@ -511,13 +511,13 @@ contains
 
     !> Shared core of set-marker for an integer position.
     !> Port of marker.c:set_marker_internal (integer POSITION).
-    subroutine set_marker_pos(m, charpos_in, buffer, restricted, status)
+    subroutine set_marker_position(m, character_position_in, buffer, restricted, status)
         type(handle_type), intent(in) :: m
-        integer(int64), intent(in) :: charpos_in
+        integer(int64), intent(in) :: character_position_in
         type(handle_type), intent(in), optional :: buffer
         logical, intent(in) :: restricted
         type(status_type), intent(out) :: status
-        integer(int64) :: i, b, charpos, bytepos
+        integer(int64) :: i, b, character_position, byte_position
 
         call resolve_marker(m, i, status)
         if (.not. status%ok()) return
@@ -530,37 +530,38 @@ contains
 
         associate (this_buffer => buffers(b))
             if (restricted) then
-                charpos = clip(this_buffer%begv, charpos_in, this_buffer%zv)
+                character_position = clip(this_buffer%beginning_of_accessible_portion, character_position_in, &
+                                          this_buffer%end_of_accessible_portion)
             else
-                charpos = clip(BEGINNING, charpos_in, this_buffer%text%z)
+                character_position = clip(BEGINNING, character_position_in, this_buffer%text%z)
             end if
         end associate
 
-        bytepos = buf_charpos_to_bytepos(b, charpos)
-        call attach_marker(i, b, charpos, bytepos)
-    end subroutine set_marker_pos
+        byte_position = buffer_character_position_to_byte_position(b, character_position)
+        call attach_marker(i, b, character_position, byte_position)
+    end subroutine set_marker_position
 
-    !> Position `m' before character `charpos' of `buffer' (default: the
+    !> Position `m' before character `character_position' of `buffer' (default: the
     !> current buffer), clipped to the buffer.  A dead buffer makes `m'
     !> point nowhere.  Port of marker.c:Fset_marker (integer POSITION).
-    subroutine set_marker(m, charpos, status, buffer)
+    subroutine set_marker(m, character_position, status, buffer)
         type(handle_type), intent(in) :: m
-        integer(int64), intent(in) :: charpos
+        integer(int64), intent(in) :: character_position
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
 
-        call set_marker_pos(m, charpos, buffer, .false., status)
+        call set_marker_position(m, character_position, buffer, .false., status)
     end subroutine set_marker
 
     !> Like `set_marker', but clipped to the accessible region.
     !> Port of marker.c:set_marker_restricted.
-    subroutine set_marker_restricted(m, charpos, status, buffer)
+    subroutine set_marker_restricted(m, character_position, status, buffer)
         type(handle_type), intent(in) :: m
-        integer(int64), intent(in) :: charpos
+        integer(int64), intent(in) :: character_position
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
 
-        call set_marker_pos(m, charpos, buffer, .true., status)
+        call set_marker_position(m, character_position, buffer, .true., status)
     end subroutine set_marker_restricted
 
     !> Position `m' where marker `position' is, in `buffer' (default: the
@@ -571,7 +572,7 @@ contains
         type(handle_type), intent(in) :: m, position
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
-        integer(int64) :: i, p, b, charpos, bytepos
+        integer(int64) :: i, p, b, character_position, byte_position
 
         call resolve_marker(m, i, status)
         if (.not. status%ok()) return
@@ -582,26 +583,26 @@ contains
         if (markers(p)%buffer == 0 .or. b == 0) then
             call unchain_marker(i)
         else if (b == markers(p)%buffer .and. b == markers(i)%buffer) then
-            markers(i)%bytepos = markers(p)%bytepos
-            markers(i)%charpos = markers(p)%charpos
+            markers(i)%byte_position = markers(p)%byte_position
+            markers(i)%character_position = markers(p)%character_position
         else
-            charpos = clip(BEGINNING, markers(p)%charpos, buffers(b)%text%z)
+            character_position = clip(BEGINNING, markers(p)%character_position, buffers(b)%text%z)
 
             if (markers(p)%buffer /= b) then
-                bytepos = buf_charpos_to_bytepos(b, charpos)
+                byte_position = buffer_character_position_to_byte_position(b, character_position)
             else
-                bytepos = clip(BEGINNING_BYTE, markers(p)%bytepos, buffers(b)%text%z_byte)
+                byte_position = clip(BEGINNING_BYTE, markers(p)%byte_position, buffers(b)%text%z_byte)
             end if
 
-            call attach_marker(i, b, charpos, bytepos)
+            call attach_marker(i, b, character_position, byte_position)
         end if
     end subroutine set_marker_to
 
     !> Set `m' from both positions, unchecked.  A dead `buffer' makes it
     !> point nowhere.  Port of marker.c:set_marker_both.
-    subroutine set_marker_both(m, buffer, charpos, bytepos, status)
+    subroutine set_marker_both(m, buffer, character_position, byte_position, status)
         type(handle_type), intent(in) :: m, buffer
-        integer(int64), intent(in) :: charpos, bytepos
+        integer(int64), intent(in) :: character_position, byte_position
         type(status_type), intent(out) :: status
         integer(int64) :: i, b
 
@@ -610,7 +611,7 @@ contains
         call live_buffer(buffer, b)
 
         if (b /= 0) then
-            call attach_marker(i, b, charpos, bytepos)
+            call attach_marker(i, b, character_position, byte_position)
         else
             call unchain_marker(i)
         end if
@@ -618,9 +619,9 @@ contains
 
     !> Like `set_marker_both', clipped to the accessible region.
     !> Port of marker.c:set_marker_restricted_both.
-    subroutine set_marker_restricted_both(m, buffer, charpos, bytepos, status)
+    subroutine set_marker_restricted_both(m, buffer, character_position, byte_position, status)
         type(handle_type), intent(in) :: m, buffer
-        integer(int64), intent(in) :: charpos, bytepos
+        integer(int64), intent(in) :: character_position, byte_position
         type(status_type), intent(out) :: status
         integer(int64) :: i, b
 
@@ -629,8 +630,10 @@ contains
         call live_buffer(buffer, b)
 
         if (b /= 0) then
-            call attach_marker(i, b, clip(buffers(b)%begv, charpos, buffers(b)%zv), &
-                               clip(buffers(b)%begv_byte, bytepos, buffers(b)%zv_byte))
+            call attach_marker(i, b, clip(buffers(b)%beginning_of_accessible_portion, character_position, &
+                                          buffers(b)%end_of_accessible_portion), &
+                               clip(buffers(b)%beginning_of_accessible_portion_byte, byte_position, &
+                                    buffers(b)%end_of_accessible_portion_byte))
         else
             call unchain_marker(i)
         end if
@@ -663,16 +666,16 @@ contains
         markers(new%index)%insertion_type = insertion_type
     end subroutine copy_marker
 
-    !> A new marker at `charpos' in the current buffer.
+    !> A new marker at `character_position' in the current buffer.
     !> Port of marker.c:Fcopy_marker (integer argument).
-    subroutine copy_marker_at(charpos, new, insertion_type, status)
-        integer(int64), intent(in) :: charpos
+    subroutine copy_marker_at(character_position, new, insertion_type, status)
+        integer(int64), intent(in) :: character_position
         type(handle_type), intent(out) :: new
         logical, intent(in) :: insertion_type
         type(status_type), intent(out) :: status
 
         call make_marker(new)
-        call set_marker(new, charpos, status)
+        call set_marker(new, character_position, status)
         markers(new%index)%insertion_type = insertion_type
     end subroutine copy_marker_at
 
@@ -718,9 +721,9 @@ contains
     end subroutine live_buffer
 
     !> Port of lisp.h:clip_to_bounds.
-    pure integer(int64) function clip(lower, num, upper)
-        integer(int64), intent(in) :: lower, num, upper
+    pure integer(int64) function clip(lower, number, upper)
+        integer(int64), intent(in) :: lower, number, upper
 
-        clip = max(lower, min(num, upper))
+        clip = max(lower, min(number, upper))
     end function clip
 end module marker_mod

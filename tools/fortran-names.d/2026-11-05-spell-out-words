@@ -1,0 +1,537 @@
+# fortran-names.d/2026-11-05-spell-out-words -- abbreviated words spelled
+# out in every name (owner, 2026-11-05: no abbreviations in any name,
+# Emacs's own included).  Standards and POSIX names keep their
+# abbreviations (iso, ascii, utf, ansi, html, css, xml, json, url, mime,
+# rgb, cns, big5, gbk, sjis, cp932, md5, sha*, f90, sgml, terminfo, smtp;
+# pid, uid, gid, fd, errno, getenv, mkdir, chmod, ioctl, and the fields
+# of the Linux structures src/sys hardcodes), and so do keys and
+# mode-line text.
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+
+# The procedure of a command is execute_NAME (one word per meaning:
+# execute_ runs something), and a module's one-time setup initialize_X.
+prefix	cmd	execute
+prefix	init	initialize
+
+# Class A: abbreviations of ordinary words.
+word	cmd	command
+word	dir	directory
+word	dirs	directories
+word	pos	position
+word	prev	previous
+word	paren	parenthesis
+word	parens	parentheses
+word	conf	configuration
+word	arg	argument
+word	nav	navigation
+word	ref	reference
+word	orig	original
+word	spec	specification
+word	col	column
+word	func	function
+word	prop	property
+word	props	properties
+word	sys	system
+word	temp	temporary
+word	num	number
+word	del	delete
+word	subdir	subdirectory
+word	subdirs	subdirectories
+word	config	configuration
+word	buf	buffer
+word	msg	message
+word	pt	point
+word	loc	location
+word	passwd	password
+word	var	variable
+word	decl	declaration
+word	opt	option
+word	fun	function
+word	desc	description
+word	misc	miscellaneous
+word	charpos	character_position
+word	ctl	control
+word	sec	second
+word	tmp	temporary
+word	opoint	original_point
+word	val	value
+word	win	window
+word	bytepos	byte_position
+word	dict	dictionary
+word	dicts	dictionaries
+word	env	environment
+word	sig	signal
+word	vec	vector
+word	fns	functions
+word	pat	pattern
+word	pw	password
+word	repo	repository
+word	repos	repositories
+word	elt	element
+word	idx	index
+word	mid	middle
+word	src	source
+word	str	string
+word	util	utility
+word	utils	utilities
+word	asynch	asynchronous
+word	attr	attribute
+word	attrib	attribute
+word	buff	buffer
+word	ctrl	control
+word	dst	destination
+word	esc	escape
+word	param	parameter
+word	perm	permission
+word	bg	background
+word	fg	foreground
+word	dest	destination
+word	dirline	directory_line
+word	lang	language
+word	phys	physical
+word	std	standard
+word	descr	description
+word	dirname	directory_name
+word	dirstack	directory_stack
+word	nl	newline
+word	ptr	pointer
+word	rel	relative
+word	stats	statistics
+word	cnt	count
+word	cur	current
+word	defdir	default_directory
+word	hpos	horizontal_position
+word	rect	rectangle
+word	regex	regular_expression
+word	auth	authentication
+word	bpos	buffer_position
+word	cwd	current_working_directory
+word	elec	electric
+word	elem	element
+word	expr	expression
+word	hist	history
+word	incr	increment
+word	lim	limit
+word	mpos	marker_position
+word	newdir	new_directory
+word	obuf	output_buffer
+word	pos1	position1
+word	pos2	position2
+word	sep	separator
+word	subst	substitute
+word	suf	suffix
+word	syn	syntax
+word	tok	token
+word	vpos	vertical_position
+word	beg	beginning
+word	proc	process
+
+# Regular expressions, the spellcheck family and the other words the
+# owner accepted.
+word	regexp	regular_expression
+word	re	regular_expression
+word	ppss	parser_state
+word	capf	completion_at_point_function
+word	begv	beginning_of_accessible_portion
+word	zv	end_of_accessible_portion
+word	bol	beginning_of_line
+word	eol	end_of_line
+word	bob	beginning_of_buffer
+word	eob	end_of_buffer
+word	dwim	do_what_i_mean
+word	hex	hexadecimal
+word	kbd	keyboard
+word	sync	synchronize
+word	rev	revision
+word	ws	whitespace
+word	sym	symbol
+word	nil	false
+word	flyspell	spellcheck
+word	ispell	spellcheck
+
+# Words of Fortran intrinsics: spelled out in names, never as the
+# intrinsic itself (a one-part identifier).
+part	char	character
+part	len	length
+part	int	integer
+part	min	minimum
+part	max	maximum
+part	abs	absolute
+part	stat	status
+
+# A word whose abbreviation stands for another word in some names: the
+# word it stands for (no abbreviations).  The coding categories and
+# completion categories (cat: category; no identifier means the cat
+# program, which only string literals name); signatures (the UTF-8 and
+# UTF-16 byte order mark, SMIE's indentation signatures); daylight saving
+# time; reversed lists and strings; the window list of window tests, the
+# Linux winsize structure, a window start and a word start.
+word	cat	category
+name	sig	signature	src/coding_mod.f90 src/simple_minded_indentation_engine_mod.f90
+name	sigs	signatures	src/simple_minded_indentation_engine_mod.f90
+name	smie_sig	smie_signature
+name	is_same_sig	is_same_signature
+name	sig_data	signature_data
+name	cat_utf_8_sig	category_utf_8_signature
+name	decoded_time_dst	decoded_time_daylight_saving_time
+name	test_dst_numeric_zone	test_daylight_saving_time_numeric_zone
+name	dst	daylight_saving_time	src/time_functions_mod.f90 test/test_time_functions_mod.f90 src/version_control_git_mod.f90
+name	rev	reversed	src/info_mod.f90 src/minibuffer_styles_mod.f90 src/newcomment_mod.f90
+name	rev	reversed	src/diff_mode_apply_mod.f90
+name	ws	leaf_windows	test/test_window_mod.f90 test/test_window_sides_mod.f90 test/test_window_move_mod.f90 test/test_frame_mod.f90 test/test_follow_mod.f90
+name	ws	window_size	src/sys/system_dependent_mod.f90 src/sys/system_linux_mod.f90
+name	ws	old_window_start	src/easy_minor_mode_mod.f90
+name	ws	word_position	src/spellcheck_mod.f90
+
+# Words of Fortran and C names that keep their spelling: the intrinsic
+# modules and their entities, intrinsic procedures, and the C bindings'
+# names of C types (c_fcntl_int: fcntl with an int argument).
+keep	c_int
+keep	c_char
+keep	c_ptr
+keep	c_signed_char
+keep	c_null_ptr
+keep	c_null_char
+keep	c_loc
+keep	iso_fortran_env
+keep	len_trim
+keep	selected_int_kind
+keep	selected_char_kind
+keep	c_fcntl_int
+keep	c_ioctl_int
+keep	c_ioctl_char
+# POSIX and Linux names (src/sys): functions, constants and the fields of
+# the structures hardcoded there (tm, timespec, passwd, group, winsize).
+keep	c_sync
+keep	tm_min
+keep	tm_sec
+keep	tv_sec
+keep	at_statx_sync_as_stat
+keep	statx_basic_stats
+keep	sig_setmask
+keep	sig_block
+keep	msg_nosignal
+keep	pw_name
+keep	pw_passwd
+keep	pw_uid
+keep	pw_gid
+keep	pw_dir
+keep	pw_gecos
+keep	pw_shell
+keep	gr_passwd
+keep	ws_row
+keep	ws_col
+keep	ws_xpixel
+keep	ws_ypixel
+# The ASCII names of control characters (ESC, DEL), which are also key
+# names.
+keep	"ESC"
+keep	"DEL"
+# res is a result, not regular expressions (the plural of re).
+keep	res
+
+# The error codes: FM_X is X_CODE (the error condition X), and
+# arith-error is arithmetic_error.
+name	fm_args_out_of_range	arguments_out_of_range_code
+name	fm_arith_error	arithmetic_error_code
+name	fm_beginning_of_buffer	beginning_of_buffer_code
+name	fm_bookmark_error_no_filename	bookmark_error_no_filename_code
+name	fm_bookmark_errors	bookmark_errors_code
+name	fm_buffer_read_only	buffer_read_only_code
+name	fm_coding_system_error	coding_system_error_code
+name	fm_end_of_buffer	end_of_buffer_code
+name	fm_end_of_file	end_of_file_code
+name	fm_file_already_exists	file_already_exists_code
+name	fm_file_date_error	file_date_error_code
+name	fm_file_error	file_error_code
+name	fm_file_missing	file_missing_code
+name	fm_file_notify_error	file_notify_error_code
+name	fm_generic_error	generic_error_code
+name	fm_imenu_unavailable	imenu_unavailable_code
+name	fm_inhibited_interaction	inhibited_interaction_code
+name	fm_invalid_handle	invalid_handle_code
+name	fm_invalid_read_syntax	invalid_read_syntax_code
+name	fm_invalid_regexp	invalid_regular_expression_code
+name	fm_mark_inactive	mark_inactive_code
+name	fm_memory_full	memory_full_code
+name	fm_ok	ok_code
+name	fm_overflow_error	overflow_error_code
+name	fm_permission_denied	permission_denied_code
+name	fm_quit	quit_code
+name	fm_range_error	range_error_code
+name	fm_scan_error	scan_error_code
+name	fm_search_failed	search_failed_code
+name	fm_setting_constant	setting_constant_code
+name	fm_text_read_only	text_read_only_code
+name	fm_top_level	top_level_code
+name	fm_user_error	user_error_code
+name	fm_user_search_failed	user_search_failed_code
+name	fm_vc_not_supported	vc_not_supported_code
+name	fm_void_function	void_function_code
+name	fm_void_variable	void_variable_code
+name	fm_wrong_number_of_arguments	wrong_number_of_arguments_code
+name	fm_wrong_type_argument	wrong_type_argument_code
+
+# Two names spelled out alike.  Flyspell's commands that would take an
+# Ispell name end in _highlight (panel, 2026-11-05): Ispell keeps the plain
+# names; Flyspell's other names take no infix, so the entries name the
+# longer ones that hold the command's run.  flyspell-overlay is
+# spellcheck_highlight_overlay beside ispell-overlay, and the hook
+# variable ispell-kill-ispell-hook takes the _variable suffix beside the
+# function flyspell-kill-ispell-hook (CLAUDE.md).  isearch-del-char
+# (deletes the character at the end of the search string) beside
+# isearch-delete-char; the window_commands submodule's setup beside
+# window_scroll's initialize_window_commands (a suffix names the role).
+name	flyspell_buffer	spellcheck_buffer_highlight
+name	flyspell_region	spellcheck_region_highlight
+name	flyspell_word	spellcheck_word_highlight
+name	flyspell_overlay	spellcheck_highlight_overlay
+name	auto_correct_flyspell_word	auto_correct_spellcheck_word
+name	auto_correct_previous_flyspell_word	auto_correct_previous_spellcheck_word
+name	check_previous_highlighted_flyspell_word	check_previous_highlighted_spellcheck_word
+name	get_flyspell_word	get_spellcheck_word
+name	search_flyspell_word_forward	search_spellcheck_word_forward
+name	search_flyspell_word_backward	search_spellcheck_word_backward
+name	accept_flyspell_buffer_local_defs	accept_spellcheck_buffer_local_definitions
+name	delete_flyspell_region_overlays	delete_spellcheck_region_overlays
+name	check_flyspell_region_doublons	check_spellcheck_region_doublons
+name	is_flyspell_overlay	is_spellcheck_overlay
+name	make_flyspell_overlay	make_spellcheck_overlay
+name	any_flyspell_overlay	any_spellcheck_overlay
+name	ispell_kill_ispell_hook	spellcheck_kill_spellcheck_hook_variable
+name	init_flyspell	initialize_spellcheck_mode
+name	isearch_del_char	isearch_delete_end_character
+name	init_window_cmds	initialize_window_commands_submodule
+# Prog mode is programming_mode (its module, programming_mode_mod), and
+# flyspell-prog-mode spellcheck_programming_mode.
+name	prog_mode	programming_mode
+name	prog_indentation_context	programming_indentation_context
+name	flyspell_prog	spellcheck_programming
+
+# Variables that hold a command (a command_type, or its text) are
+# command_X; only a command's procedure is execute_X.
+name	cmd_answer	command_answer
+name	cmd_cache	command_cache
+name	cmd_char	command_character
+name	cmd_help	command_help
+name	cmd_wrong	command_wrong
+name	cmd_cmd	command
+name	cmd_insert_config_stamp	command_insert_configuration_stamp
+name	cmd_zero_argument	command_zero_argument
+name	cmd_test	command_test
+name	cmd_desc	command_description
+name	cmd_subst_fn	command_subst_fn
+name	cmd_a	command_a	test/test_repeat_mod.f90
+name	cmd_b	command_b	test/test_repeat_mod.f90
+name	cmd_c	command_c	test/test_repeat_mod.f90
+name	cmd_d	command_d	test/test_repeat_mod.f90
+name	cmd_e	command_e	test/test_repeat_mod.f90
+name	cmd_g	command_g	test/test_repeat_mod.f90
+name	cmd_o	command_o	test/test_repeat_mod.f90
+name	cmd_q	command_q	test/test_repeat_mod.f90
+name	cmd_s	command_s	test/test_repeat_mod.f90
+name	cmd_t	command_t	test/test_repeat_mod.f90
+name	cmd_u	command_u	test/test_repeat_mod.f90
+
+# The private helpers that give the position of a marker, or 0 where it
+# points nowhere (marker_position, marker_mod, is the subroutine with a
+# status).
+name	mpos	marked_position	src/ansi_color_mod.f90 src/directory_editor_mode_mod.f90 src/f90_mod.f90 src/fortmacs_widget_for_object_collections_mod.f90 src/log_edit_mod.f90 src/make_mode_mod.f90 src/newcomment_mod.f90 src/python_mod.f90 src/send_mail_mod.f90 src/shell_script_mod.f90 src/message_mod.f90
+name	marker_pos	marked_position	src/command_interpreter_mod.f90 src/smtpmail_mod.f90 src/spellcheck_mod.f90 src/window_configuration_mod.f90 src/window_display_mod.f90
+name	comint_args	comint_range_arguments
+# which-func-mode (a variable) beside the minor mode which-function-mode
+# (the _variable suffix, CLAUDE.md); winner-conf beside
+# winner-configuration; Dired's private line helpers beside the commands
+# beginning_of_line and end_of_line; a test's newline beside the command;
+# the search commands' prompting helper beside search_command.
+name	which_func_mode	which_function_mode_variable
+name	winner_conf	winner_current_configuration
+name	bol	line_beginning	src/directory_editor_mode_mod.f90
+name	eol	line_end	src/directory_editor_mode_mod.f90
+name	nl	newline_character	test/test_simple_mod.f90
+name	search_cmd	search_with_prompt	src/search_regular_expression_mod.f90
+name	set_var	set_test_variable	test/test_simple_set_variable_mod.f90
+name	winner_conf_type	winner_configuration_type
+name	move_winner_conf	move_winner_configuration
+name	set_winner_conf	set_winner_configuration
+name	destroy_winner_conf	destroy_winner_configuration
+name	copy_winner_conf	copy_winner_configuration
+name	env_vars	git_environment_variables	src/version_control_git_mod.f90
+# regexp-opt (regexp optimization) is named after its module,
+# regular_expression_optimization_mod.
+name	regexp_opt	regular_expression_optimization
+
+# Text that is not a Fortmacs name, kept as it is in strings and
+# comments: environment variables, shell and Python program text, locale
+# names, file names, Fortran keywords that f90 mode highlights, a
+# protocol keyword and test fixtures.
+keep	"XDG_CONFIG_HOME"
+keep	"DIR_COLORS"
+keep	"BASH_ENV"
+keep	"FIELD_MAX"
+keep	"NO_PROMPT_VARS"
+keep	"PP_NUM"
+keep	"OMP_NUM_THREADS"
+keep	"TERMINFO_DIRS"
+keep	"GIT_DIR"
+keep	"EMACS_ENV_EL_TEST_VAR"
+keep	"FORTMACS_ENV_TEST"
+keep	"FM_TEST_DIR"
+keep	"LANG"
+keep	"AUTH"
+keep	"pt_BR"
+keep	"pt_PT"
+keep	"nl_NL"
+keep	"cdable_vars"
+keep	"pe_param"
+keep	"tmp_mn"
+keep	".emacs.d/init_"
+keep	".ispell_"
+keep	"atomic_int_kind"
+keep	"atomic_ref"
+keep	"_MIN"
+keep	"Fxw_display_color_p"
+keep	"clear_stats"
+keep	"recalculate_stats"
+keep	"comment_wins_over_ender"
+keep	"some_var"
+keep	"var_one"
+keep	"var_two"
+keep	"var_three"
+keep	"var_four"
+keep	"with_some_arg"
+keep	"def test_regexp"
+# gfortran 13 cannot parse procedure(character_...) :: x followed by another
+# declaration (it reads a character type): the interface is verb first.
+name	char_table_map_procedure	map_character_table_procedure
+name	charset_range_procedure	map_character_set_range_procedure
+name	cmds	isearch_commands	src/incremental_search_mod.f90
+# sh-var-list (sh_vars, 0-base) beside sh-variables.
+name	sh_vars	sh_indentation_variables
+# init-file-had-error and the other names of the init file: an
+# initialization file, not a setup step.
+name	init_file	initialization_file
+# Upstream's Lisp form, quoted in a docstring.
+keep	"(put 'CMD 'disabled nil)"
+keep	"'CMD`"
+# An array is named with a plural, never _vector (R2-Q8): vec is spelled
+# out as what the vector holds.
+name	face_vec	face_state
+name	overlay_vec	overlay_handles	src/face_realization_mod.f90
+name	new_vec	new_items	src/ring_mod.f90
+
+# Package and Emacs words (owner, 2026-11-05: class B, for every name).
+# Standards keep theirs (iso, ascii, utf, ansi, html, css, xml, json, url,
+# mime, rgb, cns, big5, gbk, sjis, cp932, md5, sha*, f90, sgml, terminfo,
+# smtp, hkscs), and so do ibuffer (a package name), the module suffix mod,
+# POSIX utilities (ls, cd), the Tib bibliography program (tib) and cc,
+# which stands for several things (a cost, CC Mode, the Cc header).
+word	vc	version_control
+word	hg	mercurial
+word	svn	subversion
+word	cvs	concurrent_versions_system
+name	pcvs	parallel_cvs
+word	dired	directory_editor
+word	ediff	fortmacs_diff
+word	comint	command_interpreter
+word	sh	shell
+word	xref	cross_reference
+word	smie	simple_minded_indentation_engine
+word	isearch	incremental_search
+word	abbrev	abbreviation
+word	abbrevs	abbreviations
+word	dabbrev	dynamic_abbreviation
+word	dabbrevs	dynamic_abbreviations
+word	tty	terminal
+word	kmacro	keyboard_macro
+word	edmacro	keyboard_macro_editor
+word	imenu	index_menu
+word	bidi	bidirectional
+word	smerge	simple_merge
+word	js	javascript
+word	pcomplete	programmable_completion
+word	recentf	recent_files
+word	bmenu	bookmark_menu
+word	mule	multilingual_environment
+word	ewoc	fortmacs_widget_for_object_collections
+word	ewocs	fortmacs_widgets_for_object_collections
+word	savehist	save_history
+word	async	asynchronous
+word	asynch	asynchronous
+word	cm	cursor_motion
+word	etags	fortmacs_tags
+word	jit	just_in_time
+word	charset	character_set
+word	prog	programming
+word	crm	completing_read_multiple
+word	rmc	read_multiple_choice
+word	recc	regular_expression_character_class
+word	bnf	backus_naur_form
+word	bom	byte_order_mark
+word	gui	graphical_user_interface
+word	rif	redisplay_interface
+word	subr	basic_subprograms
+word	nts	nonterminals
+word	pcm	partial_completion_mode
+word	gmake	gnu_make
+word	eoh	end_of_headers
+word	eop	end_of_paragraph
+word	bmk	bookmark
+word	bmrk	bookmark
+word	io	input_output
+word	init	initialize
+# A word that stands for another word in some names: cpp is the C
+# preprocessor; transpose-subr's subr a subroutine; js-indent-first-init's
+# init an initializer, bidi_init_it initializes an iterator; Info's el an
+# element; the cal_move and ibuf_ext modules.  ios, an iostat result, is
+# the keyword's word.
+word	cpp	c_preprocessor
+name	transpose_subr	transpose_subroutine
+name	first_init	first_initializer
+name	bidi_init_it	bidi_initialize_iterator
+word	el	element
+name	cal_move	calendar_movement
+name	ibuf_ext	ibuffer_extensions
+keep	ios
+# Spelled-out names longer than Fortran's 63 characters, shortened
+# without an abbreviation (a repeated or least telling word left out).
+name	dynamic_abbreviation_abbreviation	dynamic_abbreviation
+name	tabulated_list_graphical_user_interface	tabulated_list_graphical
+name	shell_simple_minded_indentation_engine	shell_indentation_engine
+name	fortmacs_diff_default_filtering_regular_expression_string_setting_type	fortmacs_diff_default_filtering_setting_type
+name	version_control_directory_fortmacs_widget_for_object_collections	version_control_directory_widget_collection
+name	simple_minded_indentation_engine_set_is_hanging_end_of_line_function	set_simple_minded_indentation_engine_hanging_line_test
+name	simple_minded_indentation_engine_is_hanging_end_of_line_procedure	simple_minded_indentation_engine_hanging_line_procedure
+name	command_interpreter_history_incremental_search_backward_regular_expression	command_interpreter_history_search_backward_regular_expression
+name	directory_editor_create_destination_directories_on_trailing_dirsep	directory_editor_create_directories_on_trailing_separator
+name	version_control_mercurial_symbolic_revision_styles_active_bookmark	version_control_mercurial_revision_styles_active_bookmark
+name	version_control_mercurial_use_file_version_for_mode_line_version	version_control_mercurial_use_file_version_for_mode_line
+name	execute_simple_minded_indentation_engine_forward_expression_command	execute_simple_minded_indentation_engine_forward_expression
+name	execute_simple_minded_indentation_engine_backward_expression_command	execute_simple_minded_indentation_engine_backward_expression
+name	execute_simple_minded_indentation_engine_configuration_show_indent	execute_show_simple_minded_indentation_engine_indent
+name	execute_directory_editor_mark_files_containing_regular_expression	execute_directory_editor_mark_files_by_contents
+name	javascript_prototype_obsolete_class_declaration_regular_expression	javascript_prototype_obsolete_class_regular_expression
+name	javascript_prototype_objextend_class_declaration_regular_expression	javascript_prototype_objextend_class_regular_expression
+# sh-mode and its siblings beside shell.el's shell-mode, shell-mode-map,
+# ...: Shell-script mode (its mode name), as its module shell_script_mod.
+name	sh_mode	shell_script_mode
+name	sh_font_lock_keywords	shell_script_font_lock_keywords
+name	sh_dynamic_complete_functions	shell_script_dynamic_complete_functions
+name	clear_sh_locals	clear_shell_script_locals
+# defs are definitions.
+word	defs	definitions
+# Upstream test data, kept as upstream wrote it.
+keep	test/dabbrev-resources/INSTALL_BEGIN
+keep	test/ispell-resources/fake-aspell-new.bash
+keep	test/regex-resources/BOOST.tests
+keep	test/regex-resources/PTESTS
+name	simple_minded_indentation_engine_token_procedure	simple_minded_indentation_token_procedure
+name	version_control_mercurial_symbolic_revision_style_type	version_control_mercurial_revision_style_type
+# The new name holds stop_process (0-base): kept so it is not renamed again.
+keep	asynchronous_shell_command_buffer_confirm_stop_process
+# "Re:", the reply prefix of a mail subject, is no abbreviation of regexp.
+keep	mail_re
+keep	subject_re

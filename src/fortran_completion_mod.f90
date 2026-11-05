@@ -41,13 +41,13 @@ module fortran_completion_mod
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
-    use buffer_mod, only: buffers, current, current_buffer, buffer_chars_modified_tick, buffer_serial_live
-    use editing_functions_mod, only: point, point_min, point_max, buffer_substring
-    use marker_mod, only: char_to_byte
-    use minibuffer_reading_tables_mod, only: capf_data_type, completion_list_table
+    use buffer_mod, only: buffers, current, current_buffer, buffer_characters_modified_tick, buffer_serial_live
+    use editing_functions_mod, only: point, point_minimum, point_maximum, buffer_substring
+    use marker_mod, only: character_to_byte
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type, completion_list_table
     use minibuffer_mod, only: completion_at_point_functions
     use file_input_output_mod, only: file_attributes
-    use system_dependent_mod, only: file_stat_type
+    use system_dependent_mod, only: file_status_type
     use project_mod, only: project_type, get_current_project
     use string_type_mod, only: string_type
     use character_mod, only: downcase_ascii
@@ -56,7 +56,7 @@ module fortran_completion_mod
     implicit none(type, external)
     private
 
-    public :: init_fortran_completion, fortran_completion_mode, turn_on_fortran_completion_mode, &
+    public :: initialize_fortran_completion, fortran_completion_mode, turn_on_fortran_completion_mode, &
               get_component_completion_data
 
     !> Hook run after entering or leaving `fortran_completion_mode'.  No
@@ -107,7 +107,7 @@ module fortran_completion_mod
     !> How far back from point a designator is looked for, in characters.
     integer(int64), parameter :: CONTEXT = 2000
     !> The deepest chain of parent types followed (a cycle ends there).
-    integer, parameter :: MAX_PARENTS = 64
+    integer, parameter :: MAXIMUM_PARENTS = 64
 
     character(len=*), parameter :: LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     character(len=*), parameter :: NAME_CHARACTERS = LETTERS//"0123456789_"
@@ -117,11 +117,11 @@ module fortran_completion_mod
 contains
 
     !> Define Fortran Completion mode and its command.  Not a port.
-    subroutine init_fortran_completion()
+    subroutine initialize_fortran_completion()
         call minor_modes%fortran_completion_mode%define("fortran_completion_mode", hook=fortran_completion_mode_hook, &
                                                         body=fortran_completion_mode_body)
         commands%fortran_completion_mode%execute => fortran_completion_mode
-    end subroutine init_fortran_completion
+    end subroutine initialize_fortran_completion
 
     !> Toggle completion of components after `%' (Fortran Completion mode).
     !>
@@ -175,7 +175,7 @@ contains
     !> procedures of the designator's type.  Nothing when point is not
     !> after `%' and a name, or the type is not known.  Not a port.
     recursive subroutine get_component_completion_data(data, status)
-        type(capf_data_type), intent(out) :: data
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: before, after, type_name
         character(len=NAME_LENGTH), allocatable :: chain(:), candidates(:)
@@ -185,20 +185,20 @@ contains
 
         status = status_type()
         here = point()
-        call buffer_substring(max(point_min(), here - CONTEXT), here, before, status)
+        call buffer_substring(max(point_minimum(), here - CONTEXT), here, before, status)
         if (.not. status%ok()) return
         tail = len(before) - verify(before, NAME_CHARACTERS, back=.true.)
         if (tail == len(before)) return
         call designator_names(before(1:len(before) - tail), chain)
         if (size(chain) == 0) return
         start = here - tail
-        call buffer_substring(here, min(point_max(), here + NAME_LENGTH), after, status)
+        call buffer_substring(here, min(point_maximum(), here + NAME_LENGTH), after, status)
         if (.not. status%ok()) return
         ahead = verify(after//" ", NAME_CHARACTERS) - 1
         finish = here + ahead
         call read_buffer_declarations(status)
         if (.not. status%ok()) return
-        offset = char_to_byte(start) - char_to_byte(point_min()) + 1
+        offset = character_to_byte(start) - character_to_byte(point_minimum()) + 1
         call resolve_designator(chain, offset, type_name, status)
         if (.not. status%ok()) return
         if (len(type_name) == 0) return
@@ -439,7 +439,7 @@ contains
         result = ""
         definition => find_definition(type_name, use_project)
 
-        do depth = 1, MAX_PARENTS
+        do depth = 1, MAXIMUM_PARENTS
             if (.not. associated(definition)) return
 
             do k = 1, definition%component_count
@@ -466,7 +466,7 @@ contains
         n = 0
         definition => find_definition(type_name, .true.)
 
-        do depth = 1, MAX_PARENTS
+        do depth = 1, MAXIMUM_PARENTS
             if (.not. associated(definition)) exit
 
             do k = 1, definition%component_count
@@ -558,7 +558,7 @@ contains
 
         status = status_type()
         serial = buffers(current)%serial
-        call buffer_chars_modified_tick(current_buffer(), tick, status)
+        call buffer_characters_modified_tick(current_buffer(), tick, status)
         if (.not. status%ok()) return
         slot = 0
 
@@ -595,15 +595,15 @@ contains
         end if
 
         associate (entry => buffer_caches(slot))
-            if (entry%serial /= serial .or. entry%tick /= tick .or. entry%beginning /= point_min() .or. &
-                entry%end /= point_max()) then
-                call buffer_substring(point_min(), point_max(), text, status)
+            if (entry%serial /= serial .or. entry%tick /= tick .or. entry%beginning /= point_minimum() .or. &
+                entry%end /= point_maximum()) then
+                call buffer_substring(point_minimum(), point_maximum(), text, status)
                 if (.not. status%ok()) return
                 call parse_declarations(text, entry%declarations)
                 entry%serial = serial
                 entry%tick = tick
-                entry%beginning = point_min()
-                entry%end = point_max()
+                entry%beginning = point_minimum()
+                entry%end = point_maximum()
             end if
         end associate
 
@@ -722,7 +722,7 @@ contains
     subroutine read_file_declarations(entry, status)
         type(file_cache_type), intent(inout) :: entry
         type(status_type), intent(out) :: status
-        type(file_stat_type) :: attributes
+        type(file_status_type) :: attributes
         character(len=:), allocatable :: text
         logical :: found
         integer :: unit, iostat
@@ -736,10 +736,10 @@ contains
             return
         end if
 
-        if (entry%size == attributes%size .and. entry%modification_seconds == attributes%mtime_sec .and. &
+        if (entry%size == attributes%size .and. entry%modification_seconds == attributes%mtime_second .and. &
             entry%modification_nanoseconds == attributes%mtime_nsec) return
         entry%size = attributes%size
-        entry%modification_seconds = attributes%mtime_sec
+        entry%modification_seconds = attributes%mtime_second
         entry%modification_nanoseconds = attributes%mtime_nsec
         allocate (character(len=attributes%size) :: text)
 

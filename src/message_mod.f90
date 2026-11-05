@@ -35,31 +35,31 @@
 module message_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_RAW, PREFIX_NUMBER
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_VOID_FUNCTION, FM_QUIT
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, PREFIX_NONE, PREFIX_RAW, PREFIX_NUMBER
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE, VOID_FUNCTION_CODE, QUIT_CODE
     use casefiddle_mod, only: downcase_string, capitalize_string
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, command_procedure, make_buffer_ref, make_list, vtag, V_INTEGER, V_STRING
+    use value_mod, only: value_type, command_procedure, make_buffer_reference, make_list, vtag, V_INTEGER, V_STRING
     use hooks_mod, only: hook_type
     use string_type_mod, only: string_type, append_string, prepend_string
     use data_mod, only: append_locals_clearer, choice_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           erase_buffer, close_buffer, buffer_serial_live, generate_new_buffer_name, set_buffer_modified, &
                           is_buffer_modified, barf_if_buffer_read_only, fill_column, get_file_buffer, rename_buffer, buffer_list
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bol, is_eol, is_eob, is_bob, &
-                                     buffer_substring, buffer_substring_no_properties, buffer_string, delete_region, &
-                                     narrow_to_region, widen, insert_buffer_substring, line_beginning_position, &
-                                     line_end_position, preceding_char, following_char, buffer_size, &
-                                     delete_and_extract_region, system_name, user_full_name, user_login_name, &
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_beginning_of_line, is_end_of_line, &
+                                     is_end_of_buffer, is_beginning_of_buffer, buffer_substring, buffer_substring_no_properties, &
+                                     buffer_string, delete_region, narrow_to_region, widen, insert_buffer_substring, &
+                                     line_beginning_position, line_end_position, preceding_character, following_character, &
+                                     buffer_size, delete_and_extract_region, system_name, user_full_name, user_login_name, &
                                      save_excursion_begin, save_excursion_end, excursion_type, save_restriction_begin, &
                                      save_restriction_end, restriction_type, mark_position
     use insert_delete_mod, only: insert, insert_before_markers
-    use editing_commands_mod, only: forward_line, forward_char, end_of_line, beginning_of_line
-    use syntax_mod, only: skip_chars_forward, skip_chars_backward, make_syntax_table, modify_syntax_entry, &
+    use editing_commands_mod, only: forward_line, forward_character, end_of_line, beginning_of_line
+    use syntax_mod, only: skip_characters_forward, skip_characters_backward, make_syntax_table, modify_syntax_entry, &
                           parse_expression_ignore_comments
-    use search_mod, only: re_search_forward, re_search_backward, search_forward, search_backward, looking_at, &
-                          match_beginning, match_end, replace_match, string_match, regexp_quote, case_fold_search, &
-                          SEARCH_NOERROR, SEARCH_MOVE
+    use search_mod, only: regular_expression_search_forward, regular_expression_search_backward, search_forward, search_backward, &
+                          looking_at, match_beginning, match_end, replace_match, string_match, regular_expression_quote, &
+                          case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
     use basic_subprograms_mod, only: read_y_or_n, match_string, mail_user_agent_type, mail_switch_procedure
     use utility_functions_mod, only: read_yes_or_no
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
@@ -70,33 +70,34 @@ module message_mod
     use environment_mod, only: getenv
     use display_engine_mod, only: message
     use simple_mod, only: fill_prefix, push_mark, do_auto_fill, normal_auto_fill_function, newline, cut_region, count_lines, &
-                          turn_on_auto_fill, mail_user_agent, auto_fill_inhibit_regexp, execute_shell_region
+                          turn_on_auto_fill, mail_user_agent, auto_fill_inhibit_regular_expression, execute_shell_region
     use fill_mod, only: fill_region_as_paragraph, fill_paragraph, fill_paragraph_function, &
-                        adaptive_fill_regexp, adaptive_fill_first_line_regexp
+                        adaptive_fill_regular_expression, adaptive_fill_first_line_regular_expression
     use indent_mod, only: current_column, indent_tabs_mode
     use newcomment_mod, only: comment_start, comment_start_skip
     use paragraphs_mod, only: paragraph_start, paragraph_separate, page_delimiter
-    use abbreviation_mod, only: expand_abbrev
+    use abbreviation_mod, only: expand_abbreviation
     use modes_mod, only: major_modes
     use derived_mod, only: is_derived_mode
     use keymap_mod, only: keymap_set
-    use text_mode_mod, only: text_mode_syntax_table, init_text_mode
+    use text_mode_mod, only: text_mode_syntax_table, initialize_text_mode
     use window_mod, only: pop_to_buffer, pop_to_buffer_same_window, get_buffer_window, select_window, bury_buffer, &
                           switch_to_buffer_other_window
     use minibuffer_reading_mod, only: read_from_minibuffer
     use minibuffer_mod, only: read_file_name, REQUIRE_MATCH_YES
-    use read_multiple_choice_mod, only: read_multiple_choice, rmc_choice_type
+    use read_multiple_choice_mod, only: read_multiple_choice, read_multiple_choice_choice_type
     use coding_mod, only: buffer_file_coding_system
     use time_functions_mod, only: format_time_string, current_time, current_time_string, time_type
     use startup_mod, only: mail_host_address, user_mail_address_value
     use execute_process_mod, only: execute_process_region
     use undo_mod, only: undo_boundary
-    use mail_utilities_mod, only: get_mail_field, strip_mail_quoted_names, is_mail_file_babyl, mail_re_regexps, wrap_mail_re_regexp
+    use mail_utilities_mod, only: get_mail_field, strip_mail_quoted_names, is_mail_file_babyl, mail_re_regular_expressions, &
+                                  wrap_mail_re_regular_expression
     use mail_extract_mod, only: extract_mail_address_components, mail_address_components_type
-    use mail_abbreviations_mod, only: set_up_mail_abbrevs
+    use mail_abbreviations_mod, only: set_up_mail_abbreviations
     use send_mail_mod, only: mail_header_separator, send_mail_function, query_sendmail_once, send_mail_with_sendmail, &
                              sendmail_program, mail_interactive, mail_envelope_from, mail_paste_prefix, &
-                             mail_citation_prefix_regexp, mail_signature_file, mail_default_reply_to, mail_self_blind, &
+                             mail_citation_prefix_regular_expression, mail_signature_file, mail_default_reply_to, mail_self_blind, &
                              mail_archive_file_name, mail_default_headers, MAIL_ENVELOPE_FROM_HEADER
     implicit none(type, external)
     private
@@ -114,14 +115,14 @@ module message_mod
               goto_message_body, goto_message_end_of_headers, goto_message_signature, is_message_point_in_header, &
               is_message_in_body, cleanup_message_headers, encode_message_body, fold_message_field, &
               append_message_to_mail_file, rename_sent_message_buffer, set_message_reply_headers, &
-              set_message_reply_buffer, init_message
+              set_message_reply_buffer, initialize_message
 
     !> Values of `message_from_style': the return address only
     !> (MESSAGE_FROM_STYLE_SIMPLE), the full name in parentheses after it
-    !> (MESSAGE_FROM_STYLE_PARENS), the address in angles after the full
+    !> (MESSAGE_FROM_STYLE_PARENTHESES), the address in angles after the full
     !> name (MESSAGE_FROM_STYLE_ANGLES), and angles unless they would need
     !> quoting and parentheses would not (MESSAGE_FROM_STYLE_DEFAULT).
-    integer, parameter, public :: MESSAGE_FROM_STYLE_SIMPLE = 0, MESSAGE_FROM_STYLE_PARENS = 1, &
+    integer, parameter, public :: MESSAGE_FROM_STYLE_SIMPLE = 0, MESSAGE_FROM_STYLE_PARENTHESES = 1, &
                                   MESSAGE_FROM_STYLE_ANGLES = 2, MESSAGE_FROM_STYLE_DEFAULT = 3
 
     !> Values of `message_generate_new_buffers' besides .true. (a new
@@ -144,11 +145,11 @@ module message_mod
 
     !> The length of a header name in `message_required_mail_headers' and
     !> the other header lists.  Not a port.
-    integer, parameter, public :: MESSAGE_HEADER_NAME_MAX = 40
+    integer, parameter, public :: MESSAGE_HEADER_NAME_MAXIMUM = 40
 
     !> The length of a header value in `message_required_mail_headers'.
     !> Not a port.
-    integer, parameter, public :: MESSAGE_HEADER_VALUE_MAX = 200
+    integer, parameter, public :: MESSAGE_HEADER_VALUE_MAXIMUM = 200
 
     abstract interface
         !> A procedure giving text for a setting that can also be a
@@ -194,9 +195,9 @@ module message_mod
     !>         message_header_type("User-Agent", optional=.true.), &
     !>         message_header_type("X-Mailer", value="Fortmacs")]
     type, public :: message_header_type
-        character(len=MESSAGE_HEADER_NAME_MAX) :: name = ""
+        character(len=MESSAGE_HEADER_NAME_MAXIMUM) :: name = ""
         logical :: optional = .false.
-        character(len=MESSAGE_HEADER_VALUE_MAX) :: value = ""
+        character(len=MESSAGE_HEADER_VALUE_MAXIMUM) :: value = ""
         procedure(message_text_procedure), pointer, nopass :: procedure => null()
     end type message_header_type
 
@@ -300,7 +301,7 @@ module message_mod
 
     !> How many buffers to keep before starting to kill them off.  Port of
     !> message.el message-max-buffers.
-    integer, public :: message_max_buffers = 10
+    integer, public :: message_maximum_buffers = 10
 
     !> Function called to rename the buffer after sending it.  Port of
     !> message.el message-send-rename-function.
@@ -317,14 +318,14 @@ module message_mod
     !>
     !> If MESSAGE_FROM_STYLE_SIMPLE, they contain just the return address like:
     !>     king@grassland.com
-    !> If MESSAGE_FROM_STYLE_PARENS, they look like:
+    !> If MESSAGE_FROM_STYLE_PARENTHESES, they look like:
     !>     king@grassland.com (Elvis Parsley)
     !> If MESSAGE_FROM_STYLE_ANGLES, they look like:
     !>     Elvis Parsley <king@grassland.com>
     !>
     !> Otherwise, most addresses look like MESSAGE_FROM_STYLE_ANGLES, but
-    !> they look like MESSAGE_FROM_STYLE_PARENS if MESSAGE_FROM_STYLE_ANGLES
-    !> would need quoting and MESSAGE_FROM_STYLE_PARENS would not.  Port of
+    !> they look like MESSAGE_FROM_STYLE_PARENTHESES if MESSAGE_FROM_STYLE_ANGLES
+    !> would need quoting and MESSAGE_FROM_STYLE_PARENTHESES would not.  Port of
     !> message.el message-from-style.
     integer, public :: message_from_style = MESSAGE_FROM_STYLE_ANGLES
 
@@ -430,7 +431,7 @@ module message_mod
 
     !> String to be used as an Organization header.
     !> If .true., use `message_user_organization_file'.  Port of
-    !> message.el message-user-organization (set by `init_message' from
+    !> message.el message-user-organization (set by `initialize_message' from
     !> the environment variable ORGANIZATION unless already set).
     type(message_user_organization_choice_setting_type), public :: message_user_organization = &
                                        message_user_organization_choice_setting_type(name="message_user_organization", value=.true.)
@@ -522,13 +523,13 @@ module message_mod
 
     !> Prefix inserted on the lines of pasted messages, or unallocated for
     !> none.  Port of message.el message-yank-prefix (set by
-    !> `init_message' from `mail_paste_prefix' unless already set).
+    !> `initialize_message' from `mail_paste_prefix' unless already set).
     character(len=:), allocatable, public :: message_paste_prefix
 
     !> Regexp matching the longest possible citation prefix on a line.
     !> Port of message.el message-cite-prefix-regexp (set by
-    !> `init_message' from `mail_citation_prefix_regexp' unless already set).
-    character(len=:), allocatable, public :: message_cite_prefix_regexp
+    !> `initialize_message' from `mail_citation_prefix_regular_expression' unless already set).
+    character(len=:), allocatable, public :: message_cite_prefix_regular_expression
 
     !> Text inserted at end of message buffer when a message is initialized.
     !> If .false., no signature is inserted.
@@ -547,7 +548,7 @@ module message_mod
     !> If unallocated, `message_signature_directory' is not used either.
     !> If a path is specified, the value of `message_signature_directory'
     !> is ignored, even if set.  Port of message.el message-signature-file
-    !> (set by `init_message' from `mail_signature_file' unless already set).
+    !> (set by `initialize_message' from `mail_signature_file' unless already set).
     character(len=:), allocatable, public :: message_signature_file
 
     !> Name of directory containing signature files.
@@ -571,7 +572,7 @@ module message_mod
                                      message_default_headers_choice_setting_type(name="message_default_headers", true_valid=.false.)
 
     !> A string of header lines to be inserted in outgoing mails.  Port of
-    !> message.el message-default-mail-headers (set by `init_message' from
+    !> message.el message-default-mail-headers (set by `initialize_message' from
     !> `mail_default_reply_to', `mail_self_blind', `mail_archive_file_name'
     !> and `mail_default_headers' unless already set).
     character(len=:), allocatable, public :: message_default_mail_headers
@@ -594,7 +595,7 @@ module message_mod
 
     !> Directory where Message auto-saves buffers if Gnus isn't running.
     !> If unallocated, Message won't auto-save.  Port of message.el
-    !> message-auto-save-directory (set by `init_message' unless already
+    !> message-auto-save-directory (set by `initialize_message' unless already
     !> set).
     character(len=:), allocatable, public :: message_auto_save_directory
 
@@ -635,22 +636,22 @@ module message_mod
 
     !> Replacement character used instead of unprintable or not decodable
     !> chars.  Port of message.el message-replacement-char.
-    character(len=:), allocatable, public :: message_replacement_char
+    character(len=:), allocatable, public :: message_replacement_character
 
     !> What to do with trailing "(was: <old subject>)" in subject lines.
     !> If .false., leave the subject unchanged.  If .true., always strip
     !> the trailing old subject, matched by
-    !> `message_subject_trailing_was_regexp'.  Port of message.el
+    !> `message_subject_trailing_was_regular_expression'.  Port of message.el
     !> message-subject-trailing-was-query (its value `ask' is Deferred).
     logical, public :: message_subject_trailing_was_query = .true.
 
     !> Regexp matching "(was: <old subject>)" in the subject line.  Port of
     !> message.el message-subject-trailing-was-regexp.
-    character(len=:), allocatable, public :: message_subject_trailing_was_regexp
+    character(len=:), allocatable, public :: message_subject_trailing_was_regular_expression
 
     !> Regexp matching "Re: " in the subject line.  Port of message.el
     !> message-subject-re-regexp.
-    character(len=:), allocatable, public :: message_subject_re_regexp
+    character(len=:), allocatable, public :: message_subject_re_regular_expression
 
     !> Keymap of `message_mode'.  Port of message.el message-mode-map.
     type(handle_type), public :: message_mode_map
@@ -665,7 +666,7 @@ module message_mod
 
     !> The counter of `make_message_unique_id' (negative until the first
     !> use).  Port of message.el message-unique-id-char.
-    integer(int64), public :: message_unique_id_char = -1
+    integer(int64), public :: message_unique_id_character = -1
 
     ! A Message mode buffer's own values (set locally by message-mode), by
     ! serial number: message-reply-buffer, message-reply-headers,
@@ -804,9 +805,9 @@ contains
         if (found) headers = locals(k)%reply_headers
     end subroutine current_reply_headers
 
-    ! A marker at POS.  Not a port.
-    function marker_at(pos, insertion_type) result(m)
-        integer(int64), intent(in) :: pos
+    ! A marker at POSITION.  Not a port.
+    function marker_at(position, insertion_type) result(m)
+        integer(int64), intent(in) :: position
         logical, intent(in), optional :: insertion_type
         type(handle_type) :: m
         type(status_type) :: st
@@ -814,34 +815,34 @@ contains
 
         it = .false.
         if (present(insertion_type)) it = insertion_type
-        call copy_marker_at(pos, m, it, st)
+        call copy_marker_at(position, m, it, st)
     end function marker_at
 
     ! The position of marker M.  Not a port.
-    integer(int64) function mpos(m)
+    integer(int64) function marked_position(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
-        call marker_position(m, mpos, st)
-    end function mpos
+        call marker_position(m, marked_position, st)
+    end function marked_position
 
     ! The position of marker M, which is destroyed.  Not a port.
-    integer(int64) function marker_end(m) result(pos)
+    integer(int64) function marker_end(m) result(position)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
-        call marker_position(m, pos, st)
+        call marker_position(m, position, st)
         call destroy_marker(m, st)
     end function marker_end
 
-    ! Search forward for REGEXP, telling whether it was found; MOVE
+    ! Search forward for REGULAR_EXPRESSION, telling whether it was found; MOVE
     ! moves to BOUND (or the end) on failure.  Not a port.
-    recursive logical function search_regexp(regexp, status, bound, move) result(found)
-        character(len=*), intent(in) :: regexp
+    recursive logical function search_regular_expression(regular_expression, status, bound, move) result(found)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound
         logical, intent(in), optional :: move
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: noerror
 
         noerror = SEARCH_NOERROR
@@ -850,20 +851,20 @@ contains
             if (move) noerror = SEARCH_MOVE
         end if
 
-        call re_search_forward(regexp, pos, status, bound, noerror)
-        found = pos /= 0
-    end function search_regexp
+        call regular_expression_search_forward(regular_expression, position, status, bound, noerror)
+        found = position /= 0
+    end function search_regular_expression
 
-    ! Search backward for REGEXP.  Not a port.
-    recursive logical function search_regexp_backward(regexp, status, bound) result(found)
-        character(len=*), intent(in) :: regexp
+    ! Search backward for REGULAR_EXPRESSION.  Not a port.
+    recursive logical function search_regular_expression_backward(regular_expression, status, bound) result(found)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call re_search_backward(regexp, pos, status, bound, SEARCH_NOERROR)
-        found = pos /= 0
-    end function search_regexp_backward
+        call regular_expression_search_backward(regular_expression, position, status, bound, SEARCH_NOERROR)
+        found = position /= 0
+    end function search_regular_expression_backward
 
     ! Search forward for STRING; MOVE moves to the end on failure.
     ! Not a port.
@@ -872,7 +873,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound
         logical, intent(in), optional :: move
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: noerror
 
         noerror = SEARCH_NOERROR
@@ -881,17 +882,17 @@ contains
             if (move) noerror = SEARCH_MOVE
         end if
 
-        call search_forward(string, pos, status, bound, noerror)
-        found = pos /= 0
+        call search_forward(string, position, status, bound, noerror)
+        found = position /= 0
     end function search_string
 
-    ! True if REGEXP matches STRING (case as `case_fold_search' says).
+    ! True if REGULAR_EXPRESSION matches STRING (case as `case_fold_search' says).
     ! Not a port.
-    logical function matches(regexp, string)
-        character(len=*), intent(in) :: regexp, string
+    logical function matches(regular_expression, string)
+        character(len=*), intent(in) :: regular_expression, string
         type(status_type) :: st
 
-        matches = string_match(regexp, string, st, inhibit_modify=.true.) > 0
+        matches = string_match(regular_expression, string, st, inhibit_modify=.true.) > 0
     end function matches
 
     ! (y-or-n-p PROMPT), false when the question fails.  Not a port.
@@ -991,17 +992,17 @@ contains
         integer(int64) :: e
 
         call widen()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        if (search_regexp("^"//regexp_quote(mail_header_separator)//LF, status)) then
+        if (search_regular_expression("^"//regular_expression_quote(mail_header_separator)//LF, status)) then
             e = match_beginning(0, status)
         else
-            e = point_max()
+            e = point_maximum()
         end if
 
         if (.not. status%ok()) return
-        call narrow_to_region(point_min(), e, status)
-        call goto_char(point_min())
+        call narrow_to_region(point_minimum(), e, status)
+        call goto_character(point_minimum())
     end subroutine narrow_to_message_headers
 
     !> Narrow the buffer to the head of the message: up to the first
@@ -1012,18 +1013,19 @@ contains
         integer(int64) :: e
 
         call widen()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        if (search_regexp("\("//LF//"\)"//LF//"\|^\("//regexp_quote(mail_header_separator)//LF//"\)", status)) then
+        if (search_regular_expression("\("//LF//"\)"//LF//"\|^\("//regular_expression_quote(mail_header_separator)//LF//"\)", &
+                                      status)) then
             e = match_end(1, status)
             if (e <= 0) e = match_beginning(2, status)
         else
-            e = point_max()
+            e = point_maximum()
         end if
 
         if (.not. status%ok()) return
-        call narrow_to_region(point_min(), e, status)
-        call goto_char(point_min())
+        call narrow_to_region(point_minimum(), e, status)
+        call goto_character(point_minimum())
     end subroutine narrow_to_message_headers_or_head
 
     !> The value of the header field named HEADER in VALUE (unallocated
@@ -1085,31 +1087,31 @@ contains
     end subroutine get_message_field_value
 
     !> Remove HEADER in the narrowed buffer.
-    !> If IS_REGEXP, HEADER is a regular expression.
+    !> If IS_REGULAR_EXPRESSION, HEADER is a regular expression.
     !> If FIRST, only remove the first instance of the header.
     !> If REVERSE, remove headers that doesn't match HEADER.
     !> Return the number of headers removed in NUMBER.  Port of
     !> message.el:message-remove-header.
-    recursive subroutine remove_message_header(header, status, is_regexp, first, reverse, number)
+    recursive subroutine remove_message_header(header, status, is_regular_expression, first, reverse, number)
         character(len=*), intent(in) :: header
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: is_regexp, first, reverse
+        logical, intent(in), optional :: is_regular_expression, first, reverse
         integer, intent(out), optional :: number
-        character(len=:), allocatable :: regexp
-        logical :: last, saved_fold, matched, rev, one
+        character(len=:), allocatable :: regular_expression
+        logical :: last, saved_fold, matched, revision, one
         integer(int64) :: start, moved
         integer :: removed
 
         status = status_type()
-        call goto_char(point_min())
-        regexp = "^"//regexp_quote(header)//":"
+        call goto_character(point_minimum())
+        regular_expression = "^"//regular_expression_quote(header)//":"
 
-        if (present(is_regexp)) then
-            if (is_regexp) regexp = header
+        if (present(is_regular_expression)) then
+            if (is_regular_expression) regular_expression = header
         end if
 
-        rev = .false.
-        if (present(reverse)) rev = reverse
+        revision = .false.
+        if (present(reverse)) revision = reverse
         one = .false.
         if (present(first)) one = first
         removed = 0
@@ -1117,13 +1119,13 @@ contains
         case_fold_search%value = .true.
         last = .false.
 
-        do while (.not. is_eob() .and. .not. last)
-            if (rev) then
-                matched = .not. looking_at(regexp, status)
+        do while (.not. is_end_of_buffer() .and. .not. last)
+            if (revision) then
+                matched = .not. looking_at(regular_expression, status)
                 ! Don't remove things not looking like header.
                 if (matched .and. status%ok()) matched = looking_at("[!-9;-~]+:", status)
             else
-                matched = looking_at(regexp, status)
+                matched = looking_at(regular_expression, status)
             end if
 
             if (.not. status%ok()) exit
@@ -1136,10 +1138,10 @@ contains
                 ! until we find a new non-continuation line.
                 moved = forward_line(1_int64)
 
-                if (search_regexp("^[^ "//TAB//"]", status)) then
-                    call goto_char(match_beginning(0, status))
+                if (search_regular_expression("^[^ "//TAB//"]", status)) then
+                    call goto_character(match_beginning(0, status))
                 else
-                    call goto_char(point_max())
+                    call goto_character(point_maximum())
                 end if
 
                 call delete_region(start, point(), status)
@@ -1147,10 +1149,10 @@ contains
             else
                 moved = forward_line(1_int64)
 
-                if (search_regexp("^[^ "//TAB//"]", status)) then
-                    call goto_char(match_beginning(0, status))
+                if (search_regular_expression("^[^ "//TAB//"]", status)) then
+                    call goto_character(match_beginning(0, status))
                 else
-                    call goto_char(point_max())
+                    call goto_character(point_maximum())
                 end if
             end if
         end do
@@ -1165,17 +1167,17 @@ contains
         character(len=*), intent(in) :: header
         type(status_type), intent(out) :: status
         integer :: count
-        integer(int64) :: opoint
+        integer(int64) :: original_point
 
-        opoint = point()
+        original_point = point()
         count = 0
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        do while (search_regexp("^"//regexp_quote(header)//":", status))
+        do while (search_regular_expression("^"//regular_expression_quote(header)//":", status))
             count = count + 1
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
         if (.not. status%ok()) return
 
         do while (count > 1)
@@ -1195,7 +1197,7 @@ contains
         type(restriction_type) :: restriction
 
         if (string_match("^\([^:]+\):[ "//TAB//"]*[^ "//TAB//"]", header, status) == 0) then
-            if (status%ok()) call set_error(status, FM_GENERIC_ERROR, "Invalid header `"//header//"'")
+            if (status%ok()) call set_error(status, GENERIC_ERROR_CODE, "Invalid header `"//header//"'")
             return
         end if
 
@@ -1204,8 +1206,8 @@ contains
         call narrow_to_message_headers(status)
 
         if (status%ok()) then
-            if (.not. search_regexp("^"//regexp_quote(hclean)//":", status) .and. status%ok()) then
-                call goto_char(point_max())
+            if (.not. search_regular_expression("^"//regular_expression_quote(hclean)//":", status) .and. status%ok()) then
+                call goto_character(point_maximum())
 
                 if (header(len(header):) == LF) then
                     call insert(header, status)
@@ -1265,32 +1267,32 @@ contains
         case_fold_search%value = .true.
         present_header = .false.
         call save_restriction_begin(restriction)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         body: block
-            if (.not. search_regexp("^"//regexp_quote(mail_header_separator)//"$", status)) then
-                if (status%ok()) call set_error(status, FM_GENERIC_ERROR, "Search failed: """// &
-                                                "^"//regexp_quote(mail_header_separator)//"$""")
+            if (.not. search_regular_expression("^"//regular_expression_quote(mail_header_separator)//"$", status)) then
+                if (status%ok()) call set_error(status, GENERIC_ERROR_CODE, "Search failed: """// &
+                                                "^"//regular_expression_quote(mail_header_separator)//"$""")
                 exit body
             end if
 
             e = match_beginning(0, status)
-            call narrow_to_region(point_min(), e, status)
+            call narrow_to_region(point_minimum(), e, status)
             if (.not. status%ok()) exit body
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
-            if (search_regexp("^"//regexp_quote(header)//":", status)) then
+            if (search_regular_expression("^"//regular_expression_quote(header)//":", status)) then
                 present_header = .true.
-                if (.not. search_regexp("^[^ "//TAB//"]", status, move=.true.)) continue
+                if (.not. search_regular_expression("^[^ "//TAB//"]", status, move=.true.)) continue
                 call beginning_of_line()
-                moved = skip_chars_backward(LF, status)
+                moved = skip_characters_backward(LF, status)
             else
                 if (.not. status%ok()) exit body
                 k = 0
 
                 if (present(afters)) then
                     do k = 1, size(afters)
-                        if (search_regexp("^"//regexp_quote(trim(afters(k)))//":", status)) exit
+                        if (search_regular_expression("^"//regular_expression_quote(trim(afters(k)))//":", status)) exit
                         if (.not. status%ok()) exit body
                     end do
 
@@ -1298,13 +1300,13 @@ contains
                 end if
 
                 if (k > 0) then
-                    if (.not. search_regexp("^[^ "//TAB//"]", status, move=.true.)) continue
+                    if (.not. search_regular_expression("^[^ "//TAB//"]", status, move=.true.)) continue
                     call beginning_of_line()
                 end if
 
                 call insert(header//": "//LF, status)
                 if (.not. status%ok()) exit body
-                call goto_char(point() - 1)
+                call goto_character(point() - 1)
             end if
         end block body
 
@@ -1346,16 +1348,16 @@ contains
 
         call beginning_of_line()
 
-        if (.not. is_eob()) then
-            call forward_char(status)
+        if (.not. is_end_of_buffer()) then
+            call forward_character(status)
             if (.not. status%ok()) return
         end if
 
-        if (search_regexp("^[^ "//TAB//"]", status)) then
+        if (search_regular_expression("^[^ "//TAB//"]", status)) then
             call beginning_of_line()
             found = .true.
         else
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             found = .false.
         end if
     end subroutine next_message_header
@@ -1389,9 +1391,9 @@ contains
             ! The records: each header with its continuation lines, without
             ! the newline that ends it (the text between records stays).
             allocate (starts(0), ends(0), ranks(0), records(0))
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
-            do while (.not. is_eob())
+            do while (.not. is_end_of_buffer())
                 starts = [starts, point()]
                 ! The rank: the header's place in the format order.
                 key = 10000
@@ -1408,7 +1410,7 @@ contains
                 call next_message_header(found, status)
                 if (.not. status%ok()) exit body
                 e = point()
-                if (.not. is_bob()) e = e - 1
+                if (.not. is_beginning_of_buffer()) e = e - 1
                 ends = [ends, e]
                 call buffer_substring(starts(size(starts)), e, text, status)
                 if (.not. status%ok()) exit body
@@ -1440,7 +1442,7 @@ contains
                 if (order(k) == k) cycle
                 call delete_region(starts(k), ends(k), status)
                 if (.not. status%ok()) exit body
-                call goto_char(starts(k))
+                call goto_character(starts(k))
                 call insert(records(order(k))%text, status)
                 if (.not. status%ok()) exit body
             end do
@@ -1508,10 +1510,10 @@ contains
         ! Don't use fractional seconds from timestamp; they may be unsupported.
         ! Instead we use this randomly inited counter.
         ! 2^16 * 25 just fits into 4 digits i base 36.
-        if (message_unique_id_char < 0) then
-            message_unique_id_char = random(BASE)
+        if (message_unique_id_character < 0) then
+            message_unique_id_character = random(BASE)
         else
-            message_unique_id_char = mod(message_unique_id_char + 1, BASE)
+            message_unique_id_character = mod(message_unique_id_character + 1, BASE)
         end if
 
         now = current_time()
@@ -1520,14 +1522,14 @@ contains
         ! to this newsreader, other newsreaders might otherwise generate
         ! the same ID via another algorithm.
         id = number_base36(int(user_uid(), int64), -1)//number_base36(ishft(tm, -16) + &
-                                                                      ishft(mod(message_unique_id_char, 25_int64), 16), 4)// &
-             number_base36(iand(tm, int(z'ffff', int64)) + ishft(message_unique_id_char/25, 16), 4)//".fsf"
+                                                                      ishft(mod(message_unique_id_character, 25_int64), 16), 4)// &
+             number_base36(iand(tm, int(z'ffff', int64)) + ishft(message_unique_id_character/25, 16), 4)//".fsf"
     end subroutine make_message_unique_id
 
-    ! NUM in LEN digits of base 36 (as many as needed when LEN is
+    ! NUMBER in LEN digits of base 36 (as many as needed when LEN is
     ! negative), digit 0 being "z".  Port of message.el:message-number-base36.
-    recursive function number_base36(num, length) result(digits)
-        integer(int64), intent(in) :: num
+    recursive function number_base36(number, length) result(digits)
+        integer(int64), intent(in) :: number
         integer, intent(in) :: length
         character(len=:), allocatable :: digits
         character(len=*), parameter :: ALPHABET = "zyxwvutsrqponmlkjihgfedcba9876543210"
@@ -1535,7 +1537,7 @@ contains
         integer(int64) :: k
 
         if (length < 0) then
-            stop_here = num <= 0
+            stop_here = number <= 0
         else
             stop_here = length == 0
         end if
@@ -1543,8 +1545,8 @@ contains
         if (stop_here) then
             digits = ""
         else
-            k = mod(num, 36_int64) + 1
-            digits = number_base36(num/36, length - 1)//ALPHABET(k:k)
+            k = mod(number, 36_int64) + 1
+            digits = number_base36(number/36, length - 1)//ALPHABET(k:k)
         end if
     end function number_base36
 
@@ -1672,7 +1674,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: name, address
         character(len=*), parameter :: SPECIALS = "[^- !#-'*+/-9=?A-Z^-~]"
-        character(len=:), allocatable :: login, fullname, tmp, quoted
+        character(len=:), allocatable :: login, fullname, temporary, quoted
         integer(int64) :: b, e
         integer :: k
         logical :: angles
@@ -1701,22 +1703,22 @@ contains
 
         angles = message_from_style == MESSAGE_FROM_STYLE_ANGLES
 
-        if (.not. angles .and. message_from_style /= MESSAGE_FROM_STYLE_PARENS) then
+        if (.not. angles .and. message_from_style /= MESSAGE_FROM_STYLE_PARENTHESES) then
             ! Use angles if no quoting is needed, or if parens would
             ! need quoting too.
             angles = .not. matches(SPECIALS, fullname)
 
             if (.not. angles) then
-                tmp = fullname
+                temporary = fullname
 
-                do while (string_match("([^()]*)", tmp, status) > 0)
+                do while (string_match("([^()]*)", temporary, status) > 0)
                     b = match_beginning(0, status)
                     e = match_end(0, status)
-                    tmp(b:b) = "-"
-                    tmp(e - 1:e - 1) = "-"
+                    temporary(b:b) = "-"
+                    temporary(e - 1:e - 1) = "-"
                 end do
 
-                angles = matches("[\()]", tmp)
+                angles = matches("[\()]", temporary)
             end if
         end if
 
@@ -1757,22 +1759,22 @@ contains
 
             if (status%ok()) then
                 call insert(fullname, status)
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 ! Escape every instance of ()\ ...
-                do while (search_regexp("[()\]", status, move=.true.))
+                do while (search_regular_expression("[()\]", status, move=.true.))
                     call replace_match("\\\&", status, fixedcase=.true.)
                     if (.not. status%ok()) exit
                 end do
 
                 ! ... then undo escaping of matching parentheses,
                 ! including matching nested parentheses.
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 do while (status%ok())
-                    if (.not. search_regexp("\(\=\|[^\]\(\\\\\)*\)\\(\(\([^\]\|\\\\\)*\)\\)", status, move=.true.)) exit
+                    if (.not. search_regular_expression("\(\=\|[^\]\(\\\\\)*\)\\(\(\([^\]\|\\\\\)*\)\\)", status, move=.true.)) exit
                     call replace_match("\1(\3)", status, fixedcase=.true.)
-                    call goto_char(point_min())
+                    call goto_character(point_minimum())
                 end do
 
                 if (status%ok()) out = buffer_string()
@@ -1815,10 +1817,10 @@ contains
                 end if
             end if
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             do while (status%ok())
-                if (.not. search_regexp("["//TAB//LF//"]+", status)) exit
+                if (.not. search_regular_expression("["//TAB//LF//"]+", status)) exit
                 call replace_match("", status, fixedcase=.true., literal=.true.)
             end do
 
@@ -1841,7 +1843,7 @@ contains
         call save_restriction_begin(restriction)
         call widen()
         call goto_message_body(body)
-        write (number, "(i0)") count_lines(point(), point_max())
+        write (number, "(i0)") count_lines(point(), point_maximum())
         lines = trim(number)
         call save_restriction_end(restriction)
         call save_excursion_end(excursion)
@@ -1977,7 +1979,7 @@ contains
         case_fold_search%value = .true.
         stripped = subject
 
-        if (string_match(message_subject_re_regexp, subject, st) > 0) then
+        if (string_match(message_subject_re_regular_expression, subject, st) > 0) then
             e = match_end(0, st)
             stripped = subject(string_offset(subject, e) + 1:)
         end if
@@ -2009,7 +2011,7 @@ contains
         stripped = subject
         if (.not. message_subject_trailing_was_query) return
 
-        if (string_match(message_subject_trailing_was_regexp, subject, st) > 0) then
+        if (string_match(message_subject_trailing_was_regular_expression, subject, st) > 0) then
             b = match_beginning(0, st)
             stripped = subject(:string_offset(subject, b))
         end if
@@ -2107,16 +2109,16 @@ contains
         call save_restriction_begin(restriction)
         ! mail-narrow-to-head
         call widen()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (search_string(LF//LF, status)) then
             e = point() - 1
         else
-            e = point_max()
+            e = point_maximum()
         end if
 
-        call narrow_to_region(point_min(), e, status)
-        call goto_char(point_min())
+        call narrow_to_region(point_minimum(), e, status)
+        call goto_character(point_minimum())
         if (status%ok()) call get_message_field(header, value, status)
         call save_restriction_end(restriction)
         call set_buffer(old, status)
@@ -2135,7 +2137,7 @@ contains
         character(len=:), allocatable :: header, value, from, sender, secure_sender, from_address, sender_address
         type(mail_address_components_type), allocatable :: components(:)
         logical :: saved_fold, optionalp, found, known, empty, modified, deletable
-        integer(int64) :: opoint, e, moved
+        integer(int64) :: original_point, e, moved
         integer :: k, j
 
         headers = headers_in
@@ -2155,10 +2157,10 @@ contains
             if (allocated(message_deletable_headers)) then
                 do k = 1, size(message_deletable_headers)
                     if (.not. modified .and. trim(message_deletable_headers(k)) == "Message-ID") cycle
-                    call goto_char(point_min())
+                    call goto_character(point_minimum())
                     ! Only headers Message generated itself are deleted
                     ! (upstream's message-deletable text property).
-                    if (.not. search_regexp("^"//trim(message_deletable_headers(k))//": *", status)) cycle
+                    if (.not. search_regular_expression("^"//trim(message_deletable_headers(k))//": *", status)) cycle
                     if (.not. is_generated()) cycle
                     call delete_region(line_beginning_position(), line_beginning_position(2_int64), status)
                     if (.not. status%ok()) exit body
@@ -2172,21 +2174,21 @@ contains
             ! inserted automatically - except for Subject, Newsgroups and
             ! Distribution.
             do k = 1, size(headers)
-                call goto_char(point_min())
+                call goto_character(point_minimum())
                 header = trim(headers(k)%name)
                 if (headers(k)%optional) optionalp = .true.
-                found = search_regexp("^"//regexp_quote(downcase_string(header))//":", status)
+                found = search_regular_expression("^"//regular_expression_quote(downcase_string(header))//":", status)
                 if (.not. status%ok()) exit body
                 empty = .false.
 
                 if (found) then
                     ! The header was found.  We insert a space after the
                     ! colon, if there is none.
-                    if (following_char() /= iachar(" ")) then
+                    if (following_character() /= iachar(" ")) then
                         call insert(" ", status)
                         if (.not. status%ok()) exit body
                     else
-                        call forward_char(status)
+                        call forward_character(status)
                     end if
 
                     ! Find out whether the header is empty.
@@ -2227,11 +2229,11 @@ contains
                 if (.not. allocated(value)) cycle
                 if (len(value) == 0) cycle
                 ! Finally insert the header.
-                opoint = point()
+                original_point = point()
 
-                if (is_bol()) then
+                if (is_beginning_of_line()) then
                     ! This header didn't exist, so we insert it.
-                    call goto_char(point_max())
+                    call goto_character(point_maximum())
 
                     if (header == "References") then
                         call insert_shortened_references(header, value, status)
@@ -2243,10 +2245,10 @@ contains
                     call push_inserted_header(header)
                     call fill_message_field(e, status)
                     if (.not. status%ok()) exit body
-                    call goto_char(e)
+                    call goto_character(e)
                     ! We check whether the value was ended by a
                     ! newline.  If not, we insert one.
-                    if (.not. is_bol()) call insert(LF, status)
+                    if (.not. is_beginning_of_line()) call insert(LF, status)
                     if (.not. status%ok()) exit body
                     moved = forward_line(-1_int64)
                 else
@@ -2280,7 +2282,7 @@ contains
                     if (looking_at("[^:]+: ", status)) call mark_generated()
                 end if
 
-                call goto_char(opoint)
+                call goto_character(original_point)
             end do
 
             ! Insert new Sender if the From is strange.
@@ -2313,10 +2315,10 @@ contains
                 end if
 
                 if (found) then
-                    call goto_char(point_min())
+                    call goto_character(point_minimum())
 
                     ! Rename any old Sender headers to Original-Sender.
-                    if (search_regexp("^\(Original-\)*Sender:", status)) then
+                    if (search_regular_expression("^\(Original-\)*Sender:", status)) then
                         call beginning_of_line()
                         call insert("Original-", status)
                         call beginning_of_line()
@@ -2340,11 +2342,11 @@ contains
     ! Port of the test in message.el:message-generate-headers.
     logical function is_generated()
         use text_properties_mod, only: get_text_property
-        type(value_type) :: val
+        type(value_type) :: value
         type(status_type) :: st
 
-        call get_text_property(match_beginning(0, st) + 1, value_type(name=P_MESSAGE_DELETABLE), val, st)
-        is_generated = allocated(val%a)
+        call get_text_property(match_beginning(0, st) + 1, value_type(name=P_MESSAGE_DELETABLE), value, st)
+        is_generated = allocated(value%a)
     end function is_generated
 
     ! Give the header name at point and the space after it, as matched by
@@ -2378,15 +2380,15 @@ contains
         start = point()
         moved = forward_line(1_int64)
 
-        if (search_regexp("^[^ "//LF//TAB//"]", status)) then
+        if (search_regular_expression("^[^ "//LF//TAB//"]", status)) then
             e = line_beginning_position()
         else
-            e = point_max()
+            e = point_maximum()
         end if
 
         if (.not. status%ok()) return
         call narrow_to_region(start, e, status)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine narrow_to_message_field
 
     !> Fill the header field at point (addresses for To, Cc and From); E is
@@ -2406,7 +2408,7 @@ contains
         if (status%ok()) then
             ! message-field-name
             field_name = ""
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             if (looking_at("\([^:]+\):", status)) field_name = capitalize_string(match_string(1))
 
             select case (field_name)
@@ -2416,7 +2418,7 @@ contains
                 call fill_message_field_general(status)
             end select
 
-            e = point_max()
+            e = point_maximum()
         end if
 
         call save_restriction_end(restriction)
@@ -2441,19 +2443,19 @@ contains
         char = 0
 
         if (looking_at(",", status)) then
-            call forward_char(status)
+            call forward_character(status)
             if (.not. status%ok()) return
         end if
 
         do while (point() /= e .and. (char /= iachar(",") .or. quoted))
-            moved = skip_chars_forward("^,""", status, e)
-            char = following_char()
+            moved = skip_characters_forward("^,""", status, e)
+            char = following_character()
             if (char == iachar("""")) quoted = .not. quoted
-            if (point() /= e) call forward_char(status)
+            if (point() /= e) call forward_character(status)
             if (.not. status%ok()) return
         end do
 
-        moved = skip_chars_forward(" "//TAB//LF, status)
+        moved = skip_characters_forward(" "//TAB//LF, status)
     end subroutine skip_to_next_message_address
 
     ! Fill an address field.  Port of message.el:message-fill-field-address.
@@ -2471,22 +2473,22 @@ contains
             call skip_to_next_message_address(status)
             if (.not. status%ok()) return
 
-            if (is_bol()) then
+            if (is_beginning_of_line()) then
                 call end_of_line(0_int64)
                 end_line = 1
                 done = .true.
-            else if (is_eob()) then
+            else if (is_end_of_buffer()) then
                 end_line = 0
                 done = .true.
             end if
 
             if (current_column() > 78 .and. last > 0) then
                 here = marker_at(point())
-                call goto_char(last)
-                moved = skip_chars_backward(" "//TAB, status)
+                call goto_character(last)
+                moved = skip_characters_backward(" "//TAB, status)
                 call delete_region(point(), last, status)
                 if (status%ok()) call insert(LF//TAB, status)
-                call goto_char(marker_end(here))
+                call goto_character(marker_end(here))
                 if (.not. status%ok()) return
             end if
 
@@ -2512,12 +2514,12 @@ contains
         status = status_type()
 
         do while (search_string(LF, status))
-            if (is_eob()) exit
+            if (is_end_of_buffer()) exit
             call replace_match(" ", status, fixedcase=.true., literal=.true.)
             if (.not. status%ok()) exit
         end do
 
-        if (status%ok()) call fill_region_as_paragraph(begin, point_max(), status)
+        if (status%ok()) call fill_region_as_paragraph(begin, point_maximum(), status)
 
         if (status%ok()) then
             ! Tapdance around looong Message-IDs.
@@ -2529,13 +2531,13 @@ contains
         end if
 
         if (status%ok()) then
-            call goto_char(begin)
+            call goto_character(begin)
 
             if (search_string(":", status)) then
                 if (looking_at(LF//"[ "//TAB//"]+", status)) call replace_match(" ", status, fixedcase=.true., literal=.true.)
             end if
 
-            call goto_char(point_max())
+            call goto_character(point_maximum())
         end if
 
         fill_column%value = saved_column
@@ -2555,38 +2557,38 @@ contains
         character(len=*), intent(in) :: header, references
         type(status_type), intent(out) :: status
         integer, parameter :: MAXCOUNT = 21, CUT = 2
-        type(string_type), allocatable :: refs(:)
+        type(string_type), allocatable :: shortened_references(:)
         character(len=:), allocatable :: text
         type(handle_type) :: old, buffer
         integer :: count, k
 
-        allocate (refs(0))
+        allocate (shortened_references(0))
         call temporary_buffer_begin(" *temp*", old, buffer, status)
 
         if (status%ok()) then
             call insert(references, status)
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             ! Cons a list of valid references.  GNKSA says we must not include
             ! MIDs with whitespace or missing brackets.
             do while (status%ok())
-                if (.not. search_regexp("<[^ <]+@[^ <]+>", status)) exit
-                call append_string(refs, match_string(0))
+                if (.not. search_regular_expression("<[^ <]+@[^ <]+>", status)) exit
+                call append_string(shortened_references, match_string(0))
             end do
         end if
 
         call temporary_buffer_end(old, buffer)
         if (.not. status%ok()) return
-        count = size(refs)
+        count = size(shortened_references)
         ! If the list has more than MAXCOUNT elements, trim it by
         ! removing the CUTth element and the required number of
         ! elements that follow.
-        if (count > MAXCOUNT) refs = [refs(:CUT - 1), refs(CUT + count - MAXCOUNT:)]
+        if (count > MAXCOUNT) shortened_references = [shortened_references(:CUT - 1), shortened_references(CUT + count - MAXCOUNT:)]
         text = ""
 
-        do k = 1, size(refs)
+        do k = 1, size(shortened_references)
             if (k > 1) text = text//" "
-            text = text//refs(k)%text
+            text = text//shortened_references(k)%text
         end do
 
         ! message-insert-header
@@ -2620,7 +2622,7 @@ contains
                 if (at == 0) cycle
 
                 if (any(iachar([(address(i:i), i=at, len(address))]) > 127)) then
-                    call set_error(status, FM_VOID_FUNCTION, "puny_encode_domain")
+                    call set_error(status, VOID_FUNCTION_CODE, "puny_encode_domain")
                     return
                 end if
             end do
@@ -2636,7 +2638,7 @@ contains
         type(status_type), intent(out) :: status
         type(excursion_type) :: excursion
         type(restriction_type) :: restriction
-        integer(int64) :: start, moved, b, bol, brk, qword_break
+        integer(int64) :: start, moved, b, line_beginning, brk, qword_break
         logical :: first
 
         call save_excursion_begin(excursion)
@@ -2648,30 +2650,30 @@ contains
             start = point()
             moved = forward_line(1_int64)
 
-            if (search_regexp("^[^ "//LF//TAB//"]", status)) then
+            if (search_regular_expression("^[^ "//LF//TAB//"]", status)) then
                 e = line_beginning_position()
             else
-                e = point_max()
+                e = point_maximum()
             end if
 
             if (.not. status%ok()) exit body
             call narrow_to_region(start, e, status)
             if (.not. status%ok()) exit body
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             ! rfc2047-fold-region
-            b = point_min()
+            b = point_minimum()
             brk = 0
             qword_break = 0
-            bol = point()
+            line_beginning = point()
             ! The region starts with the header name, so the first
             ! whitespace is just after it.
             first = .true.
 
-            do while (.not. is_eob())
-                if ((brk > 0 .or. qword_break > 0) .and. point() - bol > 76) then
+            do while (.not. is_end_of_buffer())
+                if ((brk > 0 .or. qword_break > 0) .and. point() - line_beginning > 76) then
                     ! We have a line longer than 76 characters, so break the
                     ! line.
-                    call break_line(brk, qword_break, bol, status)
+                    call break_line(brk, qword_break, line_beginning, status)
                     if (.not. status%ok()) exit body
                     brk = 0
                     qword_break = 0
@@ -2679,21 +2681,21 @@ contains
 
                 ! See whether we're at a point where we can break the line
                 ! (if it turns out to be too long).
-                select case (following_char())
+                select case (following_character())
                 case (10)
                     ! New line, so there's nothing to break.
-                    call forward_char(status)
-                    bol = point()
+                    call forward_character(status)
+                    line_beginning = point()
                     brk = 0
                     qword_break = 0
-                    moved = skip_chars_forward(" "//TAB, status)
-                    if (.not. (is_eob() .or. following_char() == 10)) call forward_char(status)
+                    moved = skip_characters_forward(" "//TAB, status)
+                    if (.not. (is_end_of_buffer() .or. following_character() == 10)) call forward_character(status)
                 case (13)
                     ! CR in CRLF.
-                    call forward_char(status)
+                    call forward_character(status)
                 case (32, 9)
                     ! Whitespace -- possible break point.
-                    moved = skip_chars_forward(" "//TAB, status)
+                    moved = skip_characters_forward(" "//TAB, status)
 
                     ! Don't break just after the header name.
                     if (first) then
@@ -2706,33 +2708,33 @@ contains
                         ! If the header has been encoded (with RFC2047
                         ! encoding, which looks like "=?utf-8?Q?F=C3=B3?=".
                         if (.not. looking_at("=\?[^=]", status)) then
-                            if (following_char() == iachar("=")) then
-                                call forward_char(status)
+                            if (following_character() == iachar("=")) then
+                                call forward_character(status)
                             else
-                                moved = skip_chars_forward("^ "//TAB//LF//achar(13)//"=", status)
+                                moved = skip_characters_forward("^ "//TAB//LF//achar(13)//"=", status)
                             end if
                         else
                             ! Don't break at the start of the field.
                             if (point() /= b) qword_break = point()
-                            moved = skip_chars_forward("^ "//TAB//LF//achar(13), status)
+                            moved = skip_characters_forward("^ "//TAB//LF//achar(13), status)
                         end if
                     else
                         ! Look for the next LWSP (i.e., whitespace character).
-                        moved = skip_chars_forward("^ "//TAB//LF//achar(13), status)
+                        moved = skip_characters_forward("^ "//TAB//LF//achar(13), status)
                     end if
                 end select
 
                 if (.not. status%ok()) exit body
             end do
 
-            if ((brk > 0 .or. qword_break > 0) .and. point() - bol > 76) then
+            if ((brk > 0 .or. qword_break > 0) .and. point() - line_beginning > 76) then
                 ! Finally, after the loop, we have a line longer than 76
                 ! characters, so break the line.
-                call break_line(brk, qword_break, bol, status)
+                call break_line(brk, qword_break, line_beginning, status)
                 if (.not. status%ok()) exit body
             end if
 
-            e = point_max()
+            e = point_maximum()
         end block body
 
         call save_restriction_end(restriction)
@@ -2740,21 +2742,21 @@ contains
 
     contains
 
-        ! Break the line at BRK (or QWORD_BREAK); BOL becomes the beginning
+        ! Break the line at BRK (or QWORD_BREAK); BEGINNING_OF_LINE becomes the beginning
         ! of the new line.  Port of rfc2047.el:rfc2047--break-line.
-        recursive subroutine break_line(brk, qword_break, bol, status)
+        recursive subroutine break_line(brk, qword_break, line_beginning, status)
             integer(int64), intent(in) :: brk, qword_break
-            integer(int64), intent(out) :: bol
+            integer(int64), intent(out) :: line_beginning
             type(status_type), intent(out) :: status
             integer(int64) :: moved
 
             if (brk > 0) then
-                call goto_char(brk)
+                call goto_character(brk)
             else
-                call goto_char(qword_break)
+                call goto_character(qword_break)
             end if
 
-            moved = skip_chars_backward(" "//TAB, status)
+            moved = skip_characters_backward(" "//TAB, status)
 
             if (looking_at("[ "//TAB//"]", status)) then
                 call insert(LF, status)
@@ -2764,10 +2766,10 @@ contains
 
             if (.not. status%ok()) return
             ! Return beginning-of-line.
-            bol = point() - 1
+            line_beginning = point() - 1
             ! Don't break before the first non-LWSP characters.
-            moved = skip_chars_forward(" "//TAB, status)
-            if (.not. is_eob()) call forward_char(status)
+            moved = skip_characters_forward(" "//TAB, status)
+            if (.not. is_end_of_buffer()) call forward_character(status)
         end subroutine break_line
     end subroutine fold_message_field
 
@@ -2779,13 +2781,13 @@ contains
         integer(int64) :: e, moved
 
         status = status_type()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        do while (.not. is_eob())
+        do while (.not. is_end_of_buffer())
             if (looking_at("[^:]+:", status) .and. line_end_position() - point() > 79) then
                 call fold_message_field(e, status)
                 if (.not. status%ok()) return
-                call goto_char(e)
+                call goto_character(e)
             else
                 if (.not. status%ok()) return
                 moved = forward_line(1_int64)
@@ -2801,10 +2803,10 @@ contains
 
         status = status_type()
         if (.not. message_syntax_checks%continuation_headers) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        do while (search_regexp("^[^ "//TAB//LF//"][^ "//TAB//LF//":]*[ "//TAB//LF//"]", status))
-            call goto_char(match_beginning(0, status))
+        do while (search_regular_expression("^[^ "//TAB//LF//"][^ "//TAB//LF//":]*[ "//TAB//LF//"]", status))
+            call goto_character(match_beginning(0, status))
 
             if (ask("Fix continuation lines? ", status)) then
                 call insert(" ", status)
@@ -2813,7 +2815,7 @@ contains
                 moved = forward_line(1_int64)
 
                 if (.not. ask("Send anyway? ", status)) then
-                    if (status%ok()) call set_error(status, FM_GENERIC_ERROR, "Failed to send the message")
+                    if (status%ok()) call set_error(status, GENERIC_ERROR_CODE, "Failed to send the message")
                     return
                 end if
             end if
@@ -2837,7 +2839,7 @@ contains
             if (.not. status%ok()) exit body
 
             ! Remove blank lines.
-            do while (search_regexp("^[ "//TAB//"]*"//LF, status))
+            do while (search_regular_expression("^[ "//TAB//"]*"//LF, status))
                 call replace_match("", status, fixedcase=.true., literal=.true.)
                 if (.not. status%ok()) exit body
             end do
@@ -2846,12 +2848,12 @@ contains
             ! Correct Newsgroups and Followup-To headers:  Change sequence of
             ! spaces to comma and eliminate spaces around commas.  Eliminate
             ! embedded line breaks.
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
-            do while (search_regexp("^\(Newsgroups\|Followup-To\): +", status))
+            do while (search_regular_expression("^\(Newsgroups\|Followup-To\): +", status))
                 start = point()
 
-                if (search_regexp("^[^ "//TAB//"]", status)) then
+                if (search_regular_expression("^[^ "//TAB//"]", status)) then
                     e = match_beginning(0, status)
                 else
                     moved = forward_line(1_int64)
@@ -2860,26 +2862,26 @@ contains
 
                 call save_restriction_begin(inner)
                 call narrow_to_region(start, e, status)
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 do while (status%ok())
-                    if (.not. search_regexp(LF//"[ "//TAB//"]+", status)) exit
+                    if (.not. search_regular_expression(LF//"[ "//TAB//"]+", status)) exit
                     ! No line breaks (too confusing)
                     call replace_match(" ", status, fixedcase=.true., literal=.true.)
                 end do
 
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 do while (status%ok())
-                    if (.not. search_regexp("[ "//TAB//LF//"]*,[ "//TAB//LF//"]*\|[ "//TAB//"]+", status)) exit
+                    if (.not. search_regular_expression("[ "//TAB//LF//"]*,[ "//TAB//LF//"]*\|[ "//TAB//"]+", status)) exit
                     call replace_match(",", status, fixedcase=.true., literal=.true.)
                 end do
 
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 ! Remove trailing commas.
                 if (status%ok()) then
-                    if (search_regexp(",+$", status)) call replace_match("", status, fixedcase=.true., literal=.true.)
+                    if (search_regular_expression(",+$", status)) call replace_match("", status, fixedcase=.true., literal=.true.)
                 end if
 
                 call save_restriction_end(inner)
@@ -2920,17 +2922,17 @@ contains
             ! non-ASCII text are not ported.
             if (.not. allocated(content_type)) then
                 if (search_string("<#", status)) then
-                    call set_error(status, FM_VOID_FUNCTION, "mml_generate_mime")
+                    call set_error(status, VOID_FUNCTION_CODE, "mml_generate_mime")
                     exit body_block
                 end if
 
                 ! mm-long-lines-p: a line of more than 1000 characters is
                 ! encoded quoted-printable.
-                call goto_char(body)
+                call goto_character(body)
 
-                do while (.not. is_eob())
+                do while (.not. is_end_of_buffer())
                     if (line_end_position() - point() > 1000) then
-                        call set_error(status, FM_VOID_FUNCTION, "mml_generate_mime")
+                        call set_error(status, VOID_FUNCTION_CODE, "mml_generate_mime")
                         exit body_block
                     end if
 
@@ -2938,12 +2940,12 @@ contains
                     if (moved /= 0) exit
                 end do
 
-                call goto_char(body)
-                moved = skip_chars_forward(achar(0)//"-"//achar(127), status)
+                call goto_character(body)
+                moved = skip_characters_forward(achar(0)//"-"//achar(127), status)
             end if
 
-            if (allocated(content_type) .or. .not. is_eob()) then
-                call set_error(status, FM_VOID_FUNCTION, "mml_generate_mime")
+            if (allocated(content_type) .or. .not. is_end_of_buffer()) then
+                call set_error(status, VOID_FUNCTION_CODE, "mml_generate_mime")
                 exit body_block
             end if
 
@@ -2952,11 +2954,11 @@ contains
             if (status%ok()) call remove_message_header("Mime-Version", status)
 
             if (status%ok()) then
-                call goto_char(point_max())
+                call goto_character(point_maximum())
                 call insert("MIME-Version: 1.0"//LF, status)
             end if
 
-            if (status%ok()) found = search_regexp_backward("^Content-Type:", status)
+            if (status%ok()) found = search_regular_expression_backward("^Content-Type:", status)
             if (status%ok()) call remove_message_first_header("Content-Type", status)
             if (status%ok()) call remove_message_first_header("Content-Transfer-Encoding", status)
             call save_restriction_end(restriction)
@@ -2967,10 +2969,10 @@ contains
             ! awfully confused when confronted with a message with a
             ! MIME-Version header and without a Content-Type header.
             if (.not. found) then
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 ! For unknown reason, MIME-Version doesn't exist.
-                if (search_regexp("^MIME-Version:", status)) then
+                if (search_regular_expression("^MIME-Version:", status)) then
                     moved = forward_line(1_int64)
                     call insert("Content-Type: text/plain; charset=us-ascii"//LF, status)
                 end if
@@ -2989,9 +2991,10 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: moved
 
-        call goto_char(point_min())
-        moved = skip_chars_forward(achar(0)//"-"//achar(127), status)
-        if (status%ok() .and. .not. is_eob()) call set_error(status, FM_VOID_FUNCTION, "mail_encode_encoded_word_buffer")
+        call goto_character(point_minimum())
+        moved = skip_characters_forward(achar(0)//"-"//achar(127), status)
+        if (status%ok() .and. .not. is_end_of_buffer()) call set_error(status, VOID_FUNCTION_CODE, &
+                                                                       "mail_encode_encoded_word_buffer")
     end subroutine encode_message_header
 
     ! ------------------------------------------------------------------
@@ -3013,11 +3016,11 @@ contains
         if (present(interactive)) inter = interactive
 
         if (inter) then
-            if (looking_at("[ "//TAB//"]*"//LF, st)) call expand_abbrev(st)
+            if (looking_at("[ "//TAB//"]*"//LF, st)) call expand_abbreviation(st)
             call push_mark()
         end if
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (.not. search_string(LF//mail_header_separator//LF, st)) then
             ! If the message is mangled, find the end of the headers the
@@ -3029,7 +3032,7 @@ contains
             end do
 
             ! We're now at the first empty line, so perhaps move past it.
-            if (is_eol() .and. .not. is_eob()) moved = forward_line(1_int64)
+            if (is_end_of_line() .and. .not. is_end_of_buffer()) moved = forward_line(1_int64)
         end if
 
         body = point()
@@ -3039,13 +3042,13 @@ contains
     !> message.el:message-in-body-p.
     recursive logical function is_message_in_body()
         type(excursion_type) :: excursion
-        integer(int64) :: opoint, body
+        integer(int64) :: original_point, body
 
-        opoint = point()
+        original_point = point()
         call save_excursion_begin(excursion)
         call goto_message_body(body)
         call save_excursion_end(excursion)
-        is_message_in_body = opoint >= body
+        is_message_in_body = original_point >= body
     end function is_message_in_body
 
     !> Move point to the end of the headers.  Port of
@@ -3067,13 +3070,13 @@ contains
         integer(int64) :: moved
 
         call push_mark()
-        call goto_char(point_min())
-        found = search_regexp(message_signature_separator, st)
+        call goto_character(point_minimum())
+        found = search_regular_expression(message_signature_separator, st)
 
         if (found) then
             moved = forward_line(1_int64)
         else
-            call goto_char(point_max())
+            call goto_character(point_maximum())
         end if
     end subroutine goto_message_signature
 
@@ -3092,8 +3095,8 @@ contains
         bound = line_end_position() + 1
         saved_fold = case_fold_search%value
         case_fold_search%value = .false.
-        call goto_char(point_min())
-        is_message_point_in_header = .not. search_string(LF//mail_header_separator//LF, st, min(bound, point_max()))
+        call goto_character(point_minimum())
+        is_message_point_in_header = .not. search_string(LF//mail_header_separator//LF, st, min(bound, point_maximum()))
         case_fold_search%value = saved_fold
         call save_restriction_end(restriction)
         call save_excursion_end(excursion)
@@ -3129,8 +3132,8 @@ contains
         if (message_signature%is_off()) then
             if (inter) then
                 call save_excursion_begin(excursion)
-                call goto_char(point_max())
-                use_file = .not. search_regexp_backward(message_signature_separator, status)
+                call goto_character(point_maximum())
+                use_file = .not. search_regular_expression_backward(message_signature_separator, status)
                 call save_excursion_end(excursion)
                 if (.not. status%ok()) return
             end if
@@ -3161,9 +3164,9 @@ contains
         end if
 
         if (.not. insert_it) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         ! Insert the signature.
-        if (.not. is_bol()) call newline(status)
+        if (.not. is_beginning_of_line()) call newline(status)
         if (status%ok() .and. message_signature_insert_empty_line) call newline(status)
         if (status%ok()) call insert("-- ", status)
         if (status%ok()) call newline(status)
@@ -3176,8 +3179,8 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call goto_char(point_max())
-        if (.not. is_bol()) call newline(status)
+        call goto_character(point_maximum())
+        if (.not. is_beginning_of_line()) call newline(status)
     end subroutine insert_message_signature
 
     ! ------------------------------------------------------------------
@@ -3222,7 +3225,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: to, group
         type(handle_type), allocatable :: list(:)
-        character(len=:), allocatable :: new, regexp, part, bname
+        character(len=:), allocatable :: new, regular_expression, part, bname
         integer :: best, k, number
         logical :: saved_fold
 
@@ -3257,7 +3260,7 @@ contains
                 part = new
             end if
 
-            regexp = "\`"//regexp_quote(part)//"\(?:<\([0-9]+\)>\)?\'"
+            regular_expression = "\`"//regular_expression_quote(part)//"\(?:<\([0-9]+\)>\)?\'"
             list = buffer_list()
             best = 0
             name = new
@@ -3266,7 +3269,7 @@ contains
 
             do k = 1, size(list)
                 bname = buffers(list(k)%index)%name
-                if (string_match(regexp, bname, status) == 0) cycle
+                if (string_match(regular_expression, bname, status) == 0) cycle
                 if (.not. allocated(buffers(list(k)%index)%major_mode)) cycle
                 if (buffers(list(k)%index)%major_mode /= "message_mode") cycle
                 best = 1
@@ -3353,7 +3356,7 @@ contains
 
             if (modified) then
                 if (.not. ask("Message already being composed; erase? ", status)) then
-                    if (status%ok()) call set_error(status, FM_GENERIC_ERROR, "Message being composed")
+                    if (status%ok()) call set_error(status, GENERIC_ERROR_CODE, "Message being composed")
                     return
                 end if
 
@@ -3415,19 +3418,19 @@ contains
         call narrow_to_message_headers(status)
         if (.not. status%ok()) return
 
-        if (search_regexp("^[^:]+:[ "//TAB//"]*$", status)) then
+        if (search_regular_expression("^[^:]+:[ "//TAB//"]*$", status)) then
             call search_backward(":", found, status)
             call widen()
-            call forward_char(status)
+            call forward_character(status)
 
-            if (following_char() == iachar(" ")) then
-                call forward_char(status)
+            if (following_character() == iachar(" ")) then
+                call forward_character(status)
             else
                 call insert(" ", status)
             end if
         else
             if (.not. status%ok()) return
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call widen()
             moved = forward_line(1_int64)
             if (.not. looking_at("$", status)) moved = forward_line(2_int64)
@@ -3452,7 +3455,7 @@ contains
         integer :: k
 
         status = status_type()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! Insert all the headers (mail-header-format, in the order of
         ! message-header-format-alist: To, then Subject).
         if (present(to)) call insert("To: "//to//LF, status)
@@ -3473,7 +3476,7 @@ contains
             end if
 
             if (allocated(text)) call insert(text, status)
-            if (status%ok() .and. .not. is_bol()) call insert(LF, status)
+            if (status%ok() .and. .not. is_beginning_of_line()) call insert(LF, status)
             if (.not. status%ok()) return
         end if
 
@@ -3488,7 +3491,7 @@ contains
         if (is_message_mail()) then
             if (allocated(message_default_mail_headers)) then
                 call insert(message_default_mail_headers, status)
-                if (status%ok() .and. .not. is_bol()) call insert(LF, status)
+                if (status%ok() .and. .not. is_beginning_of_line()) call insert(LF, status)
                 if (.not. status%ok()) return
             end if
 
@@ -3593,11 +3596,11 @@ contains
     !> fontification, the tool bar and auto-saving are Deferred).
     recursive subroutine message_mode(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: quote_prefix_regexp
+        character(len=:), allocatable :: quote_prefix_regular_expression
         logical :: saved
         integer :: k
 
-        if (.not. associated(major_modes%message_mode%execute)) call init_message()
+        if (.not. associated(major_modes%message_mode%execute)) call initialize_message()
         call load_message()
         call major_modes%message_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -3605,20 +3608,20 @@ contains
         if (k > 0) locals(k) = local_type(serial=buffers(current)%serial)
         ! message-setup-fill-variables
         call fill_paragraph_function%set_local(fill_message_paragraph)
-        ! User should change message_cite_prefix_regexp if
+        ! User should change message_cite_prefix_regular_expression if
         ! message_paste_prefix is set to an abnormal value.
-        quote_prefix_regexp = "\("//message_cite_prefix_regexp//"\)[ "//TAB//"]*"
-        call paragraph_start%set_local(regexp_quote(mail_header_separator)//"$\|"// &
+        quote_prefix_regular_expression = "\("//message_cite_prefix_regular_expression//"\)[ "//TAB//"]*"
+        call paragraph_start%set_local(regular_expression_quote(mail_header_separator)//"$\|"// &
                                        "[ "//TAB//"]*$\|"// &
                                        "-- $\|"// &
                                        "---+$\|"// &
                                        page_delimiter%value//"$\|"// &
                                        ".*wrote:$\|"// &
-                                       quote_prefix_regexp//"$\|"// &
+                                       quote_prefix_regular_expression//"$\|"// &
                                        "<#!*/?\(multipart\|part\|external\|mml\|secure\)")
         call paragraph_separate%set_local(paragraph_start%value)
-        call auto_fill_inhibit_regexp%set_local("")
-        call auto_fill_inhibit_regexp%clear()
+        call auto_fill_inhibit_regular_expression%set_local("")
+        call auto_fill_inhibit_regular_expression%clear()
         call normal_auto_fill_function%set_local(do_message_auto_fill)
 
         if (.not. message_fill_column%is_off()) then
@@ -3630,11 +3633,11 @@ contains
         ! Allow using comment commands to add/remove quoting.
         if (allocated(message_paste_prefix)) then
             call comment_start%set_local(message_paste_prefix)
-            call comment_start_skip%set_local("^"//regexp_quote(message_paste_prefix)//"[ "//TAB//"]*")
+            call comment_start_skip%set_local("^"//regular_expression_quote(message_paste_prefix)//"[ "//TAB//"]*")
         end if
 
         ! Allow mail alias things.
-        call set_up_mail_abbrevs(status)
+        call set_up_mail_abbreviations(status)
         if (.not. status%ok()) return
 
         if (.not. allocated(buffers(current)%filename)) then
@@ -3666,7 +3669,7 @@ contains
     end subroutine do_message_auto_fill
 
     ! Message specific function to fill a paragraph: the header field at
-    ! point, or the paragraph with `message_newline_and_reformat'.  Port of
+    ! point, or the paragraph with `newline_and_reformat_message'.  Port of
     ! message.el:message-fill-paragraph.
     recursive subroutine fill_message_paragraph(status, done, justify)
         type(status_type), intent(out) :: status
@@ -3699,26 +3702,27 @@ contains
         loaded = .true.
         if (.not. allocated(message_paste_prefix) .and. allocated(mail_paste_prefix)) message_paste_prefix = mail_paste_prefix
 
-        if (.not. allocated(message_cite_prefix_regexp)) then
-            message_cite_prefix_regexp = "\(?:[ "//TAB//"]*\(?:[[:word:]_.]+>\|[>|]\)\)+"
-            if (allocated(mail_citation_prefix_regexp)) message_cite_prefix_regexp = mail_citation_prefix_regexp
+        if (.not. allocated(message_cite_prefix_regular_expression)) then
+            message_cite_prefix_regular_expression = "\(?:[ "//TAB//"]*\(?:[[:word:]_.]+>\|[>|]\)\)+"
+            if (allocated(mail_citation_prefix_regular_expression)) message_cite_prefix_regular_expression = &
+                mail_citation_prefix_regular_expression
         end if
 
         if (.not. allocated(message_signature_file) .and. allocated(mail_signature_file)) then
             message_signature_file = mail_signature_file
         end if
 
-        if (.not. allocated(message_subject_re_regexp)) then
+        if (.not. allocated(message_subject_re_regular_expression)) then
             value = ""
 
-            if (allocated(mail_re_regexps)) then
-                do k = 1, size(mail_re_regexps)
+            if (allocated(mail_re_regular_expressions)) then
+                do k = 1, size(mail_re_regular_expressions)
                     if (k > 1) value = value//"\|"
-                    value = value//trim(mail_re_regexps(k))
+                    value = value//trim(mail_re_regular_expressions(k))
                 end do
             end if
 
-            message_subject_re_regexp = wrap_mail_re_regexp("\("//value//"\)")
+            message_subject_re_regular_expression = wrap_mail_re_regular_expression("\("//value//"\)")
         end if
 
         if (.not. allocated(message_default_mail_headers)) then
@@ -3881,7 +3885,7 @@ contains
             else
                 ! Restore the point in the message buffer.
                 call set_buffer(buffer, status)
-                if (status%ok()) call goto_char(mpos(position))
+                if (status%ok()) call goto_character(marked_position(position))
                 if (status%ok()) call bury_message(buffer, status)
             end if
         end if
@@ -3981,7 +3985,7 @@ contains
             if (.not. status%ok()) return
 
             if (.not. proceed) then
-                call set_error(status, FM_QUIT, "Quit")
+                call set_error(status, QUIT_CODE, "Quit")
                 return
             end if
         end if
@@ -3995,7 +3999,7 @@ contains
         if (.not. status%ok()) return
 
         if (news) then
-            call set_error(status, FM_VOID_FUNCTION, "send_message_news")
+            call set_error(status, VOID_FUNCTION_CODE, "send_message_news")
             return
         end if
 
@@ -4033,7 +4037,7 @@ contains
             end if
 
             if (.not. dont_barf) then
-                call set_error(status, FM_GENERIC_ERROR, "No methods specified to send by")
+                call set_error(status, GENERIC_ERROR_CODE, "No methods specified to send by")
                 return
             end if
         end if
@@ -4083,8 +4087,8 @@ contains
 
         status = status_type()
         ! Make sure there's a newline at the end of the message.
-        call goto_char(point_max())
-        if (.not. is_bol()) call insert(LF, status)
+        call goto_character(point_maximum())
+        if (.not. is_beginning_of_line()) call insert(LF, status)
         if (.not. status%ok()) return
         ! Make the hidden headers visible.
         call widen()
@@ -4114,36 +4118,36 @@ contains
     recursive subroutine check_illegible_text(status)
         type(status_type), intent(out) :: status
         character(len=*), parameter :: SEVEN_BIT = " -"//achar(127)//LF//TAB//achar(7)//achar(8)//achar(11)//achar(12)//achar(31)
-        type(rmc_choice_type) :: choices(5)
+        type(read_multiple_choice_choice_type) :: choices(5)
         integer(int64) :: moved
         integer(int32) :: char
-        logical :: found, nul_chars
+        logical :: found, nul_characters
         integer :: choice
-        character(len=8) :: hex
+        character(len=8) :: hexadecimal
 
-        call goto_char(point_min())
-        nul_chars = search_string(achar(0), status)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
+        nul_characters = search_string(achar(0), status)
+        call goto_character(point_minimum())
         found = .false.
 
         do
-            moved = skip_chars_forward(SEVEN_BIT, status)
-            if (is_eob()) exit
-            char = following_char()
+            moved = skip_characters_forward(SEVEN_BIT, status)
+            if (is_end_of_buffer()) exit
+            char = following_character()
             if (char < 128) found = .true.
-            call forward_char(status)
+            call forward_character(status)
             if (.not. status%ok()) return
         end do
 
         if (.not. found) return
-        choices(1) = rmc_choice_type(iachar("d"), "delete", "Remove non-printable characters and send")
-        choices(2) = rmc_choice_type(iachar("r"), "replace", "Replace non-printable characters with """// &
-                                     message_replacement_char//""" and send")
-        choices(3) = rmc_choice_type(iachar("u"), "url-encode", "Use URL %hex encoding")
-        choices(4) = rmc_choice_type(iachar("s"), "send", "Send as is without removing anything")
-        choices(5) = rmc_choice_type(iachar("e"), "edit", "Continue editing")
+        choices(1) = read_multiple_choice_choice_type(iachar("d"), "delete", "Remove non-printable characters and send")
+        choices(2) = read_multiple_choice_choice_type(iachar("r"), "replace", "Replace non-printable characters with """// &
+                                                      message_replacement_character//""" and send")
+        choices(3) = read_multiple_choice_choice_type(iachar("u"), "url-encode", "Use URL %hex encoding")
+        choices(4) = read_multiple_choice_choice_type(iachar("s"), "send", "Send as is without removing anything")
+        choices(5) = read_multiple_choice_choice_type(iachar("e"), "edit", "Continue editing")
 
-        if (nul_chars) then
+        if (nul_characters) then
             call read_multiple_choice("NUL characters found, which may cause problems.  Continue sending?", choices, choice, &
                                       status)
         else
@@ -4153,49 +4157,49 @@ contains
         if (.not. status%ok()) return
 
         if (choice == iachar("e")) then
-            call set_error(status, FM_GENERIC_ERROR, "Non-printable characters")
+            call set_error(status, GENERIC_ERROR_CODE, "Non-printable characters")
             return
         end if
 
-        call goto_char(point_min())
-        moved = skip_chars_forward(SEVEN_BIT, status)
+        call goto_character(point_minimum())
+        moved = skip_characters_forward(SEVEN_BIT, status)
 
-        do while (.not. is_eob())
-            char = following_char()
+        do while (.not. is_end_of_buffer())
+            char = following_character()
 
             if (char < 128) then
                 select case (choice)
                 case (117)
                     ! "u": URL encoding.
                     call delete_region(point(), point() + 1, status)
-                    write (hex, "(z0)") char
-                    call insert("%"//to_lower(trim(hex)), status)
+                    write (hexadecimal, "(z0)") char
+                    call insert("%"//to_lower(trim(hexadecimal)), status)
                 case (115)
                     ! "s": send as is.
-                    call forward_char(status)
+                    call forward_character(status)
                 case default
                     call delete_region(point(), point() + 1, status)
-                    if (status%ok() .and. choice == iachar("r")) call insert(message_replacement_char, status)
+                    if (status%ok() .and. choice == iachar("r")) call insert(message_replacement_character, status)
                 end select
 
                 if (.not. status%ok()) return
-                if (choice /= 115) call forward_char_if_possible()
+                if (choice /= 115) call forward_character_if_possible()
             else
-                call forward_char(status)
+                call forward_character(status)
             end if
 
-            moved = skip_chars_forward(SEVEN_BIT, status)
+            moved = skip_characters_forward(SEVEN_BIT, status)
         end do
 
     contains
 
         ! (forward-char) after the deletion: upstream moves one character
         ! on, skipping the character after the one replaced.  Not a port.
-        subroutine forward_char_if_possible()
+        subroutine forward_character_if_possible()
             type(status_type) :: st
 
-            if (.not. is_eob()) call forward_char(st)
-        end subroutine forward_char_if_possible
+            if (.not. is_end_of_buffer()) call forward_character(st)
+        end subroutine forward_character_if_possible
 
         ! TEXT in lower case (hexadecimal digits).  Not a port.
         function to_lower(text) result(out)
@@ -4222,7 +4226,7 @@ contains
         character(len=*), parameter :: HEADERS(3) = [character(len=3) :: "To", "Cc", "Bcc"]
         type(restriction_type) :: restriction
         type(mail_address_components_type), allocatable :: components(:)
-        character(len=:), allocatable :: value, address, bogus_regexp
+        character(len=:), allocatable :: value, address, bogus_regular_expression
         logical :: bogus
         integer :: k, j, i
 
@@ -4231,12 +4235,12 @@ contains
         body: block
             call narrow_to_message_headers(status)
             if (.not. status%ok()) exit body
-            bogus_regexp = ""
+            bogus_regular_expression = ""
 
             if (allocated(message_bogus_addresses)) then
                 do i = 1, size(message_bogus_addresses)
-                    if (i > 1) bogus_regexp = bogus_regexp//"\|"
-                    bogus_regexp = bogus_regexp//trim(message_bogus_addresses(i))
+                    if (i > 1) bogus_regular_expression = bogus_regular_expression//"\|"
+                    bogus_regular_expression = bogus_regular_expression//trim(message_bogus_addresses(i))
                 end do
             end if
 
@@ -4252,14 +4256,14 @@ contains
                     address = ""
                     if (allocated(components(j)%address)) address = components(j)%address
                     bogus = len(address) == 0
-                    if (.not. bogus .and. len(bogus_regexp) > 0) bogus = matches(bogus_regexp, address)
+                    if (.not. bogus .and. len(bogus_regular_expression) > 0) bogus = matches(bogus_regular_expression, address)
                     if (.not. bogus) cycle
                     ! An empty address is no address at all upstream (and
                     ! nothing to ask about).
                     if (len(address) == 0) cycle
 
                     if (.not. ask(format_message_quote("Address `"//address//"' might be bogus.  Continue? "), status)) then
-                        if (status%ok()) call set_error(status, FM_USER_ERROR, "Bogus address")
+                        if (status%ok()) call set_error(status, USER_ERROR_CODE, "Bogus address")
                         exit body
                     end if
                 end do
@@ -4337,7 +4341,7 @@ contains
             case_fold_search%value = .false.
             ! Avoid copying text props.
             call set_buffer(mailbuf, status)
-            if (status%ok()) call buffer_substring_no_properties(point_min(), point_max(), text, status)
+            if (status%ok()) call buffer_substring_no_properties(point_minimum(), point_maximum(), text, status)
             if (status%ok()) call set_buffer(tembuf, status)
             if (.not. status%ok()) exit body
             call insert(text, status)
@@ -4359,13 +4363,13 @@ contains
             end if
 
             ! Remove some headers.
-            if (status%ok()) call remove_message_header(message_ignored_mail_headers, status, is_regexp=.true.)
+            if (status%ok()) call remove_message_header(message_ignored_mail_headers, status, is_regular_expression=.true.)
             if (status%ok()) call encode_message_header(status)
             call save_restriction_end(restriction)
             if (.not. status%ok()) exit body
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             ! require one newline at the end.
-            if (preceding_char() /= 10) call insert(LF, status)
+            if (preceding_character() /= 10) call insert(LF, status)
             if (status%ok()) call cleanup_message_headers(status)
             if (.not. status%ok()) exit body
             call message("Sending via mail...")
@@ -4415,7 +4419,7 @@ contains
             if (.not. status%ok()) return
 
             if (.not. allocated(from)) then
-                call set_error(status, FM_GENERIC_ERROR, "Invalid address: .false.")
+                call set_error(status, GENERIC_ERROR_CODE, "Invalid address: .false.")
                 return
             end if
 
@@ -4464,17 +4468,17 @@ contains
             call save_restriction_end(restriction)
             if (.not. status%ok()) exit body
             ! Change header-delimiter to be what sendmail expects.
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
-            if (.not. search_regexp("^"//regexp_quote(mail_header_separator)//LF, status)) then
-                if (status%ok()) call set_error(status, FM_GENERIC_ERROR, "Search failed: ""^"// &
-                                                regexp_quote(mail_header_separator)//"\n""")
+            if (.not. search_regular_expression("^"//regular_expression_quote(mail_header_separator)//LF, status)) then
+                if (status%ok()) call set_error(status, GENERIC_ERROR_CODE, "Search failed: ""^"// &
+                                                regular_expression_quote(mail_header_separator)//"\n""")
                 exit body
             end if
 
             call replace_match(LF, status)
             if (.not. status%ok()) exit body
-            call goto_char(point() - 1)
+            call goto_character(point() - 1)
             delimline = marker_at(point())
             call message_send_mail_hook%execute(status)
             if (.not. status%ok()) exit body
@@ -4487,11 +4491,11 @@ contains
             end if
 
             allocate (argv(0))
-            call append_arg("-oi")
+            call append_argument("-oi")
 
             if (allocated(message_sendmail_extra_arguments)) then
                 do k = 1, size(message_sendmail_extra_arguments)
-                    call append_arg(trim(message_sendmail_extra_arguments(k)))
+                    call append_argument(trim(message_sendmail_extra_arguments(k)))
                 end do
             end if
 
@@ -4502,15 +4506,15 @@ contains
             if (.not. message_sendmail_f_is_evil) then
                 call get_message_sendmail_envelope_from(envelope, status)
                 if (.not. status%ok()) exit body
-                call append_arg("-f")
-                call append_arg(envelope)
+                call append_argument("-f")
+                call append_argument(envelope)
             end if
 
             ! These mean "report errors by mail"
             ! and "deliver in background".
             if (.not. message_interactive) then
-                call append_arg("-oem")
-                call append_arg("-odb")
+                call append_argument("-oem")
+                call append_argument("-odb")
             end if
 
             ! Get the addresses from the message
@@ -4519,19 +4523,19 @@ contains
             ! because we would find the original addresses.
             ! For a resend, include the specific addresses.
             if (allocated(resend_to)) then
-                call append_arg(resend_to)
+                call append_argument(resend_to)
             else
-                call append_arg("-t")
+                call append_argument("-t")
             end if
 
             if (message_interactive) then
-                destination = make_buffer_ref(errbuf)
+                destination = make_buffer_reference(errbuf)
             else
                 destination = value_type(0_int64)
             end if
 
             buffers(current)%directory = "/"
-            call execute_process_region(sendmail_program, result, status, point_min(), point_max(), .false., &
+            call execute_process_region(sendmail_program, result, status, point_minimum(), point_maximum(), .false., &
                                         destination, make_list(argv))
             if (.not. status%ok()) exit body
 
@@ -4540,12 +4544,12 @@ contains
                 if (result%a(1)%i /= 0) then
                     failed = .true.
                     write (exit_text, '("Sending...failed with exit value ", i0)') result%a(1)%i
-                    call set_error(status, FM_GENERIC_ERROR, trim(exit_text))
+                    call set_error(status, GENERIC_ERROR_CODE, trim(exit_text))
                     exit body
                 end if
             case (V_STRING)
                 failed = .true.
-                call set_error(status, FM_GENERIC_ERROR, "Format specifier doesn't match argument type")
+                call set_error(status, GENERIC_ERROR_CODE, "Format specifier doesn't match argument type")
                 exit body
             case default
                 continue
@@ -4553,15 +4557,15 @@ contains
 
             if (message_interactive) then
                 call set_buffer(errbuf, status)
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
-                do while (search_regexp(LF//"+ *", status))
+                do while (search_regular_expression(LF//"+ *", status))
                     call replace_match("; ", status)
                 end do
 
                 if (buffer_size() /= 0) then
                     errors = buffer_string()
-                    call set_error(status, FM_GENERIC_ERROR, "Sending...failed to "//errors)
+                    call set_error(status, GENERIC_ERROR_CODE, "Sending...failed to "//errors)
                 end if
 
                 call set_buffer(mailbuf, st)
@@ -4582,12 +4586,12 @@ contains
 
     contains
 
-        subroutine append_arg(arg)
-            character(len=*), intent(in) :: arg
+        subroutine append_argument(argument)
+            character(len=*), intent(in) :: argument
 
-            item = value_type(text=arg)
+            item = value_type(text=argument)
             argv = [argv, item]
-        end subroutine append_arg
+        end subroutine append_argument
     end subroutine send_message_mail_with_sendmail
 
     !> Run `message_send_mail_hook', then send the current buffer with
@@ -4636,7 +4640,7 @@ contains
     ! message.el:message-do-fcc.
     recursive subroutine do_message_fcc(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: mail_buffer, old, temp
+        type(handle_type) :: mail_buffer, old, temporary
         type(restriction_type) :: restriction
         type(string_type), allocatable :: files(:)
         character(len=:), allocatable :: file, cache, expanded, directory, text
@@ -4655,9 +4659,9 @@ contains
 
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
-        call buffer_substring_no_properties(point_min(), point_max(), text, status)
+        call buffer_substring_no_properties(point_minimum(), point_maximum(), text, status)
         if (.not. status%ok()) return
-        call temporary_buffer_begin(" *temp*", old, temp, status)
+        call temporary_buffer_begin(" *temp*", old, temporary, status)
 
         body: block
             if (.not. status%ok()) exit body
@@ -4685,9 +4689,9 @@ contains
             if (status%ok()) call encode_message_header(status)
             call save_restriction_end(restriction)
             if (.not. status%ok()) exit body
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
-            if (search_regexp("^"//regexp_quote(mail_header_separator)//"$", status)) then
+            if (search_regular_expression("^"//regular_expression_quote(mail_header_separator)//"$", status)) then
                 call replace_match("", status, fixedcase=.true., literal=.true.)
             end if
 
@@ -4714,7 +4718,7 @@ contains
                     if (associated(message_fcc_handler_function)) then
                         call message_fcc_handler_function(expanded, status)
                     else
-                        call set_error(status, FM_VOID_FUNCTION, "rmail_output")
+                        call set_error(status, VOID_FUNCTION_CODE, "rmail_output")
                     end if
                 end if
 
@@ -4722,7 +4726,7 @@ contains
             end do
         end block body
 
-        call temporary_buffer_end(old, temp)
+        call temporary_buffer_end(old, temporary)
         call restore_buffer(mail_buffer)
         case_fold_search%value = saved_fold
 
@@ -4738,7 +4742,7 @@ contains
             type(value_type), intent(out) :: result
             type(status_type), intent(out) :: status
 
-            call execute_process_region(shell_file_name%value, result, status, point_min(), point_max(), .false., &
+            call execute_process_region(shell_file_name%value, result, status, point_minimum(), point_maximum(), .false., &
                                         value_type(), list(value_type(text=shell_command_switch%value), &
                                                            value_type(text=command)))
         end subroutine pipe_to_program
@@ -4761,7 +4765,7 @@ contains
         end if
 
         if (babyl) then
-            call set_error(status, FM_VOID_FUNCTION, "gnus_output_to_rmail")
+            call set_error(status, VOID_FUNCTION_CODE, "gnus_output_to_rmail")
         else
             call output_to_mail_file(filename, .true., status)
         end if
@@ -4790,17 +4794,17 @@ contains
             if (.not. status%ok()) return
 
             if (.not. proceed) then
-                call set_error(status, FM_GENERIC_ERROR, "Output file does not exist")
+                call set_error(status, GENERIC_ERROR_CODE, "Output file does not exist")
                 return
             end if
 
             call temporary_buffer_begin(" *temp*", old, tmpbuf, status)
-            if (status%ok()) call write_region(filename, .false., status, point_min(), point_max())
+            if (status%ok()) call write_region(filename, .false., status, point_minimum(), point_maximum())
             call temporary_buffer_end(old, tmpbuf)
             if (.not. status%ok()) return
         end if
 
-        call buffer_substring_no_properties(point_min(), point_max(), text, status)
+        call buffer_substring_no_properties(point_minimum(), point_maximum(), text, status)
         if (.not. status%ok()) return
         call temporary_buffer_begin(" *Gnus-output*", old, tmpbuf, status)
 
@@ -4808,7 +4812,7 @@ contains
             if (.not. status%ok()) exit body
             call insert(text, status)
             if (.not. status%ok()) exit body
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             if (looking_at("From ", status)) then
                 moved = forward_line(1_int64)
@@ -4820,7 +4824,7 @@ contains
             saved_fold = case_fold_search%value
             case_fold_search%value = .false.
 
-            do while (search_regexp("^From ", status))
+            do while (search_regular_expression("^From ", status))
                 call beginning_of_line()
                 call insert(">", status)
                 if (.not. status%ok()) exit
@@ -4832,22 +4836,22 @@ contains
 
             ! Decide whether to append to a file or to a buffer.
             if (outbuf%index == 0) then
-                call goto_char(point_max() - 2)
+                call goto_character(point_maximum() - 2)
 
                 if (.not. looking_at(LF//LF, status)) then
-                    call goto_char(point_max())
-                    if (.not. is_bol()) call insert(LF, status)
+                    call goto_character(point_maximum())
+                    if (.not. is_beginning_of_line()) call insert(LF, status)
                     if (status%ok()) call insert(LF, status)
                 end if
 
-                if (status%ok()) call write_region(filename, .false., status, point_min(), point_max(), append=.true.)
+                if (status%ok()) call write_region(filename, .false., status, point_minimum(), point_maximum(), append=.true.)
             else
                 ! File has been visited, in buffer OUTBUF.
                 text = buffer_string()
                 call set_buffer(outbuf, status)
                 if (.not. status%ok()) exit body
-                call goto_char(point_max())
-                if (.not. is_eob()) call insert(LF, status)
+                call goto_character(point_maximum())
+                if (.not. is_end_of_buffer()) call insert(LF, status)
                 if (status%ok()) call insert(LF//text, status)
             end if
         end block body
@@ -4872,7 +4876,7 @@ contains
         ! list of buffers.
         message_buffer_list = pack(message_buffer_list,.not. same_buffer(message_buffer_list, current_buffer()))
 
-        do while (message_max_buffers > 0 .and. size(message_buffer_list) >= message_max_buffers)
+        do while (message_maximum_buffers > 0 .and. size(message_buffer_list) >= message_maximum_buffers)
             ! Close the oldest buffer -- unless it has been changed.
             buffer = message_buffer_list(1)
             message_buffer_list = message_buffer_list(2:)
@@ -4889,7 +4893,7 @@ contains
         call message_send_rename_function(status)
         if (.not. status%ok()) return
         ! Push the current buffer onto the list.
-        if (message_max_buffers > 0) message_buffer_list = [message_buffer_list, current_buffer()]
+        if (message_maximum_buffers > 0) message_buffer_list = [message_buffer_list, current_buffer()]
 
     contains
 
@@ -4964,9 +4968,9 @@ contains
         integer, intent(in), optional :: justify
         logical, intent(in), optional :: not_break
         type(restriction_type) :: restriction
-        character(len=:), allocatable :: quoted, leading_space, saved_regexp, saved_first, space
-        integer(int64) :: opoint, beginning, e, after, moved, newpoint
-        logical :: at_line_beginning, no_break, has_quote, had_regexp, had_first
+        character(len=:), allocatable :: quoted, leading_space, saved_regular_expression, saved_first, space
+        integer(int64) :: original_point, beginning, e, after, moved, newpoint
+        logical :: at_line_beginning, no_break, has_quote, had_regular_expression, had_first
         type(status_type) :: st
 
         status = status_type()
@@ -4974,61 +4978,61 @@ contains
         if (present(not_break)) no_break = not_break
 
         if (.not. is_message_in_body()) then
-            call set_error(status, FM_GENERIC_ERROR, "This command only works in the body of the message")
+            call set_error(status, GENERIC_ERROR_CODE, "This command only works in the body of the message")
             return
         end if
 
-        opoint = point()
+        original_point = point()
         call beginning_of_line()
         beginning = point()
-        at_line_beginning = beginning == opoint
+        at_line_beginning = beginning == original_point
 
         ! Find first line of the paragraph.
         if (no_break) then
-            do while (.not. is_eob())
-                if (looking_at(message_cite_prefix_regexp, st)) exit
+            do while (.not. is_end_of_buffer())
+                if (looking_at(message_cite_prefix_regular_expression, st)) exit
                 if (.not. looking_at(paragraph_start%value, st)) exit
                 moved = forward_line(1_int64)
             end do
         end if
 
         ! Find the prefix
-        has_quote = looking_at(message_cite_prefix_regexp, st)
+        has_quote = looking_at(message_cite_prefix_regular_expression, st)
         leading_space = ""
 
         if (has_quote) then
             quoted = match_string(0)
-            call goto_char(match_end(0, st))
+            call goto_character(match_end(0, st))
             after = point()
 
             ! This is a line with no text after the cite prefix.  In that
             ! case, the trailing space is commonly not present, so look
             ! around for other lines that have some data.
             if (looking_at(LF, st)) then
-                if (search_regexp_backward("^"//message_cite_prefix_regexp//"[ "//TAB//"]", st)) then
-                    call goto_char(match_end(0, st) - 1)
-                else if (search_regexp("^"//message_cite_prefix_regexp//"[ "//TAB//"]", st)) then
-                    call goto_char(match_end(0, st) - 1)
+                if (search_regular_expression_backward("^"//message_cite_prefix_regular_expression//"[ "//TAB//"]", st)) then
+                    call goto_character(match_end(0, st) - 1)
+                else if (search_regular_expression("^"//message_cite_prefix_regular_expression//"[ "//TAB//"]", st)) then
+                    call goto_character(match_end(0, st) - 1)
                 end if
             end if
 
             if (looking_at("[ "//TAB//"]*", st)) leading_space = match_string(0)
-            call goto_char(after)
+            call goto_character(after)
         end if
 
         if (has_quote .and. .not. no_break .and. .not. at_line_beginning) then
             ! break inside the cite prefix.
-            if (opoint - beginning < count_chars(quoted)) has_quote = .false.
+            if (original_point - beginning < count_characters(quoted)) has_quote = .false.
         end if
 
         if (has_quote) then
             moved = forward_line(1_int64)
 
-            do while (.not. is_eob())
+            do while (.not. is_end_of_buffer())
                 if (looking_at(paragraph_separate%value, st)) exit
-                if (.not. looking_at(message_cite_prefix_regexp, st)) exit
+                if (.not. looking_at(message_cite_prefix_regular_expression, st)) exit
                 if (match_string(0) /= quoted) exit
-                call goto_char(match_end(0, st))
+                call goto_character(match_end(0, st))
                 space = ""
                 if (looking_at("[ "//TAB//"]*", st)) space = match_string(0)
                 if (len(leading_space) > len(space)) leading_space = space
@@ -5036,38 +5040,38 @@ contains
             end do
 
             e = point()
-            call goto_char(beginning)
+            call goto_character(beginning)
 
-            do while (.not. is_bob())
+            do while (.not. is_beginning_of_buffer())
                 moved = forward_line(-1_int64)
                 if (looking_at(paragraph_start%value, st)) exit
-                if (.not. looking_at(message_cite_prefix_regexp, st)) exit
+                if (.not. looking_at(message_cite_prefix_regular_expression, st)) exit
                 if (match_string(0) /= quoted) exit
                 beginning = point()
-                call goto_char(match_end(0, st))
+                call goto_character(match_end(0, st))
                 space = ""
                 if (looking_at("[ "//TAB//"]*", st)) space = match_string(0)
                 if (len(leading_space) > len(space)) leading_space = space
             end do
         else
-            do while (.not. is_eob())
+            do while (.not. is_end_of_buffer())
                 if (looking_at(paragraph_separate%value, st)) exit
-                if (looking_at(message_cite_prefix_regexp, st)) exit
+                if (looking_at(message_cite_prefix_regular_expression, st)) exit
                 moved = forward_line(1_int64)
             end do
 
             e = point()
-            call goto_char(beginning)
+            call goto_character(beginning)
 
-            do while (.not. is_bob())
+            do while (.not. is_beginning_of_buffer())
                 moved = forward_line(-1_int64)
                 if (looking_at(paragraph_start%value, st)) exit
-                if (looking_at(message_cite_prefix_regexp, st)) exit
+                if (looking_at(message_cite_prefix_regular_expression, st)) exit
                 beginning = point()
             end do
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
         call save_restriction_begin(restriction)
 
         body: block
@@ -5086,7 +5090,7 @@ contains
                 if (status%ok()) call newline(status)
                 if (.not. status%ok()) exit body
                 e = point()
-                if (search_regexp("[ "//TAB//"]*", status)) call delete_region(e, point(), status)
+                if (search_regular_expression("[ "//TAB//"]*", status)) call delete_region(e, point(), status)
                 if (.not. status%ok()) exit body
                 if (has_quote .and. .not. at_line_beginning) call insert(quoted//leading_space, status)
                 if (.not. status%ok()) exit body
@@ -5095,30 +5099,30 @@ contains
             call undo_boundary()
 
             if (has_quote) then
-                had_regexp = allocated(adaptive_fill_regexp)
-                if (had_regexp) saved_regexp = adaptive_fill_regexp
-                had_first = allocated(adaptive_fill_first_line_regexp)
-                if (had_first) saved_first = adaptive_fill_first_line_regexp
-                adaptive_fill_regexp = regexp_quote(quoted//leading_space)
-                adaptive_fill_first_line_regexp = adaptive_fill_regexp
+                had_regular_expression = allocated(adaptive_fill_regular_expression)
+                if (had_regular_expression) saved_regular_expression = adaptive_fill_regular_expression
+                had_first = allocated(adaptive_fill_first_line_regular_expression)
+                if (had_first) saved_first = adaptive_fill_first_line_regular_expression
+                adaptive_fill_regular_expression = regular_expression_quote(quoted//leading_space)
+                adaptive_fill_first_line_regular_expression = adaptive_fill_regular_expression
                 call fill_paragraph(status, justify)
 
-                if (had_regexp) then
-                    adaptive_fill_regexp = saved_regexp
+                if (had_regular_expression) then
+                    adaptive_fill_regular_expression = saved_regular_expression
                 else
-                    deallocate (adaptive_fill_regexp)
+                    deallocate (adaptive_fill_regular_expression)
                 end if
 
                 if (had_first) then
-                    adaptive_fill_first_line_regexp = saved_first
+                    adaptive_fill_first_line_regular_expression = saved_first
                 else
-                    deallocate (adaptive_fill_first_line_regexp)
+                    deallocate (adaptive_fill_first_line_regular_expression)
                 end if
             else
                 call fill_paragraph(status, justify)
             end if
 
-            if (status%ok() .and. newpoint > 0) call goto_char(newpoint)
+            if (status%ok() .and. newpoint > 0) call goto_character(newpoint)
         end block body
 
         call save_restriction_end(restriction)
@@ -5126,16 +5130,16 @@ contains
     contains
 
         ! The number of characters of TEXT (UTF-8).  Not a port.
-        integer(int64) function count_chars(text)
+        integer(int64) function count_characters(text)
             character(len=*), intent(in) :: text
             integer :: i
 
-            count_chars = 0
+            count_characters = 0
 
             do i = 1, len(text)
-                if (iand(iachar(text(i:i)), 192) /= 128) count_chars = count_chars + 1
+                if (iand(iachar(text(i:i)), 192) /= 128) count_characters = count_characters + 1
             end do
-        end function count_chars
+        end function count_characters
     end subroutine newline_and_reformat_message
 
     !> Insert header to mark message as important (IMPORTANCE "high") or
@@ -5338,8 +5342,8 @@ contains
             call goto_message_signature(found)
 
             if (found) then
-                if (.not. search_regexp_backward(message_signature_separator, status)) then
-                    if (status%ok()) call set_error(status, FM_GENERIC_ERROR, "Search failed: """// &
+                if (.not. search_regular_expression_backward(message_signature_separator, status)) then
+                    if (status%ok()) call set_error(status, GENERIC_ERROR_CODE, "Search failed: """// &
                                                     message_signature_separator//"""")
                     exit body
                 end if
@@ -5373,9 +5377,9 @@ contains
         if (present(verbatim)) verb = verbatim
         call save_excursion_begin(excursion)
         ! add to the end of the region first, otherwise end would be invalid
-        call goto_char(end)
+        call goto_character(end)
         status = status_type()
-        if (.not. is_bol()) call insert(LF, status)
+        if (.not. is_beginning_of_line()) call insert(LF, status)
 
         if (status%ok()) then
             if (verb) then
@@ -5386,7 +5390,7 @@ contains
         end if
 
         if (status%ok()) then
-            call goto_char(beginning)
+            call goto_character(beginning)
 
             if (verb) then
                 call insert("#v+"//LF, status)
@@ -5421,10 +5425,10 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call goto_char(p)
+        call goto_character(p)
         call insert_file_contents(file, .false., inserted, status)
         if (.not. status%ok()) return
-        call goto_char(p)
+        call goto_character(p)
 
         if (verb) then
             call insert("#v+"//LF, status)
@@ -5451,7 +5455,7 @@ contains
         if (.not. status%ok()) return
 
         if (.not. allocated(old_subject)) then
-            call set_error(status, FM_GENERIC_ERROR, "No current subject")
+            call set_error(status, GENERIC_ERROR_CODE, "No current subject")
             return
         end if
 
@@ -5465,7 +5469,7 @@ contains
         ! Abort on empty subject.
         if (len(subject) == 0 .or. matches("^[ "//TAB//"]*$", subject)) then
             call message("Subject empty")
-        else if (matches("^[ "//TAB//"]*"//regexp_quote(subject)//"[ "//TAB//"]*$", old_subject)) then
+        else if (matches("^[ "//TAB//"]*"//regular_expression_quote(subject)//"[ "//TAB//"]*$", old_subject)) then
             ! Abort on unchanged subject.
             call message("Subject unchanged")
         else
@@ -5515,7 +5519,7 @@ contains
                 case ("%")
                     ellipsis = ellipsis//"%"
                 case default
-                    call set_error(status, FM_GENERIC_ERROR, "Invalid format character: `%"// &
+                    call set_error(status, GENERIC_ERROR_CODE, "Invalid format character: `%"// &
                                    message_elide_ellipsis(k + 1:k + 1)//"'")
                     return
                 end select
@@ -5545,30 +5549,30 @@ contains
         call save_excursion_begin(excursion)
 
         body_block: block
-            call goto_char(beginning)
+            call goto_character(beginning)
 
             ! snarf citation prefix, if appropriate
             if (point() /= line_beginning_position()) then
                 call beginning_of_line()
-                if (looking_at(message_cite_prefix_regexp, st)) citeprefix = match_string(0)
+                if (looking_at(message_cite_prefix_regular_expression, st)) citeprefix = match_string(0)
             end if
 
-            call goto_char(end)
+            call goto_character(end)
             e = point()
             call goto_message_signature(found)
 
             if (found) then
                 moved = forward_line(-2_int64)
             else
-                call goto_char(e)
+                call goto_character(e)
             end if
 
             call delete_region(e, point(), status)
             if (.not. status%ok()) exit body_block
-            call goto_char(min(e, point()))
+            call goto_character(min(e, point()))
             call insert(LF, status)
             if (.not. status%ok()) exit body_block
-            call goto_char(beginning)
+            call goto_character(beginning)
             call goto_message_body(body)
             moved = forward_line(2_int64)
             call delete_region(beginning, point(), status)
@@ -5583,14 +5587,14 @@ contains
     end subroutine delete_message_not_region
 
     !> Cut all text up to the signature.
-    !> If a numeric argument ARG is given, leave that number of lines
+    !> If a numeric argument ARGUMENT is given, leave that number of lines
     !> before the signature intact.  Port of message.el:message-kill-to-signature.
-    recursive subroutine cut_message_to_signature(status, arg)
+    recursive subroutine cut_message_to_signature(status, argument)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
+        integer(int64), intent(in), optional :: argument
         type(excursion_type) :: excursion
         type(restriction_type) :: restriction
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
         logical :: found
 
         status = status_type()
@@ -5598,22 +5602,22 @@ contains
         call save_restriction_begin(restriction)
 
         body: block
-            opoint = point()
-            call narrow_to_region(opoint, point_max(), status)
+            original_point = point()
+            call narrow_to_region(original_point, point_maximum(), status)
             if (.not. status%ok()) exit body
             call goto_message_signature(found)
 
-            if (.not. is_eob()) then
-                if (present(arg)) then
-                    moved = forward_line(-1 - arg)
+            if (.not. is_end_of_buffer()) then
+                if (present(argument)) then
+                    moved = forward_line(-1 - argument)
                 else
                     call end_of_line(-1_int64)
                 end if
             end if
 
-            if (opoint /= point()) then
-                call cut_region(opoint, point(), status)
-                if (status%ok() .and. .not. is_bol()) call insert(LF, status)
+            if (original_point /= point()) then
+                call cut_region(original_point, point(), status)
+                if (status%ok() .and. .not. is_beginning_of_line()) call insert(LF, status)
             end if
         end block body
 
@@ -5630,7 +5634,7 @@ contains
         call skip_to_next_message_address(status)
         if (.not. status%ok()) return
 
-        if (is_bol()) then
+        if (is_beginning_of_line()) then
             call cut_region(start, point() - 1, status)
         else
             call cut_region(start, point(), status)
@@ -5657,9 +5661,9 @@ contains
         call save_restriction_begin(restriction)
 
         body: block
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             if (.not. search_string(mail_header_separator, status, move=.true.)) continue
-            call narrow_to_region(point_min(), point(), status)
+            call narrow_to_region(point_minimum(), point(), status)
             if (.not. status%ok()) exit body
             call is_message_news(news, status)
             if (.not. status%ok()) exit body
@@ -5712,17 +5716,17 @@ contains
     !> (with message-beginning-of-header; Visual Line mode is Deferred).
     recursive subroutine message_beginning_of_line(n)
         integer(int64), intent(in), optional :: n
-        integer(int64) :: opoint, bol, boh, moved
+        integer(int64) :: original_point, line_beginning, boh, moved
         logical :: found
         type(status_type) :: st
 
         if (message_beginning_of_line_variable .and. is_message_point_in_header()) then
-            opoint = point()
+            original_point = point()
             call beginning_of_line(n)
-            bol = point()
+            line_beginning = point()
             ! message-beginning-of-header with HANDLE-FOLDED nil.
             call beginning_of_line()
-            found = following_char() == iachar(" ") .or. following_char() == 9
+            found = following_character() == iachar(" ") .or. following_character() == 9
 
             if (.not. found) then
                 if (search_string(":", st, line_end_position())) found = .true.
@@ -5731,14 +5735,14 @@ contains
             boh = 0
 
             if (found) then
-                moved = skip_chars_forward(" "//TAB, st, line_end_position())
+                moved = skip_characters_forward(" "//TAB, st, line_end_position())
                 boh = point()
             end if
 
-            if (boh > 0 .and. (boh < opoint .or. bol == opoint)) then
-                call goto_char(boh)
+            if (boh > 0 .and. (boh < original_point .or. line_beginning == original_point)) then
+                call goto_character(boh)
             else
-                call goto_char(bol)
+                call goto_character(line_beginning)
             end if
         else
             call beginning_of_line(n)
@@ -5752,7 +5756,7 @@ contains
 
         status = status_type()
         call widen()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine widen_and_recenter_message
 
     ! The field commands: push the mark and move to the field (inserted
@@ -5894,72 +5898,72 @@ contains
         get_region = status%ok()
     end function get_region
 
-    recursive subroutine cmd_message_mode(status)
+    recursive subroutine execute_message_mode(status)
         type(status_type), intent(out) :: status
 
         call message_mode(status)
-    end subroutine cmd_message_mode
+    end subroutine execute_message_mode
 
-    recursive subroutine cmd_mail_message(status)
+    recursive subroutine execute_mail_message(status)
         type(status_type), intent(out) :: status
 
         call mail_message(status)
-    end subroutine cmd_mail_message
+    end subroutine execute_mail_message
 
-    recursive subroutine cmd_mail_message_other_window(status)
+    recursive subroutine execute_mail_message_other_window(status)
         type(status_type), intent(out) :: status
 
         call mail_message_other_window(status)
-    end subroutine cmd_mail_message_other_window
+    end subroutine execute_mail_message_other_window
 
-    recursive subroutine cmd_goto_message_body(status)
+    recursive subroutine execute_goto_message_body(status)
         type(status_type), intent(out) :: status
         integer(int64) :: body
 
         status = status_type()
         call goto_message_body(body, .true.)
-    end subroutine cmd_goto_message_body
+    end subroutine execute_goto_message_body
 
-    recursive subroutine cmd_goto_message_end_of_headers(status)
+    recursive subroutine execute_goto_message_end_of_headers(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call goto_message_end_of_headers(.true.)
-    end subroutine cmd_goto_message_end_of_headers
+    end subroutine execute_goto_message_end_of_headers
 
-    recursive subroutine cmd_goto_message_signature(status)
+    recursive subroutine execute_goto_message_signature(status)
         type(status_type), intent(out) :: status
         logical :: found
 
         status = status_type()
         call goto_message_signature(found)
-    end subroutine cmd_goto_message_signature
+    end subroutine execute_goto_message_signature
 
-    recursive subroutine cmd_insert_message_signature(status)
+    recursive subroutine execute_insert_message_signature(status)
         type(status_type), intent(out) :: status
 
         call insert_message_signature(status, interactive=.true.)
-    end subroutine cmd_insert_message_signature
+    end subroutine execute_insert_message_signature
 
-    recursive subroutine cmd_insert_message_importance_high(status)
+    recursive subroutine execute_insert_message_importance_high(status)
         type(status_type), intent(out) :: status
 
         call insert_message_importance("high", status)
-    end subroutine cmd_insert_message_importance_high
+    end subroutine execute_insert_message_importance_high
 
-    recursive subroutine cmd_insert_message_importance_low(status)
+    recursive subroutine execute_insert_message_importance_low(status)
         type(status_type), intent(out) :: status
 
         call insert_message_importance("low", status)
-    end subroutine cmd_insert_message_importance_low
+    end subroutine execute_insert_message_importance_low
 
-    recursive subroutine cmd_insert_message_expires(status)
+    recursive subroutine execute_insert_message_expires(status)
         use basic_subprograms_mod, only: read_number
         type(status_type), intent(out) :: status
         integer(int64) :: days
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
-            days = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
+            days = prefix_numeric_value(current_prefix_argument)
             status = status_type()
         else
             call read_number("Expire article in how many days? ", days, status)
@@ -5967,13 +5971,13 @@ contains
         end if
 
         call insert_message_expires(days, status)
-    end subroutine cmd_insert_message_expires
+    end subroutine execute_insert_message_expires
 
-    recursive subroutine cmd_add_message_archive_header(status)
+    recursive subroutine execute_add_message_archive_header(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: note
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
             if (allocated(message_archive_note)) then
                 call read_from_minibuffer("Reason for No-Archive: ", note, status, initial_input=message_archive_note, &
                                           position=1_int64)
@@ -5985,98 +5989,98 @@ contains
         else
             call add_message_archive_header(status)
         end if
-    end subroutine cmd_add_message_archive_header
+    end subroutine execute_add_message_archive_header
 
-    recursive subroutine cmd_mark_message_inserted_region(status)
+    recursive subroutine execute_mark_message_inserted_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
 
         if (.not. get_region(beginning, end, status)) return
-        call mark_message_inserted_region(beginning, end, status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_mark_message_inserted_region
+        call mark_message_inserted_region(beginning, end, status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_mark_message_inserted_region
 
-    recursive subroutine cmd_mark_message_insert_file(status)
+    recursive subroutine execute_mark_message_insert_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         call read_file_name("File to insert: ", file, status, mustmatch=REQUIRE_MATCH_YES)
-        if (status%ok()) call mark_message_insert_file(file, status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_mark_message_insert_file
+        if (status%ok()) call mark_message_insert_file(file, status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_mark_message_insert_file
 
-    recursive subroutine cmd_change_message_subject(status)
+    recursive subroutine execute_change_message_subject(status)
         type(status_type), intent(out) :: status
 
         call change_message_subject(status)
-    end subroutine cmd_change_message_subject
+    end subroutine execute_change_message_subject
 
-    recursive subroutine cmd_elide_message_region(status)
+    recursive subroutine execute_elide_message_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
 
         if (.not. get_region(beginning, end, status)) return
         call elide_message_region(beginning, end, status)
-    end subroutine cmd_elide_message_region
+    end subroutine execute_elide_message_region
 
-    recursive subroutine cmd_delete_message_not_region(status)
+    recursive subroutine execute_delete_message_not_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
 
         if (.not. get_region(beginning, end, status)) return
         call delete_message_not_region(beginning, end, status)
-    end subroutine cmd_delete_message_not_region
+    end subroutine execute_delete_message_not_region
 
-    recursive subroutine cmd_cut_message_to_signature(status)
+    recursive subroutine execute_cut_message_to_signature(status)
         type(status_type), intent(out) :: status
 
         ! (and arg (numberp arg)): only a numeric prefix argument counts.
-        if (current_prefix_arg%kind == PREFIX_NUMBER) then
-            call cut_message_to_signature(status, prefix_numeric_value(current_prefix_arg))
+        if (current_prefix_argument%kind == PREFIX_NUMBER) then
+            call cut_message_to_signature(status, prefix_numeric_value(current_prefix_argument))
         else
             call cut_message_to_signature(status)
         end if
-    end subroutine cmd_cut_message_to_signature
+    end subroutine execute_cut_message_to_signature
 
-    recursive subroutine cmd_rename_message_buffer(status)
+    recursive subroutine execute_rename_message_buffer(status)
         type(status_type), intent(out) :: status
 
-        call rename_message_buffer(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_rename_message_buffer
+        call rename_message_buffer(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_rename_message_buffer
 
-    recursive subroutine cmd_message_beginning_of_line(status)
+    recursive subroutine execute_message_beginning_of_line(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call message_beginning_of_line(prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_message_beginning_of_line
+        call message_beginning_of_line(prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_message_beginning_of_line
 
-    recursive subroutine cmd_newline_and_reformat_message(status)
+    recursive subroutine execute_newline_and_reformat_message(status)
         use fill_mod, only: DEFAULT_JUSTIFICATION_FULL
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
             call newline_and_reformat_message(status, DEFAULT_JUSTIFICATION_FULL)
         else
             call newline_and_reformat_message(status)
         end if
-    end subroutine cmd_newline_and_reformat_message
+    end subroutine execute_newline_and_reformat_message
 
-    recursive subroutine cmd_send_message_and_exit(status)
+    recursive subroutine execute_send_message_and_exit(status)
         type(status_type), intent(out) :: status
 
         call send_message_and_exit(status)
-    end subroutine cmd_send_message_and_exit
+    end subroutine execute_send_message_and_exit
 
-    recursive subroutine cmd_send_message(status)
+    recursive subroutine execute_send_message(status)
         type(status_type), intent(out) :: status
 
         call send_message(status)
-    end subroutine cmd_send_message
+    end subroutine execute_send_message
 
-    recursive subroutine cmd_check_message_recipients(status)
+    recursive subroutine execute_check_message_recipients(status)
         type(status_type), intent(out) :: status
 
         call check_message_recipients(status)
-    end subroutine cmd_check_message_recipients
+    end subroutine execute_check_message_recipients
 
     ! ------------------------------------------------------------------
     ! Initialization
@@ -6085,7 +6089,7 @@ contains
     !> Set the defaults of Message's options, define Message mode, its
     !> keymap, syntax table and commands, and `message_user_agent', the
     !> default `mail_user_agent'.  Not a port.
-    subroutine init_message()
+    subroutine initialize_message()
         type(status_type) :: st
         character(len=:), allocatable :: directory
         integer :: k
@@ -6104,10 +6108,10 @@ contains
         end if
 
         if (.not. allocated(message_sendmail_extra_arguments)) allocate (character(len=0) :: message_sendmail_extra_arguments(0))
-        if (.not. allocated(message_replacement_char)) message_replacement_char = "."
+        if (.not. allocated(message_replacement_character)) message_replacement_character = "."
 
-        if (.not. allocated(message_subject_trailing_was_regexp)) then
-            message_subject_trailing_was_regexp = "[ "//TAB//"]*\((*[Ww][Aa][Ss]:.*)\)"
+        if (.not. allocated(message_subject_trailing_was_regular_expression)) then
+            message_subject_trailing_was_regular_expression = "[ "//TAB//"]*\((*[Ww][Aa][Ss]:.*)\)"
         end if
 
         if (.not. allocated(message_mark_insert_begin)) then
@@ -6169,7 +6173,7 @@ contains
             end if
         end if
 
-        if (.not. associated(major_modes%text_mode%execute)) call init_text_mode()
+        if (.not. associated(major_modes%text_mode%execute)) call initialize_text_mode()
 
         if (message_mode_syntax_table%index == 0) then
             call make_syntax_table(message_mode_syntax_table, st, text_mode_syntax_table)
@@ -6181,9 +6185,9 @@ contains
         call major_modes%message_mode%define("message_mode", "Message", message_mode, message_mode_hook, &
                                              parent=major_modes%text_mode, syntax_table=message_mode_syntax_table)
         message_mode_map = major_modes%message_mode%map
-        commands%message_mode%execute => cmd_message_mode
-        commands%mail_message%execute => cmd_mail_message
-        commands%mail_message_other_window%execute => cmd_mail_message_other_window
+        commands%message_mode%execute => execute_message_mode
+        commands%mail_message%execute => execute_mail_message
+        commands%mail_message_other_window%execute => execute_mail_message_other_window
         commands%goto_message_to%execute => goto_message_to
         commands%goto_message_from%execute => goto_message_from
         commands%goto_message_subject%execute => goto_message_subject
@@ -6197,35 +6201,35 @@ contains
         commands%goto_message_mail_followup_to%execute => goto_message_mail_followup_to
         commands%goto_message_keywords%execute => goto_message_keywords
         commands%goto_message_summary%execute => goto_message_summary
-        commands%goto_message_body%execute => cmd_goto_message_body
-        commands%goto_message_end_of_headers%execute => cmd_goto_message_end_of_headers
-        commands%goto_message_signature%execute => cmd_goto_message_signature
+        commands%goto_message_body%execute => execute_goto_message_body
+        commands%goto_message_end_of_headers%execute => execute_goto_message_end_of_headers
+        commands%goto_message_signature%execute => execute_goto_message_signature
         commands%insert_or_toggle_message_importance%execute => insert_or_toggle_message_importance
-        commands%insert_message_importance_high%execute => cmd_insert_message_importance_high
-        commands%insert_message_importance_low%execute => cmd_insert_message_importance_low
+        commands%insert_message_importance_high%execute => execute_insert_message_importance_high
+        commands%insert_message_importance_low%execute => execute_insert_message_importance_low
         commands%insert_message_disposition_notification_to%execute => insert_message_disposition_notification_to
-        commands%insert_message_expires%execute => cmd_insert_message_expires
-        commands%insert_message_signature%execute => cmd_insert_message_signature
+        commands%insert_message_expires%execute => execute_insert_message_expires
+        commands%insert_message_signature%execute => execute_insert_message_signature
         commands%insert_message_headers%execute => insert_message_headers
         commands%sort_message_headers%execute => sort_message_headers
         commands%reduce_message_to_to_cc%execute => reduce_message_to_to_cc
-        commands%add_message_archive_header%execute => cmd_add_message_archive_header
-        commands%mark_message_inserted_region%execute => cmd_mark_message_inserted_region
-        commands%mark_message_insert_file%execute => cmd_mark_message_insert_file
-        commands%change_message_subject%execute => cmd_change_message_subject
-        commands%elide_message_region%execute => cmd_elide_message_region
-        commands%delete_message_not_region%execute => cmd_delete_message_not_region
-        commands%cut_message_to_signature%execute => cmd_cut_message_to_signature
+        commands%add_message_archive_header%execute => execute_add_message_archive_header
+        commands%mark_message_inserted_region%execute => execute_mark_message_inserted_region
+        commands%mark_message_insert_file%execute => execute_mark_message_insert_file
+        commands%change_message_subject%execute => execute_change_message_subject
+        commands%elide_message_region%execute => execute_elide_message_region
+        commands%delete_message_not_region%execute => execute_delete_message_not_region
+        commands%cut_message_to_signature%execute => execute_cut_message_to_signature
         commands%cut_message_address%execute => cut_message_address
-        commands%rename_message_buffer%execute => cmd_rename_message_buffer
-        commands%message_beginning_of_line%execute => cmd_message_beginning_of_line
-        commands%newline_and_reformat_message%execute => cmd_newline_and_reformat_message
+        commands%rename_message_buffer%execute => execute_rename_message_buffer
+        commands%message_beginning_of_line%execute => execute_message_beginning_of_line
+        commands%newline_and_reformat_message%execute => execute_newline_and_reformat_message
         commands%widen_and_recenter_message%execute => widen_and_recenter_message
-        commands%send_message_and_exit%execute => cmd_send_message_and_exit
-        commands%send_message%execute => cmd_send_message
+        commands%send_message_and_exit%execute => execute_send_message_and_exit
+        commands%send_message%execute => execute_send_message
         commands%close_message_buffer%execute => close_message_buffer
         commands%message_dont_send%execute => message_dont_send
-        commands%check_message_recipients%execute => cmd_check_message_recipients
+        commands%check_message_recipients%execute => execute_check_message_recipients
         call keymap_set(message_mode_map, "C-c ?", "describe_mode", st)
         call keymap_set(message_mode_map, "C-c C-f C-t", "goto_message_to", st)
         call keymap_set(message_mode_map, "C-c C-f C-o", "goto_message_from", st)
@@ -6271,7 +6275,7 @@ contains
                                        commands%close_message_buffer, message_send_hook)
         if (.not. associated(mail_user_agent)) mail_user_agent => message_user_agent
         call append_locals_clearer(clear_message_locals)
-    end subroutine init_message
+    end subroutine initialize_message
 
     ! ------------------------------------------------------------------
     ! The choice settings

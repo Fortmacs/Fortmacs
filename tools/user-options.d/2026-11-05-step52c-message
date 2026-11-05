@@ -1,7 +1,7 @@
 # Step 52c: the user options of message.el (and mail-utils.el mail-re-regexps).
 message_header_use_obsolete_in_reply_to
 message_directory
-message_max_buffers
+message_maximum_buffers
 message_send_rename_function
 message_fcc_handler_function
 message_from_style
@@ -31,7 +31,7 @@ message_mode_hook
 message_header_hook
 message_header_setup_hook
 message_paste_prefix
-message_cite_prefix_regexp
+message_cite_prefix_regular_expression
 message_signature
 message_signature_file
 message_signature_directory
@@ -51,8 +51,8 @@ message_archive_note
 message_expires
 message_user_path
 message_bogus_addresses
-message_replacement_char
+message_replacement_character
 message_subject_trailing_was_query
-message_subject_trailing_was_regexp
-message_subject_re_regexp
-mail_re_regexps
+message_subject_trailing_was_regular_expression
+message_subject_re_regular_expression
+mail_re_regular_expressions

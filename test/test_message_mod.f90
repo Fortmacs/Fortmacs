@@ -28,16 +28,16 @@
 module test_message_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_VOID_FUNCTION
+    use error_mod, only: status_type, format_error, VOID_FUNCTION_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_buffer, set_buffer, close_buffer, is_buffer_live, current_buffer, &
                           get_or_make_buffer, is_buffer_modified
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, goto_char, point, point_min, point_max
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: buffer_string, goto_character, point, point_minimum, point_maximum
+    use bindings_mod, only: initialize_bindings
     use test_support_mod, only: show_alone
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, file_exists, init_fileio
-    use files_mod, only: create_temp_file, delete_file
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, file_exists, initialize_fileio
+    use files_mod, only: create_temporary_file, delete_file
     use environment_mod, only: setenv
     use startup_mod, only: user_mail_address
     use simple_mod, only: mail_user_agent, compose_mail
@@ -49,7 +49,7 @@ module test_message_mod
                            send_message_and_exit, send_message, sort_message_headers, generate_message_headers, &
                            message_required_mail_headers, message_header_type, set_message_reply_headers, &
                            message_reply_headers_type, fold_message_field, encode_message_body, &
-                           MESSAGE_FROM_STYLE_ANGLES, MESSAGE_FROM_STYLE_PARENS, MESSAGE_FROM_STYLE_SIMPLE, &
+                           MESSAGE_FROM_STYLE_ANGLES, MESSAGE_FROM_STYLE_PARENTHESES, MESSAGE_FROM_STYLE_SIMPLE, &
                            position_message_on_field, narrow_to_message_headers, message_syntax_checks
     implicit none(type, external)
     private
@@ -94,7 +94,7 @@ contains
         character(len=:), allocatable :: program, file
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         mail_user_agent => message_user_agent
         message_signature = .false.
         if (allocated(message_auto_save_directory)) deallocate (message_auto_save_directory)
@@ -102,14 +102,14 @@ contains
         message_from_style = MESSAGE_FROM_STYLE_SIMPLE
         user_mail_address = "king@grassland.com"
         send_mail_function => send_mail_with_sendmail
-        call init_fileio()
+        call initialize_fileio()
         call expand_file_name("test/sendmail-resources/fake-sendmail", program, st, fortmacs_wd)
         sendmail_program = program
         call setenv("FORTMACS_TEST_SENDMAIL_EXIT")
         call setenv("FORTMACS_TEST_SENDMAIL_ERROR")
 
         if (present(output)) then
-            call create_temp_file("message-test", file, st)
+            call create_temporary_file("message-test", file, st)
             output = file
             call setenv("FORTMACS_TEST_SENDMAIL_OUTPUT", output)
         end if
@@ -142,9 +142,9 @@ contains
 
         call get_or_make_buffer("message test", h, st)
         call set_buffer(h, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call insert(text, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine test_buffer
 
     !> The contents of FILE.
@@ -184,7 +184,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call show_alone()
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert("Hello"//LF, st)
     end subroutine compose
 
@@ -300,10 +300,10 @@ contains
         character(len=:), allocatable :: output, fcc, text
 
         call set_up(output)
-        call create_temp_file("message-fcc", fcc, st)
+        call create_temporary_file("message-fcc", fcc, st)
         call compose(error)
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call insert("Fcc: "//fcc//LF, st)
         call send_message(st)
         call check(error, st%ok(), format_error(st))
@@ -325,7 +325,7 @@ contains
         send_mail_function => null()
         call compose(error)
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call insert("X-Message-SMTP-Method: sendmail"//LF, st)
         call send_message(st)
         call check(error, st%ok(), format_error(st))
@@ -345,11 +345,11 @@ contains
         call set_up(output)
         call compose(error)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert("Grüße"//LF, st)
         call send_message(st)
         ! MML is not ported: the message is not sent.
-        call check(error, st%code == FM_VOID_FUNCTION, format_error(st))
+        call check(error, st%code == VOID_FUNCTION_CODE, format_error(st))
         if (.not. allocated(error)) call check(error, len(file_text(output)) == 0, file_text(output))
         call leave(output)
     end subroutine test_non_ascii
@@ -365,7 +365,7 @@ contains
         if (allocated(error)) return
         call compose(error)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert("a"//achar(1)//"b"//LF, st)
         ! The illegible-text check would ask; disabled, the text is sent.
         message_syntax_checks%illegible_text = .false.
@@ -398,7 +398,7 @@ contains
         call make_message_from(from, st, name="Parsley, Elvis", address="king@grassland.com")
         call check_string(error, from, """Parsley, Elvis"" <king@grassland.com>")
         if (allocated(error)) return
-        message_from_style = MESSAGE_FROM_STYLE_PARENS
+        message_from_style = MESSAGE_FROM_STYLE_PARENTHESES
         call make_message_from(from, st, name="Elvis (The King)", address="king@grassland.com")
         call check_string(error, from, "king@grassland.com (Elvis (The King))")
         if (allocated(error)) return
@@ -419,7 +419,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, id(1:1) == "<" .and. index(id, ".fsf@grassland.com>") == len(id) - 18, id)
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call insert("Supersedes: <abc_-_@x>"//LF, st)
         call make_message_id(id, st)
         call check(error, index(id, ".fsf_-_@grassland.com>") > 0, id)

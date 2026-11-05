@@ -38,7 +38,7 @@
 #
 # Upstream citations (xdisp.c:redisplay, lisp/vc/ediff-util.el) never
 # carry the _mod suffix, so they stay as they are; so do other names
-# that only contain OLD (init_OLD, OLD_hook).  Running it again changes
+# that only contain OLD (initialize_OLD, OLD_hook).  Running it again changes
 # nothing.  An open branch runs it after merging main, so its own new
 # uses and files follow; then tools/check.sh --fix (lines may need
 # rewrapping past 132 columns, reported as FILE:LINE) and commit.

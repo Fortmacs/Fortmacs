@@ -58,7 +58,7 @@ vc.el `vc-default-show-log-entry`
 
 ## Deferred
 
-`vc-hg-state-fast` and the native data structure reading (`vc-hg-parse-hg-data-structures`, the dirstate search and its cache, the requirements check, the .hgignore parsing: since Mercurial 5.7 new repositories require `share-safe`, which upstream does not understand, so it runs `hg status` anyway),
+`vc-hg-state-fast` and the native data structure reading (`vc-hg-parse-hg-data-structures`, the dirstate search and its cache, the requirements check, the .hgignore parsing: since Mercurial 5.7 new repositories require `share-safe`, which upstream does not understand, so it runs `mercurial status` anyway),
 the functions of `vc-hg-symbolic-revision-styles`,
 annotate (`vc-hg-annotate-command`, `-time`, `-extract-revision-at-line`, `vc-hg-annotate-switches`, `vc-hg-annotate-show-revision-numbers`),
 tags and branches (`vc-hg-create-tag`, `vc-hg-retrieve-tag`, `vc-hg-create-bookmark`, `vc-hg-working-branch`, `vc-hg--bookmarks`, `vc-hg-trunk-or-topic-p`, `vc-hg-topic-outgoing-base`),

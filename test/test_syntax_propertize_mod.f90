@@ -21,9 +21,9 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ports test/lisp/emacs-lisp/syntax-tests.el (its one test), plus tests
-!> of `regexp_opt_depth', `is_subregexp_context', rules applying
+!> of `regular_expression_optimization_depth', `is_subregexp_context', rules applying
 !> `syntax_table' properties that the scanner and the regexp matcher
-!> obey, the `syntax_ppss' cache and `syntax_propertize_wholelines'.
+!> obey, the `syntax_parser_state' cache and `syntax_propertize_wholelines'.
 module test_syntax_propertize_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -32,18 +32,18 @@ module test_syntax_propertize_mod
     use value_mod, only: value_type, vtag, V_ARRAY
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, point_max, goto_char
-    use search_mod, only: re_search_forward, SEARCH_NOERROR
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character
+    use search_mod, only: regular_expression_search_forward, SEARCH_NOERROR
     use text_properties_mod, only: get_text_property
-    use bindings_mod, only: init_bindings
-    use syntax_mod, only: parse_state_type, parse_partial_expression, syntax_ppss, syntax_propertize_done, &
+    use bindings_mod, only: initialize_bindings
+    use syntax_mod, only: parse_state_type, parse_partial_expression, syntax_parser_state, syntax_propertize_done, &
                           parse_expression_lookup_properties, forward_comment
     use basic_subprograms_mod, only: is_subregexp_context
-    use regular_expression_optimization_mod, only: regexp_opt_depth
+    use regular_expression_optimization_mod, only: regular_expression_optimization_depth
     use syntax_propertize_mod, only: syntax_propertize_shift_groups_and_backrefs, syntax_propertize_function, &
                                      syntax_propertize_rules_type, syntax_propertize_rule_type, syntax_highlight_type, &
-                                     syntax_propertize_wholelines, syntax_ppss_max_span, syntax_ppss_context, &
-                                     SYNTAX_PPSS_COMMENT, SYNTAX_PPSS_NONE
+                                     syntax_propertize_wholelines, syntax_parser_state_maximum_span, syntax_parser_state_context, &
+                                     SYNTAX_PARSER_STATE_COMMENT, SYNTAX_PARSER_STATE_NONE
     implicit none(type, external)
     private
 
@@ -69,17 +69,17 @@ contains
                     ]
     end subroutine collect_syntax_propertize_mod
 
-    subroutine temp_buffer(text, h)
+    subroutine temporary_buffer(text, h)
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *syntax-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     subroutine leave(h)
         type(handle_type), intent(in) :: h
@@ -124,18 +124,18 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call check(error, regexp_opt_depth("abc", st), 0)
+        call check(error, regular_expression_optimization_depth("abc", st), 0)
         if (allocated(error)) return
-        call check(error, regexp_opt_depth("\(a\)\(b\(c\)\)", st), 3)
+        call check(error, regular_expression_optimization_depth("\(a\)\(b\(c\)\)", st), 3)
         if (allocated(error)) return
         ! Shy and explicitly numbered groups are not counted.
-        call check(error, regexp_opt_depth("\(a\)\(?:b\)\(?3:c\)", st), 1)
+        call check(error, regular_expression_optimization_depth("\(a\)\(?:b\)\(?3:c\)", st), 1)
         if (allocated(error)) return
         ! Nor is \( in brackets.
-        call check(error, regexp_opt_depth("[\(]\(a\)", st), 1)
+        call check(error, regular_expression_optimization_depth("[\(]\(a\)", st), 1)
         if (allocated(error)) return
         ! Unbalanced parentheses are an error.
-        call check(error, regexp_opt_depth("\(a", st) == 0 .and. .not. st%ok(), "unbalanced")
+        call check(error, regular_expression_optimization_depth("\(a", st) == 0 .and. .not. st%ok(), "unbalanced")
     end subroutine test_depth
 
     subroutine test_context(error)
@@ -168,11 +168,11 @@ contains
         allocate (comment_rules%rules(2))
         hl%group = 0
         hl%syntax = "<"
-        comment_rules%rules(1)%regexp = "#"
+        comment_rules%rules(1)%regular_expression = "#"
         comment_rules%rules(1)%highlights = [hl]
         hl%group = 1
         hl%syntax = ">"
-        comment_rules%rules(2)%regexp = "\("//LF//"\)"
+        comment_rules%rules(2)%regular_expression = "\("//LF//"\)"
         comment_rules%rules(2)%highlights = [hl]
     end subroutine setup_comment_rules
 
@@ -180,17 +180,17 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(parse_state_type) :: state
-        type(value_type) :: prop
+        type(value_type) :: property
         type(status_type) :: st
         integer(int64) :: found
 
-        call temp_buffer("a # b"//LF//"c # d"//LF//"e", h)
+        call temporary_buffer("a # b"//LF//"c # d"//LF//"e", h)
         call setup_comment_rules()
         call syntax_propertize_function%set_local(comment_propertize)
 
         checks: block
-            call syntax_ppss(state, 6_int64)
-            call check(error, syntax_ppss_context(state), SYNTAX_PPSS_COMMENT)
+            call syntax_parser_state(state, 6_int64)
+            call check(error, syntax_parser_state_context(state), SYNTAX_PARSER_STATE_COMMENT)
             if (allocated(error)) exit checks
             call check(error, state%comstr_start, 3_int64)
             if (allocated(error)) exit checks
@@ -198,24 +198,24 @@ contains
             if (allocated(error)) exit checks
             call check(error, syntax_propertize_done%value >= 6, "propertized that far")
             if (allocated(error)) exit checks
-            call get_text_property(3_int64, value_type(name="syntax_table"), prop, st)
-            call check(error, vtag(prop) == V_ARRAY, "a raw descriptor on #")
+            call get_text_property(3_int64, value_type(name="syntax_table"), property, st)
+            call check(error, vtag(property) == V_ARRAY, "a raw descriptor on #")
             if (allocated(error)) exit checks
-            call syntax_ppss(state, 7_int64)
-            call check(error, syntax_ppss_context(state), SYNTAX_PPSS_NONE)
+            call syntax_parser_state(state, 7_int64)
+            call check(error, syntax_parser_state_context(state), SYNTAX_PARSER_STATE_NONE)
             if (allocated(error)) exit checks
-            call syntax_ppss(state, 10_int64)
-            call check(error, syntax_ppss_context(state), SYNTAX_PPSS_COMMENT)
+            call syntax_parser_state(state, 10_int64)
+            call check(error, syntax_parser_state_context(state), SYNTAX_PARSER_STATE_COMMENT)
             if (allocated(error)) exit checks
             ! forward_comment skips the comment by its properties.
-            call goto_char(3_int64)
+            call goto_character(3_int64)
             call check(error, forward_comment(1_int64), "a comment at #")
             if (allocated(error)) exit checks
             call check(error, point(), 7_int64)
             if (allocated(error)) exit checks
             ! \s< sees the property.
-            call goto_char(point_min())
-            call re_search_forward("\s<", found, st, noerror=SEARCH_NOERROR)
+            call goto_character(point_minimum())
+            call regular_expression_search_forward("\s<", found, st, noerror=SEARCH_NOERROR)
             call check(error, found, 4_int64)
         end block checks
 
@@ -236,15 +236,15 @@ contains
             text = text//"((a) (b"//LF
         end do
 
-        call temp_buffer(text, h)
-        saved = syntax_ppss_max_span
-        syntax_ppss_max_span = 10
+        call temporary_buffer(text, h)
+        saved = syntax_parser_state_maximum_span
+        syntax_parser_state_maximum_span = 10
         positions = [150_int64, 40_int64, 120_int64, 5_int64, 161_int64, 77_int64]
 
         checks: block
             do i = 1, size(positions)
-                call syntax_ppss(cached, positions(i))
-                call parse_partial_expression(point_min(), positions(i), direct, st)
+                call syntax_parser_state(cached, positions(i))
+                call parse_partial_expression(point_minimum(), positions(i), direct, st)
                 call check(error, cached%depth, direct%depth)
                 if (allocated(error)) exit checks
                 call check(error, cached%innermost_start, direct%innermost_start)
@@ -252,18 +252,18 @@ contains
             end do
 
             ! A change flushes the cache.
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call insert("(", st)
 
             do i = 1, size(positions)
-                call syntax_ppss(cached, positions(i))
-                call parse_partial_expression(point_min(), positions(i), direct, st)
+                call syntax_parser_state(cached, positions(i))
+                call parse_partial_expression(point_minimum(), positions(i), direct, st)
                 call check(error, cached%depth, direct%depth)
                 if (allocated(error)) exit checks
             end do
         end block checks
 
-        syntax_ppss_max_span = saved
+        syntax_parser_state_maximum_span = saved
         call leave(h)
     end subroutine test_cache
 
@@ -273,7 +273,7 @@ contains
         type(status_type) :: st
         integer(int64) :: b, e
 
-        call temp_buffer("abc"//LF//"def"//LF//"ghi", h)
+        call temporary_buffer("abc"//LF//"def"//LF//"ghi", h)
 
         checks: block
             call syntax_propertize_wholelines(6_int64, 6_int64, b, e, st)
@@ -284,7 +284,7 @@ contains
             call syntax_propertize_wholelines(5_int64, 9_int64, b, e, st)
             call check(error, b == 5 .and. e == 9, "whole lines stay")
             if (allocated(error)) exit checks
-            call check(error, point_max(), 12_int64)
+            call check(error, point_maximum(), 12_int64)
         end block checks
 
         call leave(h)

@@ -33,8 +33,8 @@
 `ediff-custom-diff-program`,
 `ediff-custom-diff-options`,
 `ediff-cmp-program`,
-`ediff-same-file-contents` (`compare_ediff_file_contents`),
-`ediff-same-contents` (`compare_ediff_contents`, with `ediff-same-file-contents-lists` and `ediff-delete-all-matches`)
+`ediff-same-file-contents` (`compare_fortmacs_diff_file_contents`),
+`ediff-same-contents` (`compare_fortmacs_diff_contents`, with `ediff-same-file-contents-lists` and `ediff-delete-all-matches`)
 
 ## Deferred
 

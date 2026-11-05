@@ -20,7 +20,7 @@
 `mail-comma-list-regexp`,
 `mail-rfc822-date`,
 `mail-re-regexps`,
-`mail--wrap-re-regexp` (`wrap_mail_re_regexp`)
+`mail--wrap-re-regexp` (`wrap_mail_re_regular_expression`)
 
 ## Deferred
 

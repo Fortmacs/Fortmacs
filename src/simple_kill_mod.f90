@@ -23,14 +23,14 @@
 !> `indicate_copied_region': a submodule because it uses replace_mod,
 !> which uses simple_mod.
 submodule(simple_mod) simple_kill_mod
-    use replace_mod, only: query_replace_descr
+    use replace_mod, only: query_replace_description
     use keyboard_mod, only: sit_for
     implicit none(type, external)
 
 contains
 
     module procedure indicate_copied_region
-    integer(int64) :: mk, pt, n
+    integer(int64) :: mk, point_value, n
     character(len=:), allocatable :: text
     type(handle_type) :: m
     type(status_type) :: st
@@ -38,10 +38,10 @@ contains
     logical :: visible
 
     mk = mark_position()
-    pt = point()
-    w => selected_window_ref()
+    point_value = point()
+    w => selected_window_reference()
     visible = .false.
-    if (shows_current_buffer(w)) visible = is_pos_visible_in_window(mk, w)
+    if (shows_current_buffer(w)) visible = is_position_visible_in_window(mk, w)
 
     if (visible) then
         ! Swap point-and-mark quickly so as to show the region that was
@@ -50,26 +50,26 @@ contains
             if (copy_region_blink_test_function()) then
                 ! Swap point and mark.
                 call mark_marker(m)
-                call set_marker(m, pt, st)
-                call goto_char(mk)
+                call set_marker(m, point_value, st)
+                call goto_character(mk)
                 call sit_for(int(copy_region_blink_delay*1000, int32))
                 ! Swap back.
                 call set_marker(m, mk, st)
-                call goto_char(pt)
+                call goto_character(point_value)
             end if
         end if
     else
         n = 40
-        if (present(message_len)) n = message_len
-        n = min(abs(mk - pt), n)
+        if (present(message_length)) n = message_length
+        n = min(abs(mk - point_value), n)
 
-        if (pt < mk) then
+        if (point_value < mk) then
             ! Don't say "killed" or "saved"; that is misleading.
             call buffer_substring(mk - n, mk, text, st)
-            call message('Copied text until "'//query_replace_descr(text)//'"')
+            call message('Copied text until "'//query_replace_description(text)//'"')
         else
             call buffer_substring(mk, mk + n, text, st)
-            call message('Copied text from "'//query_replace_descr(text)//'"')
+            call message('Copied text from "'//query_replace_description(text)//'"')
         end if
     end if
     end procedure indicate_copied_region

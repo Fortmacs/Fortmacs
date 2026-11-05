@@ -8,10 +8,10 @@
 
 `mail-abbrevs-mode` (global),
 `mail-abbrevs-only`,
-`mail-abbrevs` (an abbrev table; `mail_abbrevs_built` for upstream's nil),
+`mail-abbrevs` (an abbrev table; `mail_abbreviations_built` for upstream's nil),
 `mail-abbrev-modtime`,
 `mail-abbrevs-sync-aliases`,
-`mail-abbrevs-setup` (`set_up_mail_abbrevs`; `mail_abbrev_expand_wrapper` takes the place of upstream's wrapper around the buffer-local `abbrev-expand-function`),
+`mail-abbrevs-setup` (`set_up_mail_abbreviations`; `mail_abbreviation_expand_wrapper` takes the place of upstream's wrapper around the buffer-local `abbrev-expand-function`),
 `mail-abbrevs-enable`,
 `mail-abbrevs-disable`,
 `build-mail-abbrevs` (comments, continuation lines, alias, group and source lines),
@@ -36,4 +36,4 @@ the non-ASCII characters of identifier syntax in `mail-abbrev-syntax-table` (map
 
 ## Tests
 
-test_mail_abbreviations_mod (own: reading a .mailrc file, quoting in `define_mail_abbrev`, the loop error, expansion in the address fields only)
+test_mail_abbreviations_mod (own: reading a .mailrc file, quoting in `define_mail_abbreviation`, the loop error, expansion in the address fields only)

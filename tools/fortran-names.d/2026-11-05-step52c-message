@@ -56,7 +56,7 @@ keep	is_message_mail
 # the verb (goto_message_mail_followup_to, mark_message_insert_file): kept whole.
 keep	goto_message_mail_followup_to
 keep	mark_message_insert_file
-keep	cmd_mark_message_insert_file
+name	cmd_mark_message_insert_file	execute_mark_message_insert_file
 # message-strip-subject-re strips the "Re:" prefix: _re is not an
 # abbreviation of regexp here (decided by rule: names read as words).
 name	message_strip_subject_re	strip_message_subject_re_prefix

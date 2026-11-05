@@ -221,7 +221,7 @@ contains
                     ! FF: d ^ (b & (c ^ d)).
                     f = ieor(d, iand(b, ieor(c, d)))
                 case (2)
-                    ! FG: FF(d, b, c).
+                    ! FOREGROUND: FF(d, b, c).
                     f = ieor(c, iand(d, ieor(b, c)))
                 case (3)
                     ! FH: b ^ c ^ d.

@@ -33,7 +33,7 @@ contains
     module subroutine define_sinhala_language_environments()
         call define_language_environment("Sinhala", &
                                          has_documentation=.true., &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Sinhala (සිංහල)"//achar(9)//"ආයුබෝවන්", &
                                          coding_systems=[character(len=40) :: "utf-8"], &
                                          coding_system_order=[character(len=40) :: "utf-8"])

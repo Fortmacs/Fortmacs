@@ -21,18 +21,19 @@
 
 !> Ports test/src/chartab-tests.el (a value 1 stands for t, a handle
 !> that was never a char-table for the hash table); own tests for
-!> parents, `char_table_range', `map_char_table' and
-!> `optimize_char_table'.
+!> parents, `character_table_range', `map_character_table' and
+!> `optimize_character_table'.
 module test_character_table_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
-    use character_mod, only: MAX_CHAR
-    use character_table_mod, only: make_char_table, destroy_char_table, is_char_table, char_table_subtype, char_table_parent, &
-                                   set_char_table_parent, char_table_extra_slot, set_char_table_extra_slot, char_table_range, &
-                                   set_char_table_range, char_table_ref, char_table_set, map_char_table, optimize_char_table, &
-                                   copy_char_table, NO_VALUE
+    use character_mod, only: MAXIMUM_CHARACTER
+    use character_table_mod, only: make_character_table, destroy_character_table, is_character_table, character_table_subtype, &
+                                   character_table_parent, set_character_table_parent, character_table_extra_slot, &
+                                   set_character_table_extra_slot, character_table_range, set_character_table_range, &
+                                   character_table_reference, character_table_set, map_character_table, optimize_character_table, &
+                                   copy_character_table, NO_VALUE
     implicit none(type, external)
     private
 
@@ -41,7 +42,7 @@ module test_character_table_mod
     !> The runs `record_run' has seen.
     integer :: nruns = 0
     integer :: run_from(16), run_to(16)
-    integer(int64) :: run_val(16)
+    integer(int64) :: run_value(16)
 
 contains
 
@@ -51,7 +52,7 @@ contains
 
         testsuite = [ &
                     new_unittest("chartab-test-range-setting", test_range_setting), &
-                    new_unittest("chartab-test-char-table-p", test_is_char_table), &
+                    new_unittest("chartab-test-char-table-p", test_is_character_table), &
                     new_unittest("chartab-test-char-table-subtype", test_subtype), &
                     new_unittest("chartab-test-char-table-parent", test_parent), &
                     new_unittest("chartab-test-char-table-extra-slot", test_extra_slot), &
@@ -69,26 +70,26 @@ contains
         type(handle_type) :: tbl
         type(status_type) :: status
 
-        call make_char_table(tbl, "nil", status)
-        call set_char_table_range(tbl, 1_int64, status, from, to)
-        call check(error, char_table_ref(tbl, from) == 1)
+        call make_character_table(tbl, "nil", status)
+        call set_character_table_range(tbl, 1_int64, status, from, to)
+        call check(error, character_table_reference(tbl, from) == 1)
         if (allocated(error)) return
-        call check(error, char_table_ref(tbl, to) == 1)
+        call check(error, character_table_reference(tbl, to) == 1)
         if (allocated(error)) return
-        call check(error, char_table_ref(tbl, (from + to)/2) == 1)
+        call check(error, character_table_reference(tbl, (from + to)/2) == 1)
         if (allocated(error)) return
 
-        if (to < MAX_CHAR) then
-            call check(error, char_table_ref(tbl, to + 1) /= 1)
+        if (to < MAXIMUM_CHARACTER) then
+            call check(error, character_table_reference(tbl, to + 1) /= 1)
             if (allocated(error)) return
         end if
 
         if (from > 0) then
-            call check(error, char_table_ref(tbl, from - 1) /= 1)
+            call check(error, character_table_reference(tbl, from - 1) /= 1)
             if (allocated(error)) return
         end if
 
-        call destroy_char_table(tbl, status)
+        call destroy_character_table(tbl, status)
     end subroutine set_and_test
 
     subroutine test_range_setting(error)
@@ -105,26 +106,26 @@ contains
         end do
     end subroutine test_range_setting
 
-    subroutine test_is_char_table(error)
+    subroutine test_is_character_table(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: tbl
         type(status_type) :: status
 
-        call make_char_table(tbl, "foo", status)
-        call check(error, is_char_table(tbl))
+        call make_character_table(tbl, "foo", status)
+        call check(error, is_character_table(tbl))
         if (allocated(error)) return
-        call check(error,.not. is_char_table(null_handle()))
-        call destroy_char_table(tbl, status)
-    end subroutine test_is_char_table
+        call check(error,.not. is_character_table(null_handle()))
+        call destroy_character_table(tbl, status)
+    end subroutine test_is_character_table
 
     subroutine test_subtype(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: tbl
         type(status_type) :: status
 
-        call make_char_table(tbl, "foo", status)
-        call check(error, char_table_subtype(tbl, status) == "foo")
-        call destroy_char_table(tbl, status)
+        call make_character_table(tbl, "foo", status)
+        call check(error, character_table_subtype(tbl, status) == "foo")
+        call destroy_character_table(tbl, status)
     end subroutine test_subtype
 
     subroutine test_parent(error)
@@ -132,20 +133,20 @@ contains
         type(handle_type) :: parent, child, h
         type(status_type) :: status
 
-        call make_char_table(parent, "foo", status)
-        call make_char_table(child, "bar", status)
-        h = char_table_parent(parent, status)
+        call make_character_table(parent, "foo", status)
+        call make_character_table(child, "bar", status)
+        h = character_table_parent(parent, status)
         call check(error, h%index == 0)
         if (allocated(error)) return
-        call set_char_table_parent(child, parent, status)
-        h = char_table_parent(child, status)
+        call set_character_table_parent(child, parent, status)
+        h = character_table_parent(child, status)
         call check(error, h%index == parent%index .and. h%generation == parent%generation)
         if (allocated(error)) return
         ! No cycles.
-        call set_char_table_parent(parent, child, status)
+        call set_character_table_parent(parent, child, status)
         call check(error,.not. status%ok())
-        call destroy_char_table(child, status)
-        call destroy_char_table(parent, status)
+        call destroy_character_table(child, status)
+        call destroy_character_table(parent, status)
     end subroutine test_parent
 
     subroutine test_extra_slot(error)
@@ -154,12 +155,12 @@ contains
         type(status_type) :: status
 
         ! Use any type with extra slots, e.g. case_table.
-        call make_char_table(tbl, "case_table", status)
-        call set_char_table_extra_slot(tbl, 1, 42_int64, status)
-        call check(error, char_table_extra_slot(tbl, 1, status) == 42)
+        call make_character_table(tbl, "case_table", status)
+        call set_character_table_extra_slot(tbl, 1, 42_int64, status)
+        call check(error, character_table_extra_slot(tbl, 1, status) == 42)
         if (allocated(error)) return
-        call check(error, char_table_extra_slot(tbl, 3, status) == NO_VALUE .and. .not. status%ok())
-        call destroy_char_table(tbl, status)
+        call check(error, character_table_extra_slot(tbl, 3, status) == NO_VALUE .and. .not. status%ok())
+        call destroy_character_table(tbl, status)
     end subroutine test_extra_slot
 
     subroutine test_inherit(error)
@@ -167,26 +168,26 @@ contains
         type(handle_type) :: parent, child
         type(status_type) :: status
 
-        call make_char_table(parent, "foo", status)
-        call make_char_table(child, "foo", status)
-        call set_char_table_parent(child, parent, status)
-        call char_table_set(parent, iachar("a"), 5_int64, status)
-        call set_char_table_range(parent, 7_int64, status)
-        call char_table_set(child, iachar("b"), 6_int64, status)
-        call check(error, char_table_ref(child, iachar("a")) == 5)
+        call make_character_table(parent, "foo", status)
+        call make_character_table(child, "foo", status)
+        call set_character_table_parent(child, parent, status)
+        call character_table_set(parent, iachar("a"), 5_int64, status)
+        call set_character_table_range(parent, 7_int64, status)
+        call character_table_set(child, iachar("b"), 6_int64, status)
+        call check(error, character_table_reference(child, iachar("a")) == 5)
         if (allocated(error)) return
-        call check(error, char_table_ref(child, iachar("b")) == 6)
+        call check(error, character_table_reference(child, iachar("b")) == 6)
         if (allocated(error)) return
         ! The parent's default value.
-        call check(error, char_table_ref(child, int(z'4e00')) == 7)
+        call check(error, character_table_reference(child, int(z'4e00')) == 7)
         if (allocated(error)) return
         ! The child's default comes before the parent.
-        call set_char_table_range(child, 8_int64, status)
-        call check(error, char_table_ref(child, iachar("a")) == 8)
+        call set_character_table_range(child, 8_int64, status)
+        call check(error, character_table_reference(child, iachar("a")) == 8)
         if (allocated(error)) return
-        call check(error, char_table_range(child, status) == 8)
-        call destroy_char_table(child, status)
-        call destroy_char_table(parent, status)
+        call check(error, character_table_range(child, status) == 8)
+        call destroy_character_table(child, status)
+        call destroy_character_table(parent, status)
     end subroutine test_inherit
 
     subroutine test_range(error)
@@ -194,33 +195,33 @@ contains
         type(handle_type) :: tbl
         type(status_type) :: status
 
-        call make_char_table(tbl, "foo", status, init=3_int64)
-        call check(error, char_table_ref(tbl, int(z'10000')) == 3)
+        call make_character_table(tbl, "foo", status, initialize=3_int64)
+        call check(error, character_table_reference(tbl, int(z'10000')) == 3)
         if (allocated(error)) return
-        call set_char_table_range(tbl, 9_int64, status, all=.true.)
-        call check(error, char_table_ref(tbl, 0) == 9 .and. char_table_ref(tbl, MAX_CHAR) == 9)
+        call set_character_table_range(tbl, 9_int64, status, all=.true.)
+        call check(error, character_table_reference(tbl, 0) == 9 .and. character_table_reference(tbl, MAXIMUM_CHARACTER) == 9)
         if (allocated(error)) return
-        call set_char_table_range(tbl, 4_int64, status, 100, 200)
-        call check(error, char_table_range(tbl, status, 150, 300) == 4)
+        call set_character_table_range(tbl, 4_int64, status, 100, 200)
+        call check(error, character_table_range(tbl, status, 150, 300) == 4)
         if (allocated(error)) return
-        call check(error, char_table_range(tbl, status, 99) == 9)
+        call check(error, character_table_range(tbl, status, 99) == 9)
         if (allocated(error)) return
-        call check(error, char_table_range(tbl, status, -1) == NO_VALUE .and. .not. status%ok())
-        call destroy_char_table(tbl, status)
+        call check(error, character_table_range(tbl, status, -1) == NO_VALUE .and. .not. status%ok())
+        call destroy_character_table(tbl, status)
     end subroutine test_range
 
-    !> Record a run of `map_char_table'.
-    recursive subroutine record_run(arg, from, to, value)
-        type(handle_type), intent(in) :: arg
+    !> Record a run of `map_character_table'.
+    recursive subroutine record_run(argument, from, to, value)
+        type(handle_type), intent(in) :: argument
         integer, intent(in) :: from, to
         integer(int64), intent(in) :: value
 
-        if (arg%index < 0) return
+        if (argument%index < 0) return
         nruns = nruns + 1
         if (nruns > size(run_from)) return
         run_from(nruns) = from
         run_to(nruns) = to
-        run_val(nruns) = value
+        run_value(nruns) = value
     end subroutine record_run
 
     subroutine test_map(error)
@@ -228,30 +229,30 @@ contains
         type(handle_type) :: parent, tbl
         type(status_type) :: status
 
-        call make_char_table(tbl, "foo", status)
-        call set_char_table_range(tbl, 1_int64, status, iachar("a"), iachar("z"))
-        call char_table_set(tbl, iachar("m"), 2_int64, status)
-        call set_char_table_range(tbl, 1_int64, status, int(z'3000'), int(z'30ff'))
+        call make_character_table(tbl, "foo", status)
+        call set_character_table_range(tbl, 1_int64, status, iachar("a"), iachar("z"))
+        call character_table_set(tbl, iachar("m"), 2_int64, status)
+        call set_character_table_range(tbl, 1_int64, status, int(z'3000'), int(z'30ff'))
         nruns = 0
-        call map_char_table(record_run, tbl, status)
+        call map_character_table(record_run, tbl, status)
         call check(error, nruns == 4)
         if (allocated(error)) return
         call check(error, all(run_from(1:4) == [97, 109, 110, int(z'3000')]) .and. &
-                   all(run_to(1:4) == [108, 109, 122, int(z'30ff')]) .and. all(run_val(1:4) == [1, 2, 1, 1]))
+                   all(run_to(1:4) == [108, 109, 122, int(z'30ff')]) .and. all(run_value(1:4) == [1, 2, 1, 1]))
         if (allocated(error)) return
         ! A parent fills what the table leaves unset.
-        call make_char_table(parent, "foo", status)
-        call set_char_table_range(parent, 5_int64, status, 0, 127)
-        call set_char_table_parent(tbl, parent, status)
+        call make_character_table(parent, "foo", status)
+        call set_character_table_range(parent, 5_int64, status, 0, 127)
+        call set_character_table_parent(tbl, parent, status)
         nruns = 0
-        call map_char_table(record_run, tbl, status)
+        call map_character_table(record_run, tbl, status)
         call check(error, nruns == 6)
         if (allocated(error)) return
         call check(error, all(run_from(1:6) == [0, 97, 109, 110, 123, int(z'3000')]) .and. &
                    all(run_to(1:6) == [96, 108, 109, 122, 127, int(z'30ff')]) .and. &
-                   all(run_val(1:6) == [5, 1, 2, 1, 5, 1]))
-        call destroy_char_table(tbl, status)
-        call destroy_char_table(parent, status)
+                   all(run_value(1:6) == [5, 1, 2, 1, 5, 1]))
+        call destroy_character_table(tbl, status)
+        call destroy_character_table(parent, status)
     end subroutine test_map
 
     subroutine test_optimize_copy(error)
@@ -260,20 +261,21 @@ contains
         type(status_type) :: status
         integer :: c
 
-        call make_char_table(tbl, "foo", status)
+        call make_character_table(tbl, "foo", status)
 
         do c = 0, 255
-            call char_table_set(tbl, c, 7_int64, status)
+            call character_table_set(tbl, c, 7_int64, status)
         end do
 
-        call optimize_char_table(tbl, status)
-        call check(error, status%ok() .and. char_table_ref(tbl, 65) == 7 .and. char_table_ref(tbl, 256) == NO_VALUE)
+        call optimize_character_table(tbl, status)
+        call check(error, status%ok() .and. character_table_reference(tbl, 65) == 7 .and. character_table_reference(tbl, &
+                                                                                                                   256) == NO_VALUE)
         if (allocated(error)) return
-        call copy_char_table(tbl, copy, status)
-        call char_table_set(copy, 65, 8_int64, status)
-        call check(error, char_table_ref(tbl, 65) == 7 .and. char_table_ref(copy, 65) == 8 .and. &
-                   char_table_subtype(copy, status) == "foo")
-        call destroy_char_table(copy, status)
-        call destroy_char_table(tbl, status)
+        call copy_character_table(tbl, copy, status)
+        call character_table_set(copy, 65, 8_int64, status)
+        call check(error, character_table_reference(tbl, 65) == 7 .and. character_table_reference(copy, 65) == 8 .and. &
+                   character_table_subtype(copy, status) == "foo")
+        call destroy_character_table(copy, status)
+        call destroy_character_table(tbl, status)
     end subroutine test_optimize_copy
 end module test_character_table_mod

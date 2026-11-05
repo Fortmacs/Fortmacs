@@ -29,13 +29,13 @@
 !> in the Command column.
 submodule(simple_mod) simple_process_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, current_buffer, is_buffer_live
-    use editing_functions_mod, only: point_max, is_eob
+    use editing_functions_mod, only: point_maximum, is_end_of_buffer
     use editing_commands_mod, only: forward_line, beginning_of_line
-    use process_mod, only: process_list, process_status, process_id, process_name, process_tty_name, &
+    use process_mod, only: process_list, process_status, process_id, process_name, process_terminal_name, &
                            process_buffer, process_command, process_query_on_exit_flag, &
                            delete_process, get_process
     use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
-                                  set_tabulated_list_entries, set_tabulated_list_sort_key, tabulated_list_init_header, &
+                                  set_tabulated_list_entries, set_tabulated_list_sort_key, tabulated_list_initialize_header, &
                                   tabulated_list_print, tabulated_list_get_id, tabulated_list_revert_hook
     use files_mod, only: revert_buffer
     use window_mod, only: display_buffer
@@ -132,17 +132,17 @@ contains
     recursive module subroutine process_menu_delete_process(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: id
-        integer(int64) :: pos, shortage
+        integer(int64) :: position, shortage
 
-        pos = point()
+        position = point()
         id = tabulated_list_get_id()
         call delete_process(get_process(id), status)
         if (.not. status%ok()) return
         call revert_buffer(status)
         if (.not. status%ok()) return
-        call goto_char(min(pos, point_max()))
+        call goto_character(min(position, point_maximum()))
 
-        if (is_eob()) then
+        if (is_end_of_buffer()) then
             shortage = forward_line(-1_int64)
         else
             call beginning_of_line()
@@ -158,7 +158,7 @@ contains
         type(string_type), allocatable :: command(:)
         type(handle_type) :: buffer
         type(status_type) :: st
-        character(len=:), allocatable :: status_name, pid, cmd
+        character(len=:), allocatable :: status_name, pid, command_text
         character(len=16) :: s
         integer :: k, n, j
 
@@ -183,34 +183,34 @@ contains
 
                 buffer = process_buffer(processes(k))
                 call process_command(processes(k), command)
-                cmd = ""
+                command_text = ""
 
                 do j = 1, size(command)
-                    if (j > 1) cmd = cmd//" "
-                    cmd = cmd//command(j)%text
+                    if (j > 1) command_text = command_text//" "
+                    command_text = command_text//command(j)%text
                 end do
 
                 associate (e => entries(n))
                     e%id = process_name(processes(k))
-                    allocate (e%cols(7))
-                    e%cols(1)%text = process_name(processes(k))
-                    e%cols(2)%text = pid
-                    e%cols(3)%text = status_name
+                    allocate (e%columns(7))
+                    e%columns(1)%text = process_name(processes(k))
+                    e%columns(2)%text = pid
+                    e%columns(3)%text = status_name
 
                     if (is_buffer_live(buffer)) then
-                        e%cols(4)%text = buffers(buffer%index)%name
-                        e%cols(4)%face = "link"
+                        e%columns(4)%text = buffers(buffer%index)%name
+                        e%columns(4)%face = "link"
                     else
-                        e%cols(4)%text = "--"
+                        e%columns(4)%text = "--"
                     end if
 
-                    e%cols(5)%text = process_tty_name(processes(k))
-                    if (len(e%cols(5)%text) == 0) e%cols(5)%text = "--"
-                    e%cols(6)%text = "--"
-                    e%cols(7)%text = cmd
+                    e%columns(5)%text = process_terminal_name(processes(k))
+                    if (len(e%columns(5)%text) == 0) e%columns(5)%text = "--"
+                    e%columns(6)%text = "--"
+                    e%columns(7)%text = command_text
 
                     do j = 1, 7
-                        if (.not. allocated(e%cols(j)%face)) e%cols(j)%face = ""
+                        if (.not. allocated(e%columns(j)%face)) e%columns(j)%face = ""
                     end do
                 end associate
             end if
@@ -218,7 +218,7 @@ contains
 
         ! (push ... tabulated-list-entries): the newest first.
         call set_tabulated_list_entries(entries(n:1:-1))
-        call tabulated_list_init_header()
+        call tabulated_list_initialize_header()
     end subroutine list_processes_refresh
 
     !> Display a list of all processes that are Fortmacs sub-processes.
@@ -231,16 +231,16 @@ contains
     !> This function lists only processes that were launched by Fortmacs.
     !> To see other processes running on the system, use
     !> `list_system_processes'.  Port of simple.el:list-processes.
-    recursive module subroutine list_processes(status, query_only_arg, buffer)
+    recursive module subroutine list_processes(status, query_only_argument, buffer)
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: query_only_arg
+        logical, intent(in), optional :: query_only_argument
         type(handle_type), intent(in), optional :: buffer
         type(handle_type) :: buffer_handle, old, window
         type(status_type) :: st
         logical :: q
 
         q = .false.
-        if (present(query_only_arg)) q = query_only_arg
+        if (present(query_only_argument)) q = query_only_argument
 
         if (present(buffer)) then
             buffer_handle = buffer
@@ -265,15 +265,15 @@ contains
         call display_buffer(buffer_handle, window, status)
     end subroutine list_processes
 
-    recursive subroutine cmd_list_processes(status)
+    recursive subroutine execute_list_processes(status)
         type(status_type), intent(out) :: status
 
         call list_processes(status)
-    end subroutine cmd_list_processes
+    end subroutine execute_list_processes
 
     !> Define Process Menu mode and register its commands.  (In
     !> simple_process_mod.)
-    module subroutine init_simple_process()
+    module subroutine initialize_simple_process()
         type(status_type) :: st
 
         call major_modes%process_menu_mode%define("process_menu_mode", "Process Menu", process_menu_mode, &
@@ -281,6 +281,6 @@ contains
         call keymap_set(major_modes%process_menu_mode%map, "d", "process_menu_delete_process", st)
         commands%process_menu_mode%execute => process_menu_mode
         commands%process_menu_delete_process%execute => process_menu_delete_process
-        commands%list_processes%execute => cmd_list_processes
-    end subroutine init_simple_process
+        commands%list_processes%execute => execute_list_processes
+    end subroutine initialize_simple_process
 end submodule simple_process_mod

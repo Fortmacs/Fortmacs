@@ -35,7 +35,7 @@ contains
                                         documentation="The Cham script is a Brahmic script used to write Cham,"//achar(10)//"an A" &
                                          //"ustronesian language spoken by some 245,000 Chams"//achar(10)//"in Vietnam" &
                                          //" and Cambodia.", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Cham (ꨌꩌ)"//achar(9)//"ꨦꨤꩌ ꨦꨁꨰ", &
                                          coding_systems=[character(len=40) :: "utf-8"], &
                                          coding_system_order=[character(len=40) :: "utf-8"], &

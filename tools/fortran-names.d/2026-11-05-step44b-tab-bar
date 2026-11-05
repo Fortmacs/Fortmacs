@@ -29,7 +29,7 @@ name	tab_bar_move_tab_backward	move_tab_bar_tab_backward
 name	tab_bar_duplicate_tab	duplicate_tab_bar_tab
 name	tab_bar_close_tab_by_name	close_tab_bar_tab_by_name
 name	tab_bar_close_other_tabs	close_tab_bar_other_tabs
-name	tab_bar_undo_close_tab	undo_close_tab_bar_tab
+name	tab_bar_undo_close_tab	undo_tab_bar_close_tab
 name	tab_bar_rename_tab	rename_tab_bar_tab
 name	tab_bar_rename_tab_by_name	rename_tab_bar_tab_by_name
 name	tab_bar_move_tab_to_group	move_tab_bar_tab_to_group
@@ -72,3 +72,6 @@ keep	TAB_BAR_CLOSE_TAB_SELECT_LEFT
 keep	TAB_BAR_CLOSE_TAB_SELECT_RIGHT
 keep	TAB_BAR_CLOSE_TAB_SELECT_RECENT
 keep	tab_bar_select_tab_modifiers
+# The command tab-bar-undo-close-tab in its Fortran name (verb, package,
+# rest), which holds tab_bar_close_tab as a run of parts.
+keep	undo_tab_bar_close_tab

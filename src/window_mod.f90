@@ -26,7 +26,7 @@
 !> markers, so they follow insertions and deletions in its buffer.
 module window_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle, slot_table_type, same_handle
     use hooks_mod, only: window_position_hook_type
@@ -39,14 +39,14 @@ module window_mod
     private
 
     public :: set_window_buffer, set_window_buffer_internal, window_discard_buffer_from_window, record_window_buffer, &
-              switch_to_prev_buffer, switch_to_next_buffer, quit_restore_window, bury_buffer, &
+              switch_to_previous_buffer, switch_to_next_buffer, quit_restore_window, bury_buffer, &
               display_buffer_record_window, display_buffer, pop_to_buffer, pop_to_buffer_same_window, fit_window_to_buffer, &
               shrink_window_if_larger_than_buffer, display_buffer_no_window, &
               switch_to_buffer_other_window, switch_to_buffer_other_frame, display_buffer_other_frame, &
               window_in_direction, &
-              temp_buffer_window_show, scroll_window, get_buffer_window, get_lru_window, get_mru_window, get_largest_window, &
+              temporary_buffer_window_show, scroll_window, get_buffer_window, get_lru_window, get_mru_window, get_largest_window, &
               split_window_and_copy, is_window_combined, is_window_full_height, is_window_splittable, &
-              copy_quit_restore, window_resize, init_window_display, &
+              copy_quit_restore, window_resize, initialize_window_display, &
               current_window_configuration, set_window_configuration, destroy_window_configuration, &
               get_window_state, set_window_state, destroy_window_state, &
               window_display_buffer, &
@@ -55,29 +55,29 @@ module window_mod
     public :: window_start, set_window_start, window_point, &
               set_window_point, window_body_lines, window_wants_header_line, destroy_window, destroy_previous_buffer, &
               destroy_quit_restore, unshow_buffer
-    public :: make_window, delete_window_object, window_ref, is_window_live, is_window_valid, same_window, same_handle, &
-              window_leaves, resize_window_tree, window_text_cols, split_window_internal, &
+    public :: make_window, delete_window_object, window_reference, is_window_live, is_window_valid, same_window, same_handle, &
+              window_leaves, resize_window_tree, window_text_columns, split_window_internal, &
               remove_window_from_tree, replace_window, delete_window_tree
     public :: window_resize_child_windows
     public :: window_resize_reset, window_resize_this_window, window_resize_root_window, window_sizable, &
-              is_window_sizable, window_min_delta, window_resize_check, window_resize_apply, window_normal_size
+              is_window_sizable, window_minimum_delta, window_resize_check, window_resize_apply, window_normal_size
     public :: scroll_up, scroll_down, recenter, move_to_window_line, &
               scroll_up_command, scroll_down_command, recenter_top_bottom, &
-              is_pos_visible_in_window, other_window_for_scrolling, scroll_other_window, scroll_other_window_down, &
-              move_to_window_line_top_bottom, quit_window, quit_windows_on, init_window_commands, window_end, &
+              is_position_visible_in_window, other_window_for_scrolling, scroll_other_window, scroll_other_window_down, &
+              move_to_window_line_top_bottom, quit_window, quit_windows_on, initialize_window_commands, window_end, &
               execute_window_scroll_functions
-    public :: window_min_size
+    public :: window_minimum_size
     public :: is_window, window_buffer, window_parent, window_top_child, window_left_child, window_next_sibling, &
-              window_prev_sibling, frame_root_window, frame_selected_window, minibuffer_window, is_window_minibuffer, &
+              window_previous_sibling, frame_root_window, frame_selected_window, minibuffer_window, is_window_minibuffer, &
               minibuffer_selected_window, window_total_height, window_total_width, window_left_column, window_top_line, &
               window_body_height, window_body_width, window_wants_mode_line, window_mode_line_height, &
               window_header_line_height, window_tab_line_height, window_hscroll, window_dedication, &
-              set_window_dedication, window_use_time, window_bump_use_time, window_prev_buffers, window_next_buffers, &
+              set_window_dedication, window_use_time, window_bump_use_time, window_previous_buffers, window_next_buffers, &
               next_window, previous_window, window_list_1, window_list, window_part_at, window_at, &
               force_window_update
     public :: select_window, split_window, split_window_below, split_window_right, delete_window, delete_other_windows, &
               other_window, other_buffer, &
-              replace_buffer_in_windows, switch_to_buffer, init_window_cmds
+              replace_buffer_in_windows, switch_to_buffer, initialize_window_commands_submodule
     public :: window_main_window, window_with_side, walk_window_tree, is_window_no_other, check_window_sides, &
               is_window_sides_reversed_on_frame, display_buffer_in_side_window
 
@@ -110,11 +110,11 @@ module window_mod
     type(window_position_hook_type), target, public :: window_scroll_functions = &
                                                        window_position_hook_type(name="window_scroll_functions")
 
-    !> A buffer a window showed before (window.h prev_buffers element):
+    !> A buffer a window showed before (window.h previous_buffers element):
     !> its window start and point when it was removed, as markers.
-    type, public :: prev_buffer_type
+    type, public :: previous_buffer_type
         type(handle_type) :: buffer, start, point
-    end type prev_buffer_type
+    end type previous_buffer_type
 
     !> What a window's `quit_restore' parameter records (see
     !> window.el:display-buffer-record-window): how the window came to
@@ -159,13 +159,13 @@ module window_mod
     !> The value of `window_sides_reversed' besides .true. (always reverse)
     !> and .false. (never): reverse when the frame shows right-to-left
     !> text.
-    integer, parameter, public :: WINDOW_SIDES_REVERSED_BIDI = 2
+    integer, parameter, public :: WINDOW_SIDES_REVERSED_BIDIRECTIONAL = 2
 
     !> No bound on the number of side windows on a side
     !> (`window_sides_slots').
     integer, parameter, public :: WINDOW_SIDES_SLOTS_UNLIMITED = huge(0)
 
-    !> What `quit_restore_window' and `switch_to_prev_buffer' do with the
+    !> What `quit_restore_window' and `switch_to_previous_buffer' do with the
     !> window's buffer (BURY-OR-KILL): nothing, `append', `bury', `kill',
     !> `killing' or `burying'.
     integer, parameter, public :: BK_NONE = 0, BK_APPEND = 1, BK_BURY = 2, BK_CLOSE = 3, BK_CLOSING = 4, &
@@ -321,9 +321,9 @@ module window_mod
     !> side windows on the top and bottom of a frame are always drawn
     !> from right to left with increasing slot values.
     !>
-    !> When this is WINDOW_SIDES_REVERSED_BIDI, the drawing order is like
+    !> When this is WINDOW_SIDES_REVERSED_BIDIRECTIONAL, the drawing order is like
     !> that for .true. if the value of
-    !> `bidi_paragraph_direction' is `right-to-left' in the buffer most
+    !> `bidirectional_paragraph_direction' is `right-to-left' in the buffer most
     !> recently shown in the window selected within the main window area
     !> of this frame.
     !>
@@ -447,20 +447,20 @@ module window_mod
     !> The minimum total height, in lines, of any window.
     !> The value has to accommodate one text line, a mode and header line,
     !> a horizontal scroll bar and a bottom divider, if present.  A value
-    !> less than `window_safe_min_height' is ignored.  Port of window.el
+    !> less than `window_safe_minimum_height' is ignored.  Port of window.el
     !> window-min-height.
-    integer, public :: window_min_height = 4
+    integer, public :: window_minimum_height = 4
 
     !> The minimum total width, in columns, of any window.
     !> The value has to accommodate two text columns as well as margins,
     !> fringes, a scroll bar and a right divider, if present.  A value less
-    !> than `window_safe_min_width' is ignored.  Port of window.el
+    !> than `window_safe_minimum_width' is ignored.  Port of window.el
     !> window-min-width.
-    integer, public :: window_min_width = 10
+    integer, public :: window_minimum_width = 10
 
     !> The absolute minimum number of lines and columns of any window
     !> (window.el window-safe-min-height, window-safe-min-width).
-    integer, parameter, public :: window_safe_min_height = 1, window_safe_min_width = 2
+    integer, parameter, public :: window_safe_minimum_height = 1, window_safe_minimum_width = 2
 
     !> The use time of the most recently selected window (window.c
     !> window_select_count).
@@ -474,15 +474,15 @@ module window_mod
         type(handle_type) :: start, pointm
         !> Position on the frame (0-based rows) and size, in lines and
         !> columns, including the mode line.
-        integer :: top_line = 0, total_lines = 0, left_col = 0, total_cols = 0
+        integer :: top_line = 0, total_lines = 0, left_column = 0, total_columns = 0
         !> The buffers shown before, most recently removed first
-        !> (`window_prev_buffers').
-        type(prev_buffer_type), allocatable :: prev_buffers(:)
-        !> Buffers recently replaced by `switch_to_prev_buffer'
+        !> (`window_previous_buffers').
+        type(previous_buffer_type), allocatable :: previous_buffers(:)
+        !> Buffers recently replaced by `switch_to_previous_buffer'
         !> (`window_next_buffers').
         type(handle_type), allocatable :: next_buffers(:)
-        !> The `quit_restore' and `quit_restore_prev' parameters.
-        type(quit_restore_type) :: quit_restore, quit_restore_prev
+        !> The `quit_restore' and `quit_restore_previous' parameters.
+        type(quit_restore_type) :: quit_restore, quit_restore_previous
         !> Whether the window is dedicated to its buffer.
         integer :: dedicated = DEDICATED_NONE
         !> The `window_side' parameter: the side of the frame (WINDOW_SIDE_*)
@@ -502,16 +502,16 @@ module window_mod
         !> previous siblings, and for an internal window its first child;
         !> null handles for none.  Port of window.h parent, next, prev and
         !> contents (a window with a child shows no buffer).
-        type(handle_type) :: parent, next, prev, child
+        type(handle_type) :: parent, next, previous, child
         !> An internal window whose children are side by side (a horizontal
         !> combination); else they are one above the other.
         logical :: horizontal = .false.
         !> The window's share of its parent's height and width (window.h
-        !> normal_lines, normal_cols): 1.0 for a root window and across a
+        !> normal_lines, normal_columns): 1.0 for a root window and across a
         !> combination; the children of a combination share 1.0 along it.
         !> A frame size change gives each window of a combination its part
         !> by them, so that shrinking and growing back restores the sizes.
-        real(real64) :: normal_lines = 1.0_real64, normal_cols = 1.0_real64
+        real(real64) :: normal_lines = 1.0_real64, normal_columns = 1.0_real64
         !> The size a resizing gives the window, in lines or columns
         !> (window.h new_total, and new_pixel: windows are sized in whole
         !> lines and columns), applied by `window_resize_apply'.
@@ -528,11 +528,11 @@ module window_mod
         !> starts below it (w->header_line_height).
         integer :: header_line_height = 0
         !> Where redisplay put the cursor, relative to the window; -1: none.
-        integer :: cursor_vpos = -1, cursor_hpos = -1
+        integer :: cursor_vertical_position = -1, cursor_horizontal_position = -1
         !> On a window-system frame, where and how large redisplay draws the
-        !> cursor, in frame pixels (window.h phys_cursor with
-        !> phys_cursor_width and phys_cursor_height).
-        integer :: phys_cursor_x = 0, phys_cursor_y = 0, phys_cursor_width = 0, phys_cursor_height = 0
+        !> cursor, in frame pixels (window.h physical_cursor with
+        !> physical_cursor_width and physical_cursor_height).
+        integer :: physical_cursor_x = 0, physical_cursor_y = 0, physical_cursor_width = 0, physical_cursor_height = 0
         !> Show no cursor in the window (`internal_show_cursor').
         logical :: cursor_off_p = .false.
         !> Columns scrolled off the left (only the minibuffer window
@@ -541,17 +541,17 @@ module window_mod
         !> The start was set explicitly; redisplay must keep it.
         logical :: force_start = .false.
         !> Where the last display ended, counted back from the end of the
-        !> buffer text (window.h window_end_pos: Z less the position after
+        !> buffer text (window.h window_end_position: Z less the position after
         !> the last character shown), and whether it reached the end of the
         !> buffer (for "Bot"/"All" in the mode line).
-        integer(int64) :: window_end_pos = 0
+        integer(int64) :: window_end_position = 0
         logical :: window_end_valid = .false.
         !> A deleted window kept because a window configuration refers to
         !> it: `set_window_configuration' may revive it.  (Upstream keeps
         !> deleted windows until garbage collection.)
         logical :: dead = .false.
         !> How many window configurations refer to the window.
-        integer :: config_refs = 0
+        integer :: configuration_references = 0
         !> The buffer a window shown in a window configuration showed when
         !> it was taken out of the tree (window.c keeps it in
         !> combination_limit for resurrection).
@@ -563,20 +563,20 @@ module window_mod
         !> old_body_pixel_width, in lines and columns).
         type(handle_type) :: old_buffer
         integer :: change_stamp = 0
-        integer :: old_total_lines = 0, old_total_cols = 0, old_body_lines = 0, old_body_cols = 0
+        integer :: old_total_lines = 0, old_total_columns = 0, old_body_lines = 0, old_body_columns = 0
     end type window_type
 
     !> One window of a window configuration.  Port of window.c:struct
     !> saved_window (the slots used on a terminal).
     type :: saved_window_type
         type(handle_type) :: window, buffer
-        integer :: left_col = 0, top_line = 0, total_cols = 0, total_lines = 0
+        integer :: left_column = 0, top_line = 0, total_columns = 0, total_lines = 0
         integer :: hscroll = 0, dedicated = DEDICATED_NONE
         logical :: divider = .false.
-        real(real64) :: normal_lines = 1.0_real64, normal_cols = 1.0_real64
+        real(real64) :: normal_lines = 1.0_real64, normal_columns = 1.0_real64
         !> Indices of the parent and previous sibling in the saved
         !> windows (0 for none).
-        integer :: parent = 0, prev = 0
+        integer :: parent = 0, previous = 0
         !> Copies of the window's start and point (null for an internal
         !> window).
         type(handle_type) :: start, pointm
@@ -589,9 +589,9 @@ module window_mod
     type, public :: window_configuration_type
         type(saved_window_type), allocatable :: saved(:)
         type(handle_type) :: root_window, current_window, current_buffer, minibuf_scroll_window
-        !> The frame's size then, in columns and lines (frame_cols,
+        !> The frame's size then, in columns and lines (frame_columns,
         !> frame_lines).
-        integer :: frame_cols = 0, frame_lines = 0
+        integer :: frame_columns = 0, frame_lines = 0
     end type window_configuration_type
 
     !> A window of a window state: its place in the tree (the indices of
@@ -600,14 +600,14 @@ module window_mod
     !> window its buffer with copies of its start and point, its other
     !> buffer settings and its previous and next buffers.  Not a port.
     type :: window_state_window_type
-        integer :: parent = 0, prev = 0
+        integer :: parent = 0, previous = 0
         logical :: live = .false., horizontal = .false., divider = .false.
-        integer :: left_col = 0, top_line = 0, total_cols = 0, total_lines = 0
-        real(real64) :: normal_lines = 1.0_real64, normal_cols = 1.0_real64
+        integer :: left_column = 0, top_line = 0, total_columns = 0, total_lines = 0
+        real(real64) :: normal_lines = 1.0_real64, normal_columns = 1.0_real64
         type(handle_type) :: buffer, start, point
         logical :: selected = .false.
         integer :: hscroll = 0, dedicated = DEDICATED_NONE
-        type(prev_buffer_type), allocatable :: prev_buffers(:)
+        type(previous_buffer_type), allocatable :: previous_buffers(:)
         type(handle_type), allocatable :: next_buffers(:)
     end type window_state_window_type
 
@@ -628,58 +628,58 @@ module window_mod
     ! Scrolling and recentering, in submodule window_scroll_mod: they
     ! move by screen lines (indent_mod), which depends on this module.
     interface
-        !> Scroll text of selected window upward ARG lines.
-        !> If ARG is PREFIX_NONE (no prefix argument), scroll upward by a near full screen.
+        !> Scroll text of selected window upward ARGUMENT lines.
+        !> If ARGUMENT is PREFIX_NONE (no prefix argument), scroll upward by a near full screen.
         !> A near full screen is `next_screen_context_lines' less than a
-        !> full screen.  Negative ARG means scroll downward.  If ARG is
+        !> full screen.  Negative ARGUMENT means scroll downward.  If ARGUMENT is
         !> PREFIX_MINUS, scroll downward by nearly full screen.  When calling
         !> from a program, supply as argument a number (PREFIX_NUMBER),
         !> PREFIX_NONE or PREFIX_MINUS.
         !> Port of window.c:Fscroll_up.
-        module subroutine scroll_up(arg, status)
+        module subroutine scroll_up(argument, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine scroll_up
 
-        !> Scroll text of selected window down ARG lines.
-        !> If ARG is PREFIX_NONE (no prefix argument), scroll down by a near full screen.
+        !> Scroll text of selected window down ARGUMENT lines.
+        !> If ARGUMENT is PREFIX_NONE (no prefix argument), scroll down by a near full screen.
         !> A near full screen is `next_screen_context_lines' less than a
-        !> full screen.  Negative ARG means scroll upward.  If ARG is
+        !> full screen.  Negative ARGUMENT means scroll upward.  If ARGUMENT is
         !> PREFIX_MINUS, scroll upward by nearly full screen.  When calling
         !> from a program, supply as argument a number (PREFIX_NUMBER),
         !> PREFIX_NONE or PREFIX_MINUS.
         !> Port of window.c:Fscroll_down.
-        module subroutine scroll_down(arg, status)
+        module subroutine scroll_down(argument, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine scroll_down
 
         !> Center point in selected window and maybe redisplay frame.
-        !> With a numeric prefix argument ARG, recenter putting point on
-        !> screen line ARG relative to the selected window.  If ARG is
-        !> negative, it counts up from the bottom of the window.  (ARG
+        !> With a numeric prefix argument ARGUMENT, recenter putting point on
+        !> screen line ARGUMENT relative to the selected window.  If ARGUMENT is
+        !> negative, it counts up from the bottom of the window.  (ARGUMENT
         !> should be less than the height of the window.)
         !>
-        !> If ARG is PREFIX_NONE, then recenter with point on the middle
+        !> If ARGUMENT is PREFIX_NONE, then recenter with point on the middle
         !> line of the selected window; if REDISPLAY is true, also erase the
         !> entire frame and redraw it.  Interactively, REDISPLAY is always
         !> true.
         !>
         !> Just C-u as prefix means put point in the center of the window
         !> and redisplay normally--don't erase and redraw the frame.
-        !> Port of window.c:Frecenter (`recenter_redisplay' is `tty').
-        module subroutine recenter(arg, redisplay, status)
+        !> Port of window.c:Frecenter (`recenter_redisplay' is `terminal').
+        module subroutine recenter(argument, redisplay, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             logical, intent(in) :: redisplay
             type(status_type), intent(out) :: status
         end subroutine recenter
 
         !> Position point relative to window.
-        !> ARG PREFIX_NONE means position point at center of window.
-        !> Else, ARG specifies vertical position within the window;
+        !> ARGUMENT PREFIX_NONE means position point at center of window.
+        !> Else, ARGUMENT specifies vertical position within the window;
         !> zero means top of window, negative means relative to bottom
         !> of window, -1 meaning the last fully visible display line
         !> of the window.
@@ -687,15 +687,15 @@ module window_mod
         !> `line' is the screen line of the window point moved to, counting
         !> from the top of the window.  Port of window.c:Fmove_to_window_line (with
         !> window.c:displayed_window_lines, on a terminal the body height).
-        module subroutine move_to_window_line(arg, line, status)
+        module subroutine move_to_window_line(argument, line, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             integer(int64), intent(out) :: line
             type(status_type), intent(out) :: status
         end subroutine move_to_window_line
 
-        !> Scroll text of selected window upward ARG lines; or near full
-        !> screen if no ARG.  Interactively, giving this command a numerical
+        !> Scroll text of selected window upward ARGUMENT lines; or near full
+        !> screen if no ARGUMENT.  Interactively, giving this command a numerical
         !> prefix will scroll up by that many lines (and down by that many
         !> lines if the number is negative).  Without a prefix, scroll up by
         !> a full screen.  If given a `C-u -' prefix, scroll a full page
@@ -705,21 +705,21 @@ module window_mod
         !> scroll window further, move cursor to the bottom line.
         !> When point is already on that position, then an error condition occurs.
         !> A near full screen is `next_screen_context_lines' less than a
-        !> full screen.  Negative ARG means scroll downward.
+        !> full screen.  Negative ARGUMENT means scroll downward.
         !>
-        !> If ARG is PREFIX_MINUS, scroll downward by nearly full screen.
+        !> If ARGUMENT is PREFIX_MINUS, scroll downward by nearly full screen.
         !>
         !> The command \[set_goal_column] can be used to create a
         !> semipermanent goal column for this command.  Port of
         !> window.el:scroll-up-command.
-        recursive module subroutine scroll_up_command(arg, status)
+        recursive module subroutine scroll_up_command(argument, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine scroll_up_command
 
-        !> Scroll text of selected window down ARG lines; or near full
-        !> screen if no ARG.  Interactively, giving this command a numerical
+        !> Scroll text of selected window down ARGUMENT lines; or near full
+        !> screen if no ARGUMENT.  Interactively, giving this command a numerical
         !> prefix will scroll down by that many lines (and up by that many
         !> lines if the number is negative).  Without a prefix, scroll down
         !> by a full screen.  If given a `C-u -' prefix, scroll a full page
@@ -729,28 +729,28 @@ module window_mod
         !> scroll window further, move cursor to the top line.
         !> When point is already on that position, then an error condition occurs.
         !> A near full screen is `next_screen_context_lines' less than a
-        !> full screen.  Negative ARG means scroll upward.
+        !> full screen.  Negative ARGUMENT means scroll upward.
         !>
-        !> If ARG is PREFIX_MINUS, scroll upward by nearly full screen.
+        !> If ARGUMENT is PREFIX_MINUS, scroll upward by nearly full screen.
         !>
         !> The command \[set_goal_column] can be used to create a
         !> semipermanent goal column for this command.  Port of
         !> window.el:scroll-down-command.
-        recursive module subroutine scroll_down_command(arg, status)
+        recursive module subroutine scroll_down_command(argument, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine scroll_down_command
 
-        !> Whether position POS is shown, at least partially, in WINDOW:
+        !> Whether position POSITION is shown, at least partially, in WINDOW:
         !> within the window's body lines from its start.  Port of
         !> window.c:Fpos_visible_in_window_p with PARTIALLY .true. (line
         !> based, no vscroll).
-        module logical function is_pos_visible_in_window(pos, window) result(visible)
+        module logical function is_position_visible_in_window(position, window) result(visible)
             implicit none(type, external)
-            integer(int64), intent(in) :: pos
+            integer(int64), intent(in) :: position
             type(handle_type), intent(in) :: window
-        end function is_pos_visible_in_window
+        end function is_position_visible_in_window
 
         !> Return position at which display currently ends in WINDOW.
         !> This is the position after the final character in WINDOW.
@@ -763,12 +763,12 @@ module window_mod
         !> already recorded.  Port of window.c:Fwindow_end (with UPDATE, the
         !> position is always computed: redisplay keeps no record of what
         !> changed since, window_outdated).
-        module function window_end(window, status, update) result(pos)
+        module function window_end(window, status, update) result(position)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: update
-            integer(int64) :: pos
+            integer(int64) :: position
         end function window_end
 
         !> Run `window_scroll_functions' for WINDOW.
@@ -793,20 +793,20 @@ module window_mod
         end subroutine other_window_for_scrolling
 
         !> Scroll next window upward LINES lines; or near full screen if no
-        !> ARG.  See `scroll_up_command' for details.  Port of
+        !> ARGUMENT.  See `scroll_up_command' for details.  Port of
         !> window.el:scroll-other-window.
         recursive module subroutine scroll_other_window(lines, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: lines
+            type(prefix_argument_type), intent(in) :: lines
             type(status_type), intent(out) :: status
         end subroutine scroll_other_window
 
         !> Scroll next window downward LINES lines; or near full screen if
-        !> no ARG.  See `scroll_down_command' for details.  Port of
+        !> no ARGUMENT.  See `scroll_down_command' for details.  Port of
         !> window.el:scroll-other-window-down.
         recursive module subroutine scroll_other_window_down(lines, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: lines
+            type(prefix_argument_type), intent(in) :: lines
             type(status_type), intent(out) :: status
         end subroutine scroll_other_window_down
 
@@ -818,33 +818,33 @@ module window_mod
         !> line, the third invocation puts it on the bottom-most window
         !> line, and then the order is reused in a cyclical manner.
         !>
-        !> With numeric prefix ARG, move current line ARG lines below the
+        !> With numeric prefix ARGUMENT, move current line ARGUMENT lines below the
         !> window top.  With plain \[universal_argument], move current line
         !> to window center.  Port of window.el:recenter-top-bottom.
-        module subroutine recenter_top_bottom(arg, status)
+        module subroutine recenter_top_bottom(argument, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine recenter_top_bottom
 
         !> Position point relative to window.
         !>
-        !> With a prefix argument ARG, acts like `move_to_window_line'.
+        !> With a prefix argument ARGUMENT, acts like `move_to_window_line'.
         !>
         !> With no argument, positions point at center of window.
         !> Successive calls position point at positions defined
         !> by `recenter_positions'.  Port of
         !> window.el:move-to-window-line-top-bottom.
-        module subroutine move_to_window_line_top_bottom(arg, status)
+        module subroutine move_to_window_line_top_bottom(argument, status)
             implicit none(type, external)
-            type(prefix_arg_type), intent(in) :: arg
+            type(prefix_argument_type), intent(in) :: argument
             type(status_type), intent(out) :: status
         end subroutine move_to_window_line_top_bottom
 
         !> Register the scrolling commands and `quit_window'.  Not a port.
-        module subroutine init_window_commands()
+        module subroutine initialize_window_commands()
             implicit none(type, external)
-        end subroutine init_window_commands
+        end subroutine initialize_window_commands
 
         ! The window tree and buffer display, in submodule window_commands_mod.
 
@@ -862,20 +862,20 @@ module window_mod
         end subroutine select_window
 
         !> The minimum size of WINDOW, in lines or with HORIZONTAL in
-        !> columns: for a live window `window_min_height' or
-        !> `window_min_width' (at least one text line and its mode line, or
+        !> columns: for a live window `window_minimum_height' or
+        !> `window_minimum_width' (at least one text line and its mode line, or
         !> two columns), for an internal window the sum of its children's
         !> along its combination or else their maximum.  IGNORE true means
-        !> ignore `window_min_height' and `window_min_width': a live window
+        !> ignore `window_minimum_height' and `window_minimum_width': a live window
         !> then needs its safe minimum and its mode line.  Port of
         !> window.el:window-min-size (no fixed-size or preserved windows;
         !> IGNORE .true. is upstream's t).
-        recursive module integer function window_min_size(window, horizontal, ignore) result(n)
+        recursive module integer function window_minimum_size(window, horizontal, ignore) result(n)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
             logical, intent(in) :: horizontal
             logical, intent(in), optional :: ignore
-        end function window_min_size
+        end function window_minimum_size
 
         !> Make a new window adjacent to WINDOW: below it, or with
         !> `horizontal' to its right.  Without `has_size' both get half its
@@ -903,7 +903,7 @@ module window_mod
         !> Split the selected window into two windows, one above the other,
         !> both of the same height (or close to it); NEW is the new window,
         !> below.  Port of window.el:split-window-below (no SIZE; the
-        !> function, as `ediff_split_window_function' calls it).
+        !> function, as `fortmacs_diff_split_window_function' calls it).
         module subroutine split_window_below(new, status)
             implicit none(type, external)
             type(handle_type), intent(out) :: new
@@ -913,7 +913,7 @@ module window_mod
         !> Split the selected window into two side-by-side windows of the
         !> same width (or close to it); NEW is the new window, to the right.
         !> Port of window.el:split-window-right (no SIZE; the function, as
-        !> `ediff_split_window_function' calls it).
+        !> `fortmacs_diff_split_window_function' calls it).
         module subroutine split_window_right(new, status)
             implicit none(type, external)
             type(handle_type), intent(out) :: new
@@ -986,9 +986,9 @@ module window_mod
         end subroutine switch_to_buffer
 
         !> Register the window and buffer commands.  Not a port.
-        module subroutine init_window_cmds()
+        module subroutine initialize_window_commands_submodule()
             implicit none(type, external)
-        end subroutine init_window_cmds
+        end subroutine initialize_window_commands_submodule
         ! Showing buffers in windows, in submodule window_display_mod.
 
         !> Make WINDOW display BUFFER_OR_NAME.
@@ -1026,13 +1026,13 @@ module window_mod
         end subroutine record_window_buffer
 
         !> Port of window.el:switch-to-prev-buffer.
-        module function switch_to_prev_buffer(window, bury_or_close, status) result(new_buffer)
+        module function switch_to_previous_buffer(window, bury_or_close, status) result(new_buffer)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
             integer, intent(in) :: bury_or_close
             type(status_type), intent(out) :: status
             type(handle_type) :: new_buffer
-        end function switch_to_prev_buffer
+        end function switch_to_previous_buffer
 
         !> Port of window.el:switch-to-next-buffer.
         module function switch_to_next_buffer(window, status) result(new_buffer)
@@ -1244,16 +1244,16 @@ module window_mod
         end subroutine pop_to_buffer_same_window
 
         !> Adjust the height of WINDOW to display its buffer's contents
-        !> exactly, but at most MAX_HEIGHT lines (by default as many as
-        !> the other windows can give) and at least MIN_HEIGHT lines (by
-        !> default `window_min_height').
+        !> exactly, but at most MAXIMUM_HEIGHT lines (by default as many as
+        !> the other windows can give) and at least MINIMUM_HEIGHT lines (by
+        !> default `window_minimum_height').
         !> Only a window in a vertical combination is resized.  Port of
         !> window.el:fit-window-to-buffer (vertically; PRESERVE-SIZE and
         !> the width arguments are deferred).
-        module subroutine fit_window_to_buffer(window, max_height, min_height)
+        module subroutine fit_window_to_buffer(window, maximum_height, minimum_height)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
-            integer, intent(in), optional :: max_height, min_height
+            integer, intent(in), optional :: maximum_height, minimum_height
         end subroutine fit_window_to_buffer
 
         !> Shrink height of WINDOW if its buffer doesn't need so many lines.
@@ -1261,7 +1261,7 @@ module window_mod
         !> possible, while still showing the full contents of its buffer.
         !> WINDOW must be a live window and defaults to the selected one.
         !>
-        !> Do not shrink WINDOW to less than `window_min_height' lines.  Do
+        !> Do not shrink WINDOW to less than `window_minimum_height' lines.  Do
         !> nothing if the buffer contains more lines than the present window
         !> height, or if some of the window's contents are scrolled out of
         !> view, or if shrinking this window would also shrink another
@@ -1277,15 +1277,15 @@ module window_mod
         !> and at its beginning, displayed with ACTIONS and TABLE.  WINDOW
         !> is the window showing BUFFER; it becomes
         !> `minibuffer_scroll_window'.  Port of
-        !> window.el:temp-buffer-window-show (no `temp_buffer_resize_mode').
-        module subroutine temp_buffer_window_show(buffer, window, status, actions, table)
+        !> window.el:temp-buffer-window-show (no `temporary_buffer_resize_mode').
+        module subroutine temporary_buffer_window_show(buffer, window, status, actions, table)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
             type(handle_type), intent(out) :: window
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
             type(display_action_parameters_type), intent(in), optional :: table
-        end subroutine temp_buffer_window_show
+        end subroutine temporary_buffer_window_show
 
         !> Scroll WINDOW up (DIRECTION 1) or down (-1) by nearly a full
         !> screen, as `scroll_up' and `scroll_down' with no argument do in
@@ -1347,8 +1347,8 @@ module window_mod
 
         !> Return true if `split_window_sensibly' may split WINDOW: one at
         !> least `split_height_threshold' lines high and twice
-        !> `window_min_height' (or 2), or with HORIZONTAL at least
-        !> `split_width_threshold' columns wide and twice `window_min_width'
+        !> `window_minimum_height' (or 2), or with HORIZONTAL at least
+        !> `split_width_threshold' columns wide and twice `window_minimum_width'
         !> (or 2).  THRESHOLD_ZERO stands for `split_height_threshold' bound
         !> to 0.  Port of window.el:window-splittable-p.
         logical module function is_window_splittable(h, horizontal, threshold_zero)
@@ -1407,9 +1407,9 @@ module window_mod
         !> saved.  Free it with `destroy_window_configuration'.  Port of
         !> window.c:Fcurrent_window_configuration (one frame; no persistent
         !> window parameters).
-        module subroutine current_window_configuration(config)
+        module subroutine current_window_configuration(configuration)
             implicit none(type, external)
-            type(window_configuration_type), intent(out) :: config
+            type(window_configuration_type), intent(out) :: configuration
         end subroutine current_window_configuration
 
         !> Set the configuration of windows and buffers as specified by
@@ -1419,25 +1419,25 @@ module window_mod
         !> window.c:restore_window_configuration) with
         !> DONT-SET-FRAME and DONT-SET-MINIWINDOW .true.
         !> (`window_restore_closed_buffer_windows' .false.).
-        module subroutine set_window_configuration(config)
+        module subroutine set_window_configuration(configuration)
             implicit none(type, external)
-            type(window_configuration_type), intent(in) :: config
+            type(window_configuration_type), intent(in) :: configuration
         end subroutine set_window_configuration
 
-        !> Free window configuration CONFIG: its markers, and the deleted
+        !> Free window configuration CONFIGURATION: its markers, and the deleted
         !> windows only it kept.  Not a port (upstream relies on GC).
-        module subroutine destroy_window_configuration(config)
+        module subroutine destroy_window_configuration(configuration)
             implicit none(type, external)
-            type(window_configuration_type), intent(inout) :: config
+            type(window_configuration_type), intent(inout) :: configuration
         end subroutine destroy_window_configuration
 
-        !> Make COPY a window configuration of its own equal to CONFIG: new
+        !> Make COPY a window configuration of its own equal to CONFIGURATION: new
         !> markers for its starts and points, and the windows it keeps
         !> counted once more.  Free it with `destroy_window_configuration'.
         !> Not a port (upstream shares the Lisp object).
-        module subroutine copy_window_configuration(config, copy)
+        module subroutine copy_window_configuration(configuration, copy)
             implicit none(type, external)
-            type(window_configuration_type), intent(in) :: config
+            type(window_configuration_type), intent(in) :: configuration
             type(window_configuration_type), intent(out) :: copy
         end subroutine copy_window_configuration
 
@@ -1523,9 +1523,9 @@ module window_mod
 
         !> Register `quit_window', `bury_buffer', `previous_buffer' and
         !> `next_buffer'.  Not a port.
-        module subroutine init_window_display()
+        module subroutine initialize_window_display()
             implicit none(type, external)
-        end subroutine init_window_display
+        end subroutine initialize_window_display
 
         ! What windows are, in submodule window_info_mod.
 
@@ -1599,12 +1599,12 @@ module window_mod
         !> WINDOW must be a valid window and defaults to the selected one.
         !> Return the null handle if WINDOW has no previous sibling.  Port of
         !> window.c:Fwindow_prev_sibling.
-        module function window_prev_sibling(window, status) result(s)
+        module function window_previous_sibling(window, status) result(s)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window
             type(status_type), intent(out) :: status
             type(handle_type) :: s
-        end function window_prev_sibling
+        end function window_previous_sibling
 
         !> Return the root window of FRAME-OR-WINDOW.
         !> If omitted, FRAME-OR-WINDOW defaults to the currently selected frame.
@@ -1717,7 +1717,7 @@ module window_mod
         !> WINDOW must be a live window and defaults to the selected one.  The
         !> return value does not include the mode line or header line or any
         !> horizontal divider.  Port of window.c:Fwindow_body_height (in
-        !> canonical lines; PIXELWISE waits for the GUI).
+        !> canonical lines; PIXELWISE waits for the GRAPHICAL_USER_INTERFACE).
         module function window_body_height(window, status) result(n)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window
@@ -1730,7 +1730,7 @@ module window_mod
         !> return value does not include any vertical dividers, fringes or
         !> marginal areas, or scroll bars.  Port of
         !> window.c:Fwindow_body_width (in canonical columns; PIXELWISE waits
-        !> for the GUI).
+        !> for the GRAPHICAL_USER_INTERFACE).
         module function window_body_width(window, status) result(n)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window
@@ -1846,15 +1846,15 @@ module window_mod
         !> Return buffers previously shown in WINDOW.
         !> WINDOW must be a live window and defaults to the selected one.
         !> The return value is an array of elements (BUFFER, WINDOW-START,
-        !> POS), where BUFFER is a buffer, WINDOW-START is the start position of
-        !> the window for that buffer, and POS is a window-specific point value.
+        !> POSITION), where BUFFER is a buffer, WINDOW-START is the start position of
+        !> the window for that buffer, and POSITION is a window-specific point value.
         !> Port of window.c:Fwindow_prev_buffers.
-        module function window_prev_buffers(window, status) result(list)
+        module function window_previous_buffers(window, status) result(list)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window
             type(status_type), intent(out) :: status
-            type(prev_buffer_type), allocatable :: list(:)
-        end function window_prev_buffers
+            type(previous_buffer_type), allocatable :: list(:)
+        end function window_previous_buffers
 
         !> Return array of buffers recently re-shown in WINDOW.
         !> WINDOW must be a live window and defaults to the selected one.
@@ -1935,16 +1935,16 @@ module window_mod
         !> corner of the frame.  (0, 0) denotes the character in the upper
         !> left corner of the frame.  If they are in the text portion of
         !> WINDOW, return ON_TEXT and the coordinates relative to the window
-        !> in REL_X and REL_Y.  If they are in the mode line of WINDOW, return
+        !> in RELATIVE_X and RELATIVE_Y.  If they are in the mode line of WINDOW, return
         !> ON_MODE_LINE; in the header line, ON_HEADER_LINE; on the border
         !> between WINDOW and its right sibling, ON_VERTICAL_BORDER (Fortmacs's
         !> `vertical-line'); elsewhere, ON_NOTHING.  Port of
         !> window.c:Fcoordinates_in_window_p (a terminal frame).
-        module function window_part_at(x, y, window, rel_x, rel_y, status) result(part)
+        module function window_part_at(x, y, window, relative_x, relative_y, status) result(part)
             implicit none(type, external)
             integer, intent(in) :: x, y
             type(handle_type), intent(in), optional :: window
-            integer, intent(out) :: rel_x, rel_y
+            integer, intent(out) :: relative_x, relative_y
             type(status_type), intent(out) :: status
             integer :: part
         end function window_part_at
@@ -2112,26 +2112,26 @@ contains
 
     !> Where the display of `w' starts (1 if it shows no buffer).  Port of
     !> window.c:Fwindow_start.
-    integer(int64) function window_start(w) result(pos)
+    integer(int64) function window_start(w) result(position)
         type(window_type), intent(in) :: w
         type(status_type) :: status
 
-        pos = 1
+        position = 1
         if (w%start%index == 0) return
-        call marker_position(w%start, pos, status)
-        if (.not. status%ok()) pos = 1
+        call marker_position(w%start, position, status)
+        if (.not. status%ok()) position = 1
     end function window_start
 
-    !> Make `w' start at `pos'; with `noforce', redisplay may move it to
+    !> Make `w' start at `position'; with `noforce', redisplay may move it to
     !> show point.  Port of window.c:Fset_window_start.
-    subroutine set_window_start(w, pos, status, noforce)
+    subroutine set_window_start(w, position, status, noforce)
         type(window_type), intent(inout) :: w
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noforce
 
         if (w%start%index == 0) call make_marker(w%start)
-        call set_marker(w%start, pos, status, w%buffer)
+        call set_marker(w%start, position, status, w%buffer)
         w%force_start = .true.
         if (present(noforce)) w%force_start = .not. noforce
         w%window_end_valid = .false.
@@ -2140,24 +2140,24 @@ contains
     !> The window's point marker position.  Port of window.c:Fwindow_point
     !> for a non-selected window (the selected window's point is its
     !> buffer's point).
-    integer(int64) function window_point(w) result(pos)
+    integer(int64) function window_point(w) result(position)
         type(window_type), intent(in) :: w
         type(status_type) :: status
 
-        pos = 1
+        position = 1
         if (w%pointm%index == 0) return
-        call marker_position(w%pointm, pos, status)
-        if (.not. status%ok()) pos = 1
+        call marker_position(w%pointm, position, status)
+        if (.not. status%ok()) position = 1
     end function window_point
 
     !> Port of window.c:Fset_window_point (for a non-selected window).
-    subroutine set_window_point(w, pos, status)
+    subroutine set_window_point(w, position, status)
         type(window_type), intent(inout) :: w
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
 
         if (w%pointm%index == 0) call make_marker(w%pointm)
-        call set_marker(w%pointm, pos, status, w%buffer)
+        call set_marker(w%pointm, position, status, w%buffer)
     end subroutine set_window_point
 
     !> Lines for text: the total minus the mode line and the header line.
@@ -2196,17 +2196,17 @@ contains
         if (w%start%index /= 0) call destroy_marker(w%start, status)
         if (w%pointm%index /= 0) call destroy_marker(w%pointm, status)
 
-        if (allocated(w%prev_buffers)) then
-            do k = 1, size(w%prev_buffers)
-                call destroy_previous_buffer(w%prev_buffers(k))
+        if (allocated(w%previous_buffers)) then
+            do k = 1, size(w%previous_buffers)
+                call destroy_previous_buffer(w%previous_buffers(k))
             end do
 
-            deallocate (w%prev_buffers)
+            deallocate (w%previous_buffers)
         end if
 
         if (allocated(w%next_buffers)) deallocate (w%next_buffers)
         call destroy_quit_restore(w%quit_restore)
-        call destroy_quit_restore(w%quit_restore_prev)
+        call destroy_quit_restore(w%quit_restore_previous)
         w%start = null_handle()
         w%pointm = null_handle()
         w%buffer = null_handle()
@@ -2214,12 +2214,12 @@ contains
 
     !> Free the markers of a previous-buffer entry.  Not a port.
     subroutine destroy_previous_buffer(e)
-        type(prev_buffer_type), intent(inout) :: e
+        type(previous_buffer_type), intent(inout) :: e
         type(status_type) :: status
 
         if (e%start%index /= 0) call destroy_marker(e%start, status)
         if (e%point%index /= 0) call destroy_marker(e%point, status)
-        e = prev_buffer_type()
+        e = previous_buffer_type()
     end subroutine destroy_previous_buffer
 
     !> Clear a `quit_restore' parameter (set it to none), freeing its
@@ -2266,7 +2266,7 @@ contains
         if (.not. wtable%is_live(h)) return
         if (windows(h%index)%dead) return
 
-        if (windows(h%index)%config_refs > 0) then
+        if (windows(h%index)%configuration_references > 0) then
             associate (w => windows(h%index))
                 if (w%start%index /= 0) call destroy_marker(w%start, status)
                 if (w%pointm%index /= 0) call destroy_marker(w%pointm, status)
@@ -2276,7 +2276,7 @@ contains
                 w%buffer = null_handle()
                 w%parent = null_handle()
                 w%next = null_handle()
-                w%prev = null_handle()
+                w%previous = null_handle()
                 w%child = null_handle()
                 w%dead = .true.
             end associate
@@ -2291,7 +2291,7 @@ contains
 
     !> Window `h', or a null pointer if it doesn't exist.  Valid until the
     !> next make_window.  Not a port.
-    function window_ref(h) result(w)
+    function window_reference(h) result(w)
         type(handle_type), intent(in) :: h
         type(window_type), pointer :: w
 
@@ -2300,7 +2300,7 @@ contains
         if (wtable%is_live(h)) then
             if (.not. windows(h%index)%dead) w => windows(h%index)
         end if
-    end function window_ref
+    end function window_reference
 
     !> Whether `h' is a valid window (live or internal).  Port of
     !> window.c:Fwindow_valid_p.
@@ -2354,40 +2354,40 @@ contains
 
     !> Columns for text in `w': its width less the vertical border.
     !> Not a port.
-    integer function window_text_cols(w)
+    integer function window_text_columns(w)
         type(window_type), intent(in) :: w
 
-        window_text_cols = w%total_cols
-        if (w%divider) window_text_cols = max(1, w%total_cols - 1)
-    end function window_text_cols
+        window_text_columns = w%total_columns
+        if (w%divider) window_text_columns = max(1, w%total_columns - 1)
+    end function window_text_columns
 
-    !> Give the tree under `h' the place `top', `left', `lines' by `cols'
-    !> on a frame `frame_cols' wide.  Children share the size along their
+    !> Give the tree under `h' the place `top', `left', `lines' by `columns'
+    !> on a frame `frame_columns' wide.  Children share the size along their
     !> combination in proportion to their sizes before (equally if they
     !> had none), the last taking what is left.  Not a port: it sizes new
     !> and restored window trees, and the window commands that resize a
     !> combination (upstream's window--resize-this-window, which frame
     !> size changes use through `window_resize_root_window').
-    recursive subroutine resize_window_tree(h, top, left, lines, cols, frame_cols)
+    recursive subroutine resize_window_tree(h, top, left, lines, columns, frame_columns)
         type(handle_type), intent(in) :: h
-        integer, intent(in) :: top, left, lines, cols, frame_cols
+        integer, intent(in) :: top, left, lines, columns, frame_columns
         type(handle_type) :: c
-        integer :: n, old_total, k, pos, size_k, given, old_k
+        integer :: n, old_total, k, position, size_k, given, old_k
 
         if (.not. wtable%is_live(h)) return
 
         associate (w => windows(h%index))
             if (w%horizontal) then
-                old_total = w%total_cols
+                old_total = w%total_columns
             else
                 old_total = w%total_lines
             end if
 
             w%top_line = top
-            w%left_col = left
+            w%left_column = left
             w%total_lines = lines
-            w%total_cols = cols
-            w%divider = left + cols < frame_cols
+            w%total_columns = columns
+            w%divider = left + columns < frame_columns
             if (w%child%index == 0) return
         end associate
 
@@ -2400,7 +2400,7 @@ contains
             c = windows(c%index)%next
         end do
 
-        pos = 0
+        position = 0
         given = 0
         k = 0
         c = windows(h%index)%child
@@ -2409,16 +2409,16 @@ contains
             k = k + 1
 
             if (windows(h%index)%horizontal) then
-                old_k = windows(c%index)%total_cols
-                size_k = new_size(cols)
-                call resize_window_tree(c, top, left + pos, lines, size_k, frame_cols)
+                old_k = windows(c%index)%total_columns
+                size_k = new_size(columns)
+                call resize_window_tree(c, top, left + position, lines, size_k, frame_columns)
             else
                 old_k = windows(c%index)%total_lines
                 size_k = new_size(lines)
-                call resize_window_tree(c, top + pos, left, size_k, cols, frame_cols)
+                call resize_window_tree(c, top + position, left, size_k, columns, frame_columns)
             end if
 
-            pos = pos + size_k
+            position = position + size_k
             c = windows(c%index)%next
         end do
 
@@ -2449,7 +2449,7 @@ contains
         logical, intent(in) :: horizontal
 
         if (horizontal) then
-            window_size = windows(h%index)%total_cols
+            window_size = windows(h%index)%total_columns
         else
             window_size = windows(h%index)%total_lines
         end if
@@ -2462,7 +2462,7 @@ contains
         logical, intent(in) :: horizontal
 
         if (horizontal) then
-            window_normal_size = windows(h%index)%normal_cols
+            window_normal_size = windows(h%index)%normal_columns
         else
             window_normal_size = windows(h%index)%normal_lines
         end if
@@ -2507,23 +2507,23 @@ contains
     !> return the minimum value in the range DELTA..0 by which WINDOW
     !> can be shrunk.
     !>
-    !> IGNORE true means ignore `window_min_height' and
-    !> `window_min_width'.  Port of window.el:window-sizable (no
+    !> IGNORE true means ignore `window_minimum_height' and
+    !> `window_minimum_width'.  Port of window.el:window-sizable (no
     !> fixed-size windows: `window_size_fixed' is not ported).
     integer function window_sizable(h, delta, horizontal, ignore)
         type(handle_type), intent(in) :: h
         integer, intent(in) :: delta
         logical, intent(in) :: horizontal, ignore
-        integer :: min_size, size
+        integer :: minimum_size, size
 
         if (delta < 0) then
-            min_size = window_min_size(h, horizontal, ignore)
+            minimum_size = window_minimum_size(h, horizontal, ignore)
             size = window_size(h, horizontal)
 
-            if (size <= min_size) then
+            if (size <= minimum_size) then
                 window_sizable = 0
             else
-                window_sizable = max(min_size - size, delta)
+                window_sizable = max(minimum_size - size, delta)
             end if
         else
             window_sizable = delta
@@ -2549,35 +2549,35 @@ contains
     !> Return zero if WINDOW cannot be shrunk.
     !>
     !> HORIZONTAL true means return number of columns by which WINDOW
-    !> can be shrunk.  IGNORE true means ignore `window_min_height' and
-    !> `window_min_width'.
+    !> can be shrunk.  IGNORE true means ignore `window_minimum_height' and
+    !> `window_minimum_width'.
     !>
     !> NOUP true means don't go up in the window tree, but try to
     !> enlarge windows within WINDOW's combination only.  Port of
     !> window.el:window-min-delta (TRAIL and NODOWN are not ported: the
     !> frame resizing routines don't use them).
-    integer function window_min_delta(h, horizontal, ignore, noup)
+    integer function window_minimum_delta(h, horizontal, ignore, noup)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: horizontal, ignore, noup
         integer :: size, minimum
 
         size = window_size(h, horizontal)
-        minimum = window_min_size(h, horizontal, ignore)
+        minimum = window_minimum_size(h, horizontal, ignore)
 
         if (size <= minimum) then
             ! WINDOW's size is already at its minimum: there's nothing to
             ! recover.
-            window_min_delta = 0
+            window_minimum_delta = 0
         else
             ! Try to recover whatever WINDOW is larger than its minimum
             ! size.
-            window_min_delta = window_min_delta_1(h, size - minimum, horizontal, ignore, noup)
+            window_minimum_delta = window_minimum_delta_1(h, size - minimum, horizontal, ignore, noup)
         end if
-    end function window_min_delta
+    end function window_minimum_delta
 
-    !> Internal function for `window_min_delta'.  Port of
+    !> Internal function for `window_minimum_delta'.  Port of
     !> window.el:window--min-delta-1 (no TRAIL, no fixed-size windows).
-    recursive integer function window_min_delta_1(h, delta_in, horizontal, ignore, noup) result(delta)
+    recursive integer function window_minimum_delta_1(h, delta_in, horizontal, ignore, noup) result(delta)
         type(handle_type), intent(in) :: h
         integer, intent(in) :: delta_in
         logical, intent(in) :: horizontal, ignore, noup
@@ -2606,21 +2606,21 @@ contains
             ! which other child windows can shrink.
             do while (wtable%is_live(sub))
                 if (.not. same_window(sub, h)) then
-                    delta = min(delta, max(window_size(sub, horizontal) - window_min_size(sub, horizontal, ignore), 0))
+                    delta = min(delta, max(window_size(sub, horizontal) - window_minimum_size(sub, horizontal, ignore), 0))
                 end if
 
                 sub = windows(sub%index)%next
             end do
         end if
 
-        if (.not. noup) delta = window_min_delta_1(parent, delta, horizontal, ignore, .false.)
-    end function window_min_delta_1
+        if (.not. noup) delta = window_minimum_delta_1(parent, delta, horizontal, ignore, .false.)
+    end function window_minimum_delta_1
 
     !> Resize WINDOW vertically by DELTA lines.
     !> HORIZONTAL true means resize WINDOW horizontally by DELTA columns.
     !>
-    !> IGNORE true means ignore `window_min_height' and
-    !> `window_min_width'.  ADD true means add DELTA to the new total
+    !> IGNORE true means ignore `window_minimum_height' and
+    !> `window_minimum_width'.  ADD true means add DELTA to the new total
     !> size of WINDOW.
     !>
     !> This function recursively resizes WINDOW's child windows to fit
@@ -2662,7 +2662,7 @@ contains
     !> HORIZONTAL true means resize child windows of PARENT horizontally
     !> by DELTA columns.  In this case PARENT must be a horizontally
     !> combined internal window.  IGNORE true means ignore
-    !> `window_min_height' and `window_min_width'.
+    !> `window_minimum_height' and `window_minimum_width'.
     !>
     !> The children are resized one line (column) at a time: when
     !> shrinking, the one whose size is largest relative to its normal
@@ -2680,7 +2680,7 @@ contains
         ! or no line left to give (`skip').
         integer, parameter :: NEW_NORMAL_NONE = 0, NEW_NORMAL_SHRINK = 1, NEW_NORMAL_GROW = 2, NEW_NORMAL_SKIP = 3
         type(handle_type), allocatable :: subs(:)
-        integer, allocatable :: state(:), min_delta(:)
+        integer, allocatable :: state(:), minimum_delta(:)
         real(real64), allocatable :: factor(:)
         type(handle_type) :: sub
         integer :: n, i, delta, parent_total, best_window, best_delta, sub_delta
@@ -2697,9 +2697,9 @@ contains
             sub = windows(sub%index)%next
         end do
 
-        allocate (subs(n), state(n), min_delta(n), factor(n))
+        allocate (subs(n), state(n), minimum_delta(n), factor(n))
         state = NEW_NORMAL_NONE
-        min_delta = 0
+        minimum_delta = 0
         factor = 0.0_real64
         sub = windows(parent%index)%child
 
@@ -2715,7 +2715,7 @@ contains
                 ! from this window here together with the total/normal size
                 ! factor.
                 state(i) = NEW_NORMAL_SHRINK
-                min_delta(i) = window_min_delta(subs(i), horizontal, ignore, .true.)
+                minimum_delta(i) = window_minimum_delta(subs(i), horizontal, ignore, .true.)
                 factor(i) = real(window_size(subs(i), horizontal), real64)/parent_total &
                             - window_normal_size(subs(i), horizontal)
             else if (delta > 0) then
@@ -2737,7 +2737,7 @@ contains
                 has_best = .false.
 
                 do i = n, 1, -1
-                    if (state(i) == NEW_NORMAL_SHRINK .and. min_delta(i) > 0) then
+                    if (state(i) == NEW_NORMAL_SHRINK .and. minimum_delta(i) > 0) then
                         if (.not. has_best) then
                             has_best = .true.
                             best_window = i
@@ -2749,15 +2749,15 @@ contains
 
                 if (has_best) then
                     i = best_window
-                    best_delta = min(min_delta(i), 1, -delta)
+                    best_delta = min(minimum_delta(i), 1, -delta)
                     delta = delta + best_delta
                     windows(subs(i)%index)%new_total = windows(subs(i)%index)%new_total - best_delta
 
-                    if (min_delta(i) == best_delta) then
+                    if (minimum_delta(i) == best_delta) then
                         ! We can't shrink best-window any further.
                         state(i) = NEW_NORMAL_SKIP
                     else
-                        min_delta(i) = min_delta(i) - best_delta
+                        minimum_delta(i) = minimum_delta(i) - best_delta
                         factor(i) = real(windows(subs(i)%index)%new_total, real64)/parent_total &
                                     - window_normal_size(subs(i), horizontal)
                     end if
@@ -2807,7 +2807,7 @@ contains
     !> DELTA columns.
     !>
     !> IGNORE true means ignore any restrictions imposed by
-    !> `window_min_height' or `window_min_width' settings.
+    !> `window_minimum_height' or `window_minimum_width' settings.
     !>
     !> This function is only called by the frame resizing routines.  It
     !> resizes windows proportionally and never deletes any windows.
@@ -2831,8 +2831,8 @@ contains
     !> to its new total size would result in correct heights (widths) for
     !> window W and recursively all child windows of W.
     !>
-    !> Note: This function does not check any of `window_min_height' or
-    !> `window_min_width'.  It does check that window sizes do not drop
+    !> Note: This function does not check any of `window_minimum_height' or
+    !> `window_minimum_width'.  It does check that window sizes do not drop
     !> below one line (two columns).  Port of window.c:window_resize_check
     !> (in lines and columns).
     recursive logical function window_resize_check(h, horizontal) result(ok)
@@ -2847,9 +2847,9 @@ contains
         if (.not. wtable%is_live(c)) then
             ! A leaf window.  Make sure it's not too small.
             if (horizontal) then
-                ok = windows(h%index)%new_total >= window_safe_min_width
+                ok = windows(h%index)%new_total >= window_safe_minimum_width
             else
-                ok = windows(h%index)%new_total >= window_safe_min_height
+                ok = windows(h%index)%new_total >= window_safe_minimum_height
             end if
         else if (windows(h%index)%horizontal .eqv. horizontal) then
             ! The sum of the sizes of the child windows of W must equal
@@ -2880,25 +2880,25 @@ contains
     !> total size for window W and recursively all child windows of W.
     !> Also calculate and assign the new vertical (horizontal) start
     !> positions of each of these windows, and whether each ends before
-    !> the right edge of a frame FRAME_COLS wide (`divider').
+    !> the right edge of a frame FRAME_COLUMNS wide (`divider').
     !>
     !> This function does not perform any error checks.  Make sure you
     !> have run `window_resize_check' on W before applying this function.
     !> Port of window.c:window_resize_apply (in lines and columns; the
     !> frame resizing routines leave no new normal size to assign, and
     !> FRAME_WINDOW_CHANGE is not ported).
-    recursive subroutine window_resize_apply(h, horizontal, frame_cols)
+    recursive subroutine window_resize_apply(h, horizontal, frame_columns)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: horizontal
-        integer, intent(in) :: frame_cols
+        integer, intent(in) :: frame_columns
         type(handle_type) :: c
         integer :: edge
 
         associate (w => windows(h%index))
             if (horizontal) then
-                w%total_cols = w%new_total
-                w%divider = w%left_col + w%total_cols < frame_cols
-                edge = w%left_col
+                w%total_columns = w%new_total
+                w%divider = w%left_column + w%total_columns < frame_columns
+                edge = w%left_column
             else
                 w%total_lines = w%new_total
                 edge = w%top_line
@@ -2914,16 +2914,16 @@ contains
 
         do while (wtable%is_live(c))
             if (horizontal) then
-                windows(c%index)%left_col = edge
+                windows(c%index)%left_column = edge
             else
                 windows(c%index)%top_line = edge
             end if
 
-            call window_resize_apply(c, horizontal, frame_cols)
+            call window_resize_apply(c, horizontal, frame_columns)
 
             if (windows(h%index)%horizontal .eqv. horizontal) then
                 if (horizontal) then
-                    edge = edge + windows(c%index)%total_cols
+                    edge = edge + windows(c%index)%total_columns
                 else
                     edge = edge + windows(c%index)%total_lines
                 end if
@@ -2958,27 +2958,27 @@ contains
         associate (o => windows(old%index), n => windows(new%index))
             n%parent = o%parent
             n%next = o%next
-            n%prev = o%prev
+            n%previous = o%previous
             n%top_line = o%top_line
-            n%left_col = o%left_col
+            n%left_column = o%left_column
             n%total_lines = o%total_lines
-            n%total_cols = o%total_cols
+            n%total_columns = o%total_columns
             n%divider = o%divider
-            n%normal_cols = o%normal_cols
-            o%normal_cols = 1.0_real64
+            n%normal_columns = o%normal_columns
+            o%normal_columns = 1.0_real64
             n%normal_lines = o%normal_lines
             o%normal_lines = 1.0_real64
-            if (wtable%is_live(o%next)) windows(o%next%index)%prev = new
+            if (wtable%is_live(o%next)) windows(o%next%index)%previous = new
 
-            if (wtable%is_live(o%prev)) then
-                windows(o%prev%index)%next = new
+            if (wtable%is_live(o%previous)) then
+                windows(o%previous%index)%next = new
             else if (wtable%is_live(o%parent)) then
                 windows(o%parent%index)%child = new
             end if
 
             o%parent = null_handle()
             o%next = null_handle()
-            o%prev = null_handle()
+            o%previous = null_handle()
         end associate
     end subroutine replace_window
 
@@ -3063,8 +3063,8 @@ contains
             n%parent = parent
 
             if (above) then
-                prv = o%prev
-                n%prev = prv
+                prv = o%previous
+                n%previous = prv
 
                 if (wtable%is_live(prv)) then
                     windows(prv%index)%next = new
@@ -3073,19 +3073,19 @@ contains
                 end if
 
                 n%next = old
-                o%prev = new
+                o%previous = new
             else
                 nxt = o%next
                 n%next = nxt
-                n%prev = old
+                n%previous = old
                 o%next = new
-                if (wtable%is_live(nxt)) windows(nxt%index)%prev = new
+                if (wtable%is_live(nxt)) windows(nxt%index)%previous = new
             end if
 
             n%top_line = o%top_line
-            n%left_col = o%left_col
+            n%left_column = o%left_column
             n%total_lines = o%total_lines
-            n%total_cols = o%total_cols
+            n%total_columns = o%total_columns
             n%divider = o%divider
         end associate
 
@@ -3102,31 +3102,31 @@ contains
             end do
 
             if (horizontal) then
-                windows(new%index)%new_total = windows(parent%index)%total_cols - taken
+                windows(new%index)%new_total = windows(parent%index)%total_columns - taken
             else
                 windows(new%index)%new_total = windows(parent%index)%total_lines - taken
             end if
 
             associate (rw => windows(root%index))
-                call window_resize_apply(parent, horizontal, rw%left_col + rw%total_cols)
+                call window_resize_apply(parent, horizontal, rw%left_column + rw%total_columns)
             end associate
         else
             associate (o => windows(old%index), n => windows(new%index))
                 if (horizontal) then
-                    old_size = o%total_cols - new_size
-                    o%total_cols = old_size
-                    n%total_cols = new_size
+                    old_size = o%total_columns - new_size
+                    o%total_columns = old_size
+                    n%total_columns = new_size
 
                     if (above) then
-                        o%left_col = n%left_col + new_size
+                        o%left_column = n%left_column + new_size
                         n%divider = .true.
                     else
-                        n%left_col = o%left_col + old_size
+                        n%left_column = o%left_column + old_size
                         o%divider = .true.
                     end if
 
-                    o%normal_cols = old_normal - new_normal
-                    n%normal_cols = new_normal
+                    o%normal_columns = old_normal - new_normal
+                    n%normal_columns = new_normal
                 else
                     old_size = o%total_lines - new_size
                     o%total_lines = old_size
@@ -3155,57 +3155,57 @@ contains
     !> as needed.  `heir' is the sibling that got the space; `h' itself is
     !> not freed.  Port of window.c:Fdelete_window_internal, in part (the
     !> tree part).
-    subroutine remove_window_from_tree(h, root, heir, frame_cols)
+    subroutine remove_window_from_tree(h, root, heir, frame_columns)
         type(handle_type), intent(in) :: h
         type(handle_type), intent(inout) :: root
         type(handle_type), intent(out) :: heir
-        integer, intent(in) :: frame_cols
+        integer, intent(in) :: frame_columns
         type(handle_type) :: parent, only
-        integer :: top, left, lines, cols
+        integer :: top, left, lines, columns
 
         heir = null_handle()
         parent = windows(h%index)%parent
         if (.not. wtable%is_live(parent)) return
 
         associate (w => windows(h%index))
-            if (wtable%is_live(w%prev)) then
-                heir = w%prev
+            if (wtable%is_live(w%previous)) then
+                heir = w%previous
             else
                 heir = w%next
             end if
 
             ! Unlink.
-            if (wtable%is_live(w%prev)) then
-                windows(w%prev%index)%next = w%next
+            if (wtable%is_live(w%previous)) then
+                windows(w%previous%index)%next = w%next
             else
                 windows(parent%index)%child = w%next
             end if
 
-            if (wtable%is_live(w%next)) windows(w%next%index)%prev = w%prev
+            if (wtable%is_live(w%next)) windows(w%next%index)%previous = w%previous
 
             ! The heir grows over the space, and takes its normal size
             ! (window.el:delete-window).
             associate (e => windows(heir%index))
                 top = min(e%top_line, w%top_line)
-                left = min(e%left_col, w%left_col)
+                left = min(e%left_column, w%left_column)
 
                 if (windows(parent%index)%horizontal) then
                     lines = e%total_lines
-                    cols = e%total_cols + w%total_cols
-                    e%normal_cols = e%normal_cols + w%normal_cols
+                    columns = e%total_columns + w%total_columns
+                    e%normal_columns = e%normal_columns + w%normal_columns
                 else
                     lines = e%total_lines + w%total_lines
-                    cols = e%total_cols
+                    columns = e%total_columns
                     e%normal_lines = e%normal_lines + w%normal_lines
                 end if
             end associate
 
             w%parent = null_handle()
             w%next = null_handle()
-            w%prev = null_handle()
+            w%previous = null_handle()
         end associate
 
-        call resize_window_tree(heir, top, left, lines, cols, frame_cols)
+        call resize_window_tree(heir, top, left, lines, columns, frame_columns)
         ! A combination of one is no combination.
         only = windows(parent%index)%child
 

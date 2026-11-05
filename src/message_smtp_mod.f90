@@ -68,17 +68,17 @@ contains
                 continue
             case ("starttls", "tls")
                 ! TLS is not available (smtpmail_mod: no GnuTLS).
-                call set_error(status, FM_GENERIC_ERROR, "Unable to negotiate a TLS connection with "// &
+                call set_error(status, GENERIC_ERROR_CODE, "Unable to negotiate a TLS connection with "// &
                                word(words, 2)//"/"//word(words, 3))
                 return
             case default
-                call set_error(status, FM_USER_ERROR, "Invalid stream type: "//stream_type)
+                call set_error(status, USER_ERROR_CODE, "Invalid stream type: "//stream_type)
                 return
             end select
         else if (port == 465) then
             ! If the user didn't say anything and we're talking to the TLS
             ! SMTP port, then force a TLS connection.
-            call set_error(status, FM_GENERIC_ERROR, "Unable to negotiate a TLS connection with "// &
+            call set_error(status, GENERIC_ERROR_CODE, "Unable to negotiate a TLS connection with "// &
                            word(words, 2)//"/"//word(words, 3))
             return
         end if
@@ -132,9 +132,9 @@ contains
         call send_message_mail_with_sendmail(status)
     case ("qmail", "mh", "mailclient")
         ! message-send-mail-with-qmail, -mh and -mailclient are not ported.
-        call set_error(status, FM_VOID_FUNCTION, "send_message_mail_with_"//words(1)%text)
+        call set_error(status, VOID_FUNCTION_CODE, "send_message_mail_with_"//words(1)%text)
     case default
-        call set_error(status, FM_GENERIC_ERROR, "Unknown mail method "//method_list(words))
+        call set_error(status, GENERIC_ERROR_CODE, "Unknown mail method "//method_list(words))
     end select
 
 contains

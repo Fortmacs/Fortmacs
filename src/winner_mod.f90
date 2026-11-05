@@ -30,12 +30,12 @@
 !> (`winner-ring-alist', `winner-currents', `winner-modified-list',
 !> `winner-last-frames') are one ring and one configuration here.  The
 !> ring (ring.el's ring of Lisp objects) is an array of configurations,
-!> the newest first, as `ring_ref' counts them.  The keys of
+!> the newest first, as `ring_reference' counts them.  The keys of
 !> `winner_mode_map' are bound the first time Winner mode runs, as loading
 !> winner.el binds them.  Deferred: see docs/status/winner_mod.md.
 module winner_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use execute_interactively_mod, only: command_type, this_command
     use keyboard_mod, only: last_command, post_command_hook
@@ -44,7 +44,7 @@ module winner_mod
     use modes_mod, only: minor_modes
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, resolve_buffer
     use marker_mod, only: set_marker_restricted, make_marker
-    use editing_functions_mod, only: goto_char, mark_position
+    use editing_functions_mod, only: goto_character, mark_position
     use simple_mod, only: is_region_active, set_mark, activate_mark, deactivate_mark
     use search_mod, only: string_match
     use keymap_mod, only: make_sparse_keymap, is_keymap_live, destroy_keymap, keymap_set, set_repeat_map
@@ -59,7 +59,7 @@ module winner_mod
     implicit none(type, external)
     private
 
-    public :: winner_mode, undo_window_change, redo_window_change, init_winner
+    public :: winner_mode, undo_window_change, redo_window_change, initialize_winner
 
     !> True means do not bind default keys in Winner mode.  Port of
     !> winner.el winner-dont-bind-my-keys (read the first time Winner mode
@@ -78,7 +78,7 @@ module winner_mod
 
     !> `undo_window_change' will not restore windows with buffers matching this regexp.
     !> Port of winner.el winner-boring-buffers-regexp (unallocated for not set).
-    character(len=:), allocatable, public :: winner_boring_buffers_regexp
+    character(len=:), allocatable, public :: winner_boring_buffers_regular_expression
 
     !> Functions to run whenever Winner mode is turned on or off.  Port of
     !> winner.el winner-mode-hook.
@@ -106,13 +106,13 @@ module winner_mod
 
     !> A Winner configuration (winner.el winner-conf): the window
     !> configuration and its data.
-    type :: winner_conf_type
-        type(window_configuration_type) :: config
+    type :: winner_configuration_type
+        type(window_configuration_type) :: configuration
         type(winner_data_type) :: data
     contains
         !> Free the configuration.
-        procedure :: destroy => destroy_winner_conf
-    end type winner_conf_type
+        procedure :: destroy => destroy_winner_configuration
+    end type winner_configuration_type
 
     !> What `make_winner_point_alist' recorded of a buffer shown in a
     !> window (an element of winner.el winner-point-alist): its mark (0
@@ -127,12 +127,12 @@ module winner_mod
     end type winner_point_type
 
     !> The current configuration of the frame (winner.el winner-currents).
-    type(winner_conf_type) :: winner_currents
+    type(winner_configuration_type) :: winner_currents
     logical :: has_currents = .false.
 
     !> The frame's ring of configurations, the newest first, made with
     !> `winner_ring_capacity' elements (winner.el winner-ring-alist).
-    type(winner_conf_type), allocatable :: winner_ring_confs(:)
+    type(winner_configuration_type), allocatable :: winner_ring_configurations(:)
     integer :: winner_ring_capacity = 0
     logical :: has_ring = .false.
 
@@ -175,38 +175,38 @@ contains
     end function is_same_command
 
     !> Free Winner configuration SELF.  Not a port.
-    subroutine destroy_winner_conf(self)
-        class(winner_conf_type), intent(inout) :: self
+    subroutine destroy_winner_configuration(self)
+        class(winner_configuration_type), intent(inout) :: self
 
-        call destroy_window_configuration(self%config)
+        call destroy_window_configuration(self%configuration)
         if (allocated(self%data%windows)) deallocate (self%data%windows)
-    end subroutine destroy_winner_conf
+    end subroutine destroy_winner_configuration
 
-    !> Make COPY a Winner configuration of its own equal to CONF.
+    !> Make COPY a Winner configuration of its own equal to CONFIGURATION.
     !> Not a port.
-    subroutine copy_winner_conf(conf, copy)
-        type(winner_conf_type), intent(in) :: conf
-        type(winner_conf_type), intent(out) :: copy
+    subroutine copy_winner_configuration(configuration, copy)
+        type(winner_configuration_type), intent(in) :: configuration
+        type(winner_configuration_type), intent(out) :: copy
 
-        call copy_window_configuration(conf%config, copy%config)
-        copy%data = conf%data
-    end subroutine copy_winner_conf
+        call copy_window_configuration(configuration%configuration, copy%configuration)
+        copy%data = configuration%data
+    end subroutine copy_winner_configuration
 
     !> Move Winner configuration FROM into TO (FROM is left empty).
     !> Not a port.
-    subroutine move_winner_conf(from, to)
-        type(winner_conf_type), intent(inout) :: from
-        type(winner_conf_type), intent(out) :: to
+    subroutine move_winner_configuration(from, to)
+        type(winner_configuration_type), intent(inout) :: from
+        type(winner_configuration_type), intent(out) :: to
 
-        call move_alloc(from%config%saved, to%config%saved)
-        to%config%root_window = from%config%root_window
-        to%config%current_window = from%config%current_window
-        to%config%current_buffer = from%config%current_buffer
-        to%config%minibuf_scroll_window = from%config%minibuf_scroll_window
-        to%config%frame_cols = from%config%frame_cols
-        to%config%frame_lines = from%config%frame_lines
+        call move_alloc(from%configuration%saved, to%configuration%saved)
+        to%configuration%root_window = from%configuration%root_window
+        to%configuration%current_window = from%configuration%current_window
+        to%configuration%current_buffer = from%configuration%current_buffer
+        to%configuration%minibuf_scroll_window = from%configuration%minibuf_scroll_window
+        to%configuration%frame_columns = from%configuration%frame_columns
+        to%configuration%frame_lines = from%configuration%frame_lines
         call move_alloc(from%data%windows, to%data%windows)
-    end subroutine move_winner_conf
+    end subroutine move_winner_configuration
 
     ! ------------------------------------------------------------------
     ! Saving old configurations (internal variables and subroutines)
@@ -219,7 +219,7 @@ contains
         integer :: edges(4)
 
         associate (w => windows(h%index))
-            edges = [w%left_col, w%top_line, w%left_col + w%total_cols, w%top_line + w%total_lines]
+            edges = [w%left_column, w%top_line, w%left_column + w%total_columns, w%top_line + w%total_lines]
         end associate
     end function window_edges
 
@@ -266,7 +266,7 @@ contains
 
     !> Essential properties of the windows in the selected frame: their
     !> edges and buffers.  Port of winner.el:winner-win-data.
-    subroutine winner_win_data(data)
+    subroutine winner_window_data(data)
         type(winner_data_type), intent(out) :: data
         type(handle_type), allocatable :: list(:)
         integer :: k
@@ -278,103 +278,103 @@ contains
             data%windows(k)%edges = window_edges(list(k))
             data%windows(k)%buffer = windows(list(k)%index)%buffer
         end do
-    end subroutine winner_win_data
+    end subroutine winner_window_data
 
     !> The current Winner configuration.  Port of winner.el:winner-conf.
-    subroutine winner_conf(conf)
-        type(winner_conf_type), intent(out) :: conf
+    subroutine winner_current_configuration(configuration)
+        type(winner_configuration_type), intent(out) :: configuration
 
-        call current_window_configuration(conf%config)
-        call winner_win_data(conf%data)
-    end subroutine winner_conf
+        call current_window_configuration(configuration%configuration)
+        call winner_window_data(configuration%data)
+    end subroutine winner_current_configuration
 
     !> Remember the frame's configuration.  Port of
     !> winner.el:winner-remember.
     subroutine winner_remember()
         if (has_currents) call winner_currents%destroy()
-        call winner_conf(winner_currents)
+        call winner_current_configuration(winner_currents)
         has_currents = .true.
     end subroutine winner_remember
 
     !> A copy of the frame's remembered configuration, or else its current
     !> one.  Port of winner.el:winner-configuration.
-    subroutine winner_configuration(conf)
-        type(winner_conf_type), intent(out) :: conf
+    subroutine winner_configuration(configuration)
+        type(winner_configuration_type), intent(out) :: configuration
 
         if (has_currents) then
-            call copy_winner_conf(winner_currents, conf)
+            call copy_winner_configuration(winner_currents, configuration)
         else
-            call winner_conf(conf)
+            call winner_current_configuration(configuration)
         end if
     end subroutine winner_configuration
 
     !> Make the frame's ring if it has none, with the frame's
     !> configuration in it.  Port of winner.el:winner-ring.
     subroutine winner_ring()
-        type(winner_conf_type) :: conf
+        type(winner_configuration_type) :: configuration
 
         if (has_ring) return
         winner_ring_capacity = winner_ring_size
-        allocate (winner_ring_confs(0))
+        allocate (winner_ring_configurations(0))
         has_ring = .true.
-        call winner_configuration(conf)
-        call ring_insert(conf)
+        call winner_configuration(configuration)
+        call ring_insert(configuration)
     end subroutine winner_ring
 
-    !> Insert CONF at the front of the ring (moving it there); the oldest
+    !> Insert CONFIGURATION at the front of the ring (moving it there); the oldest
     !> element goes when the ring is full.  Port of ring.el:ring-insert.
-    subroutine ring_insert(conf)
-        type(winner_conf_type), intent(inout) :: conf
-        type(winner_conf_type), allocatable :: grown(:)
+    subroutine ring_insert(configuration)
+        type(winner_configuration_type), intent(inout) :: configuration
+        type(winner_configuration_type), allocatable :: grown(:)
         integer :: n, k
 
-        n = size(winner_ring_confs)
+        n = size(winner_ring_configurations)
 
         if (winner_ring_capacity <= 0) then
-            call conf%destroy()
+            call configuration%destroy()
             return
         end if
 
         if (n == winner_ring_capacity) then
-            call winner_ring_confs(n)%destroy()
+            call winner_ring_configurations(n)%destroy()
             n = n - 1
         end if
 
         allocate (grown(n + 1))
-        call move_winner_conf(conf, grown(1))
+        call move_winner_configuration(configuration, grown(1))
 
         do k = 1, n
-            call move_winner_conf(winner_ring_confs(k), grown(k + 1))
+            call move_winner_configuration(winner_ring_configurations(k), grown(k + 1))
         end do
 
-        call move_alloc(grown, winner_ring_confs)
+        call move_alloc(grown, winner_ring_configurations)
     end subroutine ring_insert
 
-    !> Take element INDEX (0 the newest) out of the ring into CONF.
+    !> Take element INDEX (0 the newest) out of the ring into CONFIGURATION.
     !> Port of ring.el:ring-remove.
-    subroutine ring_remove(index, conf)
+    subroutine ring_remove(index, configuration)
         integer, intent(in) :: index
-        type(winner_conf_type), intent(out) :: conf
-        type(winner_conf_type), allocatable :: shrunk(:)
+        type(winner_configuration_type), intent(out) :: configuration
+        type(winner_configuration_type), allocatable :: shrunk(:)
         integer :: n, k
 
-        n = size(winner_ring_confs)
-        call move_winner_conf(winner_ring_confs(index + 1), conf)
+        n = size(winner_ring_configurations)
+        call move_winner_configuration(winner_ring_configurations(index + 1), configuration)
         allocate (shrunk(n - 1))
 
         do k = 1, index
-            call move_winner_conf(winner_ring_confs(k), shrunk(k))
+            call move_winner_configuration(winner_ring_configurations(k), shrunk(k))
         end do
 
         do k = index + 2, n
-            call move_winner_conf(winner_ring_confs(k), shrunk(k - 1))
+            call move_winner_configuration(winner_ring_configurations(k), shrunk(k - 1))
         end do
 
-        call move_alloc(shrunk, winner_ring_confs)
+        call move_alloc(shrunk, winner_ring_configurations)
     end subroutine ring_remove
 
     !> Return true if two Winner configurations (as produced by
-    !> `winner_conf') are equal.  Port of winner.el:winner-equal.
+    !> `winner_current_configuration') are equal.  Port of winner.el:winner-equal.
     pure logical function is_winner_equal(a, b)
         type(winner_data_type), intent(in) :: a, b
         integer :: k
@@ -396,34 +396,34 @@ contains
     !> previous configuration was very similar, keep only the latest.
     !> Port of winner.el:winner-insert-if-new.
     subroutine insert_winner_if_new()
-        type(winner_conf_type) :: conf, old
+        type(winner_configuration_type) :: configuration, old
         type(command_type), pointer :: redo
 
         redo => commands%redo_window_change
         if (winner_last_frame_saved .or. is_same_command(this_command, redo)) return
-        call winner_configuration(conf)
+        call winner_configuration(configuration)
         call winner_ring()
 
-        if (size(winner_ring_confs) > 0) then
-            if (is_winner_equal(conf%data, winner_ring_confs(1)%data)) then
+        if (size(winner_ring_configurations) > 0) then
+            if (is_winner_equal(configuration%data, winner_ring_configurations(1)%data)) then
                 call ring_remove(0, old)
                 call old%destroy()
             end if
         end if
 
-        call ring_insert(conf)
+        call ring_insert(configuration)
         winner_last_frame_saved = .true.
     end subroutine insert_winner_if_new
 
     !> Note that the frame's window configuration changed (on
     !> `window_configuration_change_hook').  Port of
     !> winner.el:winner-change-fun.
-    recursive subroutine winner_change_fun(status)
+    recursive subroutine winner_change_function(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         if (minibuf_level == 0) winner_modified = .true.
-    end subroutine winner_change_fun
+    end subroutine winner_change_function
 
     !> Save the configuration of a changed frame (on `post_command_hook').
     !> Port of winner.el:winner-save-old-configurations.
@@ -476,7 +476,7 @@ contains
     !> keeps its buffer and point, as `set_window_configuration' leaves
     !> them, and its height, which nothing changes: resizing the minibuffer
     !> window is Deferred).
-    subroutine set_winner_conf(winconf, status)
+    subroutine set_winner_configuration(winconf, status)
         type(window_configuration_type), intent(in) :: winconf
         type(status_type), intent(out) :: status
         type(handle_type) :: chosen
@@ -490,11 +490,11 @@ contains
         else if (selected_frame%minibuffer_selected) then
             call other_window(1_int64, status)
         end if
-    end subroutine set_winner_conf
+    end subroutine set_winner_configuration
 
     !> The point of window H: its buffer's point if it is the selected
     !> window.  Port of window.c:Fwindow_point.
-    integer(int64) function point_of_window(h) result(pos)
+    integer(int64) function point_of_window(h) result(position)
         type(handle_type), intent(in) :: h
         integer(int64) :: bi
         type(status_type) :: status
@@ -503,26 +503,26 @@ contains
             call resolve_buffer(windows(h%index)%buffer, bi, status)
 
             if (status%ok()) then
-                pos = buffers(bi)%pt
+                position = buffers(bi)%point
                 return
             end if
         end if
 
-        pos = window_point(windows(h%index))
+        position = window_point(windows(h%index))
     end function point_of_window
 
-    !> Make POS the point of window H.  Port of window.c:Fset_window_point.
-    subroutine set_point_of_window(h, pos)
+    !> Make POSITION the point of window H.  Port of window.c:Fset_window_point.
+    subroutine set_point_of_window(h, position)
         type(handle_type), intent(in) :: h
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(status_type) :: status
 
         if (same_window(h, selected_frame%selected_window) .and. &
             same_handle(windows(h%index)%buffer, current_buffer())) then
-            call goto_char(pos)
+            call goto_character(position)
         else
             if (windows(h%index)%pointm%index == 0) call make_marker(windows(h%index)%pointm)
-            call set_marker_restricted(windows(h%index)%pointm, pos, status, windows(h%index)%buffer)
+            call set_marker_restricted(windows(h%index)%pointm, position, status, windows(h%index)%buffer)
         end if
     end subroutine set_point_of_window
 
@@ -586,19 +586,19 @@ contains
         if (is_buffer_live(old)) call set_buffer(old, status)
     end subroutine make_winner_point_alist
 
-    !> The point to restore for window WIN (the null handle for none)
+    !> The point to restore for window WINDOW (the null handle for none)
     !> showing BUFFER, consulting (and possibly extending)
     !> `winner_point_alist'; FOUND is false if BUFFER no longer exists.
     !> Port of winner.el:winner-get-point.
-    subroutine get_winner_point(buffer, win, pos, found)
-        type(handle_type), intent(in) :: buffer, win
-        integer(int64), intent(out) :: pos
+    subroutine get_winner_point(buffer, window, position, found)
+        type(handle_type), intent(in) :: buffer, window
+        integer(int64), intent(out) :: position
         logical, intent(out) :: found
         type(handle_type) :: old
         type(status_type) :: status
         integer :: e, k
 
-        pos = 0
+        position = 0
         found = is_buffer_live(buffer)
         if (.not. found) return
         old = current_buffer()
@@ -607,32 +607,32 @@ contains
         if (e > 0) then
             associate (entry => winner_point_alist(e))
                 do k = 1, size(entry%windows)
-                    if (same_window(entry%windows(k), win)) then
-                        pos = entry%points(k)
+                    if (same_window(entry%windows(k), window)) then
+                        position = entry%points(k)
                         return
                     end if
                 end do
 
                 do k = 1, size(entry%windows)
                     if (entry%windows(k)%index == 0) then
-                        pos = entry%points(k)
+                        position = entry%points(k)
                         return
                     end if
                 end do
 
                 call set_buffer(buffer, status)
-                pos = buffers(current)%pt
+                position = buffers(current)%point
                 entry%windows = [entry%windows, null_handle()]
-                entry%points = [entry%points, pos]
+                entry%points = [entry%points, position]
             end associate
         else
             call set_buffer(buffer, status)
-            pos = buffers(current)%pt
+            position = buffers(current)%point
             call append_point_entry(buffer)
 
             associate (entry => winner_point_alist(size(winner_point_alist)))
                 entry%windows = [entry%windows, null_handle()]
-                entry%points = [entry%points, pos]
+                entry%points = [entry%points, position]
             end associate
         end if
 
@@ -640,7 +640,7 @@ contains
     end subroutine get_winner_point
 
     !> Whether the buffer of window H is boring: named in
-    !> `winner_boring_buffers' or matching `winner_boring_buffers_regexp'.
+    !> `winner_boring_buffers' or matching `winner_boring_buffers_regular_expression'.
     !> Not a port.
     logical function is_boring(h)
         type(handle_type), intent(in) :: h
@@ -658,31 +658,32 @@ contains
             if (is_boring) return
         end if
 
-        if (allocated(winner_boring_buffers_regexp)) is_boring = string_match(winner_boring_buffers_regexp, name, status) > 0
+        if (allocated(winner_boring_buffers_regular_expression)) is_boring = string_match( &
+                                                                         winner_boring_buffers_regular_expression, name, status) > 0
     end function is_boring
 
-    !> Restore Winner configuration CONF: its windows, their points and
+    !> Restore Winner configuration CONFIGURATION: its windows, their points and
     !> their buffers' marks, then delete the windows whose buffers are dead
     !> or boring.  POSSIBLE is true if this is still a possible
     !> configuration.  Port of winner.el:winner-set.
-    subroutine set_winner(conf, possible, status)
-        type(winner_conf_type), intent(in) :: conf
+    subroutine set_winner(configuration, possible, status)
+        type(winner_configuration_type), intent(in) :: configuration
         logical, intent(out) :: possible
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: chosen(:), list(:), xwins(:), live_buffers(:)
         logical, allocatable :: alive(:)
         type(handle_type) :: old, buffer
-        integer(int64) :: pos
+        integer(int64) :: position
         logical :: found, keep
         integer :: k, n, e
 
         possible = .true.
         ! Possibly update `winner_point_alist'.
-        allocate (alive(size(conf%data%windows)), live_buffers(0))
+        allocate (alive(size(configuration%data%windows)), live_buffers(0))
 
-        do k = 1, size(conf%data%windows)
-            buffer = conf%data%windows(k)%buffer
-            call get_winner_point(buffer, null_handle(), pos, found)
+        do k = 1, size(configuration%data%windows)
+            buffer = configuration%data%windows(k)%buffer
+            call get_winner_point(buffer, null_handle(), position, found)
             alive(k) = found
 
             if (found) then
@@ -692,7 +693,7 @@ contains
             end if
         end do
 
-        call set_winner_conf(conf%config, status)
+        call set_winner_configuration(configuration%configuration, status)
         if (.not. status%ok()) return
         ! Windows to be deleted.
         allocate (xwins(0))
@@ -704,10 +705,10 @@ contains
 
             if (k <= size(alive)) then
                 if (alive(k)) then
-                    call get_winner_point(windows(list(k)%index)%buffer, list(k), pos, found)
+                    call get_winner_point(windows(list(k)%index)%buffer, list(k), position, found)
 
                     if (found) then
-                        call set_point_of_window(list(k), pos)
+                        call set_point_of_window(list(k), position)
                         keep = .not. is_boring(list(k))
                     end if
                 end if
@@ -788,13 +789,13 @@ contains
         call load_winner()
 
         if (enable) then
-            call window_configuration_change_hook%prepend(winner_change_fun)
+            call window_configuration_change_hook%prepend(winner_change_function)
             call post_command_hook%prepend(save_winner_old_configurations)
             call minibuffer_setup_hook%prepend(save_winner_unconditionally)
             winner_modified = .true.
             call save_winner_old_configurations(status)
         else
-            call window_configuration_change_hook%remove(winner_change_fun)
+            call window_configuration_change_hook%remove(winner_change_function)
             call post_command_hook%remove(save_winner_old_configurations)
             call minibuffer_setup_hook%remove(save_winner_unconditionally)
         end if
@@ -832,7 +833,7 @@ contains
         status = status_type()
 
         if (.not. minor_modes%winner_mode%enabled()) then
-            call set_error(status, FM_GENERIC_ERROR, "Winner mode is turned off")
+            call set_error(status, GENERIC_ERROR_CODE, "Winner mode is turned off")
             return
         end if
 
@@ -847,7 +848,7 @@ contains
             undo_window_change_counter = 0
             if (allocated(winner_undone_data)) deallocate (winner_undone_data)
             allocate (winner_undone_data(1))
-            call winner_win_data(winner_undone_data(1))
+            call winner_window_data(winner_undone_data(1))
         end if
 
         ! Starting at 1.
@@ -857,7 +858,7 @@ contains
 
         if (done .and. .not. selected_frame%minibuffer_selected) then
             write (counter, "(i0)") undo_window_change_counter
-            write (length, "(i0)") size(winner_ring_confs) - 1
+            write (length, "(i0)") size(winner_ring_configurations) - 1
             call message("Winner undo ("//trim(counter)//" / "//trim(length)//")")
         end if
     end subroutine undo_window_change
@@ -870,7 +871,7 @@ contains
         logical, intent(out) :: done
         type(status_type), intent(out) :: status
         type(winner_data_type) :: data
-        type(winner_conf_type) :: dropped
+        type(winner_configuration_type) :: dropped
         logical :: possible
         integer :: k
 
@@ -878,18 +879,18 @@ contains
         status = status_type()
 
         do
-            if (undo_window_change_counter >= size(winner_ring_confs)) then
+            if (undo_window_change_counter >= size(winner_ring_configurations)) then
                 call message("No further window configuration undo information")
                 return
             end if
 
             ! If possible configuration
-            call set_winner(winner_ring_confs(undo_window_change_counter + 1), possible, status)
+            call set_winner(winner_ring_configurations(undo_window_change_counter + 1), possible, status)
             if (.not. status%ok()) return
 
             if (possible) then
                 ! .. and new configuration
-                call winner_win_data(data)
+                call winner_window_data(data)
 
                 if (.not. any([(is_winner_equal(data, winner_undone_data(k)), k=1, size(winner_undone_data))])) then
                     winner_undone_data = [winner_undone_data, data]
@@ -913,23 +914,23 @@ contains
     recursive subroutine redo_window_change(status)
         type(status_type), intent(out) :: status
         type(command_type), pointer :: undo
-        type(winner_conf_type) :: conf
+        type(winner_configuration_type) :: configuration
         logical :: possible
 
         status = status_type()
         undo => commands%undo_window_change
 
         if (.not. is_same_command(last_command, undo)) then
-            call set_error(status, FM_USER_ERROR, format_message("Previous command was not a `undo_window_change'"))
+            call set_error(status, USER_ERROR_CODE, format_message("Previous command was not a `undo_window_change'"))
             return
         end if
 
         if (minibuf_level == 0) then
-            call ring_remove(0, conf)
-            call set_winner(conf, possible, status)
-            call conf%destroy()
+            call ring_remove(0, configuration)
+            call set_winner(configuration, possible, status)
+            call configuration%destroy()
         else
-            call set_winner(winner_ring_confs(1), possible, status)
+            call set_winner(winner_ring_configurations(1), possible, status)
         end if
 
         if (.not. status%ok()) return
@@ -938,7 +939,7 @@ contains
 
     !> Define Winner mode, its commands and keymaps (as loading winner.el
     !> does, but for the keys of `winner_mode_map').  Not a port.
-    subroutine init_winner()
+    subroutine initialize_winner()
         type(status_type) :: st
 
         if (.not. allocated(winner_boring_buffers)) winner_boring_buffers = [character(len=256) :: "*Completions*"]
@@ -953,5 +954,5 @@ contains
         call keymap_set(winner_repeat_map, "<left>", "undo_window_change", st)
         call keymap_set(winner_repeat_map, "<right>", "redo_window_change", st)
         call set_repeat_map(winner_repeat_map)
-    end subroutine init_winner
+    end subroutine initialize_winner
 end module winner_mod

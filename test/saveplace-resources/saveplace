@@ -4,5 +4,5 @@
  place(1)%file = "/home/skangas/.emacs.d/cache/recentf",
  place(1)%position = 1306,
  place(2)%file = "/home/skangas/wip/emacs/",
- place(2)%dired_filename = "/home/skangas/wip/emacs/COPYING",
+ place(2)%directory_editor_filename = "/home/skangas/wip/emacs/COPYING",
 /

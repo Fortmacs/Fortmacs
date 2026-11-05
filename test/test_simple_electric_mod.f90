@@ -1,5 +1,5 @@
 ! test_simple_electric_mod.f90 -- tests for blinking parens,
-! `newline_and_indent' and `backward_delete_char_untabify'
+! `newline_and_indent' and `backward_delete_character_untabify'
 ! (simple_electric_mod).
 ! Own tests; simple-tests.el has no blink cases.
 !
@@ -25,23 +25,23 @@
 !> kills its buffer.
 module test_simple_electric_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, goto_char, buffer_string
-    use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, last_message
-    use execute_interactively_mod, only: prefix_arg
-    use frame_mod, only: selected_window_ref
+    use editing_functions_mod, only: point, point_minimum, goto_character, buffer_string
+    use keyboard_mod, only: keyboard_store_bytes, command_loop, discard_input, last_message
+    use execute_interactively_mod, only: prefix_argument
+    use frame_mod, only: selected_window_reference
     use window_mod, only: set_window_start
-    use simple_mod, only: fundamental_mode, blink_matching_check_mismatch, blink_matching_paren, &
+    use simple_mod, only: fundamental_mode, blink_matching_check_mismatch, blink_matching_parenthesis, &
                           newline_and_indent, &
-                          backward_delete_char_untabify, backward_delete_char_untabify_method, &
-                          BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY
+                          backward_delete_character_untabify, backward_delete_character_untabify_method, &
+                          BACKWARD_DELETE_CHARACTER_UNTABIFY_METHOD_HUNGRY, BACKWARD_DELETE_CHARACTER_UNTABIFY_METHOD_UNTABIFY
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use test_support_mod, only: show_alone
     implicit none(type, external)
     private
@@ -68,9 +68,9 @@ contains
         character(len=*), intent(in) :: text
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
-        prefix_arg = prefix_arg_type()
+        prefix_argument = prefix_argument_type()
         call get_or_make_buffer("*blink-test*", h, st)
         call set_buffer(h, st)
         call fundamental_mode(st)
@@ -82,7 +82,7 @@ contains
         character(len=*), intent(in) :: text
         type(status_type) :: st
 
-        call kbd_store_bytes(text)
+        call keyboard_store_bytes(text)
         call command_loop(st)
     end subroutine keys
 
@@ -124,10 +124,10 @@ contains
         call check(error, last_message, "")
         call close_buffer(h, st)
         if (allocated(error)) return
-        blink_matching_paren = .false.
+        blink_matching_parenthesis = .false.
         call fresh(h, "(foo")
         call keys("]")
-        blink_matching_paren = .true.
+        blink_matching_parenthesis = .true.
         call check(error, last_message, "")
         call close_buffer(h, st)
     end subroutine test_messages
@@ -140,13 +140,13 @@ contains
         type(status_type) :: st
 
         call fresh(h, "(defun foo ()"//repeat(achar(10)//"x", 60))
-        call set_window_start(selected_window_ref(), 20_int64, st)
+        call set_window_start(selected_window_reference(), 20_int64, st)
         call keys(")")
         call check(error, last_message, "Matches (defun foo ()")
         call close_buffer(h, st)
         if (allocated(error)) return
         call fresh(h, "int foo()"//achar(10)//"{"//repeat(achar(10)//"x", 60))
-        call set_window_start(selected_window_ref(), 20_int64, st)
+        call set_window_start(selected_window_reference(), 20_int64, st)
         call keys("}")
         call check(error, last_message, "Matches int foo()...{")
         call close_buffer(h, st)
@@ -173,18 +173,18 @@ contains
         type(status_type) :: st
 
         call fresh(h, "a"//achar(9)//"b")
-        call goto_char(3_int64)
-        call backward_delete_char_untabify(1_int64, st)
+        call goto_character(3_int64)
+        call backward_delete_character_untabify(1_int64, st)
         call check(error, buffer_string(), "a      b")
         if (allocated(error)) return
-        call check(error, point() == point_min() + 7, "point after the spaces")
+        call check(error, point() == point_minimum() + 7, "point after the spaces")
         call close_buffer(h, st)
         if (allocated(error)) return
-        backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY
+        backward_delete_character_untabify_method = BACKWARD_DELETE_CHARACTER_UNTABIFY_METHOD_HUNGRY
         call fresh(h, "a "//achar(9)//" b")
-        call goto_char(5_int64)
-        call backward_delete_char_untabify(1_int64, st)
-        backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY
+        call goto_character(5_int64)
+        call backward_delete_character_untabify(1_int64, st)
+        backward_delete_character_untabify_method = BACKWARD_DELETE_CHARACTER_UNTABIFY_METHOD_UNTABIFY
         call check(error, buffer_string(), "ab")
         call close_buffer(h, st)
     end subroutine test_untabify

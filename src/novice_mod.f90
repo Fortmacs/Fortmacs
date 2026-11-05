@@ -24,65 +24,65 @@
 !> keyboard_mod's `disabled_command_function_variable'), as
 !> simple.el:command-execute arranges.  `enable_command' and
 !> `disable_command' change the property and record the choice in the
-!> init file, as `commands%CMD%disabled = .false.' in `configure' (the
+!> init file, as `commands%COMMAND%disabled = .false.' in `configure' (the
 !> Fortran form of upstream's `(put 'CMD 'disabled nil)`; 'CMD` is the
 !> command's name with `_' for `-'), which takes effect from the next
 !> `--recompile'.  A command that is not built in is recorded as
-!> `call set_command_disabled("CMD", .false., status)'.
+!> `call set_command_disabled("COMMAND", .false., status)'.
 module novice_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_mod, only: commands, builtin_command
-    use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: format_message, status_type, set_error, GENERIC_ERROR_CODE
     use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
-    use names_mod, only: user_init_file
+    use names_mod, only: user_initialization_file
     use handle_mod, only: handle_type
     use buffer_mod, only: current_buffer, set_buffer
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, delete_region, line_beginning_position, &
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, delete_region, line_beginning_position, &
                                      buffer_substring
     use insert_delete_mod, only: insert
     use search_mod, only: search_forward, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
     use file_input_output_mod, only: file_exists
     use files_mod, only: find_file_noselect, save_buffer
-    use configuration_mod, only: init_file_name
+    use configuration_mod, only: initialization_file_name
     use basic_subprograms_mod, only: read_y_or_n
     use data_mod, only: symbol_name
     use keymap_mod, only: key_description
     use keyboard_mod, only: disabled_command_function_variable
     use execute_interactively_mod, only: execute_interactively, is_command, find_command, command_type
-    use character_mod, only: CHAR_META
+    use character_mod, only: CHARACTER_META
     use help_mod, only: substitute_command_keys, documentation_hook
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use minibuffer_reading_mod, only: completion_obarray_table
-    use read_multiple_choice_mod, only: rmc_choice_type, read_multiple_choice
+    use read_multiple_choice_mod, only: read_multiple_choice_choice_type, read_multiple_choice
     implicit none(type, external)
     private
 
-    public :: disabled_command_function, enable_command, disable_command, init_novice
+    public :: disabled_command_function, enable_command, disable_command, initialize_novice
 
     character(len=*), parameter :: LF = achar(10)
 
 contains
 
-    !> Ask whether to run the disabled command CMD, typed as KEYS: n (or
+    !> Ask whether to run the disabled command COMMAND, typed as KEYS: n (or
     !> C-g) cancels, y enables it (for the session), SPC runs it this
     !> once, ! enables all disabled commands for the session.  Port of
     !> novice.el:disabled-command-function (no init file to update).
-    recursive subroutine disabled_command_function(cmd, keys, status)
-        type(value_type), intent(in) :: cmd
+    recursive subroutine disabled_command_function(command, keys, status)
+        type(value_type), intent(in) :: command
         type(value_type), intent(in) :: keys(:)
         type(status_type), intent(out) :: status
-        type(rmc_choice_type) :: choices(4)
+        type(read_multiple_choice_choice_type) :: choices(4)
         type(command_type), pointer :: p
         character(len=:), allocatable :: name, help_string, doc
         logical :: by_name, found, enable_also
         integer :: answer, at
 
-        call symbol_name(cmd, name, status)
+        call symbol_name(command, name, status)
         if (.not. status%ok()) return
         by_name = .false.
 
         if (size(keys) >= 1) then
-            if (vtag(keys(1)) == V_INTEGER) by_name = xfixnum(keys(1)) == ior(CHAR_META, iachar("x"))
+            if (vtag(keys(1)) == V_INTEGER) by_name = xfixnum(keys(1)) == ior(CHARACTER_META, iachar("x"))
         end if
 
         if (size(keys) >= 2 .and. .not. by_name) then
@@ -148,8 +148,8 @@ contains
         case (2)
             enable_also = .false.
 
-            if (allocated(user_init_file)) then
-                if (len(user_init_file) > 0) then
+            if (allocated(user_initialization_file)) then
+                if (len(user_initialization_file) > 0) then
                     call read_y_or_n("Enable command for future editing sessions also? ", enable_also, status)
                     if (.not. status%ok()) return
                 end if
@@ -168,7 +168,7 @@ contains
             continue
         end select
 
-        if (answer /= 1) call execute_interactively(cmd, status)
+        if (answer /= 1) call execute_interactively(command, status)
     end subroutine disabled_command_function
 
     !> TEXT with N spaces before each nonempty line (indent-rigidly).
@@ -178,15 +178,15 @@ contains
         integer, intent(in) :: n
         character(len=:), allocatable :: indented
         integer :: i
-        logical :: bol
+        logical :: beginning_of_line
 
         indented = ""
-        bol = .true.
+        beginning_of_line = .true.
 
         do i = 1, len(text)
-            if (bol .and. text(i:i) /= LF) indented = indented//repeat(" ", n)
+            if (beginning_of_line .and. text(i:i) /= LF) indented = indented//repeat(" ", n)
             indented = indented//text(i:i)
-            bol = text(i:i) == LF
+            beginning_of_line = text(i:i) == LF
         end do
     end function indent
 
@@ -215,13 +215,13 @@ contains
     !> Set the `disabled' property of COMMAND and record it in the init
     !> file: its line `commands%COMMAND%disabled = ...' is
     !> replaced by one at the end of `configure'.  A missing init file is
-    !> created with a `user_config' module.  Port of
+    !> created with a `user_configuration' module.  Port of
     !> novice.el:en/disable-command.
     recursive subroutine en_disable_command(command, disable, status)
         character(len=*), intent(in) :: command
         logical, intent(in) :: disable
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: init_file, value, var, header, component, setting
+        character(len=:), allocatable :: initialization_file, value, variable, header, component, setting
         type(handle_type) :: buffer, old
         type(status_type) :: st
         type(command_type), pointer :: p
@@ -230,7 +230,7 @@ contains
         logical :: saved_fold, builtin
 
         if (.not. is_command(value_type(name=command))) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("Invalid command name `")//command//format_message("'"))
+            call set_error(status, GENERIC_ERROR_CODE, format_message("Invalid command name `")//command//format_message("'"))
             return
         end if
 
@@ -246,35 +246,35 @@ contains
             if (component(i:i) == "-") component(i:i) = "_"
         end do
 
-        if (allocated(user_init_file)) then
-            init_file = user_init_file
+        if (allocated(user_initialization_file)) then
+            initialization_file = user_initialization_file
         else
             ! Started with -q, i.e. the file containing enabled/disabled
             ! commands hasn't been read.  Saving settings there would
             ! overwrite other settings.
-            if (file_exists(init_file_name())) then
-                call set_error(status, FM_GENERIC_ERROR, &
+            if (file_exists(initialization_file_name())) then
+                call set_error(status, GENERIC_ERROR_CODE, &
                                "Saving settings from ""fortmacs -q"" would overwrite existing customizations")
                 return
             end if
 
-            init_file = init_file_name()
+            initialization_file = initialization_file_name()
         end if
 
         old = current_buffer()
-        call find_file_noselect(init_file, buffer, status)
+        call find_file_noselect(initialization_file, buffer, status)
         if (.not. status%ok()) return
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
         saved_fold = case_fold_search%value
         case_fold_search = .true.
 
-        if (point_max() == point_min()) then
+        if (point_maximum() == point_minimum()) then
             ! A new init file.
-            call insert("module user_config"//LF//"    use fortmacs"//LF//"    implicit none(type, external)"//LF// &
+            call insert("module user_configuration"//LF//"    use fortmacs"//LF//"    implicit none(type, external)"//LF// &
                         "    private"//LF//LF//"    public :: configure"//LF//LF//"contains"//LF//LF// &
                         "    subroutine configure(status)"//LF//"        type(status_type), intent(out) :: status"// &
-                        LF//"    end subroutine configure"//LF//"end module user_config"//LF, status)
+                        LF//"    end subroutine configure"//LF//"end module user_configuration"//LF, status)
 
             if (.not. status%ok()) then
                 case_fold_search = saved_fold
@@ -284,15 +284,15 @@ contains
         end if
 
         ! The name of configure's status argument.
-        var = "status"
-        call goto_char(point_min())
+        variable = "status"
+        call goto_character(point_minimum())
         call search_forward("subroutine configure", found, st, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
-            call buffer_substring(point(), min(point_max(), point() + 200), header, st)
+            call buffer_substring(point(), min(point_maximum(), point() + 200), header, st)
             i = index(header, "(")
             j = index(header, ")")
-            if (i > 0 .and. j > i + 1) var = trim(adjustl(header(i + 1:j - 1)))
+            if (i > 0 .and. j > i + 1) variable = trim(adjustl(header(i + 1:j - 1)))
         end if
 
         if (builtin) then
@@ -301,29 +301,29 @@ contains
             setting = 'call set_command_disabled("'//command//'",'
         end if
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward(setting, found, st, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
             beginning = line_beginning_position()
-            call goto_char(beginning)
+            call goto_character(beginning)
             call search_forward(LF, found, st, noerror=SEARCH_MOVE)
             call delete_region(beginning, point(), st)
         end if
 
         ! Explicitly enable, in case this command is disabled by default
         ! or in case the code we deleted was actually a comment.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward("end subroutine configure", found, st, noerror=SEARCH_NOERROR)
         case_fold_search = saved_fold
 
         if (found == 0) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("No `end subroutine configure' in ")//init_file)
+            call set_error(status, GENERIC_ERROR_CODE, format_message("No `end subroutine configure' in ")//initialization_file)
             call set_buffer(old, st)
             return
         end if
 
-        call goto_char(line_beginning_position())
+        call goto_character(line_beginning_position())
 
         if (disable) then
             value = ".true."
@@ -334,7 +334,7 @@ contains
         if (builtin) then
             call insert("        "//setting//" "//value//LF, status)
         else
-            call insert("        "//setting//" "//value//", "//var//")"//LF, status)
+            call insert("        "//setting//" "//value//", "//variable//")"//LF, status)
         end if
 
         if (status%ok()) call save_buffer(1_int64, .false., status)
@@ -354,34 +354,34 @@ contains
                              require_match=REQUIRE_MATCH_YES)
     end subroutine read_command
 
-    recursive subroutine cmd_enable_command(status)
+    recursive subroutine execute_enable_command(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
         call read_command("Enable command: ", name, status)
         if (status%ok()) call enable_command(name, status)
-    end subroutine cmd_enable_command
+    end subroutine execute_enable_command
 
-    recursive subroutine cmd_disable_command(status)
+    recursive subroutine execute_disable_command(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
         call read_command("Disable command: ", name, status)
         if (status%ok()) call disable_command(name, status)
-    end subroutine cmd_disable_command
+    end subroutine execute_disable_command
 
     !> Install `disabled_command_function' as the handler of disabled
     !> commands, disable the commands
     !> upstream disables (subr.el `upcase_region' and `downcase_region')
     !> and register
     !> `enable_command' and `disable_command'.  Not a port.
-    subroutine init_novice()
+    subroutine initialize_novice()
         call disabled_command_function_variable%set_standard_procedure(disabled_command_function, &
                                                                        "disabled_command_function")
-        commands%enable_command%execute => cmd_enable_command
-        commands%disable_command%execute => cmd_disable_command
+        commands%enable_command%execute => execute_enable_command
+        commands%disable_command%execute => execute_disable_command
         commands%upcase_region%disabled = .true.
         commands%downcase_region%disabled = .true.
         ! bindings.el also disables `narrow_to_region', not ported yet.
-    end subroutine init_novice
+    end subroutine initialize_novice
 end module novice_mod

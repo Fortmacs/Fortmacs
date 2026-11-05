@@ -17,7 +17,7 @@
 `Info-find-node-2` (tag tables, indirect files and their subfiles, anchors, the slop of makeinfo 5, the `NODE.PART` fallback, going back after an error),
 `Info-on-current-buffer`,
 `Info-revert-buffer-function`,
-`Info-insert-dir` (merging the `dir` files, cached until they change) with `Info-dir-remove-duplicates` and `Info-streamline-headings`,
+`Info-insert-dir` (merging the `directory` files, cached until they change) with `Info-dir-remove-duplicates` and `Info-streamline-headings`,
 virtual files (`Info-virtual-files`: the directory),
 `Info-select-node`,
 `Info-set-mode-line` (buffer identification segments),

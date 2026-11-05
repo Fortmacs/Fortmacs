@@ -13,7 +13,7 @@ gap motion,
 `make_gap_1`,
 `copy_text` (unibyte/multibyte conversion),
 `insert` (`insert_string`),
-`insert_char`,
+`insert_character`,
 `insert_before_markers`,
 `insert_and_inherit`,
 `insert_before_markers_and_inherit` (the four are generic interfaces, which editing_functions_mod extends to several strings),
@@ -23,13 +23,13 @@ gap motion,
 `insert_from_buffer(_1)` (with the other buffer's properties, converting unibyte/multibyte),
 `adjust_point`,
 `adjust_markers_for_insert/delete`,
-`del_range`,
-`del_range_1/_byte/_both/_2` (the start kept in a marker across the before-change hooks),
-`safe_del_range(_1/_2)`,
+`delete_range`,
+`delete_range_1/_byte/_both/_2` (the start kept in a marker across the before-change hooks),
+`safe_delete_range(_1/_2)`,
 `modify_text`,
 `prepare_to_modify_buffer(_1)` (read-only check, text property modification hooks with PRESERVE kept in a marker, `deactivate-mark`, PRESERVE_PTR),
 `replace_range` (with `adjust_markers_for_replace`; ADJUST_MATCH_DATA),
-`replace_range_2` (with `adjust_markers_bytepos`, `count_bytes`),
+`replace_range_2` (with `adjust_markers_byte_position`, `count_bytes`),
 the change hooks: `signal_before_change` (`first-change-hook` on an unmodified buffer, `before-change-functions`, the overlays' modification hooks, positions in markers meanwhile),
 `signal_after_change` (`after-change-functions`, the overlays' modification hooks, the text properties' insert hooks),
 `inhibit-modification-hooks` (declared in text_properties_mod, which needs it; bound to t while they run),
@@ -54,4 +54,4 @@ waits for the GUI: nothing
 
 ## Tests
 
-test_insert_delete_mod (own; no upstream insdel-tests.el; ports editfns-tests: delete-region-undo-markers-2 (the text; the undo marker adjustments are deferred), editfns-tests--before/after-change-functions (on the ported operations instead of dabbrev and coding); own: order and arguments of the hooks for each primitive, local and global functions, inhibiting, first-change-hook, the error reset, combine-after-change-calls, insert-and-inherit, inserting with properties, copy_text, safe_del_range)
+test_insert_delete_mod (own; no upstream insdel-tests.el; ports editfns-tests: delete-region-undo-markers-2 (the text; the undo marker adjustments are deferred), editfns-tests--before/after-change-functions (on the ported operations instead of dabbrev and coding); own: order and arguments of the hooks for each primitive, local and global functions, inhibiting, first-change-hook, the error reset, combine-after-change-calls, insert-and-inherit, inserting with properties, copy_text, safe_delete_range)

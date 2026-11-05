@@ -22,5 +22,5 @@ encoding with `locale-coding-system`;
 
 ## Tests
 
-test_environment_mod (ports env-tests: test-getenv-setenv; own: removal, `=` in a name, `substitute_env_vars` after `setenv`),
+test_environment_mod (ports env-tests: test-getenv-setenv; own: removal, `=` in a name, `substitute_environment_variables` after `setenv`),
 test_file_input_output_mod

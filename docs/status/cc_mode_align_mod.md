@@ -1,6 +1,6 @@
-# c_mode_align_mod
+# cc_mode_align_mod
 
-- Module: c_mode_align_mod
+- Module: cc_mode_align_mod
 - Upstream: progmodes/cc-align.el
 - State: partial
 

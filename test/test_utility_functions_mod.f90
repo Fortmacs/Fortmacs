@@ -40,10 +40,10 @@
 module test_utility_functions_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, &
-                         FM_CODING_SYSTEM_ERROR
+    use error_mod, only: status_type, format_error, ARGUMENTS_OUT_OF_RANGE_CODE, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, &
+                         CODING_SYSTEM_ERROR_CODE
     use utility_functions_mod, only: compare_strings, substring, COMPARE_EQUAL, string_search, string_distance, &
-                                     string_char_to_byte, string_byte_to_char, substring_no_properties, is_string_equal, &
+                                     string_character_to_byte, string_byte_to_character, substring_no_properties, is_string_equal, &
                                   is_string_collate_less, is_string_collate_equal, clear_string, value_equal_including_properties, &
                                      base64_encode_string, base64url_encode_string, base64_decode_string, base64_encode_region, &
                                      base64url_encode_region, base64_decode_region, buffer_line_statistics, random, load_average, &
@@ -56,8 +56,8 @@ module test_utility_functions_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, is_buffer_live
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, goto_char, point_min, point_max, point, delete_region
-    use character_mod, only: str_to_multibyte
+    use editing_functions_mod, only: buffer_string, goto_character, point_minimum, point_maximum, point, delete_region
+    use character_mod, only: string_to_multibyte
     implicit none(type, external)
     private
 
@@ -84,7 +84,7 @@ contains
                     new_unittest("fns-tests-collate-strings", test_collate_strings), &
                     new_unittest("fns-tests-collate-sort", test_collate_sort), &
                     new_unittest("fns-tests-equal-including-properties", test_equal_including_properties), &
-                    new_unittest("fns-tests-equal-including-properties/string-prop-vals", test_equal_including_string_props), &
+                    new_unittest("fns-tests-equal-including-properties/string-prop-vals", test_equal_including_string_properties), &
                     new_unittest("fns-tests-base64-encode-region", test_base64_encode_region), &
                     new_unittest("fns-tests-base64-encode-string", test_base64_encode_string), &
                     new_unittest("fns-test-base64url-encode-region", test_base64url_encode_region), &
@@ -92,8 +92,8 @@ contains
                     new_unittest("fns-tests-base64-decode-string", test_base64_decode_string), &
                     new_unittest("base64-decode-region", test_base64_decode_region), &
                     new_unittest("fns-tests-random", test_random), &
-                    new_unittest("test-buffer-line-stats-nogap", test_line_stats_nogap), &
-                    new_unittest("test-buffer-line-stats-gap", test_line_stats_gap), &
+                    new_unittest("test-buffer-line-stats-nogap", test_line_statistics_nogap), &
+                    new_unittest("test-buffer-line-stats-gap", test_line_statistics_gap), &
                     new_unittest("load-average", test_load_average), &
                     new_unittest("locale-info", test_locale_info), &
                     new_unittest("test-secure-hash", test_secure_hash), &
@@ -114,7 +114,7 @@ contains
         call check(error, st%ok() .and. r == -1, "end1 brought into range")
         if (allocated(error)) return
         r = compare_strings("xyzzy", "zyxxy", start1=0_int64, end1=5_int64, start2=-1_int64, end2=2_int64, status=st)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. format_error(st) == 'Args out of range: "zyxxy", -1, 2', &
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE .and. format_error(st) == 'Args out of range: "zyxxy", -1, 2', &
                    format_error(st))
         if (allocated(error)) return
         call check(error, compare_strings("", "") == COMPARE_EQUAL, "empty")
@@ -181,14 +181,15 @@ contains
         call check(error, st%ok() .and. r == "éll", r)
         if (allocated(error)) return
         r = substring("abc", 0_int64, 4_int64, st)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. format_error(st) == 'Args out of range: "abc", 0, 4', &
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE .and. format_error(st) == 'Args out of range: "abc", 0, 4', &
                    format_error(st))
         if (allocated(error)) return
         r = substring("abc", 2_int64, 1_int64, st)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "from after to")
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE, "from after to")
         if (allocated(error)) return
         r = substring("abc", -4_int64, status=st)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. format_error(st) == 'Args out of range: "abc", -4, .false.', &
+        call check(error, &
+                   st%code == ARGUMENTS_OUT_OF_RANGE_CODE .and. format_error(st) == 'Args out of range: "abc", -4, .false.', &
                    format_error(st))
     end subroutine test_substring
 
@@ -235,9 +236,9 @@ contains
         call insert(text, status)
 
         if (url) then
-            call base64url_encode_region(point_min(), point_max(), length, status, no_line_break)
+            call base64url_encode_region(point_minimum(), point_maximum(), length, status, no_line_break)
         else
-            call base64_encode_region(point_min(), point_max(), length, status, no_line_break)
+            call base64_encode_region(point_minimum(), point_maximum(), length, status, no_line_break)
         end if
 
         encoded = buffer_string()
@@ -288,11 +289,11 @@ contains
         if (allocated(error)) return
         call check(error, string_search("a"//c10f98//"z", "a"//c10f98//"a"//c10f98//"z") == 2)
         if (allocated(error)) return
-        call check(error, string_search("a", "abc", -1_int64, st) == -1 .and. st%code == FM_ARGS_OUT_OF_RANGE)
+        call check(error, string_search("a", "abc", -1_int64, st) == -1 .and. st%code == ARGUMENTS_OUT_OF_RANGE_CODE)
         if (allocated(error)) return
-        call check(error, string_search("a", "abc", 4_int64, st) == -1 .and. st%code == FM_ARGS_OUT_OF_RANGE)
+        call check(error, string_search("a", "abc", 4_int64, st) == -1 .and. st%code == ARGUMENTS_OUT_OF_RANGE_CODE)
         if (allocated(error)) return
-        call check(error, string_search("a", "abc", 100000000000_int64, st) == -1 .and. st%code == FM_ARGS_OUT_OF_RANGE)
+        call check(error, string_search("a", "abc", 100000000000_int64, st) == -1 .and. st%code == ARGUMENTS_OUT_OF_RANGE_CODE)
         if (allocated(error)) return
         call check(error, string_search("a", "aaa", 3_int64) == -1)
         if (allocated(error)) return
@@ -302,7 +303,7 @@ contains
         if (allocated(error)) return
         call check(error, string_search("", "") == 0)
         if (allocated(error)) return
-        call check(error, string_search("", "", 1_int64, st) == -1 .and. st%code == FM_ARGS_OUT_OF_RANGE)
+        call check(error, string_search("", "", 1_int64, st) == -1 .and. st%code == ARGUMENTS_OUT_OF_RANGE_CODE)
         if (allocated(error)) return
         call check(error, string_search("", "abc") == 0)
         if (allocated(error)) return
@@ -310,9 +311,9 @@ contains
         if (allocated(error)) return
         call check(error, string_search("", "abc", 3_int64) == 3)
         if (allocated(error)) return
-        call check(error, string_search("", "abc", 4_int64, st) == -1 .and. st%code == FM_ARGS_OUT_OF_RANGE)
+        call check(error, string_search("", "abc", 4_int64, st) == -1 .and. st%code == ARGUMENTS_OUT_OF_RANGE_CODE)
         if (allocated(error)) return
-        call check(error, string_search("", "abc", -1_int64, st) == -1 .and. st%code == FM_ARGS_OUT_OF_RANGE)
+        call check(error, string_search("", "abc", -1_int64, st) == -1 .and. st%code == ARGUMENTS_OUT_OF_RANGE_CODE)
     end subroutine test_string_search
 
     subroutine test_string_distance(error)
@@ -359,15 +360,15 @@ contains
     subroutine test_string_indexes(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, string_char_to_byte("héllo", 2_int64) == 3)
+        call check(error, string_character_to_byte("héllo", 2_int64) == 3)
         if (allocated(error)) return
-        call check(error, string_char_to_byte("héllo", 0_int64) == 0)
+        call check(error, string_character_to_byte("héllo", 0_int64) == 0)
         if (allocated(error)) return
-        call check(error, string_char_to_byte("héllo", 9_int64) == 6, "past the end")
+        call check(error, string_character_to_byte("héllo", 9_int64) == 6, "past the end")
         if (allocated(error)) return
-        call check(error, string_byte_to_char("héllo", 3_int64) == 2)
+        call check(error, string_byte_to_character("héllo", 3_int64) == 2)
         if (allocated(error)) return
-        call check(error, string_byte_to_char("héllo", 6_int64) == 5)
+        call check(error, string_byte_to_character("héllo", 6_int64) == 5)
     end subroutine test_string_indexes
 
     subroutine test_substring_no_properties(error)
@@ -387,10 +388,10 @@ contains
         call check(error, st%ok() .and. r == "lo", r)
         if (allocated(error)) return
         r = substring_no_properties(v, 4_int64, 2_int64, st)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "from after to")
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE, "from after to")
         if (allocated(error)) return
         r = substring_no_properties(value_type(name="x"), status=st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "not a string")
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "not a string")
     end subroutine test_substring_no_properties
 
     subroutine test_string_equal(error)
@@ -421,7 +422,7 @@ contains
         if (allocated(error)) return
         v = value_type(1_int64)
         call clear_string(v, st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT)
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE)
     end subroutine test_clear_string
 
     !> The C locale's cases.
@@ -442,7 +443,7 @@ contains
         if (allocated(error)) return
         ! Locale must be valid.
         r = is_string_collate_equal("xyzzy", "xyzzy", "not-a-locale", status=st)
-        call check(error, st%code == FM_GENERIC_ERROR .and. &
+        call check(error, st%code == GENERIC_ERROR_CODE .and. &
                    format_error(st) == "Invalid locale not-a-locale: No such file or directory", format_error(st))
     end subroutine test_collate_strings
 
@@ -513,7 +514,7 @@ contains
     end subroutine test_equal_including_properties
 
     !> Handle string property values.  (Bug#6581)
-    subroutine test_equal_including_string_props(error)
+    subroutine test_equal_including_string_properties(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: a, k
 
@@ -530,7 +531,7 @@ contains
         if (allocated(error)) return
         call check(error,.not. value_equal_including_properties(propertized("a", list(k, value_type(text="v"))), &
                                                                 propertized("b", list(k, value_type(text="v")))))
-    end subroutine test_equal_including_string_props
+    end subroutine test_equal_including_string_properties
 
     subroutine test_base64_encode_region(error)
         type(error_type), allocatable, intent(out) :: error
@@ -551,9 +552,9 @@ contains
         if (allocated(error)) return
         call check(error, encoded_region("foobar", .false., status=st) == "Zm9vYmFy")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(126)), .false., status=st) == "FPucA9l+")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(126)), .false., status=st) == "FPucA9l+")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(127)), .false., status=st) == "FPucA9l/")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(127)), .false., status=st) == "FPucA9l/")
     end subroutine test_base64_encode_region
 
     subroutine test_base64_encode_string(error)
@@ -580,14 +581,14 @@ contains
         if (allocated(error)) return
         call check(error, base64_encode_string(test_bytes(127), multibyte=.false.) == "FPucA9l/")
         if (allocated(error)) return
-        call check(error, base64_encode_string(str_to_multibyte(test_bytes(127))) == "FPucA9l/", "raw bytes")
+        call check(error, base64_encode_string(string_to_multibyte(test_bytes(127))) == "FPucA9l/", "raw bytes")
         if (allocated(error)) return
         r = base64_encode_string("ƒ", status=st)
-        call check(error, st%code == FM_GENERIC_ERROR .and. &
+        call check(error, st%code == GENERIC_ERROR_CODE .and. &
                    format_error(st) == "Multibyte character in data for base64 encoding", format_error(st))
         if (allocated(error)) return
         r = base64_encode_string("ü", status=st)
-        call check(error, st%code == FM_GENERIC_ERROR)
+        call check(error, st%code == GENERIC_ERROR_CODE)
         if (allocated(error)) return
         ! A line break every 76 characters.
         r = base64_encode_string(repeat("f", 60))
@@ -613,9 +614,9 @@ contains
         if (allocated(error)) return
         call check(error, encoded_region("foobar", .true., status=st) == "Zm9vYmFy")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(126)), .true., status=st) == "FPucA9l-")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(126)), .true., status=st) == "FPucA9l-")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(127)), .true., status=st) == "FPucA9l_")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(127)), .true., status=st) == "FPucA9l_")
         if (allocated(error)) return
         ! url variant no padding
         call check(error, encoded_region("", .true., .true., st) == "")
@@ -632,9 +633,9 @@ contains
         if (allocated(error)) return
         call check(error, encoded_region("foobar", .true., .true., st) == "Zm9vYmFy")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(126)), .true., .true., st) == "FPucA9l-")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(126)), .true., .true., st) == "FPucA9l-")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(127)), .true., .true., st) == "FPucA9l_")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(127)), .true., .true., st) == "FPucA9l_")
         if (allocated(error)) return
         ! url variant no line break no padding
         call check(error, encoded_region(repeat("f", 100), .true., .true., st) == repeat("Zm", 66)//"Zg")
@@ -649,16 +650,16 @@ contains
         if (allocated(error)) return
         call check(error, encoded_region(repeat("foobar", 15), .true., .true., st) == repeat("Zm9vYmFyZm9vYmFy", 7)//"Zm9vYmFy")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(repeat(test_bytes(126), 10)), .true., .true., st) &
+        call check(error, encoded_region(string_to_multibyte(repeat(test_bytes(126), 10)), .true., .true., st) &
                    == repeat("FPucA9l-", 10))
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(repeat(test_bytes(127), 10)), .true., .true., st) &
+        call check(error, encoded_region(string_to_multibyte(repeat(test_bytes(127), 10)), .true., .true., st) &
                    == repeat("FPucA9l_", 10))
         if (allocated(error)) return
-        call check(error, encoded_region("ƒ", .true., status=st) == "ƒ" .and. st%code == FM_GENERIC_ERROR, &
+        call check(error, encoded_region("ƒ", .true., status=st) == "ƒ" .and. st%code == GENERIC_ERROR_CODE, &
                    "a multibyte character")
         if (allocated(error)) return
-        call check(error, encoded_region("ü", .true., status=st) == "ü" .and. st%code == FM_GENERIC_ERROR)
+        call check(error, encoded_region("ü", .true., status=st) == "ü" .and. st%code == GENERIC_ERROR_CODE)
     end subroutine test_base64url_encode_region
 
     subroutine test_base64url_encode_string(error)
@@ -722,10 +723,10 @@ contains
         call check(error, base64url_encode_string(repeat(test_bytes(127), 10), .true., .false.) == repeat("FPucA9l_", 10))
         if (allocated(error)) return
         r = base64url_encode_string("ƒ", status=st)
-        call check(error, st%code == FM_GENERIC_ERROR)
+        call check(error, st%code == GENERIC_ERROR_CODE)
         if (allocated(error)) return
         r = base64url_encode_string("ü", status=st)
-        call check(error, st%code == FM_GENERIC_ERROR)
+        call check(error, st%code == GENERIC_ERROR_CODE)
     end subroutine test_base64url_encode_string
 
     subroutine test_base64_decode_string(error)
@@ -803,7 +804,7 @@ contains
         ! errors check
         do k = 1, size(inputs)
             r = base64_decode_string(trim(inputs(k)), status=st)
-            call check(error, st%code == FM_GENERIC_ERROR .and. format_error(st) == "Invalid base64 data", inputs(k))
+            call check(error, st%code == GENERIC_ERROR_CODE .and. format_error(st) == "Invalid base64 data", inputs(k))
             if (allocated(error)) return
         end do
 
@@ -813,7 +814,7 @@ contains
         call check(error, base64_decode_string("Zm9v*YmFy", ignore_invalid=.true.) == "foobar", "ignore invalid")
         if (allocated(error)) return
         r = base64_decode_string("Zm9v*YmFy", status=st)
-        call check(error, st%code == FM_GENERIC_ERROR, "invalid")
+        call check(error, st%code == GENERIC_ERROR_CODE, "invalid")
     end subroutine test_base64_decode_string
 
     !> Own: decoding a region gives raw-byte characters in a multibyte
@@ -826,9 +827,9 @@ contains
 
         call enter("tf-base64-decode", h, old)
         call insert("<Zm9vYmFy>", st)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call base64_decode_region(2_int64, 10_int64, length, st)
-        call check(error, st%ok() .and. length == 6 .and. buffer_string() == "<foobar>" .and. point() == point_max(), &
+        call check(error, st%ok() .and. length == 6 .and. buffer_string() == "<foobar>" .and. point() == point_maximum(), &
                    buffer_string())
 
         if (allocated(error)) then
@@ -836,20 +837,20 @@ contains
             return
         end if
 
-        call delete_region(point_min(), point_max(), st)
+        call delete_region(point_minimum(), point_maximum(), st)
         call insert("FPucA9l+", st)
-        call base64_decode_region(point_min(), point_max(), length, st)
-        call check(error, st%ok() .and. length == 6 .and. buffer_string() == str_to_multibyte(test_bytes(126)), "raw bytes")
+        call base64_decode_region(point_minimum(), point_maximum(), length, st)
+        call check(error, st%ok() .and. length == 6 .and. buffer_string() == string_to_multibyte(test_bytes(126)), "raw bytes")
 
         if (allocated(error)) then
             call leave(h, old)
             return
         end if
 
-        call delete_region(point_min(), point_max(), st)
+        call delete_region(point_minimum(), point_maximum(), st)
         call insert("Zg=", st)
-        call base64_decode_region(point_min(), point_max(), length, st)
-        call check(error, st%code == FM_GENERIC_ERROR .and. buffer_string() == "Zg=", "invalid data")
+        call base64_decode_region(point_minimum(), point_maximum(), length, st)
+        call check(error, st%code == GENERIC_ERROR_CODE .and. buffer_string() == "Zg=", "invalid data")
         call leave(h, old)
     end subroutine test_base64_decode_region
 
@@ -860,10 +861,10 @@ contains
         integer :: k
 
         r = random(-1_int64, st)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE)
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE)
         if (allocated(error)) return
         r = random(0_int64, st)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE)
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE)
         if (allocated(error)) return
         r = random()
         call check(error, r >= -2_int64**61 .and. r < 2_int64**61, "in range")
@@ -893,7 +894,7 @@ contains
     end subroutine test_random
 
     !> The statistics of the buffer after TEXT is inserted.
-    subroutine line_stats(text, lines, longest, mean)
+    subroutine line_statistics(text, lines, longest, mean)
         character(len=*), intent(in) :: text
         integer(int64), intent(out) :: lines, longest
         real(real64), intent(out) :: mean
@@ -904,7 +905,7 @@ contains
         call insert(text, st)
         call buffer_line_statistics(lines, longest, mean, st)
         call leave(h, old)
-    end subroutine line_stats
+    end subroutine line_statistics
 
     !> Whether the statistics are approximately LINES, LONGEST and MEAN.
     logical function is_approx(lines, longest, mean, lines2, longest2, mean2)
@@ -914,35 +915,35 @@ contains
         is_approx = lines == lines2 .and. longest == longest2 .and. abs(mean - mean2) < 0.1_real64
     end function is_approx
 
-    subroutine test_line_stats_nogap(error)
+    subroutine test_line_statistics_nogap(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: lf = new_line("a")
         integer(int64) :: lines, longest
         real(real64) :: mean
 
-        call line_stats("", lines, longest, mean)
+        call line_statistics("", lines, longest, mean)
         call check(error, is_approx(lines, longest, mean, 0_int64, 0_int64, 0.0_real64))
         if (allocated(error)) return
-        call line_stats("123"//lf, lines, longest, mean)
+        call line_statistics("123"//lf, lines, longest, mean)
         call check(error, is_approx(lines, longest, mean, 1_int64, 3_int64, 3.0_real64))
         if (allocated(error)) return
-        call line_stats("123"//lf//"12345"//lf//"123"//lf, lines, longest, mean)
+        call line_statistics("123"//lf//"12345"//lf//"123"//lf, lines, longest, mean)
         call check(error, is_approx(lines, longest, mean, 3_int64, 5_int64, 3.66_real64))
         if (allocated(error)) return
-        call line_stats("123"//lf//"12345"//lf//"123", lines, longest, mean)
+        call line_statistics("123"//lf//"12345"//lf//"123", lines, longest, mean)
         call check(error, is_approx(lines, longest, mean, 3_int64, 5_int64, 3.66_real64))
         if (allocated(error)) return
-        call line_stats("123"//lf//"12345", lines, longest, mean)
+        call line_statistics("123"//lf//"12345", lines, longest, mean)
         call check(error, is_approx(lines, longest, mean, 2_int64, 5_int64, 4.0_real64))
         if (allocated(error)) return
-        call line_stats("123"//lf//"12é45"//lf//"123"//lf, lines, longest, mean)
+        call line_statistics("123"//lf//"12é45"//lf//"123"//lf, lines, longest, mean)
         call check(error, is_approx(lines, longest, mean, 3_int64, 6_int64, 4.0_real64))
         if (allocated(error)) return
-        call line_stats(lf//lf//lf, lines, longest, mean)
+        call line_statistics(lf//lf//lf, lines, longest, mean)
         call check(error, is_approx(lines, longest, mean, 3_int64, 0_int64, 0.0_real64))
-    end subroutine test_line_stats_nogap
+    end subroutine test_line_statistics_nogap
 
-    subroutine test_line_stats_gap(error)
+    subroutine test_line_statistics_gap(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: lf = new_line("a")
         character(len=*), parameter :: line = "12345678901234567890123456789012345678901234567890"//lf
@@ -959,20 +960,20 @@ contains
                 call insert(line, st)
             end do
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             ! This should make a gap appear.
             call insert("123"//lf, st)
 
             select case (pass)
             case (1)
-                call delete_region(point_min(), point(), st)
+                call delete_region(point_minimum(), point(), st)
                 call buffer_line_statistics(lines, longest, mean, st)
                 call check(error, is_approx(lines, longest, mean, 1000_int64, 50_int64, 50.0_real64))
             case (2)
                 call buffer_line_statistics(lines, longest, mean, st)
                 call check(error, is_approx(lines, longest, mean, 1001_int64, 50_int64, 49.9_real64))
             case default
-                call goto_char(point_max())
+                call goto_character(point_maximum())
                 call insert("fóo", st)
                 call buffer_line_statistics(lines, longest, mean, st)
                 call check(error, is_approx(lines, longest, mean, 1002_int64, 50_int64, 49.9_real64))
@@ -981,7 +982,7 @@ contains
             call leave(h, old)
             if (allocated(error)) return
         end do
-    end subroutine test_line_stats_gap
+    end subroutine test_line_statistics_gap
 
     !> Own: three averages from /proc/loadavg, as integers (times 100)
     !> and as reals.
@@ -1081,7 +1082,7 @@ contains
         call check(error, iachar(hash(1:1)) == 56 .and. iachar(hash(16:16)) == 63, "binary bytes")
         if (allocated(error)) return
         call secure_hash(11, "foobar", hash, st)
-        call check(error, st%code == FM_GENERIC_ERROR .and. st%detail == "Invalid algorithm arg: 11", format_error(st))
+        call check(error, st%code == GENERIC_ERROR_CODE .and. st%detail == "Invalid algorithm arg: 11", format_error(st))
         if (allocated(error)) return
         ! A call to getrandom returns the right format (the `iv-auto'
         ! OBJECT): not a test of randomness.
@@ -1098,18 +1099,18 @@ contains
                                                 SECURE_HASH_SHA256, SECURE_HASH_SHA384, SECURE_HASH_SHA512, &
                                                 SECURE_HASH_SHA3_224, SECURE_HASH_SHA3_256, SECURE_HASH_SHA3_384, &
                                                 SECURE_HASH_SHA3_512]
-        integer, parameter :: hex_lengths(10) = [32, 40, 56, 64, 96, 128, 56, 64, 96, 128]
+        integer, parameter :: hexadecimal_lengths(10) = [32, 40, 56, 64, 96, 128, 56, 64, 96, 128]
         character(len=:), allocatable :: hash, other
         type(status_type) :: st
         integer :: k
 
         do k = 1, size(algorithms)
             call hash_random_bytes(algorithms(k), 100_int64, hash, st)
-            call check(error, st%ok() .and. len(hash) == hex_lengths(k) .and. verify(hash, "0123456789abcdef") == 0, &
+            call check(error, st%ok() .and. len(hash) == hexadecimal_lengths(k) .and. verify(hash, "0123456789abcdef") == 0, &
                        hash)
             if (allocated(error)) return
             call hash_random_bytes(algorithms(k), 100_int64, hash, st, binary=.true.)
-            call check(error, st%ok() .and. 2*len(hash) == hex_lengths(k), "binary length")
+            call check(error, st%ok() .and. 2*len(hash) == hexadecimal_lengths(k), "binary length")
             if (allocated(error)) return
         end do
 
@@ -1122,12 +1123,12 @@ contains
         call check(error, st%ok() .and. hash == "d41d8cd98f00b204e9800998ecf8427e", hash)
         if (allocated(error)) return
         call hash_random_bytes(SECURE_HASH_SHA256, -1_int64, hash, st)
-        call check(error, st%code == FM_GENERIC_ERROR .and. &
+        call check(error, st%code == GENERIC_ERROR_CODE .and. &
                    st%detail == "Without a length, `hash_random_bytes' can't be used; see Info node "// &
                    "`(elisp)Format of GnuTLS Cryptography Inputs'", format_error(st))
         if (allocated(error)) return
         call hash_random_bytes(11, 10_int64, hash, st)
-        call check(error, st%code == FM_GENERIC_ERROR .and. st%detail == "Invalid algorithm arg: 11", format_error(st))
+        call check(error, st%code == GENERIC_ERROR_CODE .and. st%detail == "Invalid algorithm arg: 11", format_error(st))
     end subroutine test_hash_random_bytes
 
     !> fns-tests-hash-buffer: `buffer_hash' is the SHA-1 digest of the
@@ -1154,7 +1155,7 @@ contains
         if (.not. allocated(error)) then
             ! This tests whether the presence of a gap in the middle of the
             ! buffer is handled correctly.
-            call goto_char(2_int64)
+            call goto_character(2_int64)
             call insert(" ", st)
             call delete_region(2_int64, 3_int64, st)
             call buffer_hash(hash, st, h)
@@ -1186,10 +1187,10 @@ contains
         call check(error, st%ok() .and. hash == expected, "after é")
         if (allocated(error)) return
         call secure_hash(SECURE_HASH_SHA256, "abc", hash, st, 2_int64, 1_int64)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "reversed")
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE, "reversed")
         if (allocated(error)) return
         call secure_hash(SECURE_HASH_SHA256, "abc", hash, st, 0_int64, 4_int64)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "past the end")
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE, "past the end")
     end subroutine test_secure_hash_ranges
 
     !> Own: a buffer's text (the positions in either order, a range outside
@@ -1219,7 +1220,7 @@ contains
 
         if (.not. allocated(error)) then
             call secure_hash(SECURE_HASH_SHA512, h, hash, st, 1_int64, 13_int64)
-            call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "past the end")
+            call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE, "past the end")
         end if
 
         call leave(h, old)
@@ -1254,7 +1255,7 @@ contains
         call check(error, st%ok() .and. hash == "3406877694691ddd1dfb0aca54681407", "unibyte latin-1: "//hash)
         if (allocated(error)) return
         call md5("abc", hash, st, coding_system="no-such-coding")
-        call check(error, st%code == FM_CODING_SYSTEM_ERROR .and. st%detail == "no-such-coding", format_error(st))
+        call check(error, st%code == CODING_SYSTEM_ERROR_CODE .and. st%detail == "no-such-coding", format_error(st))
         if (allocated(error)) return
         call md5("abc", hash, st, coding_system="no-such-coding", noerror=.true.)
         call check(error, st%ok() .and. hash == "900150983cd24fb0d6963f7d28e17f72", "noerror")

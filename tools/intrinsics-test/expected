@@ -8,7 +8,7 @@ sample.f90:15: intrinsics: yes-no: COMPILATION_SCROLL_YES
 sample.f90:18: intrinsics: vector: colors_vector
 sample.f90:22: intrinsics: interactive: command_type%interactive
 sample.f90:27: intrinsics: command-state: this_command
-sample.f90:27: intrinsics: command-state: current_prefix_arg
+sample.f90:27: intrinsics: command-state: current_prefix_argument
 sample.f90:38: intrinsics: verb: hook_type%run
 sample.f90:42: intrinsics: verb: hook_type%run_safe
 sample.f90:48: intrinsics: constant: DABBREV_OFF

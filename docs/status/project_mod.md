@@ -10,22 +10,22 @@ the project object: `project_type` (the generics `project-root`, `project-extern
 `project-current` (`get_current_project`, with `project-current-directory-override` and `project-find-functions` as `project_find_functions`, a list of procedures with `%append`),
 `project--find-in-directory`,
 the transient project (`transient_project_type`),
-`project-prompter` (`read_project_dir`, `read_project_name`, `project-read-project`, `project-prompt-project-dir`, `project-prompt-project-name`, `project--dir-history`, `project--name-history`),
+`project-prompter` (`read_project_directory`, `read_project_name`, `project-read-project`, `project-prompt-project-dir`, `project-prompt-project-name`, `project--dir-history`, `project--name-history`),
 `project--files-in-directory`,
 `project--dir-ignores`,
 `project-files-relative-names`,
 `project-combine-directories`,
 `project-subtract-directories`;
-the VC-aware backend: `project-try-vc` (`try_vc_project`, `project-try-vc--search`, `project--get-cached`, `project--set-cached`, `project--clear-cache`, `project-vc-cache-timeout`, `project-vc-non-essential-cache-timeout`),
-`vc_project_type` (`project-vc--backend`),
-`project-vc-backend-markers-alist` (`project_vc_backend_markers`),
+the VC-aware backend: `project-try-vc` (`try_version_control_project`, `project-try-vc--search`, `project--get-cached`, `project--set-cached`, `project--clear-cache`, `project-vc-cache-timeout`, `project-vc-non-essential-cache-timeout`),
+`version_control_project_type` (`project-vc--backend`),
+`project-vc-backend-markers-alist` (`project_version_control_backend_markers`),
 `project-vc-extra-root-markers`,
 `project-vc-ignores` (the global value),
 `project-vc-include-untracked`,
 `project-vc-merge-submodules` (`project--git-submodules`, `project--submodule-p`),
 `project-vc-name`,
 `project-vc-external-roots-function`,
-`project--vc-ignores` (`project_vc_ignores_of`, with vc.el's `vc-default-ignore-completion-table`),
+`project--vc-ignores` (`project_version_control_ignores_of`, with vc.el's `vc-default-ignore-completion-table`),
 `vc-git-project-list-files` (`git ls-files`);
 the known projects: `project-list-file` (namelist syntax, namelist_mod),
 `project--read-project-list`,
@@ -89,7 +89,7 @@ the file name at point as the default of the find-file commands (`thing-at-point
 `minibuffer-default-add-completions` in the file prompts;
 remote files (`project--remote-file-names`, `project--within-roots-fallback`);
 `vc-hg-project-list-files` and `vc-default-project-list-files` (the other backends list with `find`);
-`project-regexp-history-variable` (the history is `grep_regexp_history`);
+`project-regexp-history-variable` (the history is `grep_regular_expression_history`);
 the obsolete `project-roots`;
 Not applicable: `project--buffers-completion-table`,
 `project--completion-table-with-category` and `project--file-completion-table` (completion tables are `completion_table_type` with a category),

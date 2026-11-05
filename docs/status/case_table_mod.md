@@ -19,7 +19,7 @@ per-buffer tables (BVAR `downcase_table`, `upcase_table`, `case_canon_table`, `c
 `is_uppercase`,
 `is_lowercase`,
 the canonicalize lookup (`char_table_translate`);
-the standard table from `init_casetab_once` (ASCII) and characters.el's Unicode entries,
+the standard table from `initialize_casetab_once` (ASCII) and characters.el's Unicode entries,
 identity entries included (`tools/gen-unicase.sh`),
 its canonicalize and equivalence tables computed by `set_case_table`
 

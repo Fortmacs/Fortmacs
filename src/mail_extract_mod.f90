@@ -37,24 +37,25 @@
 module mail_extract_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_SCAN_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, SCAN_ERROR_CODE
     use handle_mod, only: handle_type
     use data_mod, only: choice_setting_type
     use value_mod, only: value_type, make_list
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, set_buffer_if_live, get_or_make_buffer, erase_buffer
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_eob, is_bob, buffer_string, delete_region, &
-                                     narrow_to_region, widen, insert_buffer_substring, buffer_substring_no_properties, char_after, &
-                                     following_char, preceding_char, save_excursion_begin, save_excursion_end, excursion_type, &
-                                     save_restriction_begin, save_restriction_end, restriction_type, point_marker
-    use insert_delete_mod, only: insert, insert_char, insert_before_markers
-    use editing_commands_mod, only: forward_char, backward_char, delete_char
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_end_of_buffer, &
+                                     is_beginning_of_buffer, buffer_string, delete_region, narrow_to_region, widen, &
+                                     insert_buffer_substring, buffer_substring_no_properties, character_after, &
+                                     following_character, preceding_character, save_excursion_begin, save_excursion_end, &
+                                     excursion_type, save_restriction_begin, save_restriction_end, restriction_type, point_marker
+    use insert_delete_mod, only: insert, insert_character, insert_before_markers
+    use editing_commands_mod, only: forward_character, backward_character, delete_character
     use case_table_mod, only: downcase, upcase
     use casefiddle_mod, only: capitalize_word, upcase_word, capitalize_region, downcase_region, downcase_string
     use simple_mod, only: just_one_space
-    use syntax_mod, only: make_syntax_table, modify_syntax_entry, set_syntax_table, syntax_table, char_syntax, &
-                          skip_chars_forward, skip_chars_backward, forward_word, scan_expressions, scan_error_data
-    use search_mod, only: search_forward, re_search_forward, looking_at, match_beginning, match_end, replace_match, &
-                          case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
+    use syntax_mod, only: make_syntax_table, modify_syntax_entry, set_syntax_table, syntax_table, character_syntax, &
+                          skip_characters_forward, skip_characters_backward, forward_word, scan_expressions, scan_error_data
+    use search_mod, only: search_forward, regular_expression_search_forward, looking_at, match_beginning, match_end, &
+                          replace_match, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use text_properties_mod, only: set_text_properties
     use minibuffer_reading_tables_mod, only: completion_table_type, completion_list_table
@@ -64,7 +65,7 @@ module mail_extract_mod
     implicit none(type, external)
     private
 
-    public :: extract_mail_address_components, what_domain, init_mail_extract
+    public :: extract_mail_address_components, what_domain, initialize_mail_extract
 
     !> The full name and the canonical address of one recipient, as
     !> `extract_mail_address_components' gives them; each is unallocated
@@ -79,7 +80,7 @@ module mail_extract_mod
     !> `mail_extr_disable_voodoo%regexp = "\cj"'; unallocated when none is
     !> set).  Not a port.
     type, extends(choice_setting_type), public :: mail_extr_disable_voodoo_choice_setting_type
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
     contains
         procedure :: clear_kinds => mail_extr_disable_voodoo_clear_kinds
         procedure :: other_value => mail_extr_disable_voodoo_other_value
@@ -107,7 +108,7 @@ module mail_extract_mod
     !> Matches prefixes to the full name that identify a person's position.
     !> These are stripped from the full name because they do not contribute to
     !> uniquely identifying the person.  Port of mail-extr.el
-    !> mail-extr-full-name-prefixes (`init_mail_extract' sets it).
+    !> mail-extr-full-name-prefixes (`initialize_mail_extract' sets it).
     character(len=:), allocatable, public :: mail_extr_full_name_prefixes
 
     !> Whether the local mail transport agent looks at ! before @.  Port of
@@ -586,14 +587,14 @@ contains
 
     !> Set the default of `mail_extr_full_name_prefixes' and make the
     !> syntax tables; register `what_domain'.  Not a port.
-    subroutine init_mail_extract()
+    subroutine initialize_mail_extract()
         type(status_type) :: st
 
         mail_extr_full_name_prefixes = "\(Prof\|D[Rr]\|Mrs?\|Rev\|Rabbi\|SysOp\|LCDR\)\.?[ "//TAB//LF//"]"
-        mail_extr_disable_voodoo%regexp = "\cj"
+        mail_extr_disable_voodoo%regular_expression = "\cj"
         call make_syntax_tables(st)
-        commands%what_domain%execute => cmd_what_domain
-    end subroutine init_mail_extract
+        commands%what_domain%execute => execute_what_domain
+    end subroutine initialize_mail_extract
 
     ! Make the five syntax tables.  Port of the syntax table setup in
     ! mail-extr.el.
@@ -693,7 +694,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: moved
 
-        moved = skip_chars_forward(WHITESPACE, status)
+        moved = skip_characters_forward(WHITESPACE, status)
     end subroutine skip_whitespace_forward
 
     ! Skip whitespace backward.  Port of
@@ -702,7 +703,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: moved
 
-        moved = skip_chars_backward(WHITESPACE, status)
+        moved = skip_characters_backward(WHITESPACE, status)
     end subroutine skip_whitespace_backward
 
     ! Undo \ quoting between BEGINNING and END.  Port of
@@ -719,16 +720,16 @@ contains
         call narrow_to_region(beginning, end, status)
 
         if (status%ok()) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             do
                 call search_forward("\", found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok() .or. found == 0) exit
-                call delete_char(-1_int64, status)
+                call delete_character(-1_int64, status)
                 if (.not. status%ok()) exit
 
-                if (.not. is_eob()) then
-                    call forward_char(status, 1_int64)
+                if (.not. is_end_of_buffer()) then
+                    call forward_character(status, 1_int64)
                     if (.not. status%ok()) exit
                 end if
             end do
@@ -740,17 +741,17 @@ contains
 
     ! Replace the character at POSITION with a space.  Port of
     ! mail-extr.el:mail-extr-nuke-char-at.
-    subroutine blank_char_at(position, status)
+    subroutine blank_character_at(position, status)
         integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
         type(excursion_type) :: excursion
 
         call save_excursion_begin(excursion)
-        call goto_char(position)
-        call delete_char(1_int64, status)
+        call goto_character(position)
+        call delete_character(1_int64, status)
         if (status%ok()) call insert(" ", status)
         call save_excursion_end(excursion)
-    end subroutine blank_char_at
+    end subroutine blank_character_at
 
     ! Delete the elements of POSITIONS outside BEGINNING..END; with
     ! BLANK, also replace the character at each of them with a space.
@@ -769,7 +770,7 @@ contains
         if (blank) then
             do k = 1, size(positions)
                 if (outside(k)) then
-                    call blank_char_at(positions(k), status)
+                    call blank_character_at(positions(k), status)
                     if (.not. status%ok()) return
                 end if
             end do
@@ -786,31 +787,31 @@ contains
         logical, intent(out) :: moved
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: message_text
-        integer(int64) :: pos, beginning, end
+        integer(int64) :: position, beginning, end
 
         moved = .false.
-        pos = scan_expressions(point(), count, status)
+        position = scan_expressions(point(), count, status)
 
         if (.not. status%ok()) then
-            if (status%code /= FM_SCAN_ERROR) return
+            if (status%code /= SCAN_ERROR_CODE) return
             call scan_error_data(status, message_text, beginning, end)
             if (message_text == UNBALANCED_PARENTHESES) status = status_type()
             return
         end if
 
-        if (pos /= 0) call goto_char(pos)
+        if (position /= 0) call goto_character(position)
         moved = .true.
     end subroutine move_over_expression
 
     ! The character after POSITION in the current buffer; -1 when there
     ! is none (upstream's nil).  Not a port.
-    integer(int32) function char_at(position)
+    integer(int32) function character_at(position)
         integer(int64), intent(in) :: position
         logical :: found
 
-        call char_after(char_at, found, position)
-        if (.not. found) char_at = -1
-    end function char_at
+        call character_after(character_at, found, position)
+        if (.not. found) character_at = -1
+    end function character_at
 
     ! Whether the top-level domain CODE is in the table (an exact,
     ! case-sensitive match, as upstream's table lookup is).
@@ -910,7 +911,7 @@ contains
             end if
 
             if (.not. status%ok()) return
-            call set_text_properties(point_min(), point_max(), value_type(), changed, status)
+            call set_text_properties(point_minimum(), point_maximum(), value_type(), changed, status)
             if (.not. status%ok()) return
             call set_buffer(canonicalization_buffer, status)
             if (.not. status%ok()) return
@@ -920,10 +921,11 @@ contains
             call set_buffer(extraction_buffer, status)
             if (.not. status%ok()) return
             ! Unfold multiple lines.
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             do
-                call re_search_forward("\([^\]\(\\\\\)*\)"//LF//"[ "//TAB//"]", found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("\([^\]\(\\\\\)*\)"//LF//"[ "//TAB//"]", found, status, &
+                                                       noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) return
                 if (found == 0) exit
                 call replace_match("\1 ", status, fixedcase=.true.)
@@ -933,10 +935,10 @@ contains
             ! Loop over addresses until we have as many as we want.
             do
                 if (.not. every .and. size(components) > 0) exit
-                call goto_char(point_min())
-                moved = skip_chars_forward(" "//TAB, status)
+                call goto_character(point_minimum())
+                moved = skip_characters_forward(" "//TAB, status)
                 if (.not. status%ok()) return
-                if (is_eob()) exit
+                if (is_end_of_buffer()) exit
                 call extract_one_address(canonicalization_buffer, extraction_buffer, every, components, status)
                 if (.not. status%ok()) return
             end do
@@ -963,7 +965,7 @@ contains
         integer(int32) :: code, next, first_initial, last_initial, middle_initial
         integer(int64) :: opening_angle, closing_angle, at_sign, group_colon, group_semicolon, route_colon, first_real, &
                           last_real, phrase_beginning, phrase_end, comment_beginning, comment_end, quote_beginning, &
-                          quote_end, atom_beginning, atom_end, mailbox_beginning, mailbox_end, temp, position, found, moved, &
+                          quote_end, atom_beginning, atom_end, mailbox_beginning, mailbox_end, temporary, position, found, moved, &
                           buffer_length, i
         logical :: has_end_of_address, split, blank, moved_over, dot_ends_name, disable_initial_guessing, names_match
         integer :: k
@@ -985,11 +987,11 @@ contains
         disable_initial_guessing = .false.
         call set_syntax_table(address_syntax_table, status)
         if (.not. status%ok()) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         ! Insert extra space at beginning to allow later replacement with <
         ! without having to move markers.
-        if (following_char() /= iachar(" ")) then
+        if (following_character() /= iachar(" ")) then
             call insert(" ", status)
             if (.not. status%ok()) return
         end if
@@ -998,19 +1000,19 @@ contains
         do
             call skip_whitespace_forward(status)
             if (.not. status%ok()) return
-            if (is_eob()) exit
-            code = char_at(point())
+            if (is_end_of_buffer()) exit
+            code = character_at(point())
             if (first_real == 0 .and. code /= iachar("(")) first_real = point()
             split = .false.
 
             ! Commas delimit addresses when outside < > pairs.
             if (code == iachar(",")) then
                 ! Handle ROUTE-ADDR address that is missing its <.
-                if (size(opening_angles) == 0 .and. char_at(point() + 1) /= iachar("@")) then
+                if (size(opening_angles) == 0 .and. character_at(point() + 1) /= iachar("@")) then
                     split = .true.
                 else if (size(closing_angles) > 0) then
                     if (size(opening_angles) == 0) then
-                        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type), got .false.")
+                        call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer or type(marker_type), got .false.")
                         return
                     end if
 
@@ -1027,9 +1029,9 @@ contains
                 ! Only record the first non-empty comment's position.
                 if (comment_beginning == 0) then
                     call save_excursion_begin(excursion)
-                    call forward_char(status, 1_int64)
+                    call forward_character(status, 1_int64)
                     if (status%ok()) call skip_whitespace_forward(status)
-                    next = char_at(point())
+                    next = character_at(point())
                     call save_excursion_end(excursion)
                     if (.not. status%ok()) return
                     if (next /= iachar(")")) comment_beginning = point()
@@ -1044,9 +1046,9 @@ contains
                 ! Quoted text: only record the first non-empty quote's position.
                 if (quote_beginning == 0) then
                     call save_excursion_begin(excursion)
-                    call forward_char(status, 1_int64)
+                    call forward_character(status, 1_int64)
                     if (status%ok()) call skip_whitespace_forward(status)
-                    next = char_at(point())
+                    next = character_at(point())
                     call save_excursion_end(excursion)
                     if (.not. status%ok()) return
                     if (next /= iachar("""")) quote_beginning = point()
@@ -1069,9 +1071,9 @@ contains
                 call copy_marker_at(point() + 1, end_of_address, .true., status)
                 if (.not. status%ok()) return
                 has_end_of_address = .true.
-                call narrow_to_region(point_min(), point() + 1, status)
+                call narrow_to_region(point_minimum(), point() + 1, status)
                 if (.not. status%ok()) return
-                call delete_char(1_int64, status)
+                call delete_character(1_int64, status)
                 if (.not. status%ok()) return
                 code = iachar("(")
             else if (is_one_of(code, "<>@:,!%;")) then
@@ -1098,42 +1100,42 @@ contains
                     ! `is_one_of' admits only the characters above.
                 end select
 
-                call forward_char(status, 1_int64)
+                call forward_character(status, 1_int64)
                 if (.not. status%ok()) return
             else if (code == iachar(".")) then
-                call forward_char(status, 1_int64)
+                call forward_character(status, 1_int64)
                 if (.not. status%ok()) return
             else if (is_one_of(code, ")]\")) then
                 ! A comment terminator or domain literal terminator is invalid
                 ! here, and \ is allowed only within quoted strings, domain
                 ! literals and comments.
-                call blank_char_at(point(), status)
+                call blank_character_at(point(), status)
                 if (.not. status%ok()) return
-                call forward_char(status, 1_int64)
+                call forward_character(status, 1_int64)
                 if (.not. status%ok()) return
             else
                 ! Move over a word, recognizing non-ASCII characters except
                 ! Latin-1 nbsp as words.
                 do
-                    moved = skip_chars_forward("^"//achar(0)//"-"//achar(127)//NO_BREAK_SPACE, status)
+                    moved = skip_characters_forward("^"//achar(0)//"-"//achar(127)//NO_BREAK_SPACE, status)
                     if (.not. status%ok()) return
-                    if (is_eob()) exit
-                    if (char_syntax(char_at(point())) /= "w") exit
+                    if (is_end_of_buffer()) exit
+                    if (character_syntax(character_at(point())) /= "w") exit
                     call forward_word(1_int64)
-                    if (is_eob()) exit
-                    next = char_at(point())
+                    if (is_end_of_buffer()) exit
+                    next = character_at(point())
                     if (next <= 127 .or. next == NO_BREAK_SPACE_CODE) exit
                 end do
             end if
 
             ! At the end of first address of a multiple address header, no
             ! last real position.
-            if (code /= iachar("(") .and. .not. (code == iachar(",") .and. is_eob())) last_real = point()
+            if (code /= iachar("(") .and. .not. (code == iachar(",") .and. is_end_of_buffer())) last_real = point()
         end do
 
         ! Use only the leftmost <, if any.  Replace all others with spaces.
         do k = 1, size(opening_angles) - 1
-            call blank_char_at(opening_angles(k), status)
+            call blank_character_at(opening_angles(k), status)
             if (.not. status%ok()) return
         end do
 
@@ -1141,7 +1143,7 @@ contains
 
         ! Use only the rightmost >, if any.  Replace all others with spaces.
         do k = 2, size(closing_angles)
-            call blank_char_at(closing_angles(k), status)
+            call blank_character_at(closing_angles(k), status)
             if (.not. status%ok()) return
         end do
 
@@ -1151,8 +1153,8 @@ contains
         ! Example: @foo.bar.dom,@xxx.yyy.zzz:mailbox@aaa.bbb.ccc
         ! This commonly happens on the UUCP "From " line.
         if (size(at_signs) > 1 .and. size(colons) == 1 .and. size(semicolons) == 0 .and. size(opening_angles) == 0) then
-            call goto_char(point_min())
-            call delete_char(1_int64, status)
+            call goto_character(point_minimum())
+            call delete_character(1_int64, status)
             if (.not. status%ok()) return
             opening_angles = [point()]
             call insert("<", status)
@@ -1161,7 +1163,7 @@ contains
 
         ! If < but no >, insert > in rightmost possible position.
         if (size(opening_angles) > 0 .and. size(closing_angles) == 0) then
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             closing_angles = [point()]
             call insert(">", status)
             if (.not. status%ok()) return
@@ -1169,7 +1171,7 @@ contains
 
         ! If > but no <, replace > with space.
         if (size(closing_angles) > 0 .and. size(opening_angles) == 0) then
-            call blank_char_at(closing_angles(1), status)
+            call blank_character_at(closing_angles(1), status)
             if (.not. status%ok()) return
             deallocate (closing_angles)
             allocate (closing_angles(0))
@@ -1195,45 +1197,45 @@ contains
         ! ROUTE-ADDR spec.  Can't possibly be more than two :.  Blank any
         ! extra.
         do k = 1, size(colons)
-            temp = colons(k)
+            temporary = colons(k)
 
-            if (opening_angle /= 0 .and. closing_angle /= 0 .and. temp > opening_angle .and. temp < closing_angle) then
+            if (opening_angle /= 0 .and. closing_angle /= 0 .and. temporary > opening_angle .and. temporary < closing_angle) then
                 blank = route_colon /= 0 .or. size(at_signs) < 2
-                if (.not. blank) blank = temp > at_signs(1) .or. temp < at_signs(2)
+                if (.not. blank) blank = temporary > at_signs(1) .or. temporary < at_signs(2)
 
                 if (blank) then
-                    call blank_char_at(temp, status)
+                    call blank_character_at(temporary, status)
                     if (.not. status%ok()) return
                 else
-                    route_colon = temp
+                    route_colon = temporary
                 end if
-            else if (opening_angle == 0 .or. temp < opening_angle) then
-                group_colon = temp
+            else if (opening_angle == 0 .or. temporary < opening_angle) then
+                group_colon = temporary
             end if
         end do
 
         ! Blank any ; that is in or to the left of a < > pair or to the left
         ! of a GROUP starting :.  Also, there may only be one ;.
         do k = 1, size(semicolons)
-            temp = semicolons(k)
+            temporary = semicolons(k)
 
-            if (opening_angle /= 0 .and. closing_angle /= 0 .and. temp > opening_angle .and. temp < closing_angle) then
-                call blank_char_at(temp, status)
+            if (opening_angle /= 0 .and. closing_angle /= 0 .and. temporary > opening_angle .and. temporary < closing_angle) then
+                call blank_character_at(temporary, status)
                 if (.not. status%ok()) return
-            else if ((group_colon == 0 .or. temp > group_colon) .and. group_semicolon == 0) then
-                group_semicolon = temp
+            else if ((group_colon == 0 .or. temporary > group_colon) .and. group_semicolon == 0) then
+                group_semicolon = temporary
             end if
         end do
 
         ! Blank unmatched GROUP syntax characters.
         if (group_colon /= 0 .and. group_semicolon == 0) then
-            call blank_char_at(group_colon, status)
+            call blank_character_at(group_colon, status)
             if (.not. status%ok()) return
             group_colon = 0
         end if
 
         if (group_semicolon /= 0 .and. group_colon == 0) then
-            call blank_char_at(group_semicolon, status)
+            call blank_character_at(group_semicolon, status)
             if (.not. status%ok()) return
             group_semicolon = 0
         end if
@@ -1268,11 +1270,11 @@ contains
 
         ! Locate PHRASE part of ROUTE-ADDR.
         if (opening_angle /= 0) then
-            call goto_char(opening_angle)
+            call goto_character(opening_angle)
             call skip_whitespace_backward(status)
             if (.not. status%ok()) return
             phrase_end = point()
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call skip_whitespace_forward(status)
             if (.not. status%ok()) return
 
@@ -1293,13 +1295,13 @@ contains
             if (.not. status%ok()) return
             call copy_marker_at(route_colon, route_marker, .false., status)
             if (.not. status%ok()) return
-            call goto_char(closing_angle)
+            call goto_character(closing_angle)
             call insert_before_markers("X", status)
             if (.not. status%ok()) return
-            call goto_char(at_signs(1))
+            call goto_character(at_signs(1))
 
             do k = 2, size(at_signs)
-                call delete_char(1_int64, status)
+                call delete_character(1_int64, status)
                 if (.not. status%ok()) return
                 call point_marker(marker)
                 percent_markers = [marker, percent_markers]
@@ -1307,7 +1309,7 @@ contains
                 if (.not. status%ok()) return
                 call marker_position(closing_marker, position, status)
                 if (.not. status%ok()) return
-                call goto_char(position - 1)
+                call goto_character(position - 1)
                 call save_excursion_begin(excursion)
                 call marker_position(route_marker, position, status)
                 if (status%ok()) call insert_buffer_substring(extraction_buffer, status, at_signs(k), position)
@@ -1321,12 +1323,12 @@ contains
             at_signs = saved_at_signs
             call marker_position(closing_marker, position, status)
             if (.not. status%ok()) return
-            call goto_char(position)
-            call delete_char(-1_int64, status)
+            call goto_character(position)
+            call delete_character(-1_int64, status)
             if (.not. status%ok()) return
             call marker_position(route_marker, position, status)
             if (.not. status%ok()) return
-            call blank_char_at(position, status)
+            call blank_character_at(position, status)
             if (.not. status%ok()) return
             call destroy_marker(route_marker, status)
             if (.not. status%ok()) return
@@ -1359,7 +1361,7 @@ contains
             ! Example: "First M. Last" <fml@foo.bar.dom>
             call narrow_to_region(quote_beginning + 1, quote_end - 1, status)
             if (.not. status%ok()) return
-            call undo_backslash_quoting(point_min(), point_max(), status)
+            call undo_backslash_quoting(point_minimum(), point_maximum(), status)
             if (.not. status%ok()) return
         else if (phrase_beginning /= 0) then
             ! Example: First Last <fml@foo.bar.dom>
@@ -1369,9 +1371,9 @@ contains
             ! Example: fml@foo.bar.dom (First M. Last)
             call narrow_to_region(comment_beginning + 1, comment_end - 1, status)
             if (.not. status%ok()) return
-            call undo_backslash_quoting(point_min(), point_max(), status)
+            call undo_backslash_quoting(point_minimum(), point_maximum(), status)
             if (.not. status%ok()) return
-            call goto_char(point_min())
+            call goto_character(point_minimum())
         else
             ! Otherwise we try to get the name from the mailbox portion
             ! of the address.  Example: First_M_Last@foo.bar.dom
@@ -1384,30 +1386,31 @@ contains
         call clean_up_name(mailbox_beginning, mailbox_end, canonicalization_buffer, comment_beginning, comment_end, &
                            disable_initial_guessing, status)
         if (.not. status%ok()) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! If name is "First Last" and userid is "F?L", then assume
         ! the middle initial is the second letter in the userid.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (mail_extr_guess_middle_initial .and. .not. disable_initial_guessing .and. mailbox_end - mailbox_beginning == 3) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             if (looking_at(TWO_NAME_PATTERN, status)) then
-                first_initial = char_at(match_beginning(0, st))
-                last_initial = char_at(match_beginning(3, st))
+                first_initial = character_at(match_beginning(0, st))
+                last_initial = character_at(match_beginning(3, st))
                 middle_initial = -1
                 call set_buffer(canonicalization_buffer, status)
                 if (.not. status%ok()) return
                 ! Comparing ignoring case (char-equal with case-fold-search).
-                if (downcase(first_initial) == downcase(char_at(mailbox_beginning)) .and. &
-                    downcase(last_initial) == downcase(char_at(mailbox_end - 1))) middle_initial = char_at(mailbox_beginning + 1)
+                if (downcase(first_initial) == downcase(character_at(mailbox_beginning)) .and. &
+                    downcase(last_initial) == downcase(character_at(mailbox_end - 1))) middle_initial = character_at( &
+                                                                                                    mailbox_beginning + 1)
                 call set_buffer(extraction_buffer, status)
                 if (.not. status%ok()) return
 
                 if (middle_initial >= 0) then
-                    if (char_syntax(middle_initial) == "w") then
-                        call goto_char(match_beginning(3, st))
-                        call insert_char(upcase(middle_initial), status)
+                    if (character_syntax(middle_initial) == "w") then
+                        call goto_character(match_beginning(3, st))
+                        call insert_character(upcase(middle_initial), status)
                         if (status%ok()) call insert(". ", status)
                         if (.not. status%ok()) return
                     end if
@@ -1418,24 +1421,24 @@ contains
         end if
 
         ! Drop name if it is the same as mailbox name.
-        buffer_length = point_max() - point_min()
+        buffer_length = point_maximum() - point_minimum()
 
         if (buffer_length > 0 .and. buffer_length == mailbox_end - mailbox_beginning) then
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call insert_buffer_substring(canonicalization_buffer, status, mailbox_beginning, mailbox_end)
             if (.not. status%ok()) return
             names_match = .true.
             i = 0
 
             do while (names_match .and. i < buffer_length)
-                if (downcase(char_at(i + point_min())) /= downcase(char_at(i + buffer_length + point_min()))) then
+                if (downcase(character_at(i + point_minimum())) /= downcase(character_at(i + buffer_length + point_minimum()))) then
                     names_match = .false.
                 end if
 
                 i = i + 1
             end do
 
-            call delete_region(point_min() + buffer_length, point_max(), status)
+            call delete_region(point_minimum() + buffer_length, point_maximum(), status)
             if (.not. status%ok()) return
 
             if (names_match .and. mail_extr_ignore_realname_equals_mailbox_name) then
@@ -1445,10 +1448,10 @@ contains
         end if
 
         ! Drop name if it's just one word.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (mail_extr_ignore_single_names) then
-            call re_search_forward("[- ]", found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("[- ]", found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) return
 
             if (found == 0) then
@@ -1458,10 +1461,10 @@ contains
         end if
 
         ! Record the result.
-        if (point_min() /= point_max()) value%full_name = buffer_string()
+        if (point_minimum() /= point_maximum()) value%full_name = buffer_string()
         call set_buffer(canonicalization_buffer, status)
         if (.not. status%ok()) return
-        if (point_min() /= point_max()) value%address = buffer_string()
+        if (point_minimum() /= point_maximum()) value%address = buffer_string()
         call set_buffer(extraction_buffer, status)
         if (.not. status%ok()) return
         components = [components, value]
@@ -1478,7 +1481,7 @@ contains
                 call widen()
             end if
 
-            call delete_region(point_min(), point_max(), status)
+            call delete_region(point_minimum(), point_maximum(), status)
             if (.not. status%ok()) return
             call widen()
         end if
@@ -1494,7 +1497,7 @@ contains
 
             call move_over_expression(1_int64, moved_over, status)
             if (.not. status%ok()) return
-            if (.not. moved_over) call forward_char(status, 1_int64)
+            if (.not. moved_over) call forward_character(status, 1_int64)
         end subroutine move_or_step
 
         ! Turn the first % into an @ when there is no @.
@@ -1503,8 +1506,8 @@ contains
 
             status = status_type()
             if (size(percent_signs) == 0 .or. at_sign /= 0) return
-            call goto_char(percent_signs(1))
-            call delete_char(1_int64, status)
+            call goto_character(percent_signs(1))
+            call delete_character(1_int64, status)
             if (.not. status%ok()) return
             at_sign = point()
             call insert("@", status)
@@ -1533,30 +1536,30 @@ contains
             if (.not. status%ok()) return
 
             if (opening_angle /= 0) then
-                call goto_char(opening_angle + 1)
+                call goto_character(opening_angle + 1)
                 call skip_whitespace_forward(status)
                 if (.not. status%ok()) return
                 call narrow_to_region(point(), closing_angle, status)
             else if (first_real /= 0 .and. last_real /= 0) then
                 call narrow_to_region(first_real, last_real, status)
             else
-                call narrow_to_region(point_max(), point_max(), status)
+                call narrow_to_region(point_maximum(), point_maximum(), status)
             end if
 
             if (.not. status%ok()) return
 
             if (at_sign /= 0 .and. size(percent_signs) > 0) then
-                call remove_outside_range(percent_signs, point_min(), at_sign, .true., status)
+                call remove_outside_range(percent_signs, point_minimum(), at_sign, .true., status)
                 if (.not. status%ok()) return
             end if
 
             if (size(percent_signs) > 0 .and. size(exclamation_marks) > 0) then
-                call remove_outside_range(exclamation_marks, point_min(), percent_signs(1), .true., status)
+                call remove_outside_range(exclamation_marks, point_minimum(), percent_signs(1), .true., status)
                 if (.not. status%ok()) return
             end if
 
             if (at_sign /= 0 .and. size(exclamation_marks) > 0 .and. size(percent_signs) == 0) then
-                call remove_outside_range(exclamation_marks, point_min(), at_sign, .true., status)
+                call remove_outside_range(exclamation_marks, point_minimum(), at_sign, .true., status)
                 if (.not. status%ok()) return
             end if
 
@@ -1569,14 +1572,14 @@ contains
                 call save_restriction_begin(restriction)
 
                 if (at_sign /= 0 .and. mail_extract_at_sign_binds_tighter_than_exclamation_mark) then
-                    call goto_char(at_sign)
+                    call goto_character(at_sign)
                     percent_signs = [point(), percent_signs]
                     at_sign = 0
-                    call delete_char(1_int64, status)
+                    call delete_character(1_int64, status)
                     if (status%ok()) call insert("%", status)
-                    insert_point = point_max()
+                    insert_point = point_maximum()
                 else if (mail_extract_at_sign_binds_tighter_than_exclamation_mark) then
-                    insert_point = point_max()
+                    insert_point = point_maximum()
                 else if (size(percent_signs) > 0) then
                     insert_point = percent_signs(size(percent_signs))
                     deallocate (saved_percent_markers)
@@ -1598,16 +1601,16 @@ contains
                     call copy_marker_at(at_sign, at_marker, .false., status)
                     at_is_marker = .true.
                 else
-                    insert_point = point_max()
+                    insert_point = point_maximum()
                 end if
 
-                if (status%ok()) call narrow_to_region(point_min(), insert_point, status)
+                if (status%ok()) call narrow_to_region(point_minimum(), insert_point, status)
                 saved_exclamation_mark = exclamation_marks(1)
                 n = size(exclamation_marks)
 
                 do k = 1, n
                     if (.not. status%ok()) exit
-                    call goto_char(point_max())
+                    call goto_character(point_maximum())
 
                     if (at_sign == 0 .and. k == n) then
                         at_sign = point()
@@ -1617,23 +1620,23 @@ contains
                         call insert_before_markers("% ", status)
                     end if
 
-                    if (status%ok()) call backward_char(status, 1_int64)
-                    start = point_min()
+                    if (status%ok()) call backward_character(status, 1_int64)
+                    start = point_minimum()
                     if (k < n) start = exclamation_marks(k + 1) + 1
                     if (status%ok()) call insert_buffer_substring(canonicalization_buffer, status, start, exclamation_marks(k))
-                    if (status%ok()) call delete_char(1_int64, status)
+                    if (status%ok()) call delete_character(1_int64, status)
                     if (.not. status%ok()) exit
                     call save_excursion_begin(excursion)
                     call move_over_expression(-1_int64, moved_over, status)
                     if (status%ok()) call skip_whitespace_backward(status)
-                    dot_before = preceding_char() == iachar(".")
+                    dot_before = preceding_character() == iachar(".")
                     call save_excursion_end(excursion)
                     if (.not. status%ok()) exit
 
                     if (.not. dot_before) then
                         call save_excursion_begin(excursion)
                         call skip_whitespace_backward(status)
-                        dot_before = preceding_char() == iachar(".")
+                        dot_before = preceding_character() == iachar(".")
                         call save_excursion_end(excursion)
                         if (.not. status%ok()) exit
 
@@ -1660,7 +1663,7 @@ contains
                     if (.not. status%ok()) return
                 end if
 
-                call narrow_to_region(saved_exclamation_mark + 1, point_max(), status)
+                call narrow_to_region(saved_exclamation_mark + 1, point_maximum(), status)
                 if (.not. status%ok()) return
             end if
 
@@ -1672,9 +1675,9 @@ contains
             ! address is truncated there).
             do k = 1, size(percent_signs)
                 if (k < size(percent_signs)) then
-                    call goto_char(percent_signs(k + 1))
+                    call goto_character(percent_signs(k + 1))
                 else
-                    call goto_char(at_sign)
+                    call goto_character(at_sign)
                 end if
 
                 call skip_whitespace_backward(status)
@@ -1683,7 +1686,7 @@ contains
                 call move_over_expression(-1_int64, moved_over, status)
                 domain_position = point()
                 if (status%ok()) call skip_whitespace_backward(status)
-                dot_before = preceding_char() == iachar(".")
+                dot_before = preceding_character() == iachar(".")
                 call save_excursion_end(excursion)
                 if (.not. status%ok()) return
 
@@ -1692,10 +1695,10 @@ contains
                     if (.not. status%ok()) return
 
                     if (is_top_level_domain(domain)) then
-                        call narrow_to_region(point_min(), point(), status)
+                        call narrow_to_region(point_minimum(), point(), status)
                         if (.not. status%ok()) return
-                        call goto_char(percent_signs(k))
-                        call delete_char(1_int64, status)
+                        call goto_character(percent_signs(k))
+                        call delete_character(1_int64, status)
                         if (.not. status%ok()) return
                         at_sign = point()
                         percent_signs = percent_signs(1:k)
@@ -1707,19 +1710,19 @@ contains
                 end if
             end do
 
-            mailbox_beginning = point_min()
+            mailbox_beginning = point_minimum()
 
             if (size(percent_signs) > 0) then
                 mailbox_end = percent_signs(1)
             else if (at_sign /= 0) then
                 mailbox_end = at_sign
             else
-                mailbox_end = point_max()
+                mailbox_end = point_maximum()
             end if
 
             ! Make the domain-name part lowercase since it's case
             ! insensitive anyway.
-            if (at_sign /= 0) call downcase_region(at_sign + 1, point_max(), status)
+            if (at_sign /= 0) call downcase_region(at_sign + 1, point_maximum(), status)
         end subroutine canonicalize
 
         ! Put the positions of MARKERS (destroying them) before the
@@ -1751,17 +1754,17 @@ contains
             type(status_type) :: st
             integer(int64) :: found
 
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call narrow_to_region(point(), point(), status)
             if (.not. status%ok()) return
             call insert_buffer_substring(canonicalization_buffer, status, mailbox_beginning, mailbox_end)
             if (.not. status%ok()) return
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             ! Example: First_Last.XXX@foo.bar.dom
-            call re_search_forward("[_0-9]", found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("[_0-9]", found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) return
             dot_ends_name = found /= 0
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             if (.not. mail_extr_mangle_uucp) then
                 call modify_syntax_entry(iachar("!"), iachar("!"), "w", status, syntax_table())
@@ -1771,8 +1774,8 @@ contains
             do
                 call skip_whitespace_forward(status)
                 if (.not. status%ok()) exit
-                if (is_eob()) exit
-                code = char_at(point())
+                if (is_end_of_buffer()) exit
+                code = character_at(point())
 
                 if (code == iachar("""")) then
                     quote_beginning = point()
@@ -1781,45 +1784,45 @@ contains
                     ! Take into account deletions.
                     quote_end = point() - 2
                     call save_excursion_begin(excursion)
-                    call backward_char(status, 1_int64)
-                    if (status%ok()) call delete_char(1_int64, status)
+                    call backward_character(status, 1_int64)
+                    if (status%ok()) call delete_character(1_int64, status)
 
                     if (status%ok()) then
-                        call goto_char(quote_beginning)
-                        if (.not. is_eob()) call delete_char(1_int64, status)
+                        call goto_character(quote_beginning)
+                        if (.not. is_end_of_buffer()) call delete_character(1_int64, status)
                     end if
 
                     call save_excursion_end(excursion)
                     if (.not. status%ok()) exit
                     call undo_backslash_quoting(quote_beginning, quote_end, status)
                     if (.not. status%ok()) exit
-                    if (char_at(point()) /= iachar(" ")) call insert(" ", status)
+                    if (character_at(point()) /= iachar(" ")) call insert(" ", status)
                     if (.not. status%ok()) exit
                     dot_ends_name = .true.
                 else if (code == iachar(".")) then
-                    next = char_at(point() + 1)
+                    next = character_at(point() + 1)
 
                     if (next == iachar("_") .or. next == iachar("=")) then
-                        call forward_char(status, 1_int64)
-                        if (status%ok()) call delete_char(1_int64, status)
+                        call forward_character(status, 1_int64)
+                        if (status%ok()) call delete_character(1_int64, status)
                         if (status%ok()) call insert(" ", status)
                     else if (dot_ends_name) then
-                        call narrow_to_region(point_min(), point(), status)
+                        call narrow_to_region(point_minimum(), point(), status)
                     else
-                        call delete_char(1_int64, status)
+                        call delete_character(1_int64, status)
                         if (status%ok()) call insert(" ", status)
                     end if
 
                     if (.not. status%ok()) exit
-                else if (char_syntax(code) == "." .or. char_syntax(code) == "\") then
-                    call delete_char(1_int64, status)
+                else if (character_syntax(code) == "." .or. character_syntax(code) == "\") then
+                    call delete_character(1_int64, status)
                     if (status%ok()) call insert(" ", status)
                     if (.not. status%ok()) exit
                 else
                     atom_beginning = point()
                     call forward_word(1_int64)
                     atom_end = point()
-                    call goto_char(atom_beginning)
+                    call goto_character(atom_beginning)
                     call save_restriction_begin(restriction)
                     call narrow_to_region(atom_beginning, atom_end, status)
                     if (status%ok()) call name_from_atom(extraction_buffer, status)
@@ -1856,7 +1859,7 @@ contains
             ! name data to the beginning.
             do k = 1, size(FIELD_PATTERNS)
                 call save_excursion_begin(excursion)
-                call re_search_forward(trim(FIELD_PATTERNS(k)), found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(trim(FIELD_PATTERNS(k)), found, status, noerror=SEARCH_NOERROR)
                 call save_excursion_end(excursion)
                 if (.not. status%ok()) return
 
@@ -1873,12 +1876,12 @@ contains
             ! routing information, not part of a name.
             call skip_whitespace_backward(status)
             if (.not. status%ok()) return
-            call delete_region(point(), point_max(), status)
+            call delete_region(point(), point_maximum(), status)
             if (.not. status%ok()) return
 
             ! Handle periods used for spacing.
             do
-                call re_search_forward(BAD_DOT_PATTERN, found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(BAD_DOT_PATTERN, found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok() .or. found == 0) return
                 call replace_match("\1 \2", status, fixedcase=.true.)
                 if (.not. status%ok()) return
@@ -1887,17 +1890,17 @@ contains
 
         if (.not. status%ok()) return
         ! Handle normal addresses: _ and = used for spacing.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward("\([^_=]+\)[_=]", found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("\([^_=]+\)[_=]", found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) return
             if (found == 0) exit
             call replace_match("\1 ", status, fixedcase=.true.)
             if (.not. status%ok()) return
         end do
 
-        call goto_char(point_max())
+        call goto_character(point_maximum())
     end subroutine name_from_atom
 
     ! Whether character C is one of the ASCII CHARACTERS.  Not a port.
@@ -1932,9 +1935,10 @@ contains
 
         status = status_type()
 
-        if (allocated(mail_extr_disable_voodoo%regexp)) then
-            call goto_char(point_min())
-            call re_search_forward(mail_extr_disable_voodoo%regexp, found, status, noerror=SEARCH_NOERROR)
+        if (allocated(mail_extr_disable_voodoo%regular_expression)) then
+            call goto_character(point_minimum())
+            call regular_expression_search_forward(mail_extr_disable_voodoo%regular_expression, found, status, &
+                                                   noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. found /= 0) return
         else if (mail_extr_disable_voodoo%value) then
             return
@@ -1981,15 +1985,15 @@ contains
         call set_syntax_table(address_text_syntax_table, status)
         if (.not. status%ok()) return
         ! Get rid of comments.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        do while (.not. is_eob())
-            moved = skip_chars_forward("^({[""'`", status)
+        do while (.not. is_end_of_buffer())
+            moved = skip_characters_forward("^({[""'`", status)
             if (.not. status%ok()) return
             comment_start = point()
             call set_syntax_table(address_text_comment_syntax_table, status)
             if (.not. status%ok()) return
-            next_code = following_char()
+            next_code = following_character()
 
             if (next_code == iachar("'") .or. next_code == iachar("`")) then
                 repeat = 1
@@ -1997,29 +2001,29 @@ contains
                 call search_forward("'", found, status, noerror=SEARCH_MOVE, count=repeat)
             else
                 call move_over_expression(1_int64, moved_over, status)
-                if (status%ok() .and. .not. moved_over) call goto_char(point_max())
+                if (status%ok() .and. .not. moved_over) call goto_character(point_maximum())
             end if
 
             if (.not. status%ok()) return
             call set_syntax_table(address_text_syntax_table, status)
             if (.not. status%ok()) return
 
-            if (char_at(comment_start) == iachar("(")) then
+            if (character_at(comment_start) == iachar("(")) then
                 ! Delete the comment itself.
                 call delete_region(comment_start, point(), status)
                 if (.not. status%ok()) return
                 ! Canonicalize whitespace where the comment was.
-                moved = skip_chars_backward(" "//TAB, status)
+                moved = skip_characters_backward(" "//TAB, status)
                 if (.not. status%ok()) return
 
                 if (looking_at("\([ "//TAB//"]+$\|[ "//TAB//"]+,\)", status)) then
                     call replace_match("", status)
                 else if (status%ok()) then
                     comment_start = point()
-                    moved = skip_chars_forward(" "//TAB, status)
+                    moved = skip_characters_forward(" "//TAB, status)
 
                     if (status%ok()) then
-                        if (is_bob()) then
+                        if (is_beginning_of_buffer()) then
                             call delete_region(point(), comment_start, status)
                         else
                             call just_one_space(1_int64, status)
@@ -2035,14 +2039,14 @@ contains
         if (.not. status%ok()) return
 
         if (found == 0) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call search_forward("_", found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) return
 
             if (found /= 0) then
                 ! Handle the use of underlines as spaces.
                 ! Example: fml@foo.bar.dom (First_M._Last)
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 do
                     call search_forward("_", found, status, noerror=SEARCH_NOERROR)
@@ -2058,10 +2062,10 @@ contains
                 if (found /= 0) then
                     ! Fix . used as space.
                     ! Example: danj1@cb.att.com (daniel.jacobson)
-                    call goto_char(point_min())
+                    call goto_character(point_minimum())
 
                     do
-                        call re_search_forward(BAD_DOT_PATTERN, found, status, noerror=SEARCH_NOERROR)
+                        call regular_expression_search_forward(BAD_DOT_PATTERN, found, status, noerror=SEARCH_NOERROR)
                         if (.not. status%ok()) return
                         if (found == 0) exit
                         call replace_match("\1 \2", status, fixedcase=.true.)
@@ -2072,7 +2076,7 @@ contains
         end if
 
         ! Loop over the words (and other junk) in the name.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do while (.not. name_done)
             if (word_found) then
@@ -2099,13 +2103,13 @@ contains
             if (.not. status%ok()) return
 
             if (word_count == 0) then
-                call narrow_to_region(point(), point_max(), status)
+                call narrow_to_region(point(), point_maximum(), status)
                 if (.not. status%ok()) return
             end if
 
             this_word_beginning = point()
             drop_this_word_if_trailing = .false.
-            next_code = following_char()
+            next_code = following_character()
             ! Decide what to do based on what we are looking at.
             matched = .false.
 
@@ -2116,8 +2120,8 @@ contains
 
             if (matched) then
                 ! Delete title.
-                call goto_char(match_end(0, st))
-                call narrow_to_region(point(), point_max(), status)
+                call goto_character(match_end(0, st))
+                call narrow_to_region(point(), point_maximum(), status)
             else if (word_count >= 2 .and. is_looking_at(FULL_NAME_SUFFIX_PATTERN)) then
                 ! Stop after name suffix.
                 call add_suffix(status)
@@ -2125,14 +2129,14 @@ contains
                 name_done = .true.
             else if (is_looking_at("MKA \(.+\)")) then
                 ! Handle SCA names: "Mundanely Known As".
-                call goto_char(match_beginning(1, st))
-                call narrow_to_region(point(), point_max(), status)
+                call goto_character(match_beginning(1, st))
+                call narrow_to_region(point(), point_maximum(), status)
                 begin_again = .true.
             else if (next_code == iachar(",") .and. word_count == 1) then
                 ! Check for initial last name followed by comma.
-                call forward_char(status, 1_int64)
+                call forward_character(status, 1_int64)
                 last_name_comma = .true.
-                if (status%ok() .and. following_char() /= iachar(" ")) call insert(" ", status)
+                if (status%ok() .and. following_character() /= iachar(" ")) call insert(" ", status)
             else if (is_one_of(next_code, "({[""'`")) then
                 ! Delete parenthesized/quoted comment/nickname.
                 call delete_comment(status)
@@ -2141,12 +2145,12 @@ contains
                 call replace_match("", status, fixedcase=.true.)
             else if (is_looking_at(HZ_EMBEDDED_GB_ENCODED_CHINESE_PATTERN)) then
                 ! Handle Chinese characters.
-                call goto_char(match_end(0, st))
+                call goto_character(match_end(0, st))
                 word_found = .true.
             else if (word_count == 0 .and. is_looking_at(LEADING_GARBAGE)) then
                 ! Skip initial garbage characters.
-                call goto_char(match_end(0, st))
-                call narrow_to_region(point(), point_max(), status)
+                call goto_character(match_end(0, st))
+                call narrow_to_region(point(), point_maximum(), status)
             else if (is_stopping_point()) then
                 name_done = .true.
             else if (is_looking_at(HAM_CALL_SIGN_PATTERN)) then
@@ -2155,27 +2159,27 @@ contains
             else if (is_looking_at(INITIAL_PATTERN)) then
                 ! Fixup initials.
                 if (next_code /= upcase(next_code)) lower_case = .true.
-                call forward_char(status, 1_int64)
+                call forward_character(status, 1_int64)
 
                 if (status%ok()) then
-                    if (following_char() == iachar(".")) then
-                        call forward_char(status, 1_int64)
+                    if (following_character() == iachar(".")) then
+                        call forward_character(status, 1_int64)
                     else
                         call insert(".", status)
                     end if
                 end if
 
-                if (status%ok() .and. following_char() /= iachar(" ")) call insert(" ", status)
+                if (status%ok() .and. following_character() /= iachar(" ")) call insert(" ", status)
                 word_found = .true.
             else if (word_count == 0 .and. is_looking_at(LISTSERV_LIST_NAME_PATTERN)) then
                 ! Handle BITNET LISTSERV list names.
                 call narrow_to_region(match_beginning(1, st), match_end(1, st), status)
                 word_found = .true.
                 name_done = .true.
-            else if (word_count > 0 .and. preceding_char() == iachar(" ") .and. next_code == iachar("&") .and. &
-                     point() + 1 == point_max()) then
+            else if (word_count > 0 .and. preceding_character() == iachar(" ") .and. next_code == iachar("&") .and. &
+                     point() + 1 == point_maximum()) then
                 ! Handle & substitution, when & is last and is not first.
-                call delete_char(1_int64, status)
+                call delete_character(1_int64, status)
                 position = point()
                 if (status%ok()) call insert_buffer_substring(canonicalization_buffer, status, mailbox_beginning, mailbox_end)
                 if (status%ok()) call capitalize_region(position, point(), status)
@@ -2186,7 +2190,7 @@ contains
                 name_beginning = point()
                 name_end = name_beginning + 1
                 word_found = .true.
-                call goto_char(name_end)
+                call goto_character(name_end)
             else if (is_looking_at(NAME_PATTERN)) then
                 ! Regular name words.
                 name_beginning = point()
@@ -2197,18 +2201,18 @@ contains
                 ! mixed case or uppercase words, and a trailing word which
                 ! is terminated with a period.
                 if (word_count >= 2 .and. .not. lower_case) then
-                    if (is_looking_at("[[:lower:]]\{4,\}[ "//TAB//"]*\'") .or. char_at(name_end - 1) == iachar(".")) then
+                    if (is_looking_at("[[:lower:]]\{4,\}[ "//TAB//"]*\'") .or. character_at(name_end - 1) == iachar(".")) then
                         drop_this_word_if_trailing = .true.
                     end if
                 end if
 
                 ! Set the flags that indicate whether we have seen a
                 ! lowercase word, a mixed case word, and an uppercase word.
-                call re_search_forward("[[:lower:]]", found, status, bound=name_end, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("[[:lower:]]", found, status, bound=name_end, noerror=SEARCH_NOERROR)
 
                 if (status%ok() .and. found /= 0) then
-                    call goto_char(name_beginning)
-                    call re_search_forward("[[:upper:]]", found, status, bound=name_end, noerror=SEARCH_NOERROR)
+                    call goto_character(name_beginning)
+                    call regular_expression_search_forward("[[:upper:]]", found, status, bound=name_end, noerror=SEARCH_NOERROR)
 
                     if (found /= 0) then
                         mixed_case = .true.
@@ -2217,13 +2221,13 @@ contains
                     end if
                 end if
 
-                call goto_char(name_end)
+                call goto_character(name_end)
                 word_found = .true.
             else if (is_looking_at("[0-9]+\>")) then
                 ! Allow a number as a word, if it doesn't mean anything else.
                 name_beginning = point()
                 name_end = match_end(0, st)
-                call goto_char(name_end)
+                call goto_character(name_end)
                 word_found = .true.
             else
                 name_done = .true.
@@ -2241,8 +2245,8 @@ contains
         ! of the sentence...
         if (suffix == 0) then
             if (is_looking_at("\(\.+\|[?!;:.][?!;:.]+\|[?!;:][?!;:.]*\)\'")) then
-                suffix = point_max()
-                call goto_char(suffix)
+                suffix = point_maximum()
+                call goto_character(suffix)
             end if
         end if
 
@@ -2250,14 +2254,14 @@ contains
         ! Drop everything after point and certain trailing words.
         position = point()
         if (drop_last_word_if_trailing .and. last_word_beginning /= 0) position = last_word_beginning
-        call narrow_to_region(point_min(), position, status)
+        call narrow_to_region(point_minimum(), position, status)
         if (.not. status%ok()) return
 
         ! We simply refuse to believe that any last name is PARC or ADOC.
         ! If it looks like that is the last name, that there is no meaningful
         ! here at all.
         if (suffix == 0) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             saved = case_fold_search%value
             case_fold_search%value = .true.
             matched = looking_at("[-A-Za-z_]+[. ]\(PARC\|ADOC\)\'", status)
@@ -2272,36 +2276,36 @@ contains
 
         ! If last name first put it at end (but before suffix).
         if (last_name_comma) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call search_forward(",", found, status)
             if (.not. status%ok()) return
             name_end = point() - 1
 
             if (suffix /= 0) then
-                call goto_char(suffix)
+                call goto_character(suffix)
             else
-                call goto_char(point_max())
+                call goto_character(point_maximum())
             end if
 
-            if (preceding_char() /= iachar(" ")) call insert(" ", status)
-            if (status%ok()) call insert_buffer_substring(current_buffer(), status, point_min(), name_end)
+            if (preceding_character() /= iachar(" ")) call insert(" ", status)
+            if (status%ok()) call insert_buffer_substring(current_buffer(), status, point_minimum(), name_end)
             if (.not. status%ok()) return
-            call goto_char(name_end)
-            moved = skip_chars_forward(TAB//" ,", status)
+            call goto_character(name_end)
+            moved = skip_characters_forward(TAB//" ,", status)
             if (.not. status%ok()) return
-            call narrow_to_region(point(), point_max(), status)
+            call narrow_to_region(point(), point_maximum(), status)
             if (.not. status%ok()) return
         end if
 
         ! Compress whitespace.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward("[ "//TAB//LF//"]+", found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("[ "//TAB//LF//"]+", found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) return
             if (found == 0) exit
 
-            if (is_eob()) then
+            if (is_end_of_buffer()) then
                 call replace_match("", status, fixedcase=.true.)
             else
                 call replace_match(" ", status, fixedcase=.true.)
@@ -2312,13 +2316,13 @@ contains
 
     contains
 
-        ! Whether the text after point matches REGEXP, a valid regular
+        ! Whether the text after point matches REGULAR_EXPRESSION, a valid regular
         ! expression of this module.
-        logical function is_looking_at(regexp)
-            character(len=*), intent(in) :: regexp
+        logical function is_looking_at(regular_expression)
+            character(len=*), intent(in) :: regular_expression
             type(status_type) :: st
 
-            is_looking_at = looking_at(regexp, st)
+            is_looking_at = looking_at(regular_expression, st)
             if (.not. st%ok()) is_looking_at = .false.
         end function is_looking_at
 
@@ -2347,8 +2351,8 @@ contains
             if (.not. status%ok()) return
             suffix = point()
 
-            if (following_char() == iachar(",")) then
-                call forward_char(status, 1_int64)
+            if (following_character() == iachar(",")) then
+                call forward_character(status, 1_int64)
             else
                 call insert(",", status)
             end if
@@ -2356,7 +2360,7 @@ contains
             if (.not. status%ok()) return
 
             ! Enforce at least one space after comma.
-            if (following_char() /= iachar(" ")) then
+            if (following_character() /= iachar(" ")) then
                 call insert(" ", status)
                 if (.not. status%ok()) return
             end if
@@ -2364,12 +2368,12 @@ contains
             call skip_whitespace_forward(status)
             if (.not. status%ok()) return
 
-            if (is_one_of(following_char(), "jJsS")) then
+            if (is_one_of(following_character(), "jJsS")) then
                 call capitalize_word(1_int64, status)
                 if (.not. status%ok()) return
 
-                if (following_char() == iachar(".")) then
-                    call forward_char(status, 1_int64)
+                if (following_character() == iachar(".")) then
+                    call forward_character(status, 1_int64)
                 else
                     call insert(".", status)
                 end if
@@ -2393,10 +2397,10 @@ contains
                 repeat = 1
                 if (next_code == iachar("'")) repeat = 2
                 call search_forward("'", found, status, noerror=SEARCH_NOERROR, count=repeat)
-                if (status%ok() .and. found == 0) call delete_char(1_int64, status)
+                if (status%ok() .and. found == 0) call delete_character(1_int64, status)
             else
                 call move_over_expression(1_int64, moved_over, status)
-                if (status%ok() .and. .not. moved_over) call goto_char(point_max())
+                if (status%ok() .and. .not. moved_over) call goto_character(point_maximum())
             end if
 
             if (.not. status%ok()) return
@@ -2409,22 +2413,22 @@ contains
                 ! Handle case of entire name being quoted.
                 call narrow_to_region(comment_beginning + 1, comment_end - 1, status)
                 if (.not. status%ok()) return
-                call goto_char(point_min())
+                call goto_character(point_minimum())
             else
                 initial = -1
 
                 ! Handle case of quoted initial.
                 if (comment_end - comment_beginning == 3 .and. .not. at_end) then
-                    initial = char_at(comment_beginning + 1)
+                    initial = character_at(comment_beginning + 1)
                 else if (comment_end - comment_beginning == 4 .and. .not. at_end) then
-                    if (char_at(comment_beginning + 2) == iachar(".")) initial = char_at(comment_beginning + 1)
+                    if (character_at(comment_beginning + 2) == iachar(".")) initial = character_at(comment_beginning + 1)
                 end if
 
                 call delete_region(comment_beginning, comment_end, status)
                 if (.not. status%ok()) return
 
                 if (initial >= 0) then
-                    call insert_char(initial, status)
+                    call insert_character(initial, status)
                     if (status%ok()) call insert(". ", status)
                 end if
             end if
@@ -2451,7 +2455,7 @@ contains
         if (len(code) > 0 .and. len(code) <= len(TOP_LEVEL_DOMAINS(1)%code)) k = findloc(TOP_LEVEL_DOMAINS%code, code, 1)
 
         if (k == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No such domain")
+            call set_error(status, GENERIC_ERROR_CODE, "No such domain")
             return
         end if
 
@@ -2477,7 +2481,7 @@ contains
 
     ! Read a domain with completion, ignoring case, and show its country.
     ! Port of the argument reading of mail-extr.el:what-domain.
-    subroutine cmd_what_domain(status)
+    subroutine execute_what_domain(status)
         type(status_type), intent(out) :: status
         type(value_type) :: names(size(TOP_LEVEL_DOMAINS))
         type(completion_table_type) :: table
@@ -2496,7 +2500,7 @@ contains
         completion_ignore_case%value = saved_ignore_case
         if (.not. status%ok()) return
         call what_domain(domain, status)
-    end subroutine cmd_what_domain
+    end subroutine execute_what_domain
 
     ! ------------------------------------------------------------------
     ! The setting mail_extr_disable_voodoo
@@ -2507,7 +2511,7 @@ contains
     subroutine mail_extr_disable_voodoo_clear_kinds(self)
         class(mail_extr_disable_voodoo_choice_setting_type), intent(inout) :: self
 
-        if (allocated(self%regexp)) deallocate (self%regexp)
+        if (allocated(self%regular_expression)) deallocate (self%regular_expression)
     end subroutine mail_extr_disable_voodoo_clear_kinds
 
     !> The regexp of `mail_extr_disable_voodoo' as help shows it
@@ -2517,7 +2521,7 @@ contains
         character(len=:), allocatable :: text
 
         text = ""
-        if (allocated(self%regexp)) text = "%regexp = """//self%regexp//""""
+        if (allocated(self%regular_expression)) text = "%regexp = """//self%regular_expression//""""
     end function mail_extr_disable_voodoo_other_value
 
     !> The assignment that sets the regexp `mail_extr_disable_voodoo'

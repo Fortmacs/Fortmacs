@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `tty_register_colors': the default colors, then xterm's.  A submodule
+!> `terminal_register_colors': the default colors, then xterm's.  A submodule
 !> because terminal_xterm_mod uses terminal_colors_mod.
 submodule(terminal_colors_mod) terminal_colors_startup_mod
     use terminal_xterm_mod, only: xterm_register_default_colors, xterm_standard_colors
@@ -30,13 +30,13 @@ contains
     !> Port of the color part of startup.el:command-line
     !> (tty-register-default-colors) and of term/xterm.el:xterm--init
     !> (xterm-register-default-colors).
-    module subroutine tty_register_colors(ncolors, xterm, status)
+    module subroutine terminal_register_colors(ncolors, xterm, status)
         integer, intent(in) :: ncolors
         logical, intent(in) :: xterm
         type(status_type), intent(out) :: status
 
-        tty_display_color_cells = ncolors
-        call tty_register_default_colors()
+        terminal_display_color_cells = ncolors
+        call terminal_register_default_colors()
         if (xterm) call xterm_register_default_colors(xterm_standard_colors, status)
-    end subroutine tty_register_colors
+    end subroutine terminal_register_colors
 end submodule terminal_colors_startup_mod

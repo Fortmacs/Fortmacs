@@ -29,18 +29,18 @@ module test_sgml_mode_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer, close_buffer
     use insert_delete_mod, only: insert
     use value_mod, only: value_type, vtag, V_NAME, xsymbol, symbols
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, widen, is_eob, buffer_substring
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, widen, is_end_of_buffer, buffer_substring
     use indent_mod, only: indent_region
-    use syntax_mod, only: parse_state_type, syntax_ppss
+    use syntax_mod, only: parse_state_type, syntax_parser_state
     use syntax_propertize_mod, only: syntax_propertize_chunk_size
-    use text_properties_mod, only: get_text_property, next_single_char_property_change
+    use text_properties_mod, only: get_text_property, next_single_character_property_change
     use font_lock_mod, only: font_lock_ensure
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use sgml_mode_mod, only: sgml_mode, html_mode, sgml_delete_tag, sgml_quote, sgml_close_tag, &
                              sgml_tag, sgml_tag_last, html_paragraph, &
                              html_headline_1, html_image, html_ordered_list, html_div
-    use keyboard_mod, only: kbd_store_bytes, discard_input
+    use keyboard_mod, only: keyboard_store_bytes, discard_input
     implicit none(type, external)
     private
 
@@ -55,7 +55,7 @@ contains
     subroutine collect_sgml_mode_mod(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
-        testsuite = [new_unittest("sgml-delete-tag-should-not-delete-tags-when-wrong-args", test_delete_wrong_args), &
+        testsuite = [new_unittest("sgml-delete-tag-should-not-delete-tags-when-wrong-args", test_delete_wrong_arguments), &
                      new_unittest("sgml-delete-tag-should-delete-tags-n-times", test_delete_n_times), &
                      new_unittest("sgml-delete-tag-should-delete-unclosed-tag", test_delete_unclosed), &
                      new_unittest("sgml-delete-tag-should-signal-error-for-malformed-tags", test_delete_malformed), &
@@ -89,7 +89,7 @@ contains
         if (present(html)) is_html = html
         is_plain = .false.
         if (present(plain)) is_plain = plain
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *sgml-test*", buffer, st)
         call close_buffer(buffer, st)
         call get_or_make_buffer(" *sgml-test*", buffer, st)
@@ -104,7 +104,7 @@ contains
         end if
 
         call insert(content, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine with_content
 
     ! The text of the current buffer.
@@ -112,26 +112,26 @@ contains
         character(len=:), allocatable :: s
         type(status_type) :: st
 
-        call buffer_substring(point_min(), point_max(), s, st)
+        call buffer_substring(point_minimum(), point_maximum(), s, st)
         if (.not. allocated(s)) s = ""
     end function buffer_string
 
-    ! The depth of the parse state at POS.
-    integer function depth_at(pos)
-        integer(int64), intent(in) :: pos
+    ! The depth of the parse state at POSITION.
+    integer function depth_at(position)
+        integer(int64), intent(in) :: position
         type(parse_state_type) :: state
 
-        call goto_char(pos)
-        call syntax_ppss(state, pos)
+        call goto_character(position)
+        call syntax_parser_state(state, position)
         depth_at = int(state%depth)
     end function depth_at
 
-    ! sgml_delete_tag ARG: whether it signaled an error.
-    logical function delete_tag_fails(arg)
-        integer(int64), intent(in) :: arg
+    ! sgml_delete_tag ARGUMENT: whether it signaled an error.
+    logical function delete_tag_fails(argument)
+        integer(int64), intent(in) :: argument
         type(status_type) :: st
 
-        call sgml_delete_tag(arg, st)
+        call sgml_delete_tag(argument, st)
         delete_tag_fails = .not. st%ok()
     end function delete_tag_fails
 
@@ -141,7 +141,7 @@ contains
 
     !> Don't delete tag, when number of tags to delete is not positive
     !> number.
-    subroutine test_delete_wrong_args(error)
+    subroutine test_delete_wrong_arguments(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: CONTENT = "<p>Valar Morghulis</p>"
         logical :: failed
@@ -152,7 +152,7 @@ contains
         if (allocated(error)) return
         failed = delete_tag_fails(0_int64)
         call check(error, buffer_string(), CONTENT)
-    end subroutine test_delete_wrong_args
+    end subroutine test_delete_wrong_arguments
 
     subroutine test_delete_n_times(error)
         type(error_type), allocatable, intent(out) :: error
@@ -170,7 +170,7 @@ contains
         if (allocated(error)) return
         ! Delete from position on tag:
         call with_content("<br />")
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         failed = delete_tag_fails(1_int64)
         call check(error, buffer_string(), "")
         if (allocated(error)) return
@@ -194,7 +194,7 @@ contains
 
         call with_content("<ul><li>Keep your stones connected.</ul>")
         ! position on "li" tag
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         failed = delete_tag_fails(1_int64)
         call check(error, buffer_string(), "<ul>Keep your stones connected.</ul>")
     end subroutine test_delete_unclosed
@@ -212,7 +212,7 @@ contains
         ! Delete inner tag:
         call with_content(CONTENT)
         ! position the inner tag
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         failed = delete_tag_fails(1_int64)
         call check(error, buffer_string(), "<h1>Drakaris!</h1>")
     end subroutine test_delete_malformed
@@ -236,14 +236,14 @@ contains
         ! Trying to delete a tag, but not on/before a tag:
         call with_content(CONTENT)
         ! D in Drakaris
-        call goto_char(7_int64)
+        call goto_character(7_int64)
         call check(error, delete_tag_fails(1_int64), "no error not on a tag")
         if (allocated(error)) return
         call check(error, buffer_string(), CONTENT)
         if (allocated(error)) return
         ! Trying to delete a tag from position outside tag:
         call with_content(CONTENT)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call check(error, delete_tag_fails(1_int64), "no error outside the tag")
         if (allocated(error)) return
         call check(error, buffer_string(), CONTENT)
@@ -265,51 +265,51 @@ contains
 
         ! Back and forth transformation.
         call with_content(TEXT, plain=.true.)
-        call sgml_quote(point_min(), point_max(), st)
+        call sgml_quote(point_minimum(), point_maximum(), st)
         call check(error, buffer_string(), "Foo&lt;Bar&gt; &#34;Baz&#34; &#39;Qux&#39;"//LF)
         if (allocated(error)) return
-        call sgml_quote(point_min(), point_max(), st, .true.)
+        call sgml_quote(point_minimum(), point_maximum(), st, .true.)
         call check(error, buffer_string(), TEXT)
         if (allocated(error)) return
         ! The same text escaped differently.
         call with_content("Foo&lt;Bar&gt; &#34;Baz&quot; &#x27;Qux&#X27;"//LF, plain=.true.)
-        call sgml_quote(point_min(), point_max(), st, .true.)
+        call sgml_quote(point_minimum(), point_maximum(), st, .true.)
         call check(error, buffer_string(), TEXT)
         if (allocated(error)) return
         ! Lack of semicolon.
         call with_content("&amp&amp", plain=.true.)
-        call sgml_quote(point_min(), point_max(), st, .true.)
+        call sgml_quote(point_minimum(), point_maximum(), st, .true.)
         call check(error, buffer_string(), "&&")
         if (allocated(error)) return
         ! Double quoting
-        call sgml_quote(point_min(), point_max(), st)
-        call sgml_quote(point_min(), point_max(), st)
-        call sgml_quote(point_min(), point_max(), st, .true.)
-        call sgml_quote(point_min(), point_max(), st, .true.)
+        call sgml_quote(point_minimum(), point_maximum(), st)
+        call sgml_quote(point_minimum(), point_maximum(), st)
+        call sgml_quote(point_minimum(), point_maximum(), st, .true.)
+        call sgml_quote(point_minimum(), point_maximum(), st, .true.)
         call check(error, buffer_string(), "&&")
     end subroutine test_quote_works
 
     subroutine test_quotes_syntax(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=24), parameter :: STRS(12) = [character(len=24) :: "a""b <t>c'd</t>", "a'b <t>c""d</t>", &
+        character(len=24), parameter :: STRINGS(12) = [character(len=24) :: "a""b <t>c'd</t>", "a'b <t>c""d</t>", &
                                                                     "<t>""a'</t>", "<t>'a""</t>", "<t>""a'""</t>", "<t>'a""'</t>", &
                                                                    "a""b <tag>c'd</tag>", "<tag>c>'d</tag>", "<t><!-- "" --></t>", &
                                                                                    "<t><!-- ' --></t>", "<t>(')</t>", "<t>("")</t>"]
         integer :: i
 
-        do i = 1, size(STRS)
-            call with_content(trim(STRS(i)))
+        do i = 1, size(STRINGS)
+            call with_content(trim(STRINGS(i)))
             ! Check that last tag is parsed as a tag.
-            call check(error, depth_at(point_max() - 1), 1, "Test case: "//trim(STRS(i)))
+            call check(error, depth_at(point_maximum() - 1), 1, "Test case: "//trim(STRINGS(i)))
             if (allocated(error)) return
-            call check(error, depth_at(point_max()), 0, "Test case: "//trim(STRS(i)))
+            call check(error, depth_at(point_maximum()), 0, "Test case: "//trim(STRINGS(i)))
             if (allocated(error)) return
         end do
     end subroutine test_quotes_syntax
 
     subroutine test_quote_in_long_text(error)
         type(error_type), allocatable, intent(out) :: error
-        integer(int64) :: n, pos
+        integer(int64) :: n, position
         integer :: d
 
         n = syntax_propertize_chunk_size
@@ -320,16 +320,16 @@ contains
         ! we'll end up propertizing the whole buffer in one chunk (so the
         ! test is useless).  Simulate something more like what happens when
         ! the buffer is viewed normally.
-        pos = point_min()
+        position = point_minimum()
 
-        do while (pos <= point_max())
-            d = depth_at(pos)
-            pos = pos + n
+        do while (position <= point_maximum())
+            d = depth_at(position)
+            position = position + n
         end do
 
-        d = depth_at(point_max())
+        d = depth_at(point_maximum())
         ! Check that last tag is parsed as a tag.
-        call check(error, depth_at(point_max() - 1) - depth_at(point_max()), 1)
+        call check(error, depth_at(point_maximum() - 1) - depth_at(point_maximum()), 1)
     end subroutine test_quote_in_long_text
 
     !> Test fontification of apostrophe preceded by paired-bracket
@@ -360,10 +360,10 @@ contains
         call html_mode(st)
         call minor_modes%font_lock_mode%enable(st)
         call font_lock_ensure(st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        do while (.not. is_eob())
-            call goto_char(next_single_char_property_change(point(), value_type(name="face")))
+        do while (.not. is_end_of_buffer())
+            call goto_character(next_single_character_property_change(point(), value_type(name="face")))
             call get_text_property(point(), value_type(name="face"), v, st)
 
             if (vtag(v) == V_NAME) then
@@ -396,7 +396,7 @@ contains
         type(status_type) :: st
 
         call with_content("<html>"//LF//"<body>"//LF//"<p>text"//LF//"</p>"//LF//"</body>"//LF//"</html>"//LF)
-        call indent_region(point_min(), point_max(), st)
+        call indent_region(point_minimum(), point_maximum(), st)
         call check(error, buffer_string(), "<html>"//LF//"  <body>"//LF//"    <p>text"//LF//"    </p>"//LF &
                    //"  </body>"//LF//"</html>"//LF)
     end subroutine test_indent
@@ -407,7 +407,7 @@ contains
         type(status_type) :: st
 
         call with_content("<a><b>x")
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call sgml_close_tag(st)
         call check(error, buffer_string(), "<a><b>x</b>")
     end subroutine test_close_tag
@@ -419,7 +419,7 @@ contains
 
         call with_content("", html=html)
         call discard_input()
-        call kbd_store_bytes(keys)
+        call keyboard_store_bytes(keys)
     end subroutine typed
 
     !> sgml_tag: tags, attributes, values, skeleton rules and an empty tag

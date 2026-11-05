@@ -7,15 +7,15 @@
 ## Ported
 
 `recentf-mode` (global; loads `recentf-save-file`, tracks files on `find-file-hook` and `kill-buffer-hook`, saves on `kill-emacs-hook`, `recentf-auto-cleanup` on mode or after idle seconds, `recentf-autosave-interval`),
-`recentf-list` as an array of `recentf_file_type`,
+`recentf-list` as an array of `recent_files_file_type`,
 `recentf-add-file`,
 `recentf-push`,
-`recentf-include-p` and `recentf-keep-p` (`recentf-exclude`, `recentf-keep` as `recentf_check_type` records: a regexp or a test; `recentf-exclude-file-by-extension-p` with `recentf-exclude-ignored-extensions`, `recentf-keep-default-predicate`),
+`recentf-include-p` and `recentf-keep-p` (`recentf-exclude`, `recentf-keep` as `recent_files_check_type` records: a regexp or a test; `recentf-exclude-file-by-extension-p` with `recentf-exclude-ignored-extensions`, `recentf-keep-default-predicate`),
 `recentf-filename-handlers` (`abbreviate-file-name`, `file-truename`),
 `recentf-max-saved-items`,
 `recentf-save-list` and `recentf-load-list` (namelist syntax, `recentf-save-file-modes`, `recentf-initialize-file-name-history`),
 `recentf-cleanup`,
-`recentf-open` (`recentf`, completing with category `recentf`, `recentf-menu-action`),
+`recentf-open` (`recent_files`, completing with category `recent_files`, `recentf-menu-action`),
 `recentf-open-most-recent-file`,
 `recentf-show-messages`
 

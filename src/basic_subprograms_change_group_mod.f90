@@ -28,7 +28,7 @@ submodule(basic_subprograms_mod) basic_subprograms_change_group_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, UE_INSERTION, UE_BOUNDARY, undo_entry_type
     use undo_mod, only: append_undo_entry
     use simple_mod, only: primitive_undo
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, widen, narrow_to_region
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     implicit none(type, external)
 
@@ -101,16 +101,16 @@ contains
         type(handle_type) :: old
         type(undo_entry_type) :: saved_entry
         type(status_type) :: st
-        type(handle_type) :: opoint
-        integer(int64) :: begv, zv_from_end, list, rest, saved, pos
+        type(handle_type) :: original_point
+        integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion_from_end, list, rest, saved, position
 
         old = current_buffer()
         call set_buffer(handle%buffer, status)
         if (.not. status%ok()) return
         ! Widen buffer temporarily so if the buffer was narrowed within
         ! the body of the group all changes can be undone.
-        begv = point_min()
-        zv_from_end = buffers(current)%text%z - point_max()
+        beginning_of_accessible_portion = point_minimum()
+        end_of_accessible_portion_from_end = buffers(current)%text%z - point_maximum()
         call widen()
         saved = 0
         if (.not. handle%undo_disabled) saved = handle%undo_count
@@ -122,7 +122,7 @@ contains
         end if
 
         ! Undo it all.
-        call copy_marker_at(point(), opoint, .false., st)
+        call copy_marker_at(point(), original_point, .false., st)
         list = buffers(current)%undo_count
 
         do while (list > saved)
@@ -131,15 +131,15 @@ contains
             list = rest
         end do
 
-        call marker_position(opoint, pos, st)
-        call goto_char(pos)
-        call destroy_marker(opoint, st)
+        call marker_position(original_point, position, st)
+        call goto_character(position)
+        call destroy_marker(original_point, st)
         ! Reset the modified entry to its original content, and revert the
         ! undo info to what it was when we grabbed the state.
         if (saved > 0) buffers(current)%undo_entries(saved) = saved_entry
         buffers(current)%undo_count = saved
         if (handle%undo_disabled) buffers(current)%undo_enabled = .false.
-        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
+        call narrow_to_region(beginning_of_accessible_portion, buffers(current)%text%z - end_of_accessible_portion_from_end, st)
         call set_buffer(old, st)
     end subroutine cancel_change_group
 end submodule basic_subprograms_change_group_mod

@@ -104,19 +104,19 @@ function split_names(s, out,    i, c, q, d, first, n, item) {
     return n
 }
 
-# The derived type of the declaration S ("" for none); sets is_decl.
+# The derived type of the declaration S ("" for none); sets is_declaration.
 function declared_type(s,    w, rest, d, i, c) {
-    is_decl = 0
+    is_declaration = 0
     if (top_index(s, "::") == 0) return ""
     w = leading_name(s)
     rest = trim(substr(s, length(w) + 1))
     if (w == "type" || w == "class") {
         if (substr(rest, 1, 1) != "(") return ""
-        is_decl = 1
+        is_declaration = 1
         return leading_name(trim(substr(rest, 2)))
     }
     if (w ~ /^(integer|real|logical|character|complex|double|doubleprecision)$/ &&
-        (w == "double" || substr(rest, 1, 1) ~ /[(,:*]/)) is_decl = 1
+        (w == "double" || substr(rest, 1, 1) ~ /[(,:*]/)) is_declaration = 1
     return ""
 }
 
@@ -159,9 +159,9 @@ FNR == 1 { module = ""; contains = 0; type = ""; statement = ""; continued = 0 }
             next
         }
         if (!binding_part) {
-            if (w == "procedure") { is_decl = top_index(s, "::") > 0; t = "" }
+            if (w == "procedure") { is_declaration = top_index(s, "::") > 0; t = "" }
             else t = declared_type(s)
-            if (!is_decl) next
+            if (!is_declaration) next
             a = access(s)
             if (a == "") a = component_default
             if (a == "private") next
@@ -233,7 +233,7 @@ FNR == 1 { module = ""; contains = 0; type = ""; statement = ""; continued = 0 }
 
     if (w == "type" || w == "class") {
         t = declared_type(s)
-        if (!is_decl || t == "") next
+        if (!is_declaration || t == "") next
         n = split_names(substr(s, top_index(s, "::") + 2), names)
         for (i = 1; i <= n; i++) print "V\t" module "\t" names[i] "\t" t
     }
@@ -252,7 +252,7 @@ awk -F '\t' '
 function source(module, name,    depth, key) {
     for (depth = 0; depth < 20; depth++) {
         key = module SUBSEP name
-        if ((key in var_type) || (key in defined)) return module
+        if ((key in variable_type) || (key in defined)) return module
         if (!(key in used_from)) return ""
         split(used_from[key], parts, SUBSEP)
         module = parts[1]; name = parts[2]
@@ -264,7 +264,7 @@ function source(module, name,    depth, key) {
 function source_name(module, name,    depth, key) {
     for (depth = 0; depth < 20; depth++) {
         key = module SUBSEP name
-        if ((key in var_type) || (key in defined)) return name
+        if ((key in variable_type) || (key in defined)) return name
         if (!(key in used_from)) return ""
         split(used_from[key], parts, SUBSEP)
         module = parts[1]; name = parts[2]
@@ -296,7 +296,7 @@ function reach(module, name,    key) {
 $1 == "D" { defined[$2 SUBSEP $3] = $4; if (!($3 in first_module)) first_module[$3] = $2; next }
 $1 == "T" && $4 == 1 { components[$2 SUBSEP $3] = components[$2 SUBSEP $3] $5 SUBSEP $6 "\n"; next }
 $1 == "T" && $4 == 2 { bindings[$2 SUBSEP $3] = bindings[$2 SUBSEP $3] $5 "\n"; next }
-$1 == "V" { var_type[$2 SUBSEP $3] = $4; next }
+$1 == "V" { variable_type[$2 SUBSEP $3] = $4; next }
 $1 == "U" {
     used_from[$2 SUBSEP $3] = $4 SUBSEP $5
     if ($2 == "fortmacs") gathered[++gathered_count] = $3
@@ -309,8 +309,8 @@ END {
         m = source("fortmacs", gathered[g])
         if (m == "") continue
         n = source_name("fortmacs", gathered[g])
-        if ((m SUBSEP n) in var_type) {
-            t = var_type[m SUBSEP n]
+        if ((m SUBSEP n) in variable_type) {
+            t = variable_type[m SUBSEP n]
             if (type_module(m, t) == "") continue
             print "V\t" gathered[g] "\t" t
             reach(m, t)
@@ -378,10 +378,18 @@ contains
 
 EOF
 awk -F '\t' '
-$1 == "T" && $3 == 0 { printf "        call declarations%%append_type(\"%s\", \"%s\")\n", $2, $4 }
-$1 == "T" && $3 == 1 { printf "        call declarations%%append_component(\"%s\", \"%s\")\n", $4, $5 }
+# A call longer than 132 columns continues its second argument under the first.
+function emit(procedure, first, second,   head, line) {
+    head = "        call declarations%" procedure "("
+    line = head "\"" first "\", \"" second "\")"
+    if (length(line) <= 132) { print line; return }
+    print head "\"" first "\", &"
+    printf "%" length(head) "s\"%s\")\n", "", second
+}
+$1 == "T" && $3 == 0 { emit("append_type", $2, $4) }
+$1 == "T" && $3 == 1 { emit("append_component", $4, $5) }
 $1 == "T" && $3 == 2 { printf "        call declarations%%append_binding(\"%s\")\n", $4 }
-$1 == "V" { printf "        call declarations%%append_variable(\"%s\", \"%s\")\n", $2, $3 }
+$1 == "V" { emit("append_variable", $2, $3) }
 ' "$tmp.records"
 cat <<'EOF'
     end subroutine load_configuration_declarations

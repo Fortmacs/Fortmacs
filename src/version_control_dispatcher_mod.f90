@@ -19,29 +19,29 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Running VC's back-end commands: `vc_do_command' (synchronously, or
-!> asynchronously with the output inserted by `vc_process_filter'),
-!> `vc_setup_buffer', running code after a command's process is done
-!> (`vc_exec_after', with a `vc_action_type' standing for the closure),
-!> `vc_parent_buffer', and bringing buffers back in sync with their files
-!> after a VC operation (`vc_resynch_buffer', `vc_buffer_sync',
-!> `vc_revert_buffer_internal'), the log entry buffer of an operation
-!> such as a commit (`vc_start_logentry', `vc_log_edit',
-!> `vc_finish_logentry', in the submodule version_control_dispatcher_log_mod), and
+!> Running VERSION_CONTROL's back-end commands: `version_control_do_command' (synchronously, or
+!> asynchronously with the output inserted by `version_control_process_filter'),
+!> `version_control_setup_buffer', running code after a command's process is done
+!> (`version_control_exec_after', with a `version_control_action_type' standing for the closure),
+!> `version_control_parent_buffer', and bringing buffers back in sync with their files
+!> after a VERSION_CONTROL operation (`version_control_resynch_buffer', `version_control_buffer_synchronize',
+!> `version_control_revert_buffer_internal'), the log entry buffer of an operation
+!> such as a commit (`version_control_start_logentry', `version_control_log_edit',
+!> `version_control_finish_logentry', in the submodule version_control_dispatcher_log_mod), and
 !> the asynchronous commands of pulling and pushing
-!> (`vc_do_async_command', VC-Compilation mode, `vc_set_async_update').
+!> (`version_control_do_asynchronous_command', VC-Compilation mode, `version_control_set_asynchronous_update').
 !>
 !> Deferred: see docs/status/version_control_dispatcher_mod.md.
 module version_control_dispatcher_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use utility_functions_mod, only: count_characters
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, make_list, make_buffer_ref, xfixnum, xstring, vtag, V_INTEGER
+    use value_mod, only: value_type, make_list, make_buffer_reference, xfixnum, xstring, vtag, V_INTEGER
     use data_mod, only: symbol_value, set, clear_all_local_variables
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
                           erase_buffer, close_buffer, get_file_buffer, buffer_list, resolve_buffer
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, widen, buffer_substring, mark_position
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, widen, buffer_substring, mark_position
     use insert_delete_mod, only: insert
     use marker_mod, only: marker_position, set_marker
     use search_mod, only: search_forward, SEARCH_NOERROR
@@ -55,7 +55,8 @@ module version_control_dispatcher_mod
     use display_engine_mod, only: message, set_mode_line_process, clear_mode_line_process, mode_line_part_type, &
                                   add_minor_mode_lighter
     use basic_subprograms_mod, only: read_y_or_n
-    use version_control_hooks_mod, only: vc_file_clearprops, vc_dir_buffers, vc_dir_resynch_file
+    use version_control_hooks_mod, only: version_control_file_clearprops, version_control_directory_buffers, &
+                                         version_control_directory_resynch_file
     use value_mod, only: command_procedure, value_type
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffer_serial_live
@@ -64,248 +65,261 @@ module version_control_dispatcher_mod
     implicit none(type, external)
     private
 
-    public :: vc_action_type, vc_action_procedure, vc_do_command, vc_setup_buffer, vc_exec_after, vc_process_filter, &
-              vc_delistify, vc_resynch_window, vc_resynch_buffer, vc_resynch_buffers_in_directory, vc_buffer_sync, &
-              vc_revert_buffer_internal, vc_parent_buffer, set_vc_parent_buffer, vc_parent_buffer_name, &
-              vc_mode_line_hook_execute, init_vc_dispatcher, vc_start_logentry, vc_finish_logentry, vc_log_edit, &
-              vc_log_fileset, set_vc_log_fileset, vc_patch_string, set_vc_patch_string, set_vc_log_operation, &
-              set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index, make_log_local_entry, &
-              vc_set_mode_line_busy_indicator
-    public :: vc_do_async_command, vc_user_edit_command, vc_compilation_mode, vc_set_async_update
-    public :: VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ANY, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
-              VC_NOQUERY_NO, VC_NOQUERY_YES, VC_NOQUERY_UNLESS_MODIFIED
+    public :: version_control_action_type, version_control_action_procedure, version_control_do_command, &
+              version_control_setup_buffer, version_control_exec_after, version_control_process_filter, &
+              version_control_delistify, version_control_resynch_window, version_control_resynch_buffer, &
+              version_control_resynch_buffers_in_directory, version_control_buffer_synchronize, &
+              version_control_revert_buffer_internal, version_control_parent_buffer, set_version_control_parent_buffer, &
+              version_control_parent_buffer_name, &
+              version_control_mode_line_hook_execute, initialize_version_control_dispatcher, version_control_start_logentry, &
+              version_control_finish_logentry, version_control_log_edit, &
+              version_control_log_fileset, set_version_control_log_fileset, version_control_patch_string, &
+              set_version_control_patch_string, set_version_control_log_operation, &
+              set_version_control_log_after_operation_hook, version_control_dispatcher_browsing, log_local_index, &
+              make_log_local_entry, &
+              version_control_set_mode_line_busy_indicator
+    public :: version_control_do_asynchronous_command, version_control_user_edit_command, version_control_compilation_mode, &
+              version_control_set_asynchronous_update
+    public :: VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL, VERSION_CONTROL_OKSTATUS_ANY, VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS, &
+              VERSION_CONTROL_DESTINATION_DISCARD, VERSION_CONTROL_DESTINATION_CURRENT, &
+              VERSION_CONTROL_NOQUERY_NO, VERSION_CONTROL_NOQUERY_YES, VERSION_CONTROL_NOQUERY_UNLESS_MODIFIED
 
-    !> Values of `vc_command_messages' besides .true. and .false.
-    integer, parameter, public :: VC_COMMAND_MESSAGES_LOG = 2
+    !> Values of `version_control_command_messages' besides .true. and .false.
+    integer, parameter, public :: VERSION_CONTROL_COMMAND_MESSAGES_LOG = 2
 
     !> If true, display and log messages about running back-end commands.
-    !> If the value is VC_COMMAND_MESSAGES_LOG, messages about running VC back-end commands are
+    !> If the value is VERSION_CONTROL_COMMAND_MESSAGES_LOG, messages about running VERSION_CONTROL back-end commands are
     !> logged in the *Messages* buffer, but not displayed.  Port of
     !> vc-dispatcher.el vc-command-messages.
-    type(choice_setting_type), public :: vc_command_messages = &
-                                         choice_setting_type(name="vc_command_messages")
+    type(choice_setting_type), public :: version_control_command_messages = &
+                                         choice_setting_type(name="version_control_command_messages")
 
     !> If true, treat user as expert; suppress yes-no prompts on some things.
     !> Port of vc-dispatcher.el vc-suppress-confirm.
-    logical, public :: vc_suppress_confirm = .false.
+    logical, public :: version_control_suppress_confirm = .false.
 
-    !> If true, display VC async command buffers when the command fails.
-    !> Considers VC async commands to have failed whenever they die due to a
+    !> If true, display VERSION_CONTROL async command buffers when the command fails.
+    !> Considers VERSION_CONTROL async commands to have failed whenever they die due to a
     !> fatal signal or exit with a non-zero status.  Port of
     !> vc-dispatcher.el vc-display-failed-async-commands.
-    logical, public :: vc_display_failed_async_commands = .false.
+    logical, public :: version_control_display_failed_asynchronous_commands = .false.
 
     !> Where a sentinel wants point to go afterwards (0 for none).  Port
     !> of vc-dispatcher.el vc-sentinel-movepoint.
-    integer(int64), public :: vc_sentinel_movepoint = 0
+    integer(int64), public :: version_control_sentinel_movepoint = 0
 
-    !> `vc_do_command' OKSTATUS values besides a maximum exit status:
-    !> VC_OKSTATUS_UNLESS_SIGNAL (an error only if the command is killed by a signal), VC_OKSTATUS_ANY
-    !> (never an error) and VC_OKSTATUS_ASYNC (don't wait for the process).
-    integer, parameter :: VC_OKSTATUS_UNLESS_SIGNAL = -1, VC_OKSTATUS_ANY = -2, VC_OKSTATUS_ASYNC = -3
+    !> `version_control_do_command' OKSTATUS values besides a maximum exit status:
+    !> VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL (an error only if the command is killed by a signal), VERSION_CONTROL_OKSTATUS_ANY
+    !> (never an error) and VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS (don't wait for the process).
+    integer, parameter :: VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL = -1, VERSION_CONTROL_OKSTATUS_ANY = -2, &
+                          VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS = -3
 
-    !> `vc_do_command' destinations besides a buffer: VC_DEST_DISCARD (discard the
-    !> output) and VC_DEST_CURRENT (the current buffer).
-    integer, parameter :: VC_DEST_DISCARD = 0, VC_DEST_CURRENT = 1
+    !> `version_control_do_command' destinations besides a buffer: VERSION_CONTROL_DESTINATION_DISCARD (discard the
+    !> output) and VERSION_CONTROL_DESTINATION_CURRENT (the current buffer).
+    integer, parameter :: VERSION_CONTROL_DESTINATION_DISCARD = 0, VERSION_CONTROL_DESTINATION_CURRENT = 1
 
-    ! What `vc_set_async_update' updates: a VC-Dir buffer, a Dired buffer
+    ! What `version_control_set_asynchronous_update' updates: a VC-Dir buffer, a Dired buffer
     ! or a file's buffer.
-    integer, parameter :: ASYNC_UPDATE_VC_DIR = 1, ASYNC_UPDATE_DIRED = 2, ASYNC_UPDATE_FILE = 3
+    integer, parameter :: ASYNCHRONOUS_UPDATE_VERSION_CONTROL_DIRECTORY = 1, ASYNCHRONOUS_UPDATE_DIRECTORY_EDITOR = 2, &
+                          ASYNCHRONOUS_UPDATE_FILE = 3
 
-    !> `vc_resynch_buffer' NOQUERY values: VC_NOQUERY_NO, VC_NOQUERY_YES and VC_NOQUERY_UNLESS_MODIFIED.
-    integer, parameter :: VC_NOQUERY_NO = 0, VC_NOQUERY_YES = 1, VC_NOQUERY_UNLESS_MODIFIED = 2
+    !> `version_control_resynch_buffer' NOQUERY values: VERSION_CONTROL_NOQUERY_NO, VERSION_CONTROL_NOQUERY_YES and
+    !> VERSION_CONTROL_NOQUERY_UNLESS_MODIFIED.
+    integer, parameter :: VERSION_CONTROL_NOQUERY_NO = 0, VERSION_CONTROL_NOQUERY_YES = 1, &
+                          VERSION_CONTROL_NOQUERY_UNLESS_MODIFIED = 2
 
     !> Code run after a command's process is done (the closure CODE of
-    !> `vc_exec_after'): its procedure, given the action itself and so the
+    !> `version_control_exec_after'): its procedure, given the action itself and so the
     !> buffers and strings it captured, and OKSTATUS (a maximum exit
-    !> status, or VC_OKSTATUS_UNLESS_SIGNAL for none).
-    type :: vc_action_type
-        procedure(vc_action_procedure), pointer, nopass :: execute => null()
+    !> status, or VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL for none).
+    type :: version_control_action_type
+        procedure(version_control_action_procedure), pointer, nopass :: execute => null()
         type(handle_type) :: buffer, buffer2, process
         character(len=:), allocatable :: s1, s2
         type(string_type), allocatable :: files(:)
         integer :: n = 0
         logical :: flag = .false.
-        integer :: okstatus = VC_OKSTATUS_UNLESS_SIGNAL
-    end type vc_action_type
+        integer :: okstatus = VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL
+    end type version_control_action_type
 
     abstract interface
-        !> An action to run once a VC process has finished.  Not a port.
-        recursive subroutine vc_action_procedure(action, status)
-            import :: vc_action_type, status_type
+        !> An action to run once a VERSION_CONTROL process has finished.  Not a port.
+        recursive subroutine version_control_action_procedure(action, status)
+            import :: version_control_action_type, status_type
             implicit none(type, external)
-            type(vc_action_type), intent(in) :: action
+            type(version_control_action_type), intent(in) :: action
             type(status_type), intent(out) :: status
-        end subroutine vc_action_procedure
+        end subroutine version_control_action_procedure
     end interface
 
     !> The actions waiting for a process.
-    type :: vc_pending_type
+    type :: version_control_pending_type
         type(handle_type) :: process
-        type(vc_action_type), allocatable :: actions(:)
-    end type vc_pending_type
+        type(version_control_action_type), allocatable :: actions(:)
+    end type version_control_pending_type
 
-    type(vc_pending_type), allocatable :: pending(:)
+    type(version_control_pending_type), allocatable :: pending(:)
 
-    !> A buffer's `vc_parent_buffer' and `vc_parent_buffer_name'
+    !> A buffer's `version_control_parent_buffer' and `version_control_parent_buffer_name'
     !> (permanent-local), by serial number.
-    type :: vc_parent_type
+    type :: version_control_parent_type
         integer(int64) :: serial = 0
         type(handle_type) :: parent
         character(len=:), allocatable :: name
-    end type vc_parent_type
+    end type version_control_parent_type
 
-    type(vc_parent_type), allocatable :: parents(:)
+    type(version_control_parent_type), allocatable :: parents(:)
 
     !> A bit of the text around a position: the position, the buffer size
     !> and the text (vc-position-context's list).
-    type :: vc_context_type
+    type :: version_control_context_type
         integer(int64) :: posn = 0, size = 0
         character(len=:), allocatable :: text
         logical :: valid = .false.
-    end type vc_context_type
+    end type version_control_context_type
 
     abstract interface
         !> A procedure run with the visited file of a buffer resynched
-        !> (vc-mode-line-hook; set by version_control_mod to `vc_mode_line').  Not a port.
-        subroutine vc_mode_line_hook_procedure(file)
+        !> (vc-mode-line-hook; set by version_control_mod to `version_control_mode_line').  Not a port.
+        subroutine version_control_mode_line_hook_procedure(file)
             implicit none(type, external)
             character(len=*), intent(in) :: file
-        end subroutine vc_mode_line_hook_procedure
+        end subroutine version_control_mode_line_hook_procedure
     end interface
 
-    !> `vc_mode_line_hook': run by `vc_resynch_window' (version_control_mod sets it).
-    procedure(vc_mode_line_hook_procedure), pointer, public :: vc_mode_line_hook => null()
+    !> `version_control_mode_line_hook': run by `version_control_resynch_window' (version_control_mod sets it).
+    procedure(version_control_mode_line_hook_procedure), pointer, public :: version_control_mode_line_hook => null()
 
     abstract interface
-        !> vc-dir.el's `vc_dir_refresh' of the current VC-Dir buffer, for
-        !> `vc_set_async_update'.  Not a port.
-        recursive subroutine vc_dir_refresh_procedure(status)
+        !> vc-dir.el's `version_control_directory_refresh' of the current VC-Dir buffer, for
+        !> `version_control_set_asynchronous_update'.  Not a port.
+        recursive subroutine version_control_directory_refresh_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine vc_dir_refresh_procedure
+        end subroutine version_control_directory_refresh_procedure
     end interface
 
-    !> vc-dir.el's `vc_dir_refresh', associated once VC-Dir is loaded
-    !> (version_control_directory_mod), for `vc_set_async_update'.
-    procedure(vc_dir_refresh_procedure), pointer, public :: vc_dir_refresh_function => null()
+    !> vc-dir.el's `version_control_directory_refresh', associated once VC-Dir is loaded
+    !> (version_control_directory_mod), for `version_control_set_asynchronous_update'.
+    procedure(version_control_directory_refresh_procedure), pointer, public :: version_control_directory_refresh_function => null()
 
-    !> Hook run after entering `vc_compilation_mode'.  Port of
+    !> Hook run after entering `version_control_compilation_mode'.  Port of
     !> vc-dispatcher.el vc-compilation-mode-hook.
-    type(hook_type), target, public :: vc_compilation_mode_hook = hook_type(name="vc_compilation_mode_hook")
+    type(hook_type), target, public :: version_control_compilation_mode_hook = hook_type( &
+                                       name="version_control_compilation_mode_hook")
 
     !> The operation of a log entry buffer (the ACTION of
-    !> `vc_start_logentry', upstream's closure): its procedure, given the
+    !> `version_control_start_logentry', upstream's closure): its procedure, given the
     !> operation itself and so what it captured (a BACKEND, a revision
-    !> REV, a PATCH_STRING, files to REGISTER), and FILES and COMMENT.
-    type, public :: vc_log_operation_type
-        procedure(vc_log_operation_procedure), pointer, nopass :: execute => null()
+    !> REVISION, a PATCH_STRING, files to REGISTER), and FILES and COMMENT.
+    type, public :: version_control_log_operation_type
+        procedure(version_control_log_operation_procedure), pointer, nopass :: execute => null()
         integer :: backend = 0
-        character(len=:), allocatable :: rev, patch_string
+        character(len=:), allocatable :: revision, patch_string
         type(string_type), allocatable :: register(:)
-    end type vc_log_operation_type
+    end type version_control_log_operation_type
 
     abstract interface
-        !> What `vc_finish_logentry' calls with the log message COMMENT for
+        !> What `version_control_finish_logentry' calls with the log message COMMENT for
         !> FILES.  Not a port.
-        recursive subroutine vc_log_operation_procedure(operation, files, comment, status)
-            import :: vc_log_operation_type, string_type, status_type
+        recursive subroutine version_control_log_operation_procedure(operation, files, comment, status)
+            import :: version_control_log_operation_type, string_type, status_type
             implicit none(type, external)
-            type(vc_log_operation_type), intent(in) :: operation
+            type(version_control_log_operation_type), intent(in) :: operation
             type(string_type), intent(in) :: files(:)
             character(len=*), intent(in) :: comment
             type(status_type), intent(out) :: status
-        end subroutine vc_log_operation_procedure
+        end subroutine version_control_log_operation_procedure
     end interface
-    public :: vc_log_operation_procedure
+    public :: version_control_log_operation_procedure
 
-    !> A log entry buffer's `vc_log_operation', `vc_log_fileset',
-    !> `vc_patch_string' and `vc_log_after_operation_hook', by serial
+    !> A log entry buffer's `version_control_log_operation', `version_control_log_fileset',
+    !> `version_control_patch_string' and `version_control_log_after_operation_hook', by serial
     !> number.
-    type :: vc_log_local_type
+    type :: version_control_log_local_type
         integer(int64) :: serial = 0
         logical :: has_operation = .false.
-        type(vc_log_operation_type) :: operation
+        type(version_control_log_operation_type) :: operation
         logical :: has_fileset = .false.
         type(string_type), allocatable :: fileset(:)
         character(len=:), allocatable :: patch_string
         type(hook_type), pointer :: after_hook => null()
-    end type vc_log_local_type
+    end type version_control_log_local_type
 
-    type(vc_log_local_type), allocatable :: log_locals(:)
+    type(version_control_log_local_type), allocatable :: log_locals(:)
 
-    !> Normal hook run by `vc_finish_logentry'.
+    !> Normal hook run by `version_control_finish_logentry'.
     !> Use this to impose your own rules on the entry in addition to any the
     !> dispatcher client wants to enforce.  Port of vc-dispatcher.el
     !> vc-logentry-check-hook.
-    type(hook_type), target, public :: vc_logentry_check_hook = hook_type(name="vc_logentry_check_hook")
+    type(hook_type), target, public :: version_control_logentry_check_hook = hook_type(name="version_control_logentry_check_hook")
 
-    !> Hook run at the end of `vc_finish_logentry' (obsolete; use
-    !> `vc_log_after_operation_hook').  Port of vc-dispatcher.el
+    !> Hook run at the end of `version_control_finish_logentry' (obsolete; use
+    !> `version_control_log_after_operation_hook').  Port of vc-dispatcher.el
     !> vc-finish-logentry-hook.
-    type(hook_type), target, public :: vc_finish_logentry_hook = hook_type(name="vc_finish_logentry_hook")
+    type(hook_type), target, public :: version_control_finish_logentry_hook = hook_type(name="version_control_finish_logentry_hook")
 
     !> If true, delete the *vc-log* buffer and window after each logical action.
     !> If false, bury that buffer instead.
     !> This is most useful if you have multiple windows on a frame and would like to
     !> preserve the setting.  Port of vc-dispatcher.el vc-delete-logbuf-window.
-    logical, public :: vc_delete_logbuf_window = .true.
+    logical, public :: version_control_delete_logbuf_window = .true.
 
     interface
         !> Accept a comment for an operation on FILES.
-        !> If COMMENT is absent, pop up a LOGBUF buffer, emit MSG, and set the
+        !> If COMMENT is absent, pop up a LOGBUF buffer, emit LOG_MESSAGE, and set the
         !> action on close to ACTION.  If COMMENT is a string and
         !> INITIAL_CONTENTS is true, then COMMENT is used as the initial
         !> contents of the log entry buffer.  If COMMENT is a string and
         !> INITIAL_CONTENTS is false, do action immediately as if the user had
         !> entered COMMENT.  If COMMENT_T is true (and no COMMENT), also do action
         !> immediately with an empty comment.  Remember the file's buffer in
-        !> `vc_parent_buffer' (current one if no file).  Puts the log-entry
+        !> `version_control_parent_buffer' (current one if no file).  Puts the log-entry
         !> buffer in major mode MODE, defaulting to `log_edit_mode' if MODE is absent.
-        !> AFTER_HOOK specifies the local value for `vc_log_after_operation_hook'.
-        !> BACKEND, if not 0, specifies a VC backend for the Log Edit buffer.
+        !> AFTER_HOOK specifies the local value for `version_control_log_after_operation_hook'.
+        !> BACKEND, if not 0, specifies a VERSION_CONTROL backend for the Log Edit buffer.
         !> PATCH_STRING is a patch to check in.
         !> DIFF_FUNCTION is `log_edit_diff_function' for the Log Edit buffer.
         !> Port of vc-dispatcher.el:vc-start-logentry.  (In
         !> version_control_dispatcher_log_mod.)
-        recursive module subroutine vc_start_logentry(files, msg, logbuf, action, status, comment, comment_t, &
-                                                      initial_contents, mode, after_hook, backend, patch_string, &
-                                                      diff_function)
+        recursive module subroutine version_control_start_logentry(files, log_message, logbuf, action, status, comment, comment_t, &
+                                                                   initial_contents, mode, after_hook, backend, patch_string, &
+                                                                   diff_function)
             implicit none(type, external)
             type(string_type), intent(in) :: files(:)
-            character(len=*), intent(in) :: msg, logbuf
-            type(vc_log_operation_type), intent(in) :: action
+            character(len=*), intent(in) :: log_message, logbuf
+            type(version_control_log_operation_type), intent(in) :: action
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: comment, patch_string
             logical, intent(in), optional :: comment_t, initial_contents
             procedure(command_procedure), optional :: mode, diff_function
             type(hook_type), intent(in), target, optional :: after_hook
             integer, intent(in), optional :: backend
-        end subroutine vc_start_logentry
+        end subroutine version_control_start_logentry
 
         !> Complete the operation implied by the current log entry.
         !> Use the contents of the current buffer as a check-in or registration
         !> comment.  If the optional arg NOCOMMENT is true, then don't check
         !> the buffer contents as a comment.  Port of
         !> vc-dispatcher.el:vc-finish-logentry (synchronous operations; the
-        !> asynchronous ones of `vc_async_checkin' are deferred).  (In
+        !> asynchronous ones of `version_control_asynchronous_checkin' are deferred).  (In
         !> version_control_dispatcher_log_mod.)
-        recursive module subroutine vc_finish_logentry(status, nocomment)
+        recursive module subroutine version_control_finish_logentry(status, nocomment)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: nocomment
-        end subroutine vc_finish_logentry
+        end subroutine version_control_finish_logentry
 
         !> Set up `log_edit' for use on FILESET.  Port of
         !> vc-dispatcher.el:vc-log-edit.  (In version_control_dispatcher_log_mod.)
-        recursive module subroutine vc_log_edit(fileset, status, mode, backend, diff_function)
+        recursive module subroutine version_control_log_edit(fileset, status, mode, backend, diff_function)
             implicit none(type, external)
             type(string_type), intent(in) :: fileset(:)
             type(status_type), intent(out) :: status
             procedure(command_procedure), optional :: mode, diff_function
             integer, intent(in), optional :: backend
-        end subroutine vc_log_edit
+        end subroutine version_control_log_edit
     end interface
 
 contains
@@ -350,7 +364,7 @@ contains
     ! without a current buffer).  Not a port.
     subroutine make_parent_entry(k)
         integer, intent(out) :: k
-        type(vc_parent_type) :: entry
+        type(version_control_parent_type) :: entry
 
         k = parent_index()
         if (k > 0 .or. current == 0) return
@@ -360,21 +374,21 @@ contains
         k = size(parents)
     end subroutine make_parent_entry
 
-    !> The current buffer's `vc_parent_buffer': in a log entry or output
+    !> The current buffer's `version_control_parent_buffer': in a log entry or output
     !> buffer, the buffer for which it was made (a null handle for none).
     !> Not a port.
-    function vc_parent_buffer() result(h)
+    function version_control_parent_buffer() result(h)
         type(handle_type) :: h
         integer :: k
 
         h = null_handle()
         k = parent_index()
         if (k > 0) h = parents(k)%parent
-    end function vc_parent_buffer
+    end function version_control_parent_buffer
 
-    !> The current buffer's `vc_parent_buffer_name' (" from NAME").
+    !> The current buffer's `version_control_parent_buffer_name' (" from NAME").
     !> Not a port.
-    function vc_parent_buffer_name() result(name)
+    function version_control_parent_buffer_name() result(name)
         character(len=:), allocatable :: name
         integer :: k
 
@@ -382,10 +396,10 @@ contains
         k = parent_index()
         if (k == 0) return
         if (allocated(parents(k)%name)) name = parents(k)%name
-    end function vc_parent_buffer_name
+    end function version_control_parent_buffer_name
 
-    !> The `vc_parent_buffer_name' of buffer slot BI, shown in the mode
-    !> line while it has a `vc_parent_buffer' (vc.el's minor-mode-alist
+    !> The `version_control_parent_buffer_name' of buffer slot BI, shown in the mode
+    !> line while it has a `version_control_parent_buffer' (vc.el's minor-mode-alist
     !> entry (vc-parent-buffer vc-parent-buffer-name)).  Not a port.
     subroutine parent_name_of(bi, text)
         integer(int64), intent(in) :: bi
@@ -403,15 +417,15 @@ contains
         end do
     end subroutine parent_name_of
 
-    !> Show `vc_parent_buffer_name' in the mode line of buffers with a
-    !> `vc_parent_buffer'.  Part of vc.el (its minor-mode-alist entry).
+    !> Show `version_control_parent_buffer_name' in the mode line of buffers with a
+    !> `version_control_parent_buffer'.  Part of vc.el (its minor-mode-alist entry).
     !> Not a port.
-    subroutine init_vc_dispatcher()
+    subroutine initialize_version_control_dispatcher()
         use data_mod, only: append_locals_clearer
 
-        call add_minor_mode_lighter("vc_parent_buffer", "", text=parent_name_of, first=.true.)
+        call add_minor_mode_lighter("version_control_parent_buffer", "", text=parent_name_of, first=.true.)
         call append_locals_clearer(clear_log_locals)
-    end subroutine init_vc_dispatcher
+    end subroutine initialize_version_control_dispatcher
 
     ! ------------------------------------------------------------------
     ! The log entry buffer's variables
@@ -431,7 +445,7 @@ contains
     !> buffer).  Not a port.
     subroutine make_log_local_entry(k)
         integer, intent(out) :: k
-        type(vc_log_local_type) :: entry
+        type(version_control_log_local_type) :: entry
 
         k = log_local_index()
         if (k > 0 .or. current == 0) return
@@ -442,7 +456,7 @@ contains
         end do
 
         if (k > size(log_locals)) log_locals = [log_locals, entry]
-        log_locals(k) = vc_log_local_type(serial=buffers(current)%serial)
+        log_locals(k) = version_control_log_local_type(serial=buffers(current)%serial)
     end subroutine make_log_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
@@ -451,12 +465,12 @@ contains
         integer :: k
 
         k = log_local_index()
-        if (k > 0) log_locals(k) = vc_log_local_type()
+        if (k > 0) log_locals(k) = version_control_log_local_type()
     end subroutine clear_log_locals
 
-    !> The current buffer's `vc_log_fileset' (FOUND false if it has none):
+    !> The current buffer's `version_control_log_fileset' (FOUND false if it has none):
     !> the files of the log entry.  Not a port.
-    subroutine vc_log_fileset(files, found)
+    subroutine version_control_log_fileset(files, found)
         type(string_type), allocatable, intent(out) :: files(:)
         logical, intent(out) :: found
         integer :: k
@@ -470,73 +484,74 @@ contains
         else
             allocate (files(0))
         end if
-    end subroutine vc_log_fileset
+    end subroutine version_control_log_fileset
 
-    !> Set the current buffer's `vc_log_fileset' to FILES.  Not a port.
-    subroutine set_vc_log_fileset(files)
+    !> Set the current buffer's `version_control_log_fileset' to FILES.  Not a port.
+    subroutine set_version_control_log_fileset(files)
         type(string_type), intent(in) :: files(:)
         integer :: k
 
         call make_log_local_entry(k)
         log_locals(k)%has_fileset = .true.
         log_locals(k)%fileset = files
-    end subroutine set_vc_log_fileset
+    end subroutine set_version_control_log_fileset
 
-    !> The current buffer's `vc_patch_string' (unallocated for none).
+    !> The current buffer's `version_control_patch_string' (unallocated for none).
     !> Not a port.
-    subroutine vc_patch_string(patch)
+    subroutine version_control_patch_string(patch)
         character(len=:), allocatable, intent(out) :: patch
         integer :: k
 
         k = log_local_index()
         if (k == 0) return
         if (allocated(log_locals(k)%patch_string)) patch = log_locals(k)%patch_string
-    end subroutine vc_patch_string
+    end subroutine version_control_patch_string
 
-    !> Set the current buffer's `vc_patch_string' to PATCH (unallocated if absent).
+    !> Set the current buffer's `version_control_patch_string' to PATCH (unallocated if absent).
     !> Not a port.
-    subroutine set_vc_patch_string(patch)
+    subroutine set_version_control_patch_string(patch)
         character(len=*), intent(in), optional :: patch
         integer :: k
 
         call make_log_local_entry(k)
         if (allocated(log_locals(k)%patch_string)) deallocate (log_locals(k)%patch_string)
         if (present(patch)) log_locals(k)%patch_string = patch
-    end subroutine set_vc_patch_string
+    end subroutine set_version_control_patch_string
 
-    !> Set the current buffer's `vc_log_operation' to OPERATION.
+    !> Set the current buffer's `version_control_log_operation' to OPERATION.
     !> Not a port.
-    subroutine set_vc_log_operation(operation)
-        type(vc_log_operation_type), intent(in) :: operation
+    subroutine set_version_control_log_operation(operation)
+        type(version_control_log_operation_type), intent(in) :: operation
         integer :: k
 
         call make_log_local_entry(k)
         log_locals(k)%has_operation = .true.
         log_locals(k)%operation = operation
-    end subroutine set_vc_log_operation
+    end subroutine set_version_control_log_operation
 
-    !> Set the current buffer's `vc_log_after_operation_hook' to HOOK (empty
+    !> Set the current buffer's `version_control_log_after_operation_hook' to HOOK (empty
     !> if absent).  Not a port.
-    subroutine set_vc_log_after_operation_hook(hook)
+    subroutine set_version_control_log_after_operation_hook(hook)
         type(hook_type), intent(in), target, optional :: hook
         integer :: k
 
         call make_log_local_entry(k)
         log_locals(k)%after_hook => null()
         if (present(hook)) log_locals(k)%after_hook => hook
-    end subroutine set_vc_log_after_operation_hook
+    end subroutine set_version_control_log_after_operation_hook
 
     !> Are we in a directory browser buffer?  Port of
     !> vc-dispatcher.el:vc-dispatcher-browsing.
-    logical function vc_dispatcher_browsing() result(browsing)
+    logical function version_control_dispatcher_browsing() result(browsing)
         use derived_mod, only: is_derived_mode
 
-        browsing = is_derived_mode([character(len=13) :: "vc_dir_mode", "dired_mode", "diff_mode", "log_view_mode"])
-    end function vc_dispatcher_browsing
+        browsing = is_derived_mode([character(len=30) :: "version_control_directory_mode", "directory_editor_mode", "diff_mode", &
+                                    "log_view_mode"])
+    end function version_control_dispatcher_browsing
 
-    !> Set the current buffer's `vc_parent_buffer' to PARENT and its
-    !> `vc_parent_buffer_name' to NAME.  Not a port.
-    subroutine set_vc_parent_buffer(parent, name)
+    !> Set the current buffer's `version_control_parent_buffer' to PARENT and its
+    !> `version_control_parent_buffer_name' to NAME.  Not a port.
+    subroutine set_version_control_parent_buffer(parent, name)
         type(handle_type), intent(in) :: parent
         character(len=*), intent(in) :: name
         integer :: k
@@ -545,7 +560,7 @@ contains
         if (k == 0) return
         parents(k)%parent = parent
         parents(k)%name = name
-    end subroutine set_vc_parent_buffer
+    end subroutine set_version_control_parent_buffer
 
     ! ------------------------------------------------------------------
     ! Common command execution logic
@@ -555,37 +570,37 @@ contains
     !> One difference with the default filter is that this inserts S after markers.
     !> Another is that undo information is not kept.  Port of
     !> vc-dispatcher.el:vc-process-filter.
-    recursive subroutine vc_process_filter(process, s, status)
+    recursive subroutine version_control_process_filter(process, s, status)
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: s
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, old, mark
         type(value_type) :: saved
         type(status_type) :: st
-        integer(int64) :: opoint, mpos
+        integer(int64) :: original_point, marked_position
 
         status = status_type()
         buffer = process_buffer(process)
         if (.not. is_buffer_live(buffer)) return
         old = current_buffer()
         call set_buffer(buffer, st)
-        opoint = point()
+        original_point = point()
         mark = process_mark(process)
-        call marker_position(mark, mpos, st)
+        call marker_position(mark, marked_position, st)
         call inhibit_read_only_begin(saved)
-        call goto_char(mpos)
+        call goto_character(marked_position)
         call insert(s, status)
         call set_marker(mark, point(), st)
         call inhibit_read_only_end(saved)
         ! (save-excursion): point stays, after the text if it was at the mark.
-        if (opoint > mpos) opoint = opoint + len(s, int64)
-        call goto_char(min(opoint, point_max()))
+        if (original_point > marked_position) original_point = original_point + len(s, int64)
+        call goto_character(min(original_point, point_maximum()))
         call set_buffer(old, st)
-    end subroutine vc_process_filter
+    end subroutine version_control_process_filter
 
     !> Prepare BUFFER for executing a slave command and make it current.
     !> Port of vc-dispatcher.el:vc-setup-buffer.
-    subroutine vc_setup_buffer(buffer, status)
+    subroutine version_control_setup_buffer(buffer, status)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         type(handle_type) :: camefrom, old_process
@@ -612,29 +627,29 @@ contains
         ! If we are refreshing an existing view,
         ! don't throw away where we really came from (bug#59457).
         if (camefrom%index /= current .and. is_buffer_live(camefrom)) then
-            call set_vc_parent_buffer(camefrom, " from "//buffers(camefrom%index)%name)
+            call set_version_control_parent_buffer(camefrom, " from "//buffers(camefrom%index)%name)
         end if
 
         buffers(current)%directory = olddir
         call inhibit_read_only_begin(saved)
         call erase_buffer(st)
         call inhibit_read_only_end(saved)
-    end subroutine vc_setup_buffer
+    end subroutine version_control_setup_buffer
 
     !> " [waiting...]" in the mode line.  Port of
     !> vc-dispatcher.el:vc-set-mode-line-busy-indicator.
-    subroutine vc_set_mode_line_busy_indicator()
+    subroutine version_control_set_mode_line_busy_indicator()
         type(mode_line_part_type) :: parts(2)
 
         parts(1)%text = " "
         parts(2)%text = "[waiting...]"
         parts(2)%face = "mode_line_emphasis"
         call set_mode_line_process(parts)
-    end subroutine vc_set_mode_line_busy_indicator
+    end subroutine version_control_set_mode_line_busy_indicator
 
     !> Execute ACTION when PROCESS, or the current buffer's process, is done.
     !>
-    !> ACTION's OKSTATUS, if not VC_OKSTATUS_UNLESS_SIGNAL, is a non-negative integer.
+    !> ACTION's OKSTATUS, if not VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL, is a non-negative integer.
     !> Run ACTION only if PROCESS (or, if PROCESS is absent, the current buffer's
     !> process) exits normally (i.e. does not die to a signal) with exit
     !> status not exceeding OKSTATUS.
@@ -645,8 +660,8 @@ contains
     !> ACTION.  Otherwise, add ACTION to the process's sentinel.  Port of
     !> vc-dispatcher.el:vc-exec-after (vc-run-delayed and
     !> vc-run-delayed-success are this with OKSTATUS absent or given).
-    recursive subroutine vc_exec_after(action, status, process)
-        type(vc_action_type), intent(in) :: action
+    recursive subroutine version_control_exec_after(action, status, process)
+        type(version_control_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: process
         type(handle_type) :: p, buffer
@@ -680,9 +695,9 @@ contains
             if (is_buffer_live(buffer)) call in_buffer_busy(buffer)
             call queue_action(p, action)
         else
-            call set_error(status, FM_GENERIC_ERROR, "Unexpected process state")
+            call set_error(status, GENERIC_ERROR_CODE, "Unexpected process state")
         end if
-    end subroutine vc_exec_after
+    end subroutine version_control_exec_after
 
     !> Show the busy indicator in buffer BUFFER.  Not a port.
     subroutine in_buffer_busy(buffer)
@@ -692,21 +707,21 @@ contains
 
         old = current_buffer()
         call set_buffer(buffer, st)
-        call vc_set_mode_line_busy_indicator()
+        call version_control_set_mode_line_busy_indicator()
         call set_buffer(old, st)
     end subroutine in_buffer_busy
 
     !> Execute ACTION if its OKSTATUS allows the exit of process P (null for
     !> none).  Not a port.
     recursive subroutine execute_action(action, p, status)
-        type(vc_action_type), intent(in) :: action
+        type(version_control_action_type), intent(in) :: action
         type(handle_type), intent(in) :: p
         type(status_type), intent(out) :: status
 
         status = status_type()
         if (.not. associated(action%execute)) return
 
-        if (action%okstatus /= VC_OKSTATUS_UNLESS_SIGNAL .and. p%index /= 0) then
+        if (action%okstatus /= VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL .and. p%index /= 0) then
             if (process_status(p) /= "exit") return
             if (action%okstatus < process_exit_status(p)) return
         end if
@@ -717,8 +732,8 @@ contains
     !> Add ACTION to those run when process P is done.  Not a port.
     subroutine queue_action(p, action)
         type(handle_type), intent(in) :: p
-        type(vc_action_type), intent(in) :: action
-        type(vc_pending_type) :: entry
+        type(version_control_action_type), intent(in) :: action
+        type(version_control_pending_type) :: entry
         type(status_type) :: st
         integer :: k
 
@@ -730,25 +745,25 @@ contains
             allocate (entry%actions(0))
             pending = [pending, entry]
             k = size(pending)
-            call set_process_sentinel(p, st, vc_sentinel)
+            call set_process_sentinel(p, st, version_control_sentinel)
         end if
 
         pending(k)%actions = [pending(k)%actions, action]
     end subroutine queue_action
 
-    !> The sentinel of VC's processes: when one is done, run the actions
+    !> The sentinel of VERSION_CONTROL's processes: when one is done, run the actions
     !> waiting for it in its buffer, from its mark, as vc-exec-after's
     !> sentinel function does.
     !> Port of vc-dispatcher.el:vc-exec-after, in part (its sentinel).
-    recursive subroutine vc_sentinel(process, event, status)
+    recursive subroutine version_control_sentinel(process, event, status)
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: event
         type(status_type), intent(out) :: status
-        type(vc_action_type), allocatable :: actions(:)
+        type(version_control_action_type), allocatable :: actions(:)
         type(handle_type) :: buffer, old, m
         type(status_type) :: st
         character(len=:), allocatable :: pstatus
-        integer(int64) :: opoint, mpos
+        integer(int64) :: original_point, marked_position
         integer :: k, j
 
         status = status_type()
@@ -769,33 +784,33 @@ contains
         call clear_mode_line_process()
 
         do j = 1, size(actions)
-            vc_sentinel_movepoint = 0
+            version_control_sentinel_movepoint = 0
             m = process_mark(process)
-            call marker_position(m, mpos, st)
+            call marker_position(m, marked_position, st)
             ! Normally, we want async code such as sentinels to not move
             ! point.
-            opoint = point()
-            call goto_char(mpos)
+            original_point = point()
+            call goto_character(marked_position)
             ! Each sentinel may move point and the next one should be run
             ! from that new position.
             call execute_action(actions(j), process, status)
             if (.not. is_buffer_live(buffer)) exit
             call set_buffer(buffer, st)
             call set_marker(m, point(), st)
-            call goto_char(min(opoint, point_max()))
+            call goto_character(min(original_point, point_maximum()))
             ! But sometimes the sentinels really want to move point.
-            if (vc_sentinel_movepoint /= 0) call goto_char(vc_sentinel_movepoint)
+            if (version_control_sentinel_movepoint /= 0) call goto_character(version_control_sentinel_movepoint)
             if (.not. status%ok()) exit
         end do
 
         call set_buffer(old, st)
-    end subroutine vc_sentinel
+    end subroutine version_control_sentinel
 
     ! Remove PENDING(K) (without an emptying array constructor).
     ! Not a port.
     subroutine drop_pending(k)
         integer, intent(in) :: k
-        type(vc_pending_type), allocatable :: rest(:)
+        type(version_control_pending_type), allocatable :: rest(:)
         integer :: i, j
 
         allocate (rest(size(pending) - 1))
@@ -812,7 +827,7 @@ contains
 
     !> Smash a FILELIST into a file list string suitable for info messages.
     !> Port of vc-dispatcher.el:vc-delistify.
-    function vc_delistify(filelist) result(s)
+    function version_control_delistify(filelist) result(s)
         type(string_type), intent(in) :: filelist(:)
         character(len=:), allocatable :: s
         integer :: k
@@ -828,34 +843,34 @@ contains
             if (k > 1) s = s//" "
             if (allocated(filelist(k)%text)) s = s//filelist(k)%text
         end do
-    end function vc_delistify
+    end function version_control_delistify
 
-    !> Call `message' on TEXT taking into account relevant VC variables.
+    !> Call `message' on TEXT taking into account relevant VERSION_CONTROL variables.
     !> Port of vc-dispatcher.el:vc--command-message.
-    subroutine vc_command_message(text)
+    subroutine version_control_command_message(text)
         character(len=*), intent(in) :: text
 
-        if (.not. vc_command_messages%is_off()) call message(text)
-    end subroutine vc_command_message
+        if (.not. version_control_command_messages%is_off()) call message(text)
+    end subroutine version_control_command_message
 
     !> Execute an inferior command, notifying user and checking for errors.
     !>
-    !> DESTINATION specifies what to do with COMMAND's output: VC_DEST_CURRENT
-    !> for the current buffer, VC_DEST_DISCARD to discard output, or (with
+    !> DESTINATION specifies what to do with COMMAND's output: VERSION_CONTROL_DESTINATION_CURRENT
+    !> for the current buffer, VERSION_CONTROL_DESTINATION_DISCARD to discard output, or (with
     !> BUFFER) a buffer to insert output there.
     !> STDERR false means to discard standard error output, true (the
     !> default) to mix it with standard output.
     !> If the destination for standard output is a buffer that is not the
     !> current buffer, set up the buffer properly and erase it.
     !>
-    !> OKSTATUS VC_OKSTATUS_ASYNC means not to wait for termination of the
+    !> OKSTATUS VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS means not to wait for termination of the
     !> subprocess and give the process object as PROCESS.  Otherwise, OKSTATUS
     !> determines when an error condition occurs instead of giving a numeric exit
     !> status as EXIT_STATUS (or a signal description).  OKSTATUS an integer
     !> means an error condition occurs if the command's exit status exceeds that
-    !> value or the command is killed by a signal, VC_OKSTATUS_UNLESS_SIGNAL means to
+    !> value or the command is killed by a signal, VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL means to
     !> an error condition occurs only if the command is killed by a signal, and
-    !> VC_OKSTATUS_ANY means no error condition ever occurs.
+    !> VERSION_CONTROL_OKSTATUS_ANY means no error condition ever occurs.
     !>
     !> FILES are the working files (none to execute commands that don't
     !> expect a file name or set of files).  FLAGS are inserted into the
@@ -863,8 +878,8 @@ contains
     !> passes nothing).  ENVIRONMENT are "NAME=VALUE" entries put first in
     !> the process's environment (as `process_environment').  Port of
     !> vc-dispatcher.el:vc-do-command.
-    recursive subroutine vc_do_command(destination, okstatus, command, files, flags, status, buffer, stderr, &
-                                       exit_status, process, environment)
+    recursive subroutine version_control_do_command(destination, okstatus, command, files, flags, status, buffer, stderr, &
+                                                    exit_status, process, environment)
         integer, intent(in) :: destination
         integer, intent(in) :: okstatus
         character(len=*), intent(in) :: command
@@ -876,12 +891,12 @@ contains
         type(handle_type), intent(out), optional :: process
         type(string_type), intent(in), optional :: environment(:)
         type(handle_type) :: old, new_process
-        type(string_type), allocatable :: rel(:)
+        type(string_type), allocatable :: relative(:)
         type(value_type), allocatable :: argv(:), envv(:)
         type(string_type), allocatable :: pargs(:), penv(:)
-        type(value_type) :: result, saved, dest
+        type(value_type) :: result, saved, destination_name
         type(status_type) :: st
-        character(len=:), allocatable :: full_command, cmd, expanded, desc
+        character(len=:), allocatable :: full_command, command_text, expanded, description
         character(len=24) :: status_text
         logical :: to_buffer, mix
         integer :: k, n, ne, code
@@ -892,13 +907,13 @@ contains
         mix = .true.
         if (present(stderr)) mix = stderr
         old = current_buffer()
-        to_buffer = destination /= VC_DEST_DISCARD
+        to_buffer = destination /= VERSION_CONTROL_DESTINATION_DISCARD
 
         if (present(buffer)) then
             to_buffer = .true.
 
             if (buffer%index /= current) then
-                call vc_setup_buffer(buffer, status)
+                call version_control_setup_buffer(buffer, status)
                 if (.not. status%ok()) return
             end if
         end if
@@ -906,22 +921,22 @@ contains
         ! FIXME: file-relative-name can return a bogus result because it
         ! doesn't look at the actual file-system to see if symlinks come
         ! into play.
-        allocate (rel(size(files)))
+        allocate (relative(size(files)))
 
         do k = 1, size(files)
             call expand_file_name(files(k)%text, expanded, st)
             if (.not. st%ok()) expanded = files(k)%text
-            rel(k)%text = file_relative_name(expanded)
+            relative(k)%text = file_relative_name(expanded)
         end do
 
-        cmd = command
+        command_text = command
 
-        if (len(cmd) > 0) then
-            if (cmd(len(cmd):len(cmd)) == achar(10)) cmd = cmd(1:len(cmd) - 1)
+        if (len(command_text) > 0) then
+            if (command_text(len(command_text):len(command_text)) == achar(10)) command_text = command_text(1:len(command_text) - 1)
         end if
 
-        full_command = cmd//" "//flag_list(flags)
-        if (size(rel) > 0) full_command = full_command//" "//vc_delistify(rel)
+        full_command = command_text//" "//flag_list(flags)
+        if (size(relative) > 0) full_command = full_command//" "//version_control_delistify(relative)
         ! The squeezed arguments: the flags without nil, then the files.
         n = 0
 
@@ -929,7 +944,7 @@ contains
             if (allocated(flags(k)%text)) n = n + 1
         end do
 
-        allocate (argv(n + size(rel)))
+        allocate (argv(n + size(relative)))
         n = 0
 
         do k = 1, size(flags)
@@ -938,8 +953,8 @@ contains
             argv(n) = value_type(text=flags(k)%text)
         end do
 
-        do k = 1, size(rel)
-            argv(n + k) = value_type(text=rel(k)%text)
+        do k = 1, size(relative)
+            argv(n + k) = value_type(text=relative(k)%text)
         end do
 
         ! Since some functions need to parse the output from external
@@ -957,10 +972,10 @@ contains
 
         call inhibit_read_only_begin(saved)
 
-        if (okstatus == VC_OKSTATUS_ASYNC) then
+        if (okstatus == VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS) then
             ! Run asynchronously.
             allocate (pargs(size(argv) + 1))
-            pargs(1)%text = cmd
+            pargs(1)%text = command_text
 
             do k = 1, size(argv)
                 pargs(k + 1)%text = xstring(argv(k))
@@ -973,29 +988,30 @@ contains
             end do
 
             if (to_buffer) then
-                call make_process(cmd, pargs, new_process, status, buffer=current_buffer(), &
+                call make_process(command_text, pargs, new_process, status, buffer=current_buffer(), &
                                   connection_type=PROCESS_CONNECTION_PIPE, environment=penv)
             else
-                call make_process(cmd, pargs, new_process, status, connection_type=PROCESS_CONNECTION_PIPE, environment=penv)
+                call make_process(command_text, pargs, new_process, status, connection_type=PROCESS_CONNECTION_PIPE, &
+                                  environment=penv)
             end if
 
             if (status%ok()) then
-                call set_process_filter(new_process, st, vc_process_filter)
-                call vc_command_message("Running in background: "//full_command)
+                call set_process_filter(new_process, st, version_control_process_filter)
+                call version_control_command_message("Running in background: "//full_command)
                 if (present(process)) process = new_process
             end if
         else
             ! Run synchronously
-            call vc_command_message("Running in foreground: "//full_command)
-            dest = value_type(.true.)
+            call version_control_command_message("Running in foreground: "//full_command)
+            destination_name = value_type(.true.)
 
             if (.not. to_buffer) then
-                call execute_process(cmd, result, status, args=make_list(argv), environment=make_list(envv))
+                call execute_process(command_text, result, status, arguments=make_list(argv), environment=make_list(envv))
             else if (mix) then
-                call execute_process(cmd, result, status, destination=dest, args=make_list(argv), &
+                call execute_process(command_text, result, status, destination=destination_name, arguments=make_list(argv), &
                                      environment=make_list(envv))
             else
-                call execute_process(cmd, result, status, destination=dest, args=make_list(argv), &
+                call execute_process(command_text, result, status, destination=destination_name, arguments=make_list(argv), &
                                      error_file="/dev/null", environment=make_list(envv))
             end if
 
@@ -1004,35 +1020,35 @@ contains
                 if (vtag(result) == V_INTEGER) code = int(xfixnum(result))
                 if (present(exit_status)) exit_status = code
 
-                if (okstatus /= VC_OKSTATUS_ANY .and. (vtag(result) /= V_INTEGER .or. &
-                                                       (okstatus >= 0 .and. okstatus < code))) then
+                if (okstatus /= VERSION_CONTROL_OKSTATUS_ANY .and. (vtag(result) /= V_INTEGER .or. &
+                                                                    (okstatus >= 0 .and. okstatus < code))) then
                     if (buffers(current)%name(1:min(1, len(buffers(current)%name))) /= " ") then
                         call pop_to_buffer(current_buffer(), st)
-                        call goto_char(point_min())
+                        call goto_character(point_minimum())
                         call shrink_window_if_larger_than_buffer()
                     end if
 
                     if (vtag(result) == V_INTEGER) then
                         write (status_text, '("status ", i0)') code
-                        desc = trim(status_text)
+                        description = trim(status_text)
                     else
-                        desc = xstring(result)
+                        description = xstring(result)
                     end if
 
-                    call set_error(status, FM_GENERIC_ERROR, "Failed ("//desc//"): "//full_command)
+                    call set_error(status, GENERIC_ERROR_CODE, "Failed ("//description//"): "//full_command)
                 else
                     write (status_text, '("Done (status=", i0, "):")') code
-                    call vc_command_message(trim(status_text)//" "//full_command)
+                    call version_control_command_message(trim(status_text)//" "//full_command)
                 end if
             end if
         end if
 
         call inhibit_read_only_end(saved)
-        if (present(buffer) .or. destination /= VC_DEST_CURRENT) call set_buffer(old, st)
+        if (present(buffer) .or. destination /= VERSION_CONTROL_DESTINATION_CURRENT) call set_buffer(old, st)
 
     contains
 
-        !> The flags as `vc_delistify' smashes them, an unallocated one as "".
+        !> The flags as `version_control_delistify' smashes them, an unallocated one as "".
         function flag_list(list) result(s)
             type(string_type), intent(in) :: list(:)
             character(len=:), allocatable :: s
@@ -1045,7 +1061,7 @@ contains
                 if (allocated(list(i)%text)) s = s//list(i)%text
             end do
         end function flag_list
-    end subroutine vc_do_command
+    end subroutine version_control_do_command
 
     ! ------------------------------------------------------------------
     ! Keeping the view up to date
@@ -1055,88 +1071,88 @@ contains
     !> Used to help us find the corresponding position again later
     !> if markers are destroyed or corrupted.  Port of
     !> vc-dispatcher.el:vc-position-context.
-    function vc_position_context(posn) result(context)
+    function version_control_position_context(posn) result(context)
         integer(int64), intent(in) :: posn
-        type(vc_context_type) :: context
+        type(version_control_context_type) :: context
         type(status_type) :: st
 
         context%posn = posn
-        context%size = point_max() - point_min()
-        call buffer_substring(posn, min(point_max(), posn + 100), context%text, st)
+        context%size = point_maximum() - point_minimum()
+        call buffer_substring(posn, min(point_maximum(), posn + 100), context%text, st)
         if (.not. st%ok()) context%text = ""
         context%valid = .true.
-    end function vc_position_context
+    end function version_control_position_context
 
     !> Return the position of CONTEXT in the current buffer (0 if
     !> CONTEXT cannot be found).  Port of
     !> vc-dispatcher.el:vc-find-position-by-context.
-    integer(int64) function vc_find_position_by_context(context) result(pos)
-        type(vc_context_type), intent(in) :: context
+    integer(int64) function version_control_find_position_by_context(context) result(position)
+        type(version_control_context_type), intent(in) :: context
         integer(int64) :: diff, saved, found
         type(status_type) :: st
 
         if (len(context%text) == 0) then
-            pos = point_max()
+            position = point_maximum()
             return
         end if
 
         saved = point()
-        pos = 0
-        diff = context%size - (point_max() - point_min())
+        position = 0
+        diff = context%size - (point_maximum() - point_minimum())
         if (diff < 0) diff = -diff
-        call goto_char(context%posn)
+        call goto_character(context%posn)
         call search_forward(context%text, found, st, noerror=SEARCH_NOERROR)
 
         if (found == 0) then
             ! Can't use search-backward since the match may continue after
             ! point.
-            call goto_char(point() - diff - len(context%text, int64))
+            call goto_character(point() - diff - len(context%text, int64))
             ! goto-char doesn't signal an error at beginning of buffer like
             ! backward-char would
             call search_forward(context%text, found, st, noerror=SEARCH_NOERROR)
         end if
 
         ! to beginning of OSTRING
-        if (found /= 0) pos = point() - count_characters(context%text)
-        call goto_char(saved)
-    end function vc_find_position_by_context
+        if (found /= 0) position = point() - count_characters(context%text)
+        call goto_character(saved)
+    end function version_control_find_position_by_context
 
     !> Return true if POSN matches CONTEXT, false otherwise.  Port of
     !> vc-dispatcher.el:vc-context-matches-p.
-    logical function vc_context_matches(posn, context) result(r)
+    logical function version_control_context_matches(posn, context) result(r)
         integer(int64), intent(in) :: posn
-        type(vc_context_type), intent(in) :: context
+        type(version_control_context_type), intent(in) :: context
         character(len=:), allocatable :: s
         type(status_type) :: st
         integer(int64) :: endp
 
         r = .false.
         endp = posn + count_characters(context%text)
-        if (endp > point_max() - point_min() + 1 + 1) return
-        if (endp > point_max()) return
+        if (endp > point_maximum() - point_minimum() + 1 + 1) return
+        if (endp > point_maximum()) return
         call buffer_substring(posn, endp, s, st)
         if (.not. st%ok()) return
         r = s == context%text .and. len(s) == len(context%text)
-    end function vc_context_matches
+    end function version_control_context_matches
 
     !> Revert buffer keeping point and the mark where the user expects them.
-    !> Try to be clever in the face of changes due to expanded VCS
+    !> Try to be clever in the face of changes due to expanded VERSION_CONTROLS
     !> keywords (cf., e.g., Info node `(cvs)Keyword substitution').
     !> This is important for typeahead to work as expected.
-    !> ARG and NO_CONFIRM are passed on to `revert_buffer'.  Port of
+    !> ARGUMENT and NO_CONFIRM are passed on to `revert_buffer'.  Port of
     !> vc-dispatcher.el:vc-revert-buffer-internal (with vc-buffer-context
     !> and vc-restore-buffer-context).
-    recursive subroutine vc_revert_buffer_internal(status, arg, no_confirm)
+    recursive subroutine version_control_revert_buffer_internal(status, argument, no_confirm)
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: arg, no_confirm
-        type(vc_context_type) :: point_context, mark_context
+        logical, intent(in), optional :: argument, no_confirm
+        type(version_control_context_type) :: point_context, mark_context
         integer(int64) :: saved, newpos, m
 
         call widen()
-        point_context = vc_position_context(point())
+        point_context = version_control_position_context(point())
         ! Use mark-marker to avoid confusion in transient-mark-mode.
         m = mark_position()
-        if (m /= 0) mark_context = vc_position_context(m)
+        if (m /= 0) mark_context = version_control_position_context(m)
         ! Use save-excursion here, because it may be able to restore point
         ! and mark properly even in cases where vc-restore-buffer-context
         ! would fail.  However, save-excursion might also get it wrong --
@@ -1144,40 +1160,40 @@ contains
         saved = point()
         ! t means don't call normal-mode; that's to preserve various minor
         ! modes.
-        call revert_buffer(status, ignore_auto=arg, noconfirm=no_confirm, preserve_modes=.true.)
+        call revert_buffer(status, ignore_auto=argument, noconfirm=no_confirm, preserve_modes=.true.)
         if (.not. status%ok()) return
-        call goto_char(min(max(saved, point_min()), point_max()))
+        call goto_character(min(max(saved, point_minimum()), point_maximum()))
 
         ! if necessary, restore point and mark
-        if (.not. vc_context_matches(point(), point_context)) then
-            newpos = vc_find_position_by_context(point_context)
-            if (newpos /= 0) call goto_char(newpos)
+        if (.not. version_control_context_matches(point(), point_context)) then
+            newpos = version_control_find_position_by_context(point_context)
+            if (newpos /= 0) call goto_character(newpos)
         end if
 
         if (mark_context%valid .and. buffers(current)%mark_active) then
             m = mark_position()
 
-            if (.not. vc_context_matches(m, mark_context)) then
-                newpos = vc_find_position_by_context(mark_context)
+            if (.not. version_control_context_matches(m, mark_context)) then
+                newpos = version_control_find_position_by_context(mark_context)
                 if (newpos /= 0) call set_mark_at(newpos)
             end if
         end if
-    end subroutine vc_revert_buffer_internal
+    end subroutine version_control_revert_buffer_internal
 
-    !> (set-mark POS) Not a port.
-    subroutine set_mark_at(pos)
+    !> (set-mark POSITION) Not a port.
+    subroutine set_mark_at(position)
         use simple_mod, only: set_mark
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
 
-        call set_mark(pos)
+        call set_mark(position)
     end subroutine set_mark_at
 
-    !> Execute `vc_mode_line_hook' with FILE.  Not a port.
-    subroutine vc_mode_line_hook_execute(file)
+    !> Execute `version_control_mode_line_hook' with FILE.  Not a port.
+    subroutine version_control_mode_line_hook_execute(file)
         character(len=*), intent(in) :: file
 
-        if (associated(vc_mode_line_hook)) call vc_mode_line_hook(file)
-    end subroutine vc_mode_line_hook_execute
+        if (associated(version_control_mode_line_hook)) call version_control_mode_line_hook(file)
+    end subroutine version_control_mode_line_hook_execute
 
     !> The name FILE is visited under: itself if absolute, else expanded
     !> from ROOT.  Not a port.
@@ -1200,12 +1216,12 @@ contains
     !> reverting.  NOQUERY should be true *only* if it is known the only
     !> difference between the buffer and the file is due to
     !> modifications by the dispatcher client code, rather than user
-    !> editing!  ROOT is `vc_root_dir', for relative names.  Port of
+    !> editing!  ROOT is `version_control_root_directory', for relative names.  Port of
     !> vc-dispatcher.el:vc-resynch-window.
-    recursive subroutine vc_resynch_window(file, root, status, keep, noquery, reset_vc_info)
+    recursive subroutine version_control_resynch_window(file, root, status, keep, noquery, reset_version_control_info)
         character(len=*), intent(in) :: file, root
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: keep, noquery, reset_vc_info
+        logical, intent(in), optional :: keep, noquery, reset_version_control_info
         logical :: k
 
         status = status_type()
@@ -1218,22 +1234,23 @@ contains
         if (.not. k) then
             call close_buffer(current_buffer(), status)
         else if (file_exists(file)) then
-            if (present(reset_vc_info)) then
-                if (reset_vc_info) call vc_file_clearprops(file)
+            if (present(reset_version_control_info)) then
+                if (reset_version_control_info) call version_control_file_clearprops(file)
             end if
 
-            call vc_revert_buffer_internal(status, .true., noquery)
+            call version_control_revert_buffer_internal(status, .true., noquery)
             if (.not. status%ok()) return
-            call vc_mode_line_hook_execute(buffers(current)%filename)
+            call version_control_mode_line_hook_execute(buffers(current)%filename)
         end if
-    end subroutine vc_resynch_window
+    end subroutine version_control_resynch_window
 
     !> Resync all buffers that visit files in DIRECTORY.  Port of
     !> vc-dispatcher.el:vc-resynch-buffers-in-directory.
-    recursive subroutine vc_resynch_buffers_in_directory(directory, root, status, keep, noquery, reset_vc_info)
+    recursive subroutine version_control_resynch_buffers_in_directory(directory, root, status, keep, noquery, &
+                                                                      reset_version_control_info)
         character(len=*), intent(in) :: directory, root
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: keep, reset_vc_info
+        logical, intent(in), optional :: keep, reset_version_control_info
         integer, intent(in), optional :: noquery
         type(handle_type), allocatable :: all(:)
         type(handle_type) :: old
@@ -1251,26 +1268,26 @@ contains
             file_name = buffers(all(k)%index)%filename
             if (index(file_name, directory) /= 1) cycle
             call set_buffer(all(k), st)
-            call vc_resynch_buffer(file_name, root, status, keep, noquery, reset_vc_info)
+            call version_control_resynch_buffer(file_name, root, status, keep, noquery, reset_version_control_info)
             if (.not. status%ok()) exit
         end do
 
         if (is_buffer_live(old)) call set_buffer(old, st)
-    end subroutine vc_resynch_buffers_in_directory
+    end subroutine version_control_resynch_buffers_in_directory
 
     !> If FILE is currently visited, resynch its buffer.
-    !> If NOQUERY is VC_NOQUERY_UNLESS_MODIFIED then silently skip reverting or
-    !> unvisiting if the buffer is modified.  VC_NOQUERY_YES inhibits
-    !> getting confirmation before reverting.  NOQUERY should be VC_NOQUERY_YES
+    !> If NOQUERY is VERSION_CONTROL_NOQUERY_UNLESS_MODIFIED then silently skip reverting or
+    !> unvisiting if the buffer is modified.  VERSION_CONTROL_NOQUERY_YES inhibits
+    !> getting confirmation before reverting.  NOQUERY should be VERSION_CONTROL_NOQUERY_YES
     !> only if it is known that the only
     !> difference between the buffer and the file is due to modifications by
     !> the dispatcher client code, rather than user editing.  ROOT is
-    !> `vc_root_dir', for relative names.  Port of
+    !> `version_control_root_directory', for relative names.  Port of
     !> vc-dispatcher.el:vc-resynch-buffer (no *vc-dir* buffers).
-    recursive subroutine vc_resynch_buffer(file, root, status, keep, noquery, reset_vc_info)
+    recursive subroutine version_control_resynch_buffer(file, root, status, keep, noquery, reset_version_control_info)
         character(len=*), intent(in) :: file, root
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: keep, reset_vc_info
+        logical, intent(in), optional :: keep, reset_version_control_info
         integer, intent(in), optional :: noquery
         type(handle_type) :: buffer, old
         type(status_type) :: st
@@ -1278,7 +1295,7 @@ contains
         logical :: here
 
         status = status_type()
-        nq = VC_NOQUERY_NO
+        nq = VERSION_CONTROL_NOQUERY_NO
         if (present(noquery)) nq = noquery
         here = .false.
 
@@ -1287,11 +1304,12 @@ contains
         end if
 
         if (here) then
-            if (.not. (nq == VC_NOQUERY_UNLESS_MODIFIED .and. modified())) then
-                call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NO, reset_vc_info)
+            if (.not. (nq == VERSION_CONTROL_NOQUERY_UNLESS_MODIFIED .and. modified())) then
+                call version_control_resynch_window(file, root, status, keep, nq /= VERSION_CONTROL_NOQUERY_NO, &
+                                                    reset_version_control_info)
             end if
         else if (is_file_directory(file)) then
-            call vc_resynch_buffers_in_directory(file, root, status, keep, noquery, reset_vc_info)
+            call version_control_resynch_buffers_in_directory(file, root, status, keep, noquery, reset_version_control_info)
         else
             buffer = get_file_buffer(resynch_name(file, root))
 
@@ -1299,8 +1317,9 @@ contains
                 old = current_buffer()
                 call set_buffer(buffer, st)
 
-                if (.not. (nq == VC_NOQUERY_UNLESS_MODIFIED .and. modified())) then
-                    call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NO, reset_vc_info)
+                if (.not. (nq == VERSION_CONTROL_NOQUERY_UNLESS_MODIFIED .and. modified())) then
+                    call version_control_resynch_window(file, root, status, keep, nq /= VERSION_CONTROL_NOQUERY_NO, &
+                                                        reset_version_control_info)
                 end if
 
                 if (is_buffer_live(old)) call set_buffer(old, st)
@@ -1309,8 +1328,10 @@ contains
 
         ! Try to avoid unnecessary work, a *vc-dir* buffer is only present
         ! if this is true.
-        if (allocated(vc_dir_buffers)) then
-            if (size(vc_dir_buffers) > 0 .and. associated(vc_dir_resynch_file)) call vc_dir_resynch_file(file)
+        if (allocated(version_control_directory_buffers)) then
+            if (size(version_control_directory_buffers) > 0 .and. associated(version_control_directory_resynch_file)) then
+                call version_control_directory_resynch_file(file)
+            end if
         end if
 
     contains
@@ -1318,12 +1339,12 @@ contains
         logical function modified()
             modified = buffers(current)%text%save_modiff < buffers(current)%text%modiff
         end function modified
-    end subroutine vc_resynch_buffer
+    end subroutine version_control_resynch_buffer
 
     !> Make sure the current buffer and its working file are in sync.
     !> NOT_ESSENTIAL means it is okay to continue if the user says not to save.
     !> Port of vc-dispatcher.el:vc-buffer-sync.
-    recursive subroutine vc_buffer_sync(status, not_essential)
+    recursive subroutine version_control_buffer_synchronize(status, not_essential)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: not_essential
         logical :: missing, need, yes, ne
@@ -1342,7 +1363,7 @@ contains
         end if
 
         if (.not. need) return
-        yes = vc_suppress_confirm
+        yes = version_control_suppress_confirm
 
         if (.not. yes) then
             if (missing) then
@@ -1357,19 +1378,19 @@ contains
         if (yes) then
             call save_buffer(1_int64, .false., status)
         else if (.not. ne) then
-            call set_error(status, FM_GENERIC_ERROR, "Aborted")
+            call set_error(status, GENERIC_ERROR_CODE, "Aborted")
         end if
-    end subroutine vc_buffer_sync
+    end subroutine version_control_buffer_synchronize
 
     ! ------------------------------------------------------------------
     ! Asynchronous commands
     ! ------------------------------------------------------------------
 
-    !> Prompt the user to edit VC command COMMAND and FLAGS (FILES says
+    !> Prompt the user to edit VERSION_CONTROL command COMMAND and FLAGS (FILES says
     !> whether a files list is to be appended).  HISTORY is the name of
-    !> the minibuffer history (`vc_user_edit_command_history').  Port of
+    !> the minibuffer history (`version_control_user_edit_command_history').  Port of
     !> vc-dispatcher.el:vc-user-edit-command.
-    recursive subroutine vc_user_edit_command(command, files, flags, status, history)
+    recursive subroutine version_control_user_edit_command(command, files, flags, status, history)
         use simple_mod, only: read_shell_command
         use files_mod, only: split_string_and_unquote
         use value_mod, only: list_elements
@@ -1380,7 +1401,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: history
         type(string_type), allocatable :: edited_flags(:)
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         type(value_type) :: parts
         character(len=:), allocatable :: prompt, initial, answer
         logical :: files_separator
@@ -1413,13 +1434,13 @@ contains
         if (.not. status%ok()) return
         call split_string_and_unquote(answer, parts, status)
         if (.not. status%ok()) return
-        call list_elements(parts, elems)
+        call list_elements(parts, elements)
         command = ""
-        if (size(elems) > 0) command = xstring(elems(1))
+        if (size(elements) > 0) command = xstring(elements(1))
         allocate (edited_flags(0))
 
-        do k = 2, size(elems)
-            call append_string(edited_flags, xstring(elems(k)))
+        do k = 2, size(elements)
+            call append_string(edited_flags, xstring(elements(k)))
         end do
 
         if (files_separator) call append_string(edited_flags, "--")
@@ -1450,49 +1471,50 @@ contains
 
             quoted = quoted//'"'
         end function quote_argument
-    end subroutine vc_user_edit_command
+    end subroutine version_control_user_edit_command
 
     !> Display BUFFER, the output buffer of an asynchronous command, with
     !> its last line at the top of the window.  Port of
     !> vc-dispatcher.el:vc--display-async-command-buffer.
-    recursive subroutine vc_display_async_command_buffer(buffer)
+    recursive subroutine version_control_display_asynchronous_command_buffer(buffer)
         use window_mod, only: display_buffer, set_window_start, windows
-        use search_mod, only: re_search_backward, match_end
+        use search_mod, only: regular_expression_search_backward, match_end
         type(handle_type), intent(in) :: buffer
         type(handle_type) :: window, old
         type(status_type) :: st
-        integer(int64) :: opoint, found, start
+        integer(int64) :: original_point, found, start
 
         call display_buffer(buffer, window, st)
         if (.not. st%ok() .or. window%index == 0) return
         old = current_buffer()
         call set_buffer(buffer, st)
-        opoint = point()
-        call goto_char(point_max())
-        call re_search_backward(achar(10), found, st, noerror=SEARCH_NOERROR)
+        original_point = point()
+        call goto_character(point_maximum())
+        call regular_expression_search_backward(achar(10), found, st, noerror=SEARCH_NOERROR)
         start = 0
         if (found /= 0) start = match_end(0, st)
-        call goto_char(opoint)
+        call goto_character(original_point)
         call set_buffer(old, st)
         if (start > 0) call set_window_start(windows(window%index), start, st)
-    end subroutine vc_display_async_command_buffer
+    end subroutine version_control_display_asynchronous_command_buffer
 
-    !> Run COMMAND asynchronously with ARGS, displaying the result.
+    !> Run COMMAND asynchronously with ARGUMENTS, displaying the result.
     !> Send the output to the buffer named BUFFER_NAME, which is created.
     !> ROOT should be the directory in which the command should be run.
     !> The process object is returned as PROCESS.
     !> Display the buffer in some window, but don't select it.
     !>
-    !> With EDIT, the user first edits COMMAND and ARGS as
-    !> `vc_user_edit_command' does (with the minibuffer history HISTORY),
+    !> With EDIT, the user first edits COMMAND and ARGUMENTS as
+    !> `version_control_user_edit_command' does (with the minibuffer history HISTORY),
     !> and they are given back edited.  Port of
     !> vc-dispatcher.el:vc-do-async-command (EDIT for
-    !> `vc_filter_command_function' bound to `vc_user_edit_command').
-    recursive subroutine vc_do_async_command(buffer_name, root, command, args, status, process, edit, history)
+    !> `version_control_filter_command_function' bound to `version_control_user_edit_command').
+    recursive subroutine version_control_do_asynchronous_command(buffer_name, root, command, arguments, status, process, edit, &
+                                                                 history)
         use simple_mod, only: special_mode
         character(len=*), intent(in) :: buffer_name, root
         character(len=:), allocatable, intent(inout) :: command
-        type(string_type), allocatable, intent(inout) :: args(:)
+        type(string_type), allocatable, intent(inout) :: arguments(:)
         type(status_type), intent(out) :: status
         type(handle_type), intent(out) :: process
         logical, intent(in), optional :: edit
@@ -1500,9 +1522,9 @@ contains
         type(string_type) :: nofiles(0)
         type(handle_type) :: buffer, old, old_process
         type(value_type) :: saved
-        type(vc_action_type) :: action
+        type(version_control_action_type) :: action
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         character(len=24) :: start_text
         integer(int64) :: start_count
         logical :: editing, fundamental
@@ -1511,10 +1533,10 @@ contains
         process = null_handle()
         editing = .false.
         if (present(edit)) editing = edit
-        dir = "./"
+        directory = "./"
 
         if (current /= 0) then
-            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+            if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
         end if
 
         call get_or_make_buffer(buffer_name, buffer, status)
@@ -1522,7 +1544,7 @@ contains
         old_process = get_buffer_process(buffer)
 
         if (old_process%index /= 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Another VC action on "//root//" is running")
+            call set_error(status, GENERIC_ERROR_CODE, "Another VC action on "//root//" is running")
             return
         end if
 
@@ -1542,10 +1564,10 @@ contains
         end if
 
         ! Run in the original working directory.
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
 
         if (editing) then
-            call vc_user_edit_command(command, .false., args, status, history)
+            call version_control_user_edit_command(command, .false., arguments, status, history)
 
             if (.not. status%ok()) then
                 buffers(current)%directory = root
@@ -1555,27 +1577,28 @@ contains
         end if
 
         call inhibit_read_only_begin(saved)
-        call goto_char(point_max())
-        if (point() /= point_min()) call insert(achar(10), st)
+        call goto_character(point_maximum())
+        if (point() /= point_minimum()) call insert(achar(10), st)
         call insert("Running '"//command, st)
 
-        do k = 1, size(args)
-            if (.not. allocated(args(k)%text)) cycle
+        do k = 1, size(arguments)
+            if (.not. allocated(arguments(k)%text)) cycle
             call insert(" ", st)
 
             ! If the argument has newlines in it (as a commit message
             ! commonly will) then ellipse it down so that the whole command
             ! is more readable.
-            if (index(args(k)%text, achar(10)) > 0) then
-                call insert('"'//args(k)%text(1:index(args(k)%text, achar(10)) - 1)//'..."', st)
+            if (index(arguments(k)%text, achar(10)) > 0) then
+                call insert('"'//arguments(k)%text(1:index(arguments(k)%text, achar(10)) - 1)//'..."', st)
             else
-                call insert(args(k)%text, st)
+                call insert(arguments(k)%text, st)
             end if
         end do
 
         call insert("'..."//achar(10), st)
         call system_clock(start_count)
-        call vc_do_command(VC_DEST_CURRENT, VC_OKSTATUS_ASYNC, command, nofiles, args, status, process=process)
+        call version_control_do_command(VERSION_CONTROL_DESTINATION_CURRENT, VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS, command, &
+                                        nofiles, arguments, status, process=process)
         call inhibit_read_only_end(saved)
         buffers(current)%directory = root
 
@@ -1585,21 +1608,21 @@ contains
         end if
 
         write (start_text, "(i0)") start_count
-        action%execute => async_command_finished
+        action%execute => asynchronous_command_finished
         action%buffer = buffer
         action%process = process
         action%s1 = trim(start_text)
-        call vc_exec_after(action, status, process)
-        call vc_display_async_command_buffer(buffer)
+        call version_control_exec_after(action, status, process)
+        call version_control_display_asynchronous_command_buffer(buffer)
         call set_buffer(old, st)
-    end subroutine vc_do_async_command
+    end subroutine version_control_do_asynchronous_command
 
-    !> When the process of `vc_do_async_command' is done: say how long it
-    !> took and, with `vc_display_failed_async_commands', show the buffer
+    !> When the process of `version_control_do_asynchronous_command' is done: say how long it
+    !> took and, with `version_control_display_failed_asynchronous_commands', show the buffer
     !> of a command that failed.  Port of the finished-fun of
     !> vc-dispatcher.el:vc-do-async-command.
-    recursive subroutine async_command_finished(action, status)
-        type(vc_action_type), intent(in) :: action
+    recursive subroutine asynchronous_command_finished(action, status)
+        type(version_control_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
         type(value_type) :: saved
         type(status_type) :: st
@@ -1618,72 +1641,73 @@ contains
         call insert("Finished in "//trim(seconds)//" seconds"//achar(10), st)
         call inhibit_read_only_end(saved)
 
-        if (vc_display_failed_async_commands) then
+        if (version_control_display_failed_asynchronous_commands) then
             if (process_status(action%process) /= "exit" .or. process_exit_status(action%process) /= 0) then
-                call vc_display_async_command_buffer(action%buffer)
+                call version_control_display_asynchronous_command_buffer(action%buffer)
             end if
         end if
-    end subroutine async_command_finished
+    end subroutine asynchronous_command_finished
 
-    !> Compilation mode for buffers with output from VC commands.
-    !> Sets `compilation_error_regexps' in accordance with the VC backend
-    !> (ERROR_REGEXPS, its `vc_BACKEND_error_regexps'; none when
+    !> Compilation mode for buffers with output from VERSION_CONTROL commands.
+    !> Sets `compilation_error_regular_expressions' in accordance with the VERSION_CONTROL backend
+    !> (ERROR_REGULAR_EXPRESSIONS, its `version_control_BACKEND_error_regular_expressions'; none when
     !> absent).  Port of vc-dispatcher.el:vc-compilation-mode.
-    recursive subroutine vc_compilation_mode(status, error_regexps)
+    recursive subroutine version_control_compilation_mode(status, error_regular_expressions)
         use compile_mod, only: compilation_rule_type, compilation_set_mode_locals
         use modes_mod, only: major_modes
         type(status_type), intent(out) :: status
-        type(compilation_rule_type), intent(in), optional :: error_regexps(:)
+        type(compilation_rule_type), intent(in), optional :: error_regular_expressions(:)
         type(compilation_rule_type) :: none(0)
         logical :: saved
 
-        if (.not. associated(major_modes%vc_compilation_mode%execute)) call define_vc_compilation_mode()
-        call major_modes%vc_compilation_mode%begin(saved, status)
+        if (.not. associated(major_modes%version_control_compilation_mode%execute)) call define_version_control_compilation_mode()
+        call major_modes%version_control_compilation_mode%begin(saved, status)
         if (.not. status%ok()) return
 
-        if (present(error_regexps)) then
-            call compilation_set_mode_locals(error_regexps=error_regexps)
+        if (present(error_regular_expressions)) then
+            call compilation_set_mode_locals(error_regular_expressions=error_regular_expressions)
         else
-            call compilation_set_mode_locals(error_regexps=none)
+            call compilation_set_mode_locals(error_regular_expressions=none)
         end if
 
-        call major_modes%vc_compilation_mode%end(saved, status)
-    end subroutine vc_compilation_mode
+        call major_modes%version_control_compilation_mode%end(saved, status)
+    end subroutine version_control_compilation_mode
 
-    !> The command of `vc_compilation_mode' with no backend.  Not a port.
-    recursive subroutine vc_compilation_mode_execute(status)
+    !> The command of `version_control_compilation_mode' with no backend.  Not a port.
+    recursive subroutine version_control_compilation_mode_execute(status)
         type(status_type), intent(out) :: status
 
-        call vc_compilation_mode(status)
-    end subroutine vc_compilation_mode_execute
+        call version_control_compilation_mode(status)
+    end subroutine version_control_compilation_mode_execute
 
-    !> Make `vc_compilation_mode' known, derived from `compilation_mode'.
+    !> Make `version_control_compilation_mode' known, derived from `compilation_mode'.
     !> Port of vc-dispatcher.el's (derived-mode-set-parent
     !> 'vc-compilation-mode 'compilation-mode).
-    subroutine define_vc_compilation_mode()
-        use compile_mod, only: init_compile
+    subroutine define_version_control_compilation_mode()
+        use compile_mod, only: initialize_compile
         use modes_mod, only: major_modes
 
-        if (.not. associated(major_modes%compilation_mode%execute)) call init_compile()
-        call major_modes%vc_compilation_mode%define("vc_compilation_mode", "VC-Compilation", vc_compilation_mode_execute, &
-                                                    vc_compilation_mode_hook, parent=major_modes%compilation_mode)
-    end subroutine define_vc_compilation_mode
+        if (.not. associated(major_modes%compilation_mode%execute)) call initialize_compile()
+        call major_modes%version_control_compilation_mode%define("version_control_compilation_mode", "VC-Compilation", &
+                                                                 version_control_compilation_mode_execute, &
+                                                         version_control_compilation_mode_hook, parent=major_modes%compilation_mode)
+    end subroutine define_version_control_compilation_mode
 
-    !> Set a `vc_exec_after' action appropriate to the current buffer.
+    !> Set a `version_control_exec_after' action appropriate to the current buffer.
     !> This action will update the current buffer after the current
-    !> asynchronous VC command has completed.  PROCESS_BUFFER is the
-    !> buffer for the asynchronous VC process.
+    !> asynchronous VERSION_CONTROL command has completed.  PROCESS_BUFFER is the
+    !> buffer for the asynchronous VERSION_CONTROL process.
     !>
-    !> If the current buffer is a VC Dir buffer, call `vc_dir_refresh'.
+    !> If the current buffer is a VERSION_CONTROL Dir buffer, call `version_control_directory_refresh'.
     !> If the current buffer is a Dired buffer, revert it.
-    !> If the current buffer visits a file, call `vc_refresh_state'.
+    !> If the current buffer visits a file, call `version_control_refresh_state'.
     !> Port of vc-dispatcher.el:vc-set-async-update.
-    recursive subroutine vc_set_async_update(process_buffer, status)
+    recursive subroutine version_control_set_asynchronous_update(process_buffer, status)
         use derived_mod, only: is_derived_mode
         use modes_mod, only: major_modes
         type(handle_type), intent(in) :: process_buffer
         type(status_type), intent(out) :: status
-        type(vc_action_type) :: action
+        type(version_control_action_type) :: action
         type(handle_type) :: old
         type(status_type) :: st
         character(len=20) :: tick_text
@@ -1692,30 +1716,30 @@ contains
         action%buffer = current_buffer()
         action%n = 0
 
-        if (is_derived_mode(major_modes%vc_dir_mode)) then
-            action%n = ASYNC_UPDATE_VC_DIR
-        else if (is_derived_mode(major_modes%dired_mode)) then
-            action%n = ASYNC_UPDATE_DIRED
+        if (is_derived_mode(major_modes%version_control_directory_mode)) then
+            action%n = ASYNCHRONOUS_UPDATE_VERSION_CONTROL_DIRECTORY
+        else if (is_derived_mode(major_modes%directory_editor_mode)) then
+            action%n = ASYNCHRONOUS_UPDATE_DIRECTORY_EDITOR
             ! The buffer's modification tick, as text.
             write (tick_text, "(i0)") buffers(current)%text%modiff
             action%s1 = trim(tick_text)
         else if (allocated(buffers(current)%filename)) then
-            action%n = ASYNC_UPDATE_FILE
+            action%n = ASYNCHRONOUS_UPDATE_FILE
         end if
 
         if (action%n == 0) return
-        action%execute => async_update
+        action%execute => asynchronous_update
         old = current_buffer()
         call set_buffer(process_buffer, st)
-        call vc_exec_after(action, status)
+        call version_control_exec_after(action, status)
         if (is_buffer_live(old)) call set_buffer(old, st)
-    end subroutine vc_set_async_update
+    end subroutine version_control_set_asynchronous_update
 
-    !> The action of `vc_set_async_update': update ACTION's buffer.
+    !> The action of `version_control_set_asynchronous_update': update ACTION's buffer.
     !> Port of the actions of vc-dispatcher.el:vc-set-async-update.
-    recursive subroutine async_update(action, status)
-        use version_control_hooks_mod, only: vc_refresh_state
-        type(vc_action_type), intent(in) :: action
+    recursive subroutine asynchronous_update(action, status)
+        use version_control_hooks_mod, only: version_control_refresh_state
+        type(version_control_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(status_type) :: st
@@ -1727,17 +1751,17 @@ contains
         call set_buffer(action%buffer, st)
 
         select case (action%n)
-        case (ASYNC_UPDATE_VC_DIR)
+        case (ASYNCHRONOUS_UPDATE_VERSION_CONTROL_DIRECTORY)
             ! Avoid interrupting the user with prompts to save buffers.
-            if (associated(vc_dir_refresh_function)) call vc_dir_refresh_function(status)
-        case (ASYNC_UPDATE_DIRED)
+            if (associated(version_control_directory_refresh_function)) call version_control_directory_refresh_function(status)
+        case (ASYNCHRONOUS_UPDATE_DIRECTORY_EDITOR)
             write (tick_text, "(i0)") buffers(current)%text%modiff
             if (trim(tick_text) == action%s1) call revert_buffer(status)
-        case (ASYNC_UPDATE_FILE)
-            call vc_refresh_state(status)
+        case (ASYNCHRONOUS_UPDATE_FILE)
+            call version_control_refresh_state(status)
         case default
         end select
 
         if (is_buffer_live(old)) call set_buffer(old, st)
-    end subroutine async_update
+    end subroutine asynchronous_update
 end module version_control_dispatcher_mod

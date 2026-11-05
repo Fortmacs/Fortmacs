@@ -62,17 +62,17 @@ submodule(simple_mod) simple_set_variable_mod
     use docstrings_mod, only: user_option_names, user_option_info, set_user_option_logical, set_user_option_integer, &
                               set_user_option_real, set_user_option_string, set_user_option_choice, variable_doc, &
                               doc_entry_type, OPTION_NONE, OPTION_LOGICAL, OPTION_INTEGER, OPTION_REAL, OPTION_STRING, &
-                              OPTION_CHOICE, user_option_constants, init_choice_values
+                              OPTION_CHOICE, user_option_constants, initialize_choice_values
     use data_mod, only: is_local_variable, is_local_variable_if_set, is_forwarded_variable, setting_errors
-    use error_mod, only: FM_END_OF_FILE, FM_INVALID_READ_SYNTAX, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: END_OF_FILE_CODE, INVALID_READ_SYNTAX_CODE, WRONG_TYPE_ARGUMENT_CODE
     use minibuffer_mod, only: completion_annotation_function, completion_annotation_procedure, REQUIRE_MATCH_NO
     use minibuffer_reading_mod, only: read_from_minibuffer, completion_list_table
     use case_table_mod, only: upcase
     implicit none(type, external)
 
-    character(len=*), parameter :: WS = " "//achar(9)//achar(10)
+    character(len=*), parameter :: WHITESPACE = " "//achar(9)//achar(10)
 
-    !> The named constants of the option whose value `cmd_set_variable'
+    !> The named constants of the option whose value `execute_set_variable'
     !> reads, and their values, for `constant_annotation'.
     character(len=:), allocatable :: read_constants(:)
     integer(int64), allocatable :: read_values(:)
@@ -101,7 +101,7 @@ contains
     call user_option_info(variable, kind, setting)
 
     if (kind == OPTION_NONE) then
-        call set_error(status, FM_USER_ERROR, format_message("`"//variable//"' is not a user option"))
+        call set_error(status, USER_ERROR_CODE, format_message("`"//variable//"' is not a user option"))
         return
     end if
 
@@ -109,20 +109,20 @@ contains
     if (.not. local) local = is_local_variable_if_set(value_type(name=variable))
 
     if (local .and. .not. (setting .and. is_forwarded_variable(value_type(name=variable)))) then
-        call set_error(status, FM_GENERIC_ERROR, "Symbol "//variable//" may not be buffer-local")
+        call set_error(status, GENERIC_ERROR_CODE, "Symbol "//variable//" may not be buffer-local")
         return
     end if
 
     ! The Lisp reader's part: one literal, and nothing after it.
     v = value
-    n = verify(v, WS)
+    n = verify(v, WHITESPACE)
 
     if (n == 0) then
-        call set_error(status, FM_END_OF_FILE)
+        call set_error(status, END_OF_FILE_CODE)
         return
     end if
 
-    v = v(n:verify(v, WS, back=.true.))
+    v = v(n:verify(v, WHITESPACE, back=.true.))
     ok = .true.
 
     select case (kind)
@@ -171,29 +171,29 @@ contains
         if (.not. status%ok()) return
         ! A value the option does not accept is rejected as in the init
         ! file (panel 2026-11-04).
-        call init_choice_values()
+        call initialize_choice_values()
         errors = 0
         if (allocated(setting_errors)) errors = size(setting_errors)
         call set_user_option_choice(variable, upper(v), local, ok)
 
         if (allocated(setting_errors)) then
             if (size(setting_errors) > errors) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, setting_errors(size(setting_errors))%text)
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, setting_errors(size(setting_errors))%text)
                 setting_errors = setting_errors(1:errors)
                 return
             end if
         end if
 
         if (.not. ok) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected "//constant_list(variable)//", got "//v)
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected "//constant_list(variable)//", got "//v)
             return
         end if
     case default
     end select
 
     if (.not. ok) then
-        call set_error(status, FM_USER_ERROR, format_message("Value `"//v//"' does not match type "//typename// &
-                                                             " of "//variable))
+        call set_error(status, USER_ERROR_CODE, format_message("Value `"//v//"' does not match type "//typename// &
+                                                               " of "//variable))
         return
     end if
     end procedure set_variable
@@ -204,7 +204,7 @@ contains
         character(len=*), intent(in) :: v
         type(status_type), intent(inout) :: status
 
-        if (scan(v, WS) > 0) call set_error(status, FM_INVALID_READ_SYNTAX, """Trailing garbage following expression""")
+        if (scan(v, WHITESPACE) > 0) call set_error(status, INVALID_READ_SYNTAX_CODE, """Trailing garbage following expression""")
     end subroutine literal_token
 
     !> The named constants of the enumerated user option `variable', as a
@@ -231,7 +231,7 @@ contains
     end function constant_list
 
     !> The completion annotation of the named constant `candidate' while
-    !> `cmd_set_variable' reads an enumerated option: its value.
+    !> `execute_set_variable' reads an enumerated option: its value.
     !> Not a port.
     subroutine constant_annotation(candidate, annotation)
         character(len=*), intent(in) :: candidate
@@ -347,7 +347,7 @@ contains
 
         do
             if (k > len(v)) then
-                call set_error(status, FM_END_OF_FILE)
+                call set_error(status, END_OF_FILE_CODE)
                 return
             end if
 
@@ -368,8 +368,8 @@ contains
         end do
 
         if (k < len(v)) then
-            if (verify(v(k + 1:), WS) /= 0) then
-                call set_error(status, FM_INVALID_READ_SYNTAX, """Trailing garbage following expression""")
+            if (verify(v(k + 1:), WHITESPACE) /= 0) then
+                call set_error(status, INVALID_READ_SYNTAX_CODE, """Trailing garbage following expression""")
                 return
             end if
         end if
@@ -396,7 +396,7 @@ contains
     end if
     end procedure read_variable
 
-    module procedure cmd_set_variable
+    module procedure execute_set_variable
     character(len=:), allocatable :: name, prompt, value, current, scope
     type(value_type), allocatable :: names(:)
     type(value_type), allocatable :: constants(:)
@@ -406,7 +406,7 @@ contains
     integer :: k, n, kind
 
     ! current-prefix-arg, before the minibuffer's commands change it.
-    make_local = current_prefix_arg%kind /= PREFIX_NONE
+    make_local = current_prefix_argument%kind /= PREFIX_NONE
     ! (read-variable "Set variable: "): the user options set_variable
     ! can set (custom-variable-p).
     allocate (names(size(user_option_names)))
@@ -423,7 +423,7 @@ contains
     if (.not. status%ok()) return
 
     if (len(name) == 0) then
-        call set_error(status, FM_USER_ERROR, format_message("You didn't specify a variable"))
+        call set_error(status, USER_ERROR_CODE, format_message("You didn't specify a variable"))
         return
     end if
 
@@ -463,7 +463,7 @@ contains
 
     if (.not. status%ok()) return
     ! Empty input reads the default.
-    if (verify(value, WS) == 0 .and. len(current) > 0) value = current
+    if (verify(value, WHITESPACE) == 0 .and. len(current) > 0) value = current
     call set_variable(name, value, make_local, status)
-    end procedure cmd_set_variable
+    end procedure execute_set_variable
 end submodule simple_set_variable_mod

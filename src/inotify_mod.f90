@@ -35,10 +35,10 @@
 !> `inotify_allocated_p'; the Android special directories.
 module inotify_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_FILE_NOTIFY_ERROR
-    use system_dependent_mod, only: inotify_raw_event_type, fortmacs_inotify_init, fortmacs_inotify_add_watch, &
+    use error_mod, only: status_type, set_error, FILE_NOTIFY_ERROR_CODE
+    use system_dependent_mod, only: inotify_raw_event_type, fortmacs_inotify_initialize, fortmacs_inotify_add_watch, &
                                     fortmacs_inotify_rm_watch, fortmacs_inotify_read, fortmacs_strerror, close_fd, EINVAL, &
-                                    IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
+                                    IN_ACCESS, IN_MODIFY, IN_ATTRIBUTE, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
                                     IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
                                     IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, &
                                     IN_ALL_EVENTS, IN_MOVE, IN_CLOSE
@@ -50,7 +50,7 @@ module inotify_mod
     public :: inotify_add_watch, inotify_rm_watch, is_inotify_valid, operator(==)
 
     !> Aspects: what a watch looks for, and what an event reports.
-    integer(int32), parameter, public :: INOTIFY_ACCESS = IN_ACCESS, INOTIFY_ATTRIB = IN_ATTRIB, &
+    integer(int32), parameter, public :: INOTIFY_ACCESS = IN_ACCESS, INOTIFY_ATTRIBUTE = IN_ATTRIBUTE, &
                                          INOTIFY_CLOSE_WRITE = IN_CLOSE_WRITE, INOTIFY_CLOSE_NOWRITE = IN_CLOSE_NOWRITE, &
                                          INOTIFY_CREATE = IN_CREATE, INOTIFY_DELETE = IN_DELETE, &
                                          INOTIFY_DELETE_SELF = IN_DELETE_SELF, INOTIFY_MODIFY = IN_MODIFY, &
@@ -149,9 +149,9 @@ contains
         character(len=*), intent(in), optional :: name
 
         if (present(name)) then
-            call set_error(status, FM_FILE_NOTIFY_ERROR, string//": "//fortmacs_strerror(err)//", "//name)
+            call set_error(status, FILE_NOTIFY_ERROR_CODE, string//": "//fortmacs_strerror(err)//", "//name)
         else
-            call set_error(status, FM_FILE_NOTIFY_ERROR, string//": "//fortmacs_strerror(err))
+            call set_error(status, FILE_NOTIFY_ERROR_CODE, string//": "//fortmacs_strerror(err))
         end if
     end subroutine report_file_notify_error
 
@@ -182,13 +182,13 @@ contains
     end function inotifyevent_to_event
 
     !> Add a new watch to watch descriptor WD watching FILENAME and using
-    !> IMASK and CALLBACK.  DESC uniquely identifies the new watch.
+    !> IMASK and CALLBACK.  DESCRIPTION uniquely identifies the new watch.
     !> Port of inotify.c:add_watch.
-    subroutine add_watch(wd, filename, imask, callback, desc)
+    subroutine add_watch(wd, filename, imask, callback, description)
         integer(int32), intent(in) :: wd, imask
         character(len=*), intent(in) :: filename
         procedure(inotify_callback_procedure) :: callback
-        type(watch_descriptor_type), intent(out) :: desc
+        type(watch_descriptor_type), intent(out) :: description
         type(watch_type) :: unused
         integer(int64) :: id
         integer :: slot
@@ -215,8 +215,8 @@ contains
         watches(slot)%filename = filename
         watches(slot)%callback => callback
         watches(slot)%mask = imask
-        desc%wd = wd
-        desc%id = id
+        description%wd = wd
+        description%id = id
     end subroutine add_watch
 
     !> Whether watch ID of descriptor WD exists.  Not a port.
@@ -367,7 +367,7 @@ contains
         end do
     end subroutine inotify_callback
 
-    !> Store EVENT for CALLBACK as a special event (kbd_buffer_store_event).
+    !> Store EVENT for CALLBACK as a special event (keyboard_buffer_store_event).
     !> Not a port.
     subroutine store_event(event, callback)
         type(inotify_event_type), intent(in) :: event
@@ -437,7 +437,7 @@ contains
     !> combined with `ior':
     !>
     !> INOTIFY_ACCESS
-    !> INOTIFY_ATTRIB
+    !> INOTIFY_ATTRIBUTE
     !> INOTIFY_CLOSE_WRITE
     !> INOTIFY_CLOSE_NOWRITE
     !> INOTIFY_CREATE
@@ -481,7 +481,7 @@ contains
     !>
     !> See inotify(7) and inotify_add_watch(2) for further information.  The
     !> inotify fd is managed internally and there is no corresponding
-    !> inotify_init.  Use `inotify_rm_watch' to remove a watch.
+    !> inotify_initialize.  Use `inotify_rm_watch' to remove a watch.
     !>
     !> The following inotify bit-masks cannot be used because descriptors are
     !> shared across different callers.
@@ -491,11 +491,11 @@ contains
     !> IN_ONESHOT
     !>
     !> Port of inotify.c:Finotify_add_watch.
-    subroutine inotify_add_watch(file_name, aspect, callback, desc, status)
+    subroutine inotify_add_watch(file_name, aspect, callback, description, status)
         character(len=*), intent(in) :: file_name
         integer(int32), intent(in) :: aspect
         procedure(inotify_callback_procedure) :: callback
-        type(watch_descriptor_type), intent(out) :: desc
+        type(watch_descriptor_type), intent(out) :: description
         type(status_type), intent(out) :: status
         integer(int32) :: imask, mask, wd, err
         character(len=16) :: buffer
@@ -510,7 +510,7 @@ contains
         mask = ior(ior(imask, IN_MASK_ADD), IN_EXCL_UNLINK)
 
         if (inotifyfd < 0) then
-            err = fortmacs_inotify_init(inotifyfd)
+            err = fortmacs_inotify_initialize(inotifyfd)
 
             if (err /= 0) then
                 inotifyfd = -1
@@ -528,7 +528,7 @@ contains
             return
         end if
 
-        call add_watch(wd, file_name, imask, callback, desc)
+        call add_watch(wd, file_name, imask, callback, description)
     end subroutine inotify_add_watch
 
     ! Not a port.

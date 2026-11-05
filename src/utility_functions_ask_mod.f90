@@ -61,7 +61,7 @@ contains
             last = 0
 
             do while (byte <= len(prompt))
-                call string_char_and_length(prompt, byte, c, clen)
+                call string_character_and_length(prompt, byte, c, clen)
                 last = c
                 byte = byte + clen
             end do

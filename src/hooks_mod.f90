@@ -38,13 +38,13 @@
 !> `hook_type' (normal hooks: no arguments, `command_procedure'),
 !> `change_hook_type' (`change_procedure': the bounds of a change) and
 !> `after_change_hook_type' (`after_change_procedure': the bounds and the
-!> old length), and others such as `capf_hook_type' (`capf_procedure':
+!> old length), and others such as `completion_at_point_function_hook_type' (`completion_at_point_function_procedure':
 !> the completion data at point).  They extend `hook_base_type', which keeps the functions,
 !> buffers' own values and depths (subr.el's add-hook and remove-hook)
 !> once for all kinds; an entry holds a procedure pointer of its hook's
 !> kind, and each kind adds the type-bound procedures taking that kind of
 !> procedure and running it with its arguments (eval.c's
-!> run_hook_with_args).
+!> run_hook_with_arguments).
 !>
 !> `until_success_hook_type' runs its functions until one succeeds
 !> (`run-hook-with-args-until-success'), `string_result_hook_type' until
@@ -55,27 +55,28 @@
 !> `run-hook-wrapped' as such (no hook uses them yet).
 module hooks_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_VOID_FUNCTION
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, VOID_FUNCTION_CODE
     use value_mod, only: value_type, command_procedure, symbols, xsymbol, vtag, V_NULL, V_NAME
     use handle_mod, only: handle_type
-    use execute_interactively_mod, only: current_prefix_arg, prefix_arg_type
+    use execute_interactively_mod, only: current_prefix_argument, prefix_argument_type
     use buffer_mod, only: buffers, current
-    use minibuffer_reading_tables_mod, only: capf_data_type
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type
     implicit none(type, external)
     private
 
     public :: clear_local_hooks, hook_error_procedure
     public :: change_procedure, after_change_procedure, position_procedure, region_procedure, region_entry_type
-    public :: string_procedure, string_filter_procedure, capf_procedure, capf_entry_type, until_success_procedure, &
+    public :: string_procedure, string_filter_procedure, completion_at_point_function_procedure, &
+              completion_at_point_function_entry_type, until_success_procedure, &
               string_result_procedure
     public :: overlay_change_procedure, execute_property_function, execute_overlay_change_function, window_position_procedure
 
-    !> The value `current_prefix_arg' had where the normal hook whose
+    !> The value `current_prefix_argument' had where the normal hook whose
     !> function is running was run.  The functions of a normal hook run
     !> as functions of no arguments, so they see no prefix argument;
     !> those that read the dynamic value of current-prefix-arg upstream
     !> (`post_self_insert_hook' functions) read this.
-    type(prefix_arg_type), public :: hook_current_prefix_arg
+    type(prefix_argument_type), public :: hook_current_prefix_argument
 
     abstract interface
         !> A function of a `change_hook_type' hook such as
@@ -90,38 +91,38 @@ module hooks_mod
 
         !> A function of an `after_change_hook_type' hook such as
         !> `after_change_functions': BEGINNING and END are the bounds of the
-        !> changed text, OLD_LEN the length of the text it replaced.
+        !> changed text, OLD_LENGTH the length of the text it replaced.
         !> Not a port.
-        subroutine after_change_procedure(beginning, end, old_len, status)
+        subroutine after_change_procedure(beginning, end, old_length, status)
             import :: int64, status_type
             implicit none(type, external)
-            integer(int64), intent(in) :: beginning, end, old_len
+            integer(int64), intent(in) :: beginning, end, old_length
             type(status_type), intent(out) :: status
         end subroutine after_change_procedure
 
         !> A function of a `position_hook_type' hook such as
-        !> `fontification_functions': POS is the position to work from.
+        !> `fontification_functions': POSITION is the position to work from.
         !> Not a port.
-        subroutine position_procedure(pos, status)
+        subroutine position_procedure(position, status)
             import :: int64, status_type
             implicit none(type, external)
-            integer(int64), intent(in) :: pos
+            integer(int64), intent(in) :: position
             type(status_type), intent(out) :: status
         end subroutine position_procedure
 
         !> A function of a `window_position_hook_type' hook such as
         !> `window_scroll_functions': WINDOW and a position in its buffer
         !> (there, the window's new start).  Not a port.
-        recursive subroutine window_position_procedure(window, pos, status)
+        recursive subroutine window_position_procedure(window, position, status)
             import :: int64, handle_type, status_type
             implicit none(type, external)
             type(handle_type), intent(in) :: window
-            integer(int64), intent(in) :: pos
+            integer(int64), intent(in) :: position
             type(status_type), intent(out) :: status
         end subroutine window_position_procedure
 
         !> A function of a `region_hook_type' hook such as
-        !> `jit_lock_functions': do something to the text from BEGINNING to END,
+        !> `just_in_time_lock_functions': do something to the text from BEGINNING to END,
         !> giving in DONE_BEGINNING and DONE_END the part it actually did
         !> (upstream's return value (jit-lock-bounds BEGINNING . END); by default
         !> BEGINNING and END).  Not a port.
@@ -144,7 +145,7 @@ module hooks_mod
         end subroutine hook_error_procedure
 
         !> A function of a `string_hook_type' hook such as
-        !> `comint_output_filter_functions': STRING is the text it is
+        !> `command_interpreter_output_filter_functions': STRING is the text it is
         !> about.  Not a port.
         subroutine string_procedure(string, status)
             import :: status_type
@@ -154,7 +155,7 @@ module hooks_mod
         end subroutine string_procedure
 
         !> A function of a `string_filter_hook_type' hook such as
-        !> `comint_preoutput_filter_functions': RESULT is STRING
+        !> `command_interpreter_preoutput_filter_functions': RESULT is STRING
         !> transformed (perhaps STRING itself).  Not a port.
         subroutine string_filter_procedure(string, result, status)
             import :: status_type
@@ -164,15 +165,15 @@ module hooks_mod
             type(status_type), intent(out) :: status
         end subroutine string_filter_procedure
 
-        !> A function of a `capf_hook_type' hook such as
+        !> A function of a `completion_at_point_function_hook_type' hook such as
         !> `completion_at_point_functions': the completion data for the
         !> entity at point, if it applies there.  Not a port.
-        recursive subroutine capf_procedure(data, status)
-            import :: capf_data_type, status_type
+        recursive subroutine completion_at_point_function_procedure(data, status)
+            import :: completion_at_point_function_data_type, status_type
             implicit none(type, external)
-            type(capf_data_type), intent(out) :: data
+            type(completion_at_point_function_data_type), intent(out) :: data
             type(status_type), intent(out) :: status
-        end subroutine capf_procedure
+        end subroutine completion_at_point_function_procedure
 
         !> A function of an `until_success_hook_type' hook such as
         !> `write_file_functions': DONE .true. (stop at the first function that succeeds)
@@ -185,7 +186,7 @@ module hooks_mod
         end subroutine until_success_procedure
 
         !> A function of a `string_result_hook_type' hook such as
-        !> `which_func_functions': STRING gets its result (unallocated
+        !> `which_function_functions': STRING gets its result (unallocated
         !> for none).  Not a port.
         recursive subroutine string_result_procedure(string, status)
             import :: status_type
@@ -197,25 +198,25 @@ module hooks_mod
         !> A function named by an overlay's `modification_hooks',
         !> `insert_in_front_hooks' or `insert_behind_hooks' property:
         !> OVERLAY is the overlay, AFTER false before the change and true
-        !> after it, BEGINNING and END the bounds of the change, and OLD_LEN
+        !> after it, BEGINNING and END the bounds of the change, and OLD_LENGTH
         !> (present only after the change) the length of the text it
         !> replaced.  Not a port.
-        recursive subroutine overlay_change_procedure(overlay, after, beginning, end, status, old_len)
+        recursive subroutine overlay_change_procedure(overlay, after, beginning, end, status, old_length)
             import :: handle_type, int64, status_type
             implicit none(type, external)
             type(handle_type), intent(in) :: overlay
             logical, intent(in) :: after
             integer(int64), intent(in) :: beginning, end
             type(status_type), intent(out) :: status
-            integer(int64), intent(in), optional :: old_len
+            integer(int64), intent(in), optional :: old_length
         end subroutine overlay_change_procedure
     end interface
 
-    !> A function of a `capf_hook_type' hook, as `capf_hook_functions'
+    !> A function of a `completion_at_point_function_hook_type' hook, as `completion_at_point_function_hook_functions'
     !> lists them.
-    type :: capf_entry_type
-        procedure(capf_procedure), pointer, nopass :: fn => null()
-    end type capf_entry_type
+    type :: completion_at_point_function_entry_type
+        procedure(completion_at_point_function_procedure), pointer, nopass :: fn => null()
+    end type completion_at_point_function_entry_type
 
     !> A function of a `region_hook_type' hook, as `region_hook_functions'
     !> lists them.
@@ -235,7 +236,7 @@ module hooks_mod
         procedure(region_procedure), pointer, nopass :: region_fn => null()
         procedure(string_procedure), pointer, nopass :: string_fn => null()
         procedure(string_filter_procedure), pointer, nopass :: string_filter_fn => null()
-        procedure(capf_procedure), pointer, nopass :: capf_fn => null()
+        procedure(completion_at_point_function_procedure), pointer, nopass :: completion_at_point_function_fn => null()
         procedure(until_success_procedure), pointer, nopass :: until_success_fn => null()
         procedure(string_result_procedure), pointer, nopass :: string_result_fn => null()
         procedure(window_position_procedure), pointer, nopass :: window_position_fn => null()
@@ -288,12 +289,12 @@ module hooks_mod
     end type hook_base_type
 
     !> A pointer to a hook.
-    type :: hook_ref_type
+    type :: hook_reference_type
         class(hook_base_type), pointer :: p => null()
-    end type hook_ref_type
+    end type hook_reference_type
 
     !> Hooks that have been given buffers' own functions.
-    type(hook_ref_type), allocatable :: local_hooks(:)
+    type(hook_reference_type), allocatable :: local_hooks(:)
 
     !> A normal hook: functions of no arguments (`command_procedure').
     type, extends(hook_base_type), public :: hook_type
@@ -308,7 +309,7 @@ module hooks_mod
         !> Run the hook's functions (run-hooks).
         procedure :: execute => hook_execute
         !> Run the current buffer's own functions only, or the default
-        !> functions only (window.c's run_funs on the buffer-local or the
+        !> functions only (window.c's run_functions on the buffer-local or the
         !> default value).
         procedure :: execute_local => hook_execute_local
         procedure :: execute_default => hook_execute_default
@@ -374,7 +375,7 @@ module hooks_mod
     end type position_hook_type
 
     !> A hook of functions taking a region and telling what part of it
-    !> they did (`region_procedure'), like `jit_lock_functions'.
+    !> they did (`region_procedure'), like `just_in_time_lock_functions'.
     type, extends(hook_base_type), public :: region_hook_type
     contains
         !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
@@ -392,7 +393,7 @@ module hooks_mod
     end type region_hook_type
 
     !> A hook of functions taking a string (`string_procedure'), like
-    !> `comint_output_filter_functions'.
+    !> `command_interpreter_output_filter_functions'.
     type, extends(hook_base_type), public :: string_hook_type
     contains
         !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
@@ -427,7 +428,7 @@ module hooks_mod
     end type window_position_hook_type
 
     !> A hook of functions each transforming a string
-    !> (`string_filter_procedure'), like `comint_preoutput_filter_functions'.
+    !> (`string_filter_procedure'), like `command_interpreter_preoutput_filter_functions'.
     type, extends(hook_base_type), public :: string_filter_hook_type
     contains
         !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
@@ -445,22 +446,22 @@ module hooks_mod
     end type string_filter_hook_type
 
     !> A hook of functions giving the completion data at point
-    !> (`capf_procedure'), like `completion_at_point_functions'.
-    type, extends(hook_base_type), public :: capf_hook_type
+    !> (`completion_at_point_function_procedure'), like `completion_at_point_functions'.
+    type, extends(hook_base_type), public :: completion_at_point_function_hook_type
     contains
         !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
-        procedure :: prepend => capf_hook_prepend
+        procedure :: prepend => completion_at_point_function_hook_prepend
         !> Add a function to the hook (add-hook with APPEND: depth 90 by
         !> default).
-        procedure :: append => capf_hook_append
+        procedure :: append => completion_at_point_function_hook_append
         !> Remove a function from the hook (subr.el's remove-hook).
-        procedure :: remove => capf_hook_remove
+        procedure :: remove => completion_at_point_function_hook_remove
         !> The functions run in the current buffer, in order (for
         !> run-hook-wrapped).
-        procedure :: functions => capf_hook_functions
+        procedure :: functions => completion_at_point_function_hook_functions
         !> Whether FN is one of the functions run in the current buffer.
-        procedure :: member => capf_hook_member
-    end type capf_hook_type
+        procedure :: member => completion_at_point_function_hook_member
+    end type completion_at_point_function_hook_type
 
     !> A hook whose functions are run until one of them succeeds
     !> (`until_success_procedure'), like `write_file_functions'.
@@ -481,7 +482,7 @@ module hooks_mod
     end type until_success_hook_type
 
     !> A hook whose functions are run until one of them gives a string
-    !> (`string_result_procedure'), like `which_func_functions'.
+    !> (`string_result_procedure'), like `which_function_functions'.
     type, extends(hook_base_type), public :: string_result_hook_type
     contains
         !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
@@ -542,12 +543,12 @@ module hooks_mod
     end type property_function_type
 
     !> The pointer to a defined property function.
-    type :: property_function_ref_type
+    type :: property_function_reference_type
         type(property_function_type), pointer :: p => null()
-    end type property_function_ref_type
+    end type property_function_reference_type
 
     !> Property functions defined with `define'.
-    type(property_function_ref_type), allocatable :: property_functions(:)
+    type(property_function_reference_type), allocatable :: property_functions(:)
     integer :: property_function_count = 0
 
 contains
@@ -578,8 +579,9 @@ contains
             if (associated(b%string_fn)) same = associated(a%string_fn, b%string_fn)
         else if (associated(a%string_filter_fn)) then
             if (associated(b%string_filter_fn)) same = associated(a%string_filter_fn, b%string_filter_fn)
-        else if (associated(a%capf_fn)) then
-            if (associated(b%capf_fn)) same = associated(a%capf_fn, b%capf_fn)
+        else if (associated(a%completion_at_point_function_fn)) then
+            if (associated(b%completion_at_point_function_fn)) same = associated(a%completion_at_point_function_fn, &
+                                                                                 b%completion_at_point_function_fn)
         else if (associated(a%until_success_fn)) then
             if (associated(b%until_success_fn)) same = associated(a%until_success_fn, b%until_success_fn)
         else if (associated(a%string_result_fn)) then
@@ -806,7 +808,7 @@ contains
             if (associated(local_hooks(i)%p, hook)) return
         end do
 
-        local_hooks = [local_hooks, hook_ref_type(hook)]
+        local_hooks = [local_hooks, hook_reference_type(hook)]
     end subroutine note_local_hook
 
     !> Forget the current buffer's own hook functions, except those of
@@ -854,17 +856,17 @@ contains
         logical, intent(in), optional :: local
         type(local_hook_type) :: own
         integer :: d, k
-        logical :: loc
+        logical :: location
 
         d = 0
         if (present(depth)) d = depth
-        loc = .false.
-        if (present(local)) loc = local
+        location = .false.
+        if (present(local)) location = local
         if (.not. allocated(self%entries)) allocate (self%entries(0))
         if (.not. allocated(self%locals)) allocate (self%locals(0))
         k = local_index(self)
 
-        if (loc) then
+        if (location) then
             if (current == 0) return
 
             if (k == 0) then
@@ -879,10 +881,10 @@ contains
         else if (k > 0) then
             ! A buffer's own value without `t' (made empty by `clear'):
             ! change that value.
-            if (.not. has_t(self%locals(k)%entries)) loc = .true.
+            if (.not. has_t(self%locals(k)%entries)) location = .true.
         end if
 
-        if (loc) then
+        if (location) then
             if (find_entry(self%locals(k)%entries, e) == 0) then
                 call insert_entry(self%locals(k)%entries, e, entry_depth(self, e, d, .true.))
             end if
@@ -898,20 +900,20 @@ contains
         type(hook_entry_type), intent(in) :: e
         logical, intent(in), optional :: local
         integer :: k, i, kd
-        logical :: loc
+        logical :: location
 
-        loc = .false.
-        if (present(local)) loc = local
+        location = .false.
+        if (present(local)) location = local
         k = local_index(self)
         ! Do nothing if LOCAL is true but this hook has no local binding.
-        if (loc .and. k == 0) return
+        if (location .and. k == 0) return
 
         ! A buffer's own value without `t': change that value.
         if (k > 0) then
-            if (.not. has_t(self%locals(k)%entries)) loc = .true.
+            if (.not. has_t(self%locals(k)%entries)) location = .true.
         end if
 
-        if (loc) then
+        if (location) then
             i = find_entry(self%locals(k)%entries, e)
             if (i == 0) return
             call delete_entry(self%locals(k)%entries, i)
@@ -953,11 +955,11 @@ contains
     !> Execute each function of the hook in the current buffer, in order,
     !> stopping at the first error.  In a buffer with its own functions,
     !> those run, with the default functions in the place of `t'.  BEGINNING,
-    !> END and OLD_LEN are the arguments for the functions of the kinds
+    !> END and OLD_LENGTH are the arguments for the functions of the kinds
     !> that take them.  Port of eval.c:run_hook_with_args.
-    recursive subroutine hook_execute_entries(self, beginning, end, old_len, status, safe)
+    recursive subroutine hook_execute_entries(self, beginning, end, old_length, status, safe)
         class(hook_base_type), intent(in) :: self
-        integer(int64), intent(in) :: beginning, end, old_len
+        integer(int64), intent(in) :: beginning, end, old_length
         type(status_type), intent(out) :: status
         !> Ignore errors: an error in one function doesn't stop the others
         !> (redisplay's safe calls).
@@ -991,12 +993,12 @@ contains
                     ! In a global value, t should not occur.  If it does,
                     ! we must ignore it to avoid an endless loop.
                     if (global(j)%is_t) cycle
-                    call execute_entry(global(j), beginning, end, old_len, status)
+                    call execute_entry(global(j), beginning, end, old_length, status)
                     if (keep_going) status = status_type()
                     if (.not. status%ok()) return
                 end do
             else
-                call execute_entry(entries(i), beginning, end, old_len, status)
+                call execute_entry(entries(i), beginning, end, old_length, status)
                 if (keep_going) status = status_type()
                 if (.not. status%ok()) return
             end if
@@ -1006,26 +1008,26 @@ contains
     !> Execute the function of E with the arguments its kind takes.  A
     !> normal hook's functions are commands: they run without a prefix
     !> argument.  Not a port.
-    recursive subroutine execute_entry(e, beginning, end, old_len, status)
+    recursive subroutine execute_entry(e, beginning, end, old_length, status)
         type(hook_entry_type), intent(in) :: e
-        integer(int64), intent(in) :: beginning, end, old_len
+        integer(int64), intent(in) :: beginning, end, old_length
         type(status_type), intent(out) :: status
-        type(prefix_arg_type) :: saved, saved_outer
+        type(prefix_argument_type) :: saved, saved_outer
 
         status = status_type()
 
         if (associated(e%fn)) then
-            saved = current_prefix_arg
-            saved_outer = hook_current_prefix_arg
-            hook_current_prefix_arg = saved
-            current_prefix_arg = prefix_arg_type()
+            saved = current_prefix_argument
+            saved_outer = hook_current_prefix_argument
+            hook_current_prefix_argument = saved
+            current_prefix_argument = prefix_argument_type()
             call e%fn(status)
-            current_prefix_arg = saved
-            hook_current_prefix_arg = saved_outer
+            current_prefix_argument = saved
+            hook_current_prefix_argument = saved_outer
         else if (associated(e%change_fn)) then
             call e%change_fn(beginning, end, status)
         else if (associated(e%after_change_fn)) then
-            call e%after_change_fn(beginning, end, old_len, status)
+            call e%after_change_fn(beginning, end, old_length, status)
         else if (associated(e%position_fn)) then
             call e%position_fn(beginning, status)
         end if
@@ -1157,7 +1159,7 @@ contains
     !> Execute each function of the hook, in order, stopping at the first
     !> error.  In a buffer with its own functions, those run, with the
     !> default functions in the place of `t'.  Port of eval.c:run_hook
-    !> (via run_hook_with_args).
+    !> (via run_hook_with_arguments).
     recursive subroutine hook_execute(self, status)
         class(hook_type), intent(in) :: self
         type(status_type), intent(out) :: status
@@ -1168,7 +1170,7 @@ contains
     !> Execute the current buffer's own functions of the hook, in order,
     !> stopping at the first error; `t' (run the default functions) is
     !> skipped.  Nothing runs in a buffer without functions of its own.
-    !> Not a port (window.c's run_funs on a buffer-local value).
+    !> Not a port (window.c's run_functions on a buffer-local value).
     recursive subroutine hook_execute_local(self, status)
         class(hook_type), intent(in) :: self
         type(status_type), intent(out) :: status
@@ -1190,7 +1192,7 @@ contains
 
     !> Execute the default functions of the hook, in order, stopping at the
     !> first error, whatever the current buffer's own functions.
-    !> Not a port (window.c's run_funs on the default value).
+    !> Not a port (window.c's run_functions on the default value).
     recursive subroutine hook_execute_default(self, status)
         class(hook_type), intent(in) :: self
         type(status_type), intent(out) :: status
@@ -1388,15 +1390,15 @@ contains
         call self%remove_entry(e, local)
     end subroutine after_change_hook_remove
 
-    !> Execute each function of the hook with BEGINNING, END and OLD_LEN, in order,
+    !> Execute each function of the hook with BEGINNING, END and OLD_LENGTH, in order,
     !> stopping at the first error; buffers' own functions as
     !> `hook_execute'.  Port of eval.c:Frun_hook_with_args.
-    recursive subroutine after_change_hook_execute(self, beginning, end, old_len, status)
+    recursive subroutine after_change_hook_execute(self, beginning, end, old_length, status)
         class(after_change_hook_type), intent(in) :: self
-        integer(int64), intent(in) :: beginning, end, old_len
+        integer(int64), intent(in) :: beginning, end, old_length
         type(status_type), intent(out) :: status
 
-        call self%execute_entries(beginning, end, old_len, status)
+        call self%execute_entries(beginning, end, old_length, status)
     end subroutine after_change_hook_execute
 
     ! Not a port.
@@ -1450,17 +1452,17 @@ contains
         call self%remove_entry(e, local)
     end subroutine position_hook_remove
 
-    !> Execute each function of the hook with POS, in order, stopping at the
+    !> Execute each function of the hook with POSITION, in order, stopping at the
     !> first error; buffers' own functions as `hook_execute'.  Port of
     !> eval.c:Frun_hook_with_args.
-    recursive subroutine position_hook_execute(self, pos, status, safe)
+    recursive subroutine position_hook_execute(self, position, status, safe)
         class(position_hook_type), intent(in) :: self
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
         !> Ignore errors, calling every function (redisplay's safe calls).
         logical, intent(in), optional :: safe
 
-        call self%execute_entries(pos, 0_int64, 0_int64, status, safe)
+        call self%execute_entries(position, 0_int64, 0_int64, status, safe)
     end subroutine position_hook_execute
 
     ! Not a port.
@@ -1522,13 +1524,13 @@ contains
 
     !> The functions of the hook run in the current buffer, in order: the
     !> buffer's own, with the global ones in place of `t'.  Not a port.
-    function region_hook_functions(self) result(fns)
+    function region_hook_functions(self) result(functions)
         class(region_hook_type), intent(in) :: self
-        type(region_entry_type), allocatable :: fns(:)
+        type(region_entry_type), allocatable :: functions(:)
         type(hook_entry_type), allocatable :: entries(:)
         integer :: i, j, k, n
 
-        allocate (fns(0))
+        allocate (functions(0))
         k = local_index(self)
 
         if (k > 0) then
@@ -1559,67 +1561,67 @@ contains
         subroutine append(e)
             type(hook_entry_type), intent(in) :: e
 
-            fns = [fns, region_entry_type(e%region_fn)]
+            functions = [functions, region_entry_type(e%region_fn)]
             n = n + 1
         end subroutine append
     end function region_hook_functions
 
     !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
-    subroutine capf_hook_prepend(self, fn, depth, local)
-        class(capf_hook_type), intent(inout), target :: self
-        procedure(capf_procedure) :: fn
+    subroutine completion_at_point_function_hook_prepend(self, fn, depth, local)
+        class(completion_at_point_function_hook_type), intent(inout), target :: self
+        procedure(completion_at_point_function_procedure) :: fn
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
 
-        e%capf_fn => fn
+        e%completion_at_point_function_fn => fn
         call self%place_entry(e, depth, local)
-    end subroutine capf_hook_prepend
+    end subroutine completion_at_point_function_hook_prepend
 
     !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook
     !> (with APPEND).
-    subroutine capf_hook_append(self, fn, depth, local)
-        class(capf_hook_type), intent(inout), target :: self
-        procedure(capf_procedure) :: fn
+    subroutine completion_at_point_function_hook_append(self, fn, depth, local)
+        class(completion_at_point_function_hook_type), intent(inout), target :: self
+        procedure(completion_at_point_function_procedure) :: fn
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
 
-        e%capf_fn => fn
+        e%completion_at_point_function_fn => fn
         call self%place_entry(e, append_depth(depth), local)
-    end subroutine capf_hook_append
+    end subroutine completion_at_point_function_hook_append
 
     !> Remove FN from the hook, as `hook_remove' does.
     !> Port of subr.el:remove-hook.
-    subroutine capf_hook_remove(self, fn, local)
-        class(capf_hook_type), intent(inout) :: self
-        procedure(capf_procedure) :: fn
+    subroutine completion_at_point_function_hook_remove(self, fn, local)
+        class(completion_at_point_function_hook_type), intent(inout) :: self
+        procedure(completion_at_point_function_procedure) :: fn
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
 
-        e%capf_fn => fn
+        e%completion_at_point_function_fn => fn
         call self%remove_entry(e, local)
-    end subroutine capf_hook_remove
+    end subroutine completion_at_point_function_hook_remove
 
     ! Not a port.
-    logical function capf_hook_member(self, fn) result(found)
-        class(capf_hook_type), intent(in) :: self
-        procedure(capf_procedure) :: fn
+    logical function completion_at_point_function_hook_member(self, fn) result(found)
+        class(completion_at_point_function_hook_type), intent(in) :: self
+        procedure(completion_at_point_function_procedure) :: fn
         type(hook_entry_type) :: e
 
-        e%capf_fn => fn
+        e%completion_at_point_function_fn => fn
         found = self%member_entry(e)
-    end function capf_hook_member
+    end function completion_at_point_function_hook_member
 
     !> The functions of the hook run in the current buffer, in order: the
     !> buffer's own, with the global ones in place of `t'.  Not a port.
-    function capf_hook_functions(self) result(fns)
-        class(capf_hook_type), intent(in) :: self
-        type(capf_entry_type), allocatable :: fns(:)
+    function completion_at_point_function_hook_functions(self) result(functions)
+        class(completion_at_point_function_hook_type), intent(in) :: self
+        type(completion_at_point_function_entry_type), allocatable :: functions(:)
         type(hook_entry_type), allocatable :: entries(:)
         integer :: i, j, k, n
 
-        allocate (fns(0))
+        allocate (functions(0))
         k = local_index(self)
 
         if (k > 0) then
@@ -1650,10 +1652,10 @@ contains
         subroutine append(e)
             type(hook_entry_type), intent(in) :: e
 
-            fns = [fns, capf_entry_type(e%capf_fn)]
+            functions = [functions, completion_at_point_function_entry_type(e%completion_at_point_function_fn)]
             n = n + 1
         end subroutine append
-    end function capf_hook_functions
+    end function completion_at_point_function_hook_functions
 
     !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
     subroutine until_success_hook_prepend(self, fn, depth, local)
@@ -1930,14 +1932,14 @@ contains
         call self%remove_entry(e, local)
     end subroutine window_position_hook_remove
 
-    !> Execute each function of the hook with WINDOW and POS, in order,
+    !> Execute each function of the hook with WINDOW and POSITION, in order,
     !> stopping at the first error unless SAFE (redisplay's safe calls,
     !> keyboard.c:safe_run_hooks_2: every function is called).  Port of
     !> eval.c:run_hook_with_args_2.
-    recursive subroutine window_position_hook_execute(self, window, pos, status, safe)
+    recursive subroutine window_position_hook_execute(self, window, position, status, safe)
         class(window_position_hook_type), intent(in) :: self
         type(handle_type), intent(in) :: window
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: safe
         type(hook_entry_type), allocatable :: entries(:)
@@ -1951,7 +1953,7 @@ contains
 
         do i = 1, size(entries)
             if (.not. associated(entries(i)%window_position_fn)) cycle
-            call entries(i)%window_position_fn(window, pos, status)
+            call entries(i)%window_position_fn(window, position, status)
             if (keep_going) status = status_type()
             if (.not. status%ok()) return
         end do
@@ -2047,7 +2049,7 @@ contains
     !> one of the same name).  Not a port.
     subroutine define_property_function(self)
         class(property_function_type), target, intent(inout) :: self
-        type(property_function_ref_type), allocatable :: grown(:)
+        type(property_function_reference_type), allocatable :: grown(:)
         integer :: i
 
         do i = 1, property_function_count
@@ -2083,7 +2085,7 @@ contains
         p => null()
 
         if ((vtag(fn) /= V_NAME .and. vtag(fn) /= V_NULL) .or. .not. allocated(fn%a)) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid function")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid function")
             return
         end if
 
@@ -2096,7 +2098,7 @@ contains
             end if
         end do
 
-        call set_error(status, FM_VOID_FUNCTION, name)
+        call set_error(status, VOID_FUNCTION_CODE, name)
     end function property_function
 
     !> Execute the property function FN (a name) with the positions A and B.
@@ -2111,7 +2113,7 @@ contains
         if (.not. associated(p)) return
 
         if (.not. associated(p%positions)) then
-            call set_error(status, FM_GENERIC_ERROR, "Wrong number of arguments: "//p%name//", 2")
+            call set_error(status, GENERIC_ERROR_CODE, "Wrong number of arguments: "//p%name//", 2")
             return
         end if
 
@@ -2119,25 +2121,25 @@ contains
     end subroutine execute_property_function
 
     !> Execute the property function FN (a name) with OVERLAY, AFTER, BEGINNING,
-    !> END and, if present, OLD_LEN.  Port of eval.c:Ffuncall (for the
+    !> END and, if present, OLD_LENGTH.  Port of eval.c:Ffuncall (for the
     !> functions of overlay properties).
-    recursive subroutine execute_overlay_change_function(fn, overlay, after, beginning, end, status, old_len)
+    recursive subroutine execute_overlay_change_function(fn, overlay, after, beginning, end, status, old_length)
         type(value_type), intent(in) :: fn
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: old_len
+        integer(int64), intent(in), optional :: old_length
         type(property_function_type), pointer :: p
 
         p => property_function(fn, status)
         if (.not. associated(p)) return
 
         if (.not. associated(p%overlay_change)) then
-            call set_error(status, FM_GENERIC_ERROR, "Wrong number of arguments: "//p%name)
+            call set_error(status, GENERIC_ERROR_CODE, "Wrong number of arguments: "//p%name)
             return
         end if
 
-        call p%overlay_change(overlay, after, beginning, end, status, old_len)
+        call p%overlay_change(overlay, after, beginning, end, status, old_length)
     end subroutine execute_overlay_change_function
 end module hooks_mod

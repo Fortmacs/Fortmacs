@@ -32,7 +32,7 @@
 !>
 !> Only the metrics redisplay needs are ported.  Deferred: font specs and
 !> entities, font-related Lisp functions, fontsets, font backends (the
-!> GUI step brings one: FreeType rasterizing and HarfBuzz shaping, bound
+!> GRAPHICAL_USER_INTERFACE step brings one: FreeType rasterizing and HarfBuzz shaping, bound
 !> in src/sys), glyph codes other than characters, compositions,
 !> underline position and thickness, vertical centering.
 module font_mod
@@ -50,7 +50,7 @@ module font_mod
     !> font.h:struct font.
     type, public :: font_type
         !> Minimum and maximum glyph widths.
-        integer :: min_width = 0, max_width = 0
+        integer :: minimum_width = 0, maximum_width = 0
         !> The font's size (pixel_size).
         integer :: pixel_size = 0
         !> Height of the font (the line height of text in it).
@@ -77,7 +77,7 @@ module font_mod
         !> The metrics of font `id'.
         procedure(font_procedure), deferred :: font
         !> The metrics of character `c' in font `id'; `found' is false if
-        !> the font has no glyph for it (encode_char gives FONT_INVALID_CODE).
+        !> the font has no glyph for it (encode_character gives FONT_INVALID_CODE).
         procedure(text_extents_procedure), deferred :: text_extents
     end type font_driver_type
 

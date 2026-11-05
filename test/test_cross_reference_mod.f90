@@ -23,28 +23,32 @@
 
 !> xref-tests.el's cases (the resource files are in test/xref-resources),
 !> and own tests: the *xref* buffer, its motion and jumps, the history
-!> (M-, and C-M-,), `xref_regexp_to_extended' and C-h v of
-!> `xref_prompt_for_identifier'.
+!> (M-, and C-M-,), `cross_reference_regular_expression_to_extended' and C-h v of
+!> `cross_reference_prompt_for_identifier'.
 module test_cross_reference_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use error_mod, only: status_type, format_error, FM_USER_ERROR
+    use error_mod, only: status_type, format_error, USER_ERROR_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, buffers, current
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, point, goto_char, point_min
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, directory_file_name, &
-                                     file_name_directory
-    use bindings_mod, only: init_bindings
-    use cross_reference_mod, only: xref_item_type, xref_file_location_type, xref_items_fetcher_type, make_xref, &
-                                   make_xref_buffer_location, append_xref_item, xref_matches_in_directory, xref_matches_in_files, &
-                                   xref_group_name_for_display, xref_file_name_display, show_xrefs, xref_items_at, &
-                  next_xref_line_no_show, goto_xref, go_back_in_xref_history, go_forward_in_xref_history, clear_xref_marker_stack, &
-                                   is_xref_marker_stack_empty, xref_regexp_to_extended, XREF_FILE_NAME_DISPLAY_ABSOLUTE, &
-                                   XREF_FILE_NAME_DISPLAY_NONDIRECTORY, XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE, &
-                                   XREF_DISPLAY_ACTION_NONE, xref_prompt_for_identifier, XREF_PROMPT_FOR_IDENTIFIER_LISTED, &
-                                   XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED
+    use editing_functions_mod, only: buffer_string, point, goto_character, point_minimum
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio, file_name_as_directory, &
+                                     directory_file_name, file_name_directory
+    use bindings_mod, only: initialize_bindings
+    use cross_reference_mod, only: cross_reference_item_type, cross_reference_file_location_type, &
+                                   cross_reference_items_fetcher_type, make_cross_reference, make_cross_reference_buffer_location, &
+                                   append_cross_reference_item, cross_reference_matches_in_directory, &
+                                   cross_reference_matches_in_files, cross_reference_group_name_for_display, &
+                                   cross_reference_file_name_display, show_cross_references, cross_reference_items_at, &
+                                   next_cross_reference_line_no_show, goto_cross_reference, go_back_in_cross_reference_history, &
+                                   go_forward_in_cross_reference_history, clear_cross_reference_marker_stack, &
+                                   is_cross_reference_marker_stack_empty, cross_reference_regular_expression_to_extended, &
+                                   CROSS_REFERENCE_FILE_NAME_DISPLAY_ABSOLUTE, CROSS_REFERENCE_FILE_NAME_DISPLAY_NONDIRECTORY, &
+                                   CROSS_REFERENCE_FILE_NAME_DISPLAY_PROJECT_RELATIVE, CROSS_REFERENCE_DISPLAY_ACTION_NONE, &
+                                   cross_reference_prompt_for_identifier, CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_LISTED, &
+                                   CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED
     use help_functions_mod, only: describe_variable_text
     implicit none(type, external)
     private
@@ -67,12 +71,12 @@ contains
                     new_unittest("xref-matches-in-directory-finds-an-empty-line-regexp-match", test_empty_line), &
                     new_unittest("xref-matches-in-files-includes-matches-from-all-the-files", test_files_all), &
                     new_unittest("xref-matches-in-files-trims-summary-for-matches-on-same-line", test_files_trims), &
-                    new_unittest("xref--xref-file-name-display-is-abs", test_display_abs), &
+                    new_unittest("xref--xref-file-name-display-is-abs", test_display_absolute), &
                     new_unittest("xref--xref-file-name-display-is-nondirectory", test_display_nondirectory), &
                     new_unittest("xref--xref-file-name-display-is-relative-to-project-root", test_display_relative), &
-                    new_unittest("xref-buffer", test_xref_buffer), &
+                    new_unittest("xref-buffer", test_cross_reference_buffer), &
                     new_unittest("xref-history", test_history), &
-                    new_unittest("xref-regexp-to-extended", test_regexp_to_extended), &
+                    new_unittest("xref-regexp-to-extended", test_regular_expression_to_extended), &
                     new_unittest("xref-prompt-for-identifier-help", test_prompt_for_identifier_help) &
                     ]
     end subroutine collect_cross_reference_mod
@@ -83,8 +87,8 @@ contains
         type(status_type) :: st
         type(handle_type) :: h
 
-        call init_fileio()
-        call init_bindings()
+        call initialize_fileio()
+        call initialize_bindings()
         call expand_file_name("test/xref-resources/", directory, st, fortmacs_wd)
         directory = file_name_as_directory(directory)
 
@@ -96,25 +100,25 @@ contains
     end function data_directory
 
     !> Port of xref-tests.el xref-tests--matches-in-data-dir.
-    subroutine matches_in_data_dir(regexp, items, status)
-        character(len=*), intent(in) :: regexp
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+    subroutine matches_in_data_directory(regular_expression, items, status)
+        character(len=*), intent(in) :: regular_expression
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         character(len=1) :: none(0)
 
-        call xref_matches_in_directory(regexp, "*", data_directory(), none, items, status)
-    end subroutine matches_in_data_dir
+        call cross_reference_matches_in_directory(regular_expression, "*", data_directory(), none, items, status)
+    end subroutine matches_in_data_directory
 
     !> Port of xref-tests.el xref-tests--locations-in-data-dir: the items
     !> sorted by their location's group (a stable sort).
-    subroutine locations_in_data_dir(regexp, items, status)
-        character(len=*), intent(in) :: regexp
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+    subroutine locations_in_data_directory(regular_expression, items, status)
+        character(len=*), intent(in) :: regular_expression
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
-        type(xref_item_type) :: item
+        type(cross_reference_item_type) :: item
         integer :: i, j
 
-        call matches_in_data_dir(regexp, items, status)
+        call matches_in_data_directory(regular_expression, items, status)
 
         do i = 2, size(items)
             item = items(i)
@@ -128,7 +132,7 @@ contains
 
             items(j + 1) = item
         end do
-    end subroutine locations_in_data_dir
+    end subroutine locations_in_data_directory
 
     ! Whether STRING ends with SUFFIX.  Not a port.
     logical function ends_with(string, suffix)
@@ -142,10 +146,10 @@ contains
     !> xref-matches-in-directory-finds-none-for-some-regexp.
     subroutine test_finds_none(error)
         type(error_type), allocatable, intent(out) :: error
-        type(xref_item_type), allocatable :: items(:)
+        type(cross_reference_item_type), allocatable :: items(:)
         type(status_type) :: st
 
-        call matches_in_data_dir("zzz", items, st)
+        call matches_in_data_directory("zzz", items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 0)
@@ -154,10 +158,10 @@ contains
     !> Port of xref-tests.el xref-matches-in-directory-finds-some-for-bar.
     subroutine test_finds_bar(error)
         type(error_type), allocatable, intent(out) :: error
-        type(xref_item_type), allocatable :: items(:)
+        type(cross_reference_item_type), allocatable :: items(:)
         type(status_type) :: st
 
-        call locations_in_data_dir("bar", items, st)
+        call locations_in_data_directory("bar", items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 2)
@@ -170,10 +174,10 @@ contains
     !> Port of xref-tests.el xref-matches-in-directory-filters-with-ignores.
     subroutine test_filters_ignores(error)
         type(error_type), allocatable, intent(out) :: error
-        type(xref_item_type), allocatable :: items(:)
+        type(cross_reference_item_type), allocatable :: items(:)
         type(status_type) :: st
 
-        call xref_matches_in_directory("bar", "*", data_directory(), [character(len=9) :: "./file1.*"], items, st)
+        call cross_reference_matches_in_directory("bar", "*", data_directory(), [character(len=9) :: "./file1.*"], items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 1)
@@ -185,12 +189,12 @@ contains
     !> xref-matches-in-directory-finds-two-matches-on-the-same-line.
     subroutine test_same_line(error)
         type(error_type), allocatable, intent(out) :: error
-        type(xref_item_type), allocatable :: items(:)
+        type(cross_reference_item_type), allocatable :: items(:)
         type(status_type) :: st
         integer :: i
         integer(int64) :: columns(2)
 
-        call locations_in_data_dir("foo", items, st)
+        call locations_in_data_directory("foo", items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 2)
@@ -203,7 +207,7 @@ contains
             if (allocated(error)) return
 
             select type (l => items(i)%location)
-            type is (xref_file_location_type)
+            type is (cross_reference_file_location_type)
                 columns(i) = l%column
             class default
                 columns(i) = -1
@@ -217,11 +221,11 @@ contains
     !> xref-matches-in-directory-finds-an-empty-line-regexp-match.
     subroutine test_empty_line(error)
         type(error_type), allocatable, intent(out) :: error
-        type(xref_item_type), allocatable :: items(:)
+        type(cross_reference_item_type), allocatable :: items(:)
         type(status_type) :: st
         integer(int64) :: column
 
-        call locations_in_data_dir("^$", items, st)
+        call locations_in_data_directory("^$", items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 1)
@@ -233,7 +237,7 @@ contains
         column = -1
 
         select type (l => items(1)%location)
-        type is (xref_file_location_type)
+        type is (cross_reference_file_location_type)
             column = l%column
         class default
         end select
@@ -258,11 +262,11 @@ contains
     !> xref-matches-in-files-includes-matches-from-all-the-files.
     subroutine test_files_all(error)
         type(error_type), allocatable, intent(out) :: error
-        type(xref_item_type), allocatable :: items(:)
+        type(cross_reference_item_type), allocatable :: items(:)
         type(status_type) :: st
         integer :: i
 
-        call xref_matches_in_files("bar", data_files(), items, st)
+        call cross_reference_matches_in_files("bar", data_files(), items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 2)
@@ -278,10 +282,10 @@ contains
     !> xref-matches-in-files-trims-summary-for-matches-on-same-line.
     subroutine test_files_trims(error)
         type(error_type), allocatable, intent(out) :: error
-        type(xref_item_type), allocatable :: items(:)
+        type(cross_reference_item_type), allocatable :: items(:)
         type(status_type) :: st
 
-        call xref_matches_in_files("match", data_files(), items, st)
+        call cross_reference_matches_in_files("match", data_files(), items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(items), 3)
@@ -299,19 +303,19 @@ contains
         character(len=*), intent(in) :: project_root
         character(len=:), allocatable, intent(out) :: names
         type(error_type), allocatable, intent(out) :: error
-        type(xref_item_type), allocatable :: items(:)
+        type(cross_reference_item_type), allocatable :: items(:)
         type(status_type) :: st
         character(len=:), allocatable :: name, last
         integer :: i
 
         names = ""
         last = ""
-        call locations_in_data_dir("\(bar\|foo\)", items, st)
+        call locations_in_data_directory("\(bar\|foo\)", items, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
 
         do i = 1, size(items)
-            name = xref_group_name_for_display(items(i)%location%group(), project_root)
+            name = cross_reference_group_name_for_display(items(i)%location%group(), project_root)
 
             if (name /= last) then
                 names = names//name//LF
@@ -321,26 +325,26 @@ contains
     end subroutine display_names
 
     !> Port of xref-tests.el xref--xref-file-name-display-is-abs.
-    subroutine test_display_abs(error)
+    subroutine test_display_absolute(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: names, directory
 
         directory = data_directory()
-        xref_file_name_display = XREF_FILE_NAME_DISPLAY_ABSOLUTE
+        cross_reference_file_name_display = CROSS_REFERENCE_FILE_NAME_DISPLAY_ABSOLUTE
         call display_names("", names, error)
-        xref_file_name_display = XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE
+        cross_reference_file_name_display = CROSS_REFERENCE_FILE_NAME_DISPLAY_PROJECT_RELATIVE
         if (allocated(error)) return
         call check(error, names, directory//"file1.txt"//LF//directory//"file2.txt"//LF)
-    end subroutine test_display_abs
+    end subroutine test_display_absolute
 
     !> Port of xref-tests.el xref--xref-file-name-display-is-nondirectory.
     subroutine test_display_nondirectory(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: names
 
-        xref_file_name_display = XREF_FILE_NAME_DISPLAY_NONDIRECTORY
+        cross_reference_file_name_display = CROSS_REFERENCE_FILE_NAME_DISPLAY_NONDIRECTORY
         call display_names("", names, error)
-        xref_file_name_display = XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE
+        cross_reference_file_name_display = CROSS_REFERENCE_FILE_NAME_DISPLAY_PROJECT_RELATIVE
         if (allocated(error)) return
         call check(error, names, "file1.txt"//LF//"file2.txt"//LF)
     end subroutine test_display_nondirectory
@@ -352,7 +356,7 @@ contains
         character(len=:), allocatable :: names, parent
 
         parent = file_name_directory(directory_file_name(data_directory()))
-        xref_file_name_display = XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE
+        cross_reference_file_name_display = CROSS_REFERENCE_FILE_NAME_DISPLAY_PROJECT_RELATIVE
         call display_names(parent, names, error)
         if (allocated(error)) return
         call check(error, names, "xref-resources/file1.txt"//LF//"xref-resources/file2.txt"//LF)
@@ -362,142 +366,143 @@ contains
     ! items at their beginnings.  Not a port.
     subroutine make_source(source, fetcher)
         type(handle_type), intent(out) :: source
-        type(xref_items_fetcher_type), intent(out) :: fetcher
-        type(xref_item_type) :: item
+        type(cross_reference_items_fetcher_type), intent(out) :: fetcher
+        type(cross_reference_item_type) :: item
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer("xref-test", source, st)
         call set_buffer(source, st)
         call erase_buffer(st)
         call insert("first line"//LF//"second line"//LF, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call show_alone()
-        item = make_xref("first line", make_xref_buffer_location(source, 1_int64))
-        call append_xref_item(fetcher%items, item)
-        item = make_xref("second line", make_xref_buffer_location(source, 12_int64))
-        call append_xref_item(fetcher%items, item)
+        item = make_cross_reference("first line", make_cross_reference_buffer_location(source, 1_int64))
+        call append_cross_reference_item(fetcher%items, item)
+        item = make_cross_reference("second line", make_cross_reference_buffer_location(source, 12_int64))
+        call append_cross_reference_item(fetcher%items, item)
     end subroutine make_source
 
     !> The *xref* buffer: the group heading and the items' lines, motion
     !> to the first item and the jump to its location.  Not a port.
-    subroutine test_xref_buffer(error)
+    subroutine test_cross_reference_buffer(error)
         type(error_type), allocatable, intent(out) :: error
-        type(xref_items_fetcher_type) :: fetcher
-        type(xref_item_type), allocatable :: shown(:)
-        type(handle_type) :: source, xref_buffer, b
+        type(cross_reference_items_fetcher_type) :: fetcher
+        type(cross_reference_item_type), allocatable :: shown(:)
+        type(handle_type) :: source, cross_reference_buffer, b
         type(status_type) :: st
 
         call make_source(source, fetcher)
-        call show_xrefs(fetcher, XREF_DISPLAY_ACTION_NONE, xref_buffer, st)
+        call show_cross_references(fetcher, CROSS_REFERENCE_DISPLAY_ACTION_NONE, cross_reference_buffer, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call set_buffer(xref_buffer, st)
+        call set_buffer(cross_reference_buffer, st)
         call check(error, buffer_string(), "(buffer xref-test)"//LF//"  first line"//LF//"  second line"//LF)
         if (allocated(error)) return
-        call xref_items_at(xref_buffer, shown)
+        call cross_reference_items_at(cross_reference_buffer, shown)
         call check(error, size(shown), 2)
         if (allocated(error)) return
-        call goto_char(point_min())
-        call next_xref_line_no_show(st)
-        call next_xref_line_no_show(st)
-        call goto_xref(.false., st)
+        call goto_character(point_minimum())
+        call next_cross_reference_line_no_show(st)
+        call next_cross_reference_line_no_show(st)
+        call goto_cross_reference(.false., st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         b = current_buffer()
         call check(error, b%index == source%index, "in xref-test")
         if (allocated(error)) return
         call check(error, point() == 12_int64, "at the second line")
-        call close_buffer(xref_buffer, st)
+        call close_buffer(cross_reference_buffer, st)
         call close_buffer(source, st)
-    end subroutine test_xref_buffer
+    end subroutine test_cross_reference_buffer
 
-    !> The history: `go_back_in_xref_history' returns to where `show_xrefs' was
-    !> called, `go_forward_in_xref_history' goes again where it came back from, and
+    !> The history: `go_back_in_cross_reference_history' returns to where `show_cross_references' was
+    !> called, `go_forward_in_cross_reference_history' goes again where it came back from, and
     !> the ends of the history are user errors.  Not a port.
     subroutine test_history(error)
         type(error_type), allocatable, intent(out) :: error
-        type(xref_items_fetcher_type) :: fetcher
-        type(handle_type) :: source, xref_buffer
+        type(cross_reference_items_fetcher_type) :: fetcher
+        type(handle_type) :: source, cross_reference_buffer
         type(status_type) :: st
 
         call make_source(source, fetcher)
-        call clear_xref_marker_stack()
-        call goto_char(5_int64)
-        call show_xrefs(fetcher, XREF_DISPLAY_ACTION_NONE, xref_buffer, st)
-        call check(error,.not. is_xref_marker_stack_empty(), "a marker pushed")
+        call clear_cross_reference_marker_stack()
+        call goto_character(5_int64)
+        call show_cross_references(fetcher, CROSS_REFERENCE_DISPLAY_ACTION_NONE, cross_reference_buffer, st)
+        call check(error,.not. is_cross_reference_marker_stack_empty(), "a marker pushed")
         if (allocated(error)) return
-        call goto_char(point_min())
-        call next_xref_line_no_show(st)
-        call next_xref_line_no_show(st)
-        call goto_xref(.false., st)
+        call goto_character(point_minimum())
+        call next_cross_reference_line_no_show(st)
+        call next_cross_reference_line_no_show(st)
+        call goto_cross_reference(.false., st)
         call check(error, point() == 12_int64, "at the second line")
         if (allocated(error)) return
-        call go_back_in_xref_history(st)
+        call go_back_in_cross_reference_history(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, point() == 5_int64, "back where it started")
         if (allocated(error)) return
-        call go_back_in_xref_history(st)
-        call check(error, st%code == FM_USER_ERROR .and. format_error(st) == "At start of xref history", format_error(st))
+        call go_back_in_cross_reference_history(st)
+        call check(error, st%code == USER_ERROR_CODE .and. format_error(st) == "At start of xref history", format_error(st))
         if (allocated(error)) return
-        call go_forward_in_xref_history(st)
+        call go_forward_in_cross_reference_history(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, point() == 12_int64, "forward to the second line")
         if (allocated(error)) return
-        call go_forward_in_xref_history(st)
+        call go_forward_in_cross_reference_history(st)
         call check(error, format_error(st), "At end of xref history")
-        call clear_xref_marker_stack()
-        call close_buffer(xref_buffer, st)
+        call clear_cross_reference_marker_stack()
+        call close_buffer(cross_reference_buffer, st)
         call close_buffer(source, st)
     end subroutine test_history
 
-    !> `xref_regexp_to_extended': the operators lose their backslash, the
+    !> `cross_reference_regular_expression_to_extended': the operators lose their backslash, the
     !> literal characters gain one, bracket expressions stay.  Not a port.
-    subroutine test_regexp_to_extended(error)
+    subroutine test_regular_expression_to_extended(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
-        call check(error, xref_regexp_to_extended("\(bar\|foo\)"), "(bar|foo)")
+        call initialize_bindings()
+        call check(error, cross_reference_regular_expression_to_extended("\(bar\|foo\)"), "(bar|foo)")
         if (allocated(error)) return
-        call check(error, xref_regexp_to_extended("a(b)"), "a\(b\)")
+        call check(error, cross_reference_regular_expression_to_extended("a(b)"), "a\(b\)")
         if (allocated(error)) return
-        call check(error, xref_regexp_to_extended("x\{2\}"), "x{2}")
+        call check(error, cross_reference_regular_expression_to_extended("x\{2\}"), "x{2}")
         if (allocated(error)) return
-        call check(error, xref_regexp_to_extended("[(]a"), "[(]a")
+        call check(error, cross_reference_regular_expression_to_extended("[(]a"), "[(]a")
         if (allocated(error)) return
-        call check(error, xref_regexp_to_extended("plain"), "plain")
-    end subroutine test_regexp_to_extended
+        call check(error, cross_reference_regular_expression_to_extended("plain"), "plain")
+    end subroutine test_regular_expression_to_extended
 
-    !> C-h v xref_prompt_for_identifier shows its commands with the state
+    !> C-h v cross_reference_prompt_for_identifier shows its commands with the state
     !> that uses them, as upstream shows the whole list
     !> "(not xref-find-definitions ...)"; in the states .true. and .false.
     !> the commands are not shown and do not make the setting count as on.
     subroutine test_prompt_for_identifier_help(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: COMMANDS_TEXT = "%commands = [""find_xref_definitions"", "// &
-                                       """find_xref_definitions_other_window"", ""find_xref_definitions_other_frame""]"
+        character(len=*), parameter :: COMMANDS_TEXT = "%commands = [""find_cross_reference_definitions"", "// &
+                              """find_cross_reference_definitions_other_window"", ""find_cross_reference_definitions_other_frame""]"
         character(len=:), allocatable :: text
         logical :: found
 
-        call init_bindings()
-        call describe_variable_text("xref_prompt_for_identifier", text, found)
-        call check(error, found .and. index(text, "Its value is"//LF//"XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, "// &
+        call initialize_bindings()
+        call describe_variable_text("cross_reference_prompt_for_identifier", text, found)
+        call check(error, found .and. index(text, "Its value is"//LF//"CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, "// &
                                             COMMANDS_TEXT//LF) > 0 .and. index(text, "Original value") == 0, text)
         if (allocated(error)) return
-        xref_prompt_for_identifier = XREF_PROMPT_FOR_IDENTIFIER_LISTED
-        call describe_variable_text("xref_prompt_for_identifier", text, found)
-        call check(error, index(text, "XREF_PROMPT_FOR_IDENTIFIER_LISTED, "//COMMANDS_TEXT//LF) > 0 .and. &
-                   index(text, "Original value was "//LF//"XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, ") > 0, text)
+        cross_reference_prompt_for_identifier = CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_LISTED
+        call describe_variable_text("cross_reference_prompt_for_identifier", text, found)
+        call check(error, index(text, "CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_LISTED, "//COMMANDS_TEXT//LF) > 0 .and. &
+                   index(text, "Original value was "//LF//"CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, ") > 0, text)
         if (allocated(error)) return
-        xref_prompt_for_identifier = .false.
-        call describe_variable_text("xref_prompt_for_identifier", text, found)
-        call check(error, index(text, "Its value is .false."//LF) > 0 .and. xref_prompt_for_identifier%is_off(), text)
+        cross_reference_prompt_for_identifier = .false.
+        call describe_variable_text("cross_reference_prompt_for_identifier", text, found)
+        call check(error, index(text, "Its value is .false."//LF) > 0 .and. cross_reference_prompt_for_identifier%is_off(), text)
         if (allocated(error)) return
-        xref_prompt_for_identifier = .true.
-        call describe_variable_text("xref_prompt_for_identifier", text, found)
-        call check(error, index(text, "Its value is .true."//LF) > 0 .and. .not. xref_prompt_for_identifier%is_off(), text)
-        xref_prompt_for_identifier = XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED
+        cross_reference_prompt_for_identifier = .true.
+        call describe_variable_text("cross_reference_prompt_for_identifier", text, found)
+        call check(error, index(text, "Its value is .true."//LF) > 0 .and. .not. cross_reference_prompt_for_identifier%is_off(), &
+                   text)
+        cross_reference_prompt_for_identifier = CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED
     end subroutine test_prompt_for_identifier_help
 end module test_cross_reference_mod

@@ -24,7 +24,7 @@
 !> uses fill_mod.
 submodule(fill_mod) fill_comment_mod
     use value_mod, only: vtag, V_STRING, value_type
-    use newcomment_mod, only: comment_start, comment_end, comment_start_skip, comment_normalize_vars, &
+    use newcomment_mod, only: comment_start, comment_end, comment_start_skip, comment_normalize_variables, &
                               comment_search_forward, comment_string_strip
     use paragraphs_mod, only: paragraph_separate
     use data_mod, only: default_value
@@ -70,18 +70,20 @@ contains
     end function default_string
 
     module procedure fill_comment_paragraph
-    integer(int64) :: opoint, comstart, comin, moved, nstart, nend, after_line, beginning, end, cs, shortage, squeeze, found, col
+    integer(int64) :: original_point, comstart, comin, moved, nstart, nend, after_line, beginning, end, cs, shortage, squeeze, &
+                      found, column
     logical :: has_code_and_comment, has_prefix, saved_has_prefix, ok
-    character(len=:), allocatable :: commark, comment_regexp, comment_fill_prefix, skip, separate_orig, start_orig, &
+    character(len=:), allocatable :: commark, comment_regular_expression, comment_fill_prefix, skip, separate_original, &
+                                     start_original, &
                                      saved_prefix, prefix, last
     integer(int64) :: savedb, savedz
     type(status_type) :: st
 
     done = .false.
-    call comment_normalize_vars(status)
+    call comment_normalize_variables(status)
     if (.not. status%ok()) return
     skip = fill_comment_start_skip()
-    opoint = point()
+    original_point = point()
     ! Figure out what kind of comment we are looking at.
     call beginning_of_line(1_int64)
     has_code_and_comment = .false.
@@ -90,12 +92,12 @@ contains
 
     if (comstart > 0) then
         comin = point()
-        call goto_char(comstart)
-        moved = skip_chars_backward(" "//TAB, st)
-        has_code_and_comment = .not. is_bol()
+        call goto_character(comstart)
+        moved = skip_characters_backward(" "//TAB, st)
+        has_code_and_comment = .not. is_beginning_of_line()
     end if
 
-    call goto_char(opoint)
+    call goto_character(original_point)
     ! Make sure the comment-start mark we found is accepted by
     ! comment-start-skip.  If not, all bets are off, and we'd better not
     ! mess with it.
@@ -114,22 +116,22 @@ contains
     ! middle of the line and followed by word chars.  The choice of "\0"
     ! and "a" is mostly arbitrary.
     if (string_match(skip, achar(0)//commark//"a", st) > 0) then
-        last = last_char(commark)
-        comment_regexp = "[ "//TAB//"]*"//regexp_quote(commark)//"[^"//last//"]"
+        last = last_character(commark)
+        comment_regular_expression = "[ "//TAB//"]*"//regular_expression_quote(commark)//"[^"//last//"]"
     else
-        comment_regexp = "[ "//TAB//"]*\(?:"//skip//"\)"
+        comment_regular_expression = "[ "//TAB//"]*\(?:"//skip//"\)"
     end if
 
     ! Compute a fill prefix.
-    call goto_char(comstart)
+    call goto_character(comstart)
 
     if (has_code_and_comment) then
-        col = current_column()
+        column = current_column()
 
         if (.not. indent_tabs_mode%value .or. tab_width%value <= 0) then
-            comment_fill_prefix = repeat(" ", int(col))
+            comment_fill_prefix = repeat(" ", int(column))
         else
-            comment_fill_prefix = repeat(TAB, int(col/tab_width%value))//repeat(" ", int(mod(col, tab_width%value)))
+            comment_fill_prefix = repeat(TAB, int(column/tab_width%value))//repeat(" ", int(mod(column, tab_width%value)))
         end if
 
         comment_fill_prefix = comment_fill_prefix//text_of(point(), comin)
@@ -137,10 +139,10 @@ contains
         comment_fill_prefix = text_of(line_beginning_position(), comin)
     end if
 
-    call goto_char(opoint)
+    call goto_character(original_point)
     ! (save-excursion (save-restriction ...))
-    savedb = buffers(current)%begv
-    savedz = buffers(current)%text%z - buffers(current)%zv
+    savedb = buffers(current)%beginning_of_accessible_portion
+    savedz = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
     call beginning_of_line(1_int64)
 
     ! Find the first line we should include in the region to fill.
@@ -149,14 +151,14 @@ contains
     else
         do
             if (forward_line(-1_int64) /= 0) exit
-            if (.not. looking_at(comment_regexp, st)) exit
+            if (.not. looking_at(comment_regular_expression, st)) exit
         end do
 
         ! We may have gone too far.  Go forward again.
         cs = comment_search_forward(line_end_position(), .true., st)
-        if (cs > 0) call goto_char(cs)
+        if (cs > 0) call goto_character(cs)
 
-        if (looking_at(comment_regexp, st)) then
+        if (looking_at(comment_regular_expression, st)) then
             comstart = point()
             nstart = line_beginning_position()
         else
@@ -164,7 +166,7 @@ contains
             nstart = line_beginning_position(2_int64)
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
         call beginning_of_line(1_int64)
     end if
 
@@ -173,22 +175,22 @@ contains
         found = point()
         shortage = forward_line(1_int64)
         if (point() == found) exit
-        if (.not. looking_at(comment_regexp, st)) exit
+        if (.not. looking_at(comment_regular_expression, st)) exit
     end do
 
     nend = point()
-    call goto_char(opoint)
+    call goto_character(original_point)
     call beginning_of_line(1_int64)
     call narrow_to_region(nstart, nend, st)
     ! Obey paragraph starters and boundaries within comments.
-    call init_paragraph_variables()
-    separate_orig = paragraph_separate%value
-    start_orig = paragraph_start%value
+    call initialize_paragraph_variables()
+    separate_original = paragraph_separate%value
+    start_original = paragraph_start%value
     ! Use the default values since they correspond to the values to use
     ! for plain text.
-    paragraph_separate%value = separate_orig//"\|[ "//TAB//"]*\(?:"//skip//"\)\(?:"// &
+    paragraph_separate%value = separate_original//"\|[ "//TAB//"]*\(?:"//skip//"\)\(?:"// &
                                default_string("paragraph_separate")//"\)"
-    paragraph_start%value = start_orig//"\|[ "//TAB//"]*\(?:"//skip//"\)\(?:"//default_string("paragraph_start")//"\)"
+    paragraph_start%value = start_original//"\|[ "//TAB//"]*\(?:"//skip//"\)\(?:"//default_string("paragraph_start")//"\)"
     ! We used to rely on fill-prefix to break paragraph at comment-starter
     ! changes, but it did not work for the first line (mixed
     ! comment&code).  We now use comment-re instead to "manually" make
@@ -202,11 +204,11 @@ contains
     shortage = forward_paragraph(-1_int64)
     if (point() == after_line) shortage = forward_line(-1_int64)
     beginning = point()
-    paragraph_separate%value = separate_orig
-    paragraph_start%value = start_orig
+    paragraph_separate%value = separate_original
+    paragraph_start%value = start_original
     call widen()
     call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
-    call goto_char(opoint)
+    call goto_character(original_point)
     ! Find the fill-prefix to use.
     saved_has_prefix = allocated(fill_prefix%value)
     if (saved_has_prefix) saved_prefix = fill_prefix%value
@@ -228,16 +230,16 @@ contains
     end if
 
     ! Don't canonicalize spaces within the code just before the comment.
-    opoint = point()
-    call goto_char(beginning)
+    original_point = point()
+    call goto_character(beginning)
     squeeze = 0
 
     if (.not. looking_at(fill_prefix%value, st)) then
-        call re_search_forward(skip, found, status)
+        call regular_expression_search_forward(skip, found, status)
         if (status%ok()) squeeze = point()
     end if
 
-    call goto_char(opoint)
+    call goto_character(original_point)
 
     if (status%ok()) then
         ! Don't fill with narrowing.
@@ -260,7 +262,7 @@ contains
     end procedure fill_comment_paragraph
 
     !> The last character of S (UTF-8), as a string.  Not a port.
-    function last_char(s) result(c)
+    function last_character(s) result(c)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: c
         integer :: k
@@ -275,5 +277,5 @@ contains
         end do
 
         c = s(k:)
-    end function last_char
+    end function last_character
 end submodule fill_comment_mod

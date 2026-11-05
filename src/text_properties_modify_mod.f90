@@ -24,7 +24,7 @@
 !> modification and runs the change hooks of insert_delete_mod.  A submodule
 !> because insert_delete_mod uses text_properties_mod.
 submodule(text_properties_mod) text_properties_modify_mod
-    use buffer_mod, only: modiff_incr, buf_compute_unchanged
+    use buffer_mod, only: modiff_increment, buffer_compute_unchanged
     use undo_mod, only: record_first_change
     use insert_delete_mod, only: prepare_to_modify_buffer_1, signal_after_change
     implicit none(type, external)
@@ -40,9 +40,9 @@ contains
 
         call prepare_to_modify_buffer_1(start, end, status)
         if (.not. status%ok()) return
-        call buf_compute_unchanged(buffers(current), start - 1, end)
+        call buffer_compute_unchanged(buffers(current), start - 1, end)
         if (buffers(current)%text%modiff <= buffers(current)%text%save_modiff) call record_first_change()
-        call modiff_incr(buffers(current)%text%modiff, 1_int64)
+        call modiff_increment(buffers(current)%text%modiff, 1_int64)
     end subroutine modify_text_properties
 
     !> signal_after_change (START, END - START, END - START), as textprop.c

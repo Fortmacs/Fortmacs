@@ -24,9 +24,9 @@
 !> sha1_mod, sha256_mod, sha512_mod and sha3_mod.  A submodule can use
 !> coding_mod and file_input_output_mod, which a module below them cannot.
 submodule(utility_functions_mod) utility_functions_hash_mod
-    use buffer_mod, only: buf_bytes, set_buffer_internal
-    use marker_mod, only: char_to_byte
-    use error_mod, only: FM_CODING_SYSTEM_ERROR, FM_FILE_ERROR
+    use buffer_mod, only: buffer_bytes, set_buffer_internal
+    use marker_mod, only: character_to_byte
+    use error_mod, only: CODING_SYSTEM_ERROR_CODE, FILE_ERROR_CODE
     use coding_mod, only: is_coding_system, coding_system_priority_list, coding_system_list_entry_type, &
                           encode_coding_text, encode_coding_string, coding_system_for_write, buffer_file_coding_system, &
                           find_operation_coding_system
@@ -131,7 +131,7 @@ contains
         if (present(binary)) is_binary = binary
 
         if (length < 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Without a length, `hash_random_bytes' can't be used; see Info node "// &
+            call set_error(status, GENERIC_ERROR_CODE, "Without a length, `hash_random_bytes' can't be used; see Info node "// &
                            "`(elisp)Format of GnuTLS Cryptography Inputs'")
             return
         end if
@@ -140,7 +140,7 @@ contains
         err = fortmacs_getrandom(data)
 
         if (err /= 0) then
-            call set_error(status, FM_FILE_ERROR, "Getting random data: "//fortmacs_strerror(err))
+            call set_error(status, FILE_ERROR_CODE, "Getting random data: "//fortmacs_strerror(err))
             return
         end if
 
@@ -176,7 +176,7 @@ contains
         end associate
 
         call context%finish(digest)
-        hash = digest_to_hex(digest)
+        hash = digest_to_hexadecimal(digest)
     end subroutine buffer_hash
 
     !> The bytes of the multibyte text STRING (or of the unibyte STRING
@@ -221,7 +221,7 @@ contains
         if (.not. is_coding_system(coding)) then
             ! Invalid coding system.
             if (.not. ignore_errors) then
-                call set_error(status, FM_CODING_SYSTEM_ERROR, coding)
+                call set_error(status, CODING_SYSTEM_ERROR_CODE, coding)
                 return
             end if
 
@@ -248,7 +248,7 @@ contains
     !> the default `buffer_file_coding_system', confirmed by
     !> `select_safe_coding_system_function'; `raw-text' for a unibyte
     !> buffer).  A position outside the accessible text is an
-    !> `args_out_of_range' error condition; a default coding system that
+    !> `arguments_out_of_range' error condition; a default coding system that
     !> is invalid a `coding_system_error' one, or `raw-text' if NOERROR.
     !> Encoding sets `last_coding_system_used'.  Port of
     !> fns.c:extract_data_from_object (a buffer).
@@ -261,7 +261,7 @@ contains
         logical, intent(in), optional :: noerror
         character(len=:), allocatable :: coding, text, decoding, encoding, chosen
         character(len=20) :: beginning_text, end_text
-        integer(int64) :: b, previous, s, e, temp
+        integer(int64) :: b, previous, s, e, temporary
         logical :: force_raw_text, is_multibyte, ignore_errors
 
         data = ""
@@ -276,23 +276,23 @@ contains
 
         previous = current
         call set_buffer_internal(b)
-        s = buffers(b)%begv
+        s = buffers(b)%beginning_of_accessible_portion
         if (present(beginning)) s = beginning
-        e = buffers(b)%zv
+        e = buffers(b)%end_of_accessible_portion
         if (present(end)) e = end
 
         if (s > e) then
-            temp = s
+            temporary = s
             s = e
-            e = temp
+            e = temporary
         end if
 
-        if (.not. (buffers(b)%begv <= s .and. e <= buffers(b)%zv)) then
+        if (.not. (buffers(b)%beginning_of_accessible_portion <= s .and. e <= buffers(b)%end_of_accessible_portion)) then
             beginning_text = ".false."
             if (present(beginning)) write (beginning_text, "(i0)") beginning
             end_text = ".false."
             if (present(end)) write (end_text, "(i0)") end
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(beginning_text)//", "//trim(end_text))
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, trim(beginning_text)//", "//trim(end_text))
             call set_buffer_internal(previous)
             return
         end if
@@ -347,7 +347,7 @@ contains
             if (.not. is_coding_system(coding)) then
                 ! Invalid coding system.
                 if (.not. ignore_errors) then
-                    call set_error(status, FM_CODING_SYSTEM_ERROR, coding)
+                    call set_error(status, CODING_SYSTEM_ERROR_CODE, coding)
                     call set_buffer_internal(previous)
                     return
                 end if
@@ -356,7 +356,7 @@ contains
             end if
         end if
 
-        text = buf_bytes(buffers(b), char_to_byte(s), char_to_byte(e))
+        text = buffer_bytes(buffers(b), character_to_byte(s), character_to_byte(e))
         is_multibyte = buffers(b)%multibyte
         call set_buffer_internal(previous)
 
@@ -404,29 +404,29 @@ contains
             digest = compute_sha3(data, SHA3_512_DIGEST_SIZE)
         case default
             write (text, '("Invalid algorithm arg: ", i0)') algorithm
-            call set_error(status, FM_GENERIC_ERROR, trim(text))
+            call set_error(status, GENERIC_ERROR_CODE, trim(text))
             return
         end select
 
         if (binary) then
             hash = digest
         else
-            hash = digest_to_hex(digest)
+            hash = digest_to_hexadecimal(digest)
         end if
     end subroutine compute_secure_hash
 
     !> The lowercase hexadecimal digits of the bytes of DIGEST, two per
     !> byte.  Port of fns.c:hexbuf_digest (and fns.c:make_digest_string).
-    pure function digest_to_hex(digest) result(hex)
+    pure function digest_to_hexadecimal(digest) result(hexadecimal)
         character(len=*), intent(in) :: digest
-        character(len=2*len(digest)) :: hex
-        character(len=16), parameter :: HEX_DIGITS = "0123456789abcdef"
+        character(len=2*len(digest)) :: hexadecimal
+        character(len=16), parameter :: HEXADECIMAL_DIGITS = "0123456789abcdef"
         integer :: i, byte
 
         do i = 1, len(digest)
             byte = iachar(digest(i:i))
-            hex(2*i - 1:2*i - 1) = HEX_DIGITS(ishft(byte, -4) + 1:ishft(byte, -4) + 1)
-            hex(2*i:2*i) = HEX_DIGITS(iand(byte, 15) + 1:iand(byte, 15) + 1)
+            hexadecimal(2*i - 1:2*i - 1) = HEXADECIMAL_DIGITS(ishft(byte, -4) + 1:ishft(byte, -4) + 1)
+            hexadecimal(2*i:2*i) = HEXADECIMAL_DIGITS(iand(byte, 15) + 1:iand(byte, 15) + 1)
         end do
-    end function digest_to_hex
+    end function digest_to_hexadecimal
 end submodule utility_functions_hash_mod

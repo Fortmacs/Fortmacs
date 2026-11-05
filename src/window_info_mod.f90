@@ -30,7 +30,7 @@
 !> are in the canonical lines and columns of a terminal frame.  These
 !> need the frame (frame_mod), so they live in a submodule.
 submodule(window_mod) window_info_mod
-    use error_mod, only: set_error, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: set_error, WRONG_TYPE_ARGUMENT_CODE
     use frame_mod, only: selected_frame, selected_window, ensure_frame_windows
     use keyboard_mod, only: minib_level => minibuf_level
     use minibuffer_reading_mod, only: minibuffer_depth_of
@@ -51,7 +51,7 @@ contains
         i = 0
 
         if (.not. is_window_live(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected live type(window_type)")
             return
         end if
 
@@ -71,7 +71,7 @@ contains
         i = 0
 
         if (.not. is_window_valid(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected valid type(window_type)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected valid type(window_type)")
             return
         end if
 
@@ -108,7 +108,7 @@ contains
         b = null_handle()
 
         if (.not. wtable%issued(h)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(window_type)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(window_type)")
             return
         end if
 
@@ -162,7 +162,7 @@ contains
         if (status%ok()) s = windows(i)%next
     end function window_next_sibling
 
-    module function window_prev_sibling(window, status) result(s)
+    module function window_previous_sibling(window, status) result(s)
         type(handle_type), intent(in), optional :: window
         type(status_type), intent(out) :: status
         type(handle_type) :: s
@@ -170,8 +170,8 @@ contains
 
         s = null_handle()
         call decode_valid_window(window, i, status)
-        if (status%ok()) s = windows(i)%prev
-    end function window_prev_sibling
+        if (status%ok()) s = windows(i)%previous
+    end function window_previous_sibling
 
     module function frame_root_window(window, status) result(r)
         type(handle_type), intent(in), optional :: window
@@ -183,7 +183,7 @@ contains
 
         if (present(window)) then
             if (.not. is_window_valid(window)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(frame_type)")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected live type(frame_type)")
                 return
             end if
         end if
@@ -202,7 +202,7 @@ contains
 
         if (present(window)) then
             if (.not. is_window_valid(window)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(frame_type)")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected live type(frame_type)")
                 return
             end if
         end if
@@ -260,7 +260,7 @@ contains
         n = 0
         call decode_valid_window(window, i, status)
         if (.not. status%ok()) return
-        n = windows(i)%total_cols
+        n = windows(i)%total_columns
     end function window_total_width
 
     module function window_left_column(window, status) result(n)
@@ -271,7 +271,7 @@ contains
 
         n = 0
         call decode_valid_window(window, i, status)
-        if (status%ok()) n = windows(i)%left_col
+        if (status%ok()) n = windows(i)%left_column
     end function window_left_column
 
     module function window_top_line(window, status) result(n)
@@ -304,7 +304,7 @@ contains
 
         n = 0
         call decode_live_window(window, i, status)
-        if (status%ok()) n = window_text_cols(windows(i))
+        if (status%ok()) n = window_text_columns(windows(i))
     end function window_body_width
 
     module function window_wants_mode_line(w) result(wants)
@@ -412,17 +412,17 @@ contains
         end if
     end function window_bump_use_time
 
-    module function window_prev_buffers(window, status) result(list)
+    module function window_previous_buffers(window, status) result(list)
         type(handle_type), intent(in), optional :: window
         type(status_type), intent(out) :: status
-        type(prev_buffer_type), allocatable :: list(:)
+        type(previous_buffer_type), allocatable :: list(:)
         integer(int64) :: i
 
         allocate (list(0))
         call decode_live_window(window, i, status)
         if (.not. status%ok()) return
-        if (allocated(windows(i)%prev_buffers)) list = windows(i)%prev_buffers
-    end function window_prev_buffers
+        if (allocated(windows(i)%previous_buffers)) list = windows(i)%previous_buffers
+    end function window_previous_buffers
 
     module function window_next_buffers(window, status) result(list)
         type(handle_type), intent(in), optional :: window
@@ -452,7 +452,7 @@ contains
     !> minibuffer window counts for MINIBUF (MINIBUF_ACTIVE: if the
     !> minibuffer is active).  Port of window.c:decode_next_window_args
     !> (one frame).
-    subroutine decode_next_window_args(window, minibuf, w, mini, status)
+    subroutine decode_next_window_arguments(window, minibuf, w, mini, status)
         type(handle_type), intent(in), optional :: window
         integer, intent(in), optional :: minibuf
         type(handle_type), intent(out) :: w
@@ -477,7 +477,7 @@ contains
         case default
             mini = .false.
         end select
-    end subroutine decode_next_window_args
+    end subroutine decode_next_window_arguments
 
     !> Whether WINDOW is a window to consider: live, and the minibuffer
     !> window only if MINI.  Port of window.c:candidate_window_p (one
@@ -503,7 +503,7 @@ contains
         integer :: k, at, n
 
         r = null_handle()
-        call decode_next_window_args(window, minibuf, w, mini, status)
+        call decode_next_window_arguments(window, minibuf, w, mini, status)
         if (.not. status%ok()) return
         r = w
         call all_windows(list)
@@ -577,7 +577,7 @@ contains
         integer :: k, n, at
 
         allocate (list(0))
-        call decode_next_window_args(window, minibuf, w, mini, status)
+        call decode_next_window_arguments(window, minibuf, w, mini, status)
         if (.not. status%ok()) return
         call all_windows(all)
         deallocate (list)
@@ -610,7 +610,7 @@ contains
         if (present(window)) then
             if (.not. wtable%issued(window)) then
                 allocate (list(0))
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(window_type)")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(window_type)")
                 return
             end if
         end if
@@ -627,8 +627,8 @@ contains
         integer, intent(in) :: x, y
         integer :: left_x, right_x, top_y, bottom_y
 
-        left_x = w%left_col
-        right_x = w%left_col + w%total_cols
+        left_x = w%left_column
+        right_x = w%left_column + w%total_columns
         top_y = w%top_line
         bottom_y = w%top_line + w%total_lines
         part = ON_NOTHING
@@ -654,24 +654,24 @@ contains
         part = ON_TEXT
     end function coordinates_in_window
 
-    module function window_part_at(x, y, window, rel_x, rel_y, status) result(part)
+    module function window_part_at(x, y, window, relative_x, relative_y, status) result(part)
         integer, intent(in) :: x, y
         type(handle_type), intent(in), optional :: window
-        integer, intent(out) :: rel_x, rel_y
+        integer, intent(out) :: relative_x, relative_y
         type(status_type), intent(out) :: status
         integer :: part
         integer(int64) :: i
 
         part = ON_NOTHING
-        rel_x = 0
-        rel_y = 0
+        relative_x = 0
+        relative_y = 0
         call decode_live_window(window, i, status)
         if (.not. status%ok()) return
         part = coordinates_in_window(windows(i), x, y)
 
         if (part == ON_TEXT) then
-            rel_x = x - windows(i)%left_col
-            rel_y = y - windows(i)%top_line
+            relative_x = x - windows(i)%left_column
+            relative_y = y - windows(i)%top_line
         end if
     end function window_part_at
 

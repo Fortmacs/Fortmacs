@@ -45,7 +45,7 @@ contains
                     new_unittest("ring-tests-size", test_size), &
                     new_unittest("ring-tests-insert", test_insert), &
                     new_unittest("ring-tests-remove", test_remove), &
-                    new_unittest("ring-tests-ref", test_ref), &
+                    new_unittest("ring-tests-ref", test_reference), &
                     new_unittest("ring-tests-member", test_member), &
                     new_unittest("ring-tests-extend", test_extend), &
                     new_unittest("ring-resize/grow", test_grow), &
@@ -65,7 +65,7 @@ contains
         s = ""
 
         do k = 0, ring%count() - 1
-            call ring%ref(k, item, st)
+            call ring%reference(k, item, st)
             if (k > 0) s = s//" "
             s = s//item
         end do
@@ -176,30 +176,30 @@ contains
         if (.not. allocated(error)) call check(error, elements(ring), "bar")
     end subroutine test_remove
 
-    subroutine test_ref(error)
+    subroutine test_reference(error)
         type(error_type), allocatable, intent(out) :: error
         type(ring_type) :: ring
         type(status_type) :: st
         character(len=:), allocatable :: item
 
         call ring%make(2)
-        call ring%ref(0, item, st)
+        call ring%reference(0, item, st)
         call check(error,.not. st%ok(), "should-error")
         if (allocated(error)) return
         call ring%insert(":a")
-        call ring%ref(0, item, st)
+        call ring%reference(0, item, st)
         call check(error, item, ":a")
         if (allocated(error)) return
         call ring%insert(":b")
-        call ring%ref(0, item, st)
+        call ring%reference(0, item, st)
         call check(error, item, ":b")
         if (allocated(error)) return
-        call ring%ref(1, item, st)
+        call ring%reference(1, item, st)
         call check(error, item, ":a")
         if (allocated(error)) return
-        call ring%ref(2, item, st)
+        call ring%reference(2, item, st)
         call check(error, item, ":b")
-    end subroutine test_ref
+    end subroutine test_reference
 
     subroutine test_member(error)
         type(error_type), allocatable, intent(out) :: error

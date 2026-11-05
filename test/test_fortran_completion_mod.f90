@@ -29,11 +29,11 @@ module test_fortran_completion_mod
     use buffer_mod, only: buffers, get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: point, buffer_substring
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use value_mod, only: value_type, list_elements, xstring
     use modes_mod, only: minor_modes
     use minibuffer_reading_mod, only: all_completions
-    use minibuffer_reading_tables_mod, only: capf_data_type
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type
     use minibuffer_mod, only: completion_at_point_functions
     use f90_mod, only: f90_mode
     use fortran_completion_mod, only: get_component_completion_data, turn_on_fortran_completion_mode, &
@@ -96,7 +96,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *fortran-completion-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -108,7 +108,7 @@ contains
     !> The candidates completing the name before point, sorted as given.
     function completions() result(names)
         character(len=64), allocatable :: names(:)
-        type(capf_data_type) :: data
+        type(completion_at_point_function_data_type) :: data
         type(status_type) :: st
         type(value_type) :: v
         type(value_type), allocatable :: elements(:)

@@ -22,7 +22,7 @@
 !> New suites are registered in the `testsuites` array below.
 program tester
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use system_dependent_mod, only: sys_unsetenv
+    use system_dependent_mod, only: system_unsetenv
     use testdrive, only: run_testsuite, run_selected, new_testsuite, &
                          testsuite_type, select_suite
     use test_version_mod, only: collect_version_mod
@@ -198,9 +198,9 @@ program tester
     stat = 0
     ! The editor started by the tests takes no language environment from
     ! the locale (startup.el:command-line's set-locale-environment).
-    is = sys_unsetenv("LC_ALL")
-    is = sys_unsetenv("LC_CTYPE")
-    is = sys_unsetenv("LANG")
+    is = system_unsetenv("LC_ALL")
+    is = system_unsetenv("LC_CTYPE")
+    is = system_unsetenv("LANG")
     testsuites = [ &
                  new_testsuite("version_mod", collect_version_mod), &
                  new_testsuite("basic_subprograms_mod", collect_basic_subprograms_mod), &
@@ -411,15 +411,15 @@ program tester
 contains
 
     !> Fetch command-line argument `index`, leaving `arg` unallocated if absent.
-    subroutine get_argument(index, arg)
+    subroutine get_argument(index, argument)
         integer, intent(in) :: index
-        character(len=:), allocatable, intent(out) :: arg
+        character(len=:), allocatable, intent(out) :: argument
         integer :: length, astat
 
         call get_command_argument(index, length=length, status=astat)
         if (astat /= 0 .or. length == 0) return
-        allocate (character(len=length) :: arg)
-        call get_command_argument(index, arg, status=astat)
-        if (astat /= 0) deallocate (arg)
+        allocate (character(len=length) :: argument)
+        call get_command_argument(index, argument, status=astat)
+        if (astat /= 0) deallocate (argument)
     end subroutine get_argument
 end program tester

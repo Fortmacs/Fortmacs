@@ -41,50 +41,51 @@
 !> ignoring whitespace in and refreshing hunks
 !> (C-c C-w, C-c C-l), `diff_copy_region' (w), Whitespace mode's
 !> settings (`diff_setup_whitespace'), outline support, the
-!> menu, mouse bindings, `undo_ignore_read_only', VC revisions of the old
+!> menu, mouse bindings, `undo_ignore_read_only', VERSION_CONTROL revisions of the old
 !> file, `diff_wiggle', `next_error_follow_minor_mode' (C-c C-f) and
-!> `vc_next_action' (v).  `diff_read_only_map' is
+!> `version_control_next_action' (v).  `diff_read_only_map' is
 !> `diff_mode_read_only_map' with `special_mode_map' as its parent
 !> (upstream composes the two).
 module diff_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer
     use data_mod, only: symbol_value, set
-    use value_mod, only: make_keymap_ref, value_type, xfixnum
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
-                                     line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
-                                     char_after, delete_region
+    use value_mod, only: make_keymap_reference, value_type, xfixnum
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_beginning_of_buffer, &
+                                     is_end_of_buffer, is_beginning_of_line, buffer_substring, line_beginning_position, &
+                                     line_end_position, narrow_to_region, widen, is_buffer_narrowed, character_after, &
+                                     delete_region
     use editing_commands_mod, only: forward_line, beginning_of_line
     use insert_delete_mod, only: insert
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, replace_match, &
-                          SEARCH_NOERROR, SEARCH_MOVE
+    use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, match_beginning, &
+                          match_end, replace_match, SEARCH_NOERROR, SEARCH_MOVE
     use basic_subprograms_mod, only: match_string
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use simple_mod, only: cut_region, special_mode_map, set_next_error_function, read_only_mode_hook, is_use_region
     use editing_functions_mod, only: region_beginning, region_end
     use file_input_output_mod, only: is_file_regular, file_exists, expand_file_name, file_name_directory, file_name_nondirectory
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, keymap_set, append_minor_mode_map, is_keymap_live, &
                           destroy_keymap
-    use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
+    use faces_mod, only: named_face_type, display_when, face_attributes, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use modes_mod, only: major_modes
     use add_log_mod, only: change_log_entry_type, add_log_current_subprogram_function, add_log_buffer_file_name_function
-    use easy_minor_mode_mod, only: easy_mmode_next, easy_mmode_prev
-    use index_menu_mod, only: imenu_patterns, imenu_pattern_type
+    use easy_minor_mode_mod, only: easy_mmode_next, easy_mmode_previous
+    use index_menu_mod, only: index_menu_patterns, index_menu_pattern_type
     use string_type_mod, only: string_type, append_string
     use data_mod, only: string_to_number
     implicit none(type, external)
     private
 
-    public :: init_diff_mode, diff_mode, diff_hunk_next, diff_hunk_prev, diff_file_next, diff_file_prev, &
+    public :: initialize_diff_mode, diff_mode, diff_hunk_next, diff_hunk_previous, diff_file_next, diff_file_previous, &
               diff_beginning_of_hunk, diff_end_of_hunk, diff_beginning_of_file, diff_end_of_file, &
               diff_bounds_of_hunk, diff_bounds_of_file, diff_hunk_cut, diff_file_cut, diff_split_hunk, &
               diff_fixup_modifs, diff_restrict_view, diff_hunk_file_names, diff_find_file_name, &
@@ -92,7 +93,7 @@ module diff_mode_mod
               diff_goto_source, diff_apply_buffer, diff_revert_and_cut_hunk, diff_sanity_check_hunk, &
               diff_beginning_of_file_and_junk, diff_delete_other_hunks, diff_delete_junk, diff_next_error, &
               diff_merge_strings, set_diff_default_directory, diff_source_location_type, diff_text_type, &
-              diff_buffer_type, set_diff_vc_backend, diff_vc_backend, diff_add_log_current_subprograms, &
+              diff_buffer_type, set_diff_version_control_backend, diff_version_control_backend, diff_add_log_current_subprograms, &
               diff_current_subprogram, add_diff_change_log_entries_other_window
 
     !> If true, `diff_mode' buffers default to being read-only.  Port of
@@ -119,7 +120,7 @@ module diff_mode_mod
     logical, public :: diff_valid_unified_empty_line = .true.
 
     !> Use relative file names when generating ChangeLog skeletons.
-    !> The files will be relative to the root directory of the VC
+    !> The files will be relative to the root directory of the VERSION_CONTROL
     !> repository.  This option affects the behavior of
     !> `diff_add_log_current_subprograms'.  Port of diff-mode.el
     !> diff-add-log-use-relative-names.
@@ -186,7 +187,7 @@ module diff_mode_mod
 
     !> Kinds of diff buffer (`diff_buffer_type'): a plain diff, Git's,
     !> Mercurial's.
-    integer, parameter, public :: DIFF_BUFFER_PLAIN = 0, DIFF_BUFFER_GIT = 1, DIFF_BUFFER_HG = 2
+    integer, parameter, public :: DIFF_BUFFER_PLAIN = 0, DIFF_BUFFER_GIT = 1, DIFF_BUFFER_MERCURIAL = 2
 
     !> Hunk styles (diff-hunk-style).
     integer, parameter, public :: DIFF_STYLE_NONE = 0, DIFF_STYLE_UNIFIED = 1, DIFF_STYLE_CONTEXT = 2, &
@@ -197,26 +198,27 @@ module diff_mode_mod
     !> Imenu generic expression for Diff mode (it prefers the second name,
     !> as the first is most likely to be a backup or version-control name).
     !> Port of diff-mode.el diff-imenu-generic-expression.
-    type(imenu_pattern_type), allocatable, public :: diff_imenu_patterns(:)
+    type(index_menu_pattern_type), allocatable, public :: diff_index_menu_patterns(:)
 
     !> Port of diff-mode.el diff-hunk-header-re-unified.
-    character(len=*), parameter, public :: diff_hunk_header_regexp_unified = &
+    character(len=*), parameter, public :: diff_hunk_header_regular_expression_unified = &
                                            "^@@ -\([0-9]+\)\(?:,\([0-9]+\)\)? \+\([0-9]+\)\(?:,\([0-9]+\)\)? @@"
     !> Port of diff-mode.el diff-context-mid-hunk-header-re.
-    character(len=*), parameter, public :: diff_context_mid_hunk_header_regexp = &
+    character(len=*), parameter, public :: diff_context_middle_hunk_header_regular_expression = &
                                            "--- \([0-9]+\)\(?:,\([0-9]+\)\)? ----$"
     !> Port of diff-mode.el diff-hunk-header-re.
-    character(len=*), parameter, public :: diff_hunk_header_regexp = "^\(?:"//diff_hunk_header_regexp_unified// &
+    character(len=*), parameter, public :: diff_hunk_header_regular_expression = "^\(?:" &
+                                           //diff_hunk_header_regular_expression_unified// &
                                            ".*\|\*\{15\}.*"//LF//"\*\*\* .+ \*\*\*\*\|[0-9]+\(,[0-9]+\)?[acd][0-9]+"// &
                                            "\(,[0-9]+\)?\)$"
     !> Port of diff-mode.el diff-file-header-re.
-    character(len=*), parameter, public :: diff_file_header_regexp = "^\(--- .+"//LF//"\+\+\+ \|\*\*\* .+"//LF// &
+    character(len=*), parameter, public :: diff_file_header_regular_expression = "^\(--- .+"//LF//"\+\+\+ \|\*\*\* .+"//LF// &
                                            "--- \|[^-+!<>0-9@* "//LF//"]\).+"//LF// &
-                                           diff_hunk_header_regexp(2:)
+                                           diff_hunk_header_regular_expression(2:)
     !> Port of diff-mode.el diff-separator-re.
-    character(len=*), parameter :: diff_separator_regexp = "^--+ ?$"
+    character(len=*), parameter :: diff_separator_regular_expression = "^--+ ?$"
     !> Port of diff-mode.el diff-file-junk-re.
-    character(len=*), parameter :: diff_file_junk_regexp = "Index: \|Prereq: \|=\{20,\}\|"// &
+    character(len=*), parameter :: diff_file_junk_regular_expression = "Index: \|Prereq: \|=\{20,\}\|"// &
                                    "diff \|index \|\(?:deleted file\|new\(?: file\)?\|old\) mode\|=== modified file"
 
     !> An entry of diff-remembered-files-alist: the file names a hunk
@@ -233,13 +235,13 @@ module diff_mode_mod
     type :: diff_locals_type
         integer(int64) :: serial = 0
         integer :: kind = DIFF_BUFFER_PLAIN
-        character(len=:), allocatable :: default_directory, remembered_defdir
+        character(len=:), allocatable :: default_directory, remembered_default_directory
         type(remembered_type), allocatable :: remembered(:)
         logical :: apply_to_backup = .false.
         integer :: narrowed_to = 0
-        !> `diff_vc_backend' (the name of the VC backend that produced
-        !> the diff, unallocated for none) and `diff_vc_revisions'.
-        character(len=:), allocatable :: vc_backend, vc_rev1, vc_rev2
+        !> `diff_version_control_backend' (the name of the VERSION_CONTROL backend that produced
+        !> the diff, unallocated for none) and `diff_version_control_revisions'.
+        character(len=:), allocatable :: version_control_backend, version_control_rev1, version_control_rev2
     end type diff_locals_type
 
     type(diff_locals_type), allocatable :: diff_buffers(:)
@@ -252,14 +254,14 @@ module diff_mode_mod
 
     !> What `diff_find_source_location' finds: the source buffer, the
     !> line offset of the text in it (`found' .false. for none), the bounds
-    !> of the text, the variant found (SRC) and the other (DST), and
+    !> of the text, the variant found (SOURCE) and the other (DESTINATION), and
     !> whether they were switched (the patch is already applied).
     type, public :: diff_source_location_type
         type(handle_type) :: buffer
         logical :: found = .false.
         integer(int64) :: line_offset = 0
         integer(int64) :: beginning = 0, end = 0
-        type(diff_text_type) :: src, dst
+        type(diff_text_type) :: source, destination
         logical :: switched = .false.
     end type diff_source_location_type
 
@@ -284,25 +286,25 @@ module diff_mode_mod
             type(value_type), intent(in) :: saved
         end subroutine restore_inhibit_read_only
 
-        !> Whether the regexp RE matches at point (keeping the match data).
+        !> Whether the regexp REGULAR_EXPRESSION matches at point (keeping the match data).
         !> Not a port.
-        module logical function at(regexp)
+        module logical function at(regular_expression)
             implicit none(type, external)
-            character(len=*), intent(in) :: regexp
+            character(len=*), intent(in) :: regular_expression
         end function at
 
-        !> Search forward for RE (no error); 0 if not found.  Not a port.
-        module integer(int64) function search_fwd(regexp, bound, count, move) result(found)
+        !> Search forward for REGULAR_EXPRESSION (no error); 0 if not found.  Not a port.
+        module integer(int64) function search_fwd(regular_expression, bound, count, move) result(found)
             implicit none(type, external)
-            character(len=*), intent(in) :: regexp
+            character(len=*), intent(in) :: regular_expression
             integer(int64), intent(in), optional :: bound, count
             logical, intent(in), optional :: move
         end function search_fwd
 
-        !> Search backward for RE (no error); 0 if not found.  Not a port.
-        module integer(int64) function search_bwd(regexp, bound) result(found)
+        !> Search backward for REGULAR_EXPRESSION (no error); 0 if not found.  Not a port.
+        module integer(int64) function search_bwd(regular_expression, bound) result(found)
             implicit none(type, external)
-            character(len=*), intent(in) :: regexp
+            character(len=*), intent(in) :: regular_expression
             integer(int64), intent(in), optional :: bound
         end function search_bwd
 
@@ -320,38 +322,38 @@ module diff_mode_mod
         end function me
 
         !> The character after point (-1 at the end).  Not a port.
-        module integer(int32) function char_at_point() result(c)
+        module integer(int32) function character_at_point() result(c)
             implicit none(type, external)
-        end function char_at_point
+        end function character_at_point
 
         !> Return the literal source text from HUNK as TEXT with OFFSET.
         !> If DESTP is false, TEXT is the source, otherwise the destination
-        !> text.  CHAR_OFFSET is a char-offset in HUNK (negative for none),
+        !> text.  CHARACTER_OFFSET is a char-offset in HUNK (negative for none),
         !> and OFFSET is the corresponding char-offset in TEXT.  Port of
         !> diff-mode.el:diff-hunk-text.  (In diff_mode_apply_mod.)
-        module subroutine diff_hunk_text(hunk, destp, char_offset, res, status)
+        module subroutine diff_hunk_text(hunk, destp, character_offset, res, status)
             implicit none(type, external)
             character(len=*), intent(in) :: hunk
             logical, intent(in) :: destp
-            integer(int64), intent(in) :: char_offset
+            integer(int64), intent(in) :: character_offset
             type(diff_text_type), intent(out) :: res
             type(status_type), intent(out) :: status
         end subroutine diff_hunk_text
 
         !> Find current diff location within the source file.  Port of
         !> diff-mode.el:diff-find-source-location.  (In diff_mode_apply_mod.)
-        module subroutine diff_find_source_location(loc, status, other_file, reverse, noprompt, other_arg)
+        module subroutine diff_find_source_location(location, status, other_file, reverse, noprompt, other_argument)
             implicit none(type, external)
-            type(diff_source_location_type), intent(out) :: loc
+            type(diff_source_location_type), intent(out) :: location
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: other_file, reverse, noprompt
-            integer(int64), intent(in), optional :: other_arg
+            integer(int64), intent(in), optional :: other_argument
         end subroutine diff_find_source_location
 
         !> Return the subprogram names for the current diff, one entry per file:
         !> the FILE and the SUBPROGRAMS, a list of function names found in
         !> FILE.  If `diff_add_log_use_relative_names' is true, file names in
-        !> the entries are relative to the root directory of the VC
+        !> the entries are relative to the root directory of the VERSION_CONTROL
         !> repository.  Port of diff-mode.el:diff-add-log-current-defuns.
         !> (In diff_mode_add_log_mod.)
         recursive module subroutine diff_add_log_current_subprograms(entries, status)
@@ -408,11 +410,11 @@ module diff_mode_mod
 
         !> Jump to the corresponding source line.  Port of
         !> diff-mode.el:diff-goto-source.  (In diff_mode_apply_mod.)
-        module subroutine diff_goto_source(status, other_file, other_arg)
+        module subroutine diff_goto_source(status, other_file, other_argument)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: other_file
-            integer(int64), intent(in), optional :: other_arg
+            integer(int64), intent(in), optional :: other_argument
         end subroutine diff_goto_source
 
         !> Apply the diff in the entire diff buffer (or the hunks from
@@ -468,12 +470,12 @@ contains
     end function buffer_kind
 
     !> Set the current buffer's diff-default-directory.  Not a port.
-    subroutine set_diff_default_directory(dir)
-        character(len=*), intent(in) :: dir
+    subroutine set_diff_default_directory(directory)
+        character(len=*), intent(in) :: directory
         integer :: k
 
         call make_current_entry(k)
-        diff_buffers(k)%default_directory = dir
+        diff_buffers(k)%default_directory = directory
     end subroutine set_diff_default_directory
 
     ! ------------------------------------------------------------------
@@ -488,8 +490,8 @@ contains
 
         s = style
 
-        if (at(diff_hunk_header_regexp)) then
-            c = char_at_point()
+        if (at(diff_hunk_header_regular_expression)) then
+            c = character_at_point()
 
             if (c == iachar("@")) then
                 s = DIFF_STYLE_UNIFIED
@@ -499,28 +501,28 @@ contains
                 s = DIFF_STYLE_NONE
             end if
 
-            call goto_char(me(0))
+            call goto_character(me(0))
         end if
     end function diff_hunk_style
 
     !> Return previous line if it has patch separator as produced by git.
     !> Port of diff-mode.el:diff-prev-line-if-patch-separator.
-    integer(int64) function diff_prev_line_if_patch_separator() result(pos)
+    integer(int64) function diff_previous_line_if_patch_separator() result(position)
         integer(int64) :: old_point, shortage
 
-        pos = point()
+        position = point()
         if (buffer_kind() /= DIFF_BUFFER_GIT) return
         old_point = point()
         shortage = forward_line(-1_int64)
 
         if (at("^-- $")) then
-            pos = point()
+            position = point()
         else
-            pos = old_point
+            position = old_point
         end if
 
-        call goto_char(old_point)
-    end function diff_prev_line_if_patch_separator
+        call goto_character(old_point)
+    end function diff_previous_line_if_patch_separator
 
     !> Advance to the end of the current hunk, and return its position.
     !> Port of diff-mode.el:diff-end-of-hunk.
@@ -530,7 +532,7 @@ contains
         integer(int64) :: nold, nnew, endold, endnew, saved, found
         integer :: sty
         logical :: trust
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
 
         sty = DIFF_STYLE_NONE
         if (present(style)) sty = style
@@ -538,10 +540,10 @@ contains
         if (present(donttrustheader)) trust = .not. donttrustheader
         end = 0
 
-        if (at(diff_hunk_header_regexp)) then
+        if (at(diff_hunk_header_regular_expression)) then
             sty = diff_hunk_style(sty)
             ! (diff-hunk-style left the match data of the header.)
-            call goto_char(me(0))
+            call goto_character(me(0))
 
             if (trust .and. me(2) > 0) then
                 nold = 1
@@ -562,7 +564,7 @@ contains
                     endold = line_beginning_position(2_int64)
                 end if
 
-                call goto_char(saved)
+                call goto_character(saved)
 
                 if (diff_valid_unified_empty_line) then
                     found = search_fwd("^[+ "//LF//"]", count=nnew)
@@ -576,7 +578,7 @@ contains
                     endnew = line_beginning_position(2_int64)
                 end if
 
-                call goto_char(saved)
+                call goto_character(saved)
                 end = max(endold, endnew)
             end if
         end if
@@ -585,102 +587,102 @@ contains
             select case (sty)
             case (DIFF_STYLE_UNIFIED)
                 if (diff_valid_unified_empty_line) then
-                    regexp = "^[^-+# \\"//LF//"]\|"//diff_file_header_regexp
+                    regular_expression = "^[^-+# \\"//LF//"]\|"//diff_file_header_regular_expression
                 else
-                    regexp = "^[^-+# \\]\|"//diff_file_header_regexp
+                    regular_expression = "^[^-+# \\]\|"//diff_file_header_regular_expression
                 end if
             case (DIFF_STYLE_CONTEXT)
                 if (diff_valid_unified_empty_line) then
-                    regexp = "^[^-+#! "//LF//"\\]"
+                    regular_expression = "^[^-+#! "//LF//"\\]"
                 else
-                    regexp = "^[^-+#! \\]"
+                    regular_expression = "^[^-+#! \\]"
                 end if
             case (DIFF_STYLE_NORMAL)
-                regexp = "^[^<>#\\]"
+                regular_expression = "^[^<>#\\]"
             case default
-                regexp = "^[^-+#!<> \\]"
+                regular_expression = "^[^-+#!<> \\]"
             end select
 
-            found = search_fwd(regexp)
+            found = search_fwd(regular_expression)
             if (found /= 0) end = mb(0)
 
             if (diff_valid_unified_empty_line) then
                 if (end /= 0) then
-                    call goto_char(end)
+                    call goto_character(end)
                 else
-                    call goto_char(point_max())
+                    call goto_character(point_maximum())
                 end if
 
-                do while (point() - 2 >= point_min())
-                    if (char_before_pos(point() - 1) /= 10) exit
-                    call goto_char(point() - 1)
+                do while (point() - 2 >= point_minimum())
+                    if (character_before_position(point() - 1) /= 10) exit
+                    call goto_character(point() - 1)
                     end = point()
                 end do
             end if
 
-            if (end /= 0) call goto_char(end)
-            end = diff_prev_line_if_patch_separator()
+            if (end /= 0) call goto_character(end)
+            end = diff_previous_line_if_patch_separator()
         end if
 
-        if (end == 0) end = point_max()
-        call goto_char(end)
+        if (end == 0) end = point_maximum()
+        call goto_character(end)
 
     contains
 
-        integer(int32) function char_before_pos(pos) result(c)
-            integer(int64), intent(in) :: pos
+        integer(int32) function character_before_position(position) result(c)
+            integer(int64), intent(in) :: position
             logical :: found
 
-            call char_after(c, found, pos - 1)
+            call character_after(c, found, position - 1)
             if (.not. found) c = -1
-        end function char_before_pos
+        end function character_before_position
     end function diff_end_of_hunk
 
     !> Return true if point is inside a diff header: the position of its
     !> start, else 0.  Port of diff-mode.el:diff--at-diff-header-p.
-    integer(int64) function diff_header_position() result(pos)
-        integer(int64) :: orig, shortage, found
+    integer(int64) function diff_header_position() result(position)
+        integer(int64) :: original, shortage, found
 
-        pos = 0
-        orig = point()
+        position = 0
+        original = point()
         call beginning_of_line()
 
-        if (at(diff_hunk_header_regexp)) then
+        if (at(diff_hunk_header_regular_expression)) then
             ! Hunk header.
-            pos = point()
+            position = point()
         else
             shortage = forward_line(-1_int64)
-            found = search_fwd(diff_file_header_regexp, bound=line_end_position(4_int64))
+            found = search_fwd(diff_file_header_regular_expression, bound=line_end_position(4_int64))
 
             if (found /= 0) then
                 ! File header.
                 call beginning_of_line()
-                pos = point()
+                position = point()
             else
-                call goto_char(orig)
+                call goto_character(original)
                 call beginning_of_line()
 
-                if (at(diff_file_junk_regexp)) then
+                if (at(diff_file_junk_regular_expression)) then
                     ! Git diff junk.
-                    do while (at(diff_file_junk_regexp) .and. .not. is_bob())
+                    do while (at(diff_file_junk_regular_expression) .and. .not. is_beginning_of_buffer())
                         shortage = forward_line(-1_int64)
                     end do
 
-                    found = search_fwd(diff_file_header_regexp)
+                    found = search_fwd(diff_file_header_regular_expression)
                     call beginning_of_line()
-                    pos = point()
+                    position = point()
                 end if
             end if
         end if
 
-        call goto_char(orig)
+        call goto_character(original)
     end function diff_header_position
 
     !> Move back to the previous hunk beginning, and return its position.
     !> If point is in a file header rather than a hunk, advance to the
     !> next hunk if TRY_HARDER is true; otherwise an error condition occurs.
     !> Port of diff-mode.el:diff-beginning-of-hunk.
-    recursive integer(int64) function diff_beginning_of_hunk(status, try_harder) result(pos)
+    recursive integer(int64) function diff_beginning_of_hunk(status, try_harder) result(position)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: try_harder
         integer(int64) :: header
@@ -690,47 +692,47 @@ contains
         harder = .false.
         if (present(try_harder)) harder = try_harder
         call beginning_of_line()
-        pos = point()
+        position = point()
         ! At hunk header.
-        if (at(diff_hunk_header_regexp)) return
+        if (at(diff_hunk_header_regular_expression)) return
         header = diff_header_position()
 
         if (header /= 0) then
             ! At junk diff header.
             if (harder) then
-                call goto_char(header)
-                pos = point()
+                call goto_character(header)
+                position = point()
                 return
             end if
 
-            call set_error(status, FM_GENERIC_ERROR, "Can't find the beginning of the hunk")
+            call set_error(status, GENERIC_ERROR_CODE, "Can't find the beginning of the hunk")
             return
         end if
 
         ! In the middle of a hunk.
-        pos = search_bwd(diff_hunk_header_regexp)
-        if (pos /= 0) return
+        position = search_bwd(diff_hunk_header_regular_expression)
+        if (position /= 0) return
 
         ! At first hunk header.
-        if (search_fwd(diff_hunk_header_regexp) /= 0) then
+        if (search_fwd(diff_hunk_header_regular_expression) /= 0) then
             call beginning_of_line()
-            pos = point()
+            position = point()
             return
         end if
 
-        call set_error(status, FM_GENERIC_ERROR, "Can't find the beginning of the hunk")
+        call set_error(status, GENERIC_ERROR_CODE, "Can't find the beginning of the hunk")
     end function diff_beginning_of_hunk
 
     !> Whether the hunk at point is a unified one.  Port of
     !> diff-mode.el:diff-unified-hunk-p.
     logical function is_diff_unified_hunk()
-        integer(int64) :: saved, pos
+        integer(int64) :: saved, position
         type(status_type) :: st
 
         saved = point()
-        pos = diff_beginning_of_hunk(st)
+        position = diff_beginning_of_hunk(st)
         is_diff_unified_hunk = st%ok() .and. at("^@@")
-        call goto_char(saved)
+        call goto_character(saved)
     end function is_diff_unified_hunk
 
     !> Move to the beginning of the file header of point's file.  Port of
@@ -741,41 +743,41 @@ contains
 
         status = status_type()
         call beginning_of_line()
-        if (at(diff_file_header_regexp)) return
+        if (at(diff_file_header_regular_expression)) return
         start = point()
         shortage = forward_line(3_int64)
-        res = search_bwd(diff_file_header_regexp)
+        res = search_bwd(diff_file_header_regular_expression)
 
         if (res /= 0) then
             if (point() <= start) return
-            res = search_bwd(diff_file_header_regexp)
+            res = search_bwd(diff_file_header_regular_expression)
             if (res /= 0) return
         end if
 
-        call goto_char(start)
-        call set_error(status, FM_GENERIC_ERROR, "Can't find the beginning of the file")
+        call goto_character(start)
+        call set_error(status, GENERIC_ERROR_CODE, "Can't find the beginning of the file")
     end subroutine diff_beginning_of_file
 
     !> Move to the end of point's file.  Port of
     !> diff-mode.el:diff-end-of-file.
-    recursive integer(int64) function diff_end_of_file() result(pos)
+    recursive integer(int64) function diff_end_of_file() result(position)
         integer(int64) :: found
 
         found = search_fwd("^[-+#!<>0-9@* \\]")
-        found = search_fwd("^[^-+#!<>0-9@* \\]\|"//diff_file_header_regexp, move=.true.)
+        found = search_fwd("^[^-+#!<>0-9@* \\]\|"//diff_file_header_regular_expression, move=.true.)
 
         if (found /= 0 .and. mb(1) > 0) then
-            call goto_char(mb(1))
+            call goto_character(mb(1))
         else
             call beginning_of_line()
         end if
 
-        pos = point()
+        position = point()
     end function diff_end_of_file
 
     !> diff-end-of-hunk as the ENDFUN of the hunk navigation.  Not a port.
-    recursive integer(int64) function end_of_hunk() result(pos)
-        pos = diff_end_of_hunk()
+    recursive integer(int64) function end_of_hunk() result(position)
+        position = diff_end_of_hunk()
     end function end_of_hunk
 
     !> diff-restrict-view as the NARROWFUN of the hunk navigation.
@@ -798,7 +800,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_next(diff_hunk_header_regexp, "hunk", n, status, end_of_hunk, restrict_view, &
+        call easy_mmode_next(diff_hunk_header_regular_expression, "hunk", n, status, end_of_hunk, restrict_view, &
                              interactive)
     end subroutine diff_hunk_next
 
@@ -806,19 +808,19 @@ contains
     !> Interactively, COUNT is the prefix numeric argument, and defaults
     !> to 1.  Port of diff-mode.el:diff-hunk-prev (from
     !> easy-mmode-define-navigation).
-    recursive subroutine diff_hunk_prev(status, count)
+    recursive subroutine diff_hunk_previous(status, count)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
         integer(int64) :: n
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_prev(diff_hunk_header_regexp, "hunk", n, status, end_of_hunk, restrict_view)
-    end subroutine diff_hunk_prev
+        call easy_mmode_previous(diff_hunk_header_regular_expression, "hunk", n, status, end_of_hunk, restrict_view)
+    end subroutine diff_hunk_previous
 
     !> diff-end-of-file as the ENDFUN of the file navigation.  Not a port.
-    recursive integer(int64) function end_of_file() result(pos)
-        pos = diff_end_of_file()
+    recursive integer(int64) function end_of_file() result(position)
+        position = diff_end_of_file()
     end function end_of_file
 
     !> Go to the next COUNT'th file.
@@ -833,22 +835,22 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_next(diff_file_header_regexp, "file", n, status, end_of_file, interactive=interactive)
+        call easy_mmode_next(diff_file_header_regular_expression, "file", n, status, end_of_file, interactive=interactive)
     end subroutine diff_file_next
 
     !> Go to the previous COUNT'th file.
     !> Interactively, COUNT is the prefix numeric argument, and defaults
     !> to 1.  Port of diff-mode.el:diff-file-prev (from
     !> easy-mmode-define-navigation).
-    recursive subroutine diff_file_prev(status, count)
+    recursive subroutine diff_file_previous(status, count)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
         integer(int64) :: n
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_prev(diff_file_header_regexp, "file", n, status, end_of_file)
-    end subroutine diff_file_prev
+        call easy_mmode_previous(diff_file_header_regular_expression, "file", n, status, end_of_file)
+    end subroutine diff_file_previous
 
     !> Return the bounds of the diff hunk at point.
     !> The return value is (BEGINNING END), which are the hunk's start and end
@@ -858,28 +860,28 @@ contains
     recursive subroutine diff_bounds_of_hunk(beginning, end, status)
         integer(int64), intent(out) :: beginning, end
         type(status_type), intent(out) :: status
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        pos = point()
+        position = point()
         beginning = diff_beginning_of_hunk(status, .true.)
 
         if (.not. status%ok()) then
-            call goto_char(pos)
+            call goto_character(position)
             return
         end if
 
         end = diff_end_of_hunk()
 
-        if (end < pos) then
-            if (search_fwd(diff_hunk_header_regexp) /= 0) then
+        if (end < position) then
+            if (search_fwd(diff_hunk_header_regular_expression) /= 0) then
                 beginning = mb(0)
                 end = diff_end_of_hunk()
             else
-                call set_error(status, FM_GENERIC_ERROR, "No hunk found")
+                call set_error(status, GENERIC_ERROR_CODE, "No hunk found")
             end if
         end if
 
-        call goto_char(pos)
+        call goto_character(position)
     end subroutine diff_bounds_of_hunk
 
     !> Return the bounds of the file segment at point.
@@ -888,13 +890,13 @@ contains
     recursive subroutine diff_bounds_of_file(beginning, end, status)
         integer(int64), intent(out) :: beginning, end
         type(status_type), intent(out) :: status
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        pos = point()
+        position = point()
         call diff_beginning_of_file_and_junk(status)
 
         if (.not. status%ok()) then
-            call goto_char(pos)
+            call goto_character(position)
             return
         end if
 
@@ -902,16 +904,16 @@ contains
         end = diff_end_of_file()
 
         do while (at("^"//LF))
-            call goto_char(point() + 1)
+            call goto_character(point() + 1)
         end do
 
         end = point()
-        call goto_char(pos)
-        if (pos > end) call set_error(status, FM_GENERIC_ERROR, "Not inside a file diff")
+        call goto_character(position)
+        if (position > end) call set_error(status, GENERIC_ERROR_CODE, "Not inside a file diff")
     end subroutine diff_bounds_of_file
 
     !> Restrict the view to the current hunk.
-    !> If FILE is true (the prefix ARG is given), restrict the view to the
+    !> If FILE is true (the prefix ARGUMENT is given), restrict the view to the
     !> current file instead.  Port of diff-mode.el:diff-restrict-view.
     recursive subroutine diff_restrict_view(status, file)
         type(status_type), intent(out) :: status
@@ -946,9 +948,9 @@ contains
         integer(int64) :: saved
 
         saved = point()
-        call goto_char(point_min())
-        has_diff_hunks = search_fwd(diff_hunk_header_regexp) /= 0
-        call goto_char(saved)
+        call goto_character(point_minimum())
+        has_diff_hunks = search_fwd(diff_hunk_header_regular_expression) /= 0
+        call goto_character(saved)
     end function has_diff_hunks
 
     !> Cut the hunk at point.
@@ -965,7 +967,7 @@ contains
         integer(int64), intent(in), optional :: beginning, end
 
         if (present(beginning) .neqv. present(end)) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid call to `diff_hunk_cut'")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid call to `diff_hunk_cut'")
             return
         end if
 
@@ -985,12 +987,12 @@ contains
         status = status_type()
 
         if (is_buffer_narrowed()) then
-            call set_error(status, FM_USER_ERROR, "Command is not safe in a narrowed buffer")
+            call set_error(status, USER_ERROR_CODE, "Command is not safe in a narrowed buffer")
             return
         end if
 
         if (present(beginning) .neqv. present(end)) then
-            call set_error(status, FM_GENERIC_ERROR, "Require exactly zero or two arguments")
+            call set_error(status, GENERIC_ERROR_CODE, "Require exactly zero or two arguments")
             return
         end if
 
@@ -998,11 +1000,11 @@ contains
         call bind_inhibit_read_only(saved_inhibit)
 
         if (present(beginning)) then
-            call goto_char(beginning)
+            call goto_character(beginning)
             call diff_bounds_of_hunk(b, x, status)
 
             if (status%ok()) then
-                call goto_char(end)
+                call goto_character(end)
                 call diff_bounds_of_hunk(x, e, status)
             end if
         else
@@ -1010,17 +1012,17 @@ contains
         end if
 
         if (status%ok()) then
-            call delete_region(e, point_max(), status)
-            call goto_char(b)
+            call delete_region(e, point_maximum(), status)
+            call goto_character(b)
             call diff_beginning_of_file(status)
             if (status%ok()) call diff_hunk_next(status)
             if (status%ok()) call delete_region(point(), b, status)
             if (status%ok()) call diff_beginning_of_file_and_junk(status)
-            if (status%ok()) call delete_region(point_min(), point(), status)
+            if (status%ok()) call delete_region(point_minimum(), point(), status)
         end if
 
         call restore_inhibit_read_only(saved_inhibit)
-        call goto_char(min(saved, point_max()))
+        call goto_character(min(saved, point_maximum()))
     end subroutine diff_delete_other_hunks
 
     !> Go to the beginning of file-related diff-info.
@@ -1029,33 +1031,33 @@ contains
     !> diff-mode.el:diff-beginning-of-file-and-junk.
     recursive subroutine diff_beginning_of_file_and_junk(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: orig, start, prevfile, nextfile, prevhunk, previndex, shortage, saved
+        integer(int64) :: original, start, prevfile, nextfile, prevhunk, previndex, shortage, saved
         type(status_type) :: err, st
-        logical :: has_prev
+        logical :: has_previous
 
         status = status_type()
-        orig = point()
+        original = point()
         call beginning_of_line()
 
-        do while (at(diff_file_junk_regexp))
+        do while (at(diff_file_junk_regular_expression))
             shortage = forward_line(1_int64)
-            if (is_eob()) exit
+            if (is_end_of_buffer()) exit
         end do
 
         start = point()
         call diff_beginning_of_file(err)
-        has_prev = err%ok()
+        has_previous = err%ok()
         prevfile = point()
-        call goto_char(start)
+        call goto_character(start)
         nextfile = 0
         call diff_file_next(st)
         if (st%ok()) nextfile = point()
-        call goto_char(start)
+        call goto_character(start)
         prevhunk = 0
-        if (has_prev) call goto_char(prevfile)
-        call diff_hunk_prev(st)
+        if (has_previous) call goto_character(prevfile)
+        call diff_hunk_previous(st)
         if (st%ok()) prevhunk = point()
-        call goto_char(start)
+        call goto_character(start)
         saved = point()
         ! In case we're looking at "Index:".
         shortage = forward_line(1_int64)
@@ -1067,39 +1069,39 @@ contains
             previndex = search_bwd("^Index: ")
         end if
 
-        call goto_char(saved)
+        call goto_character(saved)
 
         if (nextfile > 0) then
-            if (.not. has_prev) then
+            if (.not. has_previous) then
                 prevfile = nextfile
-                has_prev = .true.
+                has_previous = .true.
             else if (previndex > 0 .and. previndex > prevfile) then
                 prevfile = nextfile
             end if
         end if
 
-        if (previndex > 0 .and. has_prev .and. previndex < prevfile) prevfile = previndex
+        if (previndex > 0 .and. has_previous .and. previndex < prevfile) prevfile = previndex
 
-        if (has_prev .and. prevfile <= start) then
-            call goto_char(prevfile)
+        if (has_previous .and. prevfile <= start) then
+            call goto_character(prevfile)
 
             do
                 saved = point()
 
                 if (forward_line(-1_int64) /= 0) then
-                    call goto_char(saved)
+                    call goto_character(saved)
                     exit
                 end if
 
-                if (.not. at(diff_file_junk_regexp)) then
-                    call goto_char(saved)
+                if (.not. at(diff_file_junk_regular_expression)) then
+                    call goto_character(saved)
                     exit
                 end if
             end do
         else
-            call goto_char(orig)
+            call goto_character(original)
             status = err
-            if (status%ok()) call set_error(status, FM_GENERIC_ERROR, "Can't find the beginning of the file")
+            if (status%ok()) call set_error(status, GENERIC_ERROR_CODE, "Can't find the beginning of the file")
         end if
     end subroutine diff_beginning_of_file_and_junk
 
@@ -1109,16 +1111,16 @@ contains
     recursive subroutine diff_file_cut(status, delete)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: delete
-        integer(int64) :: beginning, end, pos
+        integer(int64) :: beginning, end, position
         type(value_type) :: saved
         type(status_type) :: st
 
         if (.not. has_diff_hunks()) then
-            call set_error(status, FM_GENERIC_ERROR, "No hunks")
+            call set_error(status, GENERIC_ERROR_CODE, "No hunks")
             return
         end if
 
-        pos = diff_beginning_of_hunk(status, .true.)
+        position = diff_beginning_of_hunk(status, .true.)
         if (.not. status%ok()) return
         call diff_bounds_of_file(beginning, end, status)
         if (.not. status%ok()) return
@@ -1135,7 +1137,7 @@ contains
         end if
 
         call restore_inhibit_read_only(saved)
-        pos = diff_beginning_of_hunk(st, .true.)
+        position = diff_beginning_of_hunk(st, .true.)
     end subroutine diff_file_cut
 
     !> Kill spurious empty diffs.  Port of diff-mode.el:diff-kill-junk.
@@ -1147,10 +1149,10 @@ contains
         status = status_type()
         saved = point()
         call bind_inhibit_read_only(saved_inhibit)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do while (search_fwd("^\(Index: .*"//LF//"\)\([^-+!* <>].*"//LF//"\)*?\(\(Index:\) \|"// &
-                             diff_file_header_regexp//"\)") /= 0)
+                             diff_file_header_regular_expression//"\)") /= 0)
             if (me(4) > 0) then
                 b = mb(0)
             else
@@ -1163,55 +1165,55 @@ contains
         end do
 
         call restore_inhibit_read_only(saved_inhibit)
-        call goto_char(min(saved, point_max()))
+        call goto_character(min(saved, point_maximum()))
     end subroutine diff_delete_junk
 
-    !> The number of matches of RE from START to END.  Port of
+    !> The number of matches of REGULAR_EXPRESSION from START to END.  Port of
     !> diff-mode.el:diff-count-matches.
-    integer(int64) function diff_count_matches(regexp, start, end) result(n)
-        character(len=*), intent(in) :: regexp
+    integer(int64) function diff_count_matches(regular_expression, start, end) result(n)
+        character(len=*), intent(in) :: regular_expression
         integer(int64), intent(in) :: start, end
         integer(int64) :: saved
 
         saved = point()
         n = 0
-        call goto_char(start)
+        call goto_character(start)
 
-        do while (search_fwd(regexp, bound=end) /= 0)
+        do while (search_fwd(regular_expression, bound=end) /= 0)
             n = n + 1
         end do
 
-        call goto_char(saved)
+        call goto_character(saved)
     end function diff_count_matches
 
     !> Split the current (unified diff) hunk at point into two hunks.
     !> Port of diff-mode.el:diff-split-hunk.
     recursive subroutine diff_split_hunk(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: pos, start, start1, start2, newstart1, newstart2, shortage
+        integer(int64) :: position, start, start1, start2, newstart1, newstart2, shortage
         type(value_type) :: saved
         character(len=64) :: header
 
         call beginning_of_line()
-        pos = point()
+        position = point()
         start = diff_beginning_of_hunk(status)
         if (.not. status%ok()) return
 
-        if (.not. at(diff_hunk_header_regexp_unified)) then
-            call set_error(status, FM_GENERIC_ERROR, "diff_split_hunk only works on unified context diffs")
+        if (.not. at(diff_hunk_header_regular_expression_unified)) then
+            call set_error(status, GENERIC_ERROR_CODE, "diff_split_hunk only works on unified context diffs")
             return
         end if
 
         call string_to_number(match_string(1), start1)
         call string_to_number(match_string(3), start2)
         shortage = forward_line(1_int64)
-        newstart1 = start1 + diff_count_matches("^[- "//TAB//"]", point(), pos)
-        newstart2 = start2 + diff_count_matches("^[+ "//TAB//"]", point(), pos)
+        newstart1 = start1 + diff_count_matches("^[- "//TAB//"]", point(), position)
+        newstart2 = start2 + diff_count_matches("^[+ "//TAB//"]", point(), position)
         call bind_inhibit_read_only(saved)
-        call goto_char(pos)
+        call goto_character(position)
         write (header, '("@@ -", i0, ",1 +", i0, ",1 @@")') newstart1, newstart2
         call insert(trim(header)//LF, status)
-        if (status%ok()) call diff_fixup_modifs(start, pos, status)
+        if (status%ok()) call diff_fixup_modifs(start, position, status)
         call restore_inhibit_read_only(saved)
     end subroutine diff_split_hunk
 
@@ -1231,7 +1233,7 @@ contains
         status = status_type()
         saved = point()
         call bind_inhibit_read_only(saved_inhibit)
-        call goto_char(end)
+        call goto_character(end)
         x = diff_end_of_hunk(donttrustheader=.true.)
         plus = 0
         minus = 0
@@ -1241,9 +1243,9 @@ contains
         do while (forward_line(-1_int64) == 0)
             if (point() < start) exit
 
-            if (.not. at(diff_hunk_header_regexp_unified//"\|[-*][-*][-*] [0-9,]+ [-*][-*][-*][-*]$"// &
+            if (.not. at(diff_hunk_header_regular_expression_unified//"\|[-*][-*][-*] [0-9,]+ [-*][-*][-*][-*]$"// &
                          "\|--- .+"//LF//"\+\+\+ ")) then
-                c = char_at_point()
+                c = character_at_point()
 
                 select case (c)
                 case (32)
@@ -1268,7 +1270,7 @@ contains
                     call reset()
                 end select
             else
-                if (at(diff_hunk_header_regexp_unified)) then
+                if (at(diff_hunk_header_regular_expression_unified)) then
                     old1 = match_string(2)
                     old2 = match_string(4)
                     write (digits, "(i0)") space + minus
@@ -1281,24 +1283,24 @@ contains
                             call replace_match(new2, status, fixedcase=.true., literal=.true., subexp=4)
                         end if
                     else
-                        call goto_char(me(3))
+                        call goto_character(me(3))
                         call insert(","//new2, status)
                     end if
 
                     ! (The header line again: the match data moved.)
                     call beginning_of_line()
 
-                    if (at(diff_hunk_header_regexp_unified)) then
+                    if (at(diff_hunk_header_regular_expression_unified)) then
                         if (me(2) > 0) then
                             if (new1 /= old1 .or. len(new1) /= len(old1)) then
                                 call replace_match(new1, status, fixedcase=.true., literal=.true., subexp=2)
                             end if
                         else
-                            call goto_char(me(1))
+                            call goto_character(me(1))
                             call insert(","//new1, status)
                         end if
                     end if
-                else if (at(diff_context_mid_hunk_header_regexp)) then
+                else if (at(diff_context_middle_hunk_header_regular_expression)) then
                     if (space + bang + plus > 0) then
                         old1 = match_string(1)
                         old2 = match_string(2)
@@ -1327,7 +1329,7 @@ contains
         end do
 
         call restore_inhibit_read_only(saved_inhibit)
-        call goto_char(min(saved, point_max()))
+        call goto_character(min(saved, point_maximum()))
 
     contains
 
@@ -1362,33 +1364,33 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in) :: revertp
         integer(int64), intent(in), optional :: beginning, end
-        integer(int64) :: b, e, x, pos, hunk_beginning, hunk_end, file_beginning, file_end
+        integer(int64) :: b, e, x, position, hunk_beginning, hunk_end, file_beginning, file_end
         integer :: failures
         logical :: file_bounds, whole_file
         type(value_type) :: saved
         type(status_type) :: st
 
         if (.not. has_diff_hunks()) then
-            call set_error(status, FM_GENERIC_ERROR, "No hunks")
+            call set_error(status, GENERIC_ERROR_CODE, "No hunks")
             return
         end if
 
         status = status_type()
 
         if (present(beginning)) then
-            pos = point()
-            call goto_char(beginning)
+            position = point()
+            call goto_character(beginning)
             call diff_bounds_of_hunk(b, x, status)
             if (.not. status%ok()) return
             e = end
-            call goto_char(end)
+            call goto_character(end)
 
-            if (.not. at(diff_hunk_header_regexp)) then
+            if (.not. at(diff_hunk_header_regular_expression)) then
                 call diff_bounds_of_hunk(x, e, status)
                 if (.not. status%ok()) return
             end if
 
-            call goto_char(pos)
+            call goto_character(position)
         else
             call diff_bounds_of_hunk(b, e, status)
             if (.not. status%ok()) return
@@ -1400,12 +1402,12 @@ contains
             if (failures /= 0) return
         end if
 
-        call goto_char(e)
-        pos = diff_header_position()
-        if (pos /= 0) call goto_char(pos)
+        call goto_character(e)
+        position = diff_header_position()
+        if (position /= 0) call goto_character(position)
         e = point()
         call bind_inhibit_read_only(saved)
-        call goto_char(b)
+        call goto_character(b)
 
         do
             call diff_bounds_of_hunk(hunk_beginning, hunk_end, status)
@@ -1415,14 +1417,14 @@ contains
             whole_file = .false.
 
             if (file_bounds) then
-                call goto_char(file_beginning)
+                call goto_character(file_beginning)
                 call diff_hunk_next(st)
 
                 if (point() == hunk_beginning) then
-                    call goto_char(hunk_end)
+                    call goto_character(hunk_end)
 
                     do while (at("^"//LF))
-                        call goto_char(point() + 1)
+                        call goto_character(point() + 1)
                     end do
 
                     whole_file = point() == file_end
@@ -1431,12 +1433,12 @@ contains
 
             if (whole_file) then
                 call cut_region(file_beginning, file_end, status)
-                call goto_char(file_beginning)
+                call goto_character(file_beginning)
                 ! (The text from FILE_BEGINNING to FILE_END went.)
                 if (e > file_beginning) e = max(file_beginning, e - (file_end - file_beginning))
             else
                 call cut_region(hunk_beginning, hunk_end, status)
-                call goto_char(hunk_beginning)
+                call goto_character(hunk_beginning)
                 if (e > hunk_beginning) e = max(hunk_beginning, e - (hunk_end - hunk_beginning))
             end if
 
@@ -1452,9 +1454,9 @@ contains
     !> Interactively, if the region is active, reverse-apply and cut all
     !> hunks that the region overlaps.
     !>
-    !> This command is useful in buffers generated by \[vc_diff] and
-    !> \[vc_root_diff], especially when preparing to commit the patch with
-    !> \[vc_next_action].  You can use \[diff_hunk_cut] to temporarily
+    !> This command is useful in buffers generated by \[version_control_diff] and
+    !> \[version_control_root_diff], especially when preparing to commit the patch with
+    !> \[version_control_next_action].  You can use \[diff_hunk_cut] to temporarily
     !> remove changes that you intend to include in a separate commit or
     !> commits, and you can use this command to permanently drop changes
     !> you didn't intend, or no longer want.
@@ -1472,7 +1474,7 @@ contains
         status = status_type()
 
         if (present(beginning) .neqv. present(end)) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid call to `diff_revert_and_cut_hunk'")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid call to `diff_revert_and_cut_hunk'")
             return
         end if
 
@@ -1492,14 +1494,14 @@ contains
 
     !> FILE without its first directory (unallocated if it has
     !> none).  Port of diff-mode.el:diff-filename-drop-dir.
-    subroutine diff_filename_drop_dir(file, rest)
+    subroutine diff_filename_drop_directory(file, rest)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: rest
         integer :: k
 
         k = scan(file, "/\")
         if (k > 0) rest = file(k + 1:)
-    end subroutine diff_filename_drop_dir
+    end subroutine diff_filename_drop_directory
 
     !> Merge the diff between ANCESTOR and FROM into TO.
     !> Returns the merged string if successful (MERGED .true.) or MERGED .false.
@@ -1536,7 +1538,7 @@ contains
     recursive subroutine diff_hunk_file_names(names, old)
         type(string_type), allocatable, intent(out) :: names(:)
         logical, intent(in), optional :: old
-        integer(int64) :: orig, saved, limit, found, shortage
+        integer(int64) :: original, saved, limit, found, shortage
         type(status_type) :: st
         type(string_type), allocatable :: header_files(:)
         logical :: o
@@ -1545,27 +1547,27 @@ contains
         o = .false.
         if (present(old)) o = old
         allocate (names(0))
-        orig = point()
+        original = point()
 
-        if (.not. at(diff_file_header_regexp)) then
+        if (.not. at(diff_file_header_regular_expression)) then
             call diff_beginning_of_file(st)
-            if (.not. st%ok()) found = search_fwd(diff_file_header_regexp)
+            if (.not. st%ok()) found = search_fwd(diff_file_header_regular_expression)
         end if
 
         limit = point()
-        call diff_hunk_prev(st)
+        call diff_hunk_previous(st)
 
         if (st%ok()) then
             limit = point()
         else
-            limit = point_min()
+            limit = point_minimum()
         end if
 
-        call goto_char(orig)
+        call goto_character(original)
 
-        if (.not. at(diff_file_header_regexp)) then
+        if (.not. at(diff_file_header_regular_expression)) then
             call diff_beginning_of_file(st)
-            if (.not. st%ok()) found = search_fwd(diff_file_header_regexp)
+            if (.not. st%ok()) found = search_fwd(diff_file_header_regular_expression)
         end if
 
         allocate (header_files(0))
@@ -1585,7 +1587,7 @@ contains
         if (.not. o) then
             saved = point()
             if (search_bwd("^Index: \(.+\)", bound=limit) /= 0) call append_string(names, match_string(1))
-            call goto_char(saved)
+            call goto_character(saved)
         end if
 
         do k = 1, size(header_files)
@@ -1604,7 +1606,7 @@ contains
             end if
         end if
 
-        call goto_char(orig)
+        call goto_character(original)
     end subroutine diff_hunk_file_names
 
     !> Whether the lists of names A and B are `equal'.  Not a port.
@@ -1634,7 +1636,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: old, noprompt
         type(string_type), allocatable :: fs(:), files(:), other(:)
-        character(len=:), allocatable :: dir, newfile, rest, prompt_file, answer
+        character(len=:), allocatable :: directory, newfile, rest, prompt_file, answer
         integer(int64) :: saved, savedb, savedz, x
         integer :: k, j, ent
         logical :: o, quiet, ok, creation
@@ -1646,31 +1648,32 @@ contains
         if (present(old)) o = old
         quiet = .false.
         if (present(noprompt)) quiet = noprompt
-        dir = ""
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        directory = ""
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
         call make_current_entry(ent)
         ok = .false.
-        if (allocated(diff_buffers(ent)%remembered_defdir)) ok = diff_buffers(ent)%remembered_defdir == dir
+        if (allocated(diff_buffers(ent)%remembered_default_directory)) ok = diff_buffers(ent)%remembered_default_directory &
+                                                                            == directory
 
         if (.not. ok) then
-            diff_buffers(ent)%remembered_defdir = dir
+            diff_buffers(ent)%remembered_default_directory = directory
             if (allocated(diff_buffers(ent)%remembered)) deallocate (diff_buffers(ent)%remembered)
         end if
 
         if (.not. allocated(diff_buffers(ent)%remembered)) allocate (diff_buffers(ent)%remembered(0))
         saved = point()
-        savedb = buffers(current)%begv
-        savedz = buffers(current)%zv
+        savedb = buffers(current)%beginning_of_accessible_portion
+        savedz = buffers(current)%end_of_accessible_portion
         call widen()
 
-        if (.not. at(diff_file_header_regexp)) then
+        if (.not. at(diff_file_header_regular_expression)) then
             call diff_beginning_of_file(st)
-            if (.not. st%ok()) x = search_fwd(diff_file_header_regexp)
+            if (.not. st%ok()) x = search_fwd(diff_file_header_regular_expression)
         end if
 
         call diff_hunk_file_names(fs, o)
 
-        if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_HG) then
+        if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_MERCURIAL) then
             do k = 1, size(fs)
                 if (len(fs(k)%text) >= 2) then
                     if (index("icoawib", fs(k)%text(1:1)) > 0 .and. fs(k)%text(2:2) == "/") fs(k)%text = fs(k)%text(3:)
@@ -1717,7 +1720,7 @@ contains
                 end if
             end do
 
-            if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_HG) then
+            if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_MERCURIAL) then
                 if (.not. o .and. size(files) >= 2) then
                     if (files(2)%text == "/dev/null") exit
                 end if
@@ -1727,7 +1730,7 @@ contains
             j = 0
 
             do k = 1, size(files)
-                call diff_filename_drop_dir(files(k)%text, rest)
+                call diff_filename_drop_directory(files(k)%text, rest)
 
                 if (allocated(rest)) then
                     j = j + 1
@@ -1763,7 +1766,7 @@ contains
             if (size(other) > 0) creation = other(1)%text == "/dev/null"
             call expand_file_name(prompt_file, newfile, st)
             call done()
-            call read_file_name("Use file "//newfile//": ", answer, status, dir=file_name_directory(newfile), &
+            call read_file_name("Use file "//newfile//": ", answer, status, directory=file_name_directory(newfile), &
                                 default_filename=newfile, mustmatch=merge(REQUIRE_MATCH_NO, REQUIRE_MATCH_YES, creation), &
                                 initial_input=file_name_nondirectory(newfile))
             if (.not. status%ok()) return
@@ -1800,7 +1803,7 @@ contains
             type(status_type) :: st2
 
             call narrow_to_region(savedb, savedz, st2)
-            call goto_char(saved)
+            call goto_character(saved)
         end subroutine done
     end subroutine diff_find_file_name
 
@@ -1809,56 +1812,56 @@ contains
     ! ------------------------------------------------------------------
 
     !> Try to guess the `diff_buffer_type' from content of current Diff
-    !> mode buffer.  (`outline_regexp' is deferred.)  Port of
+    !> mode buffer.  (`outline_regular_expression' is deferred.)  Port of
     !> diff-mode.el:diff-setup-buffer-type.
     subroutine diff_setup_buffer_type()
         integer(int64) :: saved
         integer :: k
 
         saved = point()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call make_current_entry(k)
 
         if (search_fwd("^diff --git") /= 0) then
             diff_buffers(k)%kind = DIFF_BUFFER_GIT
         else if (search_fwd("^diff -r ") /= 0) then
-            diff_buffers(k)%kind = DIFF_BUFFER_HG
+            diff_buffers(k)%kind = DIFF_BUFFER_MERCURIAL
         else
             diff_buffers(k)%kind = DIFF_BUFFER_PLAIN
         end if
 
-        call goto_char(saved)
+        call goto_character(saved)
     end subroutine diff_setup_buffer_type
 
-    !> Set the current buffer's `diff_vc_backend' to BACKEND (the VC
-    !> backend name; absent for none) and `diff_vc_revisions' to (REV1
+    !> Set the current buffer's `diff_version_control_backend' to BACKEND (the VERSION_CONTROL
+    !> backend name; absent for none) and `diff_version_control_revisions' to (REV1
     !> REV2).  Port of the buffer-local setting of diff-mode.el diff-vc-backend and
     !> diff-vc-revisions.
-    subroutine set_diff_vc_backend(backend, rev1, rev2)
+    subroutine set_diff_version_control_backend(backend, rev1, rev2)
         character(len=*), intent(in), optional :: backend, rev1, rev2
         integer :: k
 
         call make_current_entry(k)
-        if (allocated(diff_buffers(k)%vc_backend)) deallocate (diff_buffers(k)%vc_backend)
-        if (allocated(diff_buffers(k)%vc_rev1)) deallocate (diff_buffers(k)%vc_rev1)
-        if (allocated(diff_buffers(k)%vc_rev2)) deallocate (diff_buffers(k)%vc_rev2)
-        if (present(backend)) diff_buffers(k)%vc_backend = backend
-        if (present(rev1)) diff_buffers(k)%vc_rev1 = rev1
-        if (present(rev2)) diff_buffers(k)%vc_rev2 = rev2
-    end subroutine set_diff_vc_backend
+        if (allocated(diff_buffers(k)%version_control_backend)) deallocate (diff_buffers(k)%version_control_backend)
+        if (allocated(diff_buffers(k)%version_control_rev1)) deallocate (diff_buffers(k)%version_control_rev1)
+        if (allocated(diff_buffers(k)%version_control_rev2)) deallocate (diff_buffers(k)%version_control_rev2)
+        if (present(backend)) diff_buffers(k)%version_control_backend = backend
+        if (present(rev1)) diff_buffers(k)%version_control_rev1 = rev1
+        if (present(rev2)) diff_buffers(k)%version_control_rev2 = rev2
+    end subroutine set_diff_version_control_backend
 
-    !> The current buffer's `diff_vc_backend' ("" for none).  Not a port.
-    function diff_vc_backend() result(name)
+    !> The current buffer's `diff_version_control_backend' ("" for none).  Not a port.
+    function diff_version_control_backend() result(name)
         character(len=:), allocatable :: name
         integer :: k
 
         name = ""
         call make_current_entry(k)
-        if (allocated(diff_buffers(k)%vc_backend)) name = diff_buffers(k)%vc_backend
-    end function diff_vc_backend
+        if (allocated(diff_buffers(k)%version_control_backend)) name = diff_buffers(k)%version_control_backend
+    end function diff_version_control_backend
 
     !> The current buffer's `diff_buffer_type': DIFF_BUFFER_PLAIN,
-    !> DIFF_BUFFER_GIT or DIFF_BUFFER_HG.  Port of the buffer-local
+    !> DIFF_BUFFER_GIT or DIFF_BUFFER_MERCURIAL.  Port of the buffer-local
     !> diff-mode.el:diff-buffer-type.
     integer function diff_buffer_type() result(kind)
         integer :: k
@@ -1879,7 +1882,7 @@ contains
 
         call pop_to_buffer(current_buffer(), status)
         if (.not. status%ok()) return
-        if (reset) call goto_char(point_min())
+        if (reset) call goto_character(point_minimum())
         call diff_hunk_next(status, n)
         if (.not. status%ok()) return
         call diff_goto_source(status)
@@ -1909,12 +1912,12 @@ contains
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: saved
 
-        if (.not. associated(major_modes%diff_mode%execute)) call init_diff_mode()
+        if (.not. associated(major_modes%diff_mode%execute)) call initialize_diff_mode()
         call major_modes%diff_mode%begin(saved, status)
         if (.not. status%ok()) return
         call diff_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
-        call imenu_patterns%set_local(diff_imenu_patterns)
+        call index_menu_patterns%set_local(diff_index_menu_patterns)
         call set_next_error_function(diff_next_error)
         if (diff_default_read_only) buffers(current)%read_only = .true.
         if (buffers(current)%read_only) call diff_mode_read_only%set_local(.true.)
@@ -1933,49 +1936,49 @@ contains
     !> The start of the hunks of a Git patch (point-min if there is no
     !> "diff --git" line).  Port of diff-mode.el:diff--git-preamble-end
     !> (computed each time, no overlay cache).
-    integer(int64) function diff_git_preamble_end() result(pos)
+    integer(int64) function diff_git_preamble_end() result(position)
         integer(int64) :: saved, found, shortage
 
         saved = point()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         found = search_fwd("^diff --git .+ .+$", move=.true.)
         shortage = forward_line(2_int64)
-        pos = point()
-        if (found == 0) pos = point_min()
-        call goto_char(saved)
+        position = point()
+        if (found == 0) position = point_minimum()
+        call goto_character(saved)
     end function diff_git_preamble_end
 
     !> The start of the email signature of a Git patch (point-max if
     !> none).  Port of diff-mode.el:diff--git-footer-start (no overlay
     !> cache).
-    integer(int64) function diff_git_footer_start() result(pos)
+    integer(int64) function diff_git_footer_start() result(position)
         integer(int64) :: saved, found
 
         saved = point()
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         found = search_bwd(LF//"-- $")
 
         if (found == 0) then
-            pos = point_max()
+            position = point_maximum()
         else
-            pos = mb(0) + 1
+            position = mb(0) + 1
         end if
 
-        call goto_char(saved)
+        call goto_character(saved)
     end function diff_git_footer_start
 
-    !> Fontify added/removed lines from point to LIMIT using REGEXP.
+    !> Fontify added/removed lines from point to LIMIT using REGULAR_EXPRESSION.
     !> If this is a Git patch, don't fontify lines before the first hunk,
     !> or in the email signature at the end.  Port of
     !> diff-mode.el:diff--indicator-matcher-helper.
-    subroutine indicator_matcher(limit, regexp, found)
+    subroutine indicator_matcher(limit, regular_expression, found)
         integer(int64), intent(in) :: limit
-        character(len=*), intent(in) :: regexp
+        character(len=*), intent(in) :: regular_expression
         logical, intent(out) :: found
-        integer(int64) :: preamble_end, footer_start, beginning, end, lim
+        integer(int64) :: preamble_end, footer_start, beginning, end, limit_position
 
         found = .false.
-        lim = limit
+        limit_position = limit
 
         if (buffer_kind() == DIFF_BUFFER_GIT) then
             preamble_end = diff_git_preamble_end()
@@ -1986,13 +1989,13 @@ contains
             if (end <= preamble_end .or. beginning >= footer_start) then
                 return
             else if (beginning < preamble_end) then
-                call goto_char(preamble_end)
+                call goto_character(preamble_end)
             else if (end > footer_start) then
-                lim = footer_start
+                limit_position = footer_start
             end if
         end if
 
-        found = search_fwd(regexp, bound=lim) /= 0
+        found = search_fwd(regular_expression, bound=limit_position) /= 0
     end subroutine indicator_matcher
 
     !> Port of diff-mode.el:diff--indicator-added-matcher.
@@ -2031,10 +2034,10 @@ contains
         mb0 = mb(0)
         me0 = me(0)
         limit = diff_beginning_of_hunk(st)
-        call goto_char(saved)
+        call goto_character(saved)
 
         if (st%ok() .and. limit < point()) then
-            found = search_bwd(diff_context_mid_hunk_header_regexp, bound=limit)
+            found = search_bwd(diff_context_middle_hunk_header_regular_expression, bound=limit)
 
             if (found /= 0) then
                 face = merge("diff_indicator_added", "diff_added          ", indicator)
@@ -2045,7 +2048,7 @@ contains
             face = trim(face)
         end if
 
-        call goto_char(saved)
+        call goto_character(saved)
         call restore_match(mb0, me0)
     end subroutine bang_face
 
@@ -2055,9 +2058,9 @@ contains
         integer(int64) :: saved, found
 
         saved = point()
-        call goto_char(mb0)
+        call goto_character(mb0)
         found = search_fwd("^\(!\)\(.*"//LF//"\)", bound=me0)
-        call goto_char(saved)
+        call goto_character(saved)
     end subroutine restore_match
 
     ! Not a port.
@@ -2094,13 +2097,13 @@ contains
         allocate (keywords(20))
         h2(1) = font_lock_highlight(1, face="diff_hunk_header")
         h2(2) = font_lock_highlight(6, face="diff_function")
-        keywords(1) = font_lock_keyword("\("//diff_hunk_header_regexp_unified//"\)\(.*\)$", h2)
+        keywords(1) = font_lock_keyword("\("//diff_hunk_header_regular_expression_unified//"\)\(.*\)$", h2)
         ! context
         h2(1) = font_lock_highlight(1, face="diff_hunk_header")
         h2(2) = font_lock_highlight(2, face="diff_function")
         keywords(2) = font_lock_keyword("^\(\*\{15\}\)\(.*\)$", h2)
         keywords(3) = font_lock_keyword("^\*\*\* .+ \*\*\*\*", face="diff_hunk_header")
-        keywords(4) = font_lock_keyword(diff_context_mid_hunk_header_regexp, face="diff_hunk_header")
+        keywords(4) = font_lock_keyword(diff_context_middle_hunk_header_regular_expression, face="diff_hunk_header")
         ! normal
         keywords(5) = font_lock_keyword("^[0-9,]+[acd][0-9,]+$", face="diff_hunk_header")
         keywords(6) = font_lock_keyword("^---$", face="diff_hunk_header")
@@ -2140,7 +2143,7 @@ contains
 
     !> The region if it is active (interactive "R"), else absent.
     !> Not a port.
-    subroutine region_args(have, beginning, end)
+    subroutine region_arguments(have, beginning, end)
         logical, intent(out) :: have
         integer(int64), intent(out) :: beginning, end
         type(status_type) :: st
@@ -2153,160 +2156,160 @@ contains
             call region_beginning(beginning, st)
             call region_end(end, st)
         end if
-    end subroutine region_args
+    end subroutine region_arguments
 
     !> The prefix numeric value (interactive "p").  Not a port.
-    integer(int64) function p_arg()
-        p_arg = prefix_numeric_value(current_prefix_arg)
-    end function p_arg
+    integer(int64) function p_argument()
+        p_argument = prefix_numeric_value(current_prefix_argument)
+    end function p_argument
 
-    recursive subroutine cmd_diff_hunk_next(status)
+    recursive subroutine execute_diff_hunk_next(status)
         type(status_type), intent(out) :: status
 
-        call diff_hunk_next(status, p_arg(), interactive=.true.)
-    end subroutine cmd_diff_hunk_next
+        call diff_hunk_next(status, p_argument(), interactive=.true.)
+    end subroutine execute_diff_hunk_next
 
-    recursive subroutine cmd_diff_hunk_prev(status)
+    recursive subroutine execute_diff_hunk_previous(status)
         type(status_type), intent(out) :: status
 
-        call diff_hunk_prev(status, p_arg())
-    end subroutine cmd_diff_hunk_prev
+        call diff_hunk_previous(status, p_argument())
+    end subroutine execute_diff_hunk_previous
 
-    recursive subroutine cmd_diff_file_next(status)
+    recursive subroutine execute_diff_file_next(status)
         type(status_type), intent(out) :: status
 
-        call diff_file_next(status, p_arg(), interactive=.true.)
-    end subroutine cmd_diff_file_next
+        call diff_file_next(status, p_argument(), interactive=.true.)
+    end subroutine execute_diff_file_next
 
-    recursive subroutine cmd_diff_file_prev(status)
+    recursive subroutine execute_diff_file_previous(status)
         type(status_type), intent(out) :: status
 
-        call diff_file_prev(status, p_arg())
-    end subroutine cmd_diff_file_prev
+        call diff_file_previous(status, p_argument())
+    end subroutine execute_diff_file_previous
 
-    recursive subroutine cmd_diff_hunk_cut(status)
+    recursive subroutine execute_diff_hunk_cut(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
         logical :: have
 
-        call region_args(have, beginning, end)
+        call region_arguments(have, beginning, end)
 
         if (have) then
             call diff_hunk_cut(status, beginning, end)
         else
             call diff_hunk_cut(status)
         end if
-    end subroutine cmd_diff_hunk_cut
+    end subroutine execute_diff_hunk_cut
 
-    recursive subroutine cmd_diff_file_cut(status)
+    recursive subroutine execute_diff_file_cut(status)
         type(status_type), intent(out) :: status
 
         call diff_file_cut(status)
-    end subroutine cmd_diff_file_cut
+    end subroutine execute_diff_file_cut
 
-    recursive subroutine cmd_diff_delete_other_hunks(status)
+    recursive subroutine execute_diff_delete_other_hunks(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
         logical :: have
 
-        call region_args(have, beginning, end)
+        call region_arguments(have, beginning, end)
 
         if (have) then
             call diff_delete_other_hunks(status, beginning, end)
         else
             call diff_delete_other_hunks(status)
         end if
-    end subroutine cmd_diff_delete_other_hunks
+    end subroutine execute_diff_delete_other_hunks
 
-    recursive subroutine cmd_diff_restrict_view(status)
+    recursive subroutine execute_diff_restrict_view(status)
         type(status_type), intent(out) :: status
 
-        call diff_restrict_view(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_diff_restrict_view
+        call diff_restrict_view(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_diff_restrict_view
 
-    recursive subroutine cmd_diff_split_hunk(status)
+    recursive subroutine execute_diff_split_hunk(status)
         type(status_type), intent(out) :: status
 
         call diff_split_hunk(status)
-    end subroutine cmd_diff_split_hunk
+    end subroutine execute_diff_split_hunk
 
-    recursive subroutine cmd_diff_delete_junk(status)
+    recursive subroutine execute_diff_delete_junk(status)
         type(status_type), intent(out) :: status
 
         call diff_delete_junk(status)
-    end subroutine cmd_diff_delete_junk
+    end subroutine execute_diff_delete_junk
 
-    recursive subroutine cmd_diff_fixup_modifs(status)
+    recursive subroutine execute_diff_fixup_modifs(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
 
-        if (current_prefix_arg%kind /= PREFIX_NONE .or. is_use_region()) then
+        if (current_prefix_argument%kind /= PREFIX_NONE .or. is_use_region()) then
             call region_beginning(beginning, status)
             if (status%ok()) call region_end(end, status)
             if (status%ok()) call diff_fixup_modifs(beginning, end, status)
         else
-            call diff_fixup_modifs(point_min(), point_max(), status)
+            call diff_fixup_modifs(point_minimum(), point_maximum(), status)
         end if
-    end subroutine cmd_diff_fixup_modifs
+    end subroutine execute_diff_fixup_modifs
 
-    recursive subroutine cmd_diff_goto_source(status)
+    recursive subroutine execute_diff_goto_source(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             call diff_goto_source(status)
         else
-            call diff_goto_source(status, .true., p_arg())
+            call diff_goto_source(status, .true., p_argument())
         end if
-    end subroutine cmd_diff_goto_source
+    end subroutine execute_diff_goto_source
 
-    recursive subroutine cmd_diff_apply_hunk(status)
+    recursive subroutine execute_diff_apply_hunk(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
         logical :: have
 
-        call region_args(have, beginning, end)
+        call region_arguments(have, beginning, end)
 
         if (have) then
-            call diff_apply_hunk(status, current_prefix_arg%kind /= PREFIX_NONE, beginning, end)
+            call diff_apply_hunk(status, current_prefix_argument%kind /= PREFIX_NONE, beginning, end)
         else
-            call diff_apply_hunk(status, current_prefix_arg%kind /= PREFIX_NONE)
+            call diff_apply_hunk(status, current_prefix_argument%kind /= PREFIX_NONE)
         end if
-    end subroutine cmd_diff_apply_hunk
+    end subroutine execute_diff_apply_hunk
 
-    recursive subroutine cmd_diff_test_hunk(status)
+    recursive subroutine execute_diff_test_hunk(status)
         type(status_type), intent(out) :: status
 
-        call diff_test_hunk(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_diff_test_hunk
+        call diff_test_hunk(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_diff_test_hunk
 
-    recursive subroutine cmd_diff_revert_and_cut_hunk(status)
+    recursive subroutine execute_diff_revert_and_cut_hunk(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
         logical :: have
 
-        call region_args(have, beginning, end)
+        call region_arguments(have, beginning, end)
 
         if (have) then
             call diff_revert_and_cut_hunk(status, beginning, end)
         else
             call diff_revert_and_cut_hunk(status)
         end if
-    end subroutine cmd_diff_revert_and_cut_hunk
+    end subroutine execute_diff_revert_and_cut_hunk
 
-    recursive subroutine cmd_diff_apply_buffer(status)
+    recursive subroutine execute_diff_apply_buffer(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
         integer :: failures
         logical :: have
 
-        call region_args(have, beginning, end)
+        call region_arguments(have, beginning, end)
 
         if (have) then
-            call diff_apply_buffer(failures, status, beginning, end, current_prefix_arg%kind /= PREFIX_NONE)
+            call diff_apply_buffer(failures, status, beginning, end, current_prefix_argument%kind /= PREFIX_NONE)
         else
-            call diff_apply_buffer(failures, status, reverse=current_prefix_arg%kind /= PREFIX_NONE)
+            call diff_apply_buffer(failures, status, reverse=current_prefix_argument%kind /= PREFIX_NONE)
         end if
-    end subroutine cmd_diff_apply_buffer
+    end subroutine execute_diff_apply_buffer
 
     ! ------------------------------------------------------------------
     ! Definitions
@@ -2319,137 +2322,138 @@ contains
 
         f => diff_header
         call f%define("diff_header", "`diff_mode' face inherited by hunk and index header faces.")
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[L]), &
-                          face_attrs(background="grey85", extend=.true.))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[D]), &
-                          face_attrs(background="grey45", extend=.true.))
-        call f%spec_entry(display_when(classes=[C]), face_attrs(foreground="blue1", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(weight="bold", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[L]), &
+                                   face_attributes(background="grey85", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[D]), &
+                                   face_attributes(background="grey45", extend=.true.))
+        call f%specification_entry(display_when(classes=[C]), face_attributes(foreground="blue1", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(weight="bold", extend=.true.))
         f => diff_file_header
         call f%define("diff_file_header", "`diff_mode' face used to highlight file header lines.")
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[L]), &
-                          face_attrs(background="grey75", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[D]), &
-                          face_attrs(background="grey60", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(classes=[C]), face_attrs(foreground="cyan", weight="bold", extend=.true.))
-        call f%spec_entry(display_when(), face_attrs(weight="bold", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[L]), &
+                                   face_attributes(background="grey75", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[D]), &
+                                   face_attributes(background="grey60", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(classes=[C]), face_attributes(foreground="cyan", weight="bold", extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(weight="bold", extend=.true.))
         f => diff_index
         call f%define("diff_index", "`diff_mode' face used to highlight index header lines.")
-        call f%spec_entry(display_when(), face_attrs(inherit="diff_file_header"))
+        call f%specification_entry(display_when(), face_attributes(inherit="diff_file_header"))
         f => diff_hunk_header
         call f%define("diff_hunk_header", "`diff_mode' face used to highlight hunk header lines.")
-        call f%spec_entry(display_when(), face_attrs(inherit="diff_header"))
+        call f%specification_entry(display_when(), face_attributes(inherit="diff_header"))
         f => diff_removed
         call f%define("diff_removed", "`diff_mode' face used to highlight removed lines.")
-        call f%spec_entry(display_when(is_default=.true.), face_attrs(inherit="diff_changed"))
-        call f%spec_entry(display_when(classes=[C], min_colors=257, backgrounds=[L]), &
-                          face_attrs(background="#ffeeee", extend=.true.))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[L]), &
-                          face_attrs(background="#ffdddd", extend=.true.))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[D]), &
-                          face_attrs(background="#553333", extend=.true.))
-        call f%spec_entry(display_when(classes=[C]), face_attrs(foreground="red", extend=.true.))
+        call f%specification_entry(display_when(is_default=.true.), face_attributes(inherit="diff_changed"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=257, backgrounds=[L]), &
+                                   face_attributes(background="#ffeeee", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[L]), &
+                                   face_attributes(background="#ffdddd", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[D]), &
+                                   face_attributes(background="#553333", extend=.true.))
+        call f%specification_entry(display_when(classes=[C]), face_attributes(foreground="red", extend=.true.))
         f => diff_added
         call f%define("diff_added", "`diff_mode' face used to highlight added lines.")
-        call f%spec_entry(display_when(is_default=.true.), face_attrs(inherit="diff_changed"))
-        call f%spec_entry(display_when(classes=[C], min_colors=257, backgrounds=[L]), &
-                          face_attrs(background="#eeffee", extend=.true.))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[L]), &
-                          face_attrs(background="#ddffdd", extend=.true.))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[D]), &
-                          face_attrs(background="#335533", extend=.true.))
-        call f%spec_entry(display_when(classes=[C]), face_attrs(foreground="green", extend=.true.))
+        call f%specification_entry(display_when(is_default=.true.), face_attributes(inherit="diff_changed"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=257, backgrounds=[L]), &
+                                   face_attributes(background="#eeffee", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[L]), &
+                                   face_attributes(background="#ddffdd", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[D]), &
+                                   face_attributes(background="#335533", extend=.true.))
+        call f%specification_entry(display_when(classes=[C]), face_attributes(foreground="green", extend=.true.))
         f => diff_changed_unspecified
         call f%define("diff_changed_unspecified", "`diff_mode' face used to highlight changed lines.")
-        call f%spec_entry(display_when(is_default=.true.), face_attrs(inherit="diff_changed"))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[L]), &
-                          face_attrs(background="#ffffaa", extend=.true.))
-        call f%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[D]), &
-                          face_attrs(background="#888833", extend=.true.))
-        call f%spec_entry(display_when(classes=[C]), face_attrs(foreground="yellow", extend=.true.))
+        call f%specification_entry(display_when(is_default=.true.), face_attributes(inherit="diff_changed"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[L]), &
+                                   face_attributes(background="#ffffaa", extend=.true.))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[D]), &
+                                   face_attributes(background="#888833", extend=.true.))
+        call f%specification_entry(display_when(classes=[C]), face_attributes(foreground="yellow", extend=.true.))
         f => diff_changed
         call f%define("diff_changed", "`diff_mode' face used to highlight changed lines.")
-        call f%spec_entry(display_when(), face_attrs())
+        call f%specification_entry(display_when(), face_attributes())
         f => diff_indicator_removed
         call f%define("diff_indicator_removed", "`diff_mode' face used to highlight indicator of removed lines (-, <).")
-        call f%spec_entry(display_when(is_default=.true.), face_attrs(inherit="diff_removed"))
-        call f%spec_entry(display_when(classes=[C], min_colors=88), face_attrs(foreground="#aa2222"))
+        call f%specification_entry(display_when(is_default=.true.), face_attributes(inherit="diff_removed"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88), face_attributes(foreground="#aa2222"))
         f => diff_indicator_added
         call f%define("diff_indicator_added", "`diff_mode' face used to highlight indicator of added lines (+, >).")
-        call f%spec_entry(display_when(is_default=.true.), face_attrs(inherit="diff_added"))
-        call f%spec_entry(display_when(classes=[C], min_colors=88), face_attrs(foreground="#22aa22"))
+        call f%specification_entry(display_when(is_default=.true.), face_attributes(inherit="diff_added"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88), face_attributes(foreground="#22aa22"))
         f => diff_indicator_changed
         call f%define("diff_indicator_changed", "`diff_mode' face used to highlight indicator of changed lines.")
-        call f%spec_entry(display_when(is_default=.true.), face_attrs(inherit="diff_changed"))
-        call f%spec_entry(display_when(classes=[C], min_colors=88), face_attrs(foreground="#aaaa22"))
+        call f%specification_entry(display_when(is_default=.true.), face_attributes(inherit="diff_changed"))
+        call f%specification_entry(display_when(classes=[C], minimum_colors=88), face_attributes(foreground="#aaaa22"))
         f => diff_function
         call f%define("diff_function", "`diff_mode' face used to highlight function names produced by ""diff -p"".")
-        call f%spec_entry(display_when(), face_attrs(inherit="diff_header"))
+        call f%specification_entry(display_when(), face_attributes(inherit="diff_header"))
         f => diff_context
         call f%define("diff_context", "`diff_mode' face used to highlight context and other side-information.")
-        call f%spec_entry(display_when(), face_attrs(extend=.true.))
+        call f%specification_entry(display_when(), face_attributes(extend=.true.))
         f => diff_nonexistent
         call f%define("diff_nonexistent", "`diff_mode' face used to highlight nonexistent files in recursive diffs.")
-        call f%spec_entry(display_when(), face_attrs(inherit="diff_file_header"))
+        call f%specification_entry(display_when(), face_attributes(inherit="diff_file_header"))
         f => diff_error
         call f%define("diff_error", "`diff_mode' face for error messages from diff.")
-        call f%spec_entry(display_when(classes=[C]), face_attrs(foreground="red", background="black", weight="bold"))
-        call f%spec_entry(display_when(), face_attrs(weight="bold"))
+        call f%specification_entry(display_when(classes=[C]), face_attributes(foreground="red", background="black", weight="bold"))
+        call f%specification_entry(display_when(), face_attributes(weight="bold"))
     end subroutine define_faces
 
     !> Define Diff mode, its keymaps and faces, and register the commands.
     !> Not a port.
-    subroutine init_diff_mode()
+    subroutine initialize_diff_mode()
         type(status_type) :: st
 
         call define_faces()
 
-        if (.not. allocated(diff_imenu_patterns)) then
-            allocate (diff_imenu_patterns(2))
+        if (.not. allocated(diff_index_menu_patterns)) then
+            allocate (diff_index_menu_patterns(2))
             ! unidiffs
-            diff_imenu_patterns(1) = imenu_pattern_type(menu_title="", regexp="\+\+\+ \([^"//TAB//LF//"]+\)["// &
-                                                        TAB//LF//"]", subexpression=1)
+            diff_index_menu_patterns(1) = index_menu_pattern_type(menu_title="", &
+                                                                  regular_expression="\+\+\+ \([^"//TAB//LF//"]+\)["// &
+                                                                  TAB//LF//"]", subexpression=1)
             ! context diffs
-            diff_imenu_patterns(2) = imenu_pattern_type(menu_title="", regexp="^--- \([^"//TAB//LF//"]+\)"// &
-                                                        TAB//".*"//LF//"\*", subexpression=1)
+            diff_index_menu_patterns(2) = index_menu_pattern_type(menu_title="", regular_expression="^--- \([^"//TAB//LF//"]+\)"// &
+                                                                  TAB//".*"//LF//"\*", subexpression=1)
         end if
 
         call major_modes%diff_mode%define("diff_mode", "Diff", diff_mode, diff_mode_hook)
         major_modes%diff_mode%special = .true.
         diff_mode_map = major_modes%diff_mode%map
         commands%diff_mode%execute => diff_mode
-        commands%diff_hunk_next%execute => cmd_diff_hunk_next
-        commands%diff_hunk_prev%execute => cmd_diff_hunk_prev
-        commands%diff_file_next%execute => cmd_diff_file_next
-        commands%diff_file_prev%execute => cmd_diff_file_prev
-        commands%diff_hunk_cut%execute => cmd_diff_hunk_cut
-        commands%diff_file_cut%execute => cmd_diff_file_cut
-        commands%diff_delete_other_hunks%execute => cmd_diff_delete_other_hunks
-        commands%diff_restrict_view%execute => cmd_diff_restrict_view
+        commands%diff_hunk_next%execute => execute_diff_hunk_next
+        commands%diff_hunk_previous%execute => execute_diff_hunk_previous
+        commands%diff_file_next%execute => execute_diff_file_next
+        commands%diff_file_previous%execute => execute_diff_file_previous
+        commands%diff_hunk_cut%execute => execute_diff_hunk_cut
+        commands%diff_file_cut%execute => execute_diff_file_cut
+        commands%diff_delete_other_hunks%execute => execute_diff_delete_other_hunks
+        commands%diff_restrict_view%execute => execute_diff_restrict_view
         commands%diff_restrict_view%disabled = .true.
-        commands%diff_split_hunk%execute => cmd_diff_split_hunk
-        commands%diff_delete_junk%execute => cmd_diff_delete_junk
-        commands%diff_fixup_modifs%execute => cmd_diff_fixup_modifs
-        commands%diff_goto_source%execute => cmd_diff_goto_source
-        commands%diff_apply_hunk%execute => cmd_diff_apply_hunk
-        commands%diff_test_hunk%execute => cmd_diff_test_hunk
-        commands%diff_revert_and_cut_hunk%execute => cmd_diff_revert_and_cut_hunk
-        commands%diff_apply_buffer%execute => cmd_diff_apply_buffer
+        commands%diff_split_hunk%execute => execute_diff_split_hunk
+        commands%diff_delete_junk%execute => execute_diff_delete_junk
+        commands%diff_fixup_modifs%execute => execute_diff_fixup_modifs
+        commands%diff_goto_source%execute => execute_diff_goto_source
+        commands%diff_apply_hunk%execute => execute_diff_apply_hunk
+        commands%diff_test_hunk%execute => execute_diff_test_hunk
+        commands%diff_revert_and_cut_hunk%execute => execute_diff_revert_and_cut_hunk
+        commands%diff_apply_buffer%execute => execute_diff_apply_buffer
         commands%add_diff_change_log_entries_other_window%execute => add_diff_change_log_entries_other_window
         ! diff-mode-shared-map.
         if (is_keymap_live(diff_mode_shared_map)) call destroy_keymap(diff_mode_shared_map, st)
         call make_sparse_keymap(diff_mode_shared_map)
         call keymap_set(diff_mode_shared_map, "n", "diff_hunk_next", st)
         call keymap_set(diff_mode_shared_map, "N", "diff_file_next", st)
-        call keymap_set(diff_mode_shared_map, "p", "diff_hunk_prev", st)
-        call keymap_set(diff_mode_shared_map, "P", "diff_file_prev", st)
+        call keymap_set(diff_mode_shared_map, "p", "diff_hunk_previous", st)
+        call keymap_set(diff_mode_shared_map, "P", "diff_file_previous", st)
         call keymap_set(diff_mode_shared_map, "TAB", "diff_hunk_next", st)
-        call keymap_set(diff_mode_shared_map, "<backtab>", "diff_hunk_prev", st)
+        call keymap_set(diff_mode_shared_map, "<backtab>", "diff_hunk_previous", st)
         call keymap_set(diff_mode_shared_map, "k", "diff_hunk_cut", st)
         call keymap_set(diff_mode_shared_map, "K", "diff_file_cut", st)
         ! From compilation-minor-mode.
         call keymap_set(diff_mode_shared_map, "}", "diff_file_next", st)
-        call keymap_set(diff_mode_shared_map, "{", "diff_file_prev", st)
+        call keymap_set(diff_mode_shared_map, "{", "diff_file_previous", st)
         call keymap_set(diff_mode_shared_map, "RET", "diff_goto_source", st)
         ! other-window
         call keymap_set(diff_mode_shared_map, "o", "diff_goto_source", st)
@@ -2463,7 +2467,7 @@ contains
         call keymap_set(diff_mode_read_only_map, "@", "diff_revert_and_cut_hunk", st)
         call set_keymap_parent(diff_mode_read_only_map, special_mode_map, st)
         ! diff-mode-map.
-        call keymap_set(diff_mode_map, "ESC", make_keymap_ref(diff_mode_shared_map), st)
+        call keymap_set(diff_mode_map, "ESC", make_keymap_reference(diff_mode_shared_map), st)
         call keymap_set(diff_mode_map, "C-c C-c", "diff_goto_source", st)
         call keymap_set(diff_mode_map, "C-c C-a", "diff_apply_hunk", st)
         call keymap_set(diff_mode_map, "C-c M-u", "diff_revert_and_cut_hunk", st)
@@ -2481,5 +2485,5 @@ contains
         call forward_setting(diff_mode_read_only, local_if_set=.true.)
         call append_minor_mode_map("diff_mode_read_only", diff_read_only_map)
         call append_locals_clearer(clear_diff_locals)
-    end subroutine init_diff_mode
+    end subroutine initialize_diff_mode
 end module diff_mode_mod

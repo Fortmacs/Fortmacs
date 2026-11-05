@@ -1,7 +1,7 @@
 ! test_display_engine_mod.f90 -- tests for display_engine_mod, window_mod and fortmacs_mod: how
 ! buffer text is laid out on the screen, and the editor's main loop on a
 ! pty.
-! Own tests; upstream's xdisp-tests.el needs Lisp and GUI frames.
+! Own tests; upstream's xdisp-tests.el needs Lisp and GRAPHICAL_USER_INTERFACE frames.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -28,34 +28,35 @@ module test_display_engine_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, resolve_buffer, &
                           erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, buffer_string
+    use editing_functions_mod, only: goto_character, buffer_string
     use glyph_matrices_mod, only: glyph_row_type, glyph_type, DEFAULT_FACE_ID
-    use faces_mod, only: init_faces
-    use face_realization_mod, only: init_frame_faces
-    use terminal_colors_mod, only: tty_color_clear, tty_register_colors
+    use faces_mod, only: initialize_faces
+    use face_realization_mod, only: initialize_frame_faces
+    use terminal_colors_mod, only: terminal_color_clear, terminal_register_colors
     use terminfo_mod, only: terminfo_type, builtin_xterm
-    use terminal_output_mod, only: init_tty_entry
-    use terminal_state_mod, only: tty_take_output
+    use terminal_output_mod, only: initialize_terminal_entry
+    use terminal_state_mod, only: terminal_take_output
     use frame_mod, only: frame_type
     use window_mod, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows, &
                           set_window_start, window_start, window_end, window_scroll_functions
     use display_engine_mod, only: layout_window, redisplay_internal, mode_line_text, glyph_width, mode_line_row, &
-                             init_frame_windows, mode_line_percent, recenter_start, message, mode_line_modes, pre_redisplay_function
+                                  initialize_frame_windows, mode_line_percent, recenter_start, message, mode_line_modes, &
+                                  pre_redisplay_function
     use buffer_mod, only: buffers
     use keyboard_mod, only: last_message, set_minibuffer_message_text
     use frame_mod, only: selected_frame, ensure_frame_windows
     use handle_mod, only: null_handle
     use editing_functions_mod, only: narrow_to_region, widen
-    use system_dependent_mod, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
-                                    reset_sys_modes, fortmacs_write, fortmacs_read, input_available, &
-                                    fortmacs_tty_type
+    use system_dependent_mod, only: open_pty, close_fd, set_terminal_size, initialize_system_modes, &
+                                    reset_system_modes, fortmacs_write, fortmacs_read, input_available, &
+                                    fortmacs_terminal_type
     use fortmacs_mod, only: fortmacs_main
-    use value_mod, only: list, value_type, make_window_ref
+    use value_mod, only: list, value_type, make_window_reference
     use text_properties_mod, only: string_put_text_property
     use value_mod, only: value_type
     use text_properties_mod, only: put_text_property
     use interval_tree_mod, only: make_overlay, overlay_put, destroy_overlay
-    use basic_subprograms_mod, only: add_to_invisibility_spec
+    use basic_subprograms_mod, only: add_to_invisibility_specification
     implicit none(type, external)
     private
 
@@ -74,10 +75,10 @@ contains
 
         testsuite = [ &
                     new_unittest("layout-lines-and-cursor", test_lines), &
-                    new_unittest("layout-tab-control-wide", test_special_chars), &
+                    new_unittest("layout-tab-control-wide", test_special_characters), &
                     new_unittest("layout-continuation", test_continuation), &
                     new_unittest("layout-wide-at-right-edge", test_wide_edge), &
-                    new_unittest("layout-split-control-and-tab", test_split_chars), &
+                    new_unittest("layout-split-control-and-tab", test_split_characters), &
                     new_unittest("recenter-by-screen-lines", test_recenter_start), &
                     new_unittest("mode-line-percent-and-narrow", test_mode_line_position), &
                     new_unittest("echo-area-glyphs", test_echo_area), &
@@ -133,12 +134,12 @@ contains
         end do
     end function row_text
 
-    subroutine layout(bi, start, pt, width, nrows, rows, crow, ccol, end_pos, at_end)
-        integer(int64), intent(in) :: bi, start, pt
+    subroutine layout(bi, start, point, width, nrows, rows, crow, ccol, end_position, at_end)
+        integer(int64), intent(in) :: bi, start, point
         integer, intent(in) :: width, nrows
         type(glyph_row_type), allocatable, intent(out) :: rows(:)
         integer, intent(out) :: crow, ccol
-        integer(int64), intent(out) :: end_pos
+        integer(int64), intent(out) :: end_position
         logical, intent(out) :: at_end
         integer :: r
 
@@ -148,21 +149,21 @@ contains
             allocate (rows(r)%glyphs(width))
         end do
 
-        call layout_window(bi, start, pt, width, rows, crow, ccol, end_pos, at_end)
+        call layout_window(bi, start, point, width, rows, crow, ccol, end_position, at_end)
     end subroutine layout
 
     !> The text, cursor row and column of one-row layout of buffer BI with
-    !> point at PT, 30 columns wide.
-    subroutine layout1(bi, pt, text, ccol)
-        integer(int64), intent(in) :: bi, pt
+    !> point at POINT, 30 columns wide.
+    subroutine layout1(bi, point, text, ccol)
+        integer(int64), intent(in) :: bi, point
         character(len=:), allocatable, intent(out) :: text
         integer, intent(out) :: ccol
         type(glyph_row_type), allocatable :: rows(:)
-        integer(int64) :: end_pos
+        integer(int64) :: end_position
         integer :: crow
         logical :: at_end
 
-        call layout(bi, 1_int64, pt, 30, 2, rows, crow, ccol, end_pos, at_end)
+        call layout(bi, 1_int64, point, 30, 2, rows, crow, ccol, end_position, at_end)
         text = row_text(rows(1))
         if (crow /= 0) ccol = -1
     end subroutine layout1
@@ -209,7 +210,7 @@ contains
         type(value_type) :: string
         type(glyph_row_type) :: rows(2)
         type(frame_type) :: f
-        integer(int64) :: bi, end_pos
+        integer(int64) :: bi, end_position
         integer(int32) :: region_id
         character(len=:), allocatable :: text
         integer :: ccol, crow, r
@@ -240,11 +241,11 @@ contains
             allocate (rows(r)%glyphs(8))
         end do
 
-        call init_faces()
-        call init_frame_faces(f, "dumb")
-        call layout_window(bi, 1_int64, 3_int64, 8, rows, crow, ccol, end_pos, at_end, 0_int64, 0_int64, f)
+        call initialize_faces()
+        call initialize_frame_faces(f, "dumb")
+        call layout_window(bi, 1_int64, 3_int64, 8, rows, crow, ccol, end_position, at_end, 0_int64, 0_int64, f)
         region_id = rows(1)%glyphs(3)%face_id
-        call check(error, region_id /= DEFAULT_FACE_ID .and. f%faces(region_id)%tty_reverse_p, "in the region face")
+        call check(error, region_id /= DEFAULT_FACE_ID .and. f%faces(region_id)%terminal_reverse_p, "in the region face")
         if (allocated(error)) return
         call check(error, all(rows(1)%glyphs(3:5)%face_id == region_id) .and. &
                    all(rows(1)%glyphs(1:2)%face_id == DEFAULT_FACE_ID), "the space only")
@@ -253,7 +254,7 @@ contains
         call destroy_overlay(ov)
         call make_overlay(ov2, 2_int64, 2_int64, st)
         call overlay_put(ov2, "before_string", value_type(text="BS"), st)
-        call overlay_put(ov2, "window", make_window_ref(handle_type()), st)
+        call overlay_put(ov2, "window", make_window_reference(handle_type()), st)
         call layout1(bi, 1_int64, text, ccol)
         call check(error, text == "ab", text)
         call destroy_overlay(ov2)
@@ -271,7 +272,7 @@ contains
         integer :: ccol
 
         call buffer_with("*xdisp-ellipsis*", "abcdef", h, bi)
-        call add_to_invisibility_spec("foo", ellipsis=.true.)
+        call add_to_invisibility_specification("foo", ellipsis=.true.)
         call put_text_property(2_int64, 5_int64, value_type(name="invisible"), value_type(name="foo"), st)
         call layout1(bi, 3_int64, text, ccol)
         call check(error, text == "a...ef", text)
@@ -394,7 +395,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(glyph_row_type) :: rows(2)
-        integer(int64) :: bi, end_pos
+        integer(int64) :: bi, end_position
         integer :: crow, ccol, r
         integer(int32) :: region_id
         logical :: at_end
@@ -408,13 +409,13 @@ contains
         end do
 
         ! A monochrome terminal: the region is in inverse video.
-        call init_faces()
-        call init_frame_faces(f, "dumb")
-        call layout_window(bi, 1_int64, 1_int64, 8, rows, crow, ccol, end_pos, at_end, 2_int64, 6_int64, f)
+        call initialize_faces()
+        call initialize_frame_faces(f, "dumb")
+        call layout_window(bi, 1_int64, 1_int64, 8, rows, crow, ccol, end_position, at_end, 2_int64, 6_int64, f)
         region_id = rows(1)%glyphs(2)%face_id
         call check(error, region_id /= DEFAULT_FACE_ID, "the region face")
         if (allocated(error)) return
-        call check(error, f%faces(region_id)%tty_reverse_p, "in inverse video")
+        call check(error, f%faces(region_id)%terminal_reverse_p, "in inverse video")
         if (allocated(error)) return
         ! (On a monochrome terminal, the region doesn't extend.)
         call check(error, rows(1)%glyphs(1)%face_id == DEFAULT_FACE_ID .and. &
@@ -426,20 +427,20 @@ contains
                    all(rows(2)%glyphs(2:3)%face_id == DEFAULT_FACE_ID), "d only")
         if (allocated(error)) return
         ! An 8-color terminal: white on blue, extended to the end of the row.
-        f%tty%tn_max_colors = 8
-        call tty_color_clear()
-        call tty_register_colors(8, .false., st)
-        call init_frame_faces(f, "dumb")
-        call layout_window(bi, 1_int64, 1_int64, 8, rows, crow, ccol, end_pos, at_end, 2_int64, 6_int64, f)
+        f%terminal%tn_maximum_colors = 8
+        call terminal_color_clear()
+        call terminal_register_colors(8, .false., st)
+        call initialize_frame_faces(f, "dumb")
+        call layout_window(bi, 1_int64, 1_int64, 8, rows, crow, ccol, end_position, at_end, 2_int64, 6_int64, f)
         region_id = rows(1)%glyphs(2)%face_id
         call check(error, f%faces(region_id)%background == 4 .and. f%faces(region_id)%foreground == 7, &
                    "white on blue")
         if (allocated(error)) return
         call check(error, all(rows(1)%glyphs(2:8)%face_id == region_id) .and. rows(1)%used == 8, &
                    "region has :extend t")
-        call tty_color_clear()
-        f%tty%tn_max_colors = 0
-        call init_frame_faces(f, "dumb")
+        call terminal_color_clear()
+        f%terminal%tn_maximum_colors = 0
+        call initialize_frame_faces(f, "dumb")
         call close_buffer(h, st)
     end subroutine test_region
 
@@ -447,27 +448,27 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(glyph_row_type), allocatable :: rows(:)
-        integer(int64) :: bi, end_pos
+        integer(int64) :: bi, end_position
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
 
         call buffer_with("*xdisp-lines*", "ab"//achar(10)//"cd", h, bi)
-        call layout(bi, 1_int64, 4_int64, 10, 3, rows, crow, ccol, end_pos, at_end)
+        call layout(bi, 1_int64, 4_int64, 10, 3, rows, crow, ccol, end_position, at_end)
         call check(error, row_text(rows(1)) == "ab" .and. row_text(rows(2)) == "cd" .and. &
                    row_text(rows(3)) == "", "rows")
         if (allocated(error)) return
         call check(error, crow == 1 .and. ccol == 0, "cursor on c")
         if (allocated(error)) return
-        call check(error, at_end .and. end_pos == 6, "end")
+        call check(error, at_end .and. end_position == 6, "end")
         call close_buffer(h, st)
     end subroutine test_lines
 
-    subroutine test_special_chars(error)
+    subroutine test_special_characters(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(glyph_row_type), allocatable :: rows(:)
-        integer(int64) :: bi, end_pos
+        integer(int64) :: bi, end_position
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
@@ -475,7 +476,7 @@ contains
         ! a TAB b, C-a, DEL, then a wide character and x.
         call buffer_with("*xdisp-chars*", "a"//achar(9)//"b"//achar(10)//achar(1)//achar(127)// &
                          achar(10)//char(230)//char(151)//char(165)//"x", h, bi)
-        call layout(bi, 1_int64, 9_int64, 20, 3, rows, crow, ccol, end_pos, at_end)
+        call layout(bi, 1_int64, 9_int64, 20, 3, rows, crow, ccol, end_position, at_end)
         call check(error, row_text(rows(1)), "a       b")
         if (allocated(error)) return
         call check(error, row_text(rows(2)), "^A^?")
@@ -488,19 +489,19 @@ contains
         if (allocated(error)) return
         call check(error, glyph_width(26085_int32) == 2 .and. glyph_width(97_int32) == 1, "widths")
         call close_buffer(h, st)
-    end subroutine test_special_chars
+    end subroutine test_special_characters
 
     subroutine test_continuation(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(glyph_row_type), allocatable :: rows(:)
-        integer(int64) :: bi, end_pos
+        integer(int64) :: bi, end_position
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
 
         call buffer_with("*xdisp-cont*", "abcdefgh", h, bi)
-        call layout(bi, 1_int64, 7_int64, 6, 3, rows, crow, ccol, end_pos, at_end)
+        call layout(bi, 1_int64, 7_int64, 6, 3, rows, crow, ccol, end_position, at_end)
         ! Five characters and \ in the last column, then the rest.
         call check(error, row_text(rows(1)), "abcde\")
         if (allocated(error)) return
@@ -515,24 +516,24 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(glyph_row_type), allocatable :: rows(:)
-        integer(int64) :: bi, end_pos
+        integer(int64) :: bi, end_position
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
 
         call buffer_with("*xdisp-eob*", "ab"//achar(10), h, bi)
-        call layout(bi, 1_int64, 4_int64, 10, 4, rows, crow, ccol, end_pos, at_end)
+        call layout(bi, 1_int64, 4_int64, 10, 4, rows, crow, ccol, end_position, at_end)
         call check(error, crow == 1 .and. ccol == 0 .and. at_end, "cursor after the newline")
         if (allocated(error)) return
         ! One row shows "ab" and its newline, which reaches the end of the
         ! text (as window-end = point-max upstream: the mode line says All).
-        call layout(bi, 1_int64, 1_int64, 10, 1, rows, crow, ccol, end_pos, at_end)
-        call check(error, at_end .and. end_pos == 4, "first line only")
+        call layout(bi, 1_int64, 1_int64, 10, 1, rows, crow, ccol, end_position, at_end)
+        call check(error, at_end .and. end_position == 4, "first line only")
         if (allocated(error)) return
         ! Text that does not fit.
         call buffer_with("*xdisp-eob*", "ab"//achar(10)//"cd", h, bi)
-        call layout(bi, 1_int64, 1_int64, 10, 1, rows, crow, ccol, end_pos, at_end)
-        call check(error,.not. at_end .and. end_pos == 4, "more text")
+        call layout(bi, 1_int64, 1_int64, 10, 1, rows, crow, ccol, end_position, at_end)
+        call check(error,.not. at_end .and. end_position == 4, "more text")
         call close_buffer(h, st)
     end subroutine test_end_of_buffer
 
@@ -624,13 +625,13 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(glyph_row_type), allocatable :: rows(:)
-        integer(int64) :: bi, end_pos
+        integer(int64) :: bi, end_position
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
 
         call buffer_with("*xdisp-wide*", "abcd"//char(230)//char(188)//char(162)//achar(9)//"x", h, bi)
-        call layout(bi, 1_int64, 5_int64, 6, 2, rows, crow, ccol, end_pos, at_end)
+        call layout(bi, 1_int64, 5_int64, 6, 2, rows, crow, ccol, end_position, at_end)
         call check(error, row_text(rows(1)), "abcd\\")
         if (allocated(error)) return
         ! The wide character at column 4 of the line, the TAB to 8.
@@ -643,17 +644,17 @@ contains
 
     !> ^A and a TAB that do not fit are split: the cells that fit stay,
     !> the rest begins the next row; the cursor is on the first part.
-    subroutine test_split_chars(error)
+    subroutine test_split_characters(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(glyph_row_type), allocatable :: rows(:)
-        integer(int64) :: bi, end_pos
+        integer(int64) :: bi, end_position
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
 
         call buffer_with("*xdisp-split-chars*", "abcd"//achar(1)//"z", h, bi)
-        call layout(bi, 1_int64, 5_int64, 6, 2, rows, crow, ccol, end_pos, at_end)
+        call layout(bi, 1_int64, 5_int64, 6, 2, rows, crow, ccol, end_position, at_end)
         call check(error, row_text(rows(1)), "abcd^\")
         if (allocated(error)) return
         call check(error, row_text(rows(2)), "Az")
@@ -661,14 +662,14 @@ contains
         call check(error, crow == 0 .and. ccol == 4, "cursor on ^")
         if (allocated(error)) return
         call buffer_with("*xdisp-split-chars*", "abc"//achar(9)//"z", h, bi)
-        call layout(bi, 1_int64, 4_int64, 6, 2, rows, crow, ccol, end_pos, at_end)
+        call layout(bi, 1_int64, 4_int64, 6, 2, rows, crow, ccol, end_position, at_end)
         call check(error, row_text(rows(1)), "abc  \")
         if (allocated(error)) return
         call check(error, row_text(rows(2)), "   z")
         if (allocated(error)) return
         call check(error, crow == 0 .and. ccol == 3, "cursor on the TAB")
         call close_buffer(h, st)
-    end subroutine test_split_chars
+    end subroutine test_split_characters
 
     !> Recentering moves back by screen lines, continuation rows counted.
     subroutine test_recenter_start(error)
@@ -708,16 +709,16 @@ contains
 
         call buffer_with("*xdisp-big*", text, h, bi)
         call builtin_xterm(ti)
-        call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         ! The selected window shows the buffer.
-        call init_frame_windows(f)
+        call initialize_frame_windows(f)
         call set_window_buffer(f%selected_window, h, st)
         ! Point at the start of line 60.
-        call goto_char(line_start(60))
+        call goto_character(line_start(60))
         call redisplay_internal(f, st)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
         ! 22 text lines: point's line goes to row 22 / 2 = 11.
-        call check(error, f%cursor_vpos == 11 .and. f%cursor_hpos == 0, "cursor row")
+        call check(error, f%cursor_vertical_position == 11 .and. f%cursor_horizontal_position == 0, "cursor row")
         if (allocated(error)) return
         call check(error, row_text(f%current_matrix%rows(11)), "line 60")
         if (allocated(error)) return
@@ -771,12 +772,12 @@ contains
         call buffers(bi)%header_line_format%append("Name", align_to=2)
         call buffers(bi)%header_line_format%append("Size", "bold", align_to=10)
         call builtin_xterm(ti)
-        call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
-        call init_frame_windows(f)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
+        call initialize_frame_windows(f)
         call set_window_buffer(f%selected_window, h, st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call redisplay_internal(f, st)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
 
         steps: block
             row = row_text(f%current_matrix%rows(0))
@@ -784,7 +785,8 @@ contains
             if (allocated(error)) exit steps
             call check(error, row_text(f%current_matrix%rows(1)), "first")
             if (allocated(error)) exit steps
-            call check(error, f%cursor_vpos == 1 .and. f%cursor_hpos == 0, "cursor below the header line")
+            call check(error, f%cursor_vertical_position == 1 .and. f%cursor_horizontal_position == 0, &
+                       "cursor below the header line")
             if (allocated(error)) exit steps
             call check(error, window_body_lines(windows(f%selected_window%index)) == 21, "21 text lines")
             if (allocated(error)) exit steps
@@ -812,10 +814,10 @@ contains
 
         call buffer_with("*xdisp-echo*", "", h, bi)
         call builtin_xterm(ti)
-        call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         last_message = "a"//achar(9)//"b"//achar(1)//char(230)//char(188)//char(162)//"c"//achar(10)//"second"
         call redisplay_internal(f, st)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
         call check(error, row_text(f%current_matrix%rows(23)), "a       b^A?c")
         if (allocated(error)) return
         last_message = repeat("m", 100)
@@ -869,7 +871,7 @@ contains
     !> The whole editor on a pty: type, then C-x C-c.
     subroutine test_fortmacs_main(error)
         type(error_type), allocatable, intent(out) :: error
-        type(fortmacs_tty_type) :: old
+        type(fortmacs_terminal_type) :: old
         type(status_type) :: st
         integer(int32) :: master, slave
         character(len=4096) :: buffer
@@ -879,9 +881,9 @@ contains
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty")
         if (allocated(error)) return
-        call set_tty_size(slave, 40_int32, 8_int32, st)
+        call set_terminal_size(slave, 40_int32, 8_int32, st)
         ! Raw mode first, so C-c is not taken as an interrupt.
-        call init_sys_modes(slave, old, st)
+        call initialize_system_modes(slave, old, st)
         call fortmacs_write(master, "hi"//achar(24)//achar(3), st)
         call fortmacs_main("xterm-256color", slave, st)
         call check(error, st%ok(), "fortmacs_main: "//format_error(st))
@@ -899,7 +901,7 @@ contains
                        index(out, achar(27)//"[?1049l") > 0, "enters and leaves full screen")
         end if
 
-        call reset_sys_modes(slave, old, st)
+        call reset_system_modes(slave, old, st)
         call close_fd(slave)
         call close_fd(master)
     end subroutine test_fortmacs_main
@@ -929,10 +931,10 @@ contains
 
         call buffer_with("*xdisp-forced*", text, h, bi)
         call builtin_xterm(ti)
-        call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
-        call init_frame_windows(f)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
+        call initialize_frame_windows(f)
         call set_window_buffer(f%selected_window, h, st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         pre_redisplay_calls = 0
         scroll_calls = 0
         pre_redisplay_function => count_pre_redisplay
@@ -940,12 +942,12 @@ contains
         ! Lines of 9 characters: line 50 starts at 442.
         call set_window_start(windows(f%selected_window%index), 442_int64, st)
         call redisplay_internal(f, st)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
         call check(error, pre_redisplay_calls == 1 .and. scroll_calls == 1 .and. scroll_start == 442, "hooks")
         if (allocated(error)) return
         ! 22 text lines: point on the 11th, line 60.
         call check(error, window_start(windows(f%selected_window%index)) == 442 .and. &
-                   buffers(bi)%pt == 1 + 9*59 .and. f%cursor_vpos == 10, "point moved")
+                   buffers(bi)%point == 1 + 9*59 .and. f%cursor_vertical_position == 10, "point moved")
         if (allocated(error)) return
         call check(error, window_end(f%selected_window, st) == 1 + 9*71, "window_end")
         pre_redisplay_function => null()
@@ -964,14 +966,14 @@ contains
     end subroutine count_pre_redisplay
 
     !> A `window_scroll_functions' function that counts its calls.
-    subroutine count_scroll(window, pos, status)
+    subroutine count_scroll(window, position, status)
         type(handle_type), intent(in) :: window
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
 
         status = status_type()
         if (window%index > 0) scroll_calls = scroll_calls + 1
-        scroll_start = pos
+        scroll_start = position
     end subroutine count_scroll
 
     subroutine test_split_redisplay(error)
@@ -994,17 +996,17 @@ contains
 
         call buffer_with("*xdisp-split*", text, h, bi)
         call builtin_xterm(ti)
-        call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         ! The selected window shows the buffer.
-        call init_frame_windows(f)
+        call initialize_frame_windows(f)
         call set_window_buffer(f%selected_window, h, st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call redisplay_internal(f, st)
         top_left = f%root_window
         call split_window_internal(top_left, .false., 11, f%root_window, below, st)
         call split_window_internal(top_left, .true., 40, f%root_window, right, st)
         call redisplay_internal(f, st)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
         row = row_text(f%current_matrix%rows(0))
         call check(error, row(1:6) == "line 1" .and. row(40:40) == "|" .and. row(41:46) == "line 1", row)
         if (allocated(error)) return
@@ -1023,7 +1025,7 @@ contains
         call check(error, row(1:5) == "-UUU:" .and. index(row, "(Fundamental)") > 0, row)
         if (allocated(error)) return
         ! The cursor is in the selected (upper left) window.
-        call check(error, f%cursor_vpos == 0 .and. f%cursor_hpos == 0, "cursor")
+        call check(error, f%cursor_vertical_position == 0 .and. f%cursor_horizontal_position == 0, "cursor")
         call delete_window_tree(f%root_window)
         call delete_window_object(f%minibuffer_window)
         call close_buffer(h, st)

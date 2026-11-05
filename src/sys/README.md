@@ -18,5 +18,5 @@ Rules:
 - No `.c` files, ever.
 
 Module names follow the upstream file they serve (`sysdep.c` → `system_dependent_mod`,
-`term.c` → `terminal_output_mod`), plus small `sys_*_mod` modules for raw bindings that
+`term.c` → `terminal_output_mod`), plus small `system_*_mod` modules for raw bindings that
 have no single upstream counterpart.

@@ -43,13 +43,13 @@
 module help_functions_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, FM_USER_ERROR
-    use value_mod, only: value_type, make_list, list_elements, V_ARRAY, vtag, list_elt, xfixnum, V_NULL, V_INTEGER, V_NAME
+    use error_mod, only: status_type, set_error, format_message, USER_ERROR_CODE
+    use value_mod, only: value_type, make_list, list_elements, V_ARRAY, vtag, list_element, xfixnum, V_NULL, V_INTEGER, V_NAME
     use handle_mod, only: handle_type
-    use character_mod, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META
+    use character_mod, only: CHARACTER_ALT, CHARACTER_SUPER, CHARACTER_HYPER, CHARACTER_SHIFT, CHARACTER_CONTROL, CHARACTER_META
     use buffer_mod, only: buffers, current, current_buffer, get_or_make_buffer, set_buffer, close_buffer, &
                           generate_new_buffer_name
-    use editing_functions_mod, only: point_min, point_max, buffer_string
+    use editing_functions_mod, only: point_minimum, point_maximum, buffer_string
     use insert_delete_mod, only: insert
     use fill_mod, only: fill_region_as_paragraph
     use data_mod, only: symbol_name
@@ -58,7 +58,7 @@ module help_functions_mod
     use minibuffer_reading_mod, only: completion_obarray_table, completion_list_table
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use docstrings_mod, only: doc_entry_type, function_doc, variable_doc, function_names, variable_names
-    use help_mode_mod, only: help_setup_xref
+    use help_mode_mod, only: help_setup_cross_reference
     use help_mod, only: substitute_command_keys, with_help_window, describe_function_1_hook, documentation_hook, &
                         make_separator_line
     use data_mod, only: is_automatically_local
@@ -69,15 +69,15 @@ module help_functions_mod
     private
 
     public :: describe_function, describe_function_1, describe_variable, describe_variable_text, &
-              init_help_fns, describe_mode, describe_mode_text, describe_name, describe_name_text, &
+              initialize_help_functions, describe_mode, describe_mode_text, describe_name, describe_name_text, &
               is_function_known, is_variable_known
 
     character(len=*), parameter :: LF = achar(10)
 
     !> The modifier bits of a character event, and shift.
-    integer(int64), parameter :: M_SHIFT = int(CHAR_SHIFT, int64), &
-                                 M_MODS = int(CHAR_ALT, int64) + int(CHAR_SUPER, int64) + int(CHAR_HYPER, int64) + &
-                                 int(CHAR_SHIFT, int64) + int(CHAR_CTL, int64) + int(CHAR_META, int64)
+    integer(int64), parameter :: M_SHIFT = int(CHARACTER_SHIFT, int64), &
+                                 M_MODS = int(CHARACTER_ALT, int64) + int(CHARACTER_SUPER, int64) + int(CHARACTER_HYPER, int64) + &
+                                 int(CHARACTER_SHIFT, int64) + int(CHARACTER_CONTROL, int64) + int(CHARACTER_META, int64)
 
     !> Left and right single quotes.
     character(len=*), parameter :: LQUOTE = char(226)//char(128)//char(152), &
@@ -101,12 +101,12 @@ contains
     end function is_function_known
 
     !> Completion test for `describe_function'.  Not a port.
-    logical function is_function_name(elt)
-        type(value_type), intent(in) :: elt
+    logical function is_function_name(element)
+        type(value_type), intent(in) :: element
         character(len=:), allocatable :: name
         type(status_type) :: status
 
-        call symbol_name(elt, name, status)
+        call symbol_name(element, name, status)
         is_function_name = status%ok()
         if (is_function_name) is_function_name = is_function_known(name)
     end function is_function_name
@@ -121,7 +121,7 @@ contains
 
         head = ev
         ! A list (a character interval here): its car.
-        if (vtag(ev) == V_ARRAY) head = list_elt(ev, 1_int64)
+        if (vtag(ev) == V_ARRAY) head = list_element(ev, 1_int64)
         is_unmodified_event = .false.
 
         if (vtag(head) == V_INTEGER) then
@@ -234,21 +234,21 @@ contains
         character(len=*), intent(in) :: text
         logical, intent(in) :: nosqueeze
         character(len=:), allocatable :: filled
-        type(handle_type) :: previous, temp
+        type(handle_type) :: previous, temporary
         type(status_type) :: st
 
         filled = text
         if (len(text) == 0) return
         previous = current_buffer()
-        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, st)
         if (.not. st%ok()) return
-        call set_buffer(temp, st)
+        call set_buffer(temporary, st)
         buffers(current)%undo_enabled = .false.
         call insert(text, st)
-        call fill_region_as_paragraph(point_min(), point_max(), st, nosqueeze=nosqueeze)
+        call fill_region_as_paragraph(point_minimum(), point_maximum(), st, nosqueeze=nosqueeze)
         filled = buffer_string()
         call set_buffer(previous, st)
-        call close_buffer(temp, st)
+        call close_buffer(temporary, st)
     end function fill_text
 
     !> What describe-function says about function `name' after `lead'
@@ -325,7 +325,7 @@ contains
 
         interactive_p = .false.
         if (present(interactive)) interactive_p = interactive
-        call help_setup_xref(interactive_p, status, describe_function, function)
+        call help_setup_cross_reference(interactive_p, status, describe_function, function)
         if (.not. status%ok()) return
         call describe_function_1(function, text, function//" is ")
         call with_help_window(text, status)
@@ -405,7 +405,7 @@ contains
 
         interactive_p = .false.
         if (present(interactive)) interactive_p = interactive
-        call help_setup_xref(interactive_p, status, describe_variable, variable)
+        call help_setup_cross_reference(interactive_p, status, describe_variable, variable)
         if (.not. status%ok()) return
         call describe_variable_text(variable, text, found)
         call with_help_window(text, status)
@@ -413,7 +413,7 @@ contains
 
     !> Display the full documentation of FUNCTION (a name).
     !> Port of help-fns.el:describe-function (the command; no default).
-    recursive subroutine cmd_describe_function(status)
+    recursive subroutine execute_describe_function(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
@@ -424,16 +424,16 @@ contains
         ! help-fns--describe-function-or-command-prompt (no function at
         ! point yet)
         if (len(name) == 0) then
-            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function name"))
+            call set_error(status, USER_ERROR_CODE, format_message("You didn't specify a function name"))
             return
         end if
 
         call describe_function(name, status, interactive=.true.)
-    end subroutine cmd_describe_function
+    end subroutine execute_describe_function
 
     !> Display the full documentation of VARIABLE (a name).
     !> Port of help-fns.el:describe-variable (the command; no default).
-    recursive subroutine cmd_describe_variable(status)
+    recursive subroutine execute_describe_variable(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
         type(value_type), allocatable :: names(:)
@@ -451,12 +451,12 @@ contains
 
         ! (No variable at point yet.)
         if (len(name) == 0) then
-            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a variable"))
+            call set_error(status, USER_ERROR_CODE, format_message("You didn't specify a variable"))
             return
         end if
 
         call describe_variable(name, status, interactive=.true.)
-    end subroutine cmd_describe_variable
+    end subroutine execute_describe_variable
 
     !> Whether `name' is a variable help knows (a documented one).
     !> Not a port.
@@ -501,7 +501,7 @@ contains
         type(doc_entry_type) :: entry
         type(minor_mode_type), pointer :: m
         logical :: found
-        integer :: k, nl, ng
+        integer :: k, newline, ng
 
         major = "fundamental_mode"
         if (allocated(buffers(current)%major_mode)) major = buffers(current)%major_mode
@@ -509,7 +509,7 @@ contains
         if (allocated(buffers(current)%mode_name)) mname = buffers(current)%mode_name
         ! The enabled minor modes, local and global.
         allocate (local_modes(minor_mode_count()), global_modes(minor_mode_count()))
-        nl = 0
+        newline = 0
         ng = 0
 
         do k = 1, minor_mode_count()
@@ -520,8 +520,8 @@ contains
                 ng = ng + 1
                 global_modes(ng) = m%name
             else
-                nl = nl + 1
-                local_modes(nl) = m%name
+                newline = newline + 1
+                local_modes(newline) = m%name
             end if
         end do
 
@@ -539,7 +539,7 @@ contains
         end do
 
         text = text//LF//LF
-        call minor_modes(local_modes(1:nl), "Local")
+        call minor_modes(local_modes(1:newline), "Local")
         call minor_modes(global_modes(1:ng), "Global")
 
     contains
@@ -676,18 +676,18 @@ contains
         call describe_name_text(name, text, found)
 
         if (.not. found) then
-            call set_error(status, FM_USER_ERROR, "Unknown name: "//name)
+            call set_error(status, USER_ERROR_CODE, "Unknown name: "//name)
             return
         end if
 
         ! The item that shows the page again: the one backend's, or
         ! describe-symbol's for both.
         if (is_function_known(name) .and. is_variable_known(name)) then
-            call help_setup_xref(.false., status, describe_name, name)
+            call help_setup_cross_reference(.false., status, describe_name, name)
         else if (is_function_known(name)) then
-            call help_setup_xref(.false., status, describe_function, name)
+            call help_setup_cross_reference(.false., status, describe_function, name)
         else
-            call help_setup_xref(.false., status, describe_variable, name)
+            call help_setup_cross_reference(.false., status, describe_variable, name)
         end if
 
         if (.not. status%ok()) return
@@ -696,12 +696,12 @@ contains
 
     !> Completion test for `describe_name': a function or a
     !> variable.  Not a port.
-    logical function is_name_known(elt)
-        type(value_type), intent(in) :: elt
+    logical function is_name_known(element)
+        type(value_type), intent(in) :: element
         character(len=:), allocatable :: name
         type(status_type) :: st
 
-        call symbol_name(elt, name, st)
+        call symbol_name(element, name, st)
         is_name_known = st%ok()
         if (is_name_known) is_name_known = is_function_known(name) .or. is_variable_known(name)
     end function is_name_known
@@ -710,7 +710,7 @@ contains
     !> Will show the info of SYMBOL as a function, variable, and/or face.
     !> Port of help-fns.el:describe-symbol (the command; no default from
     !> point).
-    recursive subroutine cmd_describe_name(status)
+    recursive subroutine execute_describe_name(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
@@ -719,18 +719,18 @@ contains
         if (.not. status%ok()) return
 
         if (len(name) == 0) then
-            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function or variable"))
+            call set_error(status, USER_ERROR_CODE, format_message("You didn't specify a function or variable"))
             return
         end if
 
         call describe_name(name, status, interactive=.true.)
-    end subroutine cmd_describe_name
+    end subroutine execute_describe_name
 
     !> Display the full documentation of COMMAND (a name).  Port of
     !> help-fns.el:describe-command (with
     !> help-fns--describe-function-or-command-prompt; no default from the
     !> command history).
-    recursive subroutine cmd_describe_command(status)
+    recursive subroutine execute_describe_command(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
@@ -739,12 +739,12 @@ contains
         if (.not. status%ok()) return
 
         if (len(name) == 0) then
-            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a command's symbol"))
+            call set_error(status, USER_ERROR_CODE, format_message("You didn't specify a command's symbol"))
             return
         end if
 
         call describe_function(name, status, interactive=.true.)
-    end subroutine cmd_describe_command
+    end subroutine execute_describe_command
 
     !> Display documentation of current major mode and minor modes.
     !> A brief summary of the minor modes comes first, followed by the
@@ -756,16 +756,16 @@ contains
     !> whose documentation describes the minor mode.  Port of
     !> help-fns.el:describe-mode (the command; its layout is that of
     !> `describe_mode_outline' true).
-    subroutine cmd_describe_mode(status)
+    subroutine execute_describe_mode(status)
         type(status_type), intent(out) :: status
 
         call describe_mode(status)
-    end subroutine cmd_describe_mode
+    end subroutine execute_describe_mode
 
     !> Register the commands, intern the documented function and variable
     !> names (for completion and apropos) and install `describe_function_1' for describe-key.
     !> Not a port.
-    subroutine init_help_fns()
+    subroutine initialize_help_functions()
         type(value_type) :: s
         integer :: k
 
@@ -780,12 +780,12 @@ contains
 
         describe_function_1_hook => describe_function_1
         documentation_hook => documentation
-        commands%describe_function%execute => cmd_describe_function
-        commands%describe_variable%execute => cmd_describe_variable
-        commands%describe_mode%execute => cmd_describe_mode
-        commands%describe_name%execute => cmd_describe_name
-        commands%describe_command%execute => cmd_describe_command
-    end subroutine init_help_fns
+        commands%describe_function%execute => execute_describe_function
+        commands%describe_variable%execute => execute_describe_variable
+        commands%describe_mode%execute => execute_describe_mode
+        commands%describe_name%execute => execute_describe_name
+        commands%describe_command%execute => execute_describe_command
+    end subroutine initialize_help_functions
 
     !> The raw docstring of function NAME.  Port of doc.c:Fdocumentation
     !> (RAW t; the compiled-in docstrings).
