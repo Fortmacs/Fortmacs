@@ -50,7 +50,7 @@ module system_dependent_mod
                                 S_IFREG, c_fork, c_dup2, c_chdir, c_exit, c_pipe2, &
                                 c_waitpid, c_readlink, c_execv, c_strsignal, c_mkostemp, &
                                 O_WRONLY, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, c_mktime, c_tzset, &
-                                tm_type, c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_sync, &
+                                tm_type, c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_sync, c_fsync, &
                                 c_fchmod, c_fchmodat, c_fchown, c_getgrgid, c_setpwent, c_getpwent, c_endpwent, &
                                 c_setgrent, c_getgrent, c_endgrent, group_type, timespec_type, O_CREAT, O_EXCL, &
                                 O_TRUNC, O_APPEND, RENAME_NOREPLACE, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP, &
@@ -98,7 +98,7 @@ module system_dependent_mod
               fortmacs_statvfs
     public :: fortmacs_get_tty_pgrp, fortmacs_tty_signal_char, fortmacs_environment
     public :: fortmacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, fortmacs_umask, &
-              fortmacs_set_umask, fortmacs_sync, &
+              fortmacs_set_umask, fortmacs_sync, fortmacs_fsync, fortmacs_sleep, &
               sys_fchmod, sys_chmod_at, sys_fchown, group_name_of_gid, user_name_of_uid, system_user_names, &
               system_group_names
     public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, O_APPEND, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
@@ -147,7 +147,8 @@ module system_dependent_mod
     end type c_argv_type
 
     !> What fileio.c reads from struct stat: the file's type and permission
-    !> bits, link count, owner, size and modification time.
+    !> bits, link count, owner, size and modification time (and, for
+    !> movemail's stale locks, the change time in seconds).
     type :: file_stat_type
         integer(int32) :: mode = 0
         integer(int64) :: nlink = 0
@@ -158,6 +159,7 @@ module system_dependent_mod
         integer(int64) :: atime_sec = 0
         integer(int32) :: atime_nsec = 0
         integer(int64) :: dev = 0, ino = 0
+        integer(int64) :: ctime_sec = 0
     end type file_stat_type
 
     !> Set (to the signal number) asynchronously by the SIGWINCH handler;
@@ -879,6 +881,7 @@ contains
         st%mtime_nsec = sx%stx_mtime%tv_nsec
         st%atime_sec = sx%stx_atime%tv_sec
         st%atime_nsec = sx%stx_atime%tv_nsec
+        st%ctime_sec = sx%stx_ctime%tv_sec
         st%dev = ior(shiftl(int(sx%stx_dev_major, int64), 32), &
                      iand(int(sx%stx_dev_minor, int64), int(z'FFFFFFFF', int64)))
         st%ino = sx%stx_ino
@@ -2035,6 +2038,28 @@ contains
     subroutine fortmacs_sync()
         call c_sync()
     end subroutine fortmacs_sync
+
+    !> Wait SECONDS seconds (sleep(3), as poll(2) on no descriptors).
+    !> Not a port.
+    subroutine fortmacs_sleep(seconds)
+        integer(int32), intent(in) :: seconds
+        type(pollfd_type) :: pfd(1)
+        integer(c_int) :: r
+
+        pfd(1)%fd = -1
+        pfd(1)%events = 0
+        pfd(1)%revents = 0
+        r = c_poll(pfd, 0_c_long, int(seconds*1000, c_int))
+    end subroutine fortmacs_sleep
+
+    !> Write the data of file descriptor FD to the disk (fsync(2));
+    !> ERR is errno on failure, else 0.  Not a port.
+    integer(int32) function fortmacs_fsync(fd) result(err)
+        integer(int32), intent(in) :: fd
+
+        err = 0
+        if (c_fsync(int(fd, c_int)) /= 0) err = errno()
+    end function fortmacs_fsync
 
     !> fchmod(2).  Not a port.
     integer(int32) function sys_fchmod(fd, mode) result(err)

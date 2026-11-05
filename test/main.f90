@@ -177,6 +177,12 @@ program tester
     use test_mail_abbreviations_mod, only: collect_mail_abbreviations_mod
     use test_send_mail_mod, only: collect_send_mail_mod
     use test_smtpmail_mod, only: collect_smtpmail_mod
+    use test_movemail_mod, only: collect_movemail_mod
+    use test_rmail_mod, only: collect_rmail_mod
+    use test_rmail_keywords_mod, only: collect_rmail_keywords_mod
+    use test_rmail_edit_mod, only: collect_rmail_edit_mod
+    use test_rmail_output_mod, only: collect_rmail_output_mod
+    use test_rmail_summary_mod, only: collect_rmail_summary_mod
     use test_ansi_color_mod, only: collect_ansi_color_mod
     use test_buffer_menu_mod, only: collect_buffer_menu_mod
     use test_calendar_mod, only: collect_calendar_mod
@@ -360,7 +366,13 @@ program tester
                  new_testsuite("mail_extract_mod", collect_mail_extract_mod), &
                  new_testsuite("mail_abbreviations_mod", collect_mail_abbreviations_mod), &
                  new_testsuite("send_mail_mod", collect_send_mail_mod), &
-                 new_testsuite("smtpmail_mod", collect_smtpmail_mod) &
+                 new_testsuite("smtpmail_mod", collect_smtpmail_mod), &
+                 new_testsuite("movemail_mod", collect_movemail_mod), &
+                 new_testsuite("rmail_mod", collect_rmail_mod), &
+                 new_testsuite("rmail_keywords_mod", collect_rmail_keywords_mod), &
+                 new_testsuite("rmail_edit_mod", collect_rmail_edit_mod), &
+                 new_testsuite("rmail_output_mod", collect_rmail_output_mod), &
+                 new_testsuite("rmail_summary_mod", collect_rmail_summary_mod) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

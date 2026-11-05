@@ -151,6 +151,11 @@ module bindings_mod
     use mail_extract_mod, only: init_mail_extract
     use send_mail_mod, only: init_sendmail, mail_mode_map
     use smtpmail_mod, only: init_smtpmail
+    use rmail_mod, only: init_rmail
+    use rmail_keywords_mod, only: init_rmail_keywords
+    use rmail_edit_mod, only: init_rmail_edit
+    use rmail_output_mod, only: init_rmail_output
+    use rmail_summary_mod, only: init_rmail_summary
     use mail_abbreviations_mod, only: init_mailabbrev
     use simple_mod, only: init_simple_mail
     use modes_mod, only: minor_modes
@@ -800,6 +805,11 @@ contains
         call init_mail_extract()
         call init_sendmail()
         call init_smtpmail()
+        call init_rmail()
+        call init_rmail_keywords()
+        call init_rmail_edit()
+        call init_rmail_output()
+        call init_rmail_summary()
         call init_mailabbrev()
         call init_simple_mail()
         call bind(ctl_x_map, "m", "compose_mail")

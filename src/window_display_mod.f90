@@ -52,8 +52,8 @@ submodule(window_mod) window_display_mod
     use buffer_mod, only: current, current_buffer, set_buffer, is_buffer_live, record_buffer, bury_buffer_internal, &
                           frame_buffer_list, get_buffer, get_or_make_buffer, close_buffer, &
                           set_buffer_read_only, restore_buffer_modified, replace_buffer_in_windows_hook, &
-                          buffer_handle
-    use marker_mod, only: set_marker_restricted, copy_marker
+                          buffer_handle, buffers, reset_window_markers_hook
+    use marker_mod, only: set_marker_restricted, copy_marker, set_marker
     use frame_mod, only: selected_frame, ensure_frame_windows, selected_window, frame_list, select_frame_begin, &
                          select_frame_end, window_frame, select_frame, make_frame, get_frame, frame_type, next_frame, &
                          delete_frame
@@ -1204,6 +1204,32 @@ contains
         end do
     end subroutine replace_buffer_in_windows
 
+    module subroutine reset_window_markers(buffer)
+        type(handle_type), intent(in) :: buffer
+        type(handle_type), allocatable :: frames(:)
+        type(handle_type) :: saved
+        type(status_type) :: status
+        integer(int64) :: begv
+        integer :: k, i
+
+        if (.not. is_buffer_live(buffer)) return
+        begv = buffers(buffer%index)%begv
+        frames = frame_list()
+
+        do k = 1, size(frames)
+            call select_frame_begin(frames(k), saved)
+
+            do i = 1, size(windows)
+                if (.not. is_window_live(wtable%handle_of(int(i, int64)))) cycle
+                if (windows(i)%buffer%index /= buffer%index .or. windows(i)%buffer%generation /= buffer%generation) cycle
+                if (windows(i)%pointm%index /= 0) call set_marker(windows(i)%pointm, begv, status, buffer)
+                if (windows(i)%start%index /= 0) call set_marker(windows(i)%start, begv, status, buffer)
+            end do
+
+            call select_frame_end(saved)
+        end do
+    end subroutine reset_window_markers
+
     !> `replace_buffer_in_windows' for the windows of the selected frame.
     !> Port of window.el:replace-buffer-in-windows (its loop body).
     subroutine replace_buffer_in_frame_windows(buffer)
@@ -1751,9 +1777,7 @@ contains
         end if
     end function display_buffer_in_previous_window
 
-    !> The frame's first window (the top left one).  Port of
-    !> window.c:Fframe_first_window.
-    function frame_first_window() result(h)
+    module function frame_first_window() result(h)
         type(handle_type) :: h
         type(handle_type), allocatable :: leaves(:)
 
@@ -2983,6 +3007,7 @@ contains
 
     module subroutine init_window_display()
         replace_buffer_in_windows_hook => replace_buffer_in_windows
+        reset_window_markers_hook => reset_window_markers
         call append_locals_clearer(clear_window_sides_shown)
         commands%quit_window%execute => cmd_quit_window
         commands%bury_buffer%execute => cmd_bury_buffer

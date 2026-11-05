@@ -445,6 +445,11 @@ module buffer_mod
     !> window_mod; buffer_mod is below the windows).
     procedure(buffer_procedure), pointer, public :: replace_buffer_in_windows_hook => null()
 
+    !> Called by swap_buffer_text for each of the two buffers, to set the
+    !> markers of the windows showing it to its BEGV (window_mod's
+    !> `reset_window_markers'; buffer_mod is below the windows).
+    procedure(buffer_procedure), pointer, public :: reset_window_markers_hook => null()
+
     !> Called by close_buffer to kill the processes of the buffer being
     !> killed (process.c:kill_buffer_processes, set by process_mod).
     procedure(buffer_procedure), pointer, public :: close_buffer_processes_hook => null()
@@ -470,6 +475,18 @@ module buffer_mod
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine erase_buffer
+
+        !> Swap the text between current buffer and BUFFER.
+        !> Using this function from `save_excursion' might produce surprising
+        !> results, see Info node `(elisp)Swapping Text'.
+        !> Port of buffer.c:Fbuffer_swap_text (no indirect buffers, so none
+        !> of their checks; the caches of buffer.c are not kept).  (In
+        !> buffer_operations_mod.)
+        module subroutine swap_buffer_text(buffer, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(status_type), intent(out) :: status
+        end subroutine swap_buffer_text
 
         !> Execute `buffer_list_update_hook' unless buffer slot I inhibits
         !> buffer hooks.  Port of buffer.c:run_buffer_list_update_hook.
@@ -504,7 +521,7 @@ module buffer_mod
     public :: get_buffer, get_or_make_buffer, generate_new_buffer_name, get_file_buffer
     public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer, frame_buffer_list, exchange_frame_buffers, &
               frame_seen_buffers, frame_buried_buffers, bury_buffer_internal, frames_discard_buffer
-    public :: set_buffer, close_buffer, erase_buffer
+    public :: set_buffer, close_buffer, erase_buffer, swap_buffer_text
     public :: is_buffer_modified, restore_buffer_modified, &
               buffer_modified_tick, buffer_chars_modified_tick
     public :: barf_if_buffer_read_only, set_buffer_read_only, inhibit_read_only

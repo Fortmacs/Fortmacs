@@ -1,0 +1,57 @@
+# Step 52d (rmail.el, rmailsum.el, rmailkwd.el, rmailedit.el, movemail.c).
+# rmail is the package name and stays first, as ibuffer does (owner,
+# 2026-11-05); the other words are spelled out (owner, 2026-11-05: no
+# abbreviations in any name): msg is message, attr attribute, perm
+# permanent, msgbeg and msgend the message's beginning and end.
+name	rmail_summary_goto_msg	rmail_summary_goto_message
+name	rmail_summary_next_msg	rmail_summary_next_message
+name	rmail_summary_previous_msg	rmail_summary_previous_message
+name	rmail_summary_scroll_msg_up	rmail_summary_scroll_message_up
+name	rmail_summary_scroll_msg_down	rmail_summary_scroll_message_down
+name	rmail_summary_msg_number	rmail_summary_message_number
+name	rmail_msgbeg	rmail_message_beginning
+name	rmail_msgend	rmail_message_end
+name	rmail_get_attr_names	rmail_get_attribute_names
+name	rmail_get_attr_value	rmail_get_attribute_value
+name	rmail_perm_variables	rmail_permanent_variables
+name	rmail_answered_attr_index	rmail_answered_attribute_index
+name	rmail_deleted_attr_index	rmail_deleted_attribute_index
+name	rmail_edited_attr_index	rmail_edited_attribute_index
+name	rmail_filed_attr_index	rmail_filed_attribute_index
+name	rmail_retried_attr_index	rmail_retried_attribute_index
+name	rmail_forwarded_attr_index	rmail_forwarded_attribute_index
+name	rmail_unseen_attr_index	rmail_unseen_attribute_index
+name	rmail_resent_attr_index	rmail_resent_attribute_index
+# Predicates are is_*/has_* logical functions (CLAUDE.md; rule-decided).
+name	rmail_buffers_swapped_p	is_rmail_buffers_swapped
+name	rmail_is_text_p	is_rmail_text
+name	rmail_message_attr_p	has_rmail_message_attributes
+name	rmail_message_labels_p	has_rmail_message_labels
+name	rmail_message_unseen_p	is_rmail_message_unseen
+name	rmail_message_deleted_p	is_rmail_message_deleted
+name	rmail_set_message_deleted_p	set_rmail_message_deleted
+name	rmail_msg_is_pruned	is_rmail_message_pruned
+# Arrays have plain plural names (CLAUDE.md; rule-decided): the inbox
+# lists, and the obarray of labels (an obarray is a table of names,
+# PORTING.md's decision guide), with rmail-make-label adding to it
+# (an array grows with append_X).
+name	rmail_primary_inbox_list	rmail_primary_inboxes
+name	rmail_inbox_list	rmail_inboxes
+name	rmail_label_obarray	rmail_labels
+name	rmail_make_label	append_rmail_label
+# Prompts are read_* (CLAUDE.md; rule-decided).
+name	rmail_read_label	read_rmail_label
+# Kill by meaning (R2-Q2): a label is removed from the message, as
+# upstream's docstring says and as hooks' %remove does (rule-decided).
+name	rmail_kill_label	rmail_remove_label
+name	rmail_summary_kill_label	rmail_summary_remove_label
+# The kill-buffer hooks: a buffer is closed (R2-Q2); hooks are named for
+# what they do (rule-decided).
+name	rmail_mode_kill_summary	rmail_mode_close_summary
+name	rmail_mode_kill_buffer_hook	rmail_mode_close_buffer
+name	rmail_change_major_mode_hook	rmail_change_major_mode
+name	rmail_after_save_hook	rmail_after_save
+# An alist of header fields is a plural name (R2-Q8; rule-decided).
+name	rmail_edit_headers_alist	rmail_edit_headers
+# buffer-swap-text is verb first (R6-17; rule-decided).
+name	buffer_swap_text	swap_buffer_text

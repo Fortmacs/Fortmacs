@@ -33,7 +33,7 @@ module test_buffer_mod
     use buffer_mod, only: barf_if_buffer_read_only, beginning, buffer_chars_modified_tick, buffer_last_name, &
                           is_buffer_live, is_buffer_modified, buffer_modified_tick, buffer_name, &
                           buffers, current, current_buffer, generate_new_buffer_name, get_buffer, &
-                          get_or_make_buffer, close_buffer, modiff_incr, rename_buffer, resolve_buffer, &
+                          get_or_make_buffer, close_buffer, modiff_incr, swap_buffer_text, rename_buffer, resolve_buffer, &
                           restore_buffer_modified, set_buffer, set_buffer_read_only, buffer_enable_undo, &
                           set_buffer_modified, buffer_file_name, find_buffer, bury_buffer_internal, record_buffer
     use hooks_mod, only: buffer_list_update_hook
@@ -68,7 +68,8 @@ contains
                     new_unittest("barf-if-buffer-read-only", test_read_only), &
                     new_unittest("buffer-tests-inhibit-buffer-hooks", test_inhibit_buffer_hooks), &
                     new_unittest("buffer-list-update-hook", test_buffer_list_update_hook), &
-                    new_unittest("buffer-defuns", test_buffer_subprograms) &
+                    new_unittest("buffer-defuns", test_buffer_subprograms), &
+                    new_unittest("swap-buffer-text", test_swap_buffer_text) &
                     ]
     end subroutine collect_buffer_mod
 
@@ -450,4 +451,49 @@ contains
         call discard(h)
         if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine test_buffer_subprograms
+
+    !> Swapping texts swaps the text, point, the restriction, markers and
+    !> modification state, and leaves the names alone.  Own test of
+    !> buffer.c:Fbuffer_swap_text.
+    subroutine test_swap_buffer_text(error)
+        use insert_delete_mod, only: insert
+        use editing_functions_mod, only: buffer_string, point, goto_char, narrow_to_region, widen
+        use marker_mod, only: copy_marker_at, marker_position, marker_buffer, destroy_marker
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: a, b, m, mb
+        type(status_type) :: st
+        integer(int64) :: pos
+
+        call make("swap-a", a, error)
+        if (allocated(error)) return
+        call make("swap-b", b, error)
+        if (allocated(error)) return
+        call set_buffer(b, st)
+        call insert("bbbbbbbb", st)
+        call goto_char(3_int64)
+        call set_buffer(a, st)
+        call insert("aaaa", st)
+        call goto_char(2_int64)
+        call copy_marker_at(4_int64, m, .false., st)
+        call narrow_to_region(2_int64, 4_int64, st)
+        call swap_buffer_text(b, st)
+        call check(error, st%ok(), "swap_buffer_text")
+        if (allocated(error)) return
+        call check(error, buffer_string() == "bbbbbbbb" .and. point() == 3, "this buffer has the other text")
+        if (allocated(error)) return
+        call check(error, buffers(current)%name == "swap-a", "names stay")
+        if (allocated(error)) return
+        call marker_buffer(m, mb, st)
+        call marker_position(m, pos, st)
+        call check(error, mb%index == b%index .and. pos == 4, "the marker went with the text")
+        if (allocated(error)) return
+        call set_buffer(b, st)
+        call check(error, buffer_string() == "aa" .and. point() == 2, "the other has this text, narrowed")
+        if (allocated(error)) return
+        call widen()
+        call check(error, buffer_string() == "aaaa", "all of it")
+        call destroy_marker(m, st)
+        call discard(a)
+        call discard(b)
+    end subroutine test_swap_buffer_text
 end module test_buffer_mod

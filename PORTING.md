@@ -338,7 +338,13 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        address and full name of a header address, for the envelope
        address; docs/status/mail_extract_mod.md) — done;
        52c message.el (`message-user-agent`, the default of
-       `mail-user-agent`); then Rmail.
+       `mail-user-agent`); 52d the Rmail core: reading mbox files and
+       new mail moved from local inboxes with lock files (rmail.el,
+       movemail.c in Fortran), Rmail mode with the summary, output,
+       editing and labels (rmailsum.el, rmailout.el, rmailedit.el,
+       rmailkwd.el) — partial (MIME display (rmailmm.el), RFC 2047
+       decoding, replying and forwarding, Babyl files, remote mailboxes
+       and sorting deferred; see docs/status/rmail_mod.md).
    53. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
        HarfBuzz fonts), then Wayland.
 

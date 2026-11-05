@@ -56,11 +56,13 @@
 step 42e timefns: `visited-file-modtime` (0 for no recorded time, -1 for a file that did not exist; fileio.c's `buffer_visited_file_modtime` is in buffer_mod, below undo_mod which records it),
 `set-visited-file-modtime` with TIME-FLAG (a time value, or the flags 0 and -1, else args-out-of-range),
 `verify-visited-file-modtime` comparing time values;
-the buffer's `modtime` and the undo list's first-change entries are `time_type`s
+the buffer's `modtime` and the undo list's first-change entries are `time_type`s;
+`write-region-annotate-functions` (`write_region_annotate_functions`, a hook of functions taking BEGINNING and END, BEGINNING 0 for the whole buffer: a function that makes another buffer current has that buffer's accessible text written, with its coding system; step 52d, for Rmail)
 
 ## Deferred
 
 file name handlers,
+the annotations the functions of `write-region-annotate-functions` return, starting over with the functions of a buffer they make current, and `write-region-post-annotation-function`,
 the auto-save coding system,
 BEGINNING/END,
 APPEND as a position,
